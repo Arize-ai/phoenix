@@ -16,7 +16,11 @@ from harbor.models.job.config import JobConfig
 from harbor.models.job.lock import TaskLock
 from harbor.models.trial.config import AgentConfig, TrialConfig
 
-from phoenix.client.harbor._agent_metadata import model_params, redact_secrets
+from phoenix.client.harbor._agent_metadata import (
+    model_params,
+    redact_secrets,
+    redacted_key_paths,
+)
 
 __all__ = [
     "DatasetIdentity",
@@ -141,6 +145,7 @@ class ExperimentSlice:
             "mcp_servers": [server.name for server in agent.mcp_servers],
             "model_params": model_params(agent.kwargs),
             "kwargs": redact_secrets(agent.kwargs),
+            "redacted_kwargs": redacted_key_paths(agent.kwargs),
             "env_keys": sorted(agent.env),
             "override_timeout_sec": agent.override_timeout_sec,
             "override_setup_timeout_sec": agent.override_setup_timeout_sec,

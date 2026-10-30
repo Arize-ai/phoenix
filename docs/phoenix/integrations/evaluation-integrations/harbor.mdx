@@ -135,6 +135,7 @@ Each experiment's metadata describes the Harbor job and the agent configuration,
 | `mcp_servers` | list of strings | The names of the MCP servers given to the agent. |
 | `model_params` | object | The model parameters set in the agent kwargs, such as `temperature` or `max_tokens`. Unset parameters are omitted. |
 | `kwargs` | object | All agent kwargs, with secret-named keys removed. |
+| `redacted_kwargs` | list of strings | The dotted paths of the kwargs that were removed, such as `llm_kwargs.extra_headers`. Values are never recorded. |
 | `env_keys` | list of strings | The names of the agent environment variables. Values are never recorded. |
 | `override_timeout_sec` | number or null | The agent timeout override. |
 | `override_setup_timeout_sec` | number or null | The agent setup timeout override. |
@@ -145,7 +146,7 @@ Each experiment's metadata describes the Harbor job and the agent configuration,
 
 `model_params` collects these keys: `temperature`, `top_p`, `top_k`, `max_tokens`, `max_output_tokens`, `max_completion_tokens`, `max_thinking_tokens`, `reasoning_effort`, `seed`, `frequency_penalty`, `presence_penalty`, and `stop`. The plugin reads each one from the top-level agent kwargs first, then from `llm_kwargs`, and then from `llm_call_kwargs`. For example, `--agent-kwarg temperature=0.2` is recorded as `harbor_agent.model_params.temperature`.
 
-The plugin drops any kwarg whose name contains a word such as `key`, `token`, `secret`, `password`, `auth`, `credential`, `cookie`, `header`, or `env`, at any nesting depth. It also strips credentials embedded in URLs and replaces the values of secret-named URL query parameters with `REDACTED`. Count fields such as `max_tokens` are kept.
+The plugin drops any kwarg whose name contains a word such as `key`, `token`, `secret`, `password`, `auth`, `credential`, `cookie`, `header`, `signature`, or `env`, at any nesting depth, and lists its path in `redacted_kwargs`. This list isn't exhaustive, and it deliberately over-matches, so a setting such as `collect_token_ids` is dropped too. Count fields such as `max_tokens` are kept. The plugin also strips credentials embedded in URLs and replaces the values of secret-named URL query parameters with `REDACTED`. Dataclasses and Pydantic models are redacted field by field, and other objects are recorded as their type name.
 
 <Warning>
 The plugin matches secrets by name. A credential stored under a neutral name, such as an `extra_body` field that holds a bearer token, is recorded. Pass credentials through the agent environment instead of agent kwargs.

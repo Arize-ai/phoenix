@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -17,6 +18,7 @@ pytest.importorskip("harbor", reason="Harbor requires Python >=3.12 and <3.15")
 from harbor.models.job.config import DatasetConfig, JobConfig
 from harbor.models.job.lock import TaskLock
 from harbor.models.trial.config import AgentConfig, TaskConfig, TrialConfig
+from pydantic import BaseModel
 
 from phoenix.client.harbor._adapter import (
     MINIMUM_HARBOR_VERSION,
@@ -30,6 +32,7 @@ from phoenix.client.harbor._adapter import (
     _resolve_dataset_identity,  # pyright: ignore[reportPrivateUsage]
     _validate_job_shape,  # pyright: ignore[reportPrivateUsage]
 )
+from phoenix.client.harbor._agent_metadata import redact_secrets
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import TaskRecord
 
@@ -158,8 +161,8 @@ class TestSlices:
                     kwargs={
                         "temperature": 0.2,
                         "max_turns": 30,
-                        "llm_kwargs": {"max_tokens": 4096, "temperature": 0.9},
-                        "llm_call_kwargs": {"seed": 7},
+                        "llm_kwargs": {"max_tokens": 4096, "temperature": 0.9, "seed": 7},
+                        "llm_call_kwargs": {"seed": 8, "top_p": 0.5},
                         "model_info": {"path": Path("/models/info.json")},
                     },
                     env={"OPENAI_BASE_URL": "http://proxy"},
@@ -172,8 +175,15 @@ class TestSlices:
         described = experiment_slice.describe()
 
         assert json.loads(json.dumps(described)) == described
-        assert described["model_params"] == {"temperature": 0.2, "max_tokens": 4096, "seed": 7}
+        assert described["model_params"] == {
+            "temperature": 0.2,
+            "max_tokens": 4096,
+            "seed": 7,
+            "top_p": 0.5,
+        }
         assert described["kwargs"]["max_turns"] == 30
+        assert described["kwargs"]["llm_kwargs"]["max_tokens"] == 4096
+        assert described["redacted_kwargs"] == []
         assert described["kwargs"]["model_info"] == {"path": "/models/info.json"}
         assert described["env_keys"] == ["OPENAI_BASE_URL"]
         assert described["max_timeout_sec"] == 600.0
@@ -189,6 +199,16 @@ class TestSlices:
 
     def test_credentials_in_agent_config_never_reach_metadata(self) -> None:
         credential = "sk-live-credential-value"
+
+        class ClientConfig(BaseModel):
+            region: str
+            api_key: str
+
+        @dataclass
+        class Login:
+            user: str
+            password: str
+
         (experiment_slice,) = _build_slices(
             [
                 agent(
@@ -196,12 +216,29 @@ class TestSlices:
                         "api_key": credential,
                         "apiKey": credential,
                         "OpenAIKey": credential,
+                        "api_keys": [credential],
+                        "tokens": [credential],
+                        "passwords": [credential],
+                        "accesstoken": credential,
+                        "secretkey": credential,
+                        "pwd": credential,
+                        "passphrase": credential,
+                        "jwt": credential,
+                        "dsn": credential,
                         "proxy_url": f"https://proxy.example.com/v1?region=us&api_key={credential}",
+                        "blob_url": f"https://store.example.com/b?sv=1&sig={credential}",
+                        "s3_url": f"https://s3.example.com/o?X-Amz-Signature={credential}",
                         "access_token": credential,
                         "client_secret": credential,
                         "password": credential,
                         "api_base": f"https://user:{credential}@proxy.example.com/v1",
+                        "db_url": f"postgres://user:p@ss{credential}@db.example.com/app",
+                        "mirror_url": f"https://user:pa/ss{credential}@mirror.example.com/x",
                         "extra_env": {"ANTHROPIC_API_KEY": credential},
+                        "client": ClientConfig(region="us", api_key=credential),
+                        "login": Login(user="me", password=credential),
+                        "raw": credential.encode(),
+                        "stop": [f"https://user:{credential}@stop.example.com"],
                         "llm_kwargs": {
                             "max_tokens": 1024,
                             "extra_headers": {"X-Custom": credential},
@@ -211,20 +248,60 @@ class TestSlices:
                     },
                     env={"OPENAI_API_KEY": credential},
                     skills=[f"https://{credential}@github.com/org/skills.git"],
+                    load_trajectory=f"https://user:{credential}@traces.example.com/t.json",
                 )
             ]
         )
         described = experiment_slice.describe()
+        kwargs = described["kwargs"]
 
         assert credential not in json.dumps(described)
-        assert described["model_params"] == {"max_tokens": 1024}
-        assert described["kwargs"]["api_base"] == "https://proxy.example.com/v1"
-        assert (
-            described["kwargs"]["proxy_url"]
-            == "https://proxy.example.com/v1?region=us&api_key=REDACTED"
-        )
-        assert described["kwargs"]["tools"] == [{"name": "search"}]
+        assert described["model_params"] == {
+            "max_tokens": 1024,
+            "stop": ["https://stop.example.com"],
+        }
+        assert kwargs["llm_kwargs"] == {"max_tokens": 1024}
+        assert kwargs["api_base"] == "https://proxy.example.com/v1"
+        assert kwargs["db_url"] == "postgres://db.example.com/app"
+        assert kwargs["mirror_url"] == "https://mirror.example.com/x"
+        assert kwargs["proxy_url"] == "https://proxy.example.com/v1?region=us&api_key=REDACTED"
+        assert kwargs["blob_url"] == "https://store.example.com/b?sv=1&sig=REDACTED"
+        assert kwargs["s3_url"] == "https://s3.example.com/o?X-Amz-Signature=REDACTED"
+        assert kwargs["client"] == {"region": "us"}
+        assert kwargs["login"] == {"user": "me"}
+        assert kwargs["raw"] == "bytes"
+        assert kwargs["tools"] == [{"name": "search"}]
+        assert described["load_trajectory"] == "https://traces.example.com/t.json"
+        assert described["skills"] == ["https://github.com/org/skills.git"]
         assert described["env_keys"] == ["OPENAI_API_KEY"]
+        assert {
+            "api_keys",
+            "client.api_key",
+            "login.password",
+            "llm_kwargs.extra_headers",
+            "tools.0.auth_token",
+        } <= set(described["redacted_kwargs"])
+
+    def test_unknown_objects_are_recorded_by_type_name(self) -> None:
+        class Opaque:
+            def __repr__(self) -> str:
+                return "api_key=sk-live-credential-value"
+
+        assert redact_secrets({"client": Opaque()}) == {"client": "Opaque"}
+
+    @pytest.mark.parametrize(
+        "key",
+        ["max_tokens", "max_thinking_tokens", "thinking_budget_tokens", "top_k", "max_turns"],
+    )
+    def test_count_and_sampling_keys_are_not_secrets(self, key: str) -> None:
+        (experiment_slice,) = _build_slices([agent(kwargs={key: 1})])
+        assert experiment_slice.describe()["kwargs"] == {key: 1}
+
+    def test_dropped_setting_names_stay_visible(self) -> None:
+        (experiment_slice,) = _build_slices([agent(kwargs={"collect_token_ids": True})])
+        described = experiment_slice.describe()
+        assert described["kwargs"] == {}
+        assert described["redacted_kwargs"] == ["collect_token_ids"]
 
     def test_duplicate_agent_configurations_are_rejected(self) -> None:
         with pytest.raises(HarborPluginError, match="Duplicate agent configuration"):
