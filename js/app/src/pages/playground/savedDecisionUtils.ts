@@ -93,6 +93,78 @@ export type SavedDecisionVersion = {
   >;
 };
 
+/** A decision question as GraphQL returns it on a version or task config. */
+export type FetchedDecisionQuestion =
+  | {
+      readonly __typename: "DecisionPredicateQuestion";
+      readonly name: string;
+      readonly instructions: string;
+      readonly criteria: {
+        readonly true: string | null;
+        readonly false: string | null;
+      } | null;
+    }
+  | {
+      readonly __typename: "DecisionChoiceQuestion";
+      readonly name: string;
+      readonly instructions: string;
+      readonly choices: ReadonlyArray<{
+        readonly value: string;
+        readonly description: string | null;
+      }>;
+    }
+  | {
+      readonly __typename: "DecisionScaleQuestion";
+      readonly name: string;
+      readonly instructions: string;
+      readonly levels: ReadonlyArray<{
+        readonly label: string;
+        readonly description: string | null;
+      }>;
+    }
+  | { readonly __typename: "%other" };
+
+/** GraphQL decision questions in the shape the draft conversion reads. */
+export function toSavedDecisionQuestions(
+  questions: ReadonlyArray<FetchedDecisionQuestion>
+): SavedDecisionVersion["questions"][number][] {
+  return questions.flatMap(
+    (question): SavedDecisionVersion["questions"][number][] => {
+      switch (question.__typename) {
+        case "DecisionPredicateQuestion":
+          return [
+            {
+              kind: "predicate",
+              name: question.name,
+              instructions: question.instructions,
+              criteria: question.criteria ?? null,
+            },
+          ];
+        case "DecisionChoiceQuestion":
+          return [
+            {
+              kind: "choice",
+              name: question.name,
+              instructions: question.instructions,
+              choices: question.choices,
+            },
+          ];
+        case "DecisionScaleQuestion":
+          return [
+            {
+              kind: "scale",
+              name: question.name,
+              instructions: question.instructions,
+              levels: question.levels,
+            },
+          ];
+        default:
+          return [];
+      }
+    }
+  );
+}
+
 const TEMPLATE_FORMAT_LABELS: Record<TemplateFormat, string> = {
   MUSTACHE: "Mustache",
   F_STRING: "F-String",
@@ -144,7 +216,7 @@ function toDraftState({
   }
 }
 
-function toDraftQuestion(
+export function toDraftQuestion(
   question: SavedDecisionVersion["questions"][number]
 ): DecisionQuestionDraft {
   switch (question.kind) {
