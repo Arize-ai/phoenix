@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getRemovedUserMessageText } from "@phoenix/agent/chat/removedUserMessageText";
+import {
+  isSessionSelfCancellationGraceActive,
+  SESSION_CANCELLATION_GRACE_MS,
+} from "@phoenix/agent/chat/sessionCancellation";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import { createAgentStore } from "@phoenix/store/agentStore";
 
 import { getCompactionBlockedReason } from "../useAgentChat";
 
@@ -78,5 +83,58 @@ describe("getCompactionBlockedReason", () => {
         isBusyElsewhere: true,
       })
     ).toBe("Wait for the current response to finish and try again.");
+  });
+});
+
+describe("isSessionSelfCancellationGraceActive", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns true immediately after a local cancellation", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-26T06:00:00.000Z"));
+
+    const store = createAgentStore();
+    store.getState().markSessionLocallyCancelled("session-1");
+
+    expect(isSessionSelfCancellationGraceActive(store, "session-1")).toBe(true);
+
+    expect(
+      typeof store.getState().locallyCancelledSessionAtBySessionId["session-1"]
+    ).toBe("number");
+  });
+
+  it("expires and clears the cancellation marker after the grace period", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-26T06:00:00.000Z"));
+
+    const store = createAgentStore();
+    store.getState().markSessionLocallyCancelled("session-1");
+
+    // Advance beyond the configured cancellation grace period.
+    vi.advanceTimersByTime(SESSION_CANCELLATION_GRACE_MS + 1_000);
+
+    expect(isSessionSelfCancellationGraceActive(store, "session-1")).toBe(
+      false
+    );
+
+    expect(
+      store.getState().locallyCancelledSessionAtBySessionId["session-1"]
+    ).toBeUndefined();
+  });
+
+  it("keeps cancellation markers isolated between sessions", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-26T06:00:00.000Z"));
+
+    const store = createAgentStore();
+    store.getState().markSessionLocallyCancelled("session-1");
+
+    expect(isSessionSelfCancellationGraceActive(store, "session-2")).toBe(
+      false
+    );
+
+    expect(isSessionSelfCancellationGraceActive(store, "session-1")).toBe(true);
   });
 });
