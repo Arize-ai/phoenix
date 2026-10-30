@@ -40,3 +40,19 @@ def test_unusable_expressions_are_reported_as_client_errors(condition: str) -> N
 
 def test_usable_expressions_compile() -> None:
     assert get_filtered_session_rowids_subquery("num_traces >= 2", project_rowids=[1]) is not None
+
+
+def test_index_error_from_the_compiler_reads_as_an_invalid_condition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An IndexError inside the shared compile step reaches the caller as a bad request
+    carrying the compiler's own wording, not the exception class and index detail."""
+
+    def raise_index_error(*args: object, **kwargs: object) -> None:
+        raise IndexError("list index out of range")
+
+    monkeypatch.setattr("phoenix.trace.dsl.filter._validate_semantics", raise_index_error)
+    with pytest.raises(SessionFilterConditionError) as exc_info:
+        compile_session_filter("num_traces >= 2")
+    assert isinstance(exc_info.value, BadRequest)
+    assert str(exc_info.value) == "invalid filter condition"
