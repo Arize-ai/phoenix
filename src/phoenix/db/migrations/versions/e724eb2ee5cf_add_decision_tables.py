@@ -276,10 +276,6 @@ def upgrade() -> None:
             onupdate=sa.func.now(),
         ),
     )
-    op.add_column(
-        "experiment_jobs",
-        sa.Column("decision_evaluator_snapshots", JSON, nullable=False, server_default="[]"),
-    )
 
 
 def downgrade() -> None:
@@ -290,15 +286,6 @@ def downgrade() -> None:
     for table, column in (("evaluators", "kind"), ("experiment_evaluator_tasks", "evaluator_kind")):
         if connection.scalar(sa.text(f"SELECT COUNT(*) FROM {table} WHERE {column} = 'DECISION'")):
             raise ValueError("Cannot downgrade while decision evaluators exist")
-    if connection.scalar(
-        sa.text(
-            # PostgreSQL's json type has no equality operator, so compare its text.
-            "SELECT COUNT(*) FROM experiment_jobs "
-            "WHERE CAST(decision_evaluator_snapshots AS TEXT) != '[]'"
-        )
-    ):
-        raise ValueError("Cannot downgrade while decision evaluator snapshots exist")
-    op.drop_column("experiment_jobs", "decision_evaluator_snapshots")
     op.drop_table("decision_evaluators")
     _set_kinds(False)
     op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
