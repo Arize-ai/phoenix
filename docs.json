@@ -498,6 +498,12 @@
               "docs/phoenix/learn/code-checks",
               "docs/phoenix/learn/llm-judge"
             ]
+          },
+          {
+            "group": "Test a change",
+            "pages": [
+              "docs/phoenix/learn/playground-evals"
+            ]
           }
         ]
       },

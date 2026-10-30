@@ -42,6 +42,8 @@
 
 - [Write and validate an LLM judge](https://arize.com/docs/phoenix/learn/llm-judge): Apply a budget rubric, compare judge decisions with independent reviews, and inspect disagreements in Phoenix experiments
 
+- [Compare prompt changes in Playground](https://arize.com/docs/phoenix/learn/playground-evals): Replay a captured model step and test one prompt change.
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config

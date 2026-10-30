@@ -1,0 +1,84 @@
+---
+title: "Compare prompt changes in Playground"
+description: "Replay a model step, change one instruction, and decide what to test with the complete agent."
+---
+
+{/* video: TODO */}
+
+In one recorded run, a shopper asked for toys under \$25, but the [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) shopping assistant agent recommended a \$27.99 kit. Could a clearer budget instruction help it follow the shopper's limit?
+
+In [Phoenix Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground), you can edit a model's instructions and compare its responses. You'll try a clearer budget instruction on the same model input to see whether it's worth testing with the complete agent.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-playground-light-69c57e7f8b6a.svg" alt="Replay one model step with the captured messages and search results. Compare the original prompt with a budget instruction, then test the full agent." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-playground-dark-7428bb1df361.svg" alt="Replay one model step with the captured messages and search results. Compare the original prompt with a budget instruction, then test the full agent." />
+</Frame>
+
+## Before you start
+
+Open a Wonder Toys trace from [Read model, retrieval, and tool steps](/docs/phoenix/learn/read-agent-run). Use a run where the model has already received search results. Your answer may differ from the recorded example.
+
+## Step 1: Load a model call
+
+Start with the model call that received the search results:
+
+- In your trace, select the **ChatAnthropic** span after `search-products`.
+- Open **Input** and check that it includes the returned products.
+- At the top right of the selected span, use the play button labeled **Prompt Playground** to open that model call in Playground.
+
+<Frame caption="The pointer shows the Playground button on the selected model span, then the captured call opening in Playground.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-playground-open-44cb6d750ee2.gif" alt="Light-mode animation highlighting the Prompt Playground button on a selected ChatAnthropic span and opening the captured model call in Playground." />
+</Frame>
+
+Once Playground opens:
+
+- Check that the system message, shopper request, tool result, model, and tools are present.
+- Use the **API Keys** menu to [configure your model provider](/docs/phoenix/prompt-engineering/how-to-prompts/configure-ai-providers). The Wonder Toys app's key isn't automatically shared with Playground.
+
+The output initially shows the recorded answer. You'll run a new comparison in Step 3.
+
+## Step 2: Add one prompt change
+
+For this exercise, test whether an explicit budget instruction changes the response:
+
+- Click **Compare** to duplicate the prompt.
+- Keep **A** unchanged.
+- Add the instruction below at the end of **B**'s system message.
+
+<Frame caption="Click Compare to create B beside A, then edit B's System message on the right.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-playground-compare-7646fe1cb4ca.gif" alt="Light-mode animation highlighting Compare, creating prompt B beside A, and pointing to B's System message editor." />
+</Frame>
+
+```text wrap
+Respect the shopper's stated budget. Recommend only products whose returned prices meet that limit. If no matching product fits, say so and ask whether the shopper wants to change the search. Do not recommend a more expensive product unless the shopper agrees to a new budget.
+```
+
+Leave the model, parameters, shopper request, and search results the same. This helps you assess the instruction without mixing it with other changes.
+
+## Step 3: Run and compare the responses
+
+Click **Run** to get a new response from both versions. **A** uses the original instructions; **B** includes your added budget rule. Compare their responses to the same shopper request and search results:
+
+- Does it recommend a product outside the limit?
+- If no product fits, does it explain that clearly?
+- Is it answering the shopper or requesting another tool call?
+
+<Frame caption="Playground shows the two variants side by side. A replay may return an answer or a request to call a tool.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-playground-comparison-b6bb21bded3d.png" alt="Phoenix Playground comparing the original Wonder Toys prompt with a budget instruction on the same captured model input." />
+</Frame>
+
+If an output requests a tool call, you haven't seen its final answer yet. Playground displays the request but doesn't execute Wonder Toys' application tools. You'll test that complete sequence in the next lesson.
+
+## Step 4: Decide what to test next
+
+You've tested a possible change, so use the responses to decide what to do next:
+
+- **B follows the budget where A didn't:** Keep the instruction as a candidate for a full-agent test.
+- **B has the same problem or introduces another:** Revise the instruction and compare again before testing it further.
+- **B requests another tool call:** Test it with the complete agent to see whether that call leads to a suitable answer.
+
+For example, if A recommended an over-budget toy and B ruled it out, the new instruction helped on this request. If B requested another tool call, you still need to see the final answer before deciding whether it helped.
+
+A better response here is evidence for one model input. The replay hasn't updated the running Wonder Toys agent or established that the change helps other requests.
+
+If you want to test the instruction further, save it in [`academy/evaluations/prompts/budget-rule.txt`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/prompts/budget-rule.txt) in your local checkout. Then continue to Run a Phoenix dataset experiment, which reads that file and compares both agent versions across the same requests.
