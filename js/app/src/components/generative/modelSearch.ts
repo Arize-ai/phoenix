@@ -192,6 +192,23 @@ export function getProviderCredentialState(
 }
 
 /**
+ * A built-in provider's credential state from the `needsCredentials` flag
+ * `useModelMenuData` sets for the surface's credential source, so
+ * browser-local keys count where the surface sends them (the playground).
+ */
+export function getProviderCredentialStateFromNeeds(provider: {
+  key: string;
+  needsCredentials?: boolean;
+}): ModelCredentialState {
+  if (!provider.needsCredentials) {
+    return "ready";
+  }
+  return providerSupportsDefaultCredentialChain({ providerKey: provider.key })
+    ? "may-work"
+    : "no-key";
+}
+
+/**
  * Every provider a picker can pick from: built-in providers with their server
  * dependencies installed (in the given order), then custom providers.
  *
@@ -760,6 +777,53 @@ export function rankModels({
     ({ matchTier }) => matchTier >= MATCH_TIER.providerWord
   ).length;
   return scored.slice(0, providerMatchCount + limit).map(({ row }) => row);
+}
+
+/** One provider's matches in {@link searchModelsByProvider}. */
+export type ModelProviderSearchSection = {
+  provider: ModelProviderOption;
+  rows: ModelCatalogRow[];
+};
+
+/**
+ * {@link rankModels} for pickers that list matches under their provider, as
+ * the playground's `ModelMenu` does: every match (uncapped), grouped by
+ * provider with custom providers first, then built-in providers, each in the
+ * given order, and ranked within a provider. Providers without a match are
+ * left out. An empty query returns nothing.
+ *
+ * @param params - inputs
+ * @param params.rows - the catalog from {@link buildModelCatalog}
+ * @param params.providers - from {@link buildModelProviderOptions}
+ * @param params.query - the search text
+ */
+export function searchModelsByProvider({
+  rows,
+  providers,
+  query,
+}: {
+  rows: readonly ModelCatalogRow[];
+  providers: readonly ModelProviderOption[];
+  query: string;
+}): ModelProviderSearchSection[] {
+  const rowsByProviderKey = new Map<string, ModelCatalogRow[]>();
+  for (const row of rankModels({ rows, query, limit: Infinity })) {
+    const providerKey = getModelProviderKey({
+      provider: row.provider,
+      customProviderId: row.customProvider?.id,
+    });
+    rowsByProviderKey.set(providerKey, [
+      ...(rowsByProviderKey.get(providerKey) ?? []),
+      row,
+    ]);
+  }
+  return [
+    ...providers.filter((provider) => provider.customProvider != null),
+    ...providers.filter((provider) => provider.customProvider == null),
+  ].flatMap((provider) => {
+    const providerRows = rowsByProviderKey.get(provider.key);
+    return providerRows ? [{ provider, rows: providerRows }] : [];
+  });
 }
 
 /**

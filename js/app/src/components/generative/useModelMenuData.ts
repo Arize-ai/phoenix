@@ -80,7 +80,10 @@ type CatalogModel = {
 
 // Stable empty catalog so an omitted decision list does not invalidate the
 // memoized grouping on every render.
-const NO_CATALOG_MODELS: readonly CatalogModel[] = [];
+const NO_CATALOG_MODELS: readonly {
+  readonly name: string;
+  readonly providerKey: GenerativeProviderKey;
+}[] = [];
 
 export function getModelsByProvider(
   playgroundModels: readonly CatalogModel[]
@@ -378,6 +381,8 @@ export function useModelMenuData({
 
   return {
     availableBuiltinModels,
+    /** The built-in models of the selected model type, in server order */
+    catalogModels,
     chatModelProviders,
     availableCustomModels,
     customProviders,
