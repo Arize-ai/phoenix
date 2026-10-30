@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix คือแพลตฟอร์ม AI observability แบบโ
 
 Phoenix ไม่ผูกติดกับผู้ให้บริการหรือภาษาใด และรองรับเฟรมเวิร์กยอดนิยมได้ทันที ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) รวมถึงผู้ให้บริการ LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) และอื่น ๆ) ดูรายละเอียดเกี่ยวกับ auto-instrumentation ได้ที่โปรเจกต์ [OpenInference](https://github.com/Arize-ai/openinference)
 
-Phoenix ทำงานได้แทบทุกที่ ไม่ว่าจะเป็นเครื่องของคุณเอง การ deploy แบบคอนเทนเนอร์ หรือบนคลาวด์ ดู [สภาพแวดล้อม (Environments)](https://arize.com/docs/phoenix/environments) สำหรับคำแนะนำแต่ละตัวเลือก หรือเริ่มต้นทันทีด้วย [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing)
+Phoenix ทำงานได้แทบทุกที่ ไม่ว่าจะเป็นเครื่องของคุณเอง การ deploy แบบคอนเทนเนอร์ หรือบนคลาวด์ ดู [สภาพแวดล้อม (Environments)](https://arize.com/docs/phoenix/self-hosting) สำหรับคำแนะนำแต่ละตัวเลือก หรือเริ่มต้นทันทีด้วย [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing)
 
 > [!NOTE]
 > Phoenix เป็นโอเพนซอร์สและโฮสต์ด้วยตนเอง (self-hosted) สำหรับแพลตฟอร์มแบบมีการจัดการ Arize มี [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-th) ให้บริการ — instrumentation ของ OpenTelemetry/OpenInference ชุดเดียวกันใช้ได้กับทั้งสองแบบ ดู[การเปรียบเทียบฉบับเต็ม](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)

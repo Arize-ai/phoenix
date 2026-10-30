@@ -5,7 +5,6 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # Tools
-TOX := tox
 PNPM := pnpm
 UV := $(CURDIR)/scripts/uv.sh
 UV_BIN := uv
@@ -143,8 +142,6 @@ check-tools: ## Verify required tools are installed
 	@echo -e "$(GREEN)✓$(NC) uv found: $$($(UV) --version)"
 	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) pnpm found: $$($(PNPM) --version)"
-	@command -v $(TOX) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: tox is not installed. Run: pip install tox$(NC)"; exit 1; }
-	@echo -e "$(GREEN)✓$(NC) tox found: $$($(TOX) --version)"
 	@command -v $(NODE) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: node is not installed. Install from https://nodejs.org$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) node found: $$($(NODE) --version)"
 	@command -v dekit >/dev/null 2>&1 && echo -e "$(GREEN)✓$(NC) dekit found: $$(dekit --version)" || echo -e "$(YELLOW)WARNING: dekit is not installed (needed by make dev). Run: curl -fsSL https://dekit.run/install.sh | sh$(NC)"
@@ -294,9 +291,9 @@ test-integration-docs: ## Run configured integration docs against a running Phoe
 
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
-	@$(TOX) run -q -e unit_tests -- -n auto
+	@$(UV) run --all-packages pytest -q -n auto tests/unit
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
-	@$(TOX) run -q -e integration_tests
+	@$(UV) run pytest -q tests/integration
 
 # Run doctests across all modules under src/ by default; override on the command
 # line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.

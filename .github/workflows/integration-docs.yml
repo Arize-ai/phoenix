@@ -3,6 +3,15 @@ name: Integration Docs
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    # Superset of what classify_changes.py routes. Keep the snippet list in
+    # sync with SHARED_DOC_SCOPES so unrelated PRs never start this workflow.
+    paths:
+      - "docs/phoenix/integrations/**"
+      - "docs/snippets/register-tracer-python.mdx"
+      - "scripts/testing/integration_docs/**"
+      - "!scripts/testing/integration_docs/**/*.md"
+      - ".agents/skills/test-integration/scripts/**"
+      - ".github/workflows/integration-docs.yml"
   schedule:
     - cron: "0 9 * * 1"
   workflow_dispatch:
@@ -59,6 +68,10 @@ jobs:
     env:
       OPENAI_API_KEY: ${{ secrets.DOCS_OPENAI_API_KEY }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.DOCS_GEMINI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.DOCS_GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
     steps:
       - name: Check out repository
@@ -218,7 +231,7 @@ jobs:
 
   aggregate:
     name: Aggregate integration docs results
-    if: always() && needs.classify.result == 'success'
+    if: always() && needs.classify.result == 'success' && needs.classify.outputs.run_mode != 'none'
     needs: [classify, check-shard]
     runs-on: ubuntu-latest
     permissions:
@@ -254,8 +267,10 @@ jobs:
       - name: Add aggregate report to job summary
         if: always()
         run: cat ci-results/integration-docs/integration-docs.md >> "${GITHUB_STEP_SUMMARY}"
+      # Fork PRs get a read-only token, so commenting would fail the run. Their
+      # report stays in the job summary.
       - name: Comment on pull request
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
@@ -266,10 +281,15 @@ jobs:
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
-            for (const comment of comments.filter(({ body }) => body?.includes(marker))) {
-              await github.rest.issues.deleteComment({ owner, repo, comment_id: comment.id });
+            // Edit the existing report in place; a new comment per push notifies everyone again.
+            const existing = comments.find(
+              ({ body, user }) => user?.login === 'github-actions[bot]' && body?.includes(marker),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
-            await github.rest.issues.createComment({ owner, repo, issue_number, body });
       - name: Upload aggregate report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

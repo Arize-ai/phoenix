@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix este platforma open-source de observabilitate AI a Arize, conceput
 
 Phoenix este independent de furnizor și de limbaj, cu suport nativ pentru framework-uri populare ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) și furnizori de LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) și alții). Pentru detalii despre auto-instrumentare, consultați proiectul [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix rulează practic oriunde, inclusiv pe mașina dumneavoastră locală, într-o implementare containerizată sau în cloud. Consultați [Medii](https://arize.com/docs/phoenix/environments) pentru o prezentare a fiecărei opțiuni sau treceți direct la [Ghidul rapid de tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix rulează practic oriunde, inclusiv pe mașina dumneavoastră locală, într-o implementare containerizată sau în cloud. Consultați [Medii](https://arize.com/docs/phoenix/self-hosting) pentru o prezentare a fiecărei opțiuni sau treceți direct la [Ghidul rapid de tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > Phoenix este open-source și găzduit de dumneavoastră (self-hosted). Pentru o platformă gestionată, Arize oferă [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ro) — aceeași instrumentare OpenTelemetry/OpenInference funcționează cu ambele. Consultați [comparația completă](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).

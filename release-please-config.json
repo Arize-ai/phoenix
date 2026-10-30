@@ -25,7 +25,6 @@
               "requirements",
               "scripts",
               "tests",
-              "tox.ini",
               "tutorials",
               "uv.lock"
             ]

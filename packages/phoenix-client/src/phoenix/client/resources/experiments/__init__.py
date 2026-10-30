@@ -158,7 +158,7 @@ class _NoOpProcessor(trace_sdk.SpanProcessor):
 
 @dataclass(frozen=True)
 class _TracerBundle:
-    tracer: Tracer
+    tracer: OITracer
     resource: Resource
     provider: Any
 
@@ -286,7 +286,7 @@ def _get_tracer(
     project_name: Optional[str] = None,
     base_url: Optional[str] = None,
     headers: Optional[dict[str, str]] = None,
-) -> tuple[Tracer, Resource]:
+) -> tuple[OITracer, Resource]:
     bundle = _get_tracer_bundle(project_name, base_url, headers)
     return bundle.tracer, bundle.resource
 
@@ -1793,7 +1793,7 @@ class Experiments:
         task: ExperimentTask,
         task_signature: inspect.Signature,
         experiment: Experiment,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         root_span_name: str,
         dry_run: Union[bool, int],
@@ -1941,7 +1941,7 @@ class Experiments:
     def _run_evaluations(
         self,
         evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]],
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
@@ -2009,7 +2009,7 @@ class Experiments:
         example: v1.DatasetExample,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
@@ -3650,7 +3650,7 @@ class AsyncExperiments:
         task: ExperimentTask,
         task_signature: inspect.Signature,
         experiment: Experiment,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         root_span_name: str,
         dry_run: Union[bool, int],
@@ -3795,7 +3795,7 @@ class AsyncExperiments:
     async def _run_evaluations(
         self,
         evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]],
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
@@ -3868,7 +3868,7 @@ class AsyncExperiments:
         example: v1.DatasetExample,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],

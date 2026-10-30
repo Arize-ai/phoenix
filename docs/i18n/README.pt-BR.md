@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ O Arize Phoenix é a plataforma de observabilidade de IA open source da Arize, p
 
 O Phoenix é agnóstico em relação a fornecedor e linguagem, com suporte nativo a frameworks populares ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) e provedores de LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) e outros). Para detalhes sobre autoinstrumentação, confira o projeto [OpenInference](https://github.com/Arize-ai/openinference).
 
-O Phoenix roda praticamente em qualquer lugar, incluindo sua máquina local, uma implantação em contêiner ou na nuvem. Veja [Ambientes](https://arize.com/docs/phoenix/environments) para um passo a passo de cada opção ou vá direto para o [Guia de início rápido de rastreamento](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+O Phoenix roda praticamente em qualquer lugar, incluindo sua máquina local, uma implantação em contêiner ou na nuvem. Veja [Ambientes](https://arize.com/docs/phoenix/self-hosting) para um passo a passo de cada opção ou vá direto para o [Guia de início rápido de rastreamento](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > O Phoenix é open source e auto-hospedado. Para uma plataforma gerenciada, a Arize oferece o [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-pt-br) — a mesma instrumentação OpenTelemetry/OpenInference funciona com ambos. Veja a [comparação completa](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).

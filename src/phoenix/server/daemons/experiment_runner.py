@@ -606,12 +606,10 @@ class TaskWorkItem(WorkItem):
                 logger.debug(f"TaskWorkItem {self.debug_identifier} hit rate limit ({err_type})")
                 await self._running_experiment.on_rate_limit(self)
             elif self._is_transient_error(e):
-                logger.warning(
-                    f"TaskWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
-                )
+                logger.warning(f"TaskWorkItem {self.debug_identifier} transient error ({err_type})")
                 await self._running_experiment.on_transient_error(self, e)
             else:
-                logger.exception(f"TaskWorkItem {self.debug_identifier} failed ({err_type}): {e}")
+                logger.error(f"TaskWorkItem {self.debug_identifier} failed ({err_type})")
                 error_end_time = datetime.now(timezone.utc)
                 task_db_traces = tracer.get_db_traces(project_id=self._project_id)
                 task_db_trace = task_db_traces[0] if task_db_traces else None
@@ -872,19 +870,17 @@ class EvalWorkItem(WorkItem):
             err_type = type(e).__name__
             if isinstance(e, MontyBusy):
                 logger.warning(
-                    f"EvalWorkItem {self.debug_identifier} sandbox capacity busy ({err_type}): {e}"
+                    f"EvalWorkItem {self.debug_identifier} sandbox capacity busy ({err_type})"
                 )
                 await self._running_experiment.on_capacity_error(self, e)
             elif self._is_rate_limit_error(e):
                 logger.debug(f"EvalWorkItem {self.debug_identifier} hit rate limit ({err_type})")
                 await self._running_experiment.on_rate_limit(self)
             elif self._is_transient_error(e):
-                logger.warning(
-                    f"EvalWorkItem {self.debug_identifier} transient error ({err_type}): {e}"
-                )
+                logger.warning(f"EvalWorkItem {self.debug_identifier} transient error ({err_type})")
                 await self._running_experiment.on_transient_error(self, e)
             else:
-                logger.exception(f"EvalWorkItem {self.debug_identifier} failed ({err_type}): {e}")
+                logger.error(f"EvalWorkItem {self.debug_identifier} failed ({err_type})")
                 error_end_time = datetime.now(timezone.utc)
                 annotator_kind = "LLM" if isinstance(self._evaluator, LLMEvaluator) else "CODE"
                 error_annotations: list[models.ExperimentRunAnnotation] = []
@@ -1536,11 +1532,7 @@ class RunningExperiment:
                             )
                         )
                         if self._project_id is None:
-                            logger.error(
-                                f"Project '{self._experiment.project_name}' "
-                                "not found for experiment "
-                                f"{self._experiment.id}"
-                            )
+                            logger.error(f"Project not found for experiment {self._experiment.id}")
                             self._task_db_exhausted = True
                             return
                     project_id = self._project_id
@@ -2053,9 +2045,7 @@ class RunningExperiment:
             async with self._db() as session:
                 session.add(log)
         except Exception:
-            logger.exception(
-                f"Experiment {self._experiment.id}: failed to persist log: {log.message}"
-            )
+            logger.exception(f"Experiment {self._experiment.id}: failed to persist log")
 
     # === Circuit Breaker & Completion ===
 

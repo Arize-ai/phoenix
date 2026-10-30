@@ -645,6 +645,7 @@ dev = [
     { name = "pytest-randomly" },
     { name = "pytest-rerunfailures" },
     { name = "pytest-smtpd" },
+    { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
@@ -836,6 +837,7 @@ dev = [
     { name = "pytest-randomly" },
     { name = "pytest-rerunfailures" },
     { name = "pytest-smtpd" },
+    { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
@@ -895,6 +897,27 @@ pytest = [
     { name = "pytest" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "anthropic" },
+    { name = "deepdiff" },
+    { name = "google-genai" },
+    { name = "harbor", marker = "python_full_version >= '3.12' and python_full_version < '3.15'" },
+    { name = "mypy" },
+    { name = "nest-asyncio" },
+    { name = "openai" },
+    { name = "pandas" },
+    { name = "pandas-stubs" },
+    { name = "pyright", extra = ["nodejs"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "uvloop", marker = "sys_platform != 'win32'" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "arize-phoenix-evals", marker = "extra == 'evals'", editable = "packages/phoenix-evals" },
@@ -910,6 +933,27 @@ requires-dist = [
     { name = "typing-extensions" },
 ]
 provides-extras = ["pytest", "evals", "harbor"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "anthropic", specifier = ">=1,<2" },
+    { name = "deepdiff", specifier = "==8.6.2" },
+    { name = "google-genai", specifier = ">=2.17.0" },
+    { name = "harbor", marker = "python_full_version >= '3.12' and python_full_version < '3.15'", specifier = ">=0.21.0" },
+    { name = "mypy", specifier = "==2.4.0" },
+    { name = "nest-asyncio" },
+    { name = "openai", specifier = ">=1.62.0" },
+    { name = "pandas" },
+    { name = "pandas-stubs" },
+    { name = "pyright", extras = ["nodejs"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "uvloop", marker = "sys_platform != 'win32'" },
+]
 
 [[package]]
 name = "arize-phoenix-evals"
@@ -933,6 +977,7 @@ dev = [
     { name = "boto3" },
     { name = "litellm", marker = "python_full_version < '3.14'" },
     { name = "openai" },
+    { name = "typesafe-sdk" },
 ]
 test = [
     { name = "anthropic" },
@@ -945,7 +990,23 @@ test = [
     { name = "pandas-stubs" },
     { name = "tqdm" },
     { name = "types-tqdm" },
+    { name = "typesafe-sdk" },
     { name = "typing-extensions" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "google-genai" },
+    { name = "mypy" },
+    { name = "mypy-boto3-bedrock-runtime" },
+    { name = "pyright", extra = ["nodejs"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "uvloop", marker = "sys_platform != 'win32'" },
 ]
 
 [package.metadata]
@@ -961,7 +1022,7 @@ requires-dist = [
     { name = "openai", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "openai", marker = "extra == 'test'", specifier = ">=1.0.0" },
     { name = "openinference-instrumentation", specifier = ">=0.1.20" },
-    { name = "openinference-semantic-conventions", specifier = ">=0.1.19" },
+    { name = "openinference-semantic-conventions", specifier = ">=0.1.41" },
     { name = "openinference-semantic-conventions", marker = "extra == 'test'" },
     { name = "opentelemetry-api" },
     { name = "pandas" },
@@ -972,10 +1033,27 @@ requires-dist = [
     { name = "tqdm" },
     { name = "tqdm", marker = "extra == 'test'" },
     { name = "types-tqdm", marker = "extra == 'test'" },
+    { name = "typesafe-sdk", marker = "extra == 'dev'", specifier = ">=0.7,<1" },
+    { name = "typesafe-sdk", marker = "extra == 'test'", specifier = ">=0.7,<1" },
     { name = "typing-extensions", specifier = ">=4.5,<5" },
     { name = "typing-extensions", marker = "extra == 'test'", specifier = ">=4.5,<5" },
 ]
 provides-extras = ["dev", "test"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "google-genai", specifier = ">=1.0.0" },
+    { name = "mypy", specifier = "==2.4.0" },
+    { name = "mypy-boto3-bedrock-runtime" },
+    { name = "pyright", extras = ["nodejs"] },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "uvloop", marker = "sys_platform != 'win32'" },
+]
 
 [[package]]
 name = "arize-phoenix-otel"
@@ -993,6 +1071,18 @@ dependencies = [
     { name = "wrapt" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "uvloop", marker = "sys_platform != 'win32'" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "openinference-instrumentation", specifier = ">=0.1.38" },
@@ -1006,6 +1096,18 @@ requires-dist = [
     { name = "wrapt" },
 ]
 provides-extras = ["test"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = "==2.4.0" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-randomly" },
+    { name = "pytest-rerunfailures" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "uvloop", marker = "sys_platform != 'win32'" },
+]
 
 [[package]]
 name = "arize-phoenix-sqlean"
@@ -6659,6 +6761,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-timeout"
+version = "2.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ac/82/4c9ecabab13363e72d880f2fb504c5f750433b2b6f16e99f4ec21ada284c/pytest_timeout-2.4.0.tar.gz", hash = "sha256:7e68e90b01f9eff71332b25001f85c75495fc4e3a836701876183c4bcfd0540a", size = 17973, upload-time = "2025-05-05T19:44:34.99Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/b6/3127540ecdf1464a00e5a01ee60a1b09175f6913f0644ac748494d9c4b21/pytest_timeout-2.4.0-py3-none-any.whl", hash = "sha256:c42667e5cdadb151aeb5b26d114aff6bdf5a907f176a007a30b940d3d865b5c2", size = 14382, upload-time = "2025-05-05T19:44:33.502Z" },
+]
+
+[[package]]
 name = "pytest-xdist"
 version = "3.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -8596,6 +8710,25 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/01/74/b83cf1d523516bc818ffe6fa7c2f5504e0eeee7c5c394ecc1b404f95fe92/types_webencodings-0.6.0.20260907.tar.gz", hash = "sha256:efa85bc5114419ed45aec227ca5051cca63fa3e2bd13fcf79017ee4107603efc", size = 7748, upload-time = "2026-09-07T06:43:22.142Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/42/e7/dc1ea506e123c437c4551c35498eaade289f52d7f7ddf3f77cf94f0675dc/types_webencodings-0.6.0.20260907-py3-none-any.whl", hash = "sha256:86dc9b5a14665b24d5d7d061149c8c3f50355243df5ef285bf816c2e2cc093d5", size = 8584, upload-time = "2026-09-07T06:43:21.177Z" },
+]
+
+[[package]]
+name = "typesafe-sdk"
+version = "0.7.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx2" },
+    { name = "packaging" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "tenacity" },
+    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/26/4d/383aa14f4cfe5fb41023ea1cab52d7f79cc31ab200ee7314317cf89db744/typesafe_sdk-0.7.5.tar.gz", hash = "sha256:1eeeb0dc80a7161d84896db42a5016dc0a7c8872fa16540b70163e5357b6d398", size = 34152, upload-time = "2026-10-14T21:21:42.837Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/f6/bee4c3b49570c2d312057c9e37c1446cf37eb1b86bf5872f7a797e803326/typesafe_sdk-0.7.5-py3-none-any.whl", hash = "sha256:967a8b61494d536abb55ee3f3a2b10e81685cb6baad6ccdcab588bdc6c9b86d2", size = 49948, upload-time = "2026-10-14T21:21:41.337Z" },
 ]
 
 [[package]]

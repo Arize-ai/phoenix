@@ -3,6 +3,8 @@ title: "Python SDK"
 description: "Lightweight Python packages for tracing, evaluation, and platform interaction"
 ---
 
+import PhoenixClientEnvVars from "../snippets/phoenix-client-env-vars.mdx";
+
 Phoenix's Python SDK is modular by design, allowing you to install only what you need. Each package serves a specific purpose and can be used independently or together.
 
 <CardGroup cols={2}>
@@ -37,19 +39,7 @@ pip install openinference-instrumentation  # Instrumentation helpers
 
 ## Environment Variables
 
-All packages respect common Phoenix environment variables for seamless configuration:
-
-| Variable | Description | Used By |
-|----------|-------------|---------|
-| `PHOENIX_ENDPOINT` | Phoenix base URL — canonical for everything except trace export | Client, CLI |
-| `PHOENIX_COLLECTOR_ENDPOINT` | Base Phoenix collector URL or full OTLP trace endpoint | OTEL (Client and CLI infer from it when `PHOENIX_ENDPOINT` is unset) |
-| `PHOENIX_API_KEY` | API key for authentication | Client, OTEL |
-| `PHOENIX_PROJECT` | Default project name (canonical) | Client, OTEL, CLI |
-| `PHOENIX_PROJECT_NAME` | Alias for `PHOENIX_PROJECT`; `PHOENIX_PROJECT` wins if both are set | Client, OTEL |
-| `PHOENIX_CLIENT_HEADERS` | Custom HTTP headers | Client, OTEL |
-| `PHOENIX_DISCOVER_CONFIG` | Set to `false` to disable `.env.phoenix` credential-file discovery | Client, OTEL, CLI |
-
-Phoenix SDKs and the CLI also auto-load `PHOENIX_`-prefixed settings from a `.env.phoenix` file, discovered by walking up from the current directory. Process environment variables always take precedence. See [Environments](/docs/phoenix/environments).
+<PhoenixClientEnvVars />
 
 ---
 

@@ -3,6 +3,8 @@ title: "Overview"
 description: How to customize your self-hosted deployment of Phoenix
 ---
 
+import PhoenixClientEnvVars from "../../snippets/phoenix-client-env-vars.mdx";
+
 ## Ports
 
 Phoenix is an all-in-one solution that has a tracing UI as well as a trace collector over both HTTP and gRPC.
@@ -102,3 +104,9 @@ The following environment variables will control how your phoenix server runs.
 ### Logging
 
 * **PHOENIX\_LOG\_SQL:** Whether to log all SQL statements to stdout. Useful for debugging database queries. Defaults to `false`. Available since version 13.4.0.
+
+## Client Connection Settings
+
+These variables are read by your application, the SDKs, and the `px` CLI — not by the Phoenix server — to find and authenticate to your deployment.
+
+<PhoenixClientEnvVars />

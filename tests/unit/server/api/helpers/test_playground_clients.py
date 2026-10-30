@@ -463,7 +463,7 @@ class TestOpenAIBaseStreamingClient:
         assert status_description is not None
         assert isinstance(status_description, str)
         assert status_description.startswith("Error code: 401")
-        assert "invalid_api_key" in status_description
+        assert "Incorrect API key provided" in status_description
 
         events = span.events
         assert len(events) == 1
