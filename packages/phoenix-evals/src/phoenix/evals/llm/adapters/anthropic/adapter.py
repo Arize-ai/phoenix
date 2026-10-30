@@ -1,3 +1,5 @@
+import copy
+import json
 import logging
 from typing import Any, Dict, List, Type, cast
 
@@ -21,6 +23,90 @@ def _with_tool_instruction(system: Any) -> Any:
     if isinstance(system, list):
         return [*system, {"type": "text", "text": TOOL_INSTRUCTION}]
     return f"{system}\n\n{TOOL_INSTRUCTION}" if system else TOOL_INSTRUCTION
+
+
+# Phrases in a 400 error that mean the model or endpoint doesn't accept native structured output,
+# as opposed to a request that is wrong in some other way.
+_NATIVE_OUTPUT_REJECTION_MARKERS = (
+    "output_config",
+    "output_format",
+    "output format",
+    "structured output",
+)
+
+
+def _rejects_native_output(error: Exception) -> bool:
+    """Checks whether an API error means the model doesn't support native structured output."""
+    from anthropic import BadRequestError
+
+    message = str(error).lower()
+    return isinstance(error, BadRequestError) and any(
+        marker in message for marker in _NATIVE_OUTPUT_REJECTION_MARKERS
+    )
+
+
+def _with_closed_objects(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Returns a copy of the schema with `additionalProperties: false` on every object.
+
+    Native structured output requires it on every object type.
+    """
+    closed = copy.deepcopy(schema)
+
+    def close(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "object":
+                node.setdefault("additionalProperties", False)
+            for value in node.values():
+                close(value)
+        elif isinstance(node, list):
+            for item in node:
+                close(item)
+
+    close(closed)
+    return closed
+
+
+def _parse_native_output(response: Any) -> Any:
+    """Returns the JSON value in a native structured output response.
+
+    Raises:
+        ValueError: If the model refused, ran out of tokens, or returned text that isn't JSON.
+    """
+    if response.stop_reason == "refusal":
+        raise ValueError(
+            f"Anthropic refused to generate the object: {getattr(response, 'stop_details', None)}"
+        )
+    if response.stop_reason == "max_tokens":
+        raise ValueError(
+            "Anthropic stopped at max_tokens before the object was complete. Raise max_tokens."
+        )
+    text = "".join(block.text for block in response.content if block.type == "text")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Anthropic returned output that isn't valid JSON: {text!r}") from e
+
+
+def _validate_object(result: Any, schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Returns the result if it has the schema's required fields and allowed enum values.
+
+    Raises:
+        ValueError: If the result isn't an object, misses a required field, or has a top-level
+            value outside its enum.
+    """
+    if not isinstance(result, dict):
+        raise ValueError(f"Expected a JSON object from Anthropic, got {type(result).__name__}")
+    missing = [name for name in schema.get("required", []) if name not in result]
+    if missing:
+        raise ValueError(f"Anthropic output is missing required fields {missing}: {result}")
+    for name, prop in schema.get("properties", {}).items():
+        if isinstance(prop, dict) and "enum" in prop and name in result:
+            if result[name] not in prop["enum"]:
+                raise ValueError(
+                    f"Anthropic output field {name!r} is {result[name]!r}, "
+                    f"which isn't one of {prop['enum']}"
+                )
+    return cast(Dict[str, Any], result)
 
 
 def identify_anthropic_client(client: Any) -> bool:
@@ -58,6 +144,8 @@ class AnthropicAdapter(BaseLLMAdapter):
         super().__init__(client, model)
         self._validate_client()
         self._is_async = self._check_if_async_client()
+        # Set once the model rejects native structured output, so AUTO stops trying it.
+        self._preferred_method: ObjectGenerationMethod | None = None
 
     @classmethod
     def client_name(cls) -> str:
@@ -150,14 +238,20 @@ class AnthropicAdapter(BaseLLMAdapter):
         kwargs = {**required_kwargs, **kwargs}
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            raise ValueError(
-                "Anthropic does not support native structured output. Use TOOL_CALLING or AUTO."
-            )
+            return self._generate_with_native_output(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         elif method == ObjectGenerationMethod.AUTO:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
+                return self._generate_with_tool_calling(prompt, schema, **kwargs)
+            try:
+                return self._generate_with_native_output(prompt, schema, **kwargs)
+            except Exception as error:
+                if not _rejects_native_output(error):
+                    raise
+                self._fall_back_to_tool_calling(error)
             return self._generate_with_tool_calling(prompt, schema, **kwargs)
 
         else:
@@ -180,13 +274,67 @@ class AnthropicAdapter(BaseLLMAdapter):
         kwargs = {**required_kwargs, **kwargs}
 
         if method == ObjectGenerationMethod.STRUCTURED_OUTPUT:
-            raise ValueError(
-                "Anthropic does not support native structured output. Use TOOL_CALLING or AUTO."
-            )
+            return await self._async_generate_with_native_output(prompt, schema, **kwargs)
         elif method == ObjectGenerationMethod.TOOL_CALLING:
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
         elif method == ObjectGenerationMethod.AUTO:
+            if self._preferred_method == ObjectGenerationMethod.TOOL_CALLING:
+                return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+            try:
+                return await self._async_generate_with_native_output(prompt, schema, **kwargs)
+            except Exception as error:
+                if not _rejects_native_output(error):
+                    raise
+                self._fall_back_to_tool_calling(error)
             return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+        else:
+            raise ValueError(f"Unsupported object generation method: {method}")
+
+    def _fall_back_to_tool_calling(self, error: Exception) -> None:
+        logger.debug(
+            f"Native structured output rejected by {self.model}, falling back to tool calling: "
+            f"{error}"
+        )
+        self._preferred_method = ObjectGenerationMethod.TOOL_CALLING
+
+    def _generate_with_native_output(
+        self,
+        prompt: PromptLike,
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        response = self.client.messages.create(**self._native_output_params(prompt, schema, kwargs))
+        return _validate_object(_parse_native_output(response), schema)
+
+    async def _async_generate_with_native_output(
+        self,
+        prompt: PromptLike,
+        schema: Dict[str, Any],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        response = await self.client.messages.create(
+            **self._native_output_params(prompt, schema, kwargs)
+        )
+        return _validate_object(_parse_native_output(response), schema)
+
+    def _native_output_params(
+        self, prompt: PromptLike, schema: Dict[str, Any], kwargs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        messages, system = self._build_messages(prompt)
+        params = {
+            **kwargs,
+            "model": self.model,
+            "messages": messages,
+            "output_config": {
+                # Keep other output settings the caller passed, such as `effort`.
+                **kwargs.get("output_config", {}),
+                "format": {"type": "json_schema", "schema": _with_closed_objects(schema)},
+            },
+        }
+        # A system message in the prompt takes precedence over a `system` kwarg.
+        if system:
+            params["system"] = system
+        return params
 
     def _generate_with_tool_calling(
         self,
@@ -195,12 +343,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         response = self.client.messages.create(**self._tool_calling_params(prompt, schema, kwargs))
-
-        for content_block in response.content:
-            if hasattr(content_block, "type") and content_block.type == "tool_use":
-                return cast(Dict[str, Any], content_block.input)
-
-        raise ValueError("No tool use in response")
+        return _validate_object(self._tool_input(response), schema)
 
     async def _async_generate_with_tool_calling(
         self,
@@ -211,10 +354,15 @@ class AnthropicAdapter(BaseLLMAdapter):
         response = await self.client.messages.create(
             **self._tool_calling_params(prompt, schema, kwargs)
         )
+        return _validate_object(self._tool_input(response), schema)
 
+    def _tool_input(self, response: Any) -> Any:
         for content_block in response.content:
-            if hasattr(content_block, "type") and content_block.type == "tool_use":
-                return cast(Dict[str, Any], content_block.input)
+            if (
+                getattr(content_block, "type", None) == "tool_use"
+                and content_block.name == TOOL_NAME
+            ):
+                return content_block.input
 
         raise ValueError("No tool use in response")
 
@@ -223,7 +371,7 @@ class AnthropicAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         messages, system = self._build_messages(prompt)
         return {
-            "tool_choice": {"type": "auto"},
+            "tool_choice": {"type": "auto", "disable_parallel_tool_use": True},
             **kwargs,
             "model": self.model,
             "messages": messages,
