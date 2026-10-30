@@ -4,13 +4,12 @@ import type { ComponentType } from "react";
 import { View } from "@phoenix/components";
 import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentRunOutputs } from "@phoenix/components/experiment/ExperimentCompareDetails";
-import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
+import {
+  type Experiment,
+  ExperimentCompareDetailsProvider,
+} from "@phoenix/contexts/ExperimentCompareContext";
 
 import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
-
-type Experiment = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
->["edges"][number]["experiment"];
 
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]

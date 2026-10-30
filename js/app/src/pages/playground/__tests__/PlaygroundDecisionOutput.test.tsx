@@ -232,7 +232,7 @@ describe("decision execution", () => {
     );
   });
 
-  it("shows a Yes / No answer with the probability of the shown answer", async () => {
+  it("shows both Yes / No options, the likelier first", async () => {
     const { store, instanceId } = mountRunningInstance({
       ...createDecisionDraft(),
       questions: [
@@ -268,10 +268,9 @@ describe("decision execution", () => {
       )
     );
     const answer = container.querySelector(
-      '[aria-label="billing probability"]'
+      '[aria-label="billing probabilities"]'
     );
-    expect(answer?.textContent).toContain("False");
-    expect(answer?.textContent).toContain("94%");
+    expect(answer?.textContent).toBe("False94%True6%");
   });
 
   it("surfaces provider errors inline and retains the trace", async () => {
