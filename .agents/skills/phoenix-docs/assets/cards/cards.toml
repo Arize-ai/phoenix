@@ -916,13 +916,6 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/mcp-logo.png",
 ]
 
-[banners.pxi]
-title = "PXI"
-motif = "agent"
-replaces = [
-  "https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/phoenix_intelligence.png",
-]
-
 [banners.settings-sandboxes]
 title = "Sandboxes"
 marks = ["daytona", "deno", "e2b", "modal", "vercel", "wasm"]
