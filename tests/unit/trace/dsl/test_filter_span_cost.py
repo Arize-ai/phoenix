@@ -545,3 +545,18 @@ def test_cost_members_have_one_declared_type_on_both_sides() -> None:
     for member in _SPAN_COST_SCALARS:
         assert _get_named_filter_value_type(member) == "number"
     assert _get_named_filter_value_type("nope") is None
+
+
+def test_cost_detail_fields_share_one_declaration() -> None:
+    from phoenix.trace.dsl import session_filter, trace_filter
+    from phoenix.trace.dsl.filter import COST_DETAIL_ELEMENT_FIELDS, _cost_detail_bindings
+
+    # The trace and session grains expose the same cost-detail vocabulary as the span grain.
+    for grain in (trace_filter, session_filter):
+        assert grain._ITERABLE_SPECS["span_cost_details"].fields is COST_DETAIL_ELEMENT_FIELDS
+    # Every declared field binds to a real column of the element model.
+    for name, element_field in COST_DETAIL_ELEMENT_FIELDS.items():
+        assert hasattr(models.SpanCostDetail, element_field.attribute), name
+    bindings = _cost_detail_bindings()
+    bound = {*bindings.string_names, *bindings.float_names, *bindings.boolean_names}
+    assert bound == set(COST_DETAIL_ELEMENT_FIELDS)
