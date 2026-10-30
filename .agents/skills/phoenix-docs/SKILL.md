@@ -36,4 +36,7 @@ Use for how-to guides and reference.
 
 ## Card images
 
-Card art (`<Card img>`) is generated, never hand-made. Follow [references/card-images.md](references/card-images.md).
+Card art (`<Card img>`) is generated, never hand-made.
+
+- [references/card-images.md](references/card-images.md): names, URLs, publishing to GCS and linking from MDX.
+- [references/card-design.md](references/card-design.md): the design language. Read it before you change how a card looks.
