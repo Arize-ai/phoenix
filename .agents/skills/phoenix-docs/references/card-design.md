@@ -11,6 +11,14 @@ Card art is a quiet signpost. The card title carries the words. The art tells th
 5. **Designed for the smallest card.** A 1200 px canvas shows at 158 CSS px in a 4-column grid, about one eighth of its size. Draw so the art still reads there.
 6. **The name is the picture.** Cards with the same art share one name and one file (see [card-images.md](card-images.md)).
 
+## Choose art in context
+
+Before adding an image, identify the product, source, or action it represents. Check it beside the neighboring cards with their titles and descriptions. Each image must help distinguish a choice. Repeating a general topic drawing across different tasks adds height without adding meaning; use compact icon cards for those links.
+
+Review new art at 158 px and 334 px, in both themes, and inspect the page layout. Successful image downloads, fingerprints, and builds verify delivery, not visual quality. If a page review is blocked, record that gap instead of calling the design approved.
+
+Review banners with the page title, description, introduction, and first actionable section. Use a banner when it adds context; skip it when it only repeats the heading and delays the setup steps.
+
 ## Canvas and palette
 
 The canvas is 1200 × 675 (16:9). The ground is flat gray-900, the same color as the docs' dark card body. In dark mode the art merges into the card, so a logo seems to sit on the card itself. In light mode the art reads as a dark panel on a light card. Both are intended; one image serves both themes.
@@ -75,6 +83,9 @@ One shape in each drawing is cyan. It marks what the reader should look at: the 
 | `eval` | A score ring around a check mark | The score arc |
 | `prompt` | Three lines of text; the middle line holds a template variable | The variable |
 | `dataset` | A ruled table: a header band, three rows, three columns | One value in the selected row |
+| `dataset-csv` | A folded file with a grid of delimited rows | One imported value |
+| `dataset-jsonl` | Braces around separate record lines | One record |
+| `dataset-synthetic` | A sparkle producing new example lines | The generation sparkle |
 | `experiment` | Three pairs of columns, baseline in gray beside candidate in white | The best candidate |
 | `agent` | A trajectory read left to right: agent step, tool call, a subagent box holding its own step and tool, then the answer | The answer |
 | `retrieval` | A magnifier beside three ranked result bars | The top result |
@@ -84,6 +95,8 @@ One shape in each drawing is cyan. It marks what the reader should look at: the 
 | `sandbox` | Code brackets inside an isolated boundary | The slash in `</>` |
 | `annotation` | Three trace lines, each with a label chip | The chip marking a failure |
 | `video` | A player frame with a play button and a progress bar | The progress |
+
+Dataset-source drawings live in `scripts/dataset_card_design.py`. A four-point sparkle means generated examples. Use these drawings to distinguish source formats, rather than repeating the generic dataset table across task links.
 
 ### Drawing a new motif
 

@@ -19,7 +19,8 @@ Paths never change. When a card's art changes, its file is replaced in place and
 
 ## Rules for grids
 
-- Every card in a grid has art. Do not mix image cards and icon-only cards in one grid.
+- Use one visual treatment per grid: image cards or compact icon cards. Do not mix the two.
+- Add images when they distinguish products, sources, or concepts. Keep task and reference links compact when the same illustration would repeat across the grid.
 - On the integrations index, cards show the plain brand mark and every grid is alphabetical by title. `relink` keeps qualifier cards off the index, and `status --check` flags any it finds. If the brand has no plain card yet, add `[integrations.<logo>]` first.
 - Follow [card-design.md](card-design.md) for how each card looks.
 
@@ -69,4 +70,4 @@ Edit `scripts/card_design.py` and `references/card-design.md` together, in a PR 
 
 ## Check for drift
 
-Run `cards.py status --check` before you merge. It fails if the MDX uses a card or banner that is missing or changed in GCS, uses an unknown one, or matches two `replaces` entries. It also lists legacy images that are not managed yet, and GCS objects under `docs-cards/` that belong to no card.
+Run `cards.py status --check` before you merge. It fails if the MDX uses a card or banner that is missing or changed in GCS, uses an unknown one, has duplicate `img` attributes, or matches two `replaces` entries. It also lists legacy images that are not managed yet, and GCS objects under `docs-cards/` that belong to no card.

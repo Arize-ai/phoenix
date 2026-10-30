@@ -99,6 +99,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a7aa063-image.avif", title = "AutoGen" },
 ]
 
+[integrations.aws]
+logo = "aws"
+
 [integrations.azure]
 logo = "azure"
 
@@ -287,6 +290,9 @@ replaces = [
   { url = "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/7b413cbf-image.jpeg", href = "google-gen-ai-evals$" },
 ]
 
+[integrations.googlecloud]
+logo = "googlecloud"
+
 [integrations.graphite]
 logo = "graphite"
 replaces = [
@@ -317,6 +323,9 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/98eefc93-image.avif",
 ]
 
+[integrations.helm]
+logo = "helm"
+
 [integrations.huggingface]
 logo = "huggingface"
 replaces = [
@@ -334,6 +343,9 @@ logo = "java"
 
 [integrations.kiro]
 logo = "kiro"
+
+[integrations.kubernetes]
+logo = "kubernetes"
 
 [integrations.langchain]
 logo = "langchain"
@@ -558,6 +570,9 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/orcarouter-card.avif",
 ]
 
+[integrations.pandas]
+logo = "pandas"
+
 [integrations.pipecat]
 logo = "pipecat"
 
@@ -603,6 +618,12 @@ logo = "qwen"
 
 [integrations.ragas]
 logo = "ragas"
+
+[integrations.railway]
+logo = "railway"
+
+[integrations.render]
+logo = "render"
 
 [integrations.scalekit]
 logo = "scalekit"
@@ -718,6 +739,12 @@ replaces = [
 [topics.annotation]
 
 [topics.cli]
+
+[topics.dataset-csv]
+
+[topics.dataset-jsonl]
+
+[topics.dataset-synthetic]
 
 [topics.eval]
 replaces = [
