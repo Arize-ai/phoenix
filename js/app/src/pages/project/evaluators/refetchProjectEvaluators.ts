@@ -23,6 +23,7 @@ const query = graphql`
               ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
+              ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
             }
           }
           pageInfo {

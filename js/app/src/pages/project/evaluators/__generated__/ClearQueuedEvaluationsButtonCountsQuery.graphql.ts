@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a3f150fad9f7fa427c438f4cf3b43c3a>>
+ * @generated SignedSource<<a3c971b7b58678e88bcc37026e724d0c>>
  * @lightSyntaxTransform
  */
 
@@ -12,10 +12,6 @@ export type ClearQueuedEvaluationsButtonCountsQuery$variables = {
   projectId: string;
 };
 export type ClearQueuedEvaluationsButtonCountsQuery$data = {
-  readonly evaluationQueue: {
-    readonly queuedCount: number;
-    readonly runningCount: number;
-  };
   readonly project: {
     readonly evaluationQueue?: {
       readonly queuedCount: number;
@@ -38,38 +34,12 @@ var v0 = [
 ],
 v1 = [
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "queuedCount",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "runningCount",
-    "storageKey": null
-  }
-],
-v2 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "EvaluationQueue",
-  "kind": "LinkedField",
-  "name": "evaluationQueue",
-  "plural": false,
-  "selections": (v1/*:: as any*/),
-  "storageKey": null
-},
-v3 = [
-  {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v4 = {
+v2 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -79,7 +49,22 @@ v4 = {
       "kind": "LinkedField",
       "name": "evaluationQueue",
       "plural": false,
-      "selections": (v1/*:: as any*/),
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "queuedCount",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "runningCount",
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
@@ -93,16 +78,15 @@ return {
     "metadata": null,
     "name": "ClearQueuedEvaluationsButtonCountsQuery",
     "selections": [
-      (v2/*:: as any*/),
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*:: as any*/)
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -116,10 +100,9 @@ return {
     "kind": "Operation",
     "name": "ClearQueuedEvaluationsButtonCountsQuery",
     "selections": [
-      (v2/*:: as any*/),
       {
         "alias": "project",
-        "args": (v3/*:: as any*/),
+        "args": (v1/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -132,7 +115,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*:: as any*/),
+          (v2/*:: as any*/),
           {
             "alias": null,
             "args": null,
@@ -146,16 +129,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "080e86c4ea20865e23631c481b1e6320",
+    "cacheID": "39c6205ffd9797296489bf24ae37501c",
     "id": null,
     "metadata": {},
     "name": "ClearQueuedEvaluationsButtonCountsQuery",
     "operationKind": "query",
-    "text": "query ClearQueuedEvaluationsButtonCountsQuery(\n  $projectId: ID!\n) {\n  evaluationQueue {\n    queuedCount\n    runningCount\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationQueue {\n        queuedCount\n        runningCount\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ClearQueuedEvaluationsButtonCountsQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationQueue {\n        queuedCount\n        runningCount\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "509a9432bf4a283576cbaa7dffbe1fae";
+(node as any).hash = "f90fc4b0ab0d8abb9554c33ba3c6bdee";
 
 export default node;

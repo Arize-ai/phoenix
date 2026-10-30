@@ -25,6 +25,7 @@ import {
   TableAsidePanel,
   TableAsideToggleButton,
 } from "@phoenix/pages/project/TableAside";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 
 const QUEUE_ASIDE_DEFAULT_SIZE_PIXELS = 280;
 const QUEUE_ASIDE_MIN_SIZE_PIXELS = 240;
@@ -37,8 +38,9 @@ const tableGroupCSS = css`
   display: flex;
 `;
 
-/** The table scrolls inside its panel rather than growing the panel. */
-const tablePanelCSS = css`
+/** The content scrolls inside its panel rather than growing the panel. */
+const panelContentCSS = css`
+  flex: 1 1 auto;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -133,8 +135,8 @@ function ProjectEvaluatorsPageContent({
     () => setQueueRefreshKey((key) => key + 1),
     []
   );
-  return (
-    <QueueStatsRefreshContext.Provider value={refreshQueueStats}>
+  const content = (
+    <div css={panelContentCSS}>
       {isEmptyState ? (
         <View
           padding="size-100"
@@ -175,7 +177,7 @@ function ProjectEvaluatorsPageContent({
       <div css={tableGroupCSS}>
         <Group orientation="horizontal">
           <Panel id="evaluators-table" minSize="30%">
-            <div css={tablePanelCSS}>
+            <div css={panelContentCSS}>
               <ProjectEvaluatorsTable
                 project={data.project}
                 projectId={projectId}
@@ -210,6 +212,18 @@ function ProjectEvaluatorsPageContent({
           </TableAsidePanel>
         </Group>
       </div>
+    </div>
+  );
+  return (
+    <QueueStatsRefreshContext.Provider value={refreshQueueStats}>
+      {/* Nothing to chart before the first evaluator. */}
+      {isEmptyState ? (
+        content
+      ) : (
+        <TableMetricsChartsPanelGroup view="evaluators">
+          {content}
+        </TableMetricsChartsPanelGroup>
+      )}
     </QueueStatsRefreshContext.Provider>
   );
 }

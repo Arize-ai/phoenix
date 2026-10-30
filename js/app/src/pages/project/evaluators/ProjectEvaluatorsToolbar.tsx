@@ -3,6 +3,7 @@ import { ColumnSelector, orderColumns } from "@phoenix/components/table";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { TableAsideToggleButton } from "@phoenix/pages/project/TableAside";
+import { TableMetricsChartSelector } from "@phoenix/pages/project/TableMetricsChartSelector";
 
 /**
  * The selectable columns of {@link ProjectEvaluatorsTable}, in their natural
@@ -14,6 +15,7 @@ const PROJECT_EVALUATOR_COLUMNS = [
   { id: "status", label: "status" },
   { id: "queue", label: "queued" },
   { id: "load", label: "load" },
+  { id: "lag", label: "lag p95" },
   { id: "failures", label: "failure rate" },
   { id: "kind", label: "kind" },
   { id: "meanScore", label: "mean score" },
@@ -57,9 +59,10 @@ function ProjectEvaluatorsColumnSelector() {
 }
 
 /**
- * The evaluators tab's own header: search on the left, table configuration,
- * creation and the aside toggle on the right. All live in the tab's content
- * rather than the project tab bar, so the tab bar stays pure navigation.
+ * The evaluators tab's own header: search on the left, charts, table
+ * configuration, creation and the aside toggle on the right. All live in the
+ * tab's content rather than the project tab bar, so the tab bar stays pure
+ * navigation.
  */
 export function ProjectEvaluatorsToolbar({
   filter,
@@ -88,6 +91,7 @@ export function ProjectEvaluatorsToolbar({
           onChange={onFilterChange}
         />
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+          <TableMetricsChartSelector view="evaluators" />
           <ProjectEvaluatorsColumnSelector />
           <AddProjectEvaluatorMenu size="M" />
           <TableAsideToggleButton />

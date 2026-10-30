@@ -741,6 +741,71 @@ async def test_evaluation_queue_projects(
     assert queue["top"] == [{"project": {"name": more_queued}, "queuedCount": 3}]
 
 
+async def test_project_evaluators(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        session.add(evaluator)
+        await session.flush()
+        projects = [await _add_project(session) for _ in range(2)]
+        for minutes_ago, project, name in (
+            (3, projects[0], "relevance"),
+            (2, projects[1], "toxicity"),
+            (1, projects[0], "toxicity"),
+        ):
+            session.add(
+                models.ProjectEvaluator(
+                    trace_project=models.Project(name=f"project-evaluator-{uuid.uuid4().hex}"),
+                    project_id=project.id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(name),
+                    evaluation_target="SPAN",
+                    filter_condition="",
+                    sampling_rate=1.0,
+                    created_at=now - timedelta(minutes=minutes_ago),
+                )
+            )
+        await session.flush()
+
+    query = """query ($filter: ProjectEvaluatorFilter, $projectId: ID) {
+        projectEvaluators(filter: $filter, projectId: $projectId) {
+            edges { node { name project { name } } }
+        }
+    }"""
+
+    async def evaluators(**variables: Any) -> list[tuple[str, str]]:
+        response = await gql_client.execute(query, variables)
+        assert not response.errors and response.data
+        return [
+            (edge["node"]["name"], edge["node"]["project"]["name"])
+            for edge in response.data["projectEvaluators"]["edges"]
+        ]
+
+    first, second = (project.name for project in projects)
+    assert await evaluators() == [
+        ("toxicity", first),
+        ("toxicity", second),
+        ("relevance", first),
+    ]
+    assert await evaluators(projectId=str(GlobalID("Project", str(projects[0].id)))) == [
+        ("toxicity", first),
+        ("relevance", first),
+    ]
+    assert await evaluators(filter={"col": "name", "value": "TOX"}) == [
+        ("toxicity", first),
+        ("toxicity", second),
+    ]
+
+
 async def test_agents_config_returns_env_values(
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
