@@ -407,7 +407,7 @@ def main() -> None:
     if not touched_issues:
         summary.append("No issues filed or updated.\n")
     write_step_summary(summary)
-    if new_issues and (webhook_url := os.environ.get("FACTORY_SLACK_WEBHOOK_URL")):
+    if new_issues and (webhook_url := os.environ.get("SLACK_WEBHOOK_URL")):
         post_filed_issues_to_slack(webhook_url=webhook_url, source=source, issues=new_issues)
     if stop_reason != "end_turn":
         raise SystemExit(f"The session stopped with {stop_reason}; see the Claude Console.")

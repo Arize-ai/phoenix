@@ -35,7 +35,7 @@ jobs:
       FACTORY_DATADOG_TOKEN: ${{ secrets.FACTORY_DATADOG_TOKEN }}
       FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
       FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
-      FACTORY_SLACK_WEBHOOK_URL: ${{ secrets.FACTORY_SLACK_WEBHOOK_URL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
