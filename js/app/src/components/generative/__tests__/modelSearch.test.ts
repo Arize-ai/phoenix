@@ -12,7 +12,9 @@ import {
   inferProviderFromModelName,
   MATCH_SCORE,
   getModelKey,
+  getProviderCredentialStateFromNeeds,
   rankModels,
+  searchModelsByProvider,
   resolveModelRow,
   toModelMenuValueFromRow,
   tokenMatchScore,
@@ -753,5 +755,132 @@ describe("getProviderHighlightQuery", () => {
     expect(getProviderHighlightQuery({ row: openAIRow, query: "pen 4o" })).toBe(
       ""
     );
+  });
+});
+
+describe("getProviderCredentialStateFromNeeds", () => {
+  it("judges a provider by the surface's needs-credentials flag", () => {
+    expect(
+      getProviderCredentialStateFromNeeds({
+        key: "OPENAI",
+        needsCredentials: false,
+      })
+    ).toBe("ready");
+    expect(
+      getProviderCredentialStateFromNeeds({
+        key: "OPENAI",
+        needsCredentials: true,
+      })
+    ).toBe("no-key");
+    expect(
+      getProviderCredentialStateFromNeeds({
+        key: "AWS",
+        needsCredentials: true,
+      })
+    ).toBe("may-work");
+  });
+
+  it("lets browser-local keys make a provider ready", () => {
+    // Google has no server key, but the surface counts a local one
+    const providers = buildModelProviderOptions({
+      modelProviders: [
+        {
+          ...makeProvider({ key: "GOOGLE", name: "Google" }),
+          needsCredentials: false,
+        },
+      ],
+      customProviders: [],
+      getCredentialState: getProviderCredentialStateFromNeeds,
+    });
+    expect(providers[0].credentialState).toBe("ready");
+    expect(
+      buildModelProviderOptions({
+        modelProviders: [makeProvider({ key: "GOOGLE", name: "Google" })],
+        customProviders: [],
+      })[0].credentialState
+    ).toBe("no-key");
+  });
+});
+
+describe("searchModelsByProvider", () => {
+  const sections = (query: string) =>
+    searchModelsByProvider({ rows: ROWS, providers: PROVIDERS, query }).map(
+      ({ provider, rows }) => [provider.name, rows.map((row) => row.modelName)]
+    );
+
+  it("groups every match under its provider, custom providers first", () => {
+    expect(sections("gpt-4o")).toEqual([
+      ["Acme gateway", ["gpt-4o"]],
+      ["OpenAI", ["gpt-4o", "gpt-4o-mini"]],
+    ]);
+  });
+
+  it("ranks the matches within a provider", () => {
+    // Curated Claude Opus 5.5 first, then by match quality and length
+    expect(sections("opus")).toEqual([
+      [
+        "Anthropic",
+        [
+          "claude-opus-5-5",
+          "claude-opus-5",
+          "claude-opus-4-6",
+          "claude-opus-4-20250514",
+        ],
+      ],
+      [
+        "AWS Bedrock",
+        [
+          "us.anthropic.claude-opus-4-6-v1:0",
+          "anthropic.claude-opus-4-20250514-v1:0",
+        ],
+      ],
+    ]);
+  });
+
+  it("doesn't cap the matches", () => {
+    const models = Array.from({ length: 12 }, (_, index) => ({
+      providerKey: "OPENAI" as const,
+      name: `gpt-test-${index}`,
+    }));
+    const rows = buildCatalog({ ...INPUT, models });
+    const [section] = searchModelsByProvider({
+      rows,
+      providers: PROVIDERS,
+      query: "gpt-test",
+    });
+    expect(section.rows).toHaveLength(12);
+  });
+
+  it("lists a provider's models when the query names it", () => {
+    expect(sections("google")).toEqual([
+      ["Google", ["gemini-3.1-pro-preview", "gemini-2.5-flash"]],
+    ]);
+  });
+
+  it("returns nothing for an empty query", () => {
+    expect(sections("  ")).toEqual([]);
+  });
+});
+
+describe("getCustomModelOption with a picker's own providers", () => {
+  it("only offers the providers it is given", () => {
+    // A Decision tab passes only the providers that serve decision models
+    const decisionProviders = buildModelProviderOptions({
+      modelProviders: [
+        makeProvider({ key: "OPENAI", name: "OpenAI", credentialsSet: true }),
+        makeProvider({ key: "TYPESAFE", name: "TypeSafe" }),
+      ],
+      customProviders: [],
+    });
+    const option = getCustomModelOption({
+      query: "claude-judge",
+      providers: decisionProviders,
+    });
+    // The guessed provider (Anthropic) isn't offered, so nothing comes first
+    expect(option?.guessedProviderKey).toBeNull();
+    expect(option?.providers.map((provider) => provider.name)).toEqual([
+      "OpenAI",
+      "TypeSafe",
+    ]);
   });
 });
