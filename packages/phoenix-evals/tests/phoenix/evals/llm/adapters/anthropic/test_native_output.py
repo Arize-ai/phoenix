@@ -65,7 +65,7 @@ def _bad_request(message: str) -> httpx2.Response:
     )
 
 
-def _rejects_native_output(body: Dict[str, Any]) -> httpx2.Response:
+def _reject_native_requests(body: Dict[str, Any]) -> httpx2.Response:
     if "output_config" in body:
         return _bad_request("output_config.format: structured outputs are not supported.")
     return _tool_use({"label": "bad"})
@@ -131,7 +131,7 @@ def test_keeps_other_output_config_settings() -> None:
 
 def test_auto_falls_back_to_tool_calling_and_remembers_it() -> None:
     requests: List[Dict[str, Any]] = []
-    adapter = _sync_adapter(_rejects_native_output, requests)
+    adapter = _sync_adapter(_reject_native_requests, requests)
 
     assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
     assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
@@ -140,12 +140,79 @@ def test_auto_falls_back_to_tool_calling_and_remembers_it() -> None:
     assert [tool["name"] for tool in requests[1]["tools"]] == ["extract_structured_data"]
 
 
-async def test_async_auto_falls_back_to_tool_calling() -> None:
+async def test_async_auto_falls_back_to_tool_calling_and_remembers_it() -> None:
     requests: List[Dict[str, Any]] = []
-    adapter = _async_adapter(_rejects_native_output, requests)
+    adapter = _async_adapter(_reject_native_requests, requests)
 
     assert await adapter.async_generate_object("q", _SCHEMA) == {"label": "bad"}
-    assert ["output_config" in r for r in requests] == [True, False]
+    assert await adapter.async_generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert ["output_config" in r for r in requests] == [True, False, False]
+
+
+def test_auto_falls_back_for_a_rejected_schema_without_remembering_it() -> None:
+    def respond(body: Dict[str, Any]) -> httpx2.Response:
+        if "output_config" in body:
+            return _bad_request("output_config.format.schema: this schema is too complex")
+        return _tool_use({"label": "bad"})
+
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(respond, requests)
+
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "bad"}
+    assert ["output_config" in r for r in requests] == [True, False, True, False]
+
+
+def test_auto_raises_an_error_about_another_output_config_field() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(
+        lambda _: _bad_request("output_config.effort: 'xhigh' is not supported for this model"),
+        requests,
+    )
+
+    with pytest.raises(anthropic.BadRequestError):
+        adapter.generate_object("q", _SCHEMA, output_config={"effort": "xhigh"})
+    assert len(requests) == 1
+
+
+def test_auto_uses_tool_calling_for_a_schema_native_output_rejects() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _tool_use({"score": 3}), requests)
+    schema = {"type": "object", "properties": {"score": {"type": "integer", "minimum": 1}}}
+
+    assert adapter.generate_object("q", schema) == {"score": 3}
+    assert len(requests) == 1
+    assert "output_config" not in requests[0]
+
+
+def test_sends_label_descriptions_as_any_of() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _text('{"label": "good"}'), requests)
+    labels = [{"const": "good", "description": "Helpful"}, {"const": "bad"}]
+    schema = {"type": "object", "properties": {"label": {"oneOf": labels}}, "required": ["label"]}
+
+    assert adapter.generate_object("q", schema) == {"label": "good"}
+    sent = requests[0]["output_config"]["format"]["schema"]
+    assert sent["properties"]["label"] == {"anyOf": labels}
+
+
+def test_reads_the_text_after_a_thinking_block() -> None:
+    requests: List[Dict[str, Any]] = []
+    thinking = {"type": "thinking", "thinking": "", "signature": "sig"}
+    adapter = _sync_adapter(
+        lambda _: _message([thinking, {"type": "text", "text": '{"label": "good"}'}]), requests
+    )
+
+    assert adapter.generate_object("q", _SCHEMA) == {"label": "good"}
+
+
+def test_sends_a_system_kwarg_with_native_output() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _text('{"label": "good"}'), requests)
+
+    adapter.generate_object("q", _SCHEMA, system="Be strict.")
+
+    assert requests[0]["system"] == "Be strict."
 
 
 def test_auto_raises_an_unrelated_bad_request_without_falling_back() -> None:
@@ -159,7 +226,7 @@ def test_auto_raises_an_unrelated_bad_request_without_falling_back() -> None:
 
 def test_native_output_does_not_fall_back_when_asked_for_explicitly() -> None:
     requests: List[Dict[str, Any]] = []
-    adapter = _sync_adapter(_rejects_native_output, requests)
+    adapter = _sync_adapter(_reject_native_requests, requests)
 
     with pytest.raises(anthropic.BadRequestError):
         adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.STRUCTURED_OUTPUT)
@@ -202,3 +269,32 @@ def test_validates_tool_calling_output_against_the_schema() -> None:
 
     with pytest.raises(ValueError, match="isn't one of"):
         adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING)
+
+
+def test_tool_calling_keeps_parallel_calls_off_with_a_caller_tool_choice() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _tool_use({"label": "good"}), requests)
+
+    adapter.generate_object(
+        "q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING, tool_choice={"type": "auto"}
+    )
+
+    assert requests[0]["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
+
+
+def test_tool_calling_reports_a_refusal() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _text("", "refusal"), requests)
+
+    with pytest.raises(ValueError, match="refused"):
+        adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING)
+
+
+def test_validates_a_label_against_const_choices() -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: _tool_use({"label": "meh"}), requests)
+    labels = [{"const": "good"}, {"const": "bad"}]
+    schema = {"type": "object", "properties": {"label": {"oneOf": labels}}, "required": ["label"]}
+
+    with pytest.raises(ValueError, match="isn't one of"):
+        adapter.generate_object("q", schema, method=ObjectGenerationMethod.TOOL_CALLING)
