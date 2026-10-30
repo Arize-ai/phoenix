@@ -22,7 +22,7 @@ from phoenix.db.types.decisions import (
     ScaleQuestion,
     TextState,
 )
-from phoenix.db.types.model_provider import model_provider_from_sdk, sdk_offers_decisions
+from phoenix.db.types.model_provider import DECISION_SDK_TO_MODEL_PROVIDER
 from phoenix.db.types.prompts import PromptTemplateFormat
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.decisions.rendering import decision_variables
@@ -101,22 +101,30 @@ def validate_template(
     return decision_variables(template_format, state, questions)
 
 
+def custom_provider_without_decisions_error(provider_name: str) -> BadRequest:
+    """The error for a custom provider that has no decision client configured."""
+    return BadRequest(
+        f"Custom provider '{provider_name}' is not set up for decision models. Turn on "
+        "Decision models for it under Settings > AI Providers, or choose another provider."
+    )
+
+
 async def validate_decision_custom_provider(
     session: AsyncSession, version: models.DecisionVersion
 ) -> None:
-    """Reject a custom provider that is missing, serves no decision models, or speaks another
-    API than the version's provider."""
+    """Reject a custom provider that is missing, has no decision client, or whose decision
+    client speaks another API than the version's provider."""
     if (provider_id := version.custom_provider_id) is None:
         return
     provider = await session.get(models.GenerativeModelCustomProvider, provider_id)
     global_id = GlobalID("GenerativeModelCustomProvider", str(provider_id))
     if provider is None:
         raise NotFound(f"Custom provider not found: {global_id}")
-    if not sdk_offers_decisions(provider.sdk):
-        raise BadRequest(f"Custom provider '{provider.name}' does not serve decision models.")
-    provider_model_provider = model_provider_from_sdk(provider.sdk)
+    if provider.decision_sdk is None:
+        raise custom_provider_without_decisions_error(provider.name)
+    provider_model_provider = DECISION_SDK_TO_MODEL_PROVIDER[provider.decision_sdk]
     if provider_model_provider is not version.model_provider:
         raise BadRequest(
-            f"Custom provider '{provider.name}' speaks the {provider_model_provider.name} API, not "
-            f"{version.model_provider.name}."
+            f"Custom provider '{provider.name}' runs decisions through the "
+            f"{provider_model_provider.name} API, not {version.model_provider.name}."
         )

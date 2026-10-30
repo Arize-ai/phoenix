@@ -1079,9 +1079,11 @@ mutation ($input: CreateGenerativeModelCustomProviderMutationInput!) {
 """
 
 
-async def test_sdk_cannot_change_to_one_without_decisions_while_decision_versions_use_it(
+async def test_decision_client_cannot_change_while_decision_versions_use_it(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory
 ) -> None:
+    """Turning off a provider's decision models, or switching its decision client, would
+    break the decisions saved on it; changing its SDK alone does not."""
     created = await gql_client.execute(
         _CREATE_OPENAI_PROVIDER,
         variables={
@@ -1089,7 +1091,10 @@ async def test_sdk_cannot_change_to_one_without_decisions_while_decision_version
                 "name": "openai-for-decisions",
                 "provider": "openai",
                 "clientConfig": {
-                    "openai": {"openaiAuthenticationMethod": {"apiKey": "sk-test"}},
+                    "openai": {
+                        "openaiAuthenticationMethod": {"apiKey": "sk-test"},
+                        "decisionModels": {"decisionSdk": "OPENAI"},
+                    },
                 },
             }
         },
@@ -1136,14 +1141,42 @@ async def test_sdk_cannot_change_to_one_without_decisions_while_decision_version
 
     blocked = await gql_client.execute(_PATCH_SDK, variables=azure_patch)
     assert blocked.errors
+    assert (
+        "referenced by saved decision versions (triage), so you cannot change or turn off "
+        "its decision models"
+    ) in blocked.errors[0].message
+    system_one_patch = {
+        "input": {
+            "id": provider_id,
+            "clientConfig": {
+                "openai": {
+                    "openaiAuthenticationMethod": {"apiKey": "sk-test"},
+                    "decisionModels": {"decisionSdk": "TYPESAFE"},
+                }
+            },
+        }
+    }
+    blocked = await gql_client.execute(_PATCH_SDK, variables=system_one_patch)
+    assert blocked.errors
     assert "referenced by saved decision versions (triage)" in blocked.errors[0].message
     async with db() as session:
-        sdk = await session.scalar(
-            select(models.GenerativeModelCustomProvider.sdk).where(
-                models.GenerativeModelCustomProvider.id == provider_rowid
-            )
-        )
-    assert sdk == "openai"
+        record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert record is not None
+        assert (record.sdk, record.decision_sdk) == ("openai", "openai")
+
+    azure_with_decisions = {
+        "input": {
+            "id": provider_id,
+            "clientConfig": {
+                "azureOpenai": {
+                    **azure_patch["input"]["clientConfig"]["azureOpenai"],  # type: ignore[index]
+                    "decisionModels": {"decisionSdk": "OPENAI"},
+                }
+            },
+        }
+    }
+    kept = await gql_client.execute(_PATCH_SDK, variables=azure_with_decisions)
+    assert kept.data and not kept.errors, kept.errors
 
     async with db() as session:
         await session.execute(sa_delete(models.Decision).where(models.Decision.id == version_id))
