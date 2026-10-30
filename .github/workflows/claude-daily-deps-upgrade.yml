@@ -1,12 +1,12 @@
-name: Weekly Dependency Upgrade
+name: Daily Dependency Upgrade
 
 on:
   schedule:
-    - cron: "0 12 * * MON"
+    - cron: "0 12 * * *"
   workflow_dispatch:
 
 concurrency:
-  group: weekly-deps-upgrade
+  group: daily-deps-upgrade
   cancel-in-progress: true
 
 jobs:
@@ -53,7 +53,7 @@ jobs:
         id: branch
         run: |
           DATE=$(date -u +%Y-%m-%d)
-          BRANCH="claude/weekly-deps-upgrade-$DATE"
+          BRANCH="claude/daily-deps-upgrade-$DATE"
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" FETCH_HEAD
@@ -200,12 +200,12 @@ jobs:
             done <<< "$blocked_files"
           fi
           git add -A
-          git commit -m "chore(deps): weekly dependency upgrade ${DATE}"
+          git commit -m "chore(deps): daily dependency upgrade ${DATE}"
           git push -u origin "${BRANCH}"
           if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
             gh pr create \
-              --title "chore(deps): weekly dependency upgrade ${DATE}" \
-              --body "Automated weekly dependency upgrade.
+              --title "chore(deps): daily dependency upgrade ${DATE}" \
+              --body "Automated daily dependency upgrade.
 
           - exact \`==\` pins bumped to the newest PyPI release outside the 3-day cool-down (Python)
           - \`uv lock --upgrade\` (Python)
@@ -253,7 +253,7 @@ jobs:
           # Note: logs are public.
           show_full_output: 'true'
           prompt: |
-            You're on branch `${{ steps.branch.outputs.branch }}`. The weekly dependency upgrade
+            You're on branch `${{ steps.branch.outputs.branch }}`. The daily dependency upgrade
             already ran (`uv lock --upgrade` for Python, `pnpm update -r`
             in `js/`), but the verification step failed. The upgraded
             lockfiles and any package manifest changes are in the working tree
@@ -359,7 +359,7 @@ jobs:
           # Compose the PR body: fixed header (non-injectable) + Claude's
           # summary (treated as narrative content only; humans review).
           {
-            echo "> :robot: Automated weekly dependency upgrade with regression fixes."
+            echo "> :robot: Automated daily dependency upgrade with regression fixes."
             echo "> The narrative below was written by Claude after the upgrade caused verification failures."
             echo "> Review the diff and fixes carefully before merging."
             echo ""
@@ -396,11 +396,11 @@ jobs:
             done <<< "$blocked_files"
           fi
           git add -A
-          git commit -m "chore(deps): weekly dependency upgrade ${DATE}"
+          git commit -m "chore(deps): daily dependency upgrade ${DATE}"
           git push -u origin "${BRANCH}"
           if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
             gh pr create \
-              --title "chore(deps): weekly dependency upgrade ${DATE}" \
+              --title "chore(deps): daily dependency upgrade ${DATE}" \
               --body-file .scratch/pr-body-full.md
           fi
           # Auto-merge once a reviewer approves and checks pass.
@@ -420,5 +420,5 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": ":x: Weekly dependency upgrade failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              "text": ":x: Daily dependency upgrade failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
