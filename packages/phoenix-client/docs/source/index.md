@@ -8,6 +8,7 @@ Welcome to the Phoenix Client documentation. This lightweight Python client prov
 - **[Spans](api/spans)** - Access and analyze traces, spans, and annotations
 - **[Sessions](api/sessions)** - Retrieve sessions, list sessions for a project, and annotate multi-turn conversations
 - **[Projects](api/projects)** - Organize your work with project management
+- **[Secrets](api/secrets)** - Create, rotate, and delete encrypted provider credentials
 
 ## Installation
 
@@ -676,6 +677,7 @@ api/prompts
 api/spans
 api/sessions
 api/projects
+api/secrets
 api/helpers
 api/utils
 api/types
