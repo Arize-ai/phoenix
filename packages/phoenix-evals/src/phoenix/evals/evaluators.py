@@ -1000,7 +1000,7 @@ def create_evaluator(
         if isinstance(result, dict):
             dict_score_data: Dict[str, Any] = {}
             for key, value in result.items():
-                if key in ["score", "label", "explanation"]:
+                if key in ["score", "label", "explanation", "metadata"]:
                     dict_score_data[key] = value
             return Score(name=name, kind=kind, direction=direction, **dict_score_data)
 
