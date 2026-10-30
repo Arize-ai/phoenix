@@ -50,6 +50,8 @@
 
 - [Test sandboxable agents with Harbor](https://arize.com/docs/phoenix/learn/harbor-agent-tests): Run a purchase task in a fresh environment and verify the saved result in Phoenix.
 
+- [Decide whether a change is ready](https://arize.com/docs/phoenix/learn/ship-decision): Review experiment evidence and coverage gaps, then record a release decision and next action.
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config

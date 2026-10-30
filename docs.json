@@ -507,6 +507,12 @@
               "docs/phoenix/learn/compare-experiments",
               "docs/phoenix/learn/harbor-agent-tests"
             ]
+          },
+          {
+            "group": "Ship and repeat",
+            "pages": [
+              "docs/phoenix/learn/ship-decision"
+            ]
           }
         ]
       },

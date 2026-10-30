@@ -1,0 +1,82 @@
+---
+title: "Decide whether a change is ready"
+description: "Use reviewed results and remaining gaps to decide whether to release a change or keep testing."
+---
+
+{/* video: TODO */}
+
+A higher evaluation score doesn't tell you whether a change is ready for users. You've [compared the agent's answers and traces](/docs/phoenix/learn/compare-experiments) and learned to [check a completed task with Harbor](/docs/phoenix/learn/harbor-agent-tests). Now you'll decide what those results support and what still needs testing.
+
+You'll write a short decision note for the [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) budget instruction, linking the tested versions, your evidence, and the next action. Another person should be able to follow why you chose to release it, limit its rollout, or hold it for more work.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-release-light-b2c78b3f4044.svg" alt="Review evidence against release requirements, choose a decision, and identify the next action." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-release-dark-2d6727e038c9.svg" alt="Review evidence against release requirements, choose a decision, and identify the next action." />
+</Frame>
+
+## Before you start
+
+Keep your [experiment comparison](/docs/phoenix/learn/compare-experiments) open. You'll need the original and revised prompt, dataset version, and judge rubric used in those runs.
+
+## Step 1: Set the requirements for the decision
+
+Use the requirements you chose in [Choose what to evaluate](/docs/phoenix/learn/choose-evals). For the budget instruction, check whether it:
+
+- Stops recommendations outside the shopper's limit.
+- Preserves useful recommendations when suitable products are available.
+- Meets your application's limits for response time and cost.
+
+Apply the same requirements to both versions. If you haven't defined a response-time or cost limit, record that gap and set the limit before your next comparison.
+
+## Step 2: Review the evidence against those requirements
+
+In Phoenix, open both experiments together and select **Metrics** to review scores, latency, tokens, and estimated cost. Return to **Grid** to inspect the answers behind those numbers.
+
+<Frame caption="Open Metrics to compare the versions, then return to Grid to review individual answers.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-release-metrics-d1012924c310.gif" alt="Light-mode Phoenix walkthrough opening Metrics for the baseline and budget-rule experiments and returning to their answers in Grid." />
+</Frame>
+
+Use the findings from your earlier comparison to check:
+
+- **Answer quality:** Which requests improved, which regressed, and which judge decisions need review?
+- **Execution and resources:** Were runs missing or unscored? Did errors, response time, or estimated cost change?
+- **Coverage:** Do the tested requests represent the situations where you intend to use the change?
+
+A Harbor result adds evidence about the task and agent configuration it tested. The purchase exercise uses the original agent; it doesn't test the added budget instruction.
+
+<Accordion title="What does the recorded comparison support?">
+  The judge passed 3 of 6 original-agent attempts and all 6 revised-agent attempts. However, one revised answer praised an over-budget toy while asking the shopper to raise the limit. That pass needs review.
+
+  The dataset also contains only 3 dinosaur-shopping requests with different budgets. It doesn't cover other product categories or changing budgets during a conversation. Those gaps matter when deciding where to use the instruction.
+
+  Your runs may differ. Base your decision on the answers and coverage you actually reviewed.
+</Accordion>
+
+## Step 3: Write the decision and its reasons
+
+Now turn that review into a decision someone else can assess. From your Wonder Toys repository root, copy the supplied [decision template](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/release/decision-template.md):
+
+```bash
+cp -n academy/release/decision-template.md \
+  academy/release/budget-rule-decision.md
+```
+
+Fill in your requirements, the change, experiment links, dataset version, and judge version. Then choose a decision and explain it with specific results:
+
+- **Hold:** An unresolved failure, disputed judgment, or important coverage gap needs attention first.
+- **Limited rollout:** The evidence meets your requirements for a defined group of users, with a response plan if problems appear.
+- **Release:** The evidence meets your requirements for the intended scope.
+
+For the recorded example, **hold** is reasonable: review the disputed pass and add representative requests before relying on the apparent improvement. Your decision may differ if your evidence does.
+
+## Step 4: Define the next action
+
+A decision is useful when it tells the team what happens next. Finish the note with:
+
+- The evidence or change still needed, who will review it, and when.
+- The signals to watch and who will respond if the change is released.
+- The previous version you can restore if problems appear.
+
+Keep the note with the change so the decision stays tied to the versions you tested.
+
+Future edits can break behavior you've already checked. In Add critical checks to CI, you'll arrange for important code checks to run again when the application changes, whether you're still testing or preparing to release.
