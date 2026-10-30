@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, cast
 
 __all__ = ["MODEL_PARAM_KEYS", "is_secret_key", "model_params", "redact_secrets"]
 
@@ -80,11 +80,11 @@ def redact_secrets(value: Any) -> Any:
     if isinstance(value, Mapping):
         return {
             str(key): redact_secrets(item)
-            for key, item in value.items()
+            for key, item in cast(Mapping[Any, Any], value).items()
             if not is_secret_key(str(key))
         }
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
-        return [redact_secrets(item) for item in value]
+        return [redact_secrets(item) for item in cast(Sequence[Any], value)]
     return redact_secrets(str(value))
 
 
@@ -101,7 +101,9 @@ def model_params(kwargs: Mapping[str, Any]) -> dict[str, Any]:
     """
     sources: list[Mapping[str, Any]] = [kwargs]
     sources.extend(
-        nested for name in _NESTED_MODEL_KWARGS if isinstance(nested := kwargs.get(name), Mapping)
+        cast(Mapping[str, Any], nested)
+        for name in _NESTED_MODEL_KWARGS
+        if isinstance(nested := kwargs.get(name), Mapping)
     )
     params: dict[str, Any] = {}
     for key in MODEL_PARAM_KEYS:
