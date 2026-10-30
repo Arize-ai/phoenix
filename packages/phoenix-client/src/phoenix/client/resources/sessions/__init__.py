@@ -669,7 +669,11 @@ class Sessions:
 
         self._guard.require(ANNOTATE_SESSIONS)
         # Validate DataFrame first
-        _validate_session_annotations_dataframe(dataframe=dataframe)
+        _validate_session_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: List[InsertedSessionAnnotation] = []
@@ -1261,7 +1265,11 @@ class AsyncSessions:
 
         await self._guard.require(ANNOTATE_SESSIONS)
         # Validate DataFrame first
-        _validate_session_annotations_dataframe(dataframe=dataframe)
+        _validate_session_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: List[InsertedSessionAnnotation] = []
