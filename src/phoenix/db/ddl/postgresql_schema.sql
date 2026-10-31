@@ -1284,6 +1284,7 @@ CREATE TABLE public.generative_model_custom_providers (
     user_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    decision_sdk VARCHAR,
     CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
     CONSTRAINT uq_generative_model_custom_providers_name
         UNIQUE (name),

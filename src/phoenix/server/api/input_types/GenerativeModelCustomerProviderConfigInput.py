@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import strawberry
 from strawberry import UNSET
@@ -15,6 +15,7 @@ from phoenix.db.types.model_provider import (
     AWSBedrockCustomProviderConfig,
     AzureOpenAIClientKwargs,
     AzureOpenAICustomProviderConfig,
+    DecisionModelsConfig,
     GenerativeModelCustomerProviderConfig,
     GoogleGenAIClientKwargs,
     GoogleGenAICustomProviderConfig,
@@ -23,11 +24,46 @@ from phoenix.db.types.model_provider import (
     OpenAICustomProviderConfig,
     TypeSafeClientKwargs,
     TypeSafeCustomProviderConfig,
+    required_decision_sdk,
+    sdk_can_serve_decisions,
 )
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.headers import clean_headers
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.redaction import Redacted
+from phoenix.server.api.types.DecisionSDK import DecisionSDK
 from phoenix.server.api.types.RedactedString import RedactedString
+
+if TYPE_CHECKING:
+    from phoenix.db import models
+
+
+@strawberry.input(
+    description=(
+        "Where a custom provider's decision models run. They reuse the provider's API key "
+        "and headers."
+    )
+)
+class DecisionModelsConfigInput:
+    decision_sdk: DecisionSDK = strawberry.field(
+        description="OPENAI posts to {baseUrl}/decisions; TYPESAFE to {baseUrl}/v1/systemone."
+    )
+    base_url: str | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Base URL of the decision API; empty uses the chat base URL. Ignored for a "
+            "TypeSafe provider, whose own base URL is used."
+        ),
+    )
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET, description="Suggested decision model names."
+    )
+
+    def to_orm(self) -> DecisionModelsConfig:
+        return DecisionModelsConfig(
+            base_url=self.base_url or None,
+            model_names=tuple(self.model_names or ()),
+        )
 
 
 @strawberry.input
@@ -61,6 +97,17 @@ class OpenAICustomProviderConfigInput:
     openai_api_type: OpenAIApiType | None = OpenAIApiType.RESPONSES
     """ Which OpenAI API to use: chat_completions or responses. Default responses. """
 
+    decision_models: DecisionModelsConfigInput | None = UNSET
+    """ Decision endpoint settings; omitted or null means no decision models. """
+
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
+
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         api_type = self.openai_api_type.value if self.openai_api_type else "responses"
         return GenerativeModelCustomerProviderConfig(
@@ -70,6 +117,8 @@ class OpenAICustomProviderConfigInput:
                 if self.openai_client_kwargs
                 else None,
                 openai_api_type=api_type,
+                model_names=tuple(self.model_names or ()),
+                decision_models=self.decision_models.to_orm() if self.decision_models else None,
             )
         )
 
@@ -136,6 +185,17 @@ class AzureOpenAICustomProviderConfigInput:
     openai_api_type: OpenAIApiType | None = OpenAIApiType.RESPONSES
     """ Which OpenAI API to use: chat_completions or responses. Default responses. """
 
+    decision_models: DecisionModelsConfigInput | None = UNSET
+    """ Decision endpoint settings; omitted or null means no decision models. """
+
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
+
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         api_type = self.openai_api_type.value if self.openai_api_type else "responses"
         return GenerativeModelCustomerProviderConfig(
@@ -143,6 +203,8 @@ class AzureOpenAICustomProviderConfigInput:
                 azure_openai_authentication_method=self.azure_openai_authentication_method.to_orm(),
                 azure_openai_client_kwargs=self.azure_openai_client_kwargs.to_orm(),
                 openai_api_type=api_type,
+                model_names=tuple(self.model_names or ()),
+                decision_models=self.decision_models.to_orm() if self.decision_models else None,
             )
         )
 
@@ -171,6 +233,13 @@ class AnthropicClientKwargsInput:
 class AnthropicCustomProviderConfigInput:
     anthropic_authentication_method: AnthropicAuthenticationMethodInput
     anthropic_client_kwargs: AnthropicClientKwargsInput | None = UNSET
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         return GenerativeModelCustomerProviderConfig(
@@ -179,6 +248,7 @@ class AnthropicCustomProviderConfigInput:
                 anthropic_client_kwargs=self.anthropic_client_kwargs.to_orm()
                 if self.anthropic_client_kwargs
                 else None,
+                model_names=tuple(self.model_names or ()),
             )
         )
 
@@ -221,6 +291,13 @@ class GoogleGenAIClientKwargsInput:
 class GoogleGenAICustomProviderConfigInput:
     google_genai_authentication_method: GoogleGenAIAuthenticationMethodInput
     google_genai_client_kwargs: GoogleGenAIClientKwargsInput | None = UNSET
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         return GenerativeModelCustomerProviderConfig(
@@ -229,6 +306,7 @@ class GoogleGenAICustomProviderConfigInput:
                 google_genai_client_kwargs=self.google_genai_client_kwargs.to_orm()
                 if self.google_genai_client_kwargs
                 else None,
+                model_names=tuple(self.model_names or ()),
             )
         )
 
@@ -288,12 +366,20 @@ class AWSBedrockClientKwargsInput:
 class AWSBedrockCustomProviderConfigInput:
     aws_bedrock_authentication_method: AWSBedrockAuthenticationMethodInput
     aws_bedrock_client_kwargs: AWSBedrockClientKwargsInput
+    model_names: list[str] | None = strawberry.field(
+        default=UNSET,
+        description=(
+            "Suggested LLM model names, listed in the model menu in place of the SDK's "
+            "built-in list; empty or omitted lists the built-in models."
+        ),
+    )
 
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         return GenerativeModelCustomerProviderConfig(
             root=AWSBedrockCustomProviderConfig(
                 aws_bedrock_authentication_method=self.aws_bedrock_authentication_method.to_orm(),
                 aws_bedrock_client_kwargs=self.aws_bedrock_client_kwargs.to_orm(),
+                model_names=tuple(self.model_names or ()),
             )
         )
 
@@ -323,12 +409,20 @@ class TypeSafeCustomProviderConfigInput:
     typesafe_authentication_method: TypeSafeAuthenticationMethodInput
     typesafe_client_kwargs: TypeSafeClientKwargsInput | None = UNSET
 
+    decision_models: DecisionModelsConfigInput | None = UNSET
+    """ Suggested decision model names; the decision client is always System One. """
+
     def to_orm(self) -> GenerativeModelCustomerProviderConfig:
         return GenerativeModelCustomerProviderConfig(
             root=TypeSafeCustomProviderConfig(
                 typesafe_authentication_method=self.typesafe_authentication_method.to_orm(),
                 typesafe_client_kwargs=self.typesafe_client_kwargs.to_orm()
                 if self.typesafe_client_kwargs
+                else None,
+                decision_models=DecisionModelsConfig(
+                    model_names=tuple(self.decision_models.model_names or ())
+                )
+                if self.decision_models
                 else None,
             )
         )
@@ -363,3 +457,44 @@ class GenerativeModelCustomerProviderConfigInput:
             "Exactly one of openai, azure_openai, anthropic, aws_bedrock, "
             "google_genai, typesafe must be provided"
         )
+
+    def decision_sdk(self) -> "models.DecisionSDK | None":
+        """The decision client this config asks for, checked against its SDK.
+
+        Raises:
+            BadRequest: The SDK can't serve decision models, or it requires another
+                decision client than the one asked for.
+        """
+        sdk = self.to_orm().root.type
+        decision_models = next(
+            (
+                config.decision_models
+                for config in (self.openai, self.azure_openai, self.typesafe)
+                if config
+            ),
+            None,
+        )
+        requested: "models.DecisionSDK | None" = (
+            "openai"
+            if decision_models and decision_models.decision_sdk is DecisionSDK.OPENAI
+            else "typesafe"
+            if decision_models
+            else None
+        )
+        if not sdk_can_serve_decisions(sdk):
+            if requested is not None:
+                raise BadRequest(f"A {sdk} provider cannot serve decision models.")
+            return None
+        # Decision requests on Azure carry the provider's API key; there is no Entra ID
+        # path for them yet.
+        if (
+            requested is not None
+            and self.azure_openai
+            and not self.azure_openai.azure_openai_authentication_method.api_key
+        ):
+            raise BadRequest("Decision models on Azure OpenAI need API key authentication.")
+        if (required := required_decision_sdk(sdk)) is not None:
+            if requested is not None and requested != required:
+                raise BadRequest(f"A {sdk} provider runs decision models through {required}.")
+            return required
+        return requested

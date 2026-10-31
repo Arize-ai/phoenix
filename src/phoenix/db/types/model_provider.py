@@ -16,10 +16,12 @@ from typing import (
 )
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
     RootModel,
+    field_validator,
 )
 from typing_extensions import TypeAlias, assert_never
 
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
     from types_aiobotocore_bedrock_runtime import BedrockRuntimeClient
     from typesafe_sdk import AsyncTypeSafeClient
 
-    from phoenix.db.models import GenerativeModelSDK
+    from phoenix.db.models import DecisionSDK, GenerativeModelSDK
 
 TYPESAFE_DEFAULT_BASE_URL = "https://api.typesafe.ai"
 OPENAI_DEFAULT_BASE_URL = "https://api.openai.com/v1"
@@ -204,7 +206,13 @@ _SDK_COMPATIBLE_PROVIDERS: Mapping["GenerativeModelSDK", frozenset[ModelProvider
 _CHAT_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
     {"openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"}
 )
-_DECISION_SDKS: frozenset["GenerativeModelSDK"] = frozenset({"openai", "typesafe"})
+_DECISION_MODEL_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
+    {"openai", "azure_openai", "typesafe"}
+)
+
+DECISION_SDK_TO_MODEL_PROVIDER: Mapping["DecisionSDK", ModelProvider] = MappingProxyType(
+    {"openai": ModelProvider.OPENAI, "typesafe": ModelProvider.TYPESAFE}
+)
 
 
 def is_sdk_compatible_with_model_provider(
@@ -226,13 +234,62 @@ def sdk_offers_chat(sdk: "GenerativeModelSDK") -> bool:
     return sdk in _CHAT_SDKS
 
 
-def sdk_offers_decisions(sdk: "GenerativeModelSDK") -> bool:
-    """Whether a custom provider with this SDK can serve decision models.
+def sdk_can_serve_decisions(sdk: "GenerativeModelSDK") -> bool:
+    """Whether a custom provider with this SDK may be given a decision client.
 
-    An ``openai`` provider runs decisions through the same endpoint and key it uses
-    for chat; the model type chosen decides which API is called.
+    Whether it does is its ``decision_sdk``, not its SDK.
     """
-    return sdk in _DECISION_SDKS
+    return sdk in _DECISION_MODEL_SDKS
+
+
+def required_decision_sdk(sdk: "GenerativeModelSDK") -> "DecisionSDK | None":
+    """The decision client a provider with this SDK must use, if it has no choice.
+
+    A TypeSafe provider exists to serve System One, so it always does.
+    """
+    return "typesafe" if sdk == "typesafe" else None
+
+
+def _clean_model_names(value: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(name.strip() for name in value if name.strip()))
+
+
+SuggestedModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
+"""Model names listed in the model menu, trimmed and without duplicates."""
+
+LLM_MODEL_NAMES_DESCRIPTION = (
+    "Suggested LLM model names, listed in the model menu in place of the SDK's built-in "
+    "list; empty lists the built-in models. Any name the endpoint accepts works."
+)
+
+
+class DecisionModelsConfig(BaseModel):
+    """Where a custom provider's decision models run, beside its chat settings.
+
+    The decision client reuses the provider's API key and headers. Which client it is
+    (``decision_sdk``) is stored in its own column, so it can be read without decrypting.
+    """
+
+    model_config = ConfigDict(
+        frozen=True,
+        str_strip_whitespace=True,
+    )
+    base_url: str | None = Field(
+        default=None,
+        description=(
+            "Base URL of the decision API. None uses a best guess from the chat base URL. "
+            "A TypeSafe provider always uses its own base URL."
+        ),
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description="Suggested decision model names; any name the endpoint accepts works.",
+    )
+
+    @field_validator("base_url", mode="after")
+    @classmethod
+    def _empty_base_url_is_none(cls, value: str | None) -> str | None:
+        return value or None
 
 
 class AuthenticationMethodApiKey(BaseModel):
@@ -304,6 +361,14 @@ class OpenAICustomProviderConfig(BaseModel):
     openai_api_type: Literal["chat_completions", "responses"] = Field(
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
+    decision_models: DecisionModelsConfig | None = Field(
+        default=None,
+        description="Decision endpoint settings; used when the provider has a decision client",
     )
 
     def get_client_factory(
@@ -414,6 +479,14 @@ class AzureOpenAICustomProviderConfig(BaseModel):
     openai_api_type: Literal["chat_completions", "responses"] = Field(
         default="responses",
         description="Which OpenAI API to use: chat_completions or responses",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
+    decision_models: DecisionModelsConfig | None = Field(
+        default=None,
+        description="Decision endpoint settings; used when the provider has a decision client",
     )
 
     def get_client_factory(
@@ -563,6 +636,10 @@ class AnthropicCustomProviderConfig(BaseModel):
         default=None,
         description="Anthropic client kwargs",
     )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
 
     def get_client_factory(
         self,
@@ -664,6 +741,10 @@ class AWSBedrockCustomProviderConfig(BaseModel):
     aws_bedrock_client_kwargs: AWSBedrockClientKwargs = Field(
         ...,
         description="AWS Bedrock client kwargs",
+    )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
     )
 
     def get_client_factory(
@@ -797,6 +878,10 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         default=None,
         description="Google GenAI client kwargs",
     )
+    model_names: SuggestedModelNames = Field(
+        default=(),
+        description=LLM_MODEL_NAMES_DESCRIPTION,
+    )
 
     def get_client_factory(
         self,
@@ -882,6 +967,10 @@ class TypeSafeCustomProviderConfig(BaseModel):
     typesafe_client_kwargs: TypeSafeClientKwargs | None = Field(
         default=None,
         description="TypeSafe client kwargs",
+    )
+    decision_models: DecisionModelsConfig | None = Field(
+        default=None,
+        description="Decision endpoint settings; used when the provider has a decision client",
     )
 
     def get_client_factory(

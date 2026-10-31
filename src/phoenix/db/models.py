@@ -210,6 +210,8 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
     "typesafe",
 ]
+DecisionSDK: TypeAlias = Literal["openai", "typesafe"]
+"""A custom provider's decision client: OpenAI's Decisions API or System One."""
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
     "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
@@ -3926,6 +3928,8 @@ class GenerativeModelCustomProvider(HasId):
     description: Mapped[Optional[str]]
     provider: Mapped[str] = mapped_column(String, nullable=False)
     sdk: Mapped[GenerativeModelSDK] = mapped_column(String, nullable=False)
+    decision_sdk: Mapped[Optional[DecisionSDK]] = mapped_column(String, nullable=True)
+    """The client its decision models run through; NULL when it serves none."""
     config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

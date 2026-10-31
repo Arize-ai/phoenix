@@ -55,11 +55,12 @@ from phoenix.db.types.decisions import (
 from phoenix.db.types.model_provider import (
     OPENAI_DEFAULT_BASE_URL,
     TYPESAFE_DEFAULT_BASE_URL,
+    AzureOpenAICustomProviderConfig,
     GenerativeModelCustomerProviderConfig,
+    GenerativeModelCustomerProviderConfigType,
     ModelProvider,
     OpenAICustomProviderConfig,
     TypeSafeCustomProviderConfig,
-    sdk_offers_decisions,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.playground_clients import resolve_provider_api_key
@@ -68,6 +69,11 @@ from phoenix.server.api.helpers.playground_registry import (
 )
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.decisions.endpoints import (
+    decision_client_base_url,
+    resolve_decision_base_url,
+)
+from phoenix.server.decisions.validation import custom_provider_without_decisions_error
 from phoenix.utilities.env_vars import without_env_vars
 
 if TYPE_CHECKING:
@@ -728,7 +734,8 @@ class OllamaDecisionClient(TypeSafeDecisionClient):
     Configured the way Ollama chat is: no credentials, and a base URL from the run or
     ``OLLAMA_BASE_URL`` with no default. That variable names the OpenAI-compatible root
     (``http://localhost:11434/v1``) for chat, while System One's path starts at the
-    server root, so a trailing ``/v1`` is dropped and one variable serves both.
+    server root, so the System One rule drops a trailing ``/v1`` and one variable
+    serves both.
     """
 
     provider_key = GenerativeProviderKey.OLLAMA
@@ -744,7 +751,7 @@ class OllamaDecisionClient(TypeSafeDecisionClient):
         base_url = super().resolve_base_url(override)
         if base_url is None:
             return None
-        return base_url.rstrip("/").removesuffix("/v1")
+        return decision_client_base_url("typesafe", base_url)
 
 
 DECISION_CLIENTS: Mapping[GenerativeProviderKey, type[DecisionClient]] = {
@@ -858,6 +865,67 @@ async def get_decision_client(
     )
 
 
+def custom_provider_decision_connection(
+    *,
+    decision_sdk: models.DecisionSDK,
+    config: GenerativeModelCustomerProviderConfigType,
+    provider_name: str,
+    provider: Optional[str] = None,
+) -> tuple[type[DecisionClient], DecisionConnection]:
+    """The client class and connection a custom provider's decision models run through.
+
+    The decision client reuses the provider's key and headers and posts to the URL
+    :func:`~phoenix.server.decisions.endpoints.decision_endpoint_url` names.
+
+    Raises:
+        BadRequest: The provider's SDK can't serve decisions, its credentials aren't an
+            API key, or the decision base URL is not a plain HTTP(S) URL.
+    """
+    api_key: str
+    headers: Optional[Mapping[str, str]] = None
+    organization: Optional[str] = None
+    project: Optional[str] = None
+    if isinstance(config, OpenAICustomProviderConfig):
+        api_key = config.openai_authentication_method.api_key
+        openai_kwargs = config.openai_client_kwargs
+        if openai_kwargs is not None:
+            headers = openai_kwargs.default_headers
+            if decision_sdk == "openai":
+                organization = openai_kwargs.organization
+                project = openai_kwargs.project
+    elif isinstance(config, AzureOpenAICustomProviderConfig):
+        method = config.azure_openai_authentication_method
+        if method.type != "api_key":
+            raise BadRequest(
+                f"Custom provider '{provider_name}' needs API key authentication to serve "
+                "decision models. Edit it under Settings > AI Providers."
+            )
+        api_key = method.api_key
+        headers = config.azure_openai_client_kwargs.default_headers
+    elif isinstance(config, TypeSafeCustomProviderConfig):
+        api_key = config.typesafe_authentication_method.api_key
+        typesafe_kwargs = config.typesafe_client_kwargs
+        headers = typesafe_kwargs.default_headers if typesafe_kwargs else None
+    else:
+        raise custom_provider_without_decisions_error(provider_name)
+    client_class: type[DecisionClient] = (
+        OpenAIDecisionClient if decision_sdk == "openai" else TypeSafeDecisionClient
+    )
+    base_url = decision_client_base_url(
+        decision_sdk, resolve_decision_base_url(decision_sdk, config)
+    )
+    connection = DecisionConnection(
+        api_key=api_key,
+        base_url=_validated_base_url(base_url),
+        headers=headers,
+        organization=organization,
+        project=project,
+        provider_name=provider,
+        ignore_environment=True,
+    )
+    return client_class, connection
+
+
 async def get_custom_provider_decision_client(
     *,
     custom_provider_id: int,
@@ -868,20 +936,20 @@ async def get_custom_provider_decision_client(
     """Resolve the client for a custom provider from its stored configuration.
 
     The provider brings its own key, endpoint, and headers; neither the server's
-    environment nor its stored secrets are consulted. An ``openai`` provider runs
-    OpenAI's Decisions API and a ``typesafe`` provider runs System One.
+    environment nor its stored secrets are consulted. Its ``decision_sdk`` picks the
+    client: ``openai`` runs OpenAI's Decisions API and ``typesafe`` runs System One.
 
     Raises:
         NotFound: No custom provider has this ID.
-        BadRequest: The provider serves no decision models or its endpoint is not a
+        BadRequest: The provider has no decision client or its endpoint is not a
             plain HTTP(S) URL.
         UnreadableCustomProviderError: Its stored configuration can't be read.
     """
     record = await session.get(models.GenerativeModelCustomProvider, custom_provider_id)
     if record is None:
         raise NotFound("Custom provider not found.")
-    if not sdk_offers_decisions(record.sdk):
-        raise BadRequest(f"Custom provider '{record.name}' does not serve decision models.")
+    if (decision_sdk := record.decision_sdk) is None:
+        raise custom_provider_without_decisions_error(record.name)
     _require_model_name(model_name)
     # The reasons name what failed, never the configuration's values.
     try:
@@ -904,35 +972,12 @@ async def get_custom_provider_decision_client(
             f"invalid ({', '.join(fields)}). Edit it under Settings > AI Providers.",
             provider_name=record.name,
         ) from error
-    client_class: type[DecisionClient]
-    if isinstance(config, OpenAICustomProviderConfig):
-        client_class = OpenAIDecisionClient
-        openai_kwargs = config.openai_client_kwargs
-        connection = DecisionConnection(
-            api_key=config.openai_authentication_method.api_key,
-            base_url=_validated_base_url(
-                (openai_kwargs.base_url if openai_kwargs else None) or OPENAI_DEFAULT_BASE_URL
-            ),
-            headers=openai_kwargs.default_headers if openai_kwargs else None,
-            organization=openai_kwargs.organization if openai_kwargs else None,
-            project=openai_kwargs.project if openai_kwargs else None,
-            provider_name=record.provider,
-            ignore_environment=True,
-        )
-    elif isinstance(config, TypeSafeCustomProviderConfig):
-        client_class = TypeSafeDecisionClient
-        typesafe_kwargs = config.typesafe_client_kwargs
-        connection = DecisionConnection(
-            api_key=config.typesafe_authentication_method.api_key,
-            base_url=_validated_base_url(
-                (typesafe_kwargs.base_url if typesafe_kwargs else None) or TYPESAFE_DEFAULT_BASE_URL
-            ),
-            headers=typesafe_kwargs.default_headers if typesafe_kwargs else None,
-            provider_name=record.provider,
-            ignore_environment=True,
-        )
-    else:
-        raise BadRequest(f"Custom provider '{record.name}' does not serve decision models.")
+    client_class, connection = custom_provider_decision_connection(
+        decision_sdk=decision_sdk,
+        config=config,
+        provider_name=record.name,
+        provider=record.provider,
+    )
     _require_dependencies(client_class)
     return client_class(model_name=model_name, connection=connection)
 

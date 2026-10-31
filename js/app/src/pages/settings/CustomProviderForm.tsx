@@ -1,14 +1,7 @@
 import { css } from "@emotion/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { JSONSchema7 } from "json-schema";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-} from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { Control, UseFormGetValues, UseFormReset } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
@@ -17,6 +10,7 @@ import invariant from "tiny-invariant";
 import {
   Alert,
   Button,
+  DialogFooter,
   FieldError,
   Flex,
   Form,
@@ -33,7 +27,6 @@ import {
   Text,
   TextArea,
   TextField,
-  View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper } from "@phoenix/components/code";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
@@ -46,6 +39,7 @@ import {
   DEFAULT_AZURE_AUTH_METHOD,
   type GenerativeModelSDK,
   SDK_DEFAULT_PROVIDER,
+  SDK_LABELS,
   SDK_OPTIONS,
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
@@ -56,6 +50,9 @@ import {
   buildClientConfig,
   createDefaultFormData,
 } from "./customProviderFormUtils";
+import { type DecisionSDK, sdkCanServeDecisions } from "./decisionEndpoints";
+import { DecisionModelsSection } from "./DecisionModelsSection";
+import { OptionalFields, ProviderFormSection } from "./ProviderFormSection";
 
 /**
  * Base form data shared across all provider types.
@@ -84,9 +81,36 @@ const OPENAI_API_TYPE_OPTIONS: { id: OpenAIApiTypeForm; label: string }[] = [
 ];
 
 /**
+ * Decision model settings, shared by the SDKs that can serve decision models.
+ * The decision client reuses the provider's API key and headers.
+ */
+export interface DecisionModelsFormData {
+  /** Whether the provider serves decision models. Always true for TypeSafe. */
+  decision_enabled: boolean;
+  /** Which decision API to call. Always TYPESAFE (System One) for TypeSafe. */
+  decision_sdk: DecisionSDK;
+  /** Base URL of the decision API; ignored for TypeSafe, which uses its own. */
+  decision_base_url?: string;
+  /** Suggested decision model names, comma or newline separated. */
+  decision_model_names?: string;
+}
+
+/**
+ * Suggested LLM model names, shared by the SDKs that serve LLMs.
+ */
+export interface LLMModelsFormData {
+  /**
+   * Comma or newline separated. Replaces the SDK's built-in list in the model
+   * menu; empty lists the built-in models.
+   */
+  model_names?: string;
+}
+
+/**
  * OpenAI SDK configuration.
  */
-export interface OpenAIFormData extends BaseProviderFormData {
+export interface OpenAIFormData
+  extends BaseProviderFormData, LLMModelsFormData, DecisionModelsFormData {
   sdk: "OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   openai_api_key: string;
@@ -100,7 +124,8 @@ export interface OpenAIFormData extends BaseProviderFormData {
  * Azure OpenAI SDK configuration.
  * Supports both API key and Azure AD token provider authentication.
  */
-export interface AzureOpenAIFormData extends BaseProviderFormData {
+export interface AzureOpenAIFormData
+  extends BaseProviderFormData, LLMModelsFormData, DecisionModelsFormData {
   sdk: "AZURE_OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   azure_endpoint: string;
@@ -118,7 +143,8 @@ export interface AzureOpenAIFormData extends BaseProviderFormData {
 /**
  * Anthropic SDK configuration.
  */
-export interface AnthropicFormData extends BaseProviderFormData {
+export interface AnthropicFormData
+  extends BaseProviderFormData, LLMModelsFormData {
   sdk: "ANTHROPIC";
   anthropic_api_key: string;
   anthropic_base_url?: string;
@@ -129,7 +155,8 @@ export interface AnthropicFormData extends BaseProviderFormData {
  * AWS Bedrock SDK configuration.
  * Supports both explicit access keys and environment credentials (IAM role).
  */
-export interface AWSBedrockFormData extends BaseProviderFormData {
+export interface AWSBedrockFormData
+  extends BaseProviderFormData, LLMModelsFormData {
   sdk: "AWS_BEDROCK";
   aws_region: string;
   aws_auth_method: AWSAuthMethod;
@@ -143,7 +170,8 @@ export interface AWSBedrockFormData extends BaseProviderFormData {
 /**
  * Google GenAI SDK configuration.
  */
-export interface GoogleGenAIFormData extends BaseProviderFormData {
+export interface GoogleGenAIFormData
+  extends BaseProviderFormData, LLMModelsFormData {
   sdk: "GOOGLE_GENAI";
   google_api_key: string;
   google_base_url?: string;
@@ -152,9 +180,10 @@ export interface GoogleGenAIFormData extends BaseProviderFormData {
 
 /**
  * TypeSafe SDK configuration: a System One-compatible endpoint that serves
- * decision models only.
+ * decision models only, always through System One.
  */
-export interface TypeSafeFormData extends BaseProviderFormData {
+export interface TypeSafeFormData
+  extends BaseProviderFormData, DecisionModelsFormData {
   sdk: "TYPESAFE";
   typesafe_api_key: string;
   typesafe_base_url?: string;
@@ -186,6 +215,27 @@ const flexFieldCSS = css`
   flex: 1 1 auto;
 `;
 
+// The sections scroll between the dialog's header and its pinned footer.
+const formCSS = css`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+`;
+
+const formBodyCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+`;
+
+const OPENAI_OPTIONAL_FIELDS = [
+  "openai_organization",
+  "openai_project",
+  "openai_default_headers",
+] as const;
+
 // Provider-specific field sections
 function OpenAIFields({
   control,
@@ -195,7 +245,7 @@ function OpenAIFields({
   isSubmitting: boolean;
 }) {
   return (
-    <ProviderSection title="OpenAI Configuration">
+    <>
       <Controller
         name="openai_api_type"
         control={control}
@@ -265,64 +315,70 @@ function OpenAIFields({
           </TextField>
         )}
       />
-      <Flex direction="row" gap="size-100">
-        <Controller
-          name="openai_organization"
-          control={control}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              isInvalid={invalid}
-              {...field}
-              isDisabled={isSubmitting}
-              css={flexFieldCSS}
-            >
-              <Label>Organization</Label>
-              <Input />
-              {error && <FieldError>{error.message}</FieldError>}
-            </TextField>
-          )}
-        />
-        <Controller
-          name="openai_project"
-          control={control}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              isInvalid={invalid}
-              {...field}
-              isDisabled={isSubmitting}
-              css={flexFieldCSS}
-            >
-              <Label>Project</Label>
-              <Input />
-              {error && <FieldError>{error.message}</FieldError>}
-            </TextField>
-          )}
-        />
-      </Flex>
-      <Controller
-        name="openai_default_headers"
+      <OptionalFields
+        title="Organization, project and default headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
+        fields={OPENAI_OPTIONAL_FIELDS}
+      >
+        <Flex direction="row" gap="size-100">
+          <Controller
+            name="openai_organization"
+            control={control}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+                css={flexFieldCSS}
+              >
+                <Label>Organization</Label>
+                <Input />
+                {error && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            )}
+          />
+          <Controller
+            name="openai_project"
+            control={control}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+                css={flexFieldCSS}
+              >
+                <Label>Project</Label>
+                <Input />
+                {error && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            )}
+          />
+        </Flex>
+        <Controller
+          name="openai_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
@@ -337,7 +393,7 @@ function AzureOpenAIFields({
     useWatch({ control, name: "azure_auth_method" }) || "api_key";
 
   return (
-    <ProviderSection title="Azure OpenAI Configuration">
+    <>
       <Controller
         name="openai_api_type"
         control={control}
@@ -527,30 +583,36 @@ function AzureOpenAIFields({
           />
         </>
       )}
-      <Controller
-        name="azure_default_headers"
+      <OptionalFields
+        title="Default headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
+        fields={["azure_default_headers"]}
+      >
+        <Controller
+          name="azure_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
@@ -562,7 +624,7 @@ function AnthropicFields({
   isSubmitting: boolean;
 }) {
   return (
-    <ProviderSection title="Anthropic Configuration">
+    <>
       <Controller
         name="anthropic_api_key"
         control={control}
@@ -595,30 +657,36 @@ function AnthropicFields({
           </TextField>
         )}
       />
-      <Controller
-        name="anthropic_default_headers"
+      <OptionalFields
+        title="Default headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
+        fields={["anthropic_default_headers"]}
+      >
+        <Controller
+          name="anthropic_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
@@ -633,7 +701,7 @@ function AWSFields({
     useWatch({ control, name: "aws_auth_method" }) || DEFAULT_AWS_AUTH_METHOD;
 
   return (
-    <ProviderSection title="AWS Bedrock Configuration">
+    <>
       <Controller
         name="aws_region"
         control={control}
@@ -769,7 +837,7 @@ function AWSFields({
           </TextField>
         )}
       />
-    </ProviderSection>
+    </>
   );
 }
 
@@ -781,7 +849,7 @@ function GoogleFields({
   isSubmitting: boolean;
 }) {
   return (
-    <ProviderSection title="Google GenAI Configuration">
+    <>
       <Controller
         name="google_api_key"
         control={control}
@@ -820,53 +888,36 @@ function GoogleFields({
           </TextField>
         )}
       />
-      <Controller
-        name="google_headers"
+      <OptionalFields
+        title="Headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
-  );
-}
-
-// Wrapper for SDK-specific sections
-function ProviderSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <View
-      borderColor="gray-200"
-      borderWidth="thin"
-      borderRadius="medium"
-      padding="size-200"
-    >
-      <Flex direction="column" gap="size-100">
-        <Text weight="heavy">{title}</Text>
-        {children}
-      </Flex>
-    </View>
+        fields={["google_headers"]}
+      >
+        <Controller
+          name="google_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
@@ -878,10 +929,7 @@ function TypeSafeFields({
   isSubmitting: boolean;
 }) {
   return (
-    <ProviderSection title="TypeSafe Configuration">
-      <Text size="S" color="text-700">
-        Serves decision models only. Any System One-compatible endpoint works.
-      </Text>
+    <>
       <Controller
         name="typesafe_api_key"
         control={control}
@@ -913,30 +961,76 @@ function TypeSafeFields({
           </TextField>
         )}
       />
-      <Controller
-        name="typesafe_default_headers"
+      <OptionalFields
+        title="Default headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
+        fields={["typesafe_default_headers"]}
+      >
+        <Controller
+          name="typesafe_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
+  );
+}
+
+/**
+ * Suggested LLM model names. They replace the SDK's built-in list in the model
+ * menu, which suits gateways and deployments whose names differ from it.
+ */
+function LLMModelsSection({
+  sdk,
+  control,
+  isSubmitting,
+}: {
+  sdk: GenerativeModelSDK;
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
+  return (
+    <ProviderFormSection
+      title="LLM models"
+      subtitle={`Replaces the built-in ${SDK_LABELS[sdk]} list when set`}
+    >
+      <Controller
+        name="model_names"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            {...field}
+            value={field.value ?? ""}
+            isDisabled={isSubmitting}
           >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
+            <Label>Suggested model names</Label>
+            <Input placeholder="qwen3-coder, llama-5-70b" />
+            <Text slot="description">
+              Optional, comma separated. Leave empty to list the built-in
+              models. Any model the endpoint accepts can be used.
+            </Text>
+          </TextField>
         )}
       />
-    </ProviderSection>
+    </ProviderFormSection>
   );
 }
 
@@ -1068,6 +1162,7 @@ export const ProviderForm = ({
     handleSubmit,
     reset,
     getValues,
+    setValue,
     formState: { isDirty },
   } = useForm<ProviderFormData>({
     defaultValues,
@@ -1084,100 +1179,121 @@ export const ProviderForm = ({
   invariant(sdk, "SDK field must be defined in form state");
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
-      <Flex direction="column" gap="size-100">
-        <Controller
-          name="name"
-          control={control}
-          rules={{ required: "Name is required" }}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              isRequired
-              isInvalid={invalid}
-              {...field}
-              isDisabled={isSubmitting}
-            >
-              <Label>Provider Name</Label>
-              <Input placeholder="My Custom Provider" />
-              {error ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">
-                  A unique name to identify this provider configuration
-                </Text>
-              )}
-            </TextField>
-          )}
-        />
-
-        <Controller
-          name="description"
-          control={control}
-          render={({ field }) => (
-            <TextField {...field} isDisabled={isSubmitting}>
-              <Label>Description</Label>
-              <TextArea placeholder="Optional description for this provider" />
-            </TextField>
-          )}
-        />
-
-        <Flex direction="row" gap="size-100" alignItems="start">
-          <SDKSelect
-            control={control}
-            reset={reset}
-            getValues={getValues}
-            isSubmitting={isSubmitting}
-          />
+    <Form
+      onSubmit={handleSubmit(onSubmit)}
+      css={formCSS}
+      // The schema validates. A stored key shows as a masked placeholder over an
+      // empty input, which the browser's own required check would reject, so
+      // edits couldn't be saved without retyping the key.
+      validationBehavior="aria"
+    >
+      <div css={formBodyCSS}>
+        <ProviderFormSection title="Provider">
           <Controller
-            name="provider"
+            name="name"
             control={control}
-            rules={{ required: "Provider is required" }}
+            rules={{ required: "Name is required" }}
             render={({ field, fieldState: { invalid, error } }) => (
               <TextField
                 isRequired
                 isInvalid={invalid}
                 {...field}
                 isDisabled={isSubmitting}
-                css={flexFieldCSS}
               >
-                <Label>Provider String</Label>
-                <Input placeholder="e.g., openai, azure, my-custom-provider" />
-                {error && <FieldError>{error.message}</FieldError>}
+                <Label>Provider Name</Label>
+                <Input placeholder="My Custom Provider" />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    A unique name to identify this provider configuration
+                  </Text>
+                )}
               </TextField>
             )}
           />
-        </Flex>
 
-        <SDKFieldsRenderer
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} isDisabled={isSubmitting}>
+                <Label>Description</Label>
+                <TextArea placeholder="Optional description for this provider" />
+              </TextField>
+            )}
+          />
+
+          <Flex direction="row" gap="size-100" alignItems="start">
+            <SDKSelect
+              control={control}
+              reset={reset}
+              getValues={getValues}
+              isSubmitting={isSubmitting}
+            />
+            <Controller
+              name="provider"
+              control={control}
+              rules={{ required: "Provider is required" }}
+              render={({ field, fieldState: { invalid, error } }) => (
+                <TextField
+                  isRequired
+                  isInvalid={invalid}
+                  {...field}
+                  isDisabled={isSubmitting}
+                  css={flexFieldCSS}
+                >
+                  <Label>Provider String</Label>
+                  <Input placeholder="e.g., openai, azure, my-custom-provider" />
+                  {error && <FieldError>{error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+          </Flex>
+        </ProviderFormSection>
+
+        <ConnectionSection
+          // Keys are unique among siblings; a shared one leaves stale sections
+          // behind when the SDK changes.
+          key={`connection-${sdk}`}
           sdk={sdk}
           control={control}
+          getValues={getValues}
           isSubmitting={isSubmitting}
         />
 
-        <TestConnectionButton
-          key={sdk}
-          control={control}
-          getValues={getValues}
-          sdk={sdk}
-        />
+        {sdk !== "TYPESAFE" ? (
+          // A TypeSafe provider serves decision models only.
+          <LLMModelsSection
+            sdk={sdk}
+            control={control}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
 
-        <Flex direction="row" gap="size-100" justifyContent="end">
-          <Button
-            variant="default"
-            onPress={onCancel}
-            isDisabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" isDisabled={isSubmitting}>
-            {isSubmitting
-              ? "Saving..."
-              : initialValues
-                ? "Update Provider"
-                : "Create Provider"}
-          </Button>
-        </Flex>
-      </Flex>
+        {sdkCanServeDecisions(sdk) ? (
+          <DecisionModelsSection
+            key={`decisions-${sdk}`}
+            sdk={sdk}
+            control={control}
+            getValues={getValues}
+            setValue={setValue}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
+      </div>
+      <DialogFooter>
+        <Button variant="default" onPress={onCancel} isDisabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" isDisabled={isSubmitting}>
+          {isSubmitting
+            ? "Saving..."
+            : initialValues
+              ? "Update Provider"
+              : "Create Provider"}
+        </Button>
+      </DialogFooter>
     </Form>
   );
 };
@@ -1329,7 +1445,11 @@ function hasRequiredCredentials(
   }
 }
 
-function TestConnectionButton({
+/**
+ * Tests the provider's credentials against the form's current values. A
+ * result goes stale as soon as any field changes.
+ */
+function useTestCredentials({
   control,
   getValues,
   sdk,
@@ -1472,25 +1592,66 @@ function TestConnectionButton({
   }, [canTest, commitTestCredentials, getValues]);
 
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
+  const clear = () => dispatchTestConnectionState({ type: "clear" });
+
+  return {
+    canTest,
+    isTesting,
+    hasResult,
+    testStatus,
+    errorMessage,
+    handleTest,
+    clear,
+  };
+}
+
+const CONNECTION_SUBTITLES: Readonly<Record<GenerativeModelSDK, string>> = {
+  OPENAI: "OpenAI SDK: API key, base URL and headers",
+  AZURE_OPENAI: "Azure OpenAI SDK: endpoint, authentication and headers",
+  ANTHROPIC: "Anthropic SDK: API key, base URL and headers",
+  AWS_BEDROCK: "AWS Bedrock SDK: region, credentials and endpoint",
+  GOOGLE_GENAI: "Google GenAI SDK: API key, base URL and headers",
+  TYPESAFE:
+    "Serves decision models only, through System One. Any System One-compatible endpoint works.",
+};
+
+/**
+ * The provider's SDK settings, with a credential test in its heading. A
+ * TypeSafe provider has none: its test is the decision endpoint test.
+ */
+function ConnectionSection({
+  sdk,
+  control,
+  getValues,
+  isSubmitting,
+}: {
+  sdk: GenerativeModelSDK;
+  control: Control<ProviderFormData>;
+  getValues: UseFormGetValues<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
+  const {
+    canTest,
+    isTesting,
+    hasResult,
+    testStatus,
+    errorMessage,
+    handleTest,
+    clear,
+  } = useTestCredentials({ control, getValues, sdk });
+  const canTestCredentials = sdk !== "TYPESAFE";
 
   return (
-    <Flex direction="column" gap="size-100">
-      <View
-        borderColor="gray-200"
-        borderWidth="thin"
-        borderRadius="medium"
-        padding="size-200"
-      >
-        <Flex direction="row" gap="size-200" alignItems="center">
-          <Text weight="heavy">Test Credentials</Text>
+    <ProviderFormSection
+      title="Connection"
+      subtitle={CONNECTION_SUBTITLES[sdk]}
+      extra={
+        canTestCredentials ? (
           <Button
             variant="default"
             size="S"
             onPress={handleTest}
             isDisabled={isTesting || !canTest}
-            css={css`
-              min-width: 80px;
-            `}
           >
             {isTesting ? (
               <Flex direction="row" gap="size-50" alignItems="center">
@@ -1502,17 +1663,18 @@ function TestConnectionButton({
                 <span>Testing</span>
               </Flex>
             ) : (
-              "Test"
+              "Test credentials"
             )}
           </Button>
-          {!hasResult && !isTesting && (
-            <Text color="text-700" size="S">
-              Verify your credentials work before saving
-            </Text>
-          )}
-        </Flex>
-      </View>
-      {hasResult && (
+        ) : null
+      }
+    >
+      <SDKFieldsRenderer
+        sdk={sdk}
+        control={control}
+        isSubmitting={isSubmitting}
+      />
+      {canTestCredentials && hasResult ? (
         <Alert
           variant={testStatus === "valid" ? "success" : "danger"}
           title={
@@ -1523,15 +1685,13 @@ function TestConnectionButton({
                 : "Connection Error"
           }
           dismissable
-          onDismissClick={() => {
-            dispatchTestConnectionState({ type: "clear" });
-          }}
+          onDismissClick={clear}
         >
           {testStatus === "valid"
             ? "Successfully connected to the provider."
             : errorMessage}
         </Alert>
-      )}
-    </Flex>
+      ) : null}
+    </ProviderFormSection>
   );
 }

@@ -15,7 +15,6 @@ import {
   Icons,
   ViewportModal,
   ViewportModalOverlay,
-  View,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -49,6 +48,7 @@ function NewProviderDialogContent({ onClose }: { onClose: () => void }) {
             description
             sdk
             provider
+            modelTypes
             createdAt
             updatedAt
             user {
@@ -109,13 +109,12 @@ function NewProviderDialogContent({ onClose }: { onClose: () => void }) {
           {error}
         </Alert>
       )}
-      <View padding="size-200">
-        <ProviderForm
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-          isSubmitting={isCommitting}
-        />
-      </View>
+      {/* The form's sections run edge to edge, so it brings its own padding. */}
+      <ProviderForm
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isSubmitting={isCommitting}
+      />
     </>
   );
 }

@@ -157,6 +157,7 @@ export function useModelMenuData({
               modelNames
               decisionModelNames: modelNames(modelType: DECISION)
                 @include(if: $includeDecisionModels)
+              decisionSdk @include(if: $includeDecisionModels)
             }
           }
         }
@@ -221,14 +222,16 @@ export function useModelMenuData({
   }, [data.generativeModelCustomProviders]);
 
   // The Decision tab lists the custom providers that serve decision models,
-  // with their decision model names rather than their chat ones.
+  // with their decision model names rather than their chat ones. Their SDK is
+  // their decision client's, which decides the provider a decision is saved
+  // with: an OpenAI-SDK provider that runs System One makes TypeSafe decisions.
   const decisionCustomProviders = useMemo((): CustomProviderInfo[] => {
     return data.generativeModelCustomProviders.edges
       .filter((edge) => edge.node.modelTypes.includes("DECISION"))
       .map((edge) => ({
         id: edge.node.id,
         name: edge.node.name,
-        sdk: edge.node.sdk,
+        sdk: edge.node.decisionSdk ?? edge.node.sdk,
         modelNames: edge.node.decisionModelNames ?? [],
       }));
   }, [data.generativeModelCustomProviders]);

@@ -1,0 +1,27 @@
+{
+  "endpointUrl": [
+    { "decisionSdk": "openai", "baseUrl": "https://api.openai.com/v1", "url": "https://api.openai.com/v1/decisions" },
+    { "decisionSdk": "openai", "baseUrl": "https://api.openai.com/v1/", "url": "https://api.openai.com/v1/decisions" },
+    { "decisionSdk": "openai", "baseUrl": "https://res.openai.azure.com/openai/v1", "url": "https://res.openai.azure.com/openai/v1/decisions" },
+    { "decisionSdk": "openai", "baseUrl": "https://proxy.example", "url": "https://proxy.example/decisions" },
+    { "decisionSdk": "typesafe", "baseUrl": "https://api.typesafe.ai", "url": "https://api.typesafe.ai/v1/systemone" },
+    { "decisionSdk": "typesafe", "baseUrl": "https://api.typesafe.ai/", "url": "https://api.typesafe.ai/v1/systemone" },
+    { "decisionSdk": "typesafe", "baseUrl": "https://api.typesafe.ai/v1", "url": "https://api.typesafe.ai/v1/systemone" },
+    { "decisionSdk": "typesafe", "baseUrl": "https://api.typesafe.ai/v1/", "url": "https://api.typesafe.ai/v1/systemone" },
+    { "decisionSdk": "typesafe", "baseUrl": "https://api.typesafe.ai/v1/v1", "url": "https://api.typesafe.ai/v1/v1/systemone" },
+    { "decisionSdk": "typesafe", "baseUrl": "http://localhost:11434/v1", "url": "http://localhost:11434/v1/systemone" },
+    { "decisionSdk": "typesafe", "baseUrl": "https://api.fireworks.ai/inference", "url": "https://api.fireworks.ai/inference/v1/systemone" },
+    { "decisionSdk": "typesafe", "baseUrl": "https://proxy.example/v1beta", "url": "https://proxy.example/v1beta/v1/systemone" }
+  ],
+  "guessBaseUrl": [
+    { "decisionSdk": "openai", "chatBaseUrl": null, "baseUrl": "https://api.openai.com/v1" },
+    { "decisionSdk": "openai", "chatBaseUrl": "", "baseUrl": "https://api.openai.com/v1" },
+    { "decisionSdk": "openai", "chatBaseUrl": "https://proxy.example/v1/", "baseUrl": "https://proxy.example/v1" },
+    { "decisionSdk": "openai", "chatBaseUrl": "https://res.openai.azure.com/openai/v1", "baseUrl": "https://res.openai.azure.com/openai/v1" },
+    { "decisionSdk": "typesafe", "chatBaseUrl": null, "baseUrl": "https://api.typesafe.ai" },
+    { "decisionSdk": "typesafe", "chatBaseUrl": "  ", "baseUrl": "https://api.typesafe.ai" },
+    { "decisionSdk": "typesafe", "chatBaseUrl": "https://api.typesafe.ai/v1", "baseUrl": "https://api.typesafe.ai" },
+    { "decisionSdk": "typesafe", "chatBaseUrl": "https://api.openai.com/v1", "baseUrl": "https://api.openai.com" },
+    { "decisionSdk": "typesafe", "chatBaseUrl": "http://localhost:11434/v1/", "baseUrl": "http://localhost:11434" }
+  ]
+}

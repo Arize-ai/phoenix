@@ -1104,7 +1104,8 @@ async def create_custom_provider(
 async def test_custom_providers_declare_the_model_types_they_serve(
     gql_client: AsyncGraphQLClient,
 ) -> None:
-    """A TypeSafe provider serves decisions only; an OpenAI one serves both."""
+    """A TypeSafe provider serves decisions only. An OpenAI one serves chat, and decisions
+    only once it names a decision client."""
     typesafe_id = await create_custom_provider(
         gql_client, "System One proxy", "typesafe", TYPESAFE_PROVIDER_CONFIG
     )
@@ -1113,6 +1114,17 @@ async def test_custom_providers_declare_the_model_types_they_serve(
         "OpenAI proxy",
         "openai",
         {"openai": {"openaiAuthenticationMethod": {"apiKey": "sk-custom"}}},
+    )
+    both_id = await create_custom_provider(
+        gql_client,
+        "OpenAI and System One",
+        "openai",
+        {
+            "openai": {
+                "openaiAuthenticationMethod": {"apiKey": "sk-custom"},
+                "decisionModels": {"decisionSdk": "TYPESAFE"},
+            }
+        },
     )
     result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": typesafe_id})
     assert result.data and not result.errors, result.errors
@@ -1131,26 +1143,35 @@ async def test_custom_providers_declare_the_model_types_they_serve(
     result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": openai_id})
     assert result.data and not result.errors, result.errors
     openai = result.data["node"]
-    assert openai["modelTypes"] == ["LLM", "DECISION"]
-    assert openai["chat"] and openai["decision"] == list(OpenAIDecisionClient.model_names)
+    assert openai["modelTypes"] == ["LLM"]
+    assert openai["chat"] and openai["decision"] == []
+    result = await gql_client.execute(CUSTOM_PROVIDER_MODELS, variables={"id": both_id})
+    assert result.data and not result.errors, result.errors
+    both = result.data["node"]
+    assert both["modelTypes"] == ["LLM", "DECISION"]
+    assert both["chat"] and both["decision"] == list(TypeSafeDecisionClient.model_names)
 
 
 @pytest.mark.parametrize(
-    ("status", "accepted"),
+    ("status", "body", "accepted"),
     [
-        pytest.param(404, True, id="unknown-model"),
-        pytest.param(401, False, id="bad-key"),
-        pytest.param(429, False, id="rate-limited"),
-        pytest.param(503, False, id="unavailable"),
+        pytest.param(
+            400,
+            {"detail": {"message": "Unknown model: test-credential-check", "key": "ts-custom-key"}},
+            True,
+            id="unknown-model",
+        ),
+        pytest.param(404, {"detail": "Not Found"}, False, id="wrong-path"),
+        pytest.param(401, {"error": "rejected ts-custom-key"}, False, id="bad-key"),
+        pytest.param(429, {"error": "slow down"}, False, id="rate-limited"),
+        pytest.param(503, {"error": "down"}, False, id="unavailable"),
     ],
 )
 async def test_typesafe_credentials_are_checked_without_running_a_model(
-    gql_client: AsyncGraphQLClient, status: int, accepted: bool
+    gql_client: AsyncGraphQLClient, status: int, body: dict[str, Any], accepted: bool
 ) -> None:
     with respx.mock:
-        route = respx.post("https://system-one.example/v1/systemone").respond(
-            status, json={"error": "rejected ts-custom-key"}
-        )
+        route = respx.post("https://system-one.example/v1/systemone").respond(status, json=body)
         result = await gql_client.execute(
             """mutation ($input: GenerativeModelCustomerProviderConfigInput!) {
               testGenerativeModelCustomProviderCredentials(input: $input) { error }
@@ -1167,6 +1188,7 @@ async def test_typesafe_credentials_are_checked_without_running_a_model(
         assert error is None
     else:
         assert error and "ts-custom-key" not in error
+        assert "https://system-one.example/v1/systemone" in error
 
 
 async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
@@ -1176,7 +1198,9 @@ async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
     monkeypatch.setenv("TYPESAFE_BASE_URL", "https://server-env.example")
     config = {"typesafe": {"typesafeAuthenticationMethod": {"apiKey": "ts-custom-key"}}}
     with respx.mock:
-        route = respx.post("https://api.typesafe.ai/v1/systemone").respond(404, json={})
+        route = respx.post("https://api.typesafe.ai/v1/systemone").respond(
+            400, json={"detail": {"message": "Unknown model: test-credential-check"}}
+        )
         result = await gql_client.execute(
             """mutation ($input: GenerativeModelCustomerProviderConfigInput!) {
               testGenerativeModelCustomProviderCredentials(input: $input) { error }
@@ -1189,10 +1213,15 @@ async def test_typesafe_credentials_without_a_base_url_go_to_typesafe(
 
 
 def test_custom_provider_capabilities_come_from_the_sdk() -> None:
-    """Prompts are chat templates, so no prompt provider accepts a TypeSafe provider."""
-    assert not mp.sdk_offers_chat("typesafe") and mp.sdk_offers_decisions("typesafe")
-    assert mp.sdk_offers_chat("openai") and mp.sdk_offers_decisions("openai")
-    assert mp.sdk_offers_chat("anthropic") and not mp.sdk_offers_decisions("anthropic")
+    """Prompts are chat templates, so no prompt provider accepts a TypeSafe provider.
+    Which SDKs may serve decisions is fixed; whether one does is its decision client."""
+    assert not mp.sdk_offers_chat("typesafe") and mp.sdk_can_serve_decisions("typesafe")
+    assert mp.sdk_offers_chat("openai") and mp.sdk_can_serve_decisions("openai")
+    assert mp.sdk_can_serve_decisions("azure_openai")
+    for sdk in ("anthropic", "google_genai", "aws_bedrock"):
+        assert not mp.sdk_can_serve_decisions(sdk)
+    assert mp.required_decision_sdk("typesafe") == "typesafe"
+    assert mp.required_decision_sdk("openai") is None
     assert not any(
         mp.is_sdk_compatible_with_model_provider("typesafe", provider)
         for provider in mp.ModelProvider
@@ -1245,8 +1274,8 @@ async def test_typesafe_custom_provider_runs_with_its_own_connection(
 async def test_openai_custom_provider_runs_the_decisions_api(
     gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A chat-capable OpenAI provider also runs decisions, without the server's
-    organization leaking to its host."""
+    """An OpenAI provider with the OpenAI decision client runs decisions at its chat base
+    URL, without the server's organization leaking to its host."""
     monkeypatch.setenv("OPENAI_ORG_ID", "server-org")
     provider_id = await create_custom_provider(
         gql_client,
@@ -1260,6 +1289,7 @@ async def test_openai_custom_provider_runs_the_decisions_api(
                     "project": "proj-decisions",
                     "defaultHeaders": {"X-Team": "decisions"},
                 },
+                "decisionModels": {"decisionSdk": "OPENAI"},
             }
         },
     )
@@ -1323,21 +1353,31 @@ async def test_an_unreadable_custom_provider_fails_with_a_reason_and_a_span(
         assert span.attributes["decision"]["provider"] == "System One proxy"
 
 
+@pytest.mark.parametrize(
+    "client_config",
+    [
+        pytest.param(
+            {"anthropic": {"anthropicAuthenticationMethod": {"apiKey": "sk-ant"}}},
+            id="anthropic",
+        ),
+        pytest.param(
+            {"openai": {"openaiAuthenticationMethod": {"apiKey": "sk-custom"}}},
+            id="openai-without-a-decision-client",
+        ),
+    ],
+)
 async def test_custom_provider_without_decision_models_is_refused(
-    gql_client: AsyncGraphQLClient,
+    gql_client: AsyncGraphQLClient, client_config: dict[str, Any]
 ) -> None:
-    provider_id = await create_custom_provider(
-        gql_client,
-        "Anthropic proxy",
-        "anthropic",
-        {"anthropic": {"anthropicAuthenticationMethod": {"apiKey": "sk-ant"}}},
-    )
+    provider_id = await create_custom_provider(gql_client, "Chat proxy", "proxy", client_config)
     with respx.mock:
         result = await gql_client.execute(
             MUTATION, variables={"input": custom_provider_run(provider_id)}
         )
     assert result.errors
-    assert "does not serve decision models" in result.errors[0].message
+    message = result.errors[0].message
+    assert "Custom provider 'Chat proxy' is not set up for decision models" in message
+    assert "Settings > AI Providers" in message
 
 
 async def test_connection_must_name_exactly_one_target(gql_client: AsyncGraphQLClient) -> None:

@@ -46,11 +46,21 @@ type AWSBedrockConnectionConfig {
 type AWSBedrockCustomProviderConfig {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
   awsBedrockClientKwargs: AWSBedrockClientKwargs!
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
 }
 
 input AWSBedrockCustomProviderConfigInput {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput!
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput!
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 input AddAnnotationConfigToProjectInput {
@@ -464,11 +474,21 @@ type AnthropicConnectionConfig {
 type AnthropicCustomProviderConfig {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
   anthropicClientKwargs: AnthropicClientKwargs
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
 }
 
 input AnthropicCustomProviderConfigInput {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput!
   anthropicClientKwargs: AnthropicClientKwargsInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 enum AnthropicOutputConfigEffort {
@@ -566,12 +586,24 @@ type AzureOpenAICustomProviderConfig {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
   openaiApiType: OpenAIApiType!
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
+  decisionModels: DecisionModelsConfig
 }
 
 input AzureOpenAICustomProviderConfigInput {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput!
   openaiApiType: OpenAIApiType = RESPONSES
+  decisionModels: DecisionModelsConfigInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 input BranchAgentSessionInput {
@@ -2042,6 +2074,37 @@ type DecisionLabelMutationPayload {
   query: Query!
 }
 
+"""
+Where a custom provider's decision models run. They reuse the provider's API key and headers.
+"""
+type DecisionModelsConfig {
+  decisionSdk: DecisionSDK!
+
+  """The configured decision base URL; null uses the chat base URL."""
+  baseUrl: String
+
+  """Suggested decision model names."""
+  modelNames: [String!]!
+}
+
+"""
+Where a custom provider's decision models run. They reuse the provider's API key and headers.
+"""
+input DecisionModelsConfigInput {
+  """
+  OPENAI posts to {baseUrl}/decisions; TYPESAFE to {baseUrl}/v1/systemone.
+  """
+  decisionSdk: DecisionSDK!
+
+  """
+  Base URL of the decision API; empty uses the chat base URL. Ignored for a TypeSafe provider, whose own base URL is used.
+  """
+  baseUrl: String
+
+  """Suggested decision model names."""
+  modelNames: [String!]
+}
+
 type DecisionPredicateCriteria {
   true: String
   false: String
@@ -2112,6 +2175,14 @@ type DecisionResult {
   """One answer per question, in the order the questions were given."""
   answers: [DecisionAnswer!]!
   usage: DecisionUsage!
+}
+
+"""
+The client a custom provider's decision models run through: OpenAI's Decisions API or System One.
+"""
+enum DecisionSDK {
+  OPENAI
+  TYPESAFE
 }
 
 type DecisionScaleLevel {
@@ -3807,7 +3878,12 @@ type GenerativeModelCustomProvider implements Node {
   user: User
 
   """
-  The model types this provider can serve: chat (LLM) models, decision models, or both. Derived from its SDK.
+  The client this provider's decision models run through; null when it serves none. A decision made on it is saved with this client's model provider.
+  """
+  decisionSdk: DecisionSDK
+
+  """
+  The model types this provider can serve: chat (LLM) models, decision models, or both. Chat comes from its SDK; decision models from its decision client.
   """
   modelTypes: [ModelType!]!
 
@@ -3934,11 +4010,21 @@ type GoogleGenAIConnectionConfig {
 type GoogleGenAICustomProviderConfig {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
   googleGenaiClientKwargs: GoogleGenAIClientKwargs
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
 }
 
 input GoogleGenAICustomProviderConfigInput {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput!
   googleGenaiClientKwargs: GoogleGenAIClientKwargsInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 type GoogleGenAIHttpOptions {
@@ -4266,6 +4352,7 @@ type Mutation {
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
   testGenerativeModelCustomProviderCredentials(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderCredentialsResult!
+  testGenerativeModelCustomProviderDecisionEndpoint(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderDecisionEndpointResult!
   deleteGenerativeModelCustomProvider(input: DeleteGenerativeModelCustomProviderMutationInput!): DeleteGenerativeModelCustomProviderMutationPayload!
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
@@ -4428,12 +4515,24 @@ type OpenAICustomProviderConfig {
   openaiAuthenticationMethod: OpenAIAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
   openaiApiType: OpenAIApiType!
+
+  """
+  Suggested LLM model names; empty lists the SDK's built-in models instead.
+  """
+  modelNames: [String!]!
+  decisionModels: DecisionModelsConfig
 }
 
 input OpenAICustomProviderConfigInput {
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput!
   openaiClientKwargs: OpenAIClientKwargsInput
   openaiApiType: OpenAIApiType = RESPONSES
+  decisionModels: DecisionModelsConfigInput
+
+  """
+  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
+  """
+  modelNames: [String!]
 }
 
 enum OpenAIReasoningEffort {
@@ -6819,6 +6918,14 @@ type TestGenerativeModelCustomProviderCredentialsResult {
   error: String
 }
 
+type TestGenerativeModelCustomProviderDecisionEndpointResult {
+  """Why the endpoint failed the check; null when it passed."""
+  error: String
+
+  """The exact URL the check posted to, as a run would."""
+  url: String
+}
+
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
@@ -7223,12 +7330,14 @@ input TypeSafeClientKwargsInput {
 type TypeSafeCustomProviderConfig {
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethod!
   typesafeClientKwargs: TypeSafeClientKwargs
+  decisionModels: DecisionModelsConfig
 }
 
 """A System One-compatible endpoint; it serves decision models only."""
 input TypeSafeCustomProviderConfigInput {
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput!
   typesafeClientKwargs: TypeSafeClientKwargsInput
+  decisionModels: DecisionModelsConfigInput
 }
 
 type UnparsableConfig {

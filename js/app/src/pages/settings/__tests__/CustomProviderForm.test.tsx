@@ -1,0 +1,289 @@
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { RelayEnvironmentProvider } from "react-relay";
+import {
+  Environment,
+  Network,
+  Observable,
+  type RequestParameters,
+  RecordSource,
+  Store,
+  type Variables,
+} from "relay-runtime";
+import { userEvent } from "storybook/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
+
+import { ProviderForm, type ProviderFormData } from "../CustomProviderForm";
+import { createDefaultFormData } from "../customProviderFormUtils";
+
+installTestMatchMedia();
+
+type Sent = { name: string; variables: Variables };
+
+describe("CustomProviderForm decision models", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let sent: Sent[];
+
+  beforeEach(() => {
+    sent = [];
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  function environment() {
+    return new Environment({
+      network: Network.create(
+        (request: RequestParameters, variables: Variables) => {
+          sent.push({ name: request.name, variables });
+          return Observable.from(
+            Promise.resolve({
+              data: {
+                testGenerativeModelCustomProviderDecisionEndpoint: {
+                  error: null,
+                  url: "https://api.typesafe.ai/v1/systemone",
+                },
+              },
+            })
+          );
+        }
+      ),
+      store: new Store(new RecordSource()),
+    });
+  }
+
+  function render(
+    initialValues?: ProviderFormData,
+    onSubmit: (data: ProviderFormData) => void = vi.fn()
+  ) {
+    act(() => {
+      root.render(
+        <RelayEnvironmentProvider environment={environment()}>
+          <ThemeProvider themeMode="light" disableBodyTheme>
+            <ProviderForm
+              onSubmit={onSubmit}
+              onCancel={vi.fn()}
+              initialValues={initialValues}
+            />
+          </ThemeProvider>
+        </RelayEnvironmentProvider>
+      );
+    });
+  }
+
+  const decisionSwitch = () => {
+    const input = container.querySelector<HTMLInputElement>(
+      'input[role="switch"]'
+    );
+    if (!input) throw new Error("no decision models switch");
+    return input;
+  };
+  const preview = () =>
+    container.querySelector('[data-testid="decision-endpoint"]')?.textContent;
+  const input = (placeholder: string) => {
+    const element = container.querySelector<HTMLInputElement>(
+      `input[placeholder="${placeholder}"]`
+    );
+    if (!element) throw new Error(`no input with placeholder ${placeholder}`);
+    return element;
+  };
+
+  it("pre-fills the base URL from the chat base URL and previews the exact POST URL", async () => {
+    const user = userEvent.setup();
+    render();
+    expect(decisionSwitch().checked).toBe(false);
+    expect(preview()).toBeUndefined();
+
+    await act(() =>
+      user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
+    );
+    await act(() => user.click(decisionSwitch()));
+    expect(decisionSwitch().checked).toBe(true);
+    expect(input("https://proxy.example/v1").value).toBe(
+      "https://proxy.example/v1"
+    );
+    expect(preview()).toBe("POST https://proxy.example/v1/decisions");
+  });
+
+  it("keeps an untouched decision base URL in step with the chat base URL", async () => {
+    const user = userEvent.setup();
+    render();
+    await act(() => user.click(decisionSwitch()));
+    expect(preview()).toBe("POST https://api.openai.com/v1/decisions");
+    await act(() =>
+      user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
+    );
+    expect(preview()).toBe("POST https://proxy.example/v1/decisions");
+  });
+
+  it("shows only the decision heading while decision models are off", () => {
+    render();
+    const section = [...container.querySelectorAll("section")].find(
+      (candidate) => candidate.textContent?.startsWith("Decision models")
+    );
+    expect(section?.querySelector(".provider-form-section__body")).toBeNull();
+  });
+
+  it("previews System One's URL and sends the decision settings to the endpoint test", async () => {
+    const user = userEvent.setup();
+    render({
+      ...(createDefaultFormData("OPENAI") as ProviderFormData),
+      name: "proxy",
+      openai_api_key: "sk-test",
+      decision_enabled: true,
+      decision_sdk: "TYPESAFE",
+      decision_base_url: "https://api.typesafe.ai/v1",
+    } as ProviderFormData);
+    // System One adds its own /v1, so a trailing one is dropped.
+    expect(preview()).toBe("POST https://api.typesafe.ai/v1/systemone");
+
+    const button = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === "Test decision endpoint"
+    );
+    if (!button) throw new Error("no test button");
+    await act(() => user.click(button));
+    const call = sent.find(
+      (request) => request.name === "DecisionModelsSectionTestMutation"
+    );
+    expect(call?.variables.input).toMatchObject({
+      openai: {
+        decisionModels: {
+          decisionSdk: "TYPESAFE",
+          baseUrl: "https://api.typesafe.ai/v1",
+        },
+      },
+    });
+    expect(container.textContent).toContain("Decision endpoint works");
+  });
+
+  it("keeps a TypeSafe provider on System One at its own base URL", () => {
+    render({
+      ...(createDefaultFormData("TYPESAFE") as ProviderFormData),
+      name: "ts",
+      typesafe_base_url: "https://system-one.example",
+    } as ProviderFormData);
+    expect(decisionSwitch().checked).toBe(true);
+    expect(decisionSwitch().disabled).toBe(true);
+    expect(preview()).toBe("POST https://system-one.example/v1/systemone");
+    // Its credential test is its decision endpoint test.
+    expect(container.textContent).not.toContain("Test credentials");
+  });
+
+  it("offers no decision section on SDKs that cannot serve decisions", () => {
+    render({
+      ...(createDefaultFormData("ANTHROPIC") as ProviderFormData),
+      name: "anthropic",
+    });
+    expect(container.querySelector('input[role="switch"]')).toBeNull();
+    expect(container.textContent).toContain("Test credentials");
+  });
+
+  it("offers suggested LLM model names on chat SDKs", () => {
+    render({
+      ...(createDefaultFormData("ANTHROPIC") as ProviderFormData),
+      name: "anthropic",
+      model_names: "claude-gateway-sonnet",
+    } as ProviderFormData);
+    expect(input("qwen3-coder, llama-5-70b").value).toBe(
+      "claude-gateway-sonnet"
+    );
+    expect(container.textContent).toContain("built-in Anthropic list");
+  });
+
+  it("folds optional fields away unless they have a value", () => {
+    render();
+    // A collapsed panel stays mounted but hidden.
+    const organization = container.querySelector(
+      'input[name="openai_organization"]'
+    );
+    expect(organization?.closest("[hidden]")).not.toBeNull();
+    expect(container.textContent).toContain(
+      "Organization, project and default headers"
+    );
+  });
+
+  it("opens the optional fields when one has a value", () => {
+    render({
+      ...(createDefaultFormData("OPENAI") as ProviderFormData),
+      name: "proxy",
+      openai_api_key: "sk-test",
+      openai_organization: "org-123",
+    } as ProviderFormData);
+    expect(
+      container.querySelector<HTMLInputElement>(
+        'input[name="openai_organization"]'
+      )?.value
+    ).toBe("org-123");
+    expect(
+      container
+        .querySelector('input[name="openai_organization"]')
+        ?.closest("[hidden]")
+    ).toBeNull();
+  });
+
+  it("shows one Connection section after switching SDKs", async () => {
+    const user = userEvent.setup();
+    render();
+    const chooseSdk = async (label: string) => {
+      // The SDK select is the form's first select.
+      const trigger = container.querySelector<HTMLButtonElement>(
+        'button[aria-haspopup="listbox"]'
+      );
+      if (!trigger) throw new Error("no SDK select");
+      await act(() => user.click(trigger));
+      const option = [
+        ...document.querySelectorAll<HTMLElement>('[role="option"]'),
+      ].find((candidate) => candidate.textContent === label);
+      if (!option) throw new Error(`no SDK option ${label}`);
+      await act(() => user.click(option));
+    };
+    await chooseSdk("TypeSafe");
+    await chooseSdk("OpenAI");
+    const headings = [...container.querySelectorAll("h1, h2, h3, h4")].map(
+      (heading) => heading.textContent
+    );
+    expect(headings.filter((text) => text === "Connection")).toHaveLength(1);
+    expect(headings.filter((text) => text === "Decision models")).toHaveLength(
+      1
+    );
+  });
+
+  it("saves an edit without retyping the stored API key", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    // A stored key comes back as a server-issued redaction token.
+    render(
+      {
+        ...(createDefaultFormData("OPENAI") as ProviderFormData),
+        name: "proxy",
+        openai_api_key: "\ue000REDACTED\ue000d6b6\ue000token",
+      } as ProviderFormData,
+      onSubmit
+    );
+    const submit = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Update Provider"
+    );
+    if (!submit) throw new Error("no submit button");
+    await act(() => user.click(submit));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no LLM model names on TypeSafe, which serves decisions only", () => {
+    render({
+      ...(createDefaultFormData("TYPESAFE") as ProviderFormData),
+      name: "ts",
+    });
+    expect(
+      container.querySelector('input[placeholder="qwen3-coder, llama-5-70b"]')
+    ).toBeNull();
+  });
+});
