@@ -1,0 +1,184 @@
+---
+title: "Write and validate an LLM judge"
+description: "Build a budget judge and compare its decisions with your review before relying on its scores."
+---
+
+{/* video: TODO */}
+
+An **LLM judge** uses a model to evaluate an AI application's answers. In this lesson, you'll give it rules for checking whether [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) recommendations respect the shopper's budget. Then you'll run the judge and compare its decisions with your own reviews to see whether it applies those rules correctly.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-budget-judge-light-b8db3c35934b.svg" alt="An LLM judge and a human review the same saved input and output using the same rubric. Compare their labels without showing the human label to the judge." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-budget-judge-dark-edb7f1f187c9.svg" alt="An LLM judge and a human review the same saved input and output using the same rubric. Compare their labels without showing the human label to the judge." />
+</Frame>
+
+## Before you start
+
+Use your Wonder Toys checkout from [Capture your first agent run](/docs/phoenix/learn/capture-first-run). You'll need:
+
+- Python 3.11 and `uv` installed.
+- Phoenix running.
+- An Anthropic API key in `phoenix/langchain-py/.env.local`.
+
+The lesson files are in [`academy/evaluations/`](https://github.com/Arize-ai/project-rosetta-stone/tree/main/academy/evaluations).
+
+{/* Before publication: merge the companion exercise files and verify the planned GitHub source links. */}
+
+## Step 1: Review and label example answers
+
+Start by making your own budget decisions. You'll use them to check the judge later.
+
+Try this practice example. Would you label the answer `pass`, `fail`, or `needs_review`?
+
+> **Request:** Find a toy under \$20.
+>
+> **Answer:** I recommend this \$24 toy. It's over budget, but it's worth the extra cost.
+
+<Accordion title="Check your answer">
+  **`fail`.** The agent recommends a toy above the shopper's limit. Acknowledging the higher price doesn't make the recommendation meet the budget.
+</Accordion>
+
+Now apply the same budget criteria to the supplied [example answers](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/fixtures/budget_review.json). From the Wonder Toys repository root, make a copy to work on:
+
+```bash
+mkdir -p academy/evaluations/artifacts
+cp academy/evaluations/fixtures/budget_review.json \
+  academy/evaluations/artifacts/budget-review.json
+```
+
+Open `academy/evaluations/artifacts/budget-review.json`. For each saved case, read the shopper's `request` and the agent's `response`, then choose a label using the [budget criteria](/docs/phoenix/learn/choose-evals):
+
+- **`pass`:** Recommendations respect the budget, or the answer reports no match without recommending an expensive alternative.
+- **`fail`:** A toy outside the budget is recommended without the shopper agreeing to raise it.
+- **`needs_review`:** You can't decide from the evidence, such as when a recommended toy has no price.
+
+Save your decision in `review_label` and change `review_source` to `human` after reviewing the case yourself. For the practice example above, those fields would be:
+
+```json
+{
+  "review_label": "fail",
+  "review_source": "human"
+}
+```
+
+Edit these fields within each saved case, keeping its other fields. Choose each label yourself before seeing the judge's results. Your decisions are the **reference labels** used to check the judge.
+
+## Step 2: Write a rubric the judge can apply
+
+You've reviewed the answers yourself. Now explain the same rules to the judge in a **rubric**, its set of instructions.
+
+Open `academy/evaluations/budget_rubric.txt` in your Wonder Toys checkout. You can also [view the rubric on GitHub](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/budget_rubric.txt). Find this line under `pass`:
+
+```text
+Mentioning an expensive product only to rule it out is allowed.
+```
+
+For this exercise, rewrite that line in your own words while keeping its meaning the same. Make it clear that mentioning a product to explain why it exceeds the budget doesn't count as recommending it. Leave the rest of the file unchanged.
+
+<Accordion title="Compare your wording">
+  For example: "A product mentioned only to explain why it is outside the budget doesn't count as a recommendation."
+</Accordion>
+
+Save the file. In Step 3, you'll run the judge on the answers you reviewed to check whether it follows your rules.
+
+<Accordion title="Add your own example (optional)">
+  To test your rule with another answer, write one that mentions an expensive toy only to rule it out. Open the `budget-review.json` file you created in Step 1 and append a copy of an existing case to the list. Edit the copy:
+
+  - Give it a unique `id` and replace `request` and `response` with your example.
+  - Set `source` to `authored_practice_case` and `split` to `dev` so it runs with the development examples.
+  - Review the answer, then set `review_label` and `review_source` as in Step 1.
+
+  Keep the existing `test` cases unchanged for the final check in Step 5.
+</Accordion>
+
+<Accordion title="How Phoenix runs the judge">
+  [`budget_judge.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/budget_judge.py) uses Phoenix's [ClassificationEvaluator](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators). It sends the request and answer to the model, keeping your review label separate.
+
+  The result includes a label and explanation. The helper assigns `1` to `pass`, `0` to `fail`, and leaves `needs_review` unscored.
+
+  The `{{request}}` and `{{response}}` placeholders in the rubric receive each example's text. The rubric tells the judge to treat that text as data. It checks prices stated in the answer; verifying them against the catalog is a separate check.
+</Accordion>
+
+<Accordion title="Ask PXI to review your rubric (optional)">
+  Open [PXI](/docs/phoenix/pxi#get-started) and paste your rubric, then ask:
+
+  > Review this rubric for unclear or conflicting rules. Suggest development cases that would help test those rules, and explain what each case checks. Keep your response to 3 short bullets. Don't assign reference labels or use reserved test cases. Only review the pasted rubric; don't create or change data.
+
+  <Frame caption="PXI suggests development cases after reviewing the rubric and clarifying its suggestions.">
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-judge-rubric-pxi-bac488557f38.png" alt="PXI suggests development cases for the price boundary, a product ruled out without further recommendations, and a recommendation with a missing price." />
+  </Frame>
+
+  Check each suggestion against your criteria before revising the rubric. Review any new development cases yourself, and keep the reserved test cases separate.
+</Accordion>
+
+## Step 3: Run the judge on development cases
+
+With your rubric and review labels ready, run [`validate_judge.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/validate_judge.py) from the Wonder Toys repository root. It makes model API calls using your Anthropic key.
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  python -m academy.evaluations.validate_judge \
+  --cases academy/evaluations/artifacts/budget-review.json \
+  --env-file phoenix/langchain-py/.env.local \
+  --phoenix-url http://localhost:6006 --split dev
+```
+
+If Phoenix runs at a different address, replace `http://localhost:6006` with that address.
+
+The `--split dev` option runs the judge on the development examples, which you'll use to improve its rules.
+
+Phoenix saves the results as an [experiment](/docs/phoenix/datasets-and-experiments/how-to-experiments), where you can compare the judge's decisions with your review labels. Follow the **Dataset** link printed by the command to open `budget-judge-review`.
+
+The script runs the judge on saved answers; it doesn't run the shopping agent again. It keeps your reference labels out of the judge's input.
+
+## Step 4: Inspect decisions and disagreements
+
+Open the new experiment to see how the judge's decisions compare with yours:
+
+- Select the `budget-judge-dev-...` experiment you just ran.
+- Open a row with **View example run details**.
+- Compare the judge's `label` under the experiment name with **Reference Output**, then read its explanation.
+
+<Frame caption="This recorded practice run used the supplied rubric and assistant review labels. It demonstrates the comparison, not human validation.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-budget-judge-review-00933e289950.png" alt="Phoenix experiment showing budget judge verdicts, reference review labels, and agreement results for practice cases." />
+</Frame>
+
+Look at the screenshot. Why is the judge's budget score `0` while `agrees_with_review` is `1`?
+
+<Accordion title="Explain the two scores">
+  The recommendation failed the budget check, so its score is `0`. The judge and reviewer both chose `fail`, so their agreement score is `1`.
+</Accordion>
+
+Use the same comparison to inspect your results. If you find a disagreement, read both decisions alongside the request and answer. Decide whether the rubric, the evidence, or a review needs correcting, then rerun `dev`.
+
+- **Missed failure:** You chose `fail`, but the judge chose `pass`.
+- **False alarm:** You chose `pass`, but the judge chose `fail`.
+- **Uncertain decision:** Either review used `needs_review`; check whether the evidence supports a decision.
+
+If you change a case or reference label, add `--dataset-name budget-judge-review-v2` when rerunning the command. Use that name for both `dev` and `test`. If you only change the rubric, reuse the existing dataset.
+
+## Step 5: Check the version on reserved cases
+
+You've used the development examples to improve the judge's rules. Now use `--split test` to check it on the examples you kept separate. Keep the model and rubric unchanged for this check:
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  python -m academy.evaluations.validate_judge \
+  --cases academy/evaluations/artifacts/budget-review.json \
+  --env-file phoenix/langchain-py/.env.local \
+  --phoenix-url http://localhost:6006 --split test
+```
+
+If you used a new `--dataset-name` in Step 4, include it here too. Inspect the test results using the same comparison as in Step 4.
+
+If the test results lead you to revise the rubric again, reserve new examples for the next final check.
+
+<Accordion title="When can you rely on this judge?">
+  The included cases teach the workflow. Expand them with independent passing, failing, and ambiguous examples before relying on the judge. Choose acceptable rates of missed failures and false alarms for your use case; a high agreement score on a few cases isn't enough to block releases.
+</Accordion>
+
+You've completed the exercise when you can find the judge's label and explanation for each reserved case, compare it with your reference label, and explain any disagreement. If all labels match, read the explanations to check that the judge applied your rules.
+
+Keep your rubric and review file so you can repeat the comparison after future changes. Next, [Compare prompt changes in Playground](/docs/phoenix/learn/playground-evals) shows how to try changing the agent's instructions.

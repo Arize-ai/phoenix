@@ -453,6 +453,59 @@
         ]
       },
       {
+        "tab": "Learn",
+        "pages": [
+          {
+            "group": "Start here",
+            "pages": [
+              "docs/phoenix/learn"
+            ]
+          },
+          {
+            "group": "Understand behavior",
+            "pages": [
+              "docs/phoenix/learn/capture-first-run",
+              "docs/phoenix/learn/add-context-to-traces",
+              "docs/phoenix/learn/read-agent-run",
+              "docs/phoenix/learn/sessions"
+            ]
+          },
+          {
+            "group": "Find failures",
+            "pages": [
+              "docs/phoenix/learn/find-failures",
+              "docs/phoenix/learn/investigate-failure",
+              "docs/phoenix/learn/build-test-cases"
+            ]
+          },
+          {
+            "group": "Design evaluations",
+            "pages": [
+              "docs/phoenix/learn/choose-evals",
+              "docs/phoenix/learn/code-checks",
+              "docs/phoenix/learn/llm-judge"
+            ]
+          },
+          {
+            "group": "Test a change",
+            "pages": [
+              "docs/phoenix/learn/playground-evals",
+              "docs/phoenix/learn/run-experiment",
+              "docs/phoenix/learn/compare-experiments",
+              "docs/phoenix/learn/harbor-agent-tests"
+            ]
+          },
+          {
+            "group": "Ship and repeat",
+            "pages": [
+              "docs/phoenix/learn/ship-decision",
+              "docs/phoenix/learn/ci-checks",
+              "docs/phoenix/learn/production-evals"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Integrations",
         "pages": [
           "docs/phoenix/integrations",
@@ -1899,6 +1952,10 @@
   },
   "redirects": [
     {
+      "source": "/docs/phoenix/learn/improvement-loop",
+      "destination": "/docs/phoenix/learn"
+    },
+    {
       "source": "/docs/phoenix/user-guide",
       "destination": "/docs/phoenix"
     },
@@ -2501,10 +2558,6 @@
     {
       "source": "/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
       "destination": "/docs/phoenix/integrations/python/google-adk"
-    },
-    {
-      "source": "/docs/phoenix/learn",
-      "destination": "/docs/phoenix/cookbook"
     },
     {
       "source": "/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint",

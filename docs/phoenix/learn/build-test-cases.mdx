@@ -1,0 +1,103 @@
+---
+title: "Turn failures into representative cases"
+description: "Create a Phoenix dataset with reviewed requests and clear expectations for testing future changes."
+---
+
+{/* video: TODO */}
+
+When you change the agent, you need to check whether its answers improve without breaking requests it already handles well. You'll save reviewed requests handled by the [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) agent, along with the expected behavior, in a [**dataset**](/docs/phoenix/datasets-and-experiments/concepts-datasets), a collection of cases you can reuse to test changes.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-dataset-light-aebc99446794.svg" alt="Failed, passing, and difficult requests become test cases with an input, expected behavior, and an optional source span, ready to test future changes." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/find-failures-dataset-dark-8737fd311196.svg" alt="Failed, passing, and difficult requests become test cases with an input, expected behavior, and an optional source span, ready to test future changes." />
+</Frame>
+
+## Before you start
+
+Use the requests you reviewed in [Investigate and label a failed run](/docs/phoenix/learn/investigate-failure). Start with the \$25, \$35, and \$1 shopping requests, using the outcomes you actually observed.
+
+You'll run these requests again to test changes, so each one needs enough context on its own. The shopping requests above include the shopper's requirements; a follow-up question would also need the earlier conversation.
+
+<Accordion title="Ask PXI to help build the dataset">
+  Open [PXI](/docs/phoenix/pxi#get-started) and share links to the traces you reviewed. Keep **Manual Approval** enabled and review the proposed cases before saving them.
+
+  > Use these reviewed traces to propose cases for `wonder-toys-shopping`. Include passing requests, observed failures, and different conditions. For each case, keep the complete request in `input` and draft an `expected_behavior` reference based on the request's requirements. Show me the cases before saving them. After I approve, add them to the dataset with working View Source Span links, preserving existing examples and avoiding duplicates.
+
+  <Frame caption="PXI's revised proposals after reviewing the budgets and source spans. These proposals haven't been saved.">
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/build-test-pxi-b000c4a30ebe.png" alt="PXI proposing cases for the reviewed 35 dollar, 25 dollar, and 1 dollar requests, with expected behavior and links to the source spans" />
+  </Frame>
+</Accordion>
+
+## Step 1: Choose cases that test different conditions
+
+Choose requests that reflect the situations your users encounter. Include:
+
+- **Failures you want to fix.** For example, the recorded \$25 request returned an over-budget recommendation.
+- **Successful requests you want to keep working.** The recorded \$35 request returned products below its limit.
+- **Difficult conditions the agent should handle.** The \$1 request checks what happens when no product meets the budget.
+
+<Frame caption="An AI assistant added these budget reviews: 1 means pass and 0 means fail.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/build-test-reviewed-requests-68e02b272165.png" alt="Three reviewed Wonder Toys requests with different budgets: the 35 dollar request has a passing budget score, while the 1 dollar and 25 dollar requests have failing scores" />
+</Frame>
+
+If all your runs passed, keep them so you can check that future changes still handle them correctly.
+
+These requests are a starting point for testing budget behavior. As you review more traffic, add other needs and conditions your users encounter, such as different ages or product types.
+
+## Step 2: Add a request to a dataset
+
+Use the top-level span because this dataset will test the complete shopping request. A `ChatAnthropic` or `search-products` span would give you the input and output of just that step.
+
+- Open a reviewed trace and select **Wonder Toys** at the top of the tree.
+- Choose **Add to Dataset**, then select `wonder-toys-shopping` if it already exists.
+- To create it, select the **+** beside the dataset selector, enter `wonder-toys-shopping`, and select **Create Dataset**.
+
+<Frame caption="Select the top-level Wonder Toys span, then use the highlighted database icon to add it to a dataset.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/build-test-add-to-dataset-2d5e9befa1b6.png" alt="The top-level Wonder Toys span selected in Phoenix, with its complete shopping request and the Add to Dataset icon outlined in teal" />
+</Frame>
+
+## Step 3: Set the expected behavior
+
+Phoenix fills the editor from the span. Check these fields before saving:
+
+- **Input:** Keep the shopper's complete request in the `input` field.
+- **Output:** Replace the captured answer with your expected behavior. This is the **reference output** you'll use when assessing future answers.
+- **Metadata:** Optionally record why you selected the case, such as `case_type: budget_failure`.
+
+For the \$25 request, replace the JSON in **Output** with:
+
+```json
+{
+  "expected_behavior": "Recommend dinosaur toys suitable for age 6 and priced below $25. If no match is found, say so without recommending a more expensive product. Recommend at most 3 options."
+}
+```
+
+We use `expected_behavior` to describe a good response without requiring exact wording. This is a field we chose; saving it doesn't run an evaluation. Keep it consistent with the request. Editing the example won't change the original trace.
+
+<Frame caption="Check the request and replace the recorded response with the behavior the test should expect.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/build-test-case-c0c2c7e8172e.png" alt="Phoenix dataset example editor with the shopping request as input and expected behavior as the reference output" />
+</Frame>
+
+Select **Add Example**, then repeat for the other requests, selecting the same dataset each time. Update each reference to match its request.
+
+## Step 4: Review the saved cases
+
+Open **Datasets & Experiments → wonder-toys-shopping → Examples**. Select an example's ID to read its full input and reference output, then check that:
+
+- Each input contains enough information to run the request again.
+- Each reference describes the expected behavior rather than copying a failed answer or its pass/fail label.
+- Cases cover different conditions, including passing requests and any failures you observed.
+
+<Frame caption="The dataset keeps the reviewed requests and their expectations together for future experiments.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/build-test-dataset-2fa2605c5509.png" alt="Wonder Toys shopping dataset with the 25 dollar, 35 dollar, and 1 dollar requests and their reference outputs" />
+</Frame>
+
+In an example added this way, **View Source Span** takes you back to the [original evidence](/docs/phoenix/datasets-and-experiments/how-to-datasets/linking-examples-to-spans). Phoenix versions dataset changes, letting you identify which cases an experiment used.
+
+<Accordion title="Keep cases useful as the application changes">
+  Review expectations when product data or requirements change. Cases involving orders also need a known starting state, so a previous test's purchase or cancellation doesn't change the next result.
+
+  Later, [dataset splits](/docs/phoenix/datasets-and-experiments/how-to-experiments/splits) can group cases for development, validation, or focused checks. You don't need to create splits for this first dataset.
+</Accordion>
+
+Your dataset now holds the requests and expectations for future tests. Next, [choose what to evaluate](/docs/phoenix/learn/choose-evals) to define how you'll check the agent's answers against those expectations.

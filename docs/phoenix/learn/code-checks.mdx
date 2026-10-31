@@ -1,0 +1,146 @@
+---
+title: "Write checks for actions and outcomes"
+description: "Check that Wonder Toys saved the requested order, and test that your evaluator catches mistakes."
+---
+
+{/* video: TODO */}
+
+The [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) shopping assistant agent can place demo orders. You'll use a code evaluator, a function that checks a result against explicit rules, to compare a saved order with the shopper's confirmed cart. Then you'll test whether your evaluator catches incorrect or missing orders.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-order-check-light-95a1e44635e4.svg" alt="Expected and actual outcomes feed into a code check, which returns a pass or fail with a reason." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-order-check-dark-2895e0364c52.svg" alt="Expected and actual outcomes feed into a code check, which returns a pass or fail with a reason." />
+</Frame>
+
+## Before you start
+
+Use the Wonder Toys repository from [Capture your first agent run](/docs/phoenix/learn/capture-first-run), with Python 3.11 and `uv` installed. Keep Phoenix running to record the check.
+
+The exercise calls the existing purchase tool directly, so it doesn't need a model API key. Each run has its own in-memory orders and inventory and won't change orders in your running demo.
+
+## Step 1: Define the result you're checking
+
+Let's assume the shopper has confirmed 1 Dinosaur Explorer Kit, product `toy-051`. Your goal is to check whether the application saved exactly what they requested. Compare:
+
+- **Expected result:** The products and quantities in the shopper's confirmed cart.
+- **Actual result:** The products and quantities in the saved order, retrieved using the ID returned by the purchase tool.
+
+A successful tool response alone isn't enough. The order could be missing or contain a different quantity.
+
+## Step 2: Compare expected and actual results
+
+The shopper confirmed 1 kit, so the saved order should contain that same product and quantity:
+
+- **1 kit saved:** Pass.
+- **2 kits saved, an extra product, or no order:** Fail.
+
+Open `academy/evaluations/order_checks.py` in your local Wonder Toys checkout. The file contains a working evaluator, so you can follow the comparison below and run it in Step 3. You can also [view the file on GitHub](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/order_checks.py).
+
+{/* Before publication: merge the companion exercise files and verify the GitHub source link. */}
+
+In the `ordered_items_match` function, the comparison is:
+
+```python
+wanted = item_quantities(expected["items"])
+actual = item_quantities(order["items"])
+passed = actual == wanted
+```
+
+Here, `expected` holds the confirmed cart and `order` holds the saved order. The `item_quantities` helper groups each cart by product ID and adds its quantities. For 1 kit, the result is `{"toy-051": 1}`.
+
+The final line sets `passed` to `True` when both carts contain the same products and quantities. For example, comparing `{"toy-051": 1}` with `{"toy-051": 2}` returns `False` because the saved quantity is wrong. The function also checks for missing orders and invalid quantities.
+
+The evaluator returns the decision as a Phoenix `Score`: `pass` with a score of `1`, or `fail` with a score of `0`, plus an explanation. You'll inspect that result after running the check.
+
+<Accordion title="How the evaluator returns a result to Phoenix">
+  The function returns the label, score, and explanation together:
+
+  ```python
+  return Score(
+      name="ordered_items_match",
+      label="pass" if passed else "fail",
+      score=int(passed),
+      explanation=explanation,
+      kind="code",
+      direction="maximize",
+  )
+  ```
+
+  Its `@create_evaluator` decorator makes the function usable by Phoenix evaluation workflows. See [Code evaluators](/docs/phoenix/evaluation/how-to-evals/code-evaluators) for the complete API.
+</Accordion>
+
+## Step 3: Run the check against a saved order
+
+From the Wonder Toys repository root, run:
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  python -m academy.evaluations.check_orders --phoenix-url http://localhost:6006
+```
+
+If Phoenix runs at a different address, replace `http://localhost:6006` in the command with that address.
+
+The command places a demo order, reads it back, and evaluates 3 cases:
+
+- **`actual_order`:** The order returned by the existing purchase tool should pass.
+- **`changed_quantity`:** A deliberately altered copy with 2 kits should fail.
+- **`missing_order`:** A deliberately missing order should fail.
+
+The last 2 cases test the evaluator itself. They aren't recorded failures of the shopping agent.
+
+The output includes an explanation for each result. For the changed quantity, it identifies the mismatch:
+
+```text
+Expected {'toy-051': 1}; stored {'toy-051': 2}.
+```
+
+## Step 4: Inspect the result in Phoenix
+
+Open **wonder-toys → Traces** and select **Purchase check**. In the root span:
+
+- **Input** shows the shopper's confirmed items.
+- **Output** shows the saved order.
+- Under **Annotations**, select **Table** to read the `ordered_items_match` label, score, and explanation.
+
+<Frame caption="The CODE annotation records whether the saved cart matches the request, with an explanation of the result.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-order-check-60517ad40057.png" alt="Phoenix purchase-check trace with confirmed items, a stored order, and an ordered_items_match code annotation." />
+</Frame>
+
+Your actual order should have a `pass` annotation, as the recorded example does. The altered examples appear only in the command's output.
+
+## Step 5: Test that your evaluator catches mistakes
+
+Step 3 checked one saved order and 2 altered examples. Now test your evaluator against more cases to check that it rejects incorrect orders and accepts valid ones.
+
+From the Wonder Toys repository root, run:
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  --with pytest python -m pytest academy/evaluations/tests/test_order_checks.py -q
+```
+
+These tests use prepared examples to check the evaluator itself:
+
+- **Incorrect orders should fail:** Wrong products, extra items, invalid quantities, and missing orders must be rejected.
+- **Equivalent carts should pass:** Reordering items or splitting a quantity across repeated product IDs shouldn't change the result.
+- **Invalid expectations should raise an error:** An empty reference cart gives the evaluator no valid order to compare against.
+
+You should see `11 passed`. If a test fails, use its expected and actual results to fix the evaluator before continuing.
+
+This evaluator checks the saved products and quantities. To evaluate the full purchase, you'd also need checks for the shopper's consent, shipping address, and final response.
+
+<Accordion title="Ask PXI to review your code evaluator (optional)">
+  Open [PXI](/docs/phoenix/pxi#get-started) and paste the contents of `order_checks.py`, including the helper function. Then ask:
+
+  > Review this evaluator for missing checks. Suggest test cases for incorrect orders, equivalent carts, and invalid inputs. Explain what each case checks. Keep the review brief. Only review the pasted code; don't create or change data.
+
+  <Frame caption="PXI summarizes suggested test cases after reviewing the pasted evaluator.">
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-code-check-pxi-f1b2f8b5be71.png" alt="PXI suggests tests for incorrect orders, equivalent carts, and invalid inputs, distinguishing an invalid saved order from a broken reference." />
+  </Frame>
+
+  Compare PXI's suggestions with your existing tests, then add any useful cases locally and rerun Step 5. PXI can review the code you paste; run the local commands yourself to test it against the purchase tool.
+</Accordion>
+
+You now have a check for saved products and quantities, with tests showing which mistakes it catches. Next, [write and validate an LLM judge](/docs/phoenix/learn/llm-judge) to check budget compliance in the agent's written recommendations.

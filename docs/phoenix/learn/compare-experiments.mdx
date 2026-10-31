@@ -1,0 +1,93 @@
+---
+title: "Compare results and agent steps"
+description: "Use scores, answers, and traces to explain what a change improved and what still needs attention."
+---
+
+{/* video: TODO */}
+
+You now have results from the original and revised [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) agent. A higher average budget score may look promising, but you still need to check which answers improved and whether the agent introduced other problems.
+
+You'll compare the answers and follow their traces to see what the agent did differently. By the end, you'll be able to explain whether the budget instruction is worth testing further or needs another revision.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-compare-light-60ffeee43091.svg" alt="Start with score coverage, compare individual answers and repetitions, then inspect agent traces and cost before drawing a conclusion." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-compare-dark-7e3ab5261457.svg" alt="Start with score coverage, compare individual answers and repetitions, then inspect agent traces and cost before drawing a conclusion." />
+</Frame>
+
+## Before you start
+
+Complete [Run a Phoenix dataset experiment](/docs/phoenix/learn/run-experiment). Open `wonder-toys-shopping` in **Datasets & Experiments** and select its **Experiments** tab.
+
+## Step 1: Open the two experiments together
+
+Open `wonder-toys-baseline`. Under **comparisons**, select `wonder-toys-budget-rule`. Keep the original version first so you can see how the revised version compares with it.
+
+<Frame caption="Add the revised version to the original experiment's comparison.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-compare-open-e96c7a82267e.gif" alt="Phoenix comparison selector opening and adding wonder-toys-budget-rule beside wonder-toys-baseline." />
+</Frame>
+
+## Step 2: Check that the results are complete
+
+Before comparing scores, open each experiment's **… → View details** menu and check:
+
+- **Runs:** Both experiments completed the expected number, such as 6 out of 6.
+- **Configuration:** Both use the same repetitions, `model`, and `rubric_version`. The model and rubric version appear in **Metadata**.
+- **Errors:** The commands from the previous lesson reported no task or evaluation errors. Investigate any errors before drawing a conclusion.
+
+Also confirm that both commands used the same dataset version. The added prompt instruction should be the intended difference between the versions.
+
+<Frame caption="Experiment details show completed runs, repetitions, errors, and the saved configuration.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-compare-coverage-b09b713ba6a0.png" alt="Wonder Toys baseline experiment details in light mode showing 6 of 6 runs, 2 repetitions, a zero error rate, and model and rubric metadata." />
+</Frame>
+
+Use your browser's **Back** button to return to the comparison. A `needs_review` judgment has no score, so check those answers separately rather than treating them as passes.
+
+## Step 3: Read what changed for each request
+
+Compare both versions' answers to the same request to see whether the instruction helped. Start where the answers or scores differ:
+
+- Read the shopper's request and both answers. Use **Expand** to see the full answer.
+- Use the arrows beside **1 / 2** to read each repetition, or attempt at the same request.
+- Hover over the `budget_compliance_judge` label to read its explanation. Check whether the judgment matches the answer and your budget criteria.
+
+<Frame caption="Compare both answers to the same request, then check the judge’s explanation.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-compare-answers-69d8c794a8f7.gif" alt="Phoenix comparison walkthrough highlighting the original over-budget recommendation, the revised answer asking to raise the budget, and the judge’s pass explanation for the same shopping request." />
+</Frame>
+
+For more room, select **View example run details**, the expand icon above an answer. Check requests the original version handled correctly too, even when the scores haven't changed.
+
+<Accordion title="What does the recorded example show?">
+  The judge passed all 6 attempts from the revised agent. Yet this answer praises the \$27.99 kit while asking the shopper to raise their \$25 budget. Its explanation treats that as asking a question rather than making a recommendation.
+
+  That decision deserves review against your rubric. Your results may differ, so use the answers you actually see.
+</Accordion>
+
+A budget pass only checks the budget. Problems with the requested theme, age suitability, or product facts need their own evaluations.
+
+## Step 4: Follow the trace behind a result
+
+To see how the agent produced an answer, select **View run trace**, the trace icon above that answer. Use the agent's [trace](/docs/phoenix/tracing/concepts-tracing/what-are-traces) to inspect:
+
+- **Search arguments and results:** Select `search-products` in the trace tree and read its **Input** and **Output**.
+- **The final answer:** Select the top task span to read the agent's response alongside its earlier steps.
+- **Additional calls:** Check whether the revised agent searched again and used those results in its answer.
+
+<Frame caption="Open the trace from the answer, then select its product-search step.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-compare-trace-open-50858993a29d.gif" alt="Light-mode Phoenix walkthrough clicking View run trace above an answer, opening its agent trace with an OK status, and selecting search-products to inspect Input and Output." />
+</Frame>
+
+Compare the same request's trace from the original version. Point to the steps that explain any difference in the answers. The judge's explanation from Step 3 is a separate evaluation of that answer.
+
+## Step 5: Decide what to test next
+
+Use the answers and traces to decide what to do with the instruction:
+
+- **Keep testing it** if the answers show improvements and the previously correct cases still work. Check more requests before relying on the change.
+- **Revise it** if the budget problem remains or the instruction causes another problem. Use the affected answers and traces to guide the next edit.
+- **Investigate first** if missing runs or questionable judge decisions prevent a useful comparison.
+
+Check latency and, where available, tokens and estimated cost too. Better answers may require more model calls, and timing from a few local runs can vary.
+
+You should now be able to explain what changed, which agent steps support that explanation, and what still needs testing.
+
+You've compared the agent's recommendations. Testing an action, such as placing an order, also means checking what the application saved. An earlier test can leave behind orders or inventory changes that affect the next result, so each attempt needs a fresh starting state. In [Test sandboxable agents with Harbor](/docs/phoenix/learn/harbor-agent-tests), you'll learn how Harbor manages these environments and runs checks on the completed task, using a Wonder Toys purchase as the example.

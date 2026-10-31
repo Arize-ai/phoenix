@@ -1,0 +1,249 @@
+---
+title: "Follow a conversation with sessions"
+description: "Use Phoenix sessions to review a conversation's traces together and check its follow-up answers."
+---
+
+{/* video: TODO */}
+
+In this lesson, you'll learn to use **sessions** in Phoenix to review the traces from one conversation together. You'll practice with [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone), a shopping assistant agent, and check whether its follow-up answers match earlier messages.
+
+<Frame caption="A shared session.id groups the traces. Each card lists example spans from one request.">
+  <div className="hidden sm:block">
+    <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-light-bcd36f27290f.svg" alt="A session with a shared session ID contains three traces, one for an initial request and one for each follow-up. Each trace has its own agent and model spans, with tool spans when tools are called." />
+    <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-dark-766241440f71.svg" alt="A session with a shared session ID contains three traces, one for an initial request and one for each follow-up. Each trace has its own agent and model spans, with tool spans when tools are called." />
+  </div>
+  <div className="block sm:hidden">
+    <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-light-mobile-33d4d8914660.svg" alt="Three stacked traces belong to the same conversation session. Each trace contains its own spans for the agent, model calls, and any tool calls." />
+    <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-dark-mobile-7371f427a9e9.svg" alt="Three stacked traces belong to the same conversation session. Each trace contains its own spans for the agent, model calls, and any tool calls." />
+  </div>
+</Frame>
+
+## Before you start
+
+Continue with the browser app from [Add an agent span](/docs/phoenix/learn/add-context-to-traces). Keep Phoenix running and work in the same `no-observability/langchain-py` folder.
+
+The screenshots show one example conversation; your products and answers may be different.
+
+## Step 1: Connect requests from the same conversation
+
+Let's make Wonder Toys create a conversation ID automatically and send it with each message. You don't need to choose an ID or paste one into Phoenix.
+
+- **First message:** the app creates an ID for the chat.
+- **Follow-ups:** it reuses that ID so Phoenix groups the traces together.
+- **New chat:** it creates a new ID for the next conversation.
+
+In `backend/agent.py`, [`using_session`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions#logging-conversations) goes around the agent span you added earlier:
+
+```python title="Key change in backend/agent.py" highlight={1} wrap
+with using_session(session_id), _tracer.start_as_current_span(
+    "Wonder Toys", openinference_span_kind="agent"
+) as root_span:
+    root_span.set_input(question)
+    # The existing streaming code continues here.
+```
+
+The app supplies `session_id` for the current chat. `using_session` records it as `session.id` on the spans. Choose one setup method below to connect the chat to this function.
+
+<Tabs>
+  <Tab title="Add the code yourself">
+    The [instrumented Wonder Toys app](https://github.com/Arize-ai/project-rosetta-stone/tree/main/phoenix/langchain-py) uses the same pattern. Expand the setup below to make all 4 file changes.
+
+    <Accordion title="Set up session tracking in Wonder Toys">
+      **Create the ID in the chat.** In [`src/components/Chat.tsx`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/src/components/Chat.tsx), find `fetchResponse`. Add these lines inside its `try` block, before `fetch`:
+
+      ```typescript
+      const sessionId = sessionStorage.getItem("chat-session-id") ?? crypto.randomUUID();
+      sessionStorage.setItem("chat-session-id", sessionId);
+      ```
+
+      This creates an ID on the first request and reuses it for follow-ups. Replace that fetch call's existing `headers` line with:
+
+      ```typescript wrap
+      headers: { "Content-Type": "application/json", "x-session-id": sessionId },
+      ```
+
+      In the same file, find the Wonder Toys logo's `onClick` handler. Add this after `sessionStorage.removeItem("chat-messages")` so a new chat gets a new ID:
+
+      ```typescript
+      sessionStorage.removeItem("chat-session-id");
+      ```
+
+      **Pass the ID to Python.** The web app forwards messages to the Python backend. It needs to forward the ID too. In [`src/app/api/chat/route.ts`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/src/app/api/chat/route.ts), add this after `const { messages } = await req.json()`:
+
+      ```typescript
+      const sessionId = req.headers.get("x-session-id") || crypto.randomUUID();
+      ```
+
+      Add this field to the existing backend fetch call's `headers` object:
+
+      ```typescript
+      "X-Session-ID": sessionId,
+      ```
+
+      In [`backend/main.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/backend/main.py), add this import with the existing imports:
+
+      ```python
+      from uuid import uuid4
+      ```
+
+      In `chat`, read the ID after the existing `user_id` line. The fallback creates an ID for requests sent directly to Python:
+
+      ```python
+      session_id = request.headers.get("x-session-id") or str(uuid4())
+      ```
+
+      In that function's `StreamingResponse`, update the agent call to pass the ID:
+
+      ```python
+      stream_agent(messages, user_id, session_id=session_id),
+      ```
+
+      **Attach the ID to the spans.** In `backend/agent.py`, add these imports:
+
+      ```python
+      from uuid import uuid4
+      from phoenix.otel import using_session
+      ```
+
+      Update the `stream_agent` signature to accept the ID:
+
+      ```python
+      async def stream_agent(
+          messages: list[dict], user_id: str, session_id: str | None = None
+      ) -> AsyncIterator[str]:
+      ```
+
+      Add this at the start of the function. It also supports calls made outside the web app:
+
+      ```python
+      session_id = session_id or str(uuid4())
+      ```
+
+      Replace the opening of the existing `with` block with this code. Keep its body at the same indentation:
+
+      ```python
+      with using_session(session_id), _tracer.start_as_current_span(
+          "Wonder Toys", openinference_span_kind="agent"
+      ) as root_span:
+      ```
+
+      Inside `agent.astream_events`, replace the existing `config` argument with:
+
+      ```python
+      config={"recursion_limit": 25, "metadata": {"session_id": session_id}},
+      ```
+
+      [`using_session`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions#logging-conversations) tags the agent span and its calls. The [LangChain metadata](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions#how-to-track-sessions-with-langchain) also carries the ID through the workflow.
+    </Accordion>
+  </Tab>
+  <Tab title="Use a coding assistant">
+    Use an assistant with the [Phoenix tracing skill](/docs/phoenix/integrations/developer-tools/skills) installed. Open the app folder and paste:
+
+    ```text wrap
+    Add conversation tracking to the Wonder Toys app using the Phoenix tracing skill.
+    Inspect src/components/Chat.tsx, src/app/api/chat/route.ts, backend/main.py, backend/agent.py, and the existing tracing setup. Show the proposed changes first.
+
+    - Store a conversation ID in browser sessionStorage as chat-session-id.
+    - Reuse it for follow-ups and reset it when the Wonder Toys logo starts a new chat.
+    - Send it as x-session-id through the web app to the Python backend.
+    - Pass it to stream_agent. Use using_session around the existing Wonder Toys span and include session_id in the LangChain metadata.
+    - Reuse the existing tracer provider and preserve the agent's streaming behavior.
+    - Verify that follow-ups share a session and a new chat starts a different session.
+    ```
+  </Tab>
+</Tabs>
+
+Restart the app to load your changes:
+
+```bash
+UV_PYTHON=3.11 npm run dev
+```
+
+## Step 2: Start a conversation and ask a follow-up
+
+Open the app in your browser using the **Local** address shown in the terminal. Select the Wonder Toys logo to start a new chat, then send the original request again:
+
+```text wrap
+Find dinosaur toys for a 6-year-old under $25. Recommend at most 3 options.
+```
+
+This request starts your session. Earlier traces won't gain a session ID retroactively.
+
+If the first answer didn't recommend a product, ask "What age and budget did I ask you to use?" instead. Check that reply against your original request for the rest of this exercise.
+
+If it recommended a product, send these follow-ups in the same chat:
+
+```text
+Tell me more about the cheapest one you recommended. What is its product ID and age range?
+```
+
+Wait for the answer, then ask about the same toy without naming it:
+
+```text
+Would that same toy suit a 2-year-old? Use its listed age range.
+```
+
+
+## Step 3: Open the session in Phoenix
+
+A **turn** is one shopper message and the agent's answer. Wonder Toys records each turn as a trace and groups them in the same session.
+
+To open your conversation:
+
+- Open **wonder-toys → Sessions** in Phoenix.
+- Find your shopper's request in the **first input** column.
+- Select that row's **session id**.
+
+<Frame caption="Select Sessions, then select the session ID for your conversation. Both click targets are outlined in blue.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-session-list.png" alt="Phoenix project with the Sessions tab and the session ID outlined in blue, alongside the dinosaur toy request in the first input column" />
+</Frame>
+
+Under **Turns**, select each request on the left to read its message and answer on the right. Check that your original request and follow-ups appear together.
+
+## Step 4: Compare the follow-up answers
+
+Read the replies in order, using these checks for the toy questions:
+
+- **Product:** Did the first follow-up identify the cheapest recommendation?
+- **Age range:** Did the next reply refer to that same toy and use the age range given earlier?
+
+In the example below, the final reply still names the Insect & Bug Collection and explains that its age range of 3 to 8 years excludes a 2-year-old.
+
+<Frame caption="Turn 03 answers the follow-up about the toy discussed in Turn 02.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-session-turns.png" alt="Phoenix session with three turns listed on the left and the final follow-up and answer about the Insect and Bug Collection on the right" />
+</Frame>
+
+The conversation shows whether the replies agree with each other. Next, check which earlier messages the model actually received.
+
+## Step 5: Check the model's conversation history
+
+To inspect the messages sent with the final follow-up:
+
+- Select **Trace** beside the final turn.
+- Select the first `ChatAnthropic` model call.
+- Under **Info → Input**, expand the earlier message that the follow-up refers to.
+
+<Frame caption="The earlier assistant reply appears in the model's input, including the toy's age range.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-session-history.png" alt="Phoenix session trace with ChatAnthropic selected and its Input section showing the earlier assistant reply naming the Insect and Bug Collection and its age range of 3 to 8 years" />
+</Frame>
+
+Use the message history to explain what happened:
+
+- **Message missing:** The model didn't receive that earlier part of the conversation.
+- **Message present:** Check whether the follow-up answer agrees with it.
+
+Wonder Toys supplies this history, while the session ID groups the traces in Phoenix.
+
+In this example:
+
+> The model received the earlier reply naming the Insect & Bug Collection for ages 3 to 8. It then referred to the same toy and said it wasn't suitable for a 2-year-old.
+
+Use your own trace to explain whether the follow-up answer matched the earlier messages in the model's input.
+
+<Accordion title="Session IDs and user IDs">
+  A `session.id` identifies one conversation, while a `user.id` identifies the person. If the same shopper starts a new chat, give it a new session ID and keep the same user ID.
+</Accordion>
+
+## Next
+
+Now that you can inspect individual requests and conversations, [review traces and feedback](/docs/phoenix/learn/find-failures) to find problems that recur across runs.

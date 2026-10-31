@@ -1,0 +1,93 @@
+---
+title: "Read model, retrieval, and tool steps"
+description: "Follow a request through model calls and product searches to understand how Wonder Toys produced its recommendation."
+---
+
+{/* video: TODO */}
+
+In this lesson, you'll learn to use a Phoenix trace to identify the information an agent received and check whether it supports the final answer. You'll practice with [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone), a shopping assistant agent, by comparing its product search results with its recommendation.
+
+## Before you start
+
+Continue with the request you sent in [Add an agent span](/docs/phoenix/learn/add-context-to-traces), asking for dinosaur toys for a 6-year-old under \$25. To inspect how Wonder Toys handled it, open **wonder-toys → Traces** in Phoenix and select that request's trace.
+
+In the screenshots, Wonder Toys recommends a toy that costs more than \$25. Your results may be different, but you can follow the same steps with your own trace.
+
+## Step 1: Read the model's search request
+
+- Select the first `ChatAnthropic` model call on the left.
+- Under **Info** on the right, read the shopper's message in **Input**.
+
+<Frame caption="The selected model call shows the shopper's request under Input.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-input.png" alt="Phoenix trace with the first ChatAnthropic row selected on the left and the Info tab showing Input and the shopper's dinosaur toy request on the right" />
+</Frame>
+
+Then scroll to **Output** and find `search-products`. In this example, the model asks the tool for dinosaur toys for age 6.
+
+<Frame caption="The model's search request appears under Output.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-search-call.png" alt="First model call output showing search-products with query dinosaur toys and min_age and max_age both set to 6" />
+</Frame>
+
+- If you don't see `search-products`, check the next `ChatAnthropic` span.
+- If none of the model calls requested a search, skip to Step 4.
+
+## Step 2: Read the search results
+
+- Select the `search-products` row and check that **Input** matches the search from Step 1.
+- Then read **Output** to see the returned products.
+
+In this example, the tool returned a Dinosaur Explorer Kit priced at \$27.99. Fetching product records like these is called **retrieval**.
+
+<Frame caption="The tool's Output shows the products returned by the search.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-search-span.png" alt="Phoenix search-products span showing the dinosaur query, age filters, and returned Dinosaur Explorer Kit priced at 27.99" />
+</Frame>
+
+Next, check whether the model received these results.
+
+## Step 3: Compare the recommendation with the results
+
+Select the next `ChatAnthropic` model call and find `tool: search-products` under **Input**. In this example, that message contains the kit's \$27.99 price.
+
+<Frame caption="The search results are included in the next model call's Input.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-search-results.png" alt="Tool message in the final model call's input showing the Dinosaur Explorer Kit and its price of 27.99" />
+</Frame>
+
+Scroll to **Output** and check the recommendation against the product details and the shopper's requirements. Here, the model recommended the kit while noting that it was over budget.
+
+<Frame caption="The answer recommends the kit at $27.99 and notes that it is over budget.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-model-recommendation.png" alt="Final model call output recommending the Dinosaur Explorer Kit at 27.99 and noting that it is over budget" />
+</Frame>
+
+- If there are more searches, repeat this comparison until you reach the final answer.
+- If no products came back, check how the answer explains that.
+
+## Step 4: Explain the recommendation
+
+For the example in the screenshots, you can now explain:
+
+> The model asked the tool for dinosaur toys for age 6 and received results that included a Dinosaur Explorer Kit priced at \$27.99. It then recommended that kit while noting that it was over budget. The model had the price information but still included a toy above the shopper's \$25 limit.
+
+Use your own trace to explain what happened, whether the answer was correct or not. If no search ran, compare the model's input and answer.
+
+## Step 5: Check the cost of the request
+
+You've seen how the agent reached its answer. Now let's check how much its model calls cost.
+
+- **Find the request total.** Read **Total Cost** at the top of the trace, marked **1** below.
+- **Compare the model calls.** Select each model span, such as `ChatAnthropic`. Hover over the token count or cost beneath its name, marked **2**, to see the input and output breakdown. Tokens are pieces of content the model reads or generates.
+- **Find the most expensive call.** Read its **Input** and **Output** to see what information it received and what it produced.
+
+<Frame caption="1: Total Cost covers the whole request. 2: Hover over a model call's token count or cost to inspect its breakdown.">
+  <img className="hidden sm:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/read-agent-cost-breakdown-bdd9c6f89fd4.png" alt="Phoenix in light mode with the request's Total Cost outlined as 1 and a selected model call's tokens and cost outlined as 2. The open tooltip separates input and output tokens and costs." />
+  <img className="block sm:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/read-agent-cost-breakdown-mobile-1375a70aff1d.png" alt="Two stacked crops from the same Phoenix trace: 1 shows the request's total cost; 2 shows the selected model call's token and cost breakdown, separated into input and output." />
+</Frame>
+
+Phoenix calculates model-call costs from recorded token usage and [model pricing](/docs/phoenix/tracing/how-to-tracing/cost-tracking). Use **Total Cost** for the whole request.
+
+<Accordion title="Check how long the request took">
+  **Latency** is the elapsed time shown at the top of the trace. Compare individual model and tool calls to find where the agent spent time. Use the trace latency for the whole request; parent and child durations overlap.
+</Accordion>
+
+## Continue the conversation
+
+You've reviewed one request's behavior and cost. Keep the Wonder Toys chat open, then [follow a conversation with sessions](/docs/phoenix/learn/sessions) to check how the agent uses an earlier answer in a follow-up.

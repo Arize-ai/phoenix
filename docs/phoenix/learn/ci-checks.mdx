@@ -1,0 +1,103 @@
+---
+title: "Add critical checks to CI"
+description: "Run evaluation tests on code changes, choose which results fail CI, and inspect recorded runs in Phoenix."
+---
+
+{/* video: TODO */}
+
+Your [release decision](/docs/phoenix/learn/ship-decision) describes the version you reviewed. A later change can break behavior that passed today. Continuous integration (**CI**) runs tests when code changes so you can catch those regressions during review.
+
+Phoenix's [pytest integration](/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest) supports both code checks and LLM evaluations. You'll record a [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) purchase check as a Phoenix experiment, inspect what makes it pass or fail, and see how the same approach applies to your budget judge.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-ci-light-78ea92f148f0.svg" alt="A code change runs evaluation tests. Assertions determine the check result, and Phoenix records marked tests for inspection." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-ci-dark-7c45eba9175c.svg" alt="A code change runs evaluation tests. Assertions determine the check result, and Phoenix records marked tests for inspection." />
+</Frame>
+
+## Before you start
+
+Use your Wonder Toys checkout with Python 3.11, `uv`, and a running [Phoenix instance](/docs/phoenix/learn/capture-first-run#step-1-start-phoenix). The purchase example uses the [code check from the earlier lesson](/docs/phoenix/learn/code-checks) and makes no model API calls.
+
+## Step 1: Choose the requirement CI should enforce
+
+Start with a requirement from your release decision that must keep working after a change:
+
+- **Application outcome:** The saved product IDs and quantities match the confirmed cart. Use a code evaluator to compare them.
+- **Answer quality:** A recommendation respects the shopper's budget. Use the validated LLM judge from [Write and validate an LLM judge](/docs/phoenix/learn/llm-judge).
+
+Either can become an evaluation test. The test must state what result is acceptable; a recorded score alone doesn't fail CI.
+
+For the hands-on example, use the saved-order requirement. The supplied test calls the real purchase tool in a fresh process, checks its saved order, and asserts that the check passed.
+
+## Step 2: Run and record the evaluation test
+
+Open the supplied [purchase evaluation test](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/ci/test_purchase_outcome.py). It uses `@pytest.mark.phoenix(dataset="wonder-toys-ci")` to record the test in Phoenix:
+
+- `log_output` records the saved order.
+- `log_evaluation` records the `ordered_items_match` score and explanation.
+- `assert` decides whether the test passes. A failed assertion fails pytest and records a `pass=False` annotation.
+
+From the Wonder Toys repository root, run:
+
+```bash
+PHOENIX_ENDPOINT=http://localhost:6006 \
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  --with 'arize-phoenix-client[pytest]' \
+  --with 'arize-phoenix-evals>=3.9.5' \
+  --with pytest \
+  python -m pytest academy/evaluations/ci -q
+```
+
+Replace the endpoint with your Phoenix address. Set `PHOENIX_API_KEY` if that instance requires authentication.
+
+After the command finishes, open **Datasets & Experiments → wonder-toys-ci → Experiments** in Phoenix. Select the latest experiment and inspect both the evaluator result and the test's `pass` annotation.
+
+<Frame caption="The purchase evaluation and pytest assertion are recorded on the same run in Phoenix.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-ci-phoenix-88087c59717b.png" alt="Phoenix experiment for the actual local pytest purchase test, showing its saved order, ordered_items_match evaluation, and passing assertion." />
+</Frame>
+
+<Accordion title="What about the application and evaluator unit tests?">
+  The separate [unit test suite](https://github.com/Arize-ai/project-rosetta-stone/tree/main/academy/evaluations/tests) checks known evaluator mistakes and application behavior. The workflow runs these alongside the recorded evaluation test:
+
+  ```bash
+  uv run --python 3.11 \
+    --with-requirements phoenix/langchain-py/backend/requirements.txt \
+    --with 'arize-phoenix-evals>=3.9.5' \
+    --with pytest \
+    python -m pytest academy/evaluations/tests -q
+  ```
+
+  <Frame caption="Recorded local unit-test output. This suite is separate from the marked test recorded in Phoenix.">
+    <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-ci-result-light-ed96f35fb1f3.svg" alt="Recorded local pytest output showing 23 passing unit tests." />
+    <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-ci-result-dark-47e688636dc3.svg" alt="Recorded local pytest output showing 23 passing unit tests." />
+  </Frame>
+</Accordion>
+
+## Step 3: Repeat those checks on pull requests
+
+The local run gives you a working test. Open the supplied [GitHub Actions workflow](https://github.com/Arize-ai/project-rosetta-stone/blob/main/.github/workflows/academy-checks.yml) to see how it runs on code changes:
+
+- **Trigger:** A pull request changes the evaluation files, Python backend, or workflow itself.
+- **Execution:** It runs the unit suite and the marked purchase evaluation test.
+- **Result:** A failed test produces a failed workflow check. When recording is configured, Phoenix also receives the marked run.
+
+To use it in your repository, add the workflow under `.github/workflows/` and configure [`PHOENIX_ENDPOINT`](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint) and, if needed, `PHOENIX_API_KEY` as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions). The runner must be able to reach that endpoint; its `localhost` is the runner itself.
+
+Without a configured endpoint, this workflow sets [`PHOENIX_TEST_TRACKING=0`](/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest#configuring-with-environment-variables). The tests still run and can fail CI, but nothing is sent to Phoenix. Upload problems are reported as warnings; test assertions determine the CI result.
+
+After pushing a matching pull request, inspect **Wonder Toys Academy checks** in its [**Checks** tab](https://docs.github.com/en/pull-requests/reference/status-checks#checks). Confirm the tests run and, when recording is enabled, that the experiment appears in Phoenix.
+
+## Step 4: Apply the same pattern to model evaluations
+
+The purchase example uses a code evaluator, but an LLM judge can also be part of CI. For your budget requirement:
+
+- Run the application on reviewed shopping cases and record its answers.
+- Apply the validated budget judge and record its labels and explanations.
+- Assert the acceptance rule from your release requirements. Decide how failures, `needs_review`, and execution errors affect that rule.
+
+Use repetitions when needed to understand variation. These tests make model API calls and need the provider credentials used in the earlier judge lesson.
+
+Phoenix's [inline evaluation example](/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest#logging-evaluations) shows how to record an evaluator result and assert on it. Evaluators attached to the test marker record evidence; they don't automatically fail the test. An explicit assertion makes the requirement enforceable.
+
+CI repeats known requirements. In [Evaluate new runs and update tests](/docs/phoenix/learn/production-evals), you'll review requests your test set didn't cover and use them to improve the next set of checks.
