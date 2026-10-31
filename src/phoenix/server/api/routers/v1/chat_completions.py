@@ -240,6 +240,21 @@ class ChatCompletionChunk(V1RoutesBaseModel):
     usage: Optional[ChatCompletionUsage] = None
 
 
+_NON_ASCII_CREDENTIAL_MESSAGE = (
+    "The provider API key or a custom header value contains a non-ASCII character "
+    "(often an invisible character pasted along with the key), so the request to the "
+    "provider could not be built. Re-enter the credential in Phoenix secrets, the "
+    "environment, or the custom provider configuration."
+)
+
+
+def _non_ascii_credential_error() -> _ChatCompletionError:
+    """HTTP header values must be ASCII; httpx raises ``UnicodeEncodeError`` with
+    the ``ascii`` codec while building the provider request when an API key or
+    custom header value is not."""
+    return _ChatCompletionError(_NON_ASCII_CREDENTIAL_MESSAGE, status_code=400)
+
+
 def _unknown_model_error(model_id: str) -> _ChatCompletionError:
     return _ChatCompletionError(
         f"Unknown model {model_id!r}. {_MODEL_FORMAT_HELP}",
@@ -434,6 +449,10 @@ async def create_chat_completion(
         response = await model.request(messages, settings, ModelRequestParameters())
     except ModelAPIError as exc:
         return _provider_error_response(exc)
+    except UnicodeEncodeError as exc:
+        if exc.encoding != "ascii":
+            raise
+        raise _non_ascii_credential_error() from exc
     completion = ChatCompletion(
         id=_completion_id(response.provider_response_id),
         created=int(response.timestamp.timestamp()),
@@ -555,6 +574,10 @@ async def _create_streaming_response(
         await provider_stream_opened
     except ModelAPIError as exc:
         return _provider_error_response(exc)
+    except UnicodeEncodeError as exc:
+        if exc.encoding != "ascii":
+            raise
+        raise _non_ascii_credential_error() from exc
     except BaseException:
         producer.cancel()
         raise
