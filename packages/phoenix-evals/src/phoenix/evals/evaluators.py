@@ -983,18 +983,18 @@ def create_evaluator(
             if len(numbers) + len(strings) != len(result) or len(numbers) > 1 or len(strings) > 2:
                 raise ValueError(ERROR_MESSAGE)
             if numbers:
-                item = numbers[0]
-                tuple_score_data["score"] = float(item) if isinstance(item, bool) else item
-                if isinstance(item, bool):
-                    tuple_score_data["label"] = str(item)
+                number = numbers[0]
+                tuple_score_data["score"] = float(number) if isinstance(number, bool) else number
+                if isinstance(number, bool):
+                    tuple_score_data["label"] = str(number)
             if len(strings) == 2:
                 tuple_score_data["label"], tuple_score_data["explanation"] = strings
             elif strings:
-                item = strings[0]
-                if item.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
-                    tuple_score_data["label"] = item
+                text = strings[0]
+                if text.count(" ") <= LABEL_WORD_COUNT_THRESHOLD - 1:
+                    tuple_score_data["label"] = text
                 else:  # longer strings = explanations
-                    tuple_score_data["explanation"] = item
+                    tuple_score_data["explanation"] = text
             return Score(name=name, kind=kind, direction=direction, **tuple_score_data)
 
         # Handle dictionaries
