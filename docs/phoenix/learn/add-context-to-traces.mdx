@@ -28,24 +28,25 @@ Continue with your setup from the previous lesson:
 
 ## Step 1: Add the agent span
 
-In your own app, wrap the code that handles one request in an **AGENT** span. Use this pattern with your app's request and response variables:
+For a function that returns an answer, Phoenix's [`@tracer.agent` decorator](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#agents) creates an **AGENT** span around the function call:
 
-```python title="Pattern for your own agent" wrap
+```python title="Pattern for an agent that returns an answer" wrap
 tracer = _tracer_provider.get_tracer(__name__)
 
-with tracer.start_as_current_span(
-    "My agent", openinference_span_kind="agent"
-) as span:
-    span.set_input(request)
-    # Run your existing agent code here to produce the response.
-    span.set_output(response)
+@tracer.agent(name="My agent")
+def run_agent(request: str) -> str:
+    return existing_agent(request)
 ```
 
-- **Start a span.** The `with` block opens **My agent** and closes it when the work finishes. Calls inside it become child spans.
-- **Record the request.** `set_input` saves the value you pass as `request`, which appears under **Input** in Phoenix.
-- **Record the answer.** Replace the comment with your existing agent call to produce `response`. `set_output` saves that value under **Output**.
+Here, `existing_agent(request)` represents your app's existing call that returns the answer. The decorator records:
 
-Wonder Toys streams its reply, so we'll collect the pieces before recording **Output**. Choose either approach below to apply the pattern to this app:
+- **Input:** the function's argument, `request`.
+- **Output:** the answer the function returns.
+- **Child spans:** the instrumented model and tool calls made while the function runs.
+
+Wonder Toys streams its answer in pieces using an async generator. For this streaming function, we'll use a **context manager**, a `with` block that keeps the span open until the reply finishes. We'll record the request when it starts and the collected answer when it ends.
+
+Choose either approach below to make these edits in Wonder Toys:
 
 <Tabs>
   <Tab title="Add the code yourself">
