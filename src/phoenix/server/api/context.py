@@ -18,6 +18,7 @@ from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
     from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
+    from phoenix.server.daemons.evaluator_sweeper import EvaluatorSweeper
     from phoenix.server.daemons.experiment_runner import ExperimentRunner
     from phoenix.server.daemons.system_settings import SystemSettings
     from phoenix.server.dml_event import DmlEvent
@@ -49,6 +50,7 @@ class Context(BaseContext):
     sandbox_runtime: SandboxRuntimeContext
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
+    evaluator_sweeper: Optional[EvaluatorSweeper] = None
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
     allowed_provider_names: Optional[frozenset[str]] = None
@@ -126,6 +128,7 @@ def build_context(
     sandbox_runtime: SandboxRuntimeContext,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
+    evaluator_sweeper: Optional[EvaluatorSweeper] = None,
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     last_updated_at: CanGetLastUpdatedAt = _NoOp(),
     event_queue: CanPutItem[DmlEvent] = _NoOp(),
@@ -150,6 +153,7 @@ def build_context(
         sandbox_runtime=sandbox_runtime,
         encrypt=encrypt,
         decrypt=decrypt,
+        evaluator_sweeper=evaluator_sweeper,
         last_updated_at=last_updated_at,
         event_queue=event_queue,
         allowed_provider_names=allowed_provider_names,
