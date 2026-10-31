@@ -957,7 +957,7 @@ dev = [
 
 [[package]]
 name = "arize-phoenix-evals"
-version = "3.9.5"
+version = "3.10.0"
 source = { editable = "packages/phoenix-evals" }
 dependencies = [
     { name = "jsonpath-ng" },

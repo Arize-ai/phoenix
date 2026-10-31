@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.5...arize-phoenix-evals-v3.10.0) (2026-10-31)
+
+
+### Features
+
+* **evals:** support TypeSafe Jev decision models in Python classification evaluators ([#16953](https://github.com/Arize-ai/phoenix/issues/16953)) ([9089efc](https://github.com/Arize-ai/phoenix/commit/9089efc2bdbd7d71286cd27a3b731b132f41fb79))
+
+
+### Bug Fixes
+
+* **evals:** ask for the Anthropic tool call instead of forcing tool_choice ([#17366](https://github.com/Arize-ai/phoenix/issues/17366)) ([be808f6](https://github.com/Arize-ai/phoenix/commit/be808f6bef86a67437f6cddede9e424a17fe6fb9))
+* **evals:** drop hardcoded decision instructions ([#17372](https://github.com/Arize-ai/phoenix/issues/17372)) ([a600c71](https://github.com/Arize-ai/phoenix/commit/a600c715efc9251563104d38f33cb0622fa5efb8))
+* **evals:** keep metadata from dictionary results in create_evaluator ([#17484](https://github.com/Arize-ai/phoenix/issues/17484)) ([52a0b8c](https://github.com/Arize-ai/phoenix/commit/52a0b8c8059383082330e29efd914a9fdf75a411))
+* **evals:** raise a clear error when Google or LiteLLM tool calling returns no tool call ([#17313](https://github.com/Arize-ai/phoenix/issues/17313)) ([e886020](https://github.com/Arize-ai/phoenix/commit/e886020b57fa0ac2a339555010422dc3b8b6a9af))
+
+
+### Documentation
+
+* reference the current evals PromptTemplate API ([#17358](https://github.com/Arize-ai/phoenix/issues/17358)) ([a4373ea](https://github.com/Arize-ai/phoenix/commit/a4373ea4a096fe015119f659bdf81a2d8c568939))
+
 ## [3.9.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.4...arize-phoenix-evals-v3.9.5) (2026-10-27)
 
 
