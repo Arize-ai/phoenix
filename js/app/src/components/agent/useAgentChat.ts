@@ -397,7 +397,13 @@ export function useAgentChat({
             // busy-elsewhere mode (the poll swaps in the fresh transcript
             // when the turn completes) instead of raising a red error.
             restorePendingMessage();
-            if (!isSessionSelfCancellationGraceActive(store, sessionId)) {
+            const cancelledAt =
+              store.getState().locallyCancelledSessionAtBySessionId[sessionId];
+            if (isSessionSelfCancellationGraceActive(cancelledAt)) {
+              store
+                .getState()
+                .setSessionNotice(sessionId, "previousTurnCancelled");
+            } else {
               store.getState().setSessionBusyElsewhere(sessionId, true);
             }
             return;

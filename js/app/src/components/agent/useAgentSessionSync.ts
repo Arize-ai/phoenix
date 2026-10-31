@@ -6,11 +6,13 @@ import { useRelayEnvironment } from "react-relay";
 import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import { getTurnClientState } from "@phoenix/agent/chat/createAgentSessionChat";
 import { cleanupResolvedPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
-import { isSessionSelfCancellationGraceActive } from "@phoenix/agent/chat/sessionCancellation";
+import {
+  isSessionSelfCancellationGraceActive,
+  SESSION_CANCELLATION_GRACE_MS,
+} from "@phoenix/agent/chat/sessionCancellation";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
-import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
   fetchAgentSessionSyncState,
@@ -78,39 +80,6 @@ function getFetchedAgentSession(
     : null;
 }
 
-function applyActiveSessionBusyState({
-  store,
-  sessionId,
-}: {
-  store: AgentStore;
-  sessionId: string;
-}): void {
-  if (!isSessionSelfCancellationGraceActive(store, sessionId)) {
-    store.getState().setSessionBusyElsewhere(sessionId, true);
-  }
-}
-
-function canApplyFetchedSessionTranscript({
-  chatInstance,
-  store,
-  sessionId,
-}: {
-  chatInstance: Chat<AgentUIMessage>;
-  store: AgentStore;
-  sessionId: string;
-}): boolean {
-  if (
-    isRequestActive(chatInstance.status) ||
-    (store.getState().isCompactionPendingBySessionId[sessionId] ?? false)
-  ) {
-    return false;
-  }
-  if (getTurnClientState(chatInstance)?.hasPendingFlush() ?? false) {
-    return false;
-  }
-  return true;
-}
-
 export function useAgentSessionSync({
   persistedSessionId,
   chatInstance,
@@ -158,11 +127,32 @@ export function useAgentSessionSync({
   // without a separate imperative status check.
   useEffect(() => {
     if (!persistedSessionId || !chatInstance || !isActive) {
-      return;
+      return undefined;
     }
     const state = store.getState();
-    if (isSessionSelfCancellationGraceActive(store, persistedSessionId)) {
-      return;
+    const cancelledAt =
+      state.locallyCancelledSessionAtBySessionId[persistedSessionId];
+    if (isSessionSelfCancellationGraceActive(cancelledAt)) {
+      const remainingMs = Math.max(
+        0,
+        SESSION_CANCELLATION_GRACE_MS - (Date.now() - (cancelledAt ?? 0)) + 1
+      );
+      const timeoutId = setTimeout(() => {
+        const currentState = store.getState();
+        const currentCancelledAt =
+          currentState.locallyCancelledSessionAtBySessionId[persistedSessionId];
+        if (
+          !isSessionSelfCancellationGraceActive(currentCancelledAt) &&
+          currentState.isBusyElsewhereBySessionId[persistedSessionId] !==
+            true &&
+          !isRequestActive(chatInstance.status)
+        ) {
+          currentState.setSessionBusyElsewhere(persistedSessionId, true);
+        }
+      }, remainingMs);
+      return () => {
+        clearTimeout(timeoutId);
+      };
     }
     // Never treat this client's own in-flight turn as busy elsewhere.
     if (
@@ -171,6 +161,7 @@ export function useAgentSessionSync({
     ) {
       state.setSessionBusyElsewhere(persistedSessionId, true);
     }
+    return undefined;
   }, [persistedSessionId, chatInstance, isActive, store]);
 
   const isSessionPollingPaused = isRequestActive(chatStatus) || isCompacting;
@@ -190,7 +181,13 @@ export function useAgentSessionSync({
       }
       shouldSyncOnNextPollSetupRef.current = false;
       if (syncState.isActive) {
-        applyActiveSessionBusyState({ store, sessionId: persistedSessionId });
+        const cancelledAt =
+          store.getState().locallyCancelledSessionAtBySessionId[
+            persistedSessionId
+          ];
+        if (!isSessionSelfCancellationGraceActive(cancelledAt)) {
+          store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        }
         return;
       }
 
@@ -198,9 +195,9 @@ export function useAgentSessionSync({
       store.getState().clearSessionLocallyCancelled(persistedSessionId);
       // Read busy state fresh from the store: the probe may have set it on a
       // previous tick and this closure could be stale.
-      const wasBusyElsewhere =
-        store.getState().isBusyElsewhereBySessionId[persistedSessionId] ??
-        false;
+      const wasBusyElsewhere = Boolean(
+        store.getState().isBusyElsewhereBySessionId[persistedSessionId]
+      );
       const lastSynced = lastSyncedSessionStateRef.current;
       const isTranscriptUnchanged = isSameSessionTail({
         lastSynced,
@@ -223,20 +220,28 @@ export function useAgentSessionSync({
       if (agentSession.isActive) {
         // Another client claimed the turn lock between the probe and the
         // full fetch; treat this tick as busy and let the next tick resync.
-        applyActiveSessionBusyState({ store, sessionId: persistedSessionId });
+        const cancelledAt =
+          store.getState().locallyCancelledSessionAtBySessionId[
+            persistedSessionId
+          ];
+        if (!isSessionSelfCancellationGraceActive(cancelledAt)) {
+          store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        }
         return;
       }
 
-      store.getState().clearSessionLocallyCancelled(persistedSessionId);
       // This client started its own turn (or a compaction) while the fetch
       // was in flight; never replace its in-flight optimistic messages.
-      if (
-        !canApplyFetchedSessionTranscript({
-          chatInstance,
-          store,
-          sessionId: persistedSessionId,
-        })
-      ) {
+      const isCompacting =
+        store.getState().isCompactionPendingBySessionId[persistedSessionId] ===
+        true;
+      if (isRequestActive(chatInstance.status) || isCompacting) {
+        return;
+      }
+      // A flush of this client's outputs or answers is still in flight, so
+      // the fetched transcript predates it. Applying it would reset answers
+      // the user gave, and an approval cannot be re-derived.
+      if (getTurnClientState(chatInstance)?.hasPendingFlush()) {
         return;
       }
       // Clear a lingering conflict error only after the other client's turn

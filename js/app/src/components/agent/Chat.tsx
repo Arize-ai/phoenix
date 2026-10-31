@@ -964,6 +964,25 @@ export function ChatView({
               </Alert>
             </div>
           ) : null}
+          {sessionNotice === "previousTurnCancelled" && sessionId ? (
+            <div
+              className="chat__session-notice"
+              role="status"
+              aria-live="polite"
+            >
+              <Alert
+                variant="info"
+                title="Previous turn was cancelled"
+                dismissable
+                onDismissClick={() => {
+                  setSessionNotice(sessionId, null);
+                }}
+              >
+                The previous turn was stopped. Your unsent message is still in
+                the input below.
+              </Alert>
+            </div>
+          ) : null}
           {(operationError || (!rewindRequest && historyActionError)) && (
             <div className="chat__operation-error" role="alert">
               <Alert

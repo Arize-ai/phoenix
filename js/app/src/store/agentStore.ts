@@ -144,7 +144,8 @@ export type PendingAgentMessage = {
  */
 export type AgentSessionDismissableNotice =
   | "messagesAddedElsewhere"
-  | "modelChangedElsewhere";
+  | "modelChangedElsewhere"
+  | "previousTurnCancelled";
 
 /**
  * The single notice a session surface should render, resolved with the

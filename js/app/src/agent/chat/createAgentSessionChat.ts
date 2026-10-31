@@ -354,11 +354,15 @@ export function createAgentSessionChat({
         });
         return;
       }
-      if (
-        !isBusyRejection ||
-        !isSessionSelfCancellationGraceActive(store, sessionId)
-      ) {
-        store.getState().setSessionBusyElsewhere(sessionId, true);
+      if (isBusyRejection) {
+        const cancelledAt =
+          store.getState().locallyCancelledSessionAtBySessionId[sessionId];
+        if (isSessionSelfCancellationGraceActive(cancelledAt)) {
+          store.getState().setSessionNotice(sessionId, "previousTurnCancelled");
+        } else {
+          store.getState().setSessionBusyElsewhere(sessionId, true);
+        }
+        return;
       }
     },
     onFinish: ({ messages: finalMessages, message }) => {
