@@ -1844,16 +1844,35 @@ class TestApplyChatTemplate:
         assert messages[0]["role"] == "USER"
         assert messages[0]["content"][0]["text"]["text"] == "Hello, Alice! How are you?"
 
+    @pytest.mark.parametrize(
+        "input_mapping",
+        [
+            pytest.param(None, id="without-input-mapping"),
+            pytest.param(
+                {"literalMapping": {"answer": "42"}, "pathMapping": {}},
+                id="with-input-mapping",
+            ),
+        ],
+    )
     async def test_apply_f_string_template_with_invalid_syntax_returns_bad_request(
         self,
         gql_client: AsyncGraphQLClient,
         monkeypatch: pytest.MonkeyPatch,
+        input_mapping: Optional[dict[str, Any]],
     ) -> None:
         """A stray brace in an F_STRING template is a client error, not a masked server error."""
         monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
         query = """
-          query ($template: PromptChatTemplateInput!, $templateOptions: PromptTemplateOptions!) {
-            applyChatTemplate(template: $template, templateOptions: $templateOptions) {
+          query (
+            $template: PromptChatTemplateInput!,
+            $templateOptions: PromptTemplateOptions!,
+            $inputMapping: EvaluatorInputMappingInput
+          ) {
+            applyChatTemplate(
+              template: $template,
+              templateOptions: $templateOptions,
+              inputMapping: $inputMapping
+            ) {
               messages {
                 role
               }
@@ -1873,6 +1892,7 @@ class TestApplyChatTemplate:
                 "format": "F_STRING",
                 "variables": {"answer": "42"},
             },
+            "inputMapping": input_mapping,
         }
 
         response = await gql_client.execute(query=query, variables=variables)

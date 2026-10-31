@@ -1090,23 +1090,55 @@ class TestFStringTemplateErrors:
             formatter.format(template, answer="x")
 
     @pytest.mark.parametrize(
-        "template,variables",
+        "template,variables,field_name",
         [
-            pytest.param("{user.missing}", {"user": {"name": "Alice"}}, id="missing-attribute"),
-            pytest.param("{user.name}", {"user": "Alice"}, id="attribute-on-string"),
-            pytest.param("{items[5]}", {"items": [1, 2]}, id="index-out-of-range"),
-            pytest.param("{items[key]}", {"items": [1, 2]}, id="string-index-on-list"),
-            pytest.param("{name:d}", {"name": "Alice"}, id="format-spec-mismatch"),
-            pytest.param("{user:>10}", {"user": {"name": "Alice"}}, id="format-spec-on-dict"),
-            pytest.param("{name!z}", {"name": "Alice"}, id="unknown-conversion"),
+            pytest.param(
+                "{user.missing}",
+                {"user": {"name": "Alice"}},
+                "user.missing",
+                id="missing-attribute",
+            ),
+            pytest.param("{user.name}", {"user": "Alice"}, "user.name", id="attribute-on-string"),
+            pytest.param("{items[5]}", {"items": [1, 2]}, "items[5]", id="index-out-of-range"),
+            pytest.param(
+                "{items[key]}", {"items": [1, 2]}, "items[key]", id="string-index-on-list"
+            ),
+            pytest.param("{a:{b}}", {"a": "x"}, "b", id="missing-variable-in-format-spec"),
         ],
     )
-    def test_format_resolution_failure_raises_template_formatter_error(
+    def test_unresolved_path_names_the_field(
+        self, template: str, variables: dict[str, Any], field_name: str
+    ) -> None:
+        formatter = FStringTemplateFormatter()
+        with pytest.raises(TemplateFormatterError) as exc_info:
+            formatter.format(template, **variables)
+        assert str(exc_info.value) == f"Template variable '{field_name}' could not be resolved"
+
+    @pytest.mark.parametrize(
+        "template,variables",
+        [
+            pytest.param("{name:d}", {"name": "Alice"}, id="format-spec-mismatch"),
+            pytest.param("{user:>10}", {"user": {"name": "Alice"}}, id="format-spec-on-dict"),
+            pytest.param("{items:>3}", {"items": [1]}, id="format-spec-on-list"),
+            pytest.param("{name!z}", {"name": "Alice"}, id="unknown-conversion"),
+            pytest.param("{a:{b}}", {"a": "x", "b": "secret"}, id="substituted-format-spec"),
+        ],
+    )
+    def test_unsupported_format_spec_message_does_not_leak_details(
         self, template: str, variables: dict[str, Any]
     ) -> None:
         formatter = FStringTemplateFormatter()
-        with pytest.raises(TemplateFormatterError, match="Unable to format template"):
+        with pytest.raises(TemplateFormatterError) as exc_info:
             formatter.format(template, **variables)
+        assert str(exc_info.value) == (
+            "Unable to format template: a format spec or conversion is not "
+            "supported for the value of its variable"
+        )
+
+    def test_positional_field_raises_template_formatter_error(self) -> None:
+        formatter = FStringTemplateFormatter()
+        with pytest.raises(TemplateFormatterError, match="Positional fields"):
+            formatter.format("Return {} when there is no answer", answer="x")
 
     def test_error_chains_original_exception(self) -> None:
         formatter = FStringTemplateFormatter()

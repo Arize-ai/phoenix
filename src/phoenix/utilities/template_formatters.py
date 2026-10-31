@@ -254,17 +254,28 @@ class _SafeFieldFormatter(Formatter):
     def get_field(self, field_name: str, args: Any, kwargs: Any) -> Any:
         first = re.match(r"^[^.\[\]]*", field_name).group(0)  # type: ignore[union-attr]
         rest = field_name[len(first) :]
-        key: Any = int(first) if first.isdigit() else first
-        obj = self.get_value(key, args, kwargs)
-        for attr, index in _FIELD_NAME_PART_RE.findall(rest):
-            if attr:
-                if attr.startswith("_"):
-                    raise TemplateFormatterError(
-                        f"Access to attribute '{attr}' is not permitted in templates"
-                    )
-                obj = getattr(obj, attr)
-            else:
-                obj = obj[int(index) if index.lstrip("-").isdigit() else index]
+        if first.isdigit():
+            # "{}" arrives here as "0"; only named variables are passed in.
+            raise TemplateFormatterError(
+                "Positional fields such as '{}' or '{0}' are not supported in templates; "
+                "use a named variable, or '{{' and '}}' for literal braces"
+            )
+        try:
+            obj = self.get_value(first, args, kwargs)
+            for attr, index in _FIELD_NAME_PART_RE.findall(rest):
+                if attr:
+                    if attr.startswith("_"):
+                        raise TemplateFormatterError(
+                            f"Access to attribute '{attr}' is not permitted in templates"
+                        )
+                    obj = getattr(obj, attr)
+                else:
+                    obj = obj[int(index) if index.lstrip("-").isdigit() else index]
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError) as exc:
+            # e.g. {user.missing}, {items[5]}; the exception text can name internal classes
+            raise TemplateFormatterError(
+                f"Template variable '{field_name}' could not be resolved"
+            ) from exc
         return obj, first
 
 
@@ -314,12 +325,14 @@ class FStringTemplateFormatter(TemplateFormatter):
         wrapped_variables = {key: _wrap_value(value) for key, value in variables.items()}
         try:
             return self._formatter.vformat(template, (), wrapped_variables)
-        except TemplateFormatterError:
-            raise
-        except (AttributeError, KeyError, IndexError, TypeError, ValueError) as exc:
-            # A nested path that does not resolve (e.g. {user.missing}, {items[5]}),
-            # or a format spec / conversion the value does not support (e.g. {name:d}).
-            raise TemplateFormatterError(f"Unable to format template: {exc}") from exc
+        except (TypeError, ValueError) as exc:
+            # Unresolved paths are reported by get_field. What is left is a format spec or
+            # conversion the value does not support (e.g. {name:d}, {name!z}). The exception
+            # text is not reused: it can name internal classes or echo substituted values.
+            raise TemplateFormatterError(
+                "Unable to format template: a format spec or conversion is not "
+                "supported for the value of its variable"
+            ) from exc
 
 
 class MustacheTemplateFormatter(TemplateFormatter):
