@@ -9,7 +9,7 @@ In this lesson, you'll learn to use a Phoenix trace to identify the information 
 
 ## Before you start
 
-Continue with the request you sent in [Capture your first agent run](/docs/phoenix/learn/capture-first-run), asking for dinosaur toys for a 6-year-old under \$25. To inspect how Wonder Toys handled it, open **wonder-toys → Traces** in Phoenix and select that request's trace.
+Continue with the request you sent in [Add an agent span](/docs/phoenix/learn/add-context-to-traces), asking for dinosaur toys for a 6-year-old under \$25. To inspect how Wonder Toys handled it, open **wonder-toys → Traces** in Phoenix and select that request's trace.
 
 In the screenshots, Wonder Toys recommends a toy that costs more than \$25. Your results may be different, but you can follow the same steps with your own trace.
 
@@ -69,18 +69,25 @@ For the example in the screenshots, you can now explain:
 
 Use your own trace to explain what happened, whether the answer was correct or not. If no search ran, compare the model's input and answer.
 
-<Accordion title="Check latency, tokens, and cost">
-  You can also use the trace to inspect the time and cost of producing that answer. Compare the model calls using these metrics:
+## Step 5: Check the cost of the request
 
-  | Metric | What it tells you |
-  |---|---|
-  | Latency | How long the call took. |
-  | Input and output tokens | Pieces of content the model read or generated. |
-  | Cost | The amount Phoenix calculates from token counts and [model pricing](/docs/phoenix/tracing/how-to-tracing/cost-tracking). |
+You've seen how the agent reached its answer. Now let's check how much its model calls cost.
 
-  Use the trace totals for the whole request. Adding parent and child span durations would count overlapping time twice.
+- **Find the request total.** Read **Total Cost** at the top of the trace, marked **1** below.
+- **Compare the model calls.** Select each model span, such as `ChatAnthropic`. Hover over the token count or cost beneath its name, marked **2**, to see the input and output breakdown. Tokens are pieces of content the model reads or generates.
+- **Find the most expensive call.** Read its **Input** and **Output** to see what information it received and what it produced.
+
+<Frame caption="1: Total Cost covers the whole request. 2: Hover over a model call's token count or cost to inspect its breakdown.">
+  <img className="hidden sm:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/read-agent-cost-breakdown-bdd9c6f89fd4.png" alt="Phoenix in light mode with the request's Total Cost outlined as 1 and a selected model call's tokens and cost outlined as 2. The open tooltip separates input and output tokens and costs." />
+  <img className="block sm:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/read-agent-cost-breakdown-mobile-1375a70aff1d.png" alt="Two stacked crops from the same Phoenix trace: 1 shows the request's total cost; 2 shows the selected model call's token and cost breakdown, separated into input and output." />
+</Frame>
+
+Phoenix calculates model-call costs from recorded token usage and [model pricing](/docs/phoenix/tracing/how-to-tracing/cost-tracking). Use **Total Cost** for the whole request.
+
+<Accordion title="Check how long the request took">
+  **Latency** is the elapsed time shown at the top of the trace. Compare individual model and tool calls to find where the agent spent time. Use the trace latency for the whole request; parent and child durations overlap.
 </Accordion>
 
 ## Continue the conversation
 
-Keep the Wonder Toys chat open. Next, [follow a conversation with sessions](/docs/phoenix/learn/sessions) to check how the agent uses an earlier answer in a follow-up.
+You've reviewed one request's behavior and cost. Keep the Wonder Toys chat open, then [follow a conversation with sessions](/docs/phoenix/learn/sessions) to check how the agent uses an earlier answer in a follow-up.
