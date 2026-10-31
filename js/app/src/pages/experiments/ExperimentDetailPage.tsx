@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { DialogTrigger } from "react-aria-components";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import {
   Loading,
@@ -16,12 +16,13 @@ import { ExperimentDetailsDialog } from "./ExperimentDetailsDialog";
 export function ExperimentDetailPage() {
   const { experimentId, datasetId } = useParams();
   const navigate = useNavigate();
+  const { search } = useLocation();
   return (
     <DialogTrigger
       isOpen
       onOpenChange={(isOpen) => {
         if (!isOpen) {
-          navigate(`/datasets/${datasetId}/experiments`);
+          navigate({ pathname: `/datasets/${datasetId}/experiments`, search });
         }
       }}
     >

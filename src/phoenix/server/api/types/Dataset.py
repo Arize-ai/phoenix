@@ -20,6 +20,7 @@ from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
+from phoenix.server.api.input_types.ExperimentMetadataFilter import ExperimentMetadataFilter
 from phoenix.server.api.input_types.ExperimentSort import ExperimentSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
@@ -409,6 +410,13 @@ class Dataset(Node):
             ),
         ] = UNSET,
         sort: Optional[ExperimentSort] = UNSET,
+        metadata_filters: Annotated[
+            Optional[list[ExperimentMetadataFilter]],
+            strawberry.argument(
+                description="When provided, return only the experiments whose metadata "
+                "matches every filter."
+            ),
+        ] = UNSET,
     ) -> Connection[Experiment]:
         args = ConnectionArgs(
             first=first,
@@ -442,6 +450,12 @@ class Dataset(Node):
                 models.Experiment.description.ilike(f"%{filter_condition}%"),
             )
             query = query.where(search_filter)
+
+        if metadata_filters:
+            dialect = info.context.db.dialect
+            query = query.where(
+                *(metadata_filter.to_sql(dialect) for metadata_filter in metadata_filters)
+            )
 
         if filter_ids:
             filter_rowids = []
