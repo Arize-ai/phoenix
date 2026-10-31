@@ -4,7 +4,10 @@ import {
 } from "@phoenix/components/annotation/optimizationUtils";
 
 import {
+  datasetEvaluatorsToAnnotationConfigs,
   datasetEvaluatorToAnnotationConfigs,
+  getAnnotationConfigsWithResults,
+  getDecisionAnnotationName,
   type DatasetEvaluatorForConfig,
 } from "../datasetEvaluatorUtils";
 
@@ -164,5 +167,157 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
       threshold: undefined,
       optimizationDirection: "MINIMIZE",
     });
+  });
+});
+
+const continuousConfig = (name: string) => ({
+  __typename: "ContinuousAnnotationConfig",
+  name,
+  optimizationDirection: "MAXIMIZE",
+  lowerBound: 0,
+  upperBound: 1,
+});
+
+describe("datasetEvaluatorsToAnnotationConfigs", () => {
+  it("names a one-question decision binding's column after the binding", () => {
+    const configs = datasetEvaluatorsToAnnotationConfigs([
+      {
+        kind: "DECISION",
+        name: "triage-judge",
+        outputConfigs: [continuousConfig("accurate")],
+      },
+    ]);
+    expect(configs.map((config) => config.name)).toEqual(["triage-judge"]);
+    expect(configs[0].annotationType).toBe("CONTINUOUS");
+  });
+
+  it("names a multi-question decision binding's columns {binding}.{question}", () => {
+    const configs = datasetEvaluatorsToAnnotationConfigs([
+      {
+        kind: "DECISION",
+        name: "triage-judge",
+        outputConfigs: [
+          continuousConfig("accurate"),
+          continuousConfig("polite"),
+        ],
+      },
+    ]);
+    expect(configs.map((config) => config.name)).toEqual([
+      "triage-judge.accurate",
+      "triage-judge.polite",
+    ]);
+  });
+
+  it("reads the kind from the bound evaluator when the binding has none", () => {
+    const configs = datasetEvaluatorsToAnnotationConfigs([
+      {
+        evaluator: { kind: "DECISION" },
+        name: "dogfood_cs_action_match",
+        outputConfigs: [continuousConfig("action_matches")],
+      },
+    ]);
+    expect(configs.map((config) => config.name)).toEqual([
+      "dogfood_cs_action_match",
+    ]);
+  });
+
+  it("leaves other kinds' output config names untouched", () => {
+    const configs = datasetEvaluatorsToAnnotationConfigs([
+      {
+        kind: "LLM",
+        name: "binding",
+        outputConfigs: [
+          {
+            __typename: "CategoricalAnnotationConfig",
+            name: "correctness",
+            values: [{ label: "yes", score: 1 }],
+          },
+        ],
+      },
+    ]);
+    expect(configs.map((config) => config.name)).toEqual(["correctness"]);
+  });
+});
+
+describe("getDecisionAnnotationName", () => {
+  it("uses the binding name for a single question", () => {
+    expect(
+      getDecisionAnnotationName({
+        bindingName: "judge",
+        questionName: "q",
+        questionCount: 1,
+      })
+    ).toBe("judge");
+  });
+  it("qualifies the name for several questions", () => {
+    expect(
+      getDecisionAnnotationName({
+        bindingName: "judge",
+        questionName: "q",
+        questionCount: 2,
+      })
+    ).toBe("judge.q");
+  });
+});
+
+describe("getAnnotationConfigsWithResults", () => {
+  const annotationConfigs = datasetEvaluatorsToAnnotationConfigs([
+    {
+      name: "category_matches",
+      outputConfigs: [
+        {
+          __typename: "CategoricalAnnotationConfig",
+          name: "category_matches",
+          values: [{ label: "true", score: 1 }],
+        },
+      ],
+    },
+    {
+      kind: "DECISION",
+      name: "category_matches_decision",
+      outputConfigs: [
+        { __typename: "ContinuousAnnotationConfig", name: "matches" },
+      ],
+    },
+  ]);
+
+  it("drops configs without results", () => {
+    const configs = getAnnotationConfigsWithResults({
+      annotationConfigs,
+      annotationNames: ["category_matches_decision"],
+    });
+    expect(configs.map((config) => config.name)).toEqual([
+      "category_matches_decision",
+    ]);
+    expect(configs[0].annotationType).toBe("CONTINUOUS");
+  });
+
+  it("keeps config order and appends unconfigured names as freeform, sorted", () => {
+    const configs = getAnnotationConfigsWithResults({
+      annotationConfigs,
+      annotationNames: [
+        "sdk_eval",
+        "category_matches_decision",
+        "category_matches",
+        "another_sdk_eval",
+        "sdk_eval",
+      ],
+    });
+    expect(configs.map((config) => config.name)).toEqual([
+      "category_matches",
+      "category_matches_decision",
+      "another_sdk_eval",
+      "sdk_eval",
+    ]);
+    expect(configs[3].annotationType).toBe("FREEFORM");
+  });
+
+  it("returns nothing when no annotations have results", () => {
+    expect(
+      getAnnotationConfigsWithResults({
+        annotationConfigs,
+        annotationNames: [],
+      })
+    ).toEqual([]);
   });
 });

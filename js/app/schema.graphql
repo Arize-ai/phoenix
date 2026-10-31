@@ -77,6 +77,26 @@ input AddExamplesToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+input AddProjectCodeEvaluatorInput {
+  projectId: ID!
+  evaluatorId: ID!
+  name: Identifier!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+
+  """
+  Project-specific CODE input mapping. Null inherits the evaluator input mapping; an object overrides it.
+  """
+  inputMapping: EvaluatorInputMappingInput = null
+  filterCondition: String! = ""
+  enabled: Boolean! = true
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int = null
+}
+
 input AddSpansToDatasetInput {
   datasetId: ID!
   spanIds: [ID!]!
@@ -258,7 +278,15 @@ type AgentsConfig {
   sessionRetentionMaxCountPerUser: Int
 }
 
-interface Annotation {
+interface Annotation implements AnnotationMetadataMixin {
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
+
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
 
@@ -277,9 +305,6 @@ interface Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -338,6 +363,16 @@ input AnnotationFilterCondition {
   names: [String!]
   sources: [AnnotationSource!]
   userIds: [ID]
+}
+
+interface AnnotationMetadataMixin {
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 }
 
 type AnnotationMetricsTimeSeries {
@@ -554,6 +589,24 @@ type BranchAgentSessionMutationPayload {
   query: Query!
 }
 
+"""A built-in provider, reached with its own or given credentials."""
+input BuiltInDecisionConnectionInput {
+  """
+  The provider whose decision API runs the request; it must offer decision models.
+  """
+  providerKey: GenerativeProviderKey!
+
+  """
+  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  """
+  baseUrl: String = null
+
+  """
+  API keys for this request only, by environment variable name. When omitted, a stored secret is used, then the server environment.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+}
+
 type BuiltInEvaluator implements Evaluator & Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -564,11 +617,16 @@ type BuiltInEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   inputSchema: JSON
   user: User
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+}
+
+type BuiltInEvaluatorDefinition {
+  builtInEvaluatorId: ID!
 }
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
@@ -613,40 +671,14 @@ input ChatCompletionInput {
   streamModelOutput: Boolean! = true
 }
 
-input ChatCompletionOverDatasetInput {
-  promptVersionId: ID = null
-  promptVersion: ChatPromptVersionInput!
-  connectionConfig: ConnectionConfigInput = null
-  headers: JSON = null
-  credentials: [GenerativeCredentialInput!]
-  repetitions: Int!
-  datasetId: ID!
-  datasetVersionId: ID = null
-  splitIds: [ID!] = null
-  experimentName: String = null
-  experimentDescription: String = null
-  experimentMetadata: JSON = null
-  promptName: Identifier = null
-  evaluators: [PlaygroundEvaluatorInput!]! = []
-
-  """
-  Dot-notation path to messages in dataset example input to append to prompt
-  """
-  appendedMessagesPath: String = null
-
-  """
-  Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
-  """
-  templateVariablesPath: String = "input"
-  tracingEnabled: Boolean! = true
-  streamModelOutput: Boolean! = true
-  createEphemeralExperiment: Boolean = false
-  maxConcurrency: Int! = 10
-}
-
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   message: String!
   span: Span
   experimentRun: ExperimentRun
@@ -655,17 +687,32 @@ type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayloa
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   span: Span
   experimentRun: ExperimentRun
 }
@@ -683,12 +730,76 @@ input ChatPromptVersionInput {
   customProviderId: ID = null
 }
 
+type ChoiceAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+  choice: String!
+
+  """
+  The model's certainty in `choice`, from 0 to 1, for flagging answers to review. It is not a probability; see `probabilities`.
+  """
+  confidence: Float!
+
+  """Probability per choice value, in the question's order."""
+  probabilities: [ChoiceProbability!]!
+}
+
+input ChoiceOptionInput {
+  value: String!
+  description: String = null
+}
+
+type ChoiceProbability {
+  value: String!
+  probability: Float!
+}
+
+"""One option from a fixed set of 2–255."""
+input ChoiceQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  choices: [ChoiceOptionInput!]!
+}
+
 type ClassificationEvaluatorConfig {
   name: String!
   description: String
   optimizationDirection: OptimizationDirection!
   messages: [PromptMessage!]!
   choices: JSON!
+  labels: [String!]!
+  scope: EvaluatorScope
+  recommended: Boolean!
+  category: EvaluatorCategory
+  details: String
+  inputs: [EvaluatorInput!]
+
+  """
+  The filter condition a project evaluator created from this config starts with, in the filter language of `scope`. Null means the level's default.
+  """
+  defaultFilterCondition: String
+
+  """
+  JSONPath expressions keyed by input name that a project evaluator created from this config starts with. Null means no mapping.
+  """
+  defaultPathMapping: JSON
+}
+
+type ClearAllQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+}
+
+input ClearProjectEvaluatorQueuedEvaluationsInput {
+  projectEvaluatorId: ID!
+}
+
+type ClearProjectEvaluatorQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+  evaluator: ProjectEvaluator!
+  query: Query!
 }
 
 input ClearProjectInput {
@@ -696,6 +807,23 @@ input ClearProjectInput {
 
   """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
+}
+
+input ClearQueuedEvaluationsInput {
+  projectId: ID!
+}
+
+type ClearQueuedEvaluationsPayload {
+  """Queued evaluations that were cleared."""
+  droppedCount: Int!
+  project: Project!
+}
+
+input CloneDecisionInput {
+  decisionId: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON
 }
 
 input ClonePromptInput {
@@ -715,11 +843,12 @@ type CodeEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   sandboxConfig: SandboxConfig
   inputMapping: EvaluatorInputMapping!
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   currentVersion: CodeEvaluatorVersion
   version(versionId: ID!): CodeEvaluatorVersion
   versionCount: Int!
@@ -864,6 +993,11 @@ input CreateCodeEvaluatorInput {
   description: String = null
   outputConfigs: [AnnotationConfigInput!] = null
   inputMapping: EvaluatorInputMappingInput = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
 }
 
 input CreateCodeEvaluatorVersionInput {
@@ -899,6 +1033,19 @@ input CreateDatasetCodeEvaluatorInput {
   description: String = null
 }
 
+input CreateDatasetDecisionEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID = null
+  decisionId: ID = null
+  evaluatorName: Identifier = null
+  decisionVersionId: ID = null
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput = null
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput!
+  description: String = null
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -913,6 +1060,11 @@ input CreateDatasetLLMEvaluatorInput {
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
 }
 
 input CreateDatasetLabelInput {
@@ -940,6 +1092,38 @@ input CreateDatasetSplitWithExamplesInput {
   color: String!
   metadata: JSON
   exampleIds: [ID!]!
+}
+
+input CreateDecisionEvaluatorInput {
+  name: Identifier!
+  decisionVersionId: ID!
+  description: String = null
+  scoringPolicy: DecisionScoringPolicyInput = null
+}
+
+input CreateDecisionInput {
+  name: Identifier!
+  description: String = null
+  metadata: JSON = null
+  version: DecisionVersionInput!
+  tags: [CreateDecisionVersionTagInput!] = null
+}
+
+input CreateDecisionLabelInput {
+  name: String!
+  description: String = null
+  color: String!
+}
+
+input CreateDecisionVersionInput {
+  decisionId: ID!
+  version: DecisionVersionInput!
+  tags: [CreateDecisionVersionTagInput!] = null
+}
+
+input CreateDecisionVersionTagInput {
+  name: Identifier!
+  description: String = null
 }
 
 input CreateDocumentAnnotationInput {
@@ -980,11 +1164,87 @@ type CreateModelMutationPayload {
   query: Query!
 }
 
+input CreateProjectCodeEvaluatorInput {
+  projectId: ID!
+  name: Identifier!
+  sourceCode: String!
+  language: Language!
+  sandboxConfigId: ID!
+  evaluatorInputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  description: String = null
+  outputConfigs: [AnnotationConfigInput!] = null
+
+  """
+  Project-specific CODE input mapping. Null inherits the evaluator input mapping; an object overrides it.
+  """
+  inputMapping: EvaluatorInputMappingInput = null
+  filterCondition: String! = ""
+  enabled: Boolean! = true
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
+}
+
+input CreateProjectDecisionEvaluatorInput {
+  projectId: ID!
+  evaluatorId: ID = null
+  decisionId: ID = null
+  evaluatorName: Identifier = null
+  decisionVersionId: ID = null
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput = null
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  description: String = null
+  filterCondition: String! = ""
+  enabled: Boolean! = true
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int = null
+}
+
 input CreateProjectInput {
   name: String!
   description: String
   gradientStartColor: String
   gradientEndColor: String
+}
+
+input CreateProjectLLMEvaluatorInput {
+  projectId: ID!
+  name: Identifier!
+  promptVersion: ChatPromptVersionInput!
+  outputConfigs: [AnnotationConfigInput!]!
+  inputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+  evaluationTarget: EvaluationTarget!
+  description: String = null
+  promptVersionId: ID
+  filterCondition: String! = ""
+  enabled: Boolean! = true
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected.
+  """
+  inputSchema: JSON = null
 }
 
 input CreateProjectSessionAnnotationInput {
@@ -1107,7 +1367,15 @@ input CreateUserInput {
 
 scalar CronExpression
 
-union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
+union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | TypeSafeCustomProviderConfig | UnparsableConfig
+
+"""
+A custom provider, reached with its stored key, endpoint, and headers. Its SDK must serve decision models: `openai` runs OpenAI's Decisions API, `typesafe` runs System One.
+"""
+input CustomProviderDecisionConnectionInput {
+  """The custom provider's ID."""
+  id: ID!
+}
 
 type Dataset implements Node {
   """The Globally Unique ID of this object"""
@@ -1294,6 +1562,28 @@ type DatasetExampleEdge {
   node: DatasetExample!
 }
 
+type DatasetExampleExpectedOutput {
+  annotationName: String!
+  label: String
+  score: Float
+  explanation: String
+}
+
+input DatasetExampleExpectedOutputInput {
+  exampleId: ID!
+  expectedRevisionId: ID!
+  annotationName: String!
+  label: String
+  score: Float = null
+  explanation: String = null
+}
+
+type DatasetExampleExpectedOutputsPayload {
+  dataset: Dataset!
+  version: DatasetVersion!
+  examples: [DatasetExample!]!
+}
+
 """A field of a dataset example that a `replace` operation can target."""
 enum DatasetExampleField {
   INPUT
@@ -1322,8 +1612,11 @@ type DatasetExampleRevision implements ExampleRevision {
   input: JSON!
   output: JSON!
   metadata: JSON!
+  revisionId: ID!
   revisionKind: RevisionKind!
   createdAt: DateTime!
+  evaluationContext: JSON!
+  expectedOutputs: [DatasetExampleExpectedOutput!]!
 }
 
 """
@@ -1493,6 +1786,555 @@ type DbTableStats {
   numBytes: Float!
 }
 
+"""
+A saved decision: a named typed function, versioned, that apps fetch by tag.
+"""
+type Decision implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+  createdBy: User
+  updatedBy: User
+  sourceDecision: Decision
+  labels: [DecisionLabel!]!
+
+  """
+  A version by ID or by tag; the latest version when neither is given. Null when there is no such version, so asking for one tag never loses the rest of the query.
+  """
+  version(versionId: ID = null, tagName: Identifier = null): DecisionVersion
+  versionCount: Int!
+  versionTags: [DecisionVersionTag!]!
+
+  """The decision's versions, newest first."""
+  versions(first: Int = 50, last: Int, after: String, before: String): DecisionVersionConnection!
+}
+
+"""
+A decision judge's result for one question, read from the annotation's `metadata.decision`. Metadata is ordinary JSON, so this describes its format, not which evaluator wrote it.
+"""
+type DecisionAnnotation {
+  status: DecisionAnnotationStatus!
+
+  """Null when the call failed."""
+  question: DecisionAnnotationQuestion
+
+  """The normalized answer, a refusal included; null when the call failed."""
+  answer: DecisionAnswer
+
+  """The scoring settings applied to the answer; null when the call failed."""
+  scoring: DecisionQuestionScoring
+  requestedModel: String
+  resolvedModel: String
+  modelProvider: GenerativeProviderKey
+  customProviderId: ID
+
+  """The judge, decision version, and binding that produced the result."""
+  source: EvaluatorTaskSource
+}
+
+"""The question a decision judge asked, as it asked it."""
+type DecisionAnnotationQuestion {
+  name: String!
+  type: DecisionAnnotationQuestionType!
+
+  """A choice question's options, in order; null for other types."""
+  choices: [DecisionChoiceOption!]
+
+  """A scale's levels, from the lowest; null for other types."""
+  levels: [DecisionScaleLevel!]
+}
+
+enum DecisionAnnotationQuestionType {
+  PREDICATE
+  CHOICE
+  SCALE
+}
+
+enum DecisionAnnotationStatus {
+  ANSWERED
+  REFUSED
+  ERROR
+}
+
+"""One answer, in Phoenix's vocabulary whatever the provider."""
+interface DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+}
+
+type DecisionChoiceOption {
+  value: String!
+  description: String
+}
+
+"""One option from a fixed set."""
+type DecisionChoiceQuestion {
+  name: String!
+  instructions: String!
+  choices: [DecisionChoiceOption!]!
+}
+
+"""The score a choice question's annotation gets for one choice."""
+type DecisionChoiceScore {
+  """The choice's value, as the question declares it."""
+  choice: String!
+  score: Float!
+}
+
+"""The score for one of a choice question's declared choices."""
+input DecisionChoiceScoreInput {
+  choice: String!
+  score: Float!
+}
+
+"""
+A choice's label is the chosen value. Its score is the chosen value's configured score, or null when the value has none.
+"""
+type DecisionChoiceScoring implements DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """Scores for some or all of the question's choices, in declared order."""
+  scores: [DecisionChoiceScore!]!
+}
+
+"""Scoring for a choice question."""
+input DecisionChoiceScoringInput {
+  name: String!
+
+  """Scores by choice; a choice left out gets a null score."""
+  scores: [DecisionChoiceScoreInput!]! = []
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
+"""A connection to a list of items."""
+type DecisionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionEdge!]!
+}
+
+"""Where a decision runs."""
+input DecisionConnectionInput @oneOf {
+  builtIn: BuiltInDecisionConnectionInput
+  customProvider: CustomProviderDecisionConnectionInput
+}
+
+"""An edge in a connection."""
+type DecisionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Decision!
+}
+
+type DecisionEvaluator implements Evaluator & Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  metadata: JSON!
+  kind: EvaluatorKind!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
+  user: User
+  inputSchema: JSON!
+  scoringPolicy: DecisionScoringPolicy!
+  decisionVersion: DecisionVersion!
+}
+
+type DecisionEvaluatorMutationPayload {
+  evaluator: DecisionEvaluator!
+  query: Query!
+}
+
+"""
+A decision evaluator configuration captured when the experiment was created. It keeps running on resume even if its dataset evaluator binding was later deleted.
+"""
+type DecisionEvaluatorSnapshot {
+  """The binding name captured when the experiment was created."""
+  name: String!
+
+  """
+  The dataset evaluator binding's ID. The binding may have been deleted, so this ID may no longer resolve.
+  """
+  datasetEvaluatorId: ID!
+
+  """The captured evaluator definition, including its scoring settings."""
+  definition: InlineDecisionEvaluatorDefinition!
+
+  """Names of the annotations this evaluator writes."""
+  annotationNames: [String!]!
+}
+
+"""The filter key and value for decision connections"""
+input DecisionFilter {
+  col: DecisionFilterColumn!
+  value: String!
+}
+
+enum DecisionFilterColumn {
+  name
+}
+
+"""
+The state is JSON: any JSON value whose string leaves are templates. A string that is exactly one variable tag is replaced by the variable's value with its JSON type kept; other strings render as text. Object keys are literal.
+"""
+type DecisionJsonState {
+  """The JSON template."""
+  json: JSON!
+}
+
+type DecisionLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: String!
+  description: String
+  color: String
+  usageCount: Int!
+}
+
+type DecisionLabelAssociationMutationPayload {
+  query: Query!
+}
+
+"""A connection to a list of items."""
+type DecisionLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionLabelEdge!]!
+}
+
+type DecisionLabelDeleteMutationPayload {
+  deletedDecisionLabelIds: [ID!]!
+  query: Query!
+}
+
+"""An edge in a connection."""
+type DecisionLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DecisionLabel!
+}
+
+type DecisionLabelMutationPayload {
+  decisionLabels: [DecisionLabel!]!
+  query: Query!
+}
+
+type DecisionPredicateCriteria {
+  true: String
+  false: String
+}
+
+"""A statement answered with the probability that it is true."""
+type DecisionPredicateQuestion {
+  name: String!
+  instructions: String!
+  criteria: DecisionPredicateCriteria
+}
+
+"""
+A predicate's score is the probability that it is true. Its label is `true` when that probability is at least the threshold, otherwise `false`.
+"""
+type DecisionPredicateScoring implements DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """The probability, in [0, 1], at or above which the label is `true`."""
+  threshold: Float!
+}
+
+"""Scoring for a predicate question."""
+input DecisionPredicateScoringInput {
+  name: String!
+
+  """The probability, in [0, 1], at or above which the label is `true`."""
+  threshold: Float! = 0.5
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
+union DecisionQuestion = DecisionPredicateQuestion | DecisionChoiceQuestion | DecisionScaleQuestion
+
+"""One decision question. Exactly one type must be set."""
+input DecisionQuestionInput @oneOf {
+  predicate: PredicateQuestionInput
+  choice: ChoiceQuestionInput
+  scale: ScaleQuestionInput
+}
+
+"""
+How one decision question's answer becomes an annotation's label and score.
+"""
+interface DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+}
+
+"""Scoring settings for one named decision question."""
+input DecisionQuestionScoringInput @oneOf {
+  predicate: DecisionPredicateScoringInput
+  choice: DecisionChoiceScoringInput
+  scale: DecisionScaleScoringInput
+}
+
+"""A successful decision run."""
+type DecisionResult {
+  """The model that answered, after alias resolution."""
+  model: String!
+
+  """One answer per question, in the order the questions were given."""
+  answers: [DecisionAnswer!]!
+  usage: DecisionUsage!
+}
+
+type DecisionScaleLevel {
+  label: String!
+  description: String
+}
+
+"""Ordered levels; a level's position, from zero, is its value."""
+type DecisionScaleQuestion {
+  name: String!
+  instructions: String!
+  levels: [DecisionScaleLevel!]!
+}
+
+"""
+A scale's score is its expected level, from 0 to the number of levels minus one.
+"""
+type DecisionScaleScoring implements DecisionQuestionScoring {
+  """The question's name."""
+  name: String!
+
+  """Whether a higher or lower score is better, for comparisons and charts."""
+  optimizationDirection: OptimizationDirection!
+
+  """
+  Whether the annotation is also labeled with the most probable level; on a tie, the first such level.
+  """
+  includeLabel: Boolean!
+}
+
+"""Scoring for a scale question; its score is the expected level."""
+input DecisionScaleScoringInput {
+  name: String!
+
+  """Also label the annotation with the most probable level."""
+  includeLabel: Boolean! = false
+  optimizationDirection: OptimizationDirection! = NONE
+}
+
+"""How a decision evaluator's answers become annotations, by question."""
+type DecisionScoringPolicy {
+  """
+  Settings by question, in the order the decision declares its questions.
+  """
+  questions: [DecisionQuestionScoring!]!
+}
+
+"""
+Scoring settings by question. A question left out keeps its default, or on a dataset binding, the judge's own setting.
+"""
+input DecisionScoringPolicyInput {
+  questions: [DecisionQuestionScoringInput!]! = []
+}
+
+union DecisionState = DecisionTextState | DecisionJsonState
+
+"""
+The state template. Exactly one must be set: `text` is a text template; `json` is any JSON value whose string leaves are templates, where a string that is exactly one variable tag becomes the variable's value with its JSON type kept.
+"""
+input DecisionStateInput @oneOf {
+  text: String
+  json: JSON
+}
+
+type DecisionTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+
+  """The endpoint a built-in provider was reached at, when not its default."""
+  baseUrl: String
+  templateFormat: PromptTemplateFormat!
+  state: DecisionState!
+
+  """The fixed questions asked of every example."""
+  questions: [DecisionQuestion!]!
+
+  """The variables the state and questions use, in first-appearance order."""
+  variables: [String!]!
+
+  """Where each example's variables were read, as for a prompt task."""
+  templateVariablesPath: String!
+
+  """The saved version the definition was copied from, if it still exists."""
+  decisionVersion: DecisionVersion
+
+  """The custom provider this experiment ran on, if any."""
+  customProvider: GenerativeModelCustomProvider
+}
+
+"""
+A decision asked about every example of a dataset, as a prompt task completes a prompt for every example.
+"""
+input DecisionTaskInput {
+  connection: DecisionConnectionInput!
+  modelName: String!
+
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
+  state: DecisionStateInput!
+
+  """The fixed questions asked of every example; at least one is required."""
+  questions: [DecisionQuestionInput!]!
+
+  """
+  Dot-notation path to the object holding the variables, by name, as for a prompt task. Default 'input' means variable `ticket` resolves to input.ticket. Empty string means the whole context, so variables are read as `input`, `reference`, or `metadata`. Values keep their JSON types; unused fields are ignored.
+  """
+  templateVariablesPath: String = "input"
+
+  """Dataset evaluators to run on this decision's runs"""
+  evaluators: [PlaygroundEvaluatorInput!]! = []
+
+  """
+  The saved version this definition was copied from, as a prompt task's promptVersionId. It is recorded, not read: the definition given here is what runs.
+  """
+  decisionVersionId: ID = null
+}
+
+"""
+The state is text: a template rendered with the decision's template format.
+"""
+type DecisionTextState {
+  """The text template."""
+  text: String!
+}
+
+type DecisionUsage {
+  inputTokens: Int
+  outputTokens: Int
+}
+
+"""
+An immutable version of a decision: its state template, questions, and the model that answers. Its variables are derived from the templates.
+"""
+type DecisionVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  decisionId: ID!
+
+  """The decision this version belongs to."""
+  decision: Decision!
+  description: String
+
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
+  state: DecisionState!
+  questions: [DecisionQuestion!]!
+
+  """
+  The variables the state and questions use, by root name, in first-appearance order. A call must supply each of them.
+  """
+  variables: [String!]!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  metadata: JSON!
+  createdAt: DateTime!
+  user: User
+
+  """The custom provider this version runs on, if any."""
+  customProvider: GenerativeModelCustomProvider
+  sequenceNumber: Int!
+  previousVersion: DecisionVersion
+
+  """The tags pointing at this version."""
+  tags: [DecisionVersionTag!]!
+}
+
+"""A connection to a list of items."""
+type DecisionVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [DecisionVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type DecisionVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: DecisionVersion!
+}
+
+"""
+A decision version to save: its template format, state template, questions, and the model that answers. Saved versions are immutable; saving again adds a version.
+"""
+input DecisionVersionInput {
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
+  state: DecisionStateInput!
+  questions: [DecisionQuestionInput!]!
+
+  """
+  The provider whose decision API answers; it must offer decision models. For a custom provider, the API its SDK speaks (OPENAI or TYPESAFE).
+  """
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+
+  """Run on this custom provider instead of the built-in one."""
+  customProviderId: ID = null
+  description: String = null
+  metadata: JSON = null
+}
+
+"""A movable name for one of a decision's versions."""
+type DecisionVersionTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  decisionVersionId: ID!
+  user: User
+}
+
+type DecisionVersionTagMutationPayload {
+  decisionVersionTag: DecisionVersionTag
+  decision: Decision!
+  query: Query!
+}
+
 type DecryptedSecret {
   value: RedactedString!
 }
@@ -1530,7 +2372,11 @@ type DeleteApiKeyMutationPayload {
 
 input DeleteDatasetEvaluatorsInput {
   datasetEvaluatorIds: [ID!]!
-  deleteAssociatedPrompt: Boolean! = true
+
+  """
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  """
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteDatasetEvaluatorsPayload {
@@ -1568,6 +2414,30 @@ input DeleteDatasetSplitInput {
 type DeleteDatasetSplitsMutationPayload {
   datasetSplits: [DatasetSplit!]!
   query: Query!
+}
+
+input DeleteDecisionEvaluatorInput {
+  evaluatorId: ID!
+}
+
+type DeleteDecisionEvaluatorPayload {
+  query: Query!
+}
+
+input DeleteDecisionInput {
+  decisionId: ID!
+}
+
+input DeleteDecisionLabelsInput {
+  decisionLabelIds: [ID!]!
+}
+
+type DeleteDecisionMutationPayload {
+  query: Query!
+}
+
+input DeleteDecisionVersionTagInput {
+  decisionVersionTagId: ID!
 }
 
 input DeleteExperimentsInput {
@@ -1610,6 +2480,20 @@ input DeleteProjectAnnotationsInput {
   Which timestamp the time range is applied against. Defaults to the annotation's own creation time.
   """
   timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
+}
+
+input DeleteProjectEvaluatorsInput {
+  projectEvaluatorIds: [ID!]!
+
+  """
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  """
+  deleteAssociatedPrompt: Boolean! = false
+}
+
+type DeleteProjectEvaluatorsPayload {
+  projectEvaluatorIds: [ID!]!
+  query: Query!
 }
 
 input DeleteProjectTraceRetentionPolicyInput {
@@ -1668,9 +2552,17 @@ input DockerConfigInput {
   dependencies: DependenciesInput = null
 }
 
-type DocumentAnnotation implements Node & Annotation {
+type DocumentAnnotation implements Node & Annotation & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """The metadata associated with the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -1690,9 +2582,6 @@ type DocumentAnnotation implements Node & Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """The metadata associated with the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -1800,20 +2689,239 @@ type EvalWorkItemId {
   datasetEvaluatorId: Int!
 }
 
+"""
+Online evaluation activity over a time range. Evaluations count when they complete, and lag runs from when an evaluation was queued to its result.
+"""
+type EvaluationActivity {
+  """Evaluations that produced an annotation in the range."""
+  evaluatedCount: Int!
+
+  """Evaluations given up on in the range."""
+  failedCount: Int!
+
+  """Lag of evaluations completed in the range; null if none completed."""
+  lag: EvaluationLag
+
+  """
+  Cost in USD of the evaluations' traces started in the range; null if none.
+  """
+  cost: Float
+
+  """Activity per group, most evaluations first."""
+  groups: [EvaluationActivityGroup!]!
+
+  """Activity per time bin, oldest first, with every bin in the range."""
+  series: [EvaluationActivityBin!]!
+}
+
+"""Evaluation activity in one time bin."""
+type EvaluationActivityBin {
+  """The start of the bin."""
+  timestamp: DateTime!
+
+  """
+  Groups with any activity in the bin, most evaluations over the range first.
+  """
+  groups: [EvaluationActivityBinGroup!]!
+}
+
+"""One group's evaluation activity in one time bin."""
+type EvaluationActivityBinGroup {
+  project: Project!
+
+  """The project evaluator, when activity is grouped by project evaluator."""
+  projectEvaluator: ProjectEvaluator
+
+  """Evaluations that produced an annotation in the bin."""
+  evaluatedCount: Int!
+
+  """Evaluations given up on in the bin."""
+  failedCount: Int!
+
+  """Evaluations queued in the bin."""
+  queuedCount: Int!
+
+  """
+  95th percentile lag in seconds of evaluations completed in the bin; null if none.
+  """
+  lagP95Seconds: Float
+
+  """
+  Cost in USD of the evaluations' traces started in the bin; null if none.
+  """
+  cost: Float
+
+  """Evaluations queued or running at the end of the bin."""
+  queueSize: Int!
+}
+
+"""
+One project evaluator's evaluation activity, or one project's, over the range.
+"""
+type EvaluationActivityGroup {
+  project: Project!
+
+  """The project evaluator, when activity is grouped by project evaluator."""
+  projectEvaluator: ProjectEvaluator
+
+  """Evaluations that produced an annotation."""
+  evaluatedCount: Int!
+
+  """Evaluations given up on."""
+  failedCount: Int!
+
+  """Lag of evaluations completed in the range; null if none completed."""
+  lag: EvaluationLag
+
+  """
+  Cost in USD of the evaluations' traces started in the range; null if none.
+  """
+  cost: Float
+}
+
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   evaluatorName: String!
   experimentRunEvaluation: ExperimentRunAnnotation
   trace: Trace
   error: String
 }
 
+"""Seconds from an evaluation being queued to its result."""
+type EvaluationLag {
+  """Median lag, in seconds."""
+  p50Seconds: Float!
+
+  """95th percentile lag, in seconds."""
+  p95Seconds: Float!
+
+  """99th percentile lag, in seconds."""
+  p99Seconds: Float!
+}
+
+"""
+The online evaluation queue. Span, trace, and session evaluations of every project on the server share it and its limit. Rates are per minute over the last 60 minutes.
+"""
+type EvaluationQueue {
+  status: EvaluationQueueStatus!
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  How many evaluations the queue holds before new ones wait to be queued.
+  """
+  queuedLimit: Int!
+
+  """Whether the queue is full, so new evaluations are not being queued."""
+  atCapacity: Boolean!
+
+  """
+  Queued evaluations awaiting a retry after an attempt that did not finish.
+  """
+  retryingCount: Int!
+
+  """
+  When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
+  """
+  queuedPerMinute: Float!
+
+  """Evaluations completed per minute, whether evaluated or failed."""
+  evaluationsPerMinute: Float!
+
+  """
+  The queue's evaluations of each evaluation target: span, trace, session.
+  """
+  targets: [EvaluationQueueTarget!]!
+
+  """The projects with the most evaluations in the queue, most first."""
+  projects(
+    """How many projects to return."""
+    first: Int! = 5
+  ): [EvaluationQueueProject!]!
+}
+
+"""One project's evaluations in the online evaluation queue."""
+type EvaluationQueueProject {
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+  project: Project!
+}
+
+"""Whether queued evaluations are running without long waits."""
+enum EvaluationQueueStatus {
+  """
+  Evaluations not yet started have waited 10 minutes or less, and new ones are being queued.
+  """
+  HEALTHY
+
+  """
+  The oldest evaluation not yet started has waited over 10 minutes, or the queue is at capacity.
+  """
+  DEGRADED
+}
+
+"""
+The online evaluations of one evaluation target in the queue. Rates are per minute over the last 60 minutes.
+"""
+type EvaluationQueueTarget {
+  evaluationTarget: EvaluationTarget!
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  Queued evaluations awaiting a retry after an attempt that did not finish.
+  """
+  retryingCount: Int!
+
+  """
+  When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
+  """
+  queuedPerMinute: Float!
+
+  """Evaluations completed per minute, whether evaluated or failed."""
+  evaluationsPerMinute: Float!
+}
+
 type EvaluationResult {
   evaluatorName: String!
+  status: String
   annotation: ExperimentRunAnnotation
   trace: Trace
   error: String
+}
+
+enum EvaluationTarget {
+  SPAN
+  TRACE
+  SESSION
 }
 
 interface Evaluator implements Node {
@@ -1826,8 +2934,40 @@ interface Evaluator implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
   datasetEvaluators: [DatasetEvaluator!]!
+}
+
+type EvaluatorAnnotationScoreMetrics {
+  annotationName: String!
+
+  """
+  Aggregates over the requested time range, or null when the range holds none.
+  """
+  summary: AnnotationSummary
+
+  """
+  Aggregates over the window of equal length immediately before the requested time range, for change-over-time comparisons.
+  """
+  previousSummary: AnnotationSummary
+
+  """
+  Mean score per time bin across the requested time range. Bins follow the project metrics convention: spans and traces bucket by their trace's start time, sessions by their own.
+  """
+  series: [EvaluatorScoreSeriesBin!]!
+}
+
+"""
+Stable category identifiers whose display labels are supplied by clients.
+"""
+enum EvaluatorCategory {
+  GROUNDING_AND_RETRIEVAL
+  AGENTS
+  RESPONSE_QUALITY
+  SAFETY_AND_SECURITY
+  USER_EXPERIENCE
 }
 
 enum EvaluatorColumn {
@@ -1837,6 +2977,77 @@ enum EvaluatorColumn {
   updatedAt
 }
 
+type EvaluatorComparisonCoverage {
+  """
+  Entities in range with results from both evaluators. Counts presence only; the summaries and statistics divide by `populationSize`, which also requires both results to be binnable.
+  """
+  evaluatedByBoth: Int!
+
+  """Entities in range evaluated only by evaluator A."""
+  onlyA: Int!
+
+  """Entities in range evaluated only by evaluator B."""
+  onlyB: Int!
+
+  """
+  Traces in the project and time range for span and trace targets, or sessions for session targets. Span targets count traces rather than spans.
+  """
+  totalInRange: Int!
+}
+
+"""
+Computed over the shared population: entities in the selected time range evaluated by both evaluators and binnable by both. Worked example, populationSize 100: A flags 40 entities and B flags 30; they agree on 25 flagged and 55 not flagged. agreement = (25 + 55) / 100 = 0.80 and disagreementCount = 20. Agreement expected by chance is 0.4 × 0.3 + 0.6 × 0.7 = 0.54, so cohensKappa = (0.80 − 0.54) / (1 − 0.54) ≈ 0.57.
+"""
+type EvaluatorComparisonStatistics {
+  """
+  Share of the population where the two evaluators agree, reduced to flagged/not-flagged when both evaluators have determinable flag semantics, else to label equality when the label sets are identical; null otherwise. 1.0 means the evaluators never disagree; 0.5 means they disagree on half the population.
+  """
+  agreement: Float
+
+  """
+  Chance-corrected agreement over the same reduction as `agreement`: 1.0 is perfect agreement, 0.0 is what two independent evaluators with these flag rates would reach by chance, and negative values are worse than chance. Null when chance agreement is already 1.0 (e.g. both evaluators flag everything), where kappa is undefined.
+  """
+  cohensKappa: Float
+
+  """
+  Spearman rank correlation over the raw score pairs; null unless both evaluators emit continuous scores. 1.0 when B ranks every entity in the same order as A, −1.0 when the order is reversed, near 0.0 when the rankings are unrelated. Uses the scores, not the flag thresholds, so it is unaffected by thresholdA / thresholdB.
+  """
+  spearmanRho: Float
+
+  """
+  Population count minus agreements, i.e. populationSize × (1 − agreement); null when `agreement` is null.
+  """
+  disagreementCount: Int
+}
+
+"""
+One evaluator's side of a comparison: the labels and threshold that bin its results into the confusion matrix, and its distribution over the entities both evaluators annotated.
+"""
+type EvaluatorComparisonSummary {
+  """The project evaluator on this side of the comparison."""
+  evaluator: ProjectEvaluator!
+
+  """
+  The annotation name whose rows are compared: the selected output's, by default the evaluator's primary result. Any annotation stored under this name counts, whichever source wrote it.
+  """
+  annotationName: String!
+
+  """
+  Binned labels for this evaluator, in confusion-matrix order. A continuous evaluator contributes flagged/not-flagged split at its threshold; a categorical evaluator contributes the labels present in range, capped with an 'other' fold.
+  """
+  labels: [String!]!
+
+  """
+  The flag threshold used to bin scores; null for categorical evaluators.
+  """
+  threshold: Float
+
+  """
+  Distribution of this side's result over the entities in range annotated under both sides' names, whether or not both results are binnable.
+  """
+  sharedDistribution: EvaluatorDistribution!
+}
+
 """A connection to a list of items."""
 type EvaluatorConnection {
   """Pagination data for this connection"""
@@ -1844,6 +3055,54 @@ type EvaluatorConnection {
 
   """Contains the nodes in this connection"""
   edges: [EvaluatorEdge!]!
+}
+
+input EvaluatorDefinitionInput @oneOf {
+  inlineDecisionEvaluator: InlineDecisionEvaluatorInput
+  decisionEvaluatorId: ID
+  builtInEvaluatorId: ID
+  inlineLlmEvaluator: InlineLLMEvaluatorInput
+  codeEvaluatorId: ID
+  inlineCodeEvaluator: InlineCodeEvaluatorInput
+}
+
+"""Independent distribution of one of a project evaluator's results."""
+type EvaluatorDistribution {
+  """
+  Targets with an annotation in range, including results without scores or labels. Excludes decision refusals.
+  """
+  evaluatedCount: Int!
+
+  """Targets whose annotation in range is a decision refusal."""
+  refusedCount: Int!
+
+  """The configured score flag threshold, or null for categorical outputs."""
+  threshold: Float
+
+  """
+  Mean of all finite scores from this evaluator in the selected target time range.
+  """
+  meanScore: Float
+
+  """
+  Histogram of all finite scores from this evaluator in range. Null when exact scoreValueCounts are used or scores are unavailable.
+  """
+  scoreBinCounts: [Int!]
+
+  """
+  Edges for scoreBinCounts, with one more edge than counts. Lower edges are inclusive; upper edges are exclusive except the final edge is inclusive. The domain covers configured bounds and observed finite scores. Null when no histogram is used.
+  """
+  scoreBinEdges: [Float!]
+
+  """
+  Exact finite score counts across all results, ascending by score; null for histograms.
+  """
+  scoreValueCounts: [EvaluatorScoreValueCount!]
+
+  """
+  Label counts across all results, independent of score availability. Configured order, then alphabetical, with a synthetic Other group last when categories are folded. Null when labels are unavailable.
+  """
+  labelCounts: [EvaluatorLabelCount!]
 }
 
 """An edge in a connection."""
@@ -1865,6 +3124,11 @@ enum EvaluatorFilterColumn {
   name
 }
 
+type EvaluatorInput {
+  name: String!
+  description: String!
+}
+
 type EvaluatorInputMapping {
   literalMapping: JSON!
   pathMapping: JSON!
@@ -1879,19 +3143,30 @@ enum EvaluatorKind {
   LLM
   CODE
   BUILTIN
+  DECISION
 }
 
-input EvaluatorPreviewInput @oneOf {
-  builtInEvaluatorId: ID
-  inlineLlmEvaluator: InlineLLMEvaluatorInput
-  codeEvaluatorId: ID
-  inlineCodeEvaluator: InlineCodeEvaluatorInput
+type EvaluatorLabelCount {
+  label: String!
+  score: Float
+  isOther: Boolean!
+  count: Int!
 }
 
 input EvaluatorPreviewItemInput {
-  evaluator: EvaluatorPreviewInput!
+  evaluator: EvaluatorDefinitionInput = null
   context: JSON!
   inputMapping: EvaluatorInputMappingInput!
+
+  """
+  Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy.
+  """
+  datasetEvaluatorId: ID = null
+
+  """
+  Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request.
+  """
+  applyOnlineEvaluationLimits: Boolean! = false
 }
 
 input EvaluatorPreviewsInput {
@@ -1903,10 +3178,73 @@ type EvaluatorPreviewsPayload {
   results: [EvaluationResult!]!
 }
 
+enum EvaluatorScope {
+  SPAN
+  TRACE
+  SESSION
+}
+
+type EvaluatorScoreSeriesBin {
+  timestamp: DateTime!
+  meanScore: Float
+
+  """
+  How many scored spans, traces, or sessions the bin's mean averages over; the weight to use when merging adjacent bins. Zero for an empty bin.
+  """
+  count: Int!
+}
+
+type EvaluatorScoreValueCount {
+  score: Float!
+  count: Int!
+}
+
 """The sort key and direction for evaluator connections"""
 input EvaluatorSort {
   col: EvaluatorColumn!
   dir: SortDir!
+}
+
+type EvaluatorTaskConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  evaluatorKind: EvaluatorKind!
+  inputMapping: EvaluatorInputMapping!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+
+  """
+  The evaluator as it was run: an inline LLM judge prompt, inline code, or a stored evaluator's id. Use to rehydrate the playground.
+  """
+  definition: EvaluatorTaskDefinition!
+}
+
+union EvaluatorTaskDefinition = InlineLLMEvaluatorDefinition | InlineDecisionEvaluatorDefinition | StoredDecisionEvaluatorDefinition | InlineCodeEvaluatorDefinition | StoredCodeEvaluatorDefinition | BuiltInEvaluatorDefinition
+
+input EvaluatorTaskInput {
+  evaluator: EvaluatorDefinitionInput!
+  inputMapping: EvaluatorInputMappingInput!
+
+  """
+  The saved evaluator, its prompt or decision version, and the dataset or project binding the task was opened from, kept on the experiment so its calibration can be traced back.
+  """
+  source: EvaluatorTaskSourceInput = null
+}
+
+type EvaluatorTaskSource {
+  evaluatorId: ID
+  promptVersionId: ID
+  decisionVersionId: ID
+  datasetEvaluatorId: ID
+  projectEvaluatorId: ID
+}
+
+input EvaluatorTaskSourceInput {
+  evaluatorId: ID = null
+  promptVersionId: ID = null
+  decisionVersionId: ID = null
+  datasetEvaluatorId: ID = null
+  projectEvaluatorId: ID = null
 }
 
 interface ExampleRevision {
@@ -2032,12 +3370,17 @@ type ExperimentJob implements Node {
   maxConcurrency: Int!
 
   """
-  Task configuration snapshot. Use to rehydrate the playground with the exact settings used for this experiment.
+  Snapshot of the task this experiment ran: a prompt, a decision, or an evaluator. Use to rehydrate the playground with the exact settings used for this experiment. Null for eval-only experiments.
   """
-  taskConfig: PromptTaskConfig
+  taskConfig: ExperimentTaskConfig
 
   """Dataset evaluators attached to this experiment job."""
   datasetEvaluators(first: Int = 50, last: Int, after: String, before: String): DatasetEvaluatorConnection!
+
+  """
+  Decision evaluator configurations captured for this experiment, with binding names, scoring, and annotation names. Unlike datasetEvaluators, these remain after a binding is deleted.
+  """
+  decisionEvaluatorSnapshots: [DecisionEvaluatorSnapshot!]!
 }
 
 """A connection to a list of items."""
@@ -2147,9 +3490,17 @@ type ExperimentRun implements Node {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-type ExperimentRunAnnotation implements Node {
+type ExperimentRunAnnotation implements Node & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -2172,9 +3523,6 @@ type ExperimentRunAnnotation implements Node {
 
   """Error message if the annotation failed to produce a result."""
   error: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The date and time when the annotation was created."""
   startTime: DateTime!
@@ -2294,6 +3642,39 @@ type ExperimentTag implements Node {
   description: String
 }
 
+union ExperimentTaskConfig = PromptTaskConfig | DecisionTaskConfig | EvaluatorTaskConfig
+
+input ExperimentTaskInput @oneOf {
+  prompt: PromptTaskInput
+  evaluator: EvaluatorTaskInput
+  decision: DecisionTaskInput
+}
+
+input ExperimentsOverDatasetInput {
+  datasetId: ID!
+  datasetVersionId: ID = null
+  splitIds: [ID!] = null
+
+  """
+  Run only these examples of the dataset, as a row's play button does; every example of the dataset or its splits when omitted.
+  """
+  exampleIds: [ID!] = null
+  repetitions: Int! = 1
+
+  """The concurrency budget of each experiment"""
+  maxConcurrency: Int! = 10
+  credentials: [GenerativeCredentialInput!]
+  experimentName: String = null
+  experimentDescription: String = null
+  experimentMetadata: JSON = null
+  createEphemeralExperiment: Boolean = false
+
+  """
+  One experiment is created per task, in this order. The tasks must all be prompt or decision tasks (which may be mixed) or all evaluators.
+  """
+  tasks: [ExperimentTaskInput!]!
+}
+
 type FailureDetail {
   workItem: ExperimentLogWorkItemId
   errorType: String!
@@ -2349,6 +3730,11 @@ input FreeformAnnotationConfigInput {
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   name: String!
   arguments: String!
 }
@@ -2420,8 +3806,15 @@ type GenerativeModelCustomProvider implements Node {
   """The user that created this provider."""
   user: User
 
-  """The model names available for this provider."""
-  modelNames: [String!]!
+  """
+  The model types this provider can serve: chat (LLM) models, decision models, or both. Derived from its SDK.
+  """
+  modelTypes: [ModelType!]!
+
+  """
+  Suggested model names for this provider and model type; empty when it serves no models of that type. Any model name the endpoint accepts can be used.
+  """
+  modelNames(modelType: ModelType! = LLM): [String!]!
 }
 
 """A connection to a list of items."""
@@ -2448,6 +3841,7 @@ input GenerativeModelCustomerProviderConfigInput @oneOf {
   anthropic: AnthropicCustomProviderConfigInput
   awsBedrock: AWSBedrockCustomProviderConfigInput
   googleGenai: GoogleGenAICustomProviderConfigInput
+  typesafe: TypeSafeCustomProviderConfigInput
 }
 
 """An edge in a connection."""
@@ -2470,6 +3864,7 @@ enum GenerativeModelSDK {
   ANTHROPIC
   AWS_BEDROCK
   GOOGLE_GENAI
+  TYPESAFE
 }
 
 type GenerativeProvider {
@@ -2477,6 +3872,11 @@ type GenerativeProvider {
   key: GenerativeProviderKey!
   dependencies: [String!]!
   dependenciesInstalled: Boolean!
+
+  """
+  The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients serve the provider, not from its name.
+  """
+  modelTypes: [ModelType!]!
 
   """The credential requirements for the provider"""
   credentialRequirements: [GenerativeProviderCredentialConfig!]!
@@ -2508,6 +3908,7 @@ enum GenerativeProviderKey {
   TOGETHER
   ZAI
   META
+  TYPESAFE
 }
 
 type GoogleGenAIAuthenticationMethod {
@@ -2559,6 +3960,16 @@ enum GoogleThinkingLevel {
 
 scalar Identifier
 
+type InlineCodeEvaluatorDefinition {
+  name: String!
+  description: String
+  language: Language!
+  sourceCode: String!
+  sandboxConfigId: ID!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  source: EvaluatorTaskSource
+}
+
 input InlineCodeEvaluatorInput {
   name: String!
   language: Language!
@@ -2566,6 +3977,45 @@ input InlineCodeEvaluatorInput {
   outputConfigs: [AnnotationConfigInput!]!
   sandboxConfigId: ID = null
   description: String = null
+}
+
+type InlineDecisionEvaluatorDefinition {
+  name: String!
+  description: String
+  templateFormat: PromptTemplateFormat!
+  state: DecisionState!
+  questions: [DecisionQuestion!]!
+
+  """The variables the state and questions use, in first-appearance order."""
+  variables: [String!]!
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  customProviderId: ID
+  scoringPolicy: DecisionScoringPolicy!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  source: EvaluatorTaskSource
+}
+
+input InlineDecisionEvaluatorInput {
+  name: String!
+  decisionVersion: DecisionVersionInput!
+  scoringPolicy: DecisionScoringPolicyInput = null
+  description: String = null
+}
+
+type InlineLLMEvaluatorDefinition {
+  name: String!
+  description: String
+  modelProvider: GenerativeProviderKey!
+  modelName: String!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  tools: PromptTools
+  responseFormat: PromptResponseFormatJSONSchema
+  invocationParameters: PromptInvocationParameters!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  source: EvaluatorTaskSource
+  customProvider: GenerativeModelCustomProvider
 }
 
 input InlineLLMEvaluatorInput {
@@ -2604,12 +4054,13 @@ type LLMEvaluator implements Evaluator & Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   isBuiltin: Boolean!
-  datasets(first: Int = 50, after: String): DatasetConnection!
-  datasetEvaluators: [DatasetEvaluator!]!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  datasets(first: Int = 50, after: String): DatasetConnection!
+  projects(first: Int = 50, after: String): ProjectConnection!
+  datasetEvaluators: [DatasetEvaluator!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
-  inputSchema: JSON
+  inputSchema: JSON!
   user: User
   promptVersion: PromptVersion!
 }
@@ -2622,6 +4073,12 @@ type LabelFraction {
 enum Language {
   PYTHON
   TYPESCRIPT
+}
+
+type LevelProbability {
+  """The level's position, from zero."""
+  level: Int!
+  probability: Float!
 }
 
 enum MimeType {
@@ -2664,12 +4121,25 @@ enum ModelProvider {
   TOGETHER
   ZAI
   META
+  TYPESAFE
+}
+
+"""The kind of model a playground instance runs."""
+enum ModelType {
+  """Chat completion models that generate text from messages."""
+  LLM
+
+  """
+  Decision models that answer typed questions (predicate, choice, scale) about a state and return probabilities rather than text.
+  """
+  DECISION
 }
 
 input ModelsInput {
-  providerKey: GenerativeProviderKey
+  providerKey: GenerativeProviderKey = null
   modelName: String = null
   openaiApiType: OpenAIApiType = null
+  modelType: ModelType! = LLM
 }
 
 input MontyConfigInput {
@@ -2701,6 +4171,7 @@ type Mutation {
   addExamplesToDataset(input: AddExamplesToDatasetInput!): DatasetMutationPayload!
   deleteDataset(input: DeleteDatasetInput!): DatasetMutationPayload!
   patchDatasetExamples(input: PatchDatasetExamplesInput!): DatasetMutationPayload!
+  setDatasetExampleExpectedOutputs(input: SetDatasetExampleExpectedOutputsInput!): DatasetExampleExpectedOutputsPayload!
   deleteDatasetExamples(input: DeleteDatasetExamplesInput!): DatasetMutationPayload!
   createDatasetSplit(input: CreateDatasetSplitInput!): DatasetSplitMutationPayload!
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
@@ -2712,9 +4183,65 @@ type Mutation {
   """
   setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+
+  """
+  Run a decision model over `state` with named `questions` and record the call as a DECISION span in the playground project.
+  """
+  runDecision(input: RunDecisionInput!): RunDecisionPayload!
+
+  """
+  Run a saved decision version as saved, with this call's variables, and record the call as a DECISION span in the playground project.
+  """
+  runDecisionVersion(input: RunDecisionVersionInput!): RunDecisionPayload!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
   deleteDocumentAnnotations(input: DeleteAnnotationsInput!): DocumentAnnotationMutationPayload!
+
+  """
+  Create an LLM project evaluator. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  createProjectLlmEvaluator(input: CreateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Update an LLM project evaluator. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  updateProjectLlmEvaluator(input: UpdateProjectLLMEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Bind an existing CODE evaluator to a project. The evaluator's configuration is shared with every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  addProjectCodeEvaluator(input: AddProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Create a CODE project evaluator. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  createProjectCodeEvaluator(input: CreateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Update a CODE project evaluator. Editing changes the underlying evaluator, which applies to every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Enable or disable a project evaluator, leaving the underlying evaluator untouched. This changes only whether the evaluator runs: its queued evaluations stay queued, and a disabled evaluator's queued evaluations are dropped, not run, when their turn comes. To remove them now, clear them with clearProjectEvaluatorQueuedEvaluations. Works for both LLM and CODE evaluators.
+  """
+  setProjectEvaluatorEnabled(input: SetProjectEvaluatorEnabledInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Clear the queued evaluations of one project evaluator, without enabling or disabling it. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearProjectEvaluatorQueuedEvaluations(input: ClearProjectEvaluatorQueuedEvaluationsInput!): ClearProjectEvaluatorQueuedEvaluationsPayload!
+
+  """
+  Clear the queued evaluations of every evaluator in a project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearQueuedEvaluations(input: ClearQueuedEvaluationsInput!): ClearQueuedEvaluationsPayload!
+
+  """
+  Clear the queued evaluations of every evaluator in every project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  """
+  clearAllQueuedEvaluations: ClearAllQueuedEvaluationsPayload!
+  deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
   createDatasetLlmEvaluator(input: CreateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetLlmEvaluator(input: UpdateDatasetLLMEvaluatorInput!): DatasetEvaluatorMutationPayload!
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
@@ -2773,11 +4300,38 @@ type Mutation {
   patchPrompt(input: PatchPromptInput!): Prompt!
   deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
+  createDecision(input: CreateDecisionInput!): Decision!
+  cloneDecision(input: CloneDecisionInput!): Decision!
+  createDecisionVersion(input: CreateDecisionVersionInput!): Decision!
+  patchDecision(input: PatchDecisionInput!): Decision!
+  deleteDecision(input: DeleteDecisionInput!): DeleteDecisionMutationPayload!
+  setDecisionVersionTag(input: SetDecisionVersionTagInput!): DecisionVersionTagMutationPayload!
+  deleteDecisionVersionTag(input: DeleteDecisionVersionTagInput!): DecisionVersionTagMutationPayload!
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  createDecisionLabel(input: CreateDecisionLabelInput!): DecisionLabelMutationPayload!
+  patchDecisionLabel(input: PatchDecisionLabelInput!): DecisionLabelMutationPayload!
+  deleteDecisionLabels(input: DeleteDecisionLabelsInput!): DecisionLabelDeleteMutationPayload!
+  setDecisionLabels(input: SetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
+  unsetDecisionLabels(input: UnsetDecisionLabelsInput!): DecisionLabelAssociationMutationPayload!
+  createDecisionEvaluator(input: CreateDecisionEvaluatorInput!): DecisionEvaluatorMutationPayload!
+  patchDecisionEvaluator(input: PatchDecisionEvaluatorInput!): DecisionEvaluatorMutationPayload!
+  deleteDecisionEvaluator(input: DeleteDecisionEvaluatorInput!): DeleteDecisionEvaluatorPayload!
+  createDatasetDecisionEvaluator(input: CreateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetDecisionEvaluator(input: UpdateDatasetDecisionEvaluatorInput!): DatasetEvaluatorMutationPayload!
+
+  """
+  Create a decision project evaluator from an existing decision evaluator, a saved decision version, or a new one. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  createProjectDecisionEvaluator(input: CreateProjectDecisionEvaluatorInput!): ProjectEvaluatorMutationPayload!
+
+  """
+  Update a decision project evaluator. Its decision version, scoring policy, and description belong to the underlying evaluator and apply to every project and dataset it is bound to. SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  updateProjectDecisionEvaluator(input: UpdateProjectDecisionEvaluatorInput!): ProjectEvaluatorMutationPayload!
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
@@ -2946,6 +4500,11 @@ input PatchCodeEvaluatorInput {
   sandboxConfigId: ID
   inputMapping: EvaluatorInputMappingInput
   outputConfigs: [AnnotationConfigInput!]
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
 }
 
 """
@@ -2971,6 +4530,27 @@ input PatchDatasetSplitInput {
   description: String
   color: String
   metadata: JSON
+}
+
+input PatchDecisionEvaluatorInput {
+  evaluatorId: ID!
+  name: Identifier
+  description: String
+  decisionVersionId: ID
+  scoringPolicy: DecisionScoringPolicyInput
+}
+
+input PatchDecisionInput {
+  decisionId: ID!
+  description: String
+  metadata: JSON
+}
+
+input PatchDecisionLabelInput {
+  decisionLabelId: ID!
+  name: String = null
+  description: String = null
+  color: String = null
 }
 
 input PatchExperimentInput {
@@ -3054,6 +4634,34 @@ input PlaygroundEvaluatorInput {
 type PlaygroundModel implements ModelInterface {
   name: String!
   providerKey: GenerativeProviderKey!
+  modelType: ModelType!
+}
+
+type PredicateAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+
+  """The probability that the statement is true."""
+  probability: Float!
+}
+
+"""What counts as true and as false; either may be omitted."""
+input PredicateCriteriaInput {
+  """What counts as true."""
+  true: String = null
+
+  """What counts as false."""
+  false: String = null
+}
+
+"""
+A statement or yes/no question, answered with the probability that it is true.
+"""
+input PredicateQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  criteria: PredicateCriteriaInput = null
 }
 
 type Project implements Node {
@@ -3061,6 +4669,20 @@ type Project implements Node {
   id: ID!
   name: String!
   description: String
+
+  """Number of evaluators attached to this project."""
+  evaluatorCount: Int!
+
+  """
+  This project's part of the online evaluation queue, shared by every project.
+  """
+  evaluationQueue: ProjectEvaluationQueue!
+
+  """
+  Evaluation activity of this project's evaluators, grouped by evaluator. Finished span evaluations are deleted once older than the online evaluation retention period, so a range reaching past it counts less than it covers.
+  """
+  evaluationActivity(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): EvaluationActivity!
+  evaluators(first: Int = 30, last: Int = null, after: String = null, before: String = null, filter: ProjectEvaluatorFilter): ProjectEvaluatorConnection!
   gradientStartColor: String!
   gradientEndColor: String!
   startTime: DateTime
@@ -3101,7 +4723,21 @@ type Project implements Node {
   """
   Spans in the project. filterCondition is a span filter expression: a Python boolean expression over span fields (span_kind, status_code, latency_ms, parent_id, attributes, annotations[...], ...), not a substring of the span's input/output. Scope to root spans with `parent_id is None`, or `parent_span is None` to also count orphan spans whose parent was never received. traceFilterCondition is a trace filter expression (see traceFilterVocabulary) that keeps the spans of matching traces; the two arguments compose.
   """
-  spans(first: Int!, timeRange: TimeRange, last: Int, after: String, before: String, sort: SpanSort, filterCondition: String, traceFilterCondition: String): SpanConnection!
+  spans(
+    first: Int!
+    timeRange: TimeRange
+    last: Int
+    after: String
+    before: String
+    sort: SpanSort
+    filterCondition: String
+    traceFilterCondition: String
+
+    """
+    Restrict to spans produced by this project evaluator. Each evaluator traces into its own dedicated project, so this scope is only needed when querying a project that mixes spans from other sources.
+    """
+    projectEvaluatorId: ID
+  ): SpanConnection!
 
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap. sessionFilterCondition is a session filter expression (see sessionFilterVocabulary).
@@ -3244,6 +4880,11 @@ type Project implements Node {
   spanAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   traceAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
   sessionAnnotationMetricsTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, annotationName: String): AnnotationMetricsTimeSeries!
+
+  """
+  Compare two outputs of this project's evaluators over one shared population: entities in the time range evaluated under both. Each side uses its evaluator's primary output unless annotationNameA or annotationNameB names another of its outputs, so both sides may be one evaluator. Returns coverage, a confusion matrix over binned labels, and agreement statistics. Time filtering follows the annotation metrics fields: spans and traces filter on trace start time, sessions on session start time.
+  """
+  evaluatorComparison(evaluatorAId: ID!, evaluatorBId: ID!, timeRange: TimeRange!, thresholdA: Float = null, thresholdB: Float = null, annotationNameA: String = null, annotationNameB: String = null): ProjectEvaluatorComparison!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -3269,6 +4910,270 @@ type ProjectEdge {
 
   """The item at the end of the edge"""
   node: Project!
+}
+
+"""
+One project's part of the online evaluation queue: the span, trace, and session evaluations of its evaluators. Rates are per minute over the last 60 minutes.
+"""
+type ProjectEvaluationQueue {
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
+  """
+  oldestQueuedAt: DateTime
+
+  """
+  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
+  """
+  queuedPerMinute: Float!
+
+  """Evaluations completed per minute, whether evaluated or failed."""
+  evaluationsPerMinute: Float!
+
+  """
+  This project's evaluations of each evaluation target: span, trace, session.
+  """
+  targets: [ProjectEvaluationQueueTarget!]!
+}
+
+"""One project's evaluations of one evaluation target in the queue."""
+type ProjectEvaluationQueueTarget {
+  evaluationTarget: EvaluationTarget!
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+}
+
+type ProjectEvaluator implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+
+  """The project whose spans this evaluator evaluates."""
+  project: Project!
+
+  """
+  The project holding the traces this evaluator produces when it runs. Each evaluator traces into its own dedicated project, created with the evaluator.
+  """
+  traceProject: Project!
+  evaluator: Evaluator!
+  name: Identifier!
+  filterCondition: String!
+  samplingRate: Float!
+
+  """
+  SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators decide once per trace or session, at the first quiet period after the evaluation delay: the filter applies first, then deterministic sampling, and admitted work is queued. A filter non-match or sampling miss is permanently declined for that evaluator configuration; later activity does not reopen the decision. A filter is written in the filter language of the target it selects. The evaluation delay applies to TRACE and SESSION evaluators and is rejected for SPAN. The target is fixed at creation.
+  """
+  evaluationTarget: EvaluationTarget!
+  runSummary: ProjectEvaluatorRunSummary!
+
+  """
+  This evaluator's evaluation rate, mean evaluation time, and share of the server's evaluation time over the last 60 minutes.
+  """
+  evaluationLoad: ProjectEvaluatorEvaluationLoad!
+
+  """
+  Failures and completions within the time range, placed in time by when each evaluation finished or was given up on. Finished span evaluations can be deleted once they are older than the online evaluation retention period, so for span evaluators a longer range may count less than it covers.
+  """
+  failureSummary(timeRange: TimeRange!): ProjectEvaluatorFailureSummary!
+
+  """
+  Lag of this evaluator's evaluations completed in the range, or in the last hour without one; null if none completed. Finished span evaluations are deleted once older than the online evaluation retention period, so a range reaching past it counts less than it covers.
+  """
+  lag(timeRange: TimeRange): EvaluationLag
+
+  """
+  Distribution of one of this evaluator's outputs over all annotated targets in range: the output written under annotationName, or the primary output when it is omitted. Spans and traces filter on trace start time; sessions on session start time. Uses the latest annotation per target and name across annotation identifiers.
+  """
+  distribution(timeRange: TimeRange!, annotationName: String = null): EvaluatorDistribution!
+
+  """
+  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the equal-length window immediately before it, and a binned mean-score series. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
+  """
+  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. When no value is provided, TRACE and SESSION evaluators store the default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation. The delay applies to TRACE and SESSION targets; SPAN evaluators store 0 because spans are evaluated as they arrive, and an explicit delay is rejected for them.
+  """
+  evaluationDelaySeconds: Int!
+  inputMapping: EvaluatorInputMapping!
+  enabled: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Pairwise comparison of two project evaluators' results over one shared population. Confusion matrix rows follow a.labels and columns follow b.labels.
+"""
+type ProjectEvaluatorComparison {
+  """The evaluation target both evaluators share."""
+  evaluationTarget: EvaluationTarget!
+  coverage: EvaluatorComparisonCoverage!
+
+  """
+  Entities in range evaluated by both evaluators and binnable by both: the denominator of every summary and statistic. At most coverage.evaluatedByBoth.
+  """
+  populationSize: Int!
+
+  """Evaluator A's summary; confusion matrix rows follow its labels."""
+  a: EvaluatorComparisonSummary!
+
+  """Evaluator B's summary; confusion matrix columns follow its labels."""
+  b: EvaluatorComparisonSummary!
+
+  """Counts; rows follow a.labels, columns follow b.labels."""
+  confusionMatrix: [[Int!]!]!
+  statistics: EvaluatorComparisonStatistics!
+}
+
+"""A connection to a list of items."""
+type ProjectEvaluatorConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectEvaluatorEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectEvaluatorEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectEvaluator!
+}
+
+"""
+How much of the server's evaluation time a project evaluator used over the last 60 minutes.
+"""
+type ProjectEvaluatorEvaluationLoad {
+  """Evaluations started in the last 60 minutes."""
+  evaluationCount: Int!
+
+  """
+  Mean seconds an evaluation took, over those started in the last 60 minutes, or null if none started.
+  """
+  meanEvaluationSeconds: Float
+
+  """
+  Share, from 0 to 1, of the time every project evaluator on the server spent evaluating over the last 60 minutes. They share one concurrency limit. Null if none evaluated.
+  """
+  shareOfEvaluationTime: Float
+}
+
+type ProjectEvaluatorFailureSummary {
+  """Evaluations given up on within the range."""
+  failedCount: Int!
+
+  """Evaluations that produced an annotation within the range."""
+  evaluatedCount: Int!
+
+  """
+  When the newest failure in the range was given up on, or null if none was.
+  """
+  lastFailedAt: DateTime
+
+  """
+  The error of the newest failure in the range, or null if none was recorded.
+  """
+  lastError: String
+
+  """Share of completed evaluations that failed, or null if none completed."""
+  failureRate: Float
+}
+
+"""A filter for project evaluator connections"""
+input ProjectEvaluatorFilter {
+  col: ProjectEvaluatorFilterColumn = null
+  value: String = null
+
+  """
+  Match evaluators that produce any of these exact annotation names, before pagination. Single-output evaluators use the project evaluator's name; multiple outputs use '<evaluator name>.<output name>'. An omitted, null, or empty list does not filter.
+  """
+  annotationNames: [String!]
+}
+
+enum ProjectEvaluatorFilterColumn {
+  name
+}
+
+type ProjectEvaluatorMutationPayload {
+  evaluator: ProjectEvaluator!
+  query: Query!
+}
+
+"""
+The state of a project evaluator's scheduled work: whether its evaluation runs are completing. It reflects only this evaluator's own evaluations, not the shared queue's status, and says nothing about what those runs scored.
+"""
+enum ProjectEvaluatorRunStatus {
+  """No evaluation on record has completed or is waiting to run."""
+  NEVER_RUN
+
+  """Evaluations are waiting to run and none has completed yet."""
+  QUEUED
+
+  """Evaluation runs are completing and writing annotations."""
+  RUNNING
+
+  """The most recent evaluation run failed and will not be retried."""
+  ERROR
+
+  """
+  This evaluator's oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes.
+  """
+  DEGRADED
+
+  """Turned off. No new evaluations are scheduled."""
+  DISABLED
+}
+
+"""
+The state of a project evaluator's scheduled work, derived from the evaluation records that still exist. A record is deleted with the span, trace, or session it evaluated, and a finished span record can be deleted once it is older than the online evaluation retention period. It describes whether runs are completing, not what they scored.
+"""
+type ProjectEvaluatorRunSummary {
+  """
+  From this evaluator's own evaluations only; the shared queue's status does not affect it. DISABLED when turned off. Otherwise ERROR when the newest completed run was given up on, DEGRADED when its oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes, RUNNING when the newest completed run produced an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN otherwise.
+  """
+  status: ProjectEvaluatorRunStatus!
+
+  """
+  When this evaluator last finished an evaluation, or null if it never has.
+  """
+  lastRunAt: DateTime
+
+  """Evaluations queued or running, including ones awaiting a retry."""
+  queuedCount: Int!
+
+  """
+  This evaluator's evaluations running now. Clearing the queue removes the queued evaluations that are not running.
+  """
+  runningCount: Int!
+
+  """
+  When this evaluator's longest-waiting evaluation, including ones awaiting a retry, was queued, or null if none is waiting. Running evaluations are not waiting.
+  """
+  oldestQueuedAt: DateTime
+
+  """Evaluations that produced an annotation."""
+  evaluatedCount: Int!
+
+  """Evaluations that were given up on."""
+  failedCount: Int!
+
+  """
+  Evaluations removed from the queue before they ran, because a user cleared them or the evaluator was disabled when their turn came. They are not failures and do not affect the status.
+  """
+  droppedCount: Int!
+
+  """The most recent evaluation error, or null if none was recorded."""
+  lastError: String
 }
 
 """The filter key and value for project connections"""
@@ -3299,6 +5204,11 @@ type ProjectSession implements Node {
   lastOutput: SpanIOValue
 
   """
+  The canonical context that online evaluators bind against when they run on this session. Null when the session has no eligible root turn to evaluate.
+  """
+  sessionEvaluationContext: JSON
+
+  """
   The first non-null "user.id" span attribute in the session, identifying the end user of the traced application.
   """
   userId: String
@@ -3323,9 +5233,17 @@ input ProjectSessionAnnoResultKey {
   attr: ProjectSessionAnnoAttr!
 }
 
-type ProjectSessionAnnotation implements Node & Annotation {
+type ProjectSessionAnnotation implements Node & Annotation & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -3345,9 +5263,6 @@ type ProjectSessionAnnotation implements Node & Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -3788,6 +5703,28 @@ type PromptTaskConfig implements Node {
   customProvider: GenerativeModelCustomProvider
 }
 
+input PromptTaskInput {
+  promptVersionId: ID = null
+  promptVersion: ChatPromptVersionInput!
+  promptName: Identifier = null
+  connectionConfig: ConnectionConfigInput = null
+  headers: JSON = null
+
+  """
+  Dot-notation path to messages in dataset example input to append to prompt
+  """
+  appendedMessagesPath: String = null
+
+  """
+  Dot-notation path prefix for template variables. Default 'input' means {{query}} resolves to input.query. Empty string means full paths like {{input.query}} or {{reference.answer}} are required.
+  """
+  templateVariablesPath: String = "input"
+  streamModelOutput: Boolean! = true
+
+  """Dataset evaluators to run on this prompt's outputs"""
+  evaluators: [PlaygroundEvaluatorInput!]! = []
+}
+
 union PromptTemplate = PromptStringTemplate | PromptChatTemplate
 
 enum PromptTemplateFormat {
@@ -3964,6 +5901,10 @@ type Query {
   validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   node(id: ID!): Node!
   viewer: User
+
+  """Saved decisions, newest first."""
+  decisions(first: Int = 50, last: Int, after: String, before: String, filter: DecisionFilter, labelIds: [ID!]): DecisionConnection!
+  decisionLabels(first: Int = 100, after: String): DecisionLabelConnection!
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
 
   """
@@ -3994,9 +5935,15 @@ type Query {
     names: [String!]
   ): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
-  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
+  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID): EvaluatorConnection!
+
+  """
+  Every project evaluator on the server, across projects, newest first. projectId narrows to one project.
+  """
+  projectEvaluators(first: Int = 100, after: String, filter: ProjectEvaluatorFilter, projectId: ID): ProjectEvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   classificationEvaluatorConfigs(labels: [String!]): [ClassificationEvaluatorConfig!]!
+  evaluatorGalleryConfigs: [ClassificationEvaluatorConfig!]!
   defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
   projectTraceRetentionPolicies(first: Int = 100, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
 
@@ -4006,6 +5953,16 @@ type Query {
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
   serverStatus: ServerStatus!
+
+  """
+  The online evaluation queue, shared by every project on the server and by span, trace, and session evaluations.
+  """
+  evaluationQueue: EvaluationQueue!
+
+  """
+  Evaluation activity of every project evaluator on the server, grouped by project. Finished span evaluations are deleted once older than the online evaluation retention period, so a range reaching past it counts less than it covers.
+  """
+  evaluationActivity(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): EvaluationActivity!
 
   """
   Persisted assistant chat sessions, most recently active first. By default, users see their own sessions. Admins can pass viewerOnly: false to see all sessions. When authentication is disabled, all sessions are returned.
@@ -4022,6 +5979,7 @@ type Query {
   applyChatTemplate(template: PromptChatTemplateInput!, templateOptions: PromptTemplateOptions!, inputMapping: EvaluatorInputMappingInput = null): PromptChatTemplate!
   projectCount: Int!
   datasetCount: Int!
+  decisionCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
   sandboxBackends: [SandboxBackendInfo!]!
@@ -4032,6 +5990,12 @@ type Query {
 A string encrypted on output and decrypted on input using a key derived from the deployment seed and PHOENIX_SECRET. Values remain valid across replicas and restarts while both are unchanged.
 """
 scalar RedactedString
+
+"""The model declined to answer this question."""
+type RefusalAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+}
 
 type ReinstateExperimentPayload {
   experiment: Experiment!
@@ -4086,6 +6050,72 @@ input RevokeOAuth2GrantInput {
 type RevokeOAuth2GrantMutationPayload {
   grantId: ID!
   query: Query!
+}
+
+"""
+A decision run: where it runs, its state template and questions, and this call's values for their variables.
+"""
+input RunDecisionInput {
+  connection: DecisionConnectionInput!
+
+  """
+  The decision model to run. Any name the endpoint accepts works; the catalog only suggests names.
+  """
+  modelName: String!
+
+  """How variable tags are read in the state and the question fields."""
+  templateFormat: PromptTemplateFormat!
+
+  """The state template: text, or JSON whose string leaves are templates."""
+  state: DecisionStateInput!
+
+  """
+  The questions, in order. Names must be unique; answers come back under them.
+  """
+  questions: [DecisionQuestionInput!]!
+
+  """
+  An object with a value for each variable the templates use, keyed by name; any JSON (a string, number, boolean, null, object, or array). A missing variable is rejected; extra keys are ignored.
+  """
+  variables: JSON!
+}
+
+"""
+Outcome of one decision run. Problems found before the provider is called fail the mutation with a GraphQL error.
+"""
+type RunDecisionPayload {
+  """
+  The answers, resolved model, and usage; null when `error` is set. The provider's own response is on the span.
+  """
+  result: DecisionResult
+
+  """The DECISION span recorded for the provider call, successful or not."""
+  span: Span
+
+  """Why the provider call failed; null on success."""
+  error: String
+}
+
+"""
+A run of a saved decision version: its definition, model, and provider as saved, with this call's variables.
+"""
+input RunDecisionVersionInput {
+  decisionVersionId: ID!
+
+  """
+  An object with a value for each of the version's variables, keyed by name. A missing variable is rejected; extra keys are ignored.
+  """
+  variables: JSON!
+
+  """
+  API keys for this request only, for a version on a built-in provider. When omitted, a stored secret is used, then the server environment. A custom provider brings its own key.
+  """
+  credentials: [GenerativeCredentialInput!] = null
+
+  """
+  Send the request to this endpoint instead of the built-in provider's default, such as a local Ollama. Requires an API key in `credentials` or a stored secret where the provider needs one; the server-configured key is never sent to a custom URL. A custom provider brings its own endpoint.
+  """
+  baseUrl: String = null
 }
 
 type SandboxBackendInfo {
@@ -4215,6 +6245,37 @@ type SandboxProviderCredentialSpec {
   isRequired: Boolean!
 }
 
+type ScaleAnswer implements DecisionAnswer {
+  """The name of the question this answers."""
+  name: String!
+
+  """
+  The probability-weighted average of the levels. It can fall between levels and is never a discrete level.
+  """
+  expectedLevel: Float!
+
+  """
+  The model's certainty in `expectedLevel`, from 0 to 1, for flagging answers to review. It is not a probability; see `probabilities`.
+  """
+  confidence: Float!
+
+  """Probability per level, from the lowest."""
+  probabilities: [LevelProbability!]!
+}
+
+input ScaleLevelInput {
+  label: String!
+  description: String = null
+}
+
+"""2–10 ordered levels; a level's position, from zero, is its value."""
+input ScaleQuestionInput {
+  """The name the answer is returned under."""
+  name: String!
+  instructions: String!
+  levels: [ScaleLevelInput!]!
+}
+
 """
 An entity returned by global search. One of the searchable resource types: Project, Dataset, Experiment, or Prompt.
 """
@@ -4291,6 +6352,11 @@ input SetAgentTraceRecordingInput {
   allowRemoteExport: Boolean!
 }
 
+input SetDatasetExampleExpectedOutputsInput {
+  datasetId: ID!
+  expectedOutputs: [DatasetExampleExpectedOutputInput!]!
+}
+
 input SetDatasetExampleSplitsInput {
   exampleId: ID!
   datasetSplitIds: [ID!]!
@@ -4326,10 +6392,26 @@ type SetDatasetLabelsMutationPayload {
   dataset: Dataset!
 }
 
+input SetDecisionLabelsInput {
+  decisionId: ID!
+  decisionLabelIds: [ID!]!
+}
+
+input SetDecisionVersionTagInput {
+  decisionVersionId: ID!
+  name: Identifier!
+  description: String = null
+}
+
 type SetExperimentBaselinePayload {
   dataset: Dataset!
   experiment: Experiment!
   previousBaselineExperiment: Experiment
+}
+
+input SetProjectEvaluatorEnabledInput {
+  projectEvaluatorId: ID!
+  enabled: Boolean!
 }
 
 input SetPromptLabelsInput {
@@ -4374,6 +6456,11 @@ type Span implements Node {
   spanId: ID!
   trace: Trace!
   context: SpanContext!
+
+  """
+  The canonical context that online evaluators bind against when they run on this span.
+  """
+  evaluationContext: JSON!
 
   """Span attributes as a JSON string"""
   attributes: String!
@@ -4479,9 +6566,17 @@ type Span implements Node {
   cumulativeCostDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-type SpanAnnotation implements Node & Annotation {
+type SpanAnnotation implements Node & Annotation & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -4501,9 +6596,6 @@ type SpanAnnotation implements Node & Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The source of the annotation."""
   source: AnnotationSource!
@@ -4685,9 +6777,20 @@ type StopExperimentPayload {
   job: ExperimentJob!
 }
 
+type StoredCodeEvaluatorDefinition {
+  codeEvaluatorId: ID!
+  codeEvaluatorVersionId: ID
+  source: EvaluatorTaskSource
+}
+
+type StoredDecisionEvaluatorDefinition {
+  decisionEvaluatorId: ID!
+  source: EvaluatorTaskSource
+}
+
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
-  chatCompletionOverDataset(input: ChatCompletionOverDatasetInput!): ChatCompletionSubscriptionPayload!
+  experimentsOverDataset(input: ExperimentsOverDatasetInput!): ChatCompletionSubscriptionPayload!
 }
 
 type SystemApiKey implements ApiKey & Node {
@@ -4719,6 +6822,11 @@ type TestGenerativeModelCustomProviderCredentialsResult {
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   content: String!
 }
 
@@ -4740,6 +6848,11 @@ input TimeBinConfig {
 
   """Offset in minutes from UTC for local time binning."""
   utcOffsetMinutes: Int! = 0
+
+  """
+  Number of scale units per bin, from 1 to 1000. Values above 1 are allowed for MINUTE, HOUR, DAY, and WEEK. Bins follow local clock time (for example, 5-minute bins start at :00, :05, ...), and week bins start on Monday.
+  """
+  unitsPerBin: Int! = 1
 }
 
 enum TimeBinScale {
@@ -4809,6 +6922,11 @@ type TokenUsage {
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: ID
   repetitionNumber: Int
+
+  """
+  The experiment this payload belongs to, on every payload of a dataset run
+  """
+  experimentId: ID
   id: String!
   function: FunctionCallChunk!
 }
@@ -4866,6 +6984,11 @@ type Trace implements Node {
   rootSpan: Span
 
   """
+  The canonical context that online evaluators bind against when they run on this trace. Null whenever a live evaluation would refuse this trace: it has no root span to evaluate.
+  """
+  evaluationContext: JSON
+
+  """
   The first non-null "user.id" span attribute in the trace, identifying the end user of the traced application.
   """
   userId: String
@@ -4898,9 +7021,17 @@ type Trace implements Node {
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
 
-type TraceAnnotation implements Node {
+type TraceAnnotation implements Node & AnnotationMetadataMixin {
   """The Globally Unique ID of this object"""
   id: ID!
+
+  """Metadata about the annotation."""
+  metadata: JSON!
+
+  """
+  The decision judge's result, typed, when the metadata holds one in Phoenix's decision format; null otherwise.
+  """
+  decision: DecisionAnnotation
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -4920,9 +7051,6 @@ type TraceAnnotation implements Node {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
-
-  """Metadata about the annotation."""
-  metadata: JSON!
 
   """The identifier of the annotation."""
   identifier: String!
@@ -5073,12 +7201,47 @@ type TruncateAgentSessionMutationPayload {
   query: Query!
 }
 
+type TypeSafeAuthenticationMethod {
+  apiKey: RedactedString
+}
+
+input TypeSafeAuthenticationMethodInput {
+  apiKey: RedactedString!
+}
+
+type TypeSafeClientKwargs {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+input TypeSafeClientKwargsInput {
+  baseUrl: String
+  defaultHeaders: JSON
+}
+
+"""A System One-compatible endpoint; it serves decision models only."""
+type TypeSafeCustomProviderConfig {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethod!
+  typesafeClientKwargs: TypeSafeClientKwargs
+}
+
+"""A System One-compatible endpoint; it serves decision models only."""
+input TypeSafeCustomProviderConfigInput {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput!
+  typesafeClientKwargs: TypeSafeClientKwargsInput
+}
+
 type UnparsableConfig {
   parseError: String!
 }
 
 type UnparsableSecret {
   parseError: String!
+}
+
+input UnsetDecisionLabelsInput {
+  decisionId: ID!
+  decisionLabelIds: [ID!]!
 }
 
 input UnsetPromptLabelsInput {
@@ -5123,15 +7286,30 @@ input UpdateDatasetCodeEvaluatorInput {
   description: String
 }
 
+input UpdateDatasetDecisionEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier
+  description: String
+  inputMapping: EvaluatorInputMappingInput
+  decisionVersionId: ID
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput
+}
+
 input UpdateDatasetLLMEvaluatorInput {
   datasetEvaluatorId: ID!
   datasetId: ID!
   name: Identifier!
-  description: String = null
+  description: String
   promptVersionId: ID
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   inputMapping: EvaluatorInputMappingInput = null
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
 }
 
 input UpdateModelMutationInput {
@@ -5146,6 +7324,84 @@ input UpdateModelMutationInput {
 type UpdateModelMutationPayload {
   model: GenerativeModel!
   query: Query!
+}
+
+input UpdateProjectCodeEvaluatorInput {
+  projectEvaluatorId: ID!
+  name: Identifier!
+  samplingRate: Float!
+
+  """The evaluation target is fixed at project evaluator creation."""
+  evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  evaluatorInputMapping: EvaluatorInputMappingInput
+  enabled: Boolean
+  description: String
+  sourceCode: String
+  sandboxConfigId: ID
+  outputConfigs: [AnnotationConfigInput!]
+
+  """
+  Project-specific CODE input mapping patch. Omit to preserve the current setting, use null to inherit the evaluator input mapping, or provide an object to override it.
+  """
+  inputMapping: EvaluatorInputMappingInput
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
+}
+
+input UpdateProjectDecisionEvaluatorInput {
+  projectEvaluatorId: ID!
+  name: Identifier
+  description: String
+  inputMapping: EvaluatorInputMappingInput
+  decisionVersionId: ID
+  decisionVersion: DecisionVersionInput = null
+  scoringPolicy: DecisionScoringPolicyInput
+  samplingRate: Float!
+
+  """The evaluation target is fixed at project evaluator creation."""
+  evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  enabled: Boolean
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int
+}
+
+input UpdateProjectLLMEvaluatorInput {
+  projectEvaluatorId: ID!
+  name: Identifier!
+  promptVersion: ChatPromptVersionInput!
+  outputConfigs: [AnnotationConfigInput!]!
+  inputMapping: EvaluatorInputMappingInput!
+  samplingRate: Float!
+
+  """The evaluation target is fixed at project evaluator creation."""
+  evaluationTarget: EvaluationTarget!
+  filterCondition: String!
+  enabled: Boolean
+  description: String
+  promptVersionId: ID
+
+  """
+  Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
+  """
+  evaluationDelaySeconds: Int
+
+  """
+  Describes the evaluator's inputs, in the shape inputSchema returns. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is rejected. Omit to keep the stored descriptions of the inputs still declared, or use null to clear them.
+  """
+  inputSchema: JSON
 }
 
 input UpdateSandboxConfigInput {

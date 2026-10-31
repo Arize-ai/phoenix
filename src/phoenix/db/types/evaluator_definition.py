@@ -1,0 +1,191 @@
+"""
+Pydantic models describing the evaluator a request asked to run.
+
+A definition is either an inline draft (an LLM judge prompt or a piece of code) or a
+reference to a stored evaluator. It is what the ``evaluatorPreviews`` mutation receives, and
+what an experiment evaluator task freezes in its ``definition`` JSON column so the experiment
+runner can rebuild the same evaluator when it starts or resumes the experiment.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated, Literal, Union
+
+from pydantic import ConfigDict, Field, RootModel
+
+from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
+from phoenix.db.types.db_helper_types import DBBaseModel
+from phoenix.db.types.decision_evaluators import (
+    DecisionScoringPolicy,
+    derive_decision_output_configs,
+)
+from phoenix.db.types.decisions import DecisionQuestion, DecisionState
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptInvocationParameters,
+    PromptResponseFormat,
+    PromptTemplateFormat,
+    PromptTools,
+)
+
+
+class _FrozenDBModel(DBBaseModel):
+    model_config = ConfigDict(frozen=True)
+
+
+class EvaluatorSource(_FrozenDBModel):
+    """Where a task's evaluator came from, so a calibration experiment can be traced back.
+
+    Every field is optional: a draft that was never saved has none of them, a task opened
+    from the evaluators table has an evaluator (and, for an LLM evaluator, the prompt
+    version it showed), and one opened from a dataset's or a project's evaluators also
+    names that binding, whose input mapping is what the task carried.
+    """
+
+    evaluator_id: int | None = None
+    prompt_version_id: int | None = None
+    decision_version_id: int | None = None
+    dataset_evaluator_id: int | None = None
+    project_evaluator_id: int | None = None
+
+
+class InlineLLMEvaluatorPromptVersion(_FrozenDBModel):
+    """The judge prompt and model of an inline LLM evaluator, frozen as drafted."""
+
+    template_format: PromptTemplateFormat
+    template: PromptChatTemplate
+    tools: PromptTools | None = None
+    response_format: PromptResponseFormat | None = None
+    invocation_parameters: PromptInvocationParameters
+    model_provider: ModelProvider
+    model_name: str
+    custom_provider_id: int | None = None
+
+
+class InlineLLMEvaluatorDefinition(_FrozenDBModel):
+    """An LLM evaluator drafted inline: it exists only in this definition."""
+
+    type: Literal["inline_llm_evaluator"]
+    name: str
+    description: str | None = None
+    prompt_version: InlineLLMEvaluatorPromptVersion
+    output_configs: list[CategoricalOutputConfig]
+    source: EvaluatorSource | None = None
+
+
+class InlineCodeEvaluatorDefinition(_FrozenDBModel):
+    """A code evaluator drafted inline, run in the named sandbox configuration."""
+
+    type: Literal["inline_code_evaluator"]
+    name: str
+    description: str | None = None
+    language: str
+    source_code: str
+    sandbox_config_id: int
+    output_configs: list[OutputConfigType]
+    source: EvaluatorSource | None = None
+
+
+class StoredCodeEvaluatorDefinition(_FrozenDBModel):
+    """A stored code evaluator.
+
+    Without ``code_evaluator_version_id`` the evaluator runs at its current version, which
+    is what a preview wants. An experiment pins the version, sandbox configuration and
+    language before freezing the definition, so the evaluator rebuilt on a resume runs the
+    same code in the same environment as the one that started. Any of the three left unset
+    is read from the evaluator's current row.
+    """
+
+    type: Literal["code_evaluator"]
+    code_evaluator_id: int
+    code_evaluator_version_id: int | None = None
+    sandbox_config_id: int | None = None
+    language: str | None = None
+    source: EvaluatorSource | None = None
+
+
+class BuiltInEvaluatorDefinition(_FrozenDBModel):
+    """One of Phoenix's built-in evaluators."""
+
+    type: Literal["builtin_evaluator"]
+    builtin_evaluator_id: int
+
+
+class InlineDecisionEvaluatorDefinition(_FrozenDBModel):
+    """A self-contained decision evaluator definition with scoring and provider identity."""
+
+    type: Literal["inline_decision_evaluator"]
+    name: str
+    description: str | None = None
+    template_format: PromptTemplateFormat
+    state: DecisionState
+    questions: list[DecisionQuestion]
+    model_provider: ModelProvider
+    model_name: str
+    custom_provider_id: int | None = None
+    scoring_policy: DecisionScoringPolicy = Field(default_factory=DecisionScoringPolicy)
+    source: EvaluatorSource | None = None
+
+
+class StoredDecisionEvaluatorDefinition(_FrozenDBModel):
+    type: Literal["decision_evaluator"]
+    decision_evaluator_id: int
+    source: EvaluatorSource | None = None
+
+
+class DecisionEvaluatorSnapshot(_FrozenDBModel):
+    """Frozen dataset decision evaluator binding stored on an ExperimentJob."""
+
+    definition: InlineDecisionEvaluatorDefinition
+    input_mapping: InputMapping
+    project_id: int
+
+    @property
+    def dataset_evaluator_id(self) -> int:
+        assert self.definition.source is not None
+        assert self.definition.source.dataset_evaluator_id is not None
+        return self.definition.source.dataset_evaluator_id
+
+    @property
+    def name(self) -> str:
+        return self.definition.name
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        return derive_decision_output_configs(
+            self.definition.questions, self.definition.scoring_policy
+        )
+
+
+EvaluatorDefinition = Annotated[
+    Union[
+        InlineLLMEvaluatorDefinition,
+        InlineCodeEvaluatorDefinition,
+        StoredCodeEvaluatorDefinition,
+        BuiltInEvaluatorDefinition,
+        InlineDecisionEvaluatorDefinition,
+        StoredDecisionEvaluatorDefinition,
+    ],
+    Field(discriminator="type"),
+]
+
+
+class EvaluatorDefinitionRootModel(RootModel[EvaluatorDefinition]):
+    root: EvaluatorDefinition
+
+
+def evaluator_kind_of(
+    definition: EvaluatorDefinition,
+) -> Literal["LLM", "CODE", "BUILTIN", "DECISION"]:
+    """The kind of evaluator a definition builds, as stored in ``evaluators.kind``."""
+    if isinstance(
+        definition, (InlineDecisionEvaluatorDefinition, StoredDecisionEvaluatorDefinition)
+    ):
+        return "DECISION"
+    if isinstance(definition, InlineLLMEvaluatorDefinition):
+        return "LLM"
+    if isinstance(definition, (InlineCodeEvaluatorDefinition, StoredCodeEvaluatorDefinition)):
+        return "CODE"
+    return "BUILTIN"

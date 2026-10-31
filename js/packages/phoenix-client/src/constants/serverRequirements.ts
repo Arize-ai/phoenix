@@ -248,6 +248,15 @@ export const UNASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
   minServerVersion: [17, 16, 0],
 };
 
+export const CREATE_PROMPT_CUSTOM_PROVIDER: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "custom_provider_id",
+  parameterLocation: "body",
+  route: "POST /v1/prompts",
+  minServerVersion: [21, 0, 0],
+  description: "Prompt versions that target a custom model provider",
+};
+
 export const AGENT_SESSION_CREATE: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -304,6 +313,146 @@ export const AGENT_SESSION_MESSAGES: RouteRequirement = {
   minServerVersion: [20, 0, 0],
 };
 
+export const LIST_SANDBOX_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/sandbox_configs",
+  minServerVersion: [21, 0, 0],
+};
+
+export const LIST_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const CREATE_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/evaluators/{evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const GET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/evaluators/{evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const PATCH_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/evaluators/{evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const LIST_EVALUATOR_VERSIONS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/evaluators/{evaluator_id}/versions",
+  minServerVersion: [21, 0, 0],
+};
+
+export const CREATE_EVALUATOR_VERSION: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/evaluators/{evaluator_id}/versions",
+  minServerVersion: [21, 0, 0],
+};
+
+export const CREATE_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/datasets/{dataset_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const LIST_DATASET_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/datasets/{dataset_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const GET_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/dataset_evaluators/{dataset_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const PATCH_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/dataset_evaluators/{dataset_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_DATASET_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/dataset_evaluators/{dataset_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_DATASET_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const CREATE_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "POST",
+  path: "/v1/projects/{project_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const LIST_PROJECT_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/projects/{project_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
+export const GET_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/project_evaluators/{project_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const PATCH_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "PATCH",
+  path: "/v1/project_evaluators/{project_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_PROJECT_EVALUATOR: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/project_evaluators/{project_evaluator_id}",
+  minServerVersion: [21, 0, 0],
+};
+
+export const DELETE_PROJECT_EVALUATORS: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/projects/{project_identifier}/evaluators",
+  minServerVersion: [21, 0, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -342,6 +491,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   SET_PROJECT_ANNOTATION_CONFIGS,
   ASSIGN_PROJECT_ANNOTATION_CONFIG,
   UNASSIGN_PROJECT_ANNOTATION_CONFIG,
+  CREATE_PROMPT_CUSTOM_PROVIDER,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
   AGENT_SESSION_GET,
@@ -350,4 +500,24 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   AGENT_SESSION_TOOL_OUTPUTS,
   AGENT_SESSION_CHAT,
   AGENT_SESSION_MESSAGES,
+  LIST_EVALUATORS,
+  LIST_SANDBOX_CONFIGS,
+  CREATE_EVALUATOR,
+  DELETE_EVALUATOR,
+  GET_EVALUATOR,
+  PATCH_EVALUATOR,
+  LIST_EVALUATOR_VERSIONS,
+  CREATE_EVALUATOR_VERSION,
+  CREATE_DATASET_EVALUATOR,
+  LIST_DATASET_EVALUATORS,
+  GET_DATASET_EVALUATOR,
+  PATCH_DATASET_EVALUATOR,
+  DELETE_DATASET_EVALUATOR,
+  DELETE_DATASET_EVALUATORS,
+  CREATE_PROJECT_EVALUATOR,
+  LIST_PROJECT_EVALUATORS,
+  GET_PROJECT_EVALUATOR,
+  PATCH_PROJECT_EVALUATOR,
+  DELETE_PROJECT_EVALUATOR,
+  DELETE_PROJECT_EVALUATORS,
 ] as const;

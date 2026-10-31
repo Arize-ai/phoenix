@@ -9,6 +9,9 @@ from phoenix.server.api.mutations.chat_mutations import (
 from phoenix.server.api.mutations.dataset_label_mutations import DatasetLabelMutationMixin
 from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
 from phoenix.server.api.mutations.dataset_split_mutations import DatasetSplitMutationMixin
+from phoenix.server.api.mutations.decision_evaluator_mutations import DecisionEvaluatorMutationMixin
+from phoenix.server.api.mutations.decision_label_mutations import DecisionLabelMutationMixin
+from phoenix.server.api.mutations.decision_mutations import DecisionMutationMixin
 from phoenix.server.api.mutations.document_annotations_mutations import (
     DocumentAnnotationMutationMixin,
 )
@@ -33,6 +36,7 @@ from phoenix.server.api.mutations.prompt_label_mutations import PromptLabelMutat
 from phoenix.server.api.mutations.prompt_mutations import PromptMutationMixin
 from phoenix.server.api.mutations.prompt_version_tag_mutations import PromptVersionTagMutationMixin
 from phoenix.server.api.mutations.sandbox_config_mutations import SandboxConfigMutationMixin
+from phoenix.server.api.mutations.saved_decision_mutations import SavedDecisionMutationMixin
 from phoenix.server.api.mutations.secret_mutations import SecretMutationMixin
 from phoenix.server.api.mutations.span_annotations_mutations import SpanAnnotationMutationMixin
 from phoenix.server.api.mutations.system_settings_mutations import SystemSettingsMutationMixin
@@ -50,6 +54,7 @@ class Mutation(
     DatasetLabelMutationMixin,
     DatasetMutationMixin,
     DatasetSplitMutationMixin,
+    DecisionMutationMixin,
     DocumentAnnotationMutationMixin,
     EvaluatorMutationMixin,
     ExperimentMutationMixin,
@@ -61,7 +66,10 @@ class Mutation(
     ProjectTraceRetentionPolicyMutationMixin,
     PromptMutationMixin,
     PromptVersionTagMutationMixin,
+    SavedDecisionMutationMixin,
     PromptLabelMutationMixin,
+    DecisionLabelMutationMixin,
+    DecisionEvaluatorMutationMixin,
     SandboxConfigMutationMixin,
     SecretMutationMixin,
     SpanAnnotationMutationMixin,

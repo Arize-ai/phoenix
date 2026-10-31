@@ -21,24 +21,26 @@ import { Counter } from "@phoenix/components/core/counter";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
+import { EditDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDecisionDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
+import {
+  CodeDatasetEvaluatorVersionsSkeleton,
+  CodeEvaluatorVersions,
+} from "@phoenix/components/evaluators/CodeEvaluatorVersions";
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorDetails";
-import {
-  CodeDatasetEvaluatorVersions,
-  CodeDatasetEvaluatorVersionsSkeleton,
-} from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorVersions";
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
+import { DecisionDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/DecisionDatasetEvaluatorDetails";
 import { LLMDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/LLMDatasetEvaluatorDetails";
 
 const mainCSS = css`
@@ -133,8 +135,9 @@ function DatasetEvaluatorDetailsPageContent({
   const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
   const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
   const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
-  const versionsCount =
-    evaluator.__typename === "CodeEvaluator" ? evaluator.versionCount : 0;
+  const isDecisionEvaluator = evaluator.__typename === "DecisionEvaluator";
+  const codeEvaluatorId = isCodeEvaluator ? evaluator.id : undefined;
+  const versionsCount = isCodeEvaluator ? evaluator.versionCount : 0;
 
   return (
     <main css={mainCSS}>
@@ -161,9 +164,9 @@ function DatasetEvaluatorDetailsPageContent({
       <Tabs defaultSelectedKey="configuration">
         <TabList>
           <Tab id="configuration">Configuration</Tab>
-          {isCodeEvaluator && (
+          {codeEvaluatorId != null && (
             <Tab id="versions">
-              Versions <Counter>{versionsCount}</Counter>
+              Versions <Counter variant="quiet">{versionsCount}</Counter>
             </Tab>
           )}
           <Tab id="spans">Spans</Tab>
@@ -183,6 +186,11 @@ function DatasetEvaluatorDetailsPageContent({
                     datasetEvaluatorRef={datasetEvaluator}
                   />
                 )}
+                {isDecisionEvaluator && (
+                  <DecisionDatasetEvaluatorDetails
+                    datasetEvaluatorRef={datasetEvaluator}
+                  />
+                )}
                 {isBuiltInEvaluator && (
                   <BuiltInDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
@@ -191,19 +199,16 @@ function DatasetEvaluatorDetailsPageContent({
                 {isCodeEvaluator && (
                   <CodeDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
-                    sandboxBackends={data.sandboxBackends}
                   />
                 )}
               </Flex>
             </View>
           </View>
         </LazyTabPanel>
-        {isCodeEvaluator && (
+        {codeEvaluatorId != null && (
           <LazyTabPanel id="versions">
             <Suspense fallback={<CodeDatasetEvaluatorVersionsSkeleton />}>
-              <CodeDatasetEvaluatorVersions
-                datasetEvaluatorId={datasetEvaluator.id}
-              />
+              <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
             </Suspense>
           </LazyTabPanel>
         )}
@@ -217,6 +222,15 @@ function DatasetEvaluatorDetailsPageContent({
       </Tabs>
       {isLLMEvaluator && (
         <EditLLMDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluator.id}
+          datasetId={datasetId}
+          isOpen={isEditSlideoverOpen}
+          onOpenChange={setIsEditSlideoverOpen}
+          onUpdate={() => revalidate()}
+        />
+      )}
+      {isDecisionEvaluator && (
+        <EditDecisionDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluator.id}
           datasetId={datasetId}
           isOpen={isEditSlideoverOpen}

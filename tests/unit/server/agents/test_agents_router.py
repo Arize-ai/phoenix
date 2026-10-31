@@ -7,6 +7,7 @@ public chat route. The LLM is the only mocked seam in behavioral tests.
 import asyncio
 import json
 import warnings
+from asyncio import sleep
 from collections.abc import AsyncIterator, MutableMapping, Sequence
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -2241,6 +2242,60 @@ async def test_persist_db_traces_merge_with_session_does_not_warn(db: DbSessionF
         assert persisted_trace.project_session_rowid == project_session.id
 
 
+async def test_persist_db_traces_advances_session_liveness_across_turns(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = models.Project(name="pxi_dev")
+        session.add(project)
+        await session.flush()
+        project_id = project.id
+
+    first_trace = _build_backend_trace(
+        project_id=project_id,
+        trace_id="1" * 32,
+        span_id="1" * 16,
+    )
+    first_trace.project_session = models.ProjectSession(
+        session_id="pxi-session-liveness",
+        project_id=project_id,
+        start_time=first_trace.start_time,
+        end_time=first_trace.end_time,
+    )
+    async with db() as session:
+        await _persist_db_traces(session=session, db_traces=[first_trace])
+    async with db() as session:
+        first_seen_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
+                models.ProjectSession.session_id == "pxi-session-liveness"
+            )
+        )
+    assert first_seen_at is not None
+
+    await sleep(0.01)
+    second_trace = _build_backend_trace(
+        project_id=project_id,
+        trace_id="2" * 32,
+        span_id="2" * 16,
+    )
+    second_trace.project_session = models.ProjectSession(
+        session_id="pxi-session-liveness",
+        project_id=project_id,
+        start_time=second_trace.start_time,
+        end_time=second_trace.end_time,
+    )
+    async with db() as session:
+        await _persist_db_traces(session=session, db_traces=[second_trace])
+    async with db() as session:
+        second_seen_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
+                models.ProjectSession.session_id == "pxi-session-liveness"
+            )
+        )
+    assert second_seen_at is not None
+    assert second_seen_at > first_seen_at
+
+
 def _build_backend_span(
     *,
     span_id: str,
@@ -3670,6 +3725,23 @@ async def test_create_session_route_rejects_long_title(
     )
 
     assert response.status_code == 422
+
+
+async def test_create_session_route_rejects_a_decision_only_provider(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "/v1/agent_sessions",
+        json=_create_session_body(
+            model={"providerType": "builtin", "provider": "TYPESAFE", "modelName": "jev"}
+        ),
+    )
+
+    assert response.status_code == 400
+    assert "offers decision models only" in response.text
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSession))).all() == []
 
 
 async def test_create_session_route_yields_a_chattable_session(

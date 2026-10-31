@@ -34,6 +34,7 @@ function annotationResult({
   return {
     evaluatorName: name,
     annotation: {
+      decision: null,
       id,
       name,
       label,
@@ -79,6 +80,7 @@ function TestedEvaluator({
                   description: "",
                   isBuiltin: false,
                   includeExplanation: true,
+                  inputDescriptions: {},
                   inputMapping: { literalMapping: {}, pathMapping: {} },
                 },
                 outputConfigs,

@@ -1096,6 +1096,9 @@ class TestSandboxAndCodeEvaluatorPermissions:
 
     _SOURCE = "def evaluate(output):\n    return {'score': 1.0}"
     _INPUT_MAPPING: dict[str, dict[str, Any]] = {"literalMapping": {}, "pathMapping": {}}
+    _OUTPUT_CONFIGS: list[dict[str, Any]] = [
+        {"continuous": {"name": "score", "optimizationDirection": "MAXIMIZE"}}
+    ]
 
     @pytest.mark.parametrize(
         "role_or_user",
@@ -1138,6 +1141,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                     "sourceCode": self._SOURCE,
                     "sandboxConfigId": sandbox_config_id,
                     "inputMapping": self._INPUT_MAPPING,
+                    "outputConfigs": self._OUTPUT_CONFIGS,
                 }
             },
         )["createCodeEvaluator"]["evaluator"]["id"]
@@ -1201,6 +1205,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                     "sourceCode": self._SOURCE,
                     "sandboxConfigId": sandbox_config_id,
                     "inputMapping": self._INPUT_MAPPING,
+                    "outputConfigs": self._OUTPUT_CONFIGS,
                 }
             },
         )

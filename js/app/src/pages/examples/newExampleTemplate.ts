@@ -20,7 +20,9 @@ const EMPTY_TEMPLATE: NewExampleTemplate = {
  * starts from empty objects.
  */
 export function getNewExampleTemplate(
-  rows: readonly DatasetExampleTableRow[]
+  rows: ReadonlyArray<
+    Pick<DatasetExampleTableRow, "input" | "output" | "metadata" | "isNew">
+  >
 ): NewExampleTemplate {
   const sampleRow = rows.find((row) => !row.isNew);
   if (!sampleRow) {

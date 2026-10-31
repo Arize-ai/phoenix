@@ -16,7 +16,11 @@ function isGraphQLMutationResponse(response: Response, operationName: string) {
 async function createPromptLabel(page: Page, labelName: string) {
   await page.goto("/settings/prompts");
   await page.waitForURL("**/settings/prompts");
-  await page.getByRole("button", { name: "New Label" }).click();
+  await page
+    .locator(".card")
+    .filter({ has: page.getByRole("heading", { name: "Prompt Labels" }) })
+    .getByRole("button", { name: "New Label" })
+    .click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByLabel("Label Name").fill(labelName);
   await Promise.all([

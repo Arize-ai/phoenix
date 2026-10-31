@@ -44,6 +44,7 @@ import type {
   CanonicalToolChoice,
   CanonicalToolDefinition,
   ChatMessage,
+  DecisionPromptDraft,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
@@ -55,6 +56,8 @@ import {
   createNormalizedPlaygroundInstance,
   generateMessageId,
   generateToolId,
+  getTemplateVariablesPath,
+  isDecisionInstance,
 } from "@phoenix/store/playground";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
@@ -63,8 +66,8 @@ import {
 } from "@phoenix/utils/jsonUtils";
 
 import type {
-  ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
+  PromptTaskInput,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
   ChatCompletionInput,
@@ -84,6 +87,11 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
+import {
+  buildDecisionInstanceFromSpanAttributes,
+  extractDecisionVariables,
+  isDecisionSpanAttributes,
+} from "./decisionUtils";
 import {
   getVisibleInvocationParameterSpecs,
   getDefaultInvocationConfig,
@@ -1106,6 +1114,7 @@ export function transformSpanAttributesToPlaygroundInstance(
    */
   parsingErrors: string[];
   playgroundInput?: PlaygroundInput;
+  templateFormat?: TemplateFormat;
 } {
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
   const basePlaygroundInstance: PlaygroundInstance = {
@@ -1134,6 +1143,17 @@ export function transformSpanAttributesToPlaygroundInstance(
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
+  }
+
+  // A decision span replays as a decision instance: the request body on the
+  // span becomes the editable request and the response its first output.
+  if (isDecisionSpanAttributes(parsedAttributes)) {
+    return buildDecisionInstanceFromSpanAttributes({
+      base: basePlaygroundInstance,
+      spanId: span.id,
+      attributes: parsedAttributes,
+      status: { code: span.statusCode, message: span.statusMessage },
+    });
   }
 
   const baseModelConfigResult =
@@ -1255,6 +1275,14 @@ export const extractVariablesFromInstance = ({
   instance: PlaygroundInstance;
   templateFormat: TemplateFormat;
 }) => {
+  // A decision instance carries its variables in the request's text fields;
+  // its chat template is the one it restores when switched back to an LLM.
+  if (isDecisionInstance(instance)) {
+    return extractDecisionVariables({
+      draft: instance.decisionPrompt,
+      templateFormat,
+    });
+  }
   if (templateFormat === TemplateFormats.NONE) {
     return [];
   }
@@ -1301,9 +1329,6 @@ export const extractVariablesFromInstances = ({
   instances: PlaygroundInstance[];
   templateFormat: TemplateFormat;
 }) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return [];
-  }
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
@@ -1344,13 +1369,13 @@ export const getVariablesMapFromInstances = ({
   templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return { variablesMap: {}, variableKeys: [] };
-  }
   const variableKeys = extractVariablesFromInstances({
     instances,
     templateFormat,
   });
+  if (variableKeys.length === 0) {
+    return { variablesMap: {}, variableKeys: [] };
+  }
 
   const variableValueCache = input.variablesValueCache ?? {};
 
@@ -1463,6 +1488,8 @@ export const createToolCallForProvider = (
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
       return createOpenAIToolCall();
+    case "TYPESAFE":
+      throw new Error("Decision models do not support chat tool calls");
     default:
       return assertUnreachable(provider);
   }
@@ -1550,19 +1577,25 @@ const getBaseChatCompletionInput = ({
 };
 
 /**
- * Denormalize a playground instance with the actual messages
+ * Denormalize a playground instance with the actual messages and decision prompt
  *
  * A playground instance differs from a playground normalized instance in that it contains the actual messages
- * and not just the messageIds. This function will replace the messageIds with the actual messages.
+ * and decision prompts and not just their ids. This function will replace the ids with the actual values.
  */
 export const denormalizePlaygroundInstance = (
-  instance: PlaygroundNormalizedInstance,
-  allInstanceMessages: Record<number, ChatMessage>
+  { decisionPromptId, ...instance }: PlaygroundNormalizedInstance,
+  allInstanceMessages: Record<number, ChatMessage>,
+  allInstanceDecisionPrompts: Record<number, DecisionPromptDraft>
 ): PlaygroundInstance => {
+  const decisionPrompt =
+    decisionPromptId != null
+      ? allInstanceDecisionPrompts[decisionPromptId]
+      : decisionPromptId;
   if (instance.template.__type === "chat") {
     const { messageIds: _, ...rest } = instance.template;
     return {
       ...instance,
+      decisionPrompt,
       template: {
         ...rest,
         messages: instance.template.messageIds.map(
@@ -1571,8 +1604,11 @@ export const denormalizePlaygroundInstance = (
       },
     } satisfies PlaygroundInstance;
   }
-  // it cannot be a normalized instance if it is not a chat template
-  return instance as PlaygroundInstance;
+  return {
+    ...instance,
+    decisionPrompt,
+    template: instance.template,
+  } satisfies PlaygroundInstance;
 };
 
 /**
@@ -2196,6 +2232,7 @@ export const getChatCompletionInput = ({
     templateFormat,
     input,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionPrompts,
     repetitions,
     streaming,
   } = playgroundStore.getState();
@@ -2210,7 +2247,11 @@ export const getChatCompletionInput = ({
 
   // Compute template variables for mustache / f-string substitution
   const playgroundInstances = instances.map((i) =>
-    denormalizePlaygroundInstance(i, instanceMessages)
+    denormalizePlaygroundInstance(
+      i,
+      instanceMessages,
+      allInstanceDecisionPrompts
+    )
   );
   const { variablesMap } = getVariablesMapFromInstances({
     instances: playgroundInstances,
@@ -2221,7 +2262,8 @@ export const getChatCompletionInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionPrompts
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
@@ -2260,7 +2302,7 @@ export const getChatCompletionInput = ({
  * preferring the scaffold value and falling back to the trimmed store value.
  * An empty result becomes null so the server applies its generated default.
  */
-function resolveNextExperimentField(
+export function resolveNextExperimentField(
   scaffoldValue: string | null | undefined,
   storeValue: string | null | undefined
 ): string | null {
@@ -2268,26 +2310,23 @@ function resolveNextExperimentField(
 }
 
 /**
- * Gets chat completion input for running over a dataset.
- *
- * Builds the same hub-and-spoke ChatCompletionOverDatasetInput shape as
- * getChatCompletionInput, but uses the store's templateFormat (MUSTACHE /
- * F_STRING / NONE) rather than hardcoding "NONE", so dataset-level variable
- * substitution still works.
+ * The prompt task a dataset run creates an experiment for: the instance's
+ * prompt version and connection, the dataset paths it reads, and the dataset
+ * evaluators that score its outputs. Uses the store's templateFormat
+ * (MUSTACHE / F_STRING / NONE) rather than hardcoding "NONE", so dataset-level
+ * variable substitution still works.
  */
-export const getChatCompletionOverDatasetInput = ({
+export const getPromptTaskInput = ({
   playgroundStore,
   instanceId,
   credentials,
   datasetId,
-  splitIds,
   evaluatorMappings,
 }: {
   playgroundStore: PlaygroundStore;
   instanceId: number;
   credentials: CredentialsState;
   datasetId: string;
-  splitIds?: string[];
   /**
    * Record of datasetEvaluatorId to name and input mappings
    */
@@ -2295,7 +2334,7 @@ export const getChatCompletionOverDatasetInput = ({
     string,
     { name: string; inputMapping: EvaluatorInputMappingInput }
   >;
-}): ChatCompletionOverDatasetInput => {
+}): PromptTaskInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
     instanceId,
@@ -2305,11 +2344,9 @@ export const getChatCompletionOverDatasetInput = ({
   const {
     instances,
     templateFormat,
-    repetitions,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionPrompts,
     stateByDatasetId,
-    recordExperiments,
-    nextExperimentScaffold,
     streaming,
   } = playgroundStore.getState();
 
@@ -2324,7 +2361,8 @@ export const getChatCompletionOverDatasetInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionPrompts
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
@@ -2343,18 +2381,25 @@ export const getChatCompletionOverDatasetInput = ({
       baseChatCompletionVariables.invocationParameters ?? [],
   });
 
-  const playgroundDatasetState = stateByDatasetId[datasetId];
-  const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
-    playgroundDatasetState ?? {};
+  const { appendedMessagesPath } = stateByDatasetId[datasetId] ?? {};
+
+  // The prompt kind's path; the server reads an empty one as the example root.
+  const templateVariablesPath =
+    getTemplateVariablesPath({
+      stateByDatasetId,
+      datasetId,
+      mode: "task",
+    }) ?? "";
 
   return {
     promptVersion,
+    promptVersionId: instance.prompt?.version ?? null,
+    promptName: instance.prompt?.name,
     connectionConfig: baseChatCompletionVariables.connectionConfig,
     headers: baseChatCompletionVariables.headers,
-    credentials: baseChatCompletionVariables.credentials,
-    repetitions,
-    datasetId,
-    splitIds: splitIds ?? null,
+    appendedMessagesPath,
+    templateVariablesPath,
+    streamModelOutput: streaming,
     evaluators: Object.entries(evaluatorMappings).map(
       ([datasetEvaluatorId, { name, inputMapping }]) => ({
         id: datasetEvaluatorId,
@@ -2362,22 +2407,6 @@ export const getChatCompletionOverDatasetInput = ({
         inputMapping,
       })
     ),
-    appendedMessagesPath,
-    templateVariablesPath: templateVariablesPath ?? "",
-    promptName: instance.prompt?.name,
-    promptVersionId: instance.prompt?.version ?? null,
-    createEphemeralExperiment: !recordExperiments,
-    experimentName: resolveNextExperimentField(
-      nextExperimentScaffold?.name,
-      playgroundDatasetState?.experimentName
-    ),
-    experimentDescription: resolveNextExperimentField(
-      nextExperimentScaffold?.description,
-      playgroundDatasetState?.experimentDescription
-    ),
-    experimentMetadata: nextExperimentScaffold?.metadata ?? null,
-    streamModelOutput: streaming,
-    maxConcurrency: maxConcurrency ?? 10,
   };
 };
 

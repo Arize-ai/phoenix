@@ -2,6 +2,7 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { SPAN_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/spanEvaluatorTemplate";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
@@ -10,6 +11,7 @@ import {
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { PLAYGROUND_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import { createDecisionDraft } from "@phoenix/pages/playground/decisionUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   getDefaultInvocationConfig,
@@ -18,19 +20,27 @@ import {
 } from "@phoenix/pages/playground/providerAdapters";
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
+import { createPlaygroundEvaluatorTask } from "./playgroundTask";
+import { DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE } from "./templateVariablesPath";
 import {
   type ChatMessage,
+  type DecisionPromptDraft,
   type ExperimentScaffold,
   type GenAIOperationType,
   type InitialPlaygroundState,
+  type ModelConfig,
   type PlaygroundChatTemplate,
   type PlaygroundError,
+  type PlaygroundEvaluatorTaskKind,
   type PlaygroundInstance,
+  type PlaygroundInstanceSource,
   type PlaygroundNormalizedChatTemplate,
   type PlaygroundNormalizedInstance,
   type PlaygroundRepetitionStatus,
   type PlaygroundState,
+  type PlaygroundStateByDatasetId,
   PlaygroundStateByDatasetIdSchema,
+  type PlaygroundMode,
   type PlaygroundTextCompletionTemplate,
 } from "./types";
 
@@ -39,6 +49,7 @@ let playgroundRunId = 0;
 // This value must be truthy in order for message re-ordering to work
 let playgroundMessageId = 1;
 let playgroundToolId = 0;
+let playgroundDecisionPromptId = 0;
 
 /**
  * Generates a new playground instance ID
@@ -54,6 +65,11 @@ export const generateMessageId = () => playgroundMessageId++;
  * Generates a new playground tool ID
  */
 export const generateToolId = () => playgroundToolId++;
+
+/**
+ * Generates a new playground decision prompt id
+ */
+export const generateDecisionPromptId = () => playgroundDecisionPromptId++;
 
 /**
  * Generates a new playground run ID
@@ -103,6 +119,28 @@ export const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   ],
 });
 
+/**
+ * The judge prompt a new LLM evaluator draft starts from. An evaluator task
+ * judges the dataset example as the span it was converted from, so it opens
+ * on the span template (`input` and `output`, no `reference`) rather than the
+ * reference-answer rubric the dataset evaluator form opens with.
+ */
+export const generateJudgeChatTemplate = (): PlaygroundChatTemplate => ({
+  __type: "chat",
+  messages: [
+    {
+      id: generateMessageId(),
+      role: "system",
+      content: SPAN_EVALUATOR_TEMPLATE.systemPrompt,
+    },
+    {
+      id: generateMessageId(),
+      role: "user",
+      content: SPAN_EVALUATOR_TEMPLATE.userPrompt,
+    },
+  ],
+});
+
 export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
   return {
     template: {
@@ -118,6 +156,81 @@ export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
     ),
   };
 };
+
+/**
+ * Moves an instance's decision prompt out of the instance and under a new
+ * decision prompt id, the way {@link normalizeChatTemplate} moves messages.
+ * An instance without the field keeps it absent, so merging the result over
+ * another instance leaves that instance's decision prompt alone.
+ */
+function normalizeDecisionPrompt<
+  T extends Pick<PlaygroundInstance, "decisionPrompt">,
+>(
+  instance: T
+): {
+  instance: Omit<T, "decisionPrompt"> &
+    Pick<PlaygroundNormalizedInstance, "decisionPromptId">;
+  decisionPrompts: Record<number, DecisionPromptDraft>;
+} {
+  if (!("decisionPrompt" in instance)) {
+    return { instance, decisionPrompts: {} };
+  }
+  const { decisionPrompt, ...rest } = instance;
+  if (decisionPrompt == null) {
+    return {
+      instance: { ...rest, decisionPromptId: decisionPrompt },
+      decisionPrompts: {},
+    };
+  }
+  const decisionPromptId = generateDecisionPromptId();
+  return {
+    instance: { ...rest, decisionPromptId },
+    decisionPrompts: { [decisionPromptId]: decisionPrompt },
+  };
+}
+
+/**
+ * An instance ready for the store, with the messages its template references
+ * and its decision prompt.
+ */
+type NormalizedInstanceInsert = {
+  instance: PlaygroundNormalizedInstance;
+  messages: Record<number, ChatMessage>;
+  decisionPrompts: Record<number, DecisionPromptDraft>;
+};
+
+/**
+ * Normalizes a denormalized instance into the store's shape under the given
+ * id, returning the messages to merge into `allInstanceMessages` and the
+ * decision prompt to merge into `allInstanceDecisionPrompts`.
+ */
+function normalizeInstance(
+  instance: Omit<PlaygroundInstance, "id">,
+  id: number
+): NormalizedInstanceInsert {
+  const { instance: withoutDecisionPrompt, decisionPrompts } =
+    normalizeDecisionPrompt(instance);
+
+  if (withoutDecisionPrompt.template.__type !== "chat") {
+    return {
+      instance: {
+        ...withoutDecisionPrompt,
+        template: withoutDecisionPrompt.template,
+        id,
+      },
+      messages: {},
+      decisionPrompts,
+    };
+  }
+
+  const normalized = normalizeChatTemplate(withoutDecisionPrompt.template);
+
+  return {
+    instance: { ...withoutDecisionPrompt, template: normalized.template, id },
+    messages: normalized.messages,
+    decisionPrompts,
+  };
+}
 
 const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   __type: "text_completion",
@@ -144,6 +257,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
       },
     },
     activeRunId: null,
+    task: { type: "prompt" },
   }) satisfies Partial<PlaygroundInstance>;
 
 /**
@@ -167,6 +281,243 @@ export function createNormalizedPlaygroundInstance() {
 }
 
 /**
+ * A fresh evaluator draft as a denormalized instance. An LLM draft carries
+ * the default judge prompt as its template; a code draft's template is
+ * empty because the code, not a prompt, is what runs.
+ */
+export function createEvaluatorTaskInstance({
+  kind,
+  model,
+}: {
+  kind: PlaygroundEvaluatorTaskKind;
+  model?: ModelConfig;
+}): Omit<PlaygroundInstance, "id"> {
+  const params = DEFAULT_INSTANCE_PARAMS();
+  const chatModel = model?.modelType === "DECISION" ? undefined : model;
+
+  return {
+    ...params,
+    model: chatModel ?? params.model,
+    template:
+      kind === "LLM"
+        ? generateJudgeChatTemplate()
+        : { __type: "chat", messages: [] },
+    // The judge must call its output tool.
+    toolChoice: kind === "LLM" ? { type: "ONE_OR_MORE" } : params.toolChoice,
+    selectedRepetitionNumber: 1,
+    task: {
+      type: "evaluator",
+      evaluator: createPlaygroundEvaluatorTask({ kind }),
+    },
+  };
+}
+
+/**
+ * A fresh decision instance: the default decision prompt, and a decision model the
+ * user still has to pick unless the page already holds one. The chat model it
+ * replaces is kept, so the model picker can switch back.
+ */
+export function createDecisionTaskInstance({
+  model,
+  llmModel,
+}: {
+  /** The model the page holds; a decision model is kept, a chat one is not. */
+  model?: ModelConfig;
+  /** The chat model to switch back to; the page's, or the default. */
+  llmModel?: ModelConfig;
+} = {}): Omit<PlaygroundInstance, "id"> {
+  const params = DEFAULT_INSTANCE_PARAMS();
+  const chatModel = model?.modelType === "DECISION" ? undefined : model;
+
+  return {
+    ...params,
+    template: { __type: "chat", messages: [] },
+    llmModel: llmModel ?? chatModel ?? params.model,
+    model:
+      model?.modelType === "DECISION"
+        ? model
+        : {
+            provider: DEFAULT_MODEL_PROVIDER,
+            modelName: null,
+            modelType: "DECISION",
+            invocationParameters: params.model.invocationParameters,
+            baseUrl: null,
+          },
+    decisionPrompt: createDecisionDraft(),
+    selectedRepetitionNumber: 1,
+    task: { type: "decision" },
+  };
+}
+
+/**
+ * Builds the instance `addInstance` and `replaceInstance` insert for a
+ * source, plus its messages. Saved sources come back as drafts of their
+ * kind that carry the reference in `loadingSource`; the page fetches the
+ * content and lands it with `loadInstance`.
+ */
+function createInstanceFromSource(
+  state: Pick<
+    PlaygroundState,
+    "instances" | "allInstanceMessages" | "allInstanceDecisionPrompts"
+  >,
+  source: PlaygroundInstanceSource
+): NormalizedInstanceInsert | null {
+  const firstInstance = state.instances[0];
+
+  if (source.type === "duplicate") {
+    return firstInstance ? duplicateInstance(firstInstance, state) : null;
+  }
+
+  // A new task keeps the page's model so comparisons start on equal footing.
+  const model = firstInstance?.model;
+  const chatModel =
+    model?.modelType === "DECISION" ? firstInstance?.llmModel : model;
+  const llmModel = firstInstance?.llmModel;
+
+  if (source.type === "new") {
+    if (source.taskType === "decision") {
+      return normalizeInstance(
+        createDecisionTaskInstance({ model, llmModel }),
+        generateInstanceId()
+      );
+    }
+
+    if (source.taskType === "evaluator") {
+      return normalizeInstance(
+        createEvaluatorTaskInstance({
+          kind: source.evaluatorKind,
+          model: chatModel,
+        }),
+        generateInstanceId()
+      );
+    }
+
+    const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+
+    return {
+      instance: { ...instance, model: chatModel ?? instance.model },
+      messages: instanceMessages,
+      decisionPrompts: {},
+    };
+  }
+
+  if (source.type === "decision") {
+    return normalizeInstance(
+      {
+        ...createDecisionTaskInstance({ model, llmModel }),
+        loadingSource: source,
+      },
+      generateInstanceId()
+    );
+  }
+
+  if (source.type === "prompt") {
+    const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+
+    return {
+      instance: {
+        ...instance,
+        model: chatModel ?? instance.model,
+        loadingSource: source,
+      },
+      messages: instanceMessages,
+      decisionPrompts: {},
+    };
+  }
+
+  // A saved evaluator's kind is only known once fetched; the draft is
+  // replaced wholesale when its content lands.
+  const draft = createEvaluatorTaskInstance({ kind: "LLM", model: chatModel });
+
+  return normalizeInstance(
+    {
+      ...draft,
+      task: {
+        type: "evaluator",
+        evaluator: {
+          ...createPlaygroundEvaluatorTask({ kind: "LLM" }),
+          source: {
+            evaluatorId:
+              source.type === "evaluator" ? source.evaluatorId : null,
+            datasetEvaluatorId:
+              source.type === "datasetEvaluator"
+                ? source.datasetEvaluatorId
+                : null,
+            projectEvaluatorId:
+              source.type === "projectEvaluator"
+                ? source.projectEvaluatorId
+                : null,
+          },
+        },
+      },
+      loadingSource: source,
+    },
+    generateInstanceId()
+  );
+}
+
+/**
+ * Today's Compare: a copy of the instance with fresh message and decision
+ * prompt ids and no run state.
+ */
+function duplicateInstance(
+  source: PlaygroundNormalizedInstance,
+  {
+    allInstanceMessages,
+    allInstanceDecisionPrompts,
+  }: Pick<PlaygroundState, "allInstanceMessages" | "allInstanceDecisionPrompts">
+): NormalizedInstanceInsert {
+  let template = source.template;
+  let messages: Record<number, ChatMessage> = {};
+
+  if (source.template.__type === "chat") {
+    const copiedMessages = source.template.messageIds
+      .map((id) => allInstanceMessages[id])
+      .map((message) => ({ ...message, id: generateMessageId() }));
+
+    template = {
+      ...source.template,
+      messageIds: copiedMessages.map((message) => message.id),
+    };
+    messages = copiedMessages.reduce<Record<number, ChatMessage>>(
+      (acc, message) => {
+        acc[message.id] = message;
+
+        return acc;
+      },
+      {}
+    );
+  }
+
+  let decisionPromptId = source.decisionPromptId;
+  let decisionPrompts: Record<number, DecisionPromptDraft> = {};
+  const decisionPrompt =
+    source.decisionPromptId != null
+      ? allInstanceDecisionPrompts[source.decisionPromptId]
+      : undefined;
+  if (decisionPrompt) {
+    decisionPromptId = generateDecisionPromptId();
+    decisionPrompts = {
+      [decisionPromptId]: structuredClone(decisionPrompt),
+    };
+  }
+
+  return {
+    instance: {
+      ...source,
+      template,
+      decisionPromptId,
+      id: generateInstanceId(),
+      activeRunId: null,
+      experiment: null,
+      repetitions: {},
+    },
+    messages,
+    decisionPrompts,
+  };
+}
+
+/**
  * Gets the initial instances for the playground store
  * If the initial props has instances, those will be used.
  * Incoming instances are normalized on entry, and should not be normalized before passing to this function
@@ -178,10 +529,19 @@ export function createNormalizedPlaygroundInstance() {
 export function getInitialInstances(initialProps: InitialPlaygroundState): {
   instances: Array<PlaygroundNormalizedInstance>;
   instanceMessages: Record<number, ChatMessage>;
+  instanceDecisionPrompts: Record<number, DecisionPromptDraft>;
 } {
   if (initialProps.instances != null && initialProps.instances.length > 0) {
     let initialInstancesMessageMap: Record<number, ChatMessage> = {};
-    const normalizedInstances = initialProps.instances.map((instance) => {
+    let initialInstancesDecisionPromptMap: Record<number, DecisionPromptDraft> =
+      {};
+    const normalizedInstances = initialProps.instances.map((denormalized) => {
+      const { instance, decisionPrompts } =
+        normalizeDecisionPrompt(denormalized);
+      initialInstancesDecisionPromptMap = {
+        ...initialInstancesDecisionPromptMap,
+        ...decisionPrompts,
+      };
       if (instance.template.__type === "chat") {
         const normalizedTemplate = normalizeChatTemplate(instance.template);
         initialInstancesMessageMap = {
@@ -198,6 +558,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     return {
       instances: normalizedInstances,
       instanceMessages: initialInstancesMessageMap,
+      instanceDecisionPrompts: initialInstancesDecisionPromptMap,
     };
   }
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
@@ -221,6 +582,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     return {
       instances: [instance],
       instanceMessages,
+      instanceDecisionPrompts: {},
     };
   }
   // A saved per-provider config (e.g. last-used invocation params for the
@@ -240,6 +602,9 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     instance.model = {
       ...instance.model,
       ...savedConfigToUse,
+      // A saved default configures the provider; it never turns a chat
+      // instance into a decision instance.
+      modelType: "LLM",
       invocationParameters: parseInvocationConfig(
         savedConfigToUse.provider,
         savedConfigToUse.invocationParameters
@@ -249,11 +614,13 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   return {
     instances: [instance],
     instanceMessages,
+    instanceDecisionPrompts: {},
   };
 }
 
 export const createPlaygroundStore = (props: InitialPlaygroundState) => {
-  const { instances, instanceMessages } = getInitialInstances(props);
+  const { instances, instanceMessages, instanceDecisionPrompts } =
+    getInitialInstances(props);
   const playgroundStore: StateCreator<
     PlaygroundState,
     [["zustand/devtools", never]]
@@ -261,6 +628,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     streaming: true,
     repetitions: 1,
     recordExperiments: true,
+    runExampleIds: null,
     nextExperimentScaffold: null,
     operationType: "chat",
     inputMode: "manual",
@@ -277,15 +645,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     allInstanceMessages: instanceMessages,
     externallyUpdatedMessageRevisionById: {},
     externallyUpdatedToolRevisionById: {},
+    allInstanceDecisionPrompts: instanceDecisionPrompts,
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
-        ? {
-            [props.datasetId]: {
-              templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
-              maxConcurrency: DEFAULT_MAX_CONCURRENCY,
-            },
-          }
+        ? { [props.datasetId]: createDatasetState() }
         : {},
     initialSelectedDatasetEvaluatorIds:
       props.selectedDatasetEvaluatorIds ?? null,
@@ -304,10 +668,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           stateByDatasetId: {
             ...get().stateByDatasetId,
-            [datasetId]: {
-              templateVariablesPath: DEFAULT_TEMPLATE_VARIABLES_PATH,
-              maxConcurrency: DEFAULT_MAX_CONCURRENCY,
-            },
+            [datasetId]: createDatasetState(),
           },
         },
         false,
@@ -355,59 +716,176 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
       set({ operationType }, false, { type: "setOperationType" });
     },
-    addInstance: () => {
-      const instances = get().instances;
-      const instanceMessages = get().allInstanceMessages;
-      const firstInstance = get().instances[0];
-      if (!firstInstance) {
-        return;
+    addInstance: (source) => {
+      const created = createInstanceFromSource(get(), source);
+
+      if (!created) {
+        return null;
       }
-      let newMessageIds: number[] = [];
-      let newMessageMap: Record<number, ChatMessage> = {};
-      if (firstInstance.template.__type === "chat") {
-        const messageIdsToCopy = firstInstance.template.messageIds;
-        const copiedMessages = messageIdsToCopy
-          .map((id) => instanceMessages[id])
-          .map((message) => ({
-            ...message,
-            id: generateMessageId(),
-          }));
-        newMessageIds = copiedMessages.map((message) => message.id);
-        newMessageMap = copiedMessages.reduce<Record<number, ChatMessage>>(
-          (acc, message) => {
-            acc[message.id] = message;
-            return acc;
-          },
-          {}
-        );
-      }
+
       set(
         {
           allInstanceMessages: {
-            ...instanceMessages,
-            ...newMessageMap,
+            ...get().allInstanceMessages,
+            ...created.messages,
           },
-          instances: [
-            ...instances,
-            {
-              ...firstInstance,
-              ...(firstInstance.template.__type === "chat"
-                ? {
-                    template: {
-                      ...firstInstance.template,
-                      messageIds: newMessageIds,
-                    },
-                  }
-                : {}),
-              id: generateInstanceId(),
-              activeRunId: null,
-              experiment: null,
-              repetitions: {},
-            },
-          ],
+          allInstanceDecisionPrompts: {
+            ...get().allInstanceDecisionPrompts,
+            ...created.decisionPrompts,
+          },
+          instances: [...get().instances, created.instance],
         },
         false,
         { type: "addInstance" }
+      );
+
+      return created.instance.id;
+    },
+    duplicateInstance: (instanceId) => {
+      const instances = get().instances;
+      const sourceIndex = instances.findIndex(
+        (instance) => instance.id === instanceId
+      );
+      const source = instances[sourceIndex];
+      if (!source) return null;
+      const created = duplicateInstance(source, get());
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...created.messages,
+          },
+          allInstanceDecisionPrompts: {
+            ...get().allInstanceDecisionPrompts,
+            ...created.decisionPrompts,
+          },
+          instances: [
+            ...instances.slice(0, sourceIndex + 1),
+            created.instance,
+            ...instances.slice(sourceIndex + 1),
+          ],
+        },
+        false,
+        { type: "duplicateInstance" }
+      );
+      return created.instance.id;
+    },
+    replaceInstance: ({ instanceId, source }) => {
+      const instances = get().instances;
+
+      if (!instances.some((instance) => instance.id === instanceId)) {
+        return null;
+      }
+
+      const created = createInstanceFromSource(get(), source);
+
+      if (!created) {
+        return null;
+      }
+
+      const shouldResetTemplateFormat =
+        created.instance.task.type === "evaluator" &&
+        created.instance.task.evaluator.kind === "LLM" &&
+        get().templateFormat === TemplateFormats.NONE;
+
+      set(
+        {
+          ...(shouldResetTemplateFormat
+            ? { templateFormat: TemplateFormats.Mustache }
+            : {}),
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...created.messages,
+          },
+          allInstanceDecisionPrompts: {
+            ...get().allInstanceDecisionPrompts,
+            ...created.decisionPrompts,
+          },
+          instances: instances.map((instance) =>
+            instance.id === instanceId ? created.instance : instance
+          ),
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: false,
+            [created.instance.id]: false,
+          },
+        },
+        false,
+        { type: "replaceInstance" }
+      );
+
+      return created.instance.id;
+    },
+    loadInstance: ({ instanceId, instance }) => {
+      const instances = get().instances;
+
+      if (!instances.some((current) => current.id === instanceId)) {
+        return;
+      }
+
+      const loaded = normalizeInstance(instance, instanceId);
+      set(
+        {
+          allInstanceMessages: {
+            ...get().allInstanceMessages,
+            ...loaded.messages,
+          },
+          allInstanceDecisionPrompts: {
+            ...get().allInstanceDecisionPrompts,
+            ...loaded.decisionPrompts,
+          },
+          instances: instances.map((current) =>
+            current.id === instanceId
+              ? { ...current, ...loaded.instance, loadingSource: null }
+              : current
+          ),
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: false,
+          },
+        },
+        false,
+        { type: "loadInstance" }
+      );
+    },
+    updateDecisionPrompt: ({ instanceId, request }) => {
+      const instance = get().instances.find(
+        (instance) => instance.id === instanceId
+      );
+      if (!instance) {
+        return;
+      }
+      if (instance.decisionPromptId == null) {
+        // The instance's first decision prompt: the only edit that touches instances.
+        const decisionPromptId = generateDecisionPromptId();
+        set(
+          {
+            allInstanceDecisionPrompts: {
+              ...get().allInstanceDecisionPrompts,
+              [decisionPromptId]: request,
+            },
+            dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+            instances: get().instances.map((instance) =>
+              instance.id === instanceId
+                ? { ...instance, decisionPromptId }
+                : instance
+            ),
+          },
+          false,
+          { type: "updateDecisionPrompt/add" }
+        );
+        return;
+      }
+      set(
+        {
+          allInstanceDecisionPrompts: {
+            ...get().allInstanceDecisionPrompts,
+            [instance.decisionPromptId]: request,
+          },
+          dirtyInstances: { ...get().dirtyInstances, [instanceId]: true },
+        },
+        false,
+        { type: "updateDecisionPrompt" }
       );
     },
     syncInvocationParametersWithSpecs: ({
@@ -509,6 +987,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...baseModel,
             ...resetFields,
             ...(savedProviderConfig || {}),
+            // A saved default never changes the instance's model type.
+            modelType: instance.model.modelType ?? "LLM",
             invocationParameters,
             // responseFormat is canonical (provider-agnostic) — carry through if present
             ...(instance.model.responseFormat != null
@@ -600,10 +1080,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 model: {
                   ...instance.model,
                   ...patch,
-                  invocationParameters: parseInvocationConfig(
-                    instance.model.provider,
-                    instance.model.invocationParameters
-                  ),
+                  // Decision instances carry no chat invocation parameters,
+                  // and their providers have no chat adapter to parse them.
+                  invocationParameters:
+                    instance.task.type === "decision"
+                      ? instance.model.invocationParameters
+                      : parseInvocationConfig(
+                          instance.model.provider,
+                          instance.model.invocationParameters
+                        ),
                 },
               };
             }
@@ -803,28 +1288,44 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "markToolsExternallyUpdated" }
       );
     },
-    runPlaygroundInstances: () => {
+    runPlaygroundInstances: (instanceIds, options) => {
       const instances = get().instances;
+      const allInstanceDecisionPrompts = get().allInstanceDecisionPrompts;
       const repetitions = get().repetitions;
       set(
         {
-          instances: instances.map((instance) => ({
-            ...instance,
-            activeRunId: generateRunId(),
-            repetitions: Object.fromEntries(
-              Array.from({ length: repetitions }, (_, i) => [
-                i + 1,
-                {
-                  output: null,
-                  spanId: null,
-                  error: null,
-                  status: "pending",
-                  toolCalls: {},
-                },
-              ])
-            ),
-            selectedRepetitionNumber: 1,
-          })),
+          runExampleIds: options?.exampleIds ?? null,
+          instances: instances.map((instance) => {
+            if (instanceIds != null && !instanceIds.includes(instance.id)) {
+              return instance;
+            }
+
+            const decisionPrompt =
+              instance.decisionPromptId != null
+                ? allInstanceDecisionPrompts[instance.decisionPromptId]
+                : instance.decisionPromptId;
+
+            return {
+              ...instance,
+              activeRunId: generateRunId(),
+              decisionRunRequest: decisionPrompt
+                ? structuredClone(decisionPrompt)
+                : decisionPrompt,
+              repetitions: Object.fromEntries(
+                Array.from({ length: repetitions }, (_, i) => [
+                  i + 1,
+                  {
+                    output: null,
+                    spanId: null,
+                    error: null,
+                    status: "pending",
+                    toolCalls: {},
+                  },
+                ])
+              ),
+              selectedRepetitionNumber: 1,
+            };
+          }),
         },
         false,
         { type: "runPlaygroundInstances" }
@@ -834,6 +1335,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const instances = get().instances;
       set(
         {
+          runExampleIds: null,
           instances: instances.map((instance) => ({
             ...instance,
             activeRunId: null,
@@ -858,32 +1360,41 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     markPlaygroundInstanceComplete: (instanceId: number) => {
       const instances = get().instances;
+      const nextInstances: PlaygroundNormalizedInstance[] = instances.map(
+        (instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              activeRunId: null,
+              repetitions: Object.fromEntries(
+                Object.entries(instance.repetitions).map(
+                  ([repetitionNumber, repetition]) => {
+                    return [
+                      repetitionNumber,
+                      repetition
+                        ? {
+                            ...repetition,
+                            status: "finished",
+                          }
+                        : undefined,
+                    ];
+                  }
+                )
+              ),
+            };
+          }
+          return instance;
+        }
+      );
       set(
         {
-          instances: instances.map((instance) => {
-            if (instance.id === instanceId) {
-              return {
-                ...instance,
-                activeRunId: null,
-                repetitions: Object.fromEntries(
-                  Object.entries(instance.repetitions).map(
-                    ([repetitionNumber, repetition]) => {
-                      return [
-                        repetitionNumber,
-                        repetition
-                          ? {
-                              ...repetition,
-                              status: "finished",
-                            }
-                          : undefined,
-                      ];
-                    }
-                  )
-                ),
-              };
-            }
-            return instance;
-          }),
+          instances: nextInstances,
+          // The run's example scope ends with its last running instance.
+          runExampleIds: nextInstances.some(
+            (instance) => instance.activeRunId != null
+          )
+            ? get().runExampleIds
+            : null,
         },
         false,
         { type: "markPlaygroundInstanceComplete" }
@@ -924,6 +1435,28 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setVariableValues" }
       );
     },
+    setVariableReadAsText: ({
+      name,
+      isReadAsText,
+    }: {
+      name: string;
+      isReadAsText: boolean;
+    }) => {
+      const input = get().input;
+      set(
+        {
+          input: {
+            ...input,
+            variablesReadAsText: {
+              ...input.variablesReadAsText,
+              [name]: isReadAsText,
+            },
+          },
+        },
+        false,
+        { type: "setVariableReadAsText" }
+      );
+    },
     setStreaming: (streaming: boolean) => {
       set({ streaming }, false, { type: "setStreaming" });
     },
@@ -961,7 +1494,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
+              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
               maxConcurrency,
             },
           },
@@ -1024,7 +1557,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
+              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
               appendedMessagesPath: path,
             },
           },
@@ -1038,17 +1571,25 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     setTemplateVariablesPath: ({
       templateVariablesPath,
       datasetId,
+      mode,
     }: {
       templateVariablesPath: string | null;
       datasetId: string;
+      mode: PlaygroundMode;
     }) => {
+      const datasetState =
+        get().stateByDatasetId[datasetId] ?? createDatasetState();
+
       set(
         {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
-              templateVariablesPath: templateVariablesPath,
+              ...datasetState,
+              templateVariablesPathByMode: {
+                ...datasetState.templateVariablesPathByMode,
+                [mode]: templateVariablesPath,
+              },
             },
           },
         },
@@ -1070,7 +1611,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           stateByDatasetId: {
             ...get().stateByDatasetId,
             [datasetId]: {
-              ...get().stateByDatasetId[datasetId],
+              ...(get().stateByDatasetId[datasetId] ?? createDatasetState()),
               availablePaths,
             },
           },
@@ -1634,7 +2175,16 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
   );
 };
 
-export const DEFAULT_TEMPLATE_VARIABLES_PATH = "input";
 export const DEFAULT_MAX_CONCURRENCY = 10;
+
+/** A dataset's settings before anyone changes them. */
+function createDatasetState(): PlaygroundStateByDatasetId[string] {
+  return {
+    templateVariablesPathByMode: {
+      ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
+    },
+    maxConcurrency: DEFAULT_MAX_CONCURRENCY,
+  };
+}
 
 export type PlaygroundStore = ReturnType<typeof createPlaygroundStore>;

@@ -16,7 +16,14 @@ declare type ModelProvider =
   | "PERPLEXITY"
   | "TOGETHER"
   | "ZAI"
-  | "META";
+  | "META"
+  | "TYPESAFE";
+
+/**
+ * The kind of model an instance runs: a chat (LLM) model or a decision model.
+ * Mirrors the `ModelType` GraphQL enum.
+ */
+declare type ModelType = "LLM" | "DECISION";
 
 /**
  * The role of a chat message

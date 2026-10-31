@@ -1,16 +1,16 @@
 from datetime import datetime
 from math import isfinite
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import strawberry
 from strawberry.relay import Node, NodeID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
+from .Annotation import AnnotationMetadataMixin
 from .AnnotationSource import AnnotationSource
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @strawberry.type
-class TraceAnnotation(Node):
+class TraceAnnotation(Node, AnnotationMetadataMixin):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.TraceAnnotation]] = None
 
@@ -96,18 +96,12 @@ class TraceAnnotation(Node):
             )
         return val
 
-    @strawberry.field(description="Metadata about the annotation.")  # type: ignore
-    async def metadata(
-        self,
-        info: Info[Context, None],
-    ) -> JSON:
+    async def _metadata(self, info: Info[Context, None]) -> Any:
         if self.db_record:
-            val = self.db_record.metadata_
-        else:
-            val = await info.context.data_loaders.trace_annotation_fields.load(
-                (self.id, models.TraceAnnotation.metadata_),
-            )
-        return JSON(val)
+            return self.db_record.metadata_
+        return await info.context.data_loaders.trace_annotation_fields.load(
+            (self.id, models.TraceAnnotation.metadata_),
+        )
 
     @strawberry.field(description="The identifier of the annotation.")  # type: ignore
     async def identifier(

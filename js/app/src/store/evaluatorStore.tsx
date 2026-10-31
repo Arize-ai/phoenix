@@ -11,10 +11,13 @@ import type {
   EvaluatorInputMapping,
   EvaluatorKind,
   EvaluatorMappingSource,
+  EvaluatorMappingSourceField,
+  EvaluatorRecordKind,
   EvaluatorOptimizationDirection,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import type { DeepPartial } from "@phoenix/typeUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
 /**
@@ -24,6 +27,14 @@ export type AnnotationConfig =
   | ClassificationEvaluatorAnnotationConfig
   | ContinuousEvaluatorAnnotationConfig
   | FreeformEvaluatorAnnotationConfig;
+
+/** A mapping source and the kind of record it describes, one member per record kind. */
+export type EvaluatorMappingSourceState = {
+  [TRecordKind in EvaluatorRecordKind]: {
+    recordKind: TRecordKind;
+    source: EvaluatorMappingSource<TRecordKind>;
+  };
+}[EvaluatorRecordKind];
 
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
@@ -40,6 +51,14 @@ export type EvaluatorStoreProps = {
     description: string;
     isBuiltin: boolean;
     includeExplanation: boolean;
+    /**
+     * What each input should hold, keyed by input name: a prompt variable or
+     * a code parameter. Saved as the descriptions of the evaluator's input
+     * schema. Kept for inputs the source no longer declares, so one that is
+     * removed and typed back keeps its text; the save sends only the declared
+     * ones.
+     */
+    inputDescriptions: Record<string, string>;
   };
   /**
    * Array of output configurations for multi-output evaluators.
@@ -52,8 +71,10 @@ export type EvaluatorStoreProps = {
     selectedExampleId: string | null;
     selectedSplitIds: string[];
   };
-  evaluatorMappingSource: EvaluatorMappingSource;
+  evaluatorMappingSource: EvaluatorMappingSourceState;
   showPromptPreview: boolean;
+  /** The variable whose mapping path is being edited, if any. */
+  focusedMappingVariable?: string | null;
 };
 
 export type EvaluatorStoreActions = {
@@ -63,6 +84,8 @@ export type EvaluatorStoreActions = {
   setEvaluatorName: (name: string) => void;
   /** Sets the description of the evaluator. */
   setEvaluatorDescription: (description: string) => void;
+  /** Sets what one input should hold; empty text removes the description. */
+  setInputDescription: (name: string, description: string) => void;
   /** Sets whether the evaluator should include an explanation in its output. */
   setIncludeExplanation: (includeExplanation: boolean) => void;
   /** Sets a single path mapping entry by key. */
@@ -79,14 +102,41 @@ export type EvaluatorStoreActions = {
   setDataset: (dataset: EvaluatorStoreProps["dataset"]) => void;
   /** Sets the dataset ID, or clears the dataset if null. */
   setDatasetId: (datasetId: string | null) => void;
-  /** Sets the evaluator mapping source data (input, output, reference). */
-  setEvaluatorMappingSource: (
-    evaluatorMappingSource: EvaluatorMappingSource
-  ) => void;
+  /**
+   * Sets the evaluator mapping source data (input, output, reference) as a
+   * record of the kind the caller declares it to be.
+   *
+   * Span and session sources are structurally identical, so a payload alone
+   * cannot say which record it came from. The caller binding one knows — a run
+   * list binds the kind of record it renders, a draft tool binds the kind it
+   * was authored against — so the record kind travels with the payload rather
+   * than being read back off whatever the store happens to hold.
+   */
+  setEvaluatorMappingSource: <
+    TRecordKind extends EvaluatorRecordKind,
+  >(evaluatorMappingSource: {
+    recordKind: TRecordKind;
+    source: EvaluatorMappingSource<TRecordKind>;
+  }) => void;
+  /**
+   * Switches which kind of record the mapping source describes, resetting it to
+   * that record kind's default.
+   *
+   * Span and session sources are structurally identical, so no setter can infer
+   * the record kind from a source. Callers that change the evaluated target
+   * must say so explicitly, or mapping vocabulary silently keeps naming the old
+   * record.
+   */
+  setEvaluatorRecordKind: (recordKind: EvaluatorRecordKind) => void;
   /** Sets a single field of the evaluator mapping source. */
   setEvaluatorMappingSourceField: (
-    field: keyof EvaluatorMappingSource,
-    value: Record<string, unknown>
+    params: {
+      [TRecordKind in EvaluatorRecordKind]: {
+        recordKind: TRecordKind;
+        field: EvaluatorMappingSourceField<TRecordKind>;
+        value: Record<string, unknown>;
+      };
+    }[EvaluatorRecordKind]
   ) => void;
   /** Sets the currently selected example ID within the dataset. */
   setSelectedExampleId: (selectedExampleId?: string | null) => void;
@@ -94,6 +144,8 @@ export type EvaluatorStoreActions = {
   setSelectedSplitIds: (selectedSplitIds: string[]) => void;
   /** Sets whether to show the prompt preview panel. */
   setShowPromptPreview: (showPromptPreview: boolean) => void;
+  /** Sets which variable's mapping path is being edited. */
+  setFocusedMappingVariable: (focusedMappingVariable: string | null) => void;
 
   // Multi-output config CRUD actions
   /** Adds a new output config to the array. */
@@ -148,46 +200,153 @@ export type EvaluatorStore = EvaluatorStoreProps & EvaluatorStoreActions;
 /**
  * Default value for the evaluator mapping source.
  */
-export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource = {
-  input: {},
-  output: {
-    messages: [
-      {
-        role: "assistant",
-        content: "[SAMPLE] Replace this with your actual task output format",
-        tool_calls: [
-          {
-            function: {
-              name: "example_function",
-              arguments: '{"param": "example_value"}',
-            },
-          },
-        ],
-      },
-    ],
-    available_tools: [
-      {
-        type: "function",
-        function: {
-          name: "example_function",
-          description: "[SAMPLE] Example tool definition",
-          parameters: {
-            type: "object",
-            properties: {
-              param: {
-                type: "string",
-                description: "Example parameter",
+export const EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"dataset"> =
+  {
+    input: {},
+    output: {
+      messages: [
+        {
+          role: "assistant",
+          content: "[SAMPLE] Replace this with your actual task output format",
+          tool_calls: [
+            {
+              function: {
+                name: "example_function",
+                arguments: '{"param": "example_value"}',
               },
             },
-            required: ["param"],
+          ],
+        },
+      ],
+      available_tools: [
+        {
+          type: "function",
+          function: {
+            name: "example_function",
+            description: "[SAMPLE] Example tool definition",
+            parameters: {
+              type: "object",
+              properties: {
+                param: {
+                  type: "string",
+                  description: "Example parameter",
+                },
+              },
+              required: ["param"],
+            },
           },
         },
-      },
-    ],
-  },
-  reference: {},
-  metadata: {},
+      ],
+    },
+    reference: {},
+    metadata: {},
+  };
+
+export const SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"span"> =
+  {
+    input: {},
+    output: {},
+    metadata: {},
+  };
+
+/** Stands in until a recorded session's server-computed context arrives. */
+export const SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"session"> =
+  {
+    input: "",
+    output: "",
+    metadata: {},
+  };
+
+export const TRACE_EVALUATOR_MAPPING_SOURCE_DEFAULT: EvaluatorMappingSource<"trace"> =
+  {
+    input: "",
+    output: "",
+    metadata: {},
+  };
+
+/**
+ * How each record kind reads a payload declared to be one of its records: its
+ * own fields, validated against its own vocabulary and nothing else.
+ *
+ * Metadata a record kind cannot vouch for — an agent-authored payload, a
+ * context built for another record kind — is dropped for that record kind's
+ * empty metadata rather than read under a vocabulary it does not speak.
+ */
+const READ_MAPPING_SOURCE_BY_RECORD_KIND: {
+  [TRecordKind in EvaluatorRecordKind]: (
+    source: EvaluatorMappingSource<TRecordKind>
+  ) => EvaluatorMappingSource<TRecordKind>;
+} = {
+  dataset: ({ input, output, reference, metadata }) => ({
+    input: isStringKeyedObject(input) ? input : {},
+    output: isStringKeyedObject(output) ? output : {},
+    reference: isStringKeyedObject(reference) ? reference : {},
+    // An example's metadata is the author's own, so nothing marks it.
+    metadata: isStringKeyedObject(metadata) ? metadata : {},
+  }),
+  span: ({ input, output, metadata }) => ({
+    input,
+    output,
+    metadata:
+      isStringKeyedObject(metadata) && isStringKeyedObject(metadata.attributes)
+        ? metadata
+        : {},
+  }),
+  trace: ({ input, output, metadata }) => ({
+    input,
+    output,
+    metadata:
+      isStringKeyedObject(metadata) &&
+      isStringKeyedObject(metadata.trace_annotations)
+        ? metadata
+        : {},
+  }),
+  session: ({ input, output, metadata }) => ({
+    input,
+    output,
+    metadata:
+      isStringKeyedObject(metadata) && Array.isArray(metadata.turns)
+        ? metadata
+        : {},
+  }),
 };
+
+/** Reads a payload as the record kind whoever bound it declared it to be. */
+export function readEvaluatorMappingSource<
+  TRecordKind extends EvaluatorRecordKind,
+>({
+  recordKind,
+  source,
+}: {
+  recordKind: TRecordKind;
+  source: EvaluatorMappingSource<TRecordKind>;
+}): EvaluatorMappingSourceState {
+  // The cast pairs a record kind with its own source; the compiler tracks that
+  // only once `TRecordKind` is one record kind, which it is at every call site.
+  return {
+    recordKind,
+    source: READ_MAPPING_SOURCE_BY_RECORD_KIND[recordKind](source),
+  } as EvaluatorMappingSourceState;
+}
+
+const MAPPING_SOURCE_DEFAULT_BY_RECORD_KIND: {
+  [TRecordKind in EvaluatorRecordKind]: EvaluatorMappingSource<TRecordKind>;
+} = {
+  dataset: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  span: SPAN_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  trace: TRACE_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  session: SESSION_EVALUATOR_MAPPING_SOURCE_DEFAULT,
+};
+
+/** The mapping source a record kind starts from before any record is selected. */
+export function defaultEvaluatorMappingSourceState(
+  recordKind: EvaluatorRecordKind
+): EvaluatorMappingSourceState {
+  return {
+    recordKind,
+    source: MAPPING_SOURCE_DEFAULT_BY_RECORD_KIND[recordKind],
+  } as EvaluatorMappingSourceState;
+}
 
 /**
  * Default value for the evaluator mapping source as a string.
@@ -210,9 +369,13 @@ export const DEFAULT_STORE_VALUES = {
       literalMapping: {},
       pathMapping: {},
     },
+    inputDescriptions: {},
     includeExplanation: true,
   },
-  evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  evaluatorMappingSource: {
+    recordKind: "dataset",
+    source: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+  },
   showPromptPreview: false,
   outputConfigs: [] as AnnotationConfig[],
 } satisfies DeepPartial<EvaluatorStoreProps>;
@@ -264,7 +427,7 @@ export const createEvaluatorStore = (
   return createStore<EvaluatorStore>()(
     devtools(
       (set, get) => {
-        const properties = mergeWith(
+        const mergedProperties = mergeWith(
           {},
           DEFAULT_STORE_VALUES,
           props.evaluator.kind === "LLM"
@@ -274,9 +437,14 @@ export const createEvaluatorStore = (
             ? DEFAULT_CODE_EVALUATOR_STORE_VALUES
             : {},
           props,
-          (_objValue: unknown, srcValue: unknown) =>
-            Array.isArray(srcValue) ? srcValue : undefined
+          (_objValue: unknown, srcValue: unknown, key: string) => {
+            if (key === "evaluatorMappingSource") {
+              return srcValue;
+            }
+            return Array.isArray(srcValue) ? srcValue : undefined;
+          }
         ) satisfies EvaluatorStoreProps;
+        const properties = mergedProperties;
         const actions = {
           setEvaluatorGlobalName(globalName) {
             set(
@@ -307,6 +475,18 @@ export const createEvaluatorStore = (
               { evaluator: { ...get().evaluator, description } },
               undefined,
               "setEvaluatorDescription"
+            );
+          },
+          setInputDescription(name, description) {
+            const { [name]: _previous, ...rest } =
+              get().evaluator.inputDescriptions;
+            const inputDescriptions = description.trim()
+              ? { ...rest, [name]: description.trim() }
+              : rest;
+            set(
+              { evaluator: { ...get().evaluator, inputDescriptions } },
+              undefined,
+              "setInputDescription"
             );
           },
           setPathMapping(pathMapping) {
@@ -421,18 +601,43 @@ export const createEvaluatorStore = (
           },
           setEvaluatorMappingSource(evaluatorMappingSource) {
             set(
-              { evaluatorMappingSource },
+              {
+                evaluatorMappingSource: readEvaluatorMappingSource(
+                  evaluatorMappingSource
+                ),
+              },
               undefined,
               "setEvaluatorMappingSource"
             );
           },
-          setEvaluatorMappingSourceField(field, value) {
+          setEvaluatorRecordKind(recordKind) {
+            if (get().evaluatorMappingSource.recordKind === recordKind) {
+              return;
+            }
+            set(
+              {
+                evaluatorMappingSource:
+                  defaultEvaluatorMappingSourceState(recordKind),
+              },
+              undefined,
+              "setEvaluatorRecordKind"
+            );
+          },
+          setEvaluatorMappingSourceField(params) {
+            const evaluatorMappingSource = get().evaluatorMappingSource;
+            invariant(
+              evaluatorMappingSource.recordKind === params.recordKind,
+              "Evaluator record kind must match the field record kind"
+            );
             set(
               {
                 evaluatorMappingSource: {
-                  ...get().evaluatorMappingSource,
-                  [field]: value,
-                },
+                  recordKind: evaluatorMappingSource.recordKind,
+                  source: {
+                    ...evaluatorMappingSource.source,
+                    [params.field]: params.value,
+                  },
+                } as EvaluatorMappingSourceState,
               },
               undefined,
               "setEvaluatorMappingSourceField"
@@ -469,6 +674,13 @@ export const createEvaluatorStore = (
           },
           setShowPromptPreview(showPromptPreview) {
             set({ showPromptPreview }, undefined, "setShowPromptPreview");
+          },
+          setFocusedMappingVariable(focusedMappingVariable) {
+            set(
+              { focusedMappingVariable },
+              undefined,
+              "setFocusedMappingVariable"
+            );
           },
           setIncludeExplanation(includeExplanation) {
             set(

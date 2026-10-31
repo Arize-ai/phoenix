@@ -19,6 +19,7 @@ import {
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
+  stackedBarSeparatorProps,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -167,12 +168,14 @@ export function TraceTokenCostTimeSeries({
               <Bar
                 dataKey="prompt"
                 stackId="a"
+                {...stackedBarSeparatorProps}
                 fill={colors.category1}
                 hide={isDataKeyHidden("prompt")}
               />
               <Bar
                 dataKey="completion"
                 stackId="a"
+                {...stackedBarSeparatorProps}
                 fill={colors.category2}
                 hide={isDataKeyHidden("completion")}
                 radius={[2, 2, 0, 0]}

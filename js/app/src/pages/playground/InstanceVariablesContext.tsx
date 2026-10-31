@@ -1,6 +1,13 @@
-import { createContext, type ReactNode, useContext, useMemo } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { arePlaygroundInstancesEqualExceptProgress } from "@phoenix/store/playground/selectors";
 
 import {
   denormalizePlaygroundInstance,
@@ -23,15 +30,25 @@ const InstanceVariablesContext = createContext<InstanceVariablesMap>({});
  *
  * By moving the computation into a context provider, cells can read variables without
  * the table needing to pass them through column definitions.
+ *
+ * Run progress is ignored for the same reason: a run streams one store write
+ * per result, each of which replaces `instances`, and none of them changes a
+ * template.
  */
 export function InstanceVariablesProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const instances = usePlaygroundContext((state) => state.instances);
+  const instances = usePlaygroundContext(
+    (state) => state.instances,
+    arePlaygroundInstancesEqualExceptProgress
+  );
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
+  );
+  const allInstanceDecisionPrompts = usePlaygroundContext(
+    (state) => state.allInstanceDecisionPrompts
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
 
@@ -41,7 +58,8 @@ export function InstanceVariablesProvider({
     for (const instance of instances) {
       const enrichedInstance = denormalizePlaygroundInstance(
         instance,
-        allInstanceMessages
+        allInstanceMessages,
+        allInstanceDecisionPrompts
       );
 
       result[instance.id] = extractVariablesFromInstance({
@@ -51,13 +69,47 @@ export function InstanceVariablesProvider({
     }
 
     return result;
-  }, [instances, allInstanceMessages, templateFormat]);
+  }, [
+    instances,
+    allInstanceMessages,
+    allInstanceDecisionPrompts,
+    templateFormat,
+  ]);
+  // Typing in a template or a decision recomputes the map on every keystroke,
+  // but rarely changes a variable; keep the last map while its contents are
+  // the same so the cells reading it do not re-render.
+  const [stableVariablesMap, setStableVariablesMap] = useState(variablesMap);
+  if (
+    stableVariablesMap !== variablesMap &&
+    !areInstanceVariablesMapsEqual(stableVariablesMap, variablesMap)
+  ) {
+    setStableVariablesMap(variablesMap);
+  }
 
   return (
-    <InstanceVariablesContext.Provider value={variablesMap}>
+    <InstanceVariablesContext.Provider value={stableVariablesMap}>
       {children}
     </InstanceVariablesContext.Provider>
   );
+}
+
+function areInstanceVariablesMapsEqual(
+  left: InstanceVariablesMap,
+  right: InstanceVariablesMap
+): boolean {
+  const leftIds = Object.keys(left);
+  if (leftIds.length !== Object.keys(right).length) {
+    return false;
+  }
+  return leftIds.every((id) => {
+    const leftVariables = left[Number(id)];
+    const rightVariables = right[Number(id)];
+    return (
+      rightVariables != null &&
+      leftVariables.length === rightVariables.length &&
+      leftVariables.every((name, index) => name === rightVariables[index])
+    );
+  });
 }
 
 /**

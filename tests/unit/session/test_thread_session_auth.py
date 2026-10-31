@@ -35,6 +35,7 @@ from phoenix.session.session import ThreadSession, launch_app
 from tests.unit.conftest import (
     patch_dml_event_handler,
     patch_grpc_server,
+    patch_online_eval_daemons,
 )
 
 
@@ -106,6 +107,7 @@ async def test_thread_session_login_with_auth(
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_grpc_server())
         await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_online_eval_daemons())
         await stack.enter_async_context(LifespanManager(session.app))
         async with httpx2.AsyncClient(
             transport=httpx2.ASGITransport(app=session.app),
@@ -185,6 +187,7 @@ async def test_thread_session_password_reset_uses_configured_smtp(
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_grpc_server())
         await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_online_eval_daemons())
         await stack.enter_async_context(LifespanManager(session.app))
         async with session.app.state.db() as db_session:
             role_id = await db_session.scalar(select(models.UserRole.id).limit(1))

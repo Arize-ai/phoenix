@@ -1,0 +1,413 @@
+"""Decision judges run online like LLM judges: bound to a project, resolved, hydrated, and
+annotating spans with Phoenix's decision metadata."""
+
+from datetime import datetime, timezone
+from secrets import token_hex
+from typing import Any
+from unittest.mock import AsyncMock
+
+import httpx
+import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import with_polymorphic
+from strawberry.relay import GlobalID
+
+from phoenix.db import models
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, PredicateScoring
+from phoenix.db.types.decisions import JsonState
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionRateLimitError,
+    DecisionResponse,
+    PredicateAnswer,
+    RefusalAnswer,
+    ScaleAnswer,
+    TypeSafeDecisionClient,
+)
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer
+from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
+from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluator
+from phoenix.server.types import DbSessionFactory
+from tests.unit.db.types.test_decision_evaluators import questions
+from tests.unit.graphql import AsyncGraphQLClient
+
+from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from .test_consumer import (
+    _annotations,
+    _cycle_to_completion,
+    _get_unit,
+    _session_annotations,
+    _trace_annotations,
+)
+
+_POLYMORPHIC = with_polymorphic(
+    models.Evaluator,
+    [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator, models.DecisionEvaluator],
+)
+
+
+def _response() -> DecisionResponse:
+    return DecisionResponse(
+        model="jev-resolved",
+        answers={
+            "correct": PredicateAnswer(probability=0.9),
+            "route": RefusalAnswer(),
+            "quality": ScaleAnswer(
+                expected_level=1.5, confidence=0.6, probabilities={0: 0.1, 1: 0.3, 2: 0.6}
+            ),
+        },
+        input_tokens=3,
+        output_tokens=2,
+    )
+
+
+async def _seed_judge(db: DbSessionFactory, *, threshold: float = 0.8) -> int:
+    """A saved TypeSafe judge asking three questions about a span's output."""
+    async with db() as session:
+        decision = models.Decision(name=Identifier(f"decision-{token_hex(4)}"), metadata_={})
+        version = models.DecisionVersion(
+            decision=decision,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            state=JsonState(type="json", template="{{output}}"),
+            questions=questions(),
+            model_provider=ModelProvider.TYPESAFE,
+            model_name="jev-latest",
+            metadata_={},
+        )
+        session.add(version)
+        await session.flush()
+        judge = models.DecisionEvaluator(
+            name=Identifier(f"judge-{token_hex(4)}"),
+            description=None,
+            metadata_={},
+            decision_id=decision.id,
+            decision_version_tag=models.DecisionVersionTag(
+                name=Identifier(f"judge-{token_hex(4)}"),
+                decision=decision,
+                decision_version=version,
+            ),
+            scoring_policy=DecisionScoringPolicy(
+                questions={"correct": PredicateScoring(type="predicate", threshold=threshold)}
+            ),
+        )
+        session.add(judge)
+        await session.flush()
+        return judge.id
+
+
+async def _bind(
+    db: DbSessionFactory,
+    project_id: int,
+    judge_id: int,
+    evaluation_target: models.EvaluationTarget = "SPAN",
+) -> int:
+    async with db() as session:
+        binding = models.ProjectEvaluator(
+            trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
+            project_id=project_id,
+            evaluator_id=judge_id,
+            name=Identifier(f"judge-binding-{token_hex(4)}"),
+            filter_condition="",
+            sampling_rate=1.0,
+            evaluation_target=evaluation_target,
+        )
+        session.add(binding)
+        await session.flush()
+        return binding.id
+
+
+async def _fingerprint(db: DbSessionFactory, judge_id: int, binding_id: int) -> str:
+    async with db() as session:
+        binding = await session.get(models.ProjectEvaluator, binding_id)
+        judge = await session.scalar(select(_POLYMORPHIC).where(_POLYMORPHIC.id == judge_id))
+        assert binding is not None and judge is not None
+        resolved = await resolve_project_evaluator(session, binding, judge)
+        assert resolved is not None
+        return config_fingerprint(resolved)
+
+
+async def _materialize(db: DbSessionFactory, span_rowid: int, binding_id: int) -> int:
+    async with db() as session:
+        unit = models.EvalWorkUnit(span_rowid=span_rowid, project_evaluator_id=binding_id)
+        session.add(unit)
+        await session.flush()
+        return unit.id
+
+
+async def _span_with_output(db: DbSessionFactory) -> tuple[int, int]:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "refund?"}, "output": {"value": "refunded"}},
+        )
+        return project.id, span.id
+
+
+@pytest.fixture(autouse=True)
+def _typesafe_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Online evaluation has no request credentials; the key comes from the server.
+    monkeypatch.setenv("TYPESAFE_API_KEY", "server-key")
+
+
+async def test_a_judge_annotates_a_span_with_one_call_per_span(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id, span_rowid = await _span_with_output(db)
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id)
+    fingerprint = await _fingerprint(db, judge_id, binding_id)
+    unit_id = await _materialize(db, span_rowid, binding_id)
+    invoke = AsyncMock(return_value=_response())
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+
+    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+
+    assert (await _get_unit(db, unit_id)).status == "DONE"
+    assert invoke.await_count == 1
+    # The span's output, as the online context shapes it for every evaluator.
+    assert invoke.call_args.args[0].state == {"output": "refunded"}
+    by_name = {annotation.name: annotation for annotation in await _annotations(db)}
+    async with db() as session:
+        binding = await session.get(models.ProjectEvaluator, binding_id)
+        assert binding is not None
+        name = binding.name.root
+    assert set(by_name) == {f"{name}.correct", f"{name}.route", f"{name}.quality"}
+    correct = by_name[f"{name}.correct"]
+    # Scored by the judge's own policy (threshold 0.8).
+    assert (correct.label, correct.score) == ("true", 0.9)
+    assert correct.annotator_kind == "LLM"
+    assert correct.identifier == annotation_identifier(fingerprint)
+    assert correct.metadata_["decision"]["status"] == "answered"
+    # A refused choice has no label, yet passes the categorical check.
+    route = by_name[f"{name}.route"]
+    assert (route.label, route.score) == (None, None)
+    assert route.metadata_["decision"]["status"] == "refused"
+    assert by_name[f"{name}.quality"].score == 1.5
+    source = correct.metadata_["decision"]["source"]
+    assert (source["evaluator_id"], source["project_evaluator_id"]) == (judge_id, binding_id)
+
+
+async def test_a_judge_annotates_a_trace(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "refund?"}, "output": {"value": "refunded"}},
+        )
+        project_id, trace_rowid = project.id, trace.id
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id, "TRACE")
+    async with db() as session:
+        session.add(
+            models.EvalTraceWorkUnit(
+                trace_rowid=trace_rowid,
+                project_evaluator_id=binding_id,
+                evaluated_through=datetime.now(timezone.utc),
+            )
+        )
+    invoke = AsyncMock(return_value=_response())
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+
+    await _cycle_to_completion(
+        OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="TRACE")
+    )
+
+    assert invoke.await_count == 1
+    assert invoke.call_args.args[0].state == "refunded"
+    by_name = {annotation.name: annotation for annotation in await _trace_annotations(db)}
+    async with db() as session:
+        binding = await session.get(models.ProjectEvaluator, binding_id)
+        assert binding is not None
+    correct = by_name[f"{binding.name.root}.correct"]
+    assert (correct.trace_rowid, correct.label, correct.score) == (trace_rowid, "true", 0.9)
+    assert correct.metadata_["decision"]["source"]["project_evaluator_id"] == binding_id
+
+
+async def test_a_judge_annotates_a_session(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "refund?"}, "output": {"value": "refunded"}},
+        )
+        project_id, project_session_rowid = project.id, project_session.id
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id, "SESSION")
+    async with db() as session:
+        session.add(
+            models.EvalSessionWorkUnit(
+                project_session_rowid=project_session_rowid,
+                project_evaluator_id=binding_id,
+                evaluated_through=datetime.now(timezone.utc),
+            )
+        )
+    invoke = AsyncMock(return_value=_response())
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+
+    await _cycle_to_completion(
+        OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
+    )
+
+    assert invoke.await_count == 1
+    assert invoke.call_args.args[0].state == "refunded"
+    by_name = {annotation.name: annotation for annotation in await _session_annotations(db)}
+    async with db() as session:
+        binding = await session.get(models.ProjectEvaluator, binding_id)
+        assert binding is not None
+    correct = by_name[f"{binding.name.root}.correct"]
+    assert (correct.project_session_id, correct.label, correct.score) == (
+        project_session_rowid,
+        "true",
+        0.9,
+    )
+    assert correct.metadata_["decision"]["source"]["project_evaluator_id"] == binding_id
+
+
+async def test_each_binding_of_a_judge_names_itself_as_the_source(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id, span_rowid = await _span_with_output(db)
+    judge_id = await _seed_judge(db)
+    binding_ids = [await _bind(db, project_id, judge_id) for _ in range(2)]
+    for binding_id in binding_ids:
+        await _materialize(db, span_rowid, binding_id)
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(return_value=_response()))
+
+    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+
+    by_name = {annotation.name: annotation for annotation in await _annotations(db)}
+    for binding_id in binding_ids:
+        async with db() as session:
+            binding = await session.get(models.ProjectEvaluator, binding_id)
+            assert binding is not None
+        source = by_name[f"{binding.name.root}.correct"].metadata_["decision"]["source"]
+        assert source["project_evaluator_id"] == binding_id
+
+
+async def test_a_rate_limited_judge_retries_without_spending_an_attempt(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id, span_rowid = await _span_with_output(db)
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id)
+    unit_id = await _materialize(db, span_rowid, binding_id)
+    monkeypatch.setattr(
+        TypeSafeDecisionClient, "invoke", AsyncMock(side_effect=DecisionRateLimitError("slow"))
+    )
+
+    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status != "DONE"
+    assert unit.attempts == 0
+    assert await _annotations(db) == []
+
+
+async def test_editing_the_judges_policy_changes_its_fingerprint(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _ = await _span_with_output(db)
+    judge_id = await _seed_judge(db, threshold=0.8)
+    binding_id = await _bind(db, project_id, judge_id)
+    before = await _fingerprint(db, judge_id, binding_id)
+    async with db() as session:
+        judge = await session.get(models.DecisionEvaluator, judge_id)
+        assert judge is not None
+        judge.scoring_policy = DecisionScoringPolicy(
+            questions={"correct": PredicateScoring(type="predicate", threshold=0.5)}
+        )
+    assert await _fingerprint(db, judge_id, binding_id) != before
+
+
+async def test_binding_a_judge_to_a_project_checks_what_the_target_can_fill(
+    db: DbSessionFactory, httpx_client: httpx.AsyncClient
+) -> None:
+    project_id, _ = await _span_with_output(db)
+    judge_id = await _seed_judge(db)
+    async with db() as session:
+        judge = await session.get(models.DecisionEvaluator, judge_id)
+        assert judge is not None
+        version = judge.selected_version
+        version.state = JsonState(type="json", template="{{ticket}}")
+    route = f"v1/projects/{GlobalID('Project', str(project_id))}/evaluators"
+    body: dict[str, Any] = {
+        "name": "judge",
+        "evaluator_id": str(GlobalID("DecisionEvaluator", str(judge_id))),
+        "evaluation_target": "SPAN",
+        "sampling_rate": 1.0,
+    }
+    response = await httpx_client.post(route, json=body)
+    assert response.status_code == 422, response.text
+    assert "'ticket'" in response.text and "span, trace, or session" in response.text
+
+    body["input_mapping"] = {"literal_mapping": {}, "path_mapping": {"ticket": "output"}}
+    response = await httpx_client.post(route, json=body)
+    assert response.status_code == 201, response.text
+    assert response.json()["data"]["evaluator_type"] == "decision"
+
+
+async def test_span_annotations_expose_the_typed_decision(
+    db: DbSessionFactory, gql_client: AsyncGraphQLClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id, span_rowid = await _span_with_output(db)
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id)
+    await _materialize(db, span_rowid, binding_id)
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(return_value=_response()))
+    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+    annotation = next(a for a in await _annotations(db) if a.name.endswith(".quality"))
+
+    result = await gql_client.execute(
+        """query ($id: ID!) { node(id: $id) { ... on SpanAnnotation {
+          decision { status question { name type levels { label } }
+            answer { __typename ... on ScaleAnswer { expectedLevel } } modelProvider } } } }""",
+        variables={"id": str(GlobalID("SpanAnnotation", str(annotation.id)))},
+    )
+    assert result.data and not result.errors, result.errors
+    assert result.data["node"]["decision"] == {
+        "status": "ANSWERED",
+        "question": {
+            "name": "quality",
+            "type": "SCALE",
+            "levels": [{"label": "low"}, {"label": "medium"}, {"label": "high"}],
+        },
+        "answer": {"__typename": "ScaleAnswer", "expectedLevel": 1.5},
+        "modelProvider": "TYPESAFE",
+    }
+
+
+async def test_an_oversized_request_gives_up_without_calling_the_model(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace, attributes={"output": {"value": "x" * 2_000}})
+        project_id, span_rowid = project.id, span.id
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id)
+    unit_id = await _materialize(db, span_rowid, binding_id)
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES", "1024")
+    invoke = AsyncMock(return_value=_response())
+    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+
+    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+
+    unit = await _get_unit(db, unit_id)
+    assert invoke.await_count == 0
+    assert unit.status == "EXPIRED"
+    assert unit.error is not None and "RENDERED_MESSAGE_TOO_LARGE" in unit.error

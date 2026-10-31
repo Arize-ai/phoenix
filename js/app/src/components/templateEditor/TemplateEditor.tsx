@@ -1,11 +1,19 @@
+import { acceptCompletion, startCompletion } from "@codemirror/autocomplete";
 import { defaultKeymap } from "@codemirror/commands";
+import { EditorState, Prec } from "@codemirror/state";
 import { css } from "@emotion/react";
 import type {
   BasicSetupOptions,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
@@ -15,6 +23,7 @@ import { createTemplateAutocomplete } from "./autocomplete";
 import { TemplateFormats } from "./constants";
 import { FStringTemplating } from "./language/fString";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
+import { useTemplateEvaluatorContext } from "./TemplateEvaluatorContext";
 import type { TemplateFormat } from "./types";
 
 type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
@@ -29,6 +38,11 @@ type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
    * Accessible name for the editor's textbox
    */
   "aria-label"?: string;
+  /**
+   * Behave like a text input: one line, no gutter, no wrapping. An edit
+   * that would add a line (Enter, a pasted newline) is dropped.
+   */
+  singleLine?: boolean;
 };
 
 const basicSetupOptions: BasicSetupOptions = {
@@ -40,11 +54,32 @@ const basicSetupOptions: BasicSetupOptions = {
   defaultKeymap: false,
 };
 
-const baseExtensions = [
+const singleLineSetupOptions: BasicSetupOptions = {
+  ...basicSetupOptions,
+  lineNumbers: false,
+};
+
+const keymapExtension = keymap.of([
+  ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
+]);
+
+const completionKeymap = Prec.highest(
+  keymap.of([{ key: "Tab", run: acceptCompletion }])
+);
+const multiLineExtensions = [
   EditorView.lineWrapping,
-  keymap.of([
-    ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
-  ]),
+  completionKeymap,
+  keymapExtension,
+];
+
+// Any edit that would leave more than one line is dropped, so Enter and
+// pasted newlines do nothing, as in a plain text input.
+const singleLineExtensions = [
+  completionKeymap,
+  keymapExtension,
+  EditorState.transactionFilter.of((transaction) =>
+    transaction.newDoc.lines > 1 ? [] : transaction
+  ),
 ];
 
 /**
@@ -55,6 +90,11 @@ const baseExtensions = [
  * or, when the readOnly prop is true, the editor will reset on all value changes.
  * This is necessary because controlled react-codemirror editors incessantly reset
  * cursor position when value is updated.
+ *
+ * What the user types is still kept as the value, matching the document, so
+ * the cursor stays put. react-codemirror rebuilds its view from the value when
+ * a Suspense boundary above it hides and reveals it; without this, the editor
+ * would show its first value again while the parent holds the edit.
  */
 export const TemplateEditor = ({
   templateFormat,
@@ -62,14 +102,30 @@ export const TemplateEditor = ({
   readOnly,
   availablePaths,
   "aria-label": ariaLabel = "Prompt template",
+  singleLine = false,
+  onChange,
   ...props
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
+  // A stable handler: react-codemirror reconfigures the editor whenever
+  // `onChange` changes, and the value now updates on every keystroke.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
+  const handleChange = useCallback<NonNullable<typeof onChange>>(
+    (nextValue, viewUpdate) => {
+      setValue(nextValue);
+      onChangeRef.current?.(nextValue, viewUpdate);
+    },
+    []
+  );
   const { theme } = useTheme();
+  const evaluationContext = useTemplateEvaluatorContext();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [
-      ...baseExtensions,
+      ...(singleLine ? singleLineExtensions : multiLineExtensions),
       // name the textbox for assistive technology
       EditorView.contentAttributes.of({ "aria-label": ariaLabel }),
     ];
@@ -85,17 +141,28 @@ export const TemplateEditor = ({
       default:
         assertUnreachable(templateFormat);
     }
-    // Add autocomplete extension if available paths are provided and templating is enabled
     if (
-      availablePaths &&
-      availablePaths.length > 0 &&
+      (evaluationContext !== null || (availablePaths?.length ?? 0) > 0) &&
       !readOnly &&
       templateFormat !== TemplateFormats.NONE
     ) {
-      ext.push(createTemplateAutocomplete(availablePaths, templateFormat));
+      ext.push(
+        createTemplateAutocomplete(
+          availablePaths ?? [],
+          templateFormat,
+          evaluationContext
+        )
+      );
     }
     return ext;
-  }, [templateFormat, availablePaths, readOnly, ariaLabel]);
+  }, [
+    templateFormat,
+    availablePaths,
+    readOnly,
+    ariaLabel,
+    evaluationContext,
+    singleLine,
+  ]);
 
   useEffect(() => {
     if (readOnly) {
@@ -104,13 +171,29 @@ export const TemplateEditor = ({
     }
   }, [readOnly, defaultValue]);
 
+  // The evaluator's materialized inputs can arrive after the user has already
+  // opened a template variable — the reconfigure they cause discards any open
+  // dropdown, so re-open it. The completion source offers nothing outside an
+  // open `{{`, so this is inert anywhere else in the template.
+  const editorViewRef = useRef<EditorView | null>(null);
+  useEffect(() => {
+    const editorView = editorViewRef.current;
+    if (editorView?.hasFocus) {
+      startCompletion(editorView);
+    }
+  }, [extensions]);
+
   return (
     <CodeMirror
       theme={codeMirrorTheme}
       extensions={extensions}
-      basicSetup={basicSetupOptions}
+      basicSetup={singleLine ? singleLineSetupOptions : basicSetupOptions}
       readOnly={readOnly}
+      onCreateEditor={(editorView) => {
+        editorViewRef.current = editorView;
+      }}
       {...props}
+      onChange={handleChange}
       value={value}
     />
   );
@@ -147,10 +230,6 @@ export const TemplateEditorWrap = ({
         }
         & .cm-cursor {
           display: ${!readOnly ? "auto" : "none !important"};
-        }
-        // Ensure autocomplete tooltip appears above other elements (e.g., chat message cards)
-        & .cm-tooltip-autocomplete {
-          z-index: 100;
         }
       `}
     >

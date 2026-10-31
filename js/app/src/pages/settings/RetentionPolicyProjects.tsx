@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import { Suspense, useRef, useState } from "react";
 import { graphql, useMutation } from "react-relay";
+import { useNavigate } from "react-router";
 
 import {
   Button,
@@ -68,6 +69,7 @@ export function RetentionPolicyProjects({
 }) {
   const [filterText, setFilterText] = useState("");
   const { contains } = useFilter({ sensitivity: "base" });
+  const navigate = useNavigate();
   const notifyError = useNotifyError();
   const [patchPolicy] = useMutation<RetentionPolicyProjectsPatchMutation>(
     graphql`
@@ -164,12 +166,12 @@ export function RetentionPolicyProjects({
             {visibleProjects.map((project) => (
               <li key={project.id}>
                 <ProjectToken
-                  projectId={project.id}
                   name={project.name}
                   gradientStartColor={project.gradientStartColor}
                   gradientEndColor={project.gradientEndColor}
                   size="L"
                   maxWidth="100%"
+                  onPress={() => navigate(`/projects/${project.id}/config`)}
                   onRemove={
                     canManage
                       ? () => patchProjects("remove", project.id)

@@ -14,9 +14,6 @@ from phoenix.db import models
 
 from . import _run_async, _up
 
-# dataset_evaluators.output_configs is made nullable by ef09e3bc213f.
-_KNOWN_MISMATCHES = {("dataset_evaluators", "output_configs")}
-
 
 async def test_model_column_nullability_matches_migrated_schema(
     _engine: AsyncEngine,
@@ -36,8 +33,6 @@ async def test_model_column_nullability_matches_migrated_schema(
                 continue
             migrated = {c["name"]: c["nullable"] for c in inspector.get_columns(table.name, schema)}
             for column in table.columns:
-                if (table.name, column.name) in _KNOWN_MISMATCHES:
-                    continue
                 if column.name not in migrated:
                     mismatches.append(f"{table.name}.{column.name}: not created by the migrations")
                 elif not column.primary_key and column.nullable != migrated[column.name]:

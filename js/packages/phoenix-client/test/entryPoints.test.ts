@@ -11,6 +11,7 @@ const cjsEntries = {
   traces: "../dist/src/traces/index.js",
   jest: "../dist/src/jest/index.js",
   projects: "../dist/src/projects/index.js",
+  evaluators: "../dist/src/evaluators/index.js",
   secrets: "../dist/src/secrets/index.js",
   users: "../dist/src/users/index.js",
 } as const;
@@ -20,6 +21,7 @@ const esmEntries = {
   traces: "../dist/esm/traces/index.js",
   jest: "../dist/esm/jest/index.js",
   projects: "../dist/esm/projects/index.js",
+  evaluators: "../dist/esm/evaluators/index.js",
   secrets: "../dist/esm/secrets/index.js",
   users: "../dist/esm/users/index.js",
 } as const;

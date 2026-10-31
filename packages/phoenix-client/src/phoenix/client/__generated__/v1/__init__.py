@@ -118,6 +118,18 @@ class CodeEvaluatorUIContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CodeEvaluatorVersion(TypedDict):
+    id: str
+    evaluator_id: str
+    source_code: str
+    created_at: str
+
+
+class CodeEvaluatorVersionsResponseBody(TypedDict):
+    data: Sequence[CodeEvaluatorVersion]
+    next_cursor: Optional[str]
+
+
 class CreateApiKeyRequestBody(TypedDict):
     data: ApiKeyData
 
@@ -182,11 +194,23 @@ class CreatedApiKey(TypedDict):
     expires_at: NotRequired[str]
 
 
+class CreatedCodeEvaluatorVersion(TypedDict):
+    id: str
+    evaluator_id: str
+    source_code: str
+    created_at: str
+    was_created: bool
+
+
+class CreatedCodeEvaluatorVersionResponseBody(TypedDict):
+    data: CreatedCodeEvaluatorVersion
+
+
 class CustomModelProvider(TypedDict):
     id: str
     name: str
     provider: str
-    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock"]
+    sdk: Literal["openai", "azure_openai", "anthropic", "google_genai", "aws_bedrock", "typesafe"]
     created_at: str
     updated_at: str
     description: NotRequired[str]
@@ -258,6 +282,11 @@ class DatasetWithExampleCount(TypedDict):
     created_at: str
     updated_at: str
     example_count: int
+
+
+class DecisionVersionSelector(TypedDict):
+    type: Literal["version"]
+    decision_version_id: str
 
 
 class DeleteSessionsRequestBody(TypedDict):
@@ -344,6 +373,11 @@ class GraphQLContext(TypedDict):
     mutationsEnabled: bool
 
 
+class InputMapping(TypedDict):
+    literal_mapping: Mapping[str, Any]
+    path_mapping: Mapping[str, str]
+
+
 class InsertedSessionAnnotation(TypedDict):
     id: str
 
@@ -371,6 +405,14 @@ class LDAPUser(LDAPUserData):
     id: str
     created_at: str
     updated_at: str
+
+
+class LatestDecisionVersionSelector(TypedDict):
+    type: Literal["latest"]
+
+
+class LatestPromptVersionSelector(TypedDict):
+    type: Literal["latest"]
 
 
 class ListAgentSessionsResponseBody(TypedDict):
@@ -452,6 +494,15 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PatchProjectEvaluatorRequest(TypedDict):
+    name: NotRequired[str]
+    sampling_rate: NotRequired[float]
+    filter_condition: NotRequired[str]
+    enabled: NotRequired[bool]
+    input_mapping: NotRequired[InputMapping]
+    evaluation_delay_seconds: NotRequired[int]
+
+
 class PatchPromptRequestBody(TypedDict):
     description: NotRequired[str]
     metadata: NotRequired[Mapping[str, Any]]
@@ -471,10 +522,17 @@ class PlaygroundCustomProviderModelUIContext(TypedDict):
     modelName: str
 
 
+class PlaygroundEvaluatorTaskUIContext(TypedDict):
+    evaluatorKind: Literal["LLM", "CODE"]
+    name: str
+    kind: NotRequired[Literal["evaluator"]]
+    isDirty: NotRequired[bool]
+
+
 class PlaygroundEvaluatorUIContext(TypedDict):
     datasetEvaluatorId: str
     name: str
-    kind: Literal["LLM", "CODE", "BUILTIN"]
+    kind: Literal["LLM", "CODE", "BUILTIN", "DECISION"]
     isBuiltin: bool
     isApplied: bool
 
@@ -485,27 +543,44 @@ class PlaygroundExperimentScaffoldUIContext(TypedDict):
     hasMetadata: NotRequired[bool]
 
 
-class PlaygroundInstanceUIContext(TypedDict):
-    instanceId: int
-    model: NotRequired[
-        Union[PlaygroundBuiltinModelUIContext, PlaygroundCustomProviderModelUIContext]
-    ]
-    experimentId: NotRequired[str]
+class PlaygroundPromptTaskUIContext(TypedDict):
+    kind: NotRequired[Literal["prompt"]]
 
 
-class PlaygroundUIContext(TypedDict):
-    type: Literal["playground"]
-    recordExperiments: NotRequired[bool]
-    repetitions: NotRequired[int]
-    nextExperimentScaffold: NotRequired[PlaygroundExperimentScaffoldUIContext]
-    instances: NotRequired[Sequence[PlaygroundInstanceUIContext]]
-    evaluators: NotRequired[Sequence[PlaygroundEvaluatorUIContext]]
+class PredicateScoring(TypedDict):
+    type: Literal["predicate"]
+    threshold: NotRequired[float]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
 
 
 class Project(TypedDict):
     name: str
     id: str
     description: NotRequired[str]
+
+
+class ProjectEvaluator(TypedDict):
+    id: str
+    project_id: str
+    evaluator_id: str
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
+    trace_project_id: str
+    name: str
+    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+    sampling_rate: float
+    filter_condition: str
+    enabled: bool
+    input_mapping: Optional[InputMapping]
+    evaluation_delay_seconds: int
+
+
+class ProjectEvaluatorResponseBody(TypedDict):
+    data: ProjectEvaluator
+
+
+class ProjectEvaluatorsResponseBody(TypedDict):
+    data: Sequence[ProjectEvaluator]
+    next_cursor: Optional[str]
 
 
 class ProjectRetentionPolicyData(TypedDict):
@@ -751,6 +826,11 @@ class PromptUIContext(TypedDict):
     promptNodeId: str
 
 
+class PromptVersionSelector(TypedDict):
+    type: Literal["version"]
+    prompt_version_id: str
+
+
 class PromptVersionTagData(TypedDict):
     name: str
     description: NotRequired[str]
@@ -802,6 +882,26 @@ class ReasoningUIPart(TypedDict):
     id: NotRequired[str]
     state: NotRequired[Literal["streaming", "done"]]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class SandboxConfig(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    language: Literal["PYTHON", "TYPESCRIPT"]
+    backend_type: str
+    is_usable: bool
+
+
+class SandboxConfigsResponseBody(TypedDict):
+    data: Sequence[SandboxConfig]
+    next_cursor: Optional[str]
+
+
+class ScaleScoring(TypedDict):
+    type: Literal["scale"]
+    include_label: NotRequired[bool]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
 
 
 class SecretKeyValue(TypedDict):
@@ -1098,19 +1198,6 @@ class TurnTraceContext(TypedDict):
     startedAt: str
 
 
-class UIContexts(TypedDict):
-    project: NotRequired[ProjectUIContext]
-    trace: NotRequired[TraceUIContext]
-    session: NotRequired[SessionUIContext]
-    span: NotRequired[SpanUIContext]
-    prompt: NotRequired[PromptUIContext]
-    promptVersion: NotRequired[PromptVersionUIContext]
-    dataset: NotRequired[DatasetUIContext]
-    playground: NotRequired[PlaygroundUIContext]
-    codeEvaluator: NotRequired[CodeEvaluatorUIContext]
-    llmEvaluator: NotRequired[LlmEvaluatorUIContext]
-
-
 class UpdateDatasetLabelRequestBody(TypedDict):
     name: NotRequired[str]
     color: NotRequired[str]
@@ -1373,6 +1460,11 @@ class AgentErrorData(TypedDict):
     errorText: str
 
 
+class BindingCounts(TypedDict):
+    project: int
+    dataset: int
+
+
 class PhoenixToolCallCallbackProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
@@ -1384,6 +1476,12 @@ class PhoenixToolCallCallbackProviderMetadata(TypedDict):
 class PhoenixToolCallProviderMetadata(TypedDict):
     toolExecutionEnvironment: Literal["client", "server"]
     toolInputEmittedAt: NotRequired[str]
+
+
+class ProblemFieldError(TypedDict):
+    field: str
+    code: str
+    message: str
 
 
 class SessionSummaryChunk(TypedDict):
@@ -1457,6 +1555,7 @@ class BuiltInModelProvider(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     name: str
 
@@ -1481,6 +1580,7 @@ class BuiltInProviderModelSelection(TypedDict):
         "TOGETHER",
         "ZAI",
         "META",
+        "TYPESAFE",
     ]
     modelName: str
 
@@ -1513,6 +1613,12 @@ class ChatCompletionUsage(TypedDict):
     completion_tokens: int
     total_tokens: int
     prompt_tokens_details: NotRequired[ChatCompletionUsagePromptTokensDetails]
+
+
+class ChoiceScoring(TypedDict):
+    type: Literal["choice"]
+    scores: NotRequired[Mapping[str, float]]
+    optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
 
 
 class ContinuousAnnotationConfigData(TypedDict):
@@ -1571,6 +1677,17 @@ class CreateExperimentRunResponseBody(TypedDict):
     data: CreateExperimentRunResponseBodyData
 
 
+class CreateProjectEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    evaluation_target: Literal["SPAN", "TRACE", "SESSION"]
+    sampling_rate: float
+    filter_condition: NotRequired[str]
+    enabled: NotRequired[bool]
+    input_mapping: NotRequired[InputMapping]
+    evaluation_delay_seconds: NotRequired[int]
+
+
 class CreateProjectResponseBody(TypedDict):
     data: Project
 
@@ -1616,6 +1733,20 @@ class DatasetExample(TypedDict):
     metadata: Mapping[str, Any]
     updated_at: str
     source: NotRequired[DatasetExampleSource]
+
+
+class DecisionEvaluatorDecision(TypedDict):
+    decision_id: str
+    selector: Union[DecisionVersionSelector, LatestDecisionVersionSelector]
+    resolved_decision_version_id: str
+
+
+class DecisionEvaluatorDecisionInput(TypedDict):
+    selector: DecisionVersionSelector
+
+
+class DecisionScoringPolicy(TypedDict):
+    questions: NotRequired[Mapping[str, Union[PredicateScoring, ChoiceScoring, ScaleScoring]]]
 
 
 class DynamicToolApprovalRequestedPart(TypedDict):
@@ -1750,6 +1881,16 @@ class IncompleteExperimentRun(TypedDict):
     repetition_numbers: Sequence[int]
 
 
+class LLMEvaluatorPrompt(TypedDict):
+    prompt_id: str
+    selector: Union[PromptVersionSelector, LatestPromptVersionSelector]
+    resolved_prompt_version_id: Optional[str]
+
+
+class LLMEvaluatorPromptInput(TypedDict):
+    selector: PromptVersionSelector
+
+
 class LegacyAssistantMessageMetadata(TypedDict):
     type: Literal["assistant"]
     sessionId: str
@@ -1769,6 +1910,56 @@ class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
+class PatchCodeEvaluatorRequest(TypedDict):
+    type: Literal["code"]
+    name: NotRequired[str]
+    description: NotRequired[str]
+    sandbox_config_id: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+    input_schema: NotRequired[Mapping[str, Any]]
+
+
+class PatchDatasetEvaluatorRequest(TypedDict):
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class PatchDecisionEvaluatorRequest(TypedDict):
+    type: Literal["decision"]
+    name: NotRequired[str]
+    decision: NotRequired[DecisionEvaluatorDecisionInput]
+    description: NotRequired[str]
+    scoring_policy: NotRequired[DecisionScoringPolicy]
+
+
+class PatchLLMEvaluatorRequest(TypedDict):
+    type: Literal["llm"]
+    name: NotRequired[str]
+    description: NotRequired[str]
+    prompt: NotRequired[LLMEvaluatorPromptInput]
+    output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
+    input_schema: NotRequired[Mapping[str, Any]]
+
+
 class PatchPromptResponseBody(TypedDict):
     data: Prompt
 
@@ -1781,13 +1972,23 @@ class PhoenixAssistantMessageMetadata(TypedDict):
     interrupted: NotRequired[bool]
 
 
-class PhoenixUserMessageMetadata(TypedDict):
-    type: Literal["user"]
-    currentDateTime: str
-    timeZone: str
-    isCompactionMessage: NotRequired[bool]
-    uiContexts: NotRequired[UIContexts]
-    editPermission: NotRequired[Literal["manual", "bypass"]]
+class PlaygroundInstanceUIContext(TypedDict):
+    instanceId: int
+    model: NotRequired[
+        Union[PlaygroundBuiltinModelUIContext, PlaygroundCustomProviderModelUIContext]
+    ]
+    experimentId: NotRequired[str]
+    task: NotRequired[Union[PlaygroundPromptTaskUIContext, PlaygroundEvaluatorTaskUIContext]]
+
+
+class PlaygroundUIContext(TypedDict):
+    type: Literal["playground"]
+    taskKind: NotRequired[Literal["prompt", "evaluator"]]
+    recordExperiments: NotRequired[bool]
+    repetitions: NotRequired[int]
+    nextExperimentScaffold: NotRequired[PlaygroundExperimentScaffoldUIContext]
+    instances: NotRequired[Sequence[PlaygroundInstanceUIContext]]
+    evaluators: NotRequired[Sequence[PlaygroundEvaluatorUIContext]]
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):
@@ -1999,6 +2200,19 @@ class TraceData(TypedDict):
     spans: NotRequired[Sequence[TraceSpanData]]
 
 
+class UIContexts(TypedDict):
+    project: NotRequired[ProjectUIContext]
+    trace: NotRequired[TraceUIContext]
+    session: NotRequired[SessionUIContext]
+    span: NotRequired[SpanUIContext]
+    prompt: NotRequired[PromptUIContext]
+    promptVersion: NotRequired[PromptVersionUIContext]
+    dataset: NotRequired[DatasetUIContext]
+    playground: NotRequired[PlaygroundUIContext]
+    codeEvaluator: NotRequired[CodeEvaluatorUIContext]
+    llmEvaluator: NotRequired[LlmEvaluatorUIContext]
+
+
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -2012,6 +2226,19 @@ class AgentErrorChunk(TypedDict):
     data: AgentErrorData
     id: NotRequired[str]
     transient: NotRequired[bool]
+
+
+class ProblemDetail(TypedDict):
+    type: str
+    title: str
+    status: int
+    detail: str
+    code: str
+    reason: NotRequired[str]
+    errors: NotRequired[Sequence[ProblemFieldError]]
+    existing_id: NotRequired[str]
+    current_version_id: NotRequired[str]
+    binding_counts: NotRequired[BindingCounts]
 
 
 class TranscriptPersistedChunk(TypedDict):
@@ -2036,6 +2263,22 @@ class AssignAnnotationConfigToProjectResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
+class BuiltInEvaluatorDefinition(TypedDict):
+    type: Literal["builtin"]
+    id: str
+    name: str
+    description: Optional[str]
+    key: str
+    input_schema: Mapping[str, Any]
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+
+
 class ChatCompletion(TypedDict):
     id: str
     created: int
@@ -2043,6 +2286,44 @@ class ChatCompletion(TypedDict):
     choices: Sequence[ChatCompletionChoice]
     usage: ChatCompletionUsage
     object: NotRequired[Literal["chat.completion"]]
+
+
+class CodeEvaluatorDefinition(TypedDict):
+    type: Literal["code"]
+    id: str
+    name: str
+    description: Optional[str]
+    language: Literal["PYTHON", "TYPESCRIPT"]
+    sandbox_config_id: Optional[str]
+    input_mapping: Optional[InputMapping]
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+    current_version_id: Optional[str]
+    source_code: Optional[str]
+    input_schema: Optional[Mapping[str, Any]]
+
+
+class CodeEvaluatorVersionRequest(TypedDict):
+    source_code: str
+    expected_current_version_id: NotRequired[str]
+    description: NotRequired[str]
+    sandbox_config_id: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+    input_schema: NotRequired[Mapping[str, Any]]
 
 
 class CompactAgentSessionRequestBody(TypedDict):
@@ -2059,8 +2340,104 @@ class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
+class CreateCodeEvaluatorRequest(TypedDict):
+    type: Literal["code"]
+    name: str
+    source_code: str
+    language: Literal["PYTHON", "TYPESCRIPT"]
+    sandbox_config_id: str
+    input_mapping: InputMapping
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
+    description: NotRequired[str]
+    input_schema: NotRequired[Mapping[str, Any]]
+
+
+class CreateDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class CreateDecisionEvaluatorRequest(TypedDict):
+    type: Literal["decision"]
+    name: str
+    decision: DecisionEvaluatorDecisionInput
+    description: NotRequired[str]
+    scoring_policy: NotRequired[DecisionScoringPolicy]
+
+
+class CreateLLMEvaluatorRequest(TypedDict):
+    type: Literal["llm"]
+    name: str
+    prompt: LLMEvaluatorPromptInput
+    output_configs: Sequence[CategoricalAnnotationConfigData]
+    description: NotRequired[str]
+    input_schema: NotRequired[Mapping[str, Any]]
+
+
 class CreateSpansRequestBody(TypedDict):
     data: Sequence[Span]
+
+
+class DatasetEvaluator(TypedDict):
+    id: str
+    dataset_id: str
+    evaluator_id: str
+    evaluator_type: Literal["llm", "code", "builtin", "decision"]
+    trace_project_id: str
+    name: str
+    input_mapping: InputMapping
+    description: Optional[str]
+    output_configs: Optional[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class DatasetEvaluatorResponseBody(TypedDict):
+    data: DatasetEvaluator
+
+
+class DatasetEvaluatorsResponseBody(TypedDict):
+    data: Sequence[DatasetEvaluator]
+    next_cursor: Optional[str]
+
+
+class DecisionEvaluatorDefinition(TypedDict):
+    type: Literal["decision"]
+    id: str
+    name: str
+    description: Optional[str]
+    decision: DecisionEvaluatorDecision
+    scoring_policy: DecisionScoringPolicy
+    output_configs: Sequence[
+        Union[
+            CategoricalAnnotationConfigData,
+            ContinuousAnnotationConfigData,
+            FreeformAnnotationConfigData,
+        ]
+    ]
 
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
@@ -2093,6 +2470,16 @@ class GetSessionsResponseBody(TypedDict):
 class GetTracesResponseBody(TypedDict):
     data: Sequence[TraceData]
     next_cursor: Optional[str]
+
+
+class LLMEvaluatorDefinition(TypedDict):
+    type: Literal["llm"]
+    id: str
+    name: str
+    description: Optional[str]
+    prompt: LLMEvaluatorPrompt
+    output_configs: Sequence[CategoricalAnnotationConfigData]
+    input_schema: Optional[Mapping[str, Any]]
 
 
 class LegacyAssistantMetadataUIMessage(TypedDict):
@@ -2191,11 +2578,6 @@ class LegacyChatSubmitMessage(TypedDict):
     requestedSkills: NotRequired[Sequence[str]]
 
 
-class MessageMetadata(TypedDict):
-    phoenix: NotRequired[Union[PhoenixAssistantMessageMetadata, PhoenixUserMessageMetadata]]
-    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
-
-
 class PatchAgentSessionRequestBody(TypedDict):
     title: NotRequired[str]
     model: NotRequired[Union[CustomProviderModelSelection, BuiltInProviderModelSelection]]
@@ -2203,6 +2585,58 @@ class PatchAgentSessionRequestBody(TypedDict):
 
 class PatchAgentSessionResponseBody(TypedDict):
     data: AgentSessionData
+
+
+class PhoenixUserMessageMetadata(TypedDict):
+    type: Literal["user"]
+    currentDateTime: str
+    timeZone: str
+    isCompactionMessage: NotRequired[bool]
+    uiContexts: NotRequired[UIContexts]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+
+
+class PromptAnthropicInvocationParameters(TypedDict):
+    type: Literal["anthropic"]
+    anthropic: PromptAnthropicInvocationParametersContent
+
+
+class PromptGoogleInvocationParameters(TypedDict):
+    type: Literal["google"]
+    google: PromptGoogleInvocationParametersContent
+
+
+class PromptMessage(TypedDict):
+    role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
+    content: Union[
+        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
+    ]
+
+
+class EvaluatorDefinitionResponseBody(TypedDict):
+    data: Union[
+        CodeEvaluatorDefinition,
+        LLMEvaluatorDefinition,
+        BuiltInEvaluatorDefinition,
+        DecisionEvaluatorDefinition,
+    ]
+
+
+class EvaluatorDefinitionsResponseBody(TypedDict):
+    data: Sequence[
+        Union[
+            CodeEvaluatorDefinition,
+            LLMEvaluatorDefinition,
+            BuiltInEvaluatorDefinition,
+            DecisionEvaluatorDefinition,
+        ]
+    ]
+    next_cursor: Optional[str]
+
+
+class MessageMetadata(TypedDict):
+    phoenix: NotRequired[Union[PhoenixAssistantMessageMetadata, PhoenixUserMessageMetadata]]
+    pydantic_ai: NotRequired[PydanticAIMessageMetadata]
 
 
 class PhoenixUIMessage(TypedDict):
@@ -2236,21 +2670,64 @@ class PhoenixUIMessage(TypedDict):
     metadata: NotRequired[MessageMetadata]
 
 
-class PromptAnthropicInvocationParameters(TypedDict):
-    type: Literal["anthropic"]
-    anthropic: PromptAnthropicInvocationParametersContent
+class PromptChatTemplate(TypedDict):
+    type: Literal["chat"]
+    messages: Sequence[PromptMessage]
 
 
-class PromptGoogleInvocationParameters(TypedDict):
-    type: Literal["google"]
-    google: PromptGoogleInvocationParametersContent
-
-
-class PromptMessage(TypedDict):
-    role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
-    content: Union[
-        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
+class PromptVersionData(TypedDict):
+    model_provider: Literal[
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
+        "MINIMAX",
+        "PERPLEXITY",
+        "TOGETHER",
+        "ZAI",
+        "META",
+        "TYPESAFE",
     ]
+    model_name: str
+    template: Union[PromptChatTemplate, PromptStringTemplate]
+    template_type: Literal["STR", "CHAT"]
+    template_format: Literal["MUSTACHE", "F_STRING", "NONE"]
+    invocation_parameters: Union[
+        PromptOpenAIInvocationParameters,
+        PromptAzureOpenAIInvocationParameters,
+        PromptAnthropicInvocationParameters,
+        PromptGoogleInvocationParameters,
+        PromptDeepSeekInvocationParameters,
+        PromptXAIInvocationParameters,
+        PromptOllamaInvocationParameters,
+        PromptAwsInvocationParameters,
+        PromptCerebrasInvocationParameters,
+        PromptFireworksInvocationParameters,
+        PromptGroqInvocationParameters,
+        PromptMoonshotInvocationParameters,
+        PromptPerplexityInvocationParameters,
+        PromptTogetherInvocationParameters,
+        PromptZAIInvocationParameters,
+        PromptMetaInvocationParameters,
+    ]
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    tools: NotRequired[PromptTools]
+    response_format: NotRequired[PromptResponseFormatJSONSchema]
+    custom_provider_id: NotRequired[str]
+
+
+class PromptVersion(PromptVersionData):
+    id: str
+    created_at: str
 
 
 class SubmitAgentSessionToolApprovalsResponseBody(TypedDict):
@@ -2311,69 +2788,6 @@ class CompactAgentSessionResponseBody(TypedDict):
     data: PhoenixUIMessage
 
 
-class ListAgentSessionMessagesResponseBody(TypedDict):
-    data: Sequence[PhoenixUIMessage]
-    next_cursor: Optional[str]
-
-
-class PromptChatTemplate(TypedDict):
-    type: Literal["chat"]
-    messages: Sequence[PromptMessage]
-
-
-class PromptVersionData(TypedDict):
-    model_provider: Literal[
-        "OPENAI",
-        "AZURE_OPENAI",
-        "ANTHROPIC",
-        "GOOGLE",
-        "DEEPSEEK",
-        "XAI",
-        "OLLAMA",
-        "AWS",
-        "CEREBRAS",
-        "FIREWORKS",
-        "GROQ",
-        "MOONSHOT",
-        "MINIMAX",
-        "PERPLEXITY",
-        "TOGETHER",
-        "ZAI",
-        "META",
-    ]
-    model_name: str
-    template: Union[PromptChatTemplate, PromptStringTemplate]
-    template_type: Literal["STR", "CHAT"]
-    template_format: Literal["MUSTACHE", "F_STRING", "NONE"]
-    invocation_parameters: Union[
-        PromptOpenAIInvocationParameters,
-        PromptAzureOpenAIInvocationParameters,
-        PromptAnthropicInvocationParameters,
-        PromptGoogleInvocationParameters,
-        PromptDeepSeekInvocationParameters,
-        PromptXAIInvocationParameters,
-        PromptOllamaInvocationParameters,
-        PromptAwsInvocationParameters,
-        PromptCerebrasInvocationParameters,
-        PromptFireworksInvocationParameters,
-        PromptGroqInvocationParameters,
-        PromptMoonshotInvocationParameters,
-        PromptPerplexityInvocationParameters,
-        PromptTogetherInvocationParameters,
-        PromptZAIInvocationParameters,
-        PromptMetaInvocationParameters,
-    ]
-    description: NotRequired[str]
-    metadata: NotRequired[Mapping[str, Any]]
-    tools: NotRequired[PromptTools]
-    response_format: NotRequired[PromptResponseFormatJSONSchema]
-
-
-class PromptVersion(PromptVersionData):
-    id: str
-    created_at: str
-
-
 class CreatePromptRequestBody(TypedDict):
     prompt: PromptData
     version: PromptVersionData
@@ -2398,6 +2812,11 @@ class GetPromptResponseBody(TypedDict):
 
 class GetPromptVersionsResponseBody(TypedDict):
     data: Sequence[PromptVersion]
+    next_cursor: Optional[str]
+
+
+class ListAgentSessionMessagesResponseBody(TypedDict):
+    data: Sequence[PhoenixUIMessage]
     next_cursor: Optional[str]
 
 

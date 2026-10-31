@@ -1,4 +1,4 @@
-import type { PlaygroundState } from "./types";
+import type { PlaygroundNormalizedInstance, PlaygroundState } from "./types";
 
 /**
  * Curried selector to get an instance by id
@@ -37,3 +37,85 @@ export const selectPlaygroundInstanceMessage =
   (messageId: number) => (state: PlaygroundState) => {
     return state.allInstanceMessages[messageId];
   };
+
+/**
+ * Curried selector to get the decision prompt for a given instance
+ * @param instanceId
+ * @returns selector function that returns the decision prompt for the given instance, if it has one
+ */
+export const selectPlaygroundInstanceDecisionPrompt =
+  (instanceId: number) => (state: PlaygroundState) => {
+    const decisionPromptId =
+      selectPlaygroundInstance(instanceId)(state)?.decisionPromptId;
+    if (decisionPromptId == null) {
+      return undefined;
+    }
+    return state.allInstanceDecisionPrompts[decisionPromptId];
+  };
+
+/**
+ * Every instance alongside its decision prompt, for helpers that read an
+ * instance's decision prompt with the rest of the instance. It builds new objects on
+ * each call, so derive a value from it inside a selector rather than
+ * subscribing to it.
+ */
+export const getPlaygroundInstancesWithDecisionPrompts = (
+  state: Pick<PlaygroundState, "instances" | "allInstanceDecisionPrompts">
+) =>
+  state.instances.map((instance) => ({
+    ...instance,
+    decisionPrompt:
+      instance.decisionPromptId != null
+        ? state.allInstanceDecisionPrompts[instance.decisionPromptId]
+        : undefined,
+  }));
+
+/**
+ * Equality for `state.instances` that ignores each instance's
+ * `experimentRunProgress`. Every streamed run event bumps a counter there and
+ * replaces the array, so a subscriber that only reads the instances' shape —
+ * what the tasks are, which are running, which experiment each produced —
+ * would otherwise re-render, and rebuild everything hanging off it, once per
+ * event. Pair it with a selector of `state.instances`; the array handed back
+ * may carry stale progress counters, so read progress through its own
+ * selector instead.
+ */
+export function arePlaygroundInstancesEqualExceptProgress(
+  left: ReadonlyArray<PlaygroundNormalizedInstance>,
+  right: ReadonlyArray<PlaygroundNormalizedInstance>
+): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((instance, index) =>
+    isInstanceEqualExceptProgress(instance, right[index])
+  );
+}
+
+function isInstanceEqualExceptProgress(
+  left: PlaygroundNormalizedInstance,
+  right: PlaygroundNormalizedInstance
+): boolean {
+  if (left === right) {
+    return true;
+  }
+
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  keys.delete("experimentRunProgress");
+
+  for (const key of keys) {
+    if (
+      left[key as keyof PlaygroundNormalizedInstance] !==
+      right[key as keyof PlaygroundNormalizedInstance]
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}

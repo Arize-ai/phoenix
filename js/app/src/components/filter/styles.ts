@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import { validationBadgeGrowIn } from "@phoenix/components/core/alert";
+import { counterCSS } from "@phoenix/components/core/counter/Counter";
 import { APP_PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 /**
@@ -15,7 +16,28 @@ export const popoverSurfaceCSS = css`
   box-shadow: 0 8px 16px var(--global-overlay-shadow-color);
 `;
 
-/** Shared CodeMirror autocomplete menu and info-panel chrome. */
+/**
+ * Shared CodeMirror autocomplete menu and info-panel chrome.
+ *
+ * Applied globally, because `typeaheadTooltips` renders the menu into
+ * `document.body` rather than under any of its editors' wrappers. Every rule
+ * is scoped to the `dsl-filter-typeahead` class the typeahead surfaces ask
+ * for, so other editors' menus are untouched.
+ */
+/**
+ * Completion `type` values spelled with this prefix are row classes: the menu
+ * chrome in `typeaheadMenuCSS` below styles them, and `optionClass` passes
+ * them through unchanged.
+ */
+export const TYPEAHEAD_COMPLETION_CLASS_PREFIX = "typeahead-completion--";
+
+export function toTypeaheadCompletionClass(type: string | undefined): string {
+  return (type ?? "")
+    .split(" ")
+    .filter((name) => name.startsWith(TYPEAHEAD_COMPLETION_CLASS_PREFIX))
+    .join(" ");
+}
+
 export const typeaheadMenuCSS = css`
   .cm-tooltip.cm-tooltip-autocomplete.dsl-filter-typeahead {
     ${popoverSurfaceCSS}
@@ -24,21 +46,19 @@ export const typeaheadMenuCSS = css`
     /* CodeMirror anchors the tooltip to the text line inside the field, so
        the offset must clear the field's inner padding and border before it
        reads as a gap below the input itself. A transform (rather than
-       margin) keeps CodeMirror's own tooltip measurement and positioning
-       math untouched. */
-    transform: translateY(var(--global-dimension-size-200));
+       margin) keeps CodeMirror's own positioning math untouched;
+       typeaheadTooltips insets the space it measures against by the same
+       amount so a menu at the viewport edge still fits. */
+    --menu-gap: var(--typeahead-menu-gap, var(--global-dimension-size-200));
+    transform: translateY(var(--menu-gap));
     &.cm-tooltip-above {
-      transform: translateY(calc(-1 * var(--global-dimension-size-200)));
+      transform: translateY(calc(-1 * var(--menu-gap)));
     }
     & > ul {
       font-family: var(--global-font-family-sans);
       font-size: var(--global-font-size-s);
       line-height: var(--global-line-height-s);
-      /* Keep the menu short enough to fit on either side of a field in a
-         centered dialog. CodeMirror chooses above/below from the measured
-         height, so a viewport-relative cap prevents an unnecessary flip into
-         the viewport edge on compact screens. */
-      max-height: min(400px, 40vh);
+      max-height: 400px;
       min-width: 280px;
       /* Wide enough that the longest shipped suggestion snippet (~77 mono
          chars) fits its own stacked line — see li.dsl-filter-suggestion */
@@ -83,7 +103,8 @@ export const typeaheadMenuCSS = css`
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    li.dsl-filter-suggestion .cm-completionLabel {
+    li.dsl-filter-suggestion .cm-completionLabel,
+    li.typeahead-completion--idea .cm-completionDetail {
       font-family: var(--global-font-family-sans);
     }
     /* A suggestion's detail is a whole example condition, not a short type
@@ -97,6 +118,87 @@ export const typeaheadMenuCSS = css`
     li.dsl-filter-suggestion .cm-completionDetail {
       margin-left: 0;
       max-width: 100%;
+    }
+    /* A row for something the record does not supply — kept in the menu so
+       its absence is visible, dimmed so the absence reads. */
+    li.typeahead-completion--unset {
+      color: var(--global-text-color-300);
+    }
+    /* A container row: the chevron says the row can be drilled with a dot. */
+    li.typeahead-completion--container .cm-completionLabel::after {
+      content: " ›";
+      color: var(--global-text-color-500);
+    }
+    /* A path-field idea leads with what it reaches, in prose, and keeps the
+       path it writes beside it in code. */
+    li.typeahead-completion--idea-first .cm-completionLabel {
+      font-family: var(--global-font-family-sans);
+    }
+    li.typeahead-completion--idea-first .cm-completionDetail {
+      font-family: var(--global-font-family-mono);
+    }
+    /* What a fan-out does with what it reads, said in prose */
+    li.typeahead-completion--fan-out .cm-completionDetail {
+      font-family: var(--global-font-family-sans);
+    }
+    /* How many members a container row holds */
+    .typeahead-completion-count {
+      ${counterCSS}
+      flex: none;
+      margin-left: auto;
+    }
+    /* Beside a detail it sits close, rather than a whole column away */
+    .cm-completionDetail + .typeahead-completion-count {
+      margin-left: calc(
+        var(--global-dimension-size-100) - var(--global-dimension-size-300)
+      );
+    }
+    /* The chevron a row with a submenu ends in, as the app's menus draw it */
+    .typeahead-completion-chevron {
+      display: flex;
+      flex: none;
+      width: 1em;
+      height: 1em;
+      font-size: 1.2em;
+      margin-left: auto;
+      color: var(--global-text-color-700);
+      svg {
+        fill: currentColor;
+        width: 1em;
+        height: 1em;
+      }
+    }
+    .cm-completionDetail + .typeahead-completion-chevron,
+    .typeahead-completion-count + .typeahead-completion-chevron {
+      margin-left: calc(
+        var(--global-dimension-size-50) - var(--global-dimension-size-300)
+      );
+    }
+    /* Read out, never drawn: what the chevron means */
+    .evaluator-path-sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    /* The pointer resting on a path-field row is what opens its side
+       panel; the layer that notices sits over the whole row */
+    & > ul > li:has(.evaluator-path-hover-target) {
+      position: relative;
+    }
+    .evaluator-path-hover-target {
+      position: absolute;
+      inset: 0;
+    }
+    /* Details that read as prose rather than as a value */
+    li.typeahead-completion--empty .cm-completionDetail,
+    li.typeahead-completion--unset .cm-completionDetail,
+    li.typeahead-completion--hint .cm-completionDetail {
+      font-family: var(--global-font-family-sans);
+      font-style: italic;
+      color: var(--global-text-color-300);
     }
     .cm-completionMatchedText {
       text-decoration: none;
@@ -115,26 +217,93 @@ export const typeaheadMenuCSS = css`
       max-width: 60%;
       flex: 0 1 auto;
     }
-  }
-  /* The info panel shown beside the highlighted completion */
-  .cm-tooltip.cm-completionInfo {
-    ${popoverSurfaceCSS}
-    font-family: var(--global-font-family-sans);
-    font-size: var(--global-font-size-s);
-    padding: var(--global-dimension-size-100);
-    color: var(--global-text-color-700);
-    max-width: 300px;
-  }
-`;
-
-/**
- * CodeMirror tooltips normally inherit the field's scoped Emotion styles.
- * Inside a modal they are reparented to the overlay container to escape the
- * dialog's transformed overflow clip, so repeat that scope at the portal root.
- */
-export const portaledTypeaheadMenuCSS = css`
-  .dsl-filter-tooltip-root {
-    ${typeaheadMenuCSS}
+    /* The info panel shown beside the highlighted completion */
+    & .cm-tooltip.cm-completionInfo {
+      ${popoverSurfaceCSS}
+      font-family: var(--global-font-family-sans);
+      font-size: var(--global-font-size-s);
+      padding: var(--global-dimension-size-100);
+      color: var(--global-text-color-700);
+      max-width: 300px;
+    }
+    /* The path field's side panel: a submenu of the level below a row, or a
+       longer look at the value one reads. It is set like the menu itself. */
+    & .cm-tooltip.cm-completionInfo:has(.evaluator-path-panel) {
+      padding: var(--global-dimension-size-50);
+      white-space: normal;
+    }
+    .evaluator-path-panel {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: var(--global-dimension-size-50);
+      min-width: 200px;
+    }
+    /* A level deeper, beside the row of the panel that opened it. It clears
+       that panel's border, and the menu's padding around the first panel. */
+    .evaluator-path-panel--nested {
+      ${popoverSurfaceCSS}
+      position: absolute;
+      left: 100%;
+      z-index: 1;
+      width: max-content;
+      max-width: 400px;
+      padding: var(--global-dimension-size-50);
+      margin-left: calc(1px + var(--global-dimension-size-50));
+      &.evaluator-path-panel--left {
+        left: auto;
+        right: 100%;
+        margin-left: 0;
+        margin-right: calc(1px + var(--global-dimension-size-50));
+      }
+    }
+    .cm-completionInfo > .evaluator-path-panel > .evaluator-path-panel--nested {
+      margin-left: calc(2px + 2 * var(--global-dimension-size-50));
+      &.evaluator-path-panel--left {
+        margin-left: 0;
+        margin-right: calc(2px + 2 * var(--global-dimension-size-50));
+      }
+    }
+    .evaluator-path-panel__note {
+      padding: var(--global-dimension-size-50) var(--global-dimension-size-100)
+        0;
+      font-size: var(--global-font-size-xs);
+      color: var(--global-text-color-500);
+    }
+    .evaluator-path-panel__preview {
+      padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+    .evaluator-path-panel__rows {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: var(--global-font-size-s);
+      line-height: var(--global-line-height-s);
+      & > li {
+        display: flex;
+        align-items: center;
+        gap: var(--global-dimension-size-300);
+        padding: var(--global-dimension-size-50)
+          var(--global-dimension-size-100);
+        border-radius: var(--global-rounding-small);
+        color: var(--global-text-color-900);
+        cursor: pointer;
+        /* The row the pointer or the keys rest on, and the row whose level
+           is open beside it, read as the menu's own highlighted row */
+        &:hover,
+        &[data-open],
+        &[aria-selected="true"] {
+          background-color: var(--global-menu-item-background-color-hover);
+        }
+      }
+    }
   }
 `;
 
@@ -168,7 +337,6 @@ export const dslFilterCodeMirrorCSS = css`
   .cm-selectionLayer .cm-selectionBackground {
     background: var(--global-color-cyan-400) !important;
   }
-  ${typeaheadMenuCSS}
   /* The tab-through blanks an inserted snippet leaves behind — CodeMirror's
      default marking is a near-invisible gray, so tint them with the primary
      color to read as "fill me in": the active one is selected for overtyping,
@@ -215,12 +383,6 @@ export const dslFilterFieldCSS = css`
   background-color: var(--global-input-field-background-color);
   transition: all 0.2s ease-in-out;
   overflow-x: hidden;
-  /* Carry the focus ring's geometry at rest and reveal it with color alone,
-     the way the text inputs do. Leaving the outline unset means focus has to
-     transition off the initial medium-width outline, which animates a thicker
-     ring inward from outside the border. */
-  outline: var(--focus-ring-thickness) solid transparent;
-  outline-offset: calc(-1 * var(--focus-ring-thickness));
   &:hover {
     border-color: var(--global-input-field-border-color-active);
   }
@@ -228,7 +390,8 @@ export const dslFilterFieldCSS = css`
     border-color: var(--global-input-field-border-color-active);
   }
   &:has(.cm-content:focus-visible) {
-    outline-color: var(--focus-ring-color);
+    outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
+    outline-offset: calc(-1 * var(--focus-ring-thickness));
   }
   /* Flag invalidity only once the user has left the field — a red border
      while they're still typing/fixing the expression is too alarming */

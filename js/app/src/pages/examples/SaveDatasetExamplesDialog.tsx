@@ -30,7 +30,6 @@ import {
 } from "@phoenix/components/core/dialog";
 import { EDITABLE_TABLE_CHANGE_KINDS } from "@phoenix/components/table";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
-import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import { getEditableTableChangeCounts } from "@phoenix/store/editableTableStore";
 import type {
   EditableTableDiff,
@@ -45,13 +44,22 @@ import type {
 } from "./__generated__/SaveDatasetExamplesDialogMutation.graphql";
 import type { DatasetExampleTableRow } from "./datasetExampleTableTypes";
 
+/**
+ * What a row must carry for its edits to become dataset example operations.
+ * The examples page's rows have more; the playground's rows have this.
+ */
+export type EditableExampleRow = Pick<
+  DatasetExampleTableRow,
+  "id" | "externalId" | "input" | "output" | "metadata"
+>;
+
 /** The editable columns and the GraphQL field each one replaces. */
 const REPLACEABLE_FIELDS = [
   ["input", "INPUT"],
   ["output", "OUTPUT"],
   ["metadata", "METADATA"],
 ] as const satisfies ReadonlyArray<
-  readonly [keyof DatasetExampleTableRow, DatasetExampleField]
+  readonly [keyof EditableExampleRow, DatasetExampleField]
 >;
 
 /**
@@ -60,8 +68,8 @@ const REPLACEABLE_FIELDS = [
  * new row. The store never holds a change to a deleted row, so the order
  * carries no conflicts for the server to resolve.
  */
-function toDatasetExampleOperations(
-  diff: EditableTableDiff<DatasetExampleTableRow>
+export function toDatasetExampleOperations<Row extends EditableExampleRow>(
+  diff: EditableTableDiff<Row>
 ): DatasetExampleOperation[] {
   return [
     ...diff.updatedRows.flatMap(({ rowId, changes }) =>
@@ -110,26 +118,37 @@ const changeSummaryCSS = css`
   }
 `;
 
-type SaveDatasetExamplesDialogProps = {
+type SaveDatasetExamplesDialogProps<Row extends EditableExampleRow> = {
   datasetId: string;
-  editStore: EditableTableStore<DatasetExampleTableRow>;
+  editStore: EditableTableStore<Row>;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  /**
+   * Brings the table's rows up to the version just saved. The store stays in
+   * "saving" until the consumer ends the session, so the pending edits never
+   * flicker away before their saved counterparts render; a rejection ends it
+   * here instead, on the rows already shown.
+   */
+  onSaved: () => Promise<unknown>;
+  /**
+   * Adjusts the diff before it becomes operations, for a table whose cells
+   * edit a view of a field rather than the field itself.
+   */
+  transformDiff?: (diff: EditableTableDiff<Row>) => EditableTableDiff<Row>;
 };
 
-export function SaveDatasetExamplesDialog({
+export function SaveDatasetExamplesDialog<Row extends EditableExampleRow>({
   datasetId,
   editStore,
   isOpen,
   onOpenChange,
-}: SaveDatasetExamplesDialogProps) {
+  onSaved,
+  transformDiff = (diff) => diff,
+}: SaveDatasetExamplesDialogProps<Row>) {
   const [versionDescription, setVersionDescription] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const counts = useStore(editStore, useShallow(getEditableTableChangeCounts));
   const changeCount = counts.added + counts.updated + counts.deleted;
-  const refreshLatestVersion = useDatasetContext(
-    (state) => state.refreshLatestVersion
-  );
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [commitChanges, isCommitting] =
@@ -149,7 +168,7 @@ export function SaveDatasetExamplesDialog({
 
   const saveChanges = () => {
     setSaveError(null);
-    const diff = editStore.getState().getDiff();
+    const diff = transformDiff(editStore.getState().getDiff());
     editStore.getState().startSaving();
     commitChanges({
       variables: {
@@ -169,12 +188,9 @@ export function SaveDatasetExamplesDialog({
             changeCount === 1 ? "" : "s"
           } committed.`,
         });
-        // The table stays in "saving" until the new version's rows have
-        // rendered, so the pending edits never flicker away before their saved
-        // counterparts. The changes are committed either way: if the new
-        // version cannot be fetched, the session ends on the rows already
-        // shown.
-        refreshLatestVersion().catch(() => {
+        // The changes are committed either way: if the new version cannot be
+        // fetched, the session ends on the rows already shown.
+        onSaved().catch(() => {
           editStore.getState().finishSaving();
           notifyError({
             title: "Saved, but the table could not refresh",

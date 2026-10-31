@@ -40,6 +40,9 @@ const useTraceAnnotationSummaryGroup = (
             username
             profilePictureUrl
           }
+          decision {
+            ...decisionAnnotation_decision @relay(mask: false)
+          }
         }
         summaryTraceAnnotationSummaries: traceAnnotationSummaries(
           filter: { exclude: { names: ["note"] } }

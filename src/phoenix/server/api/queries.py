@@ -11,6 +11,7 @@ import strawberry
 from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
 from sqlalchemy.orm import joinedload, load_only, with_polymorphic
 from sqlalchemy.sql.expression import tuple_
+from sqlalchemy.sql.selectable import NamedFromClause
 from starlette.authentication import UnauthenticatedUser
 from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -18,6 +19,9 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.__generated__.classification_evaluator_configs import (
+    ClassificationEvaluatorConfig as PydanticClassificationEvaluatorConfig,
+)
 from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
 )
@@ -27,6 +31,7 @@ from phoenix.db.helpers import (
     SupportedSQLDialect,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
+    exclude_project_evaluator_trace_projects,
     pg_table_sizes_stmt,
 )
 from phoenix.db.models import LatencyMs
@@ -37,15 +42,10 @@ from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspac
 from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import (
-    apply_input_mapping,
-    cast_template_variable_types,
-    infer_input_schema_from_template,
-    validate_template_variables,
-)
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.classification_evaluator_configs import (
-    get_classification_evaluator_configs,
+from phoenix.server.api.helpers.decision_clients import (
+    DECISION_CLIENTS,
+    allowed_decision_providers,
 )
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
@@ -56,33 +56,56 @@ from phoenix.server.api.helpers.playground_clients import (
     initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
+from phoenix.server.api.input_types.DecisionFilter import DecisionFilter
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
 from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig
+from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
-from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
+from phoenix.server.api.types.ClassificationEvaluatorConfig import (
+    ClassificationEvaluatorConfig,
+    EvaluatorCategory,
+    EvaluatorInputDescriptor,
+    EvaluatorScope,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
+from phoenix.server.api.types.Decision import (
+    Decision,
+    DecisionLabel,
+    DecisionVersion,
+    DecisionVersionTag,
+)
+from phoenix.server.api.types.EvaluationActivity import (
+    EVALUATION_ACTIVITY_RETENTION_NOTE,
+    EvaluationActivity,
+    resolve_evaluation_activity,
+)
+from phoenix.server.api.types.EvaluationQueue import EvaluationQueue
 from phoenix.server.api.types.Evaluator import (
     BuiltInEvaluator,
     CodeEvaluator,
     DatasetEvaluator,
+    DecisionEvaluator,
     Evaluator,
     LLMEvaluator,
+    ProjectEvaluator,
+    to_gql_evaluator,
 )
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
@@ -104,6 +127,7 @@ from phoenix.server.api.types.ModelCostManifest import (
     ModelCostManifest,
     to_gql_model_cost_manifest,
 )
+from phoenix.server.api.types.ModelType import ModelType
 from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
     is_composite_global_id,
@@ -119,7 +143,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
-from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.Project import Project, project_evaluator_connection
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt
@@ -159,19 +183,90 @@ from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
+from phoenix.server.evaluators.catalog import (
+    get_classification_evaluator_configs,
+)
+from phoenix.server.evaluators.input_mapping import (
+    apply_input_mapping,
+    cast_template_variable_types,
+    validate_template_variables,
+)
+from phoenix.server.evaluators.schemas import infer_input_schema_from_template
 from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
-from phoenix.utilities.template_formatters import TemplateFormatterError
+from phoenix.utilities.template_formatters import TemplateFormatterError, get_template_formatter
 
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
 
+def _to_gql_classification_evaluator_config(
+    config: PydanticClassificationEvaluatorConfig,
+) -> ClassificationEvaluatorConfig:
+    """Convert a generated config to the GraphQL shape shared by both config queries."""
+    if config.optimization_direction == "maximize":
+        optimization_direction = OptimizationDirection.MAXIMIZE
+    elif config.optimization_direction == "minimize":
+        optimization_direction = OptimizationDirection.MINIMIZE
+    else:
+        optimization_direction = OptimizationDirection.NONE
+
+    gql_messages: list[PromptMessage] = []
+    for message in config.messages:
+        role_value = message.role.lower()
+        if role_value == "user":
+            role = PromptMessageRole.USER
+        elif role_value == "system":
+            role = PromptMessageRole.SYSTEM
+        elif role_value in ("ai", "assistant"):
+            role = PromptMessageRole.AI
+        elif role_value == "tool":
+            role = PromptMessageRole.TOOL
+        else:
+            role = PromptMessageRole.USER
+
+        content = type_cast(
+            list[ContentPart],
+            [TextContentPart(text=TextContentValue(text=message.content))],
+        )
+        gql_messages.append(PromptMessage(role=role, content=content))
+
+    inputs = (
+        [
+            EvaluatorInputDescriptor(
+                name=input_name,
+                description=input_descriptor.description,
+            )
+            for input_name, input_descriptor in config.inputs.items()
+        ]
+        if config.inputs is not None
+        else None
+    )
+    return ClassificationEvaluatorConfig(
+        name=config.name,
+        description=config.description,
+        optimization_direction=optimization_direction,
+        messages=gql_messages,
+        choices=JSON(config.choices),
+        labels=config.labels,
+        scope=EvaluatorScope(config.scope.value) if config.scope else None,
+        recommended=config.recommended,
+        category=EvaluatorCategory(config.category.value) if config.category else None,
+        details=config.details,
+        inputs=inputs,
+        default_filter_condition=config.default_filter_condition,
+        default_path_mapping=(
+            JSON(config.default_path_mapping) if config.default_path_mapping is not None else None
+        ),
+    )
+
+
 @strawberry.input
 class ModelsInput:
-    provider_key: Optional[GenerativeProviderKey]
+    provider_key: Optional[GenerativeProviderKey] = None
     model_name: Optional[str] = None
     openai_api_type: Optional[OpenAIApiType] = None
+    model_type: ModelType = ModelType.LLM
 
 
 @strawberry.type
@@ -233,9 +328,14 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
+        # A provider is listed if it offers models of either type; decision-only
+        # providers come from the decision clients.
         available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
             info.context.allowed_provider_names
         )
+        for provider_key in allowed_decision_providers(info.context.allowed_provider_names):
+            if provider_key not in available_providers:
+                available_providers.append(provider_key)
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -373,7 +473,20 @@ class Query:
         return to_gql_model_cost_manifest(marker)
 
     @strawberry.field
-    async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
+    async def playground_models(
+        self, info: Info[Context, None], input: Optional[ModelsInput] = None
+    ) -> list[PlaygroundModel]:
+        if input is not None and input.model_type is ModelType.DECISION:
+            return [
+                PlaygroundModel(
+                    name_value=model_name,
+                    provider_key_value=provider_key,
+                    model_type=ModelType.DECISION,
+                )
+                for provider_key in allowed_decision_providers(info.context.allowed_provider_names)
+                if input.provider_key is None or input.provider_key is provider_key
+                for model_name in DECISION_CLIENTS[provider_key].model_names
+            ]
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
@@ -515,6 +628,7 @@ class Query:
             )
         projects_query = exclude_experiment_projects(projects_query)
         projects_query = exclude_dataset_evaluator_projects(projects_query)
+        projects_query = exclude_project_evaluator_trace_projects(projects_query)
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]
@@ -800,7 +914,7 @@ class Query:
             .alias("run_metrics")
         )
 
-        def best_run_per_example(*, compare: bool, alias: str) -> Any:
+        def best_run_per_example(*, compare: bool, alias: str) -> NamedFromClause:
             experiment_filter = (
                 run_metrics.c.experiment_id.in_(compare_experiment_rowids)
                 if compare
@@ -1114,10 +1228,18 @@ class Query:
                     return to_gql_prompt_version(orm_prompt_version)
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
+        elif type_name == DecisionLabel.__name__:
+            return DecisionLabel(id=node_id)
         elif type_name == PromptLabel.__name__:
             return PromptLabel(id=node_id)
         elif type_name == PromptVersionTag.__name__:
             return PromptVersionTag(id=node_id)
+        elif type_name == Decision.__name__:
+            return Decision(id=node_id)
+        elif type_name == DecisionVersionTag.__name__:
+            return DecisionVersionTag(id=node_id)
+        elif type_name == DecisionVersion.__name__:
+            return await _decision_node(info, type_name, node_id, id)
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
@@ -1126,6 +1248,8 @@ class Query:
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
+        elif type_name == DecisionEvaluator.__name__:
+            return DecisionEvaluator(id=node_id)
         elif type_name == LLMEvaluator.__name__:
             return LLMEvaluator(id=node_id)
         elif type_name == CodeEvaluator.__name__:
@@ -1134,6 +1258,14 @@ class Query:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
             return DatasetEvaluator(id=node_id)
+        elif type_name == ProjectEvaluator.__name__:
+            async with info.context.db.read() as session:
+                if project_evaluator_record := await session.scalar(
+                    select(models.ProjectEvaluator).where(models.ProjectEvaluator.id == node_id)
+                ):
+                    return ProjectEvaluator(id=node_id, db_record=project_evaluator_record)
+                else:
+                    raise NotFound(f"Unknown project evaluator: {id}")
         elif type_name == SandboxConfig.__name__:
             return SandboxConfig(id=node_id)
         if type_name == GenerativeModelCustomProvider.__name__:
@@ -1150,6 +1282,71 @@ class Query:
         if isinstance(user, UnauthenticatedUser):
             return None
         return User(id=int(user.identity))
+
+    @strawberry.field(description="Saved decisions, newest first.")  # type: ignore
+    async def decisions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        filter: Optional[DecisionFilter] = UNSET,
+        label_ids: Optional[list[GlobalID]] = UNSET,
+    ) -> Connection[Decision]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.Decision).order_by(
+            models.Decision.created_at.desc(), models.Decision.id.desc()
+        )
+        if filter:
+            # Cast the Identifier column to String for ilike, as prompts do
+            stmt = stmt.where(cast(models.Decision.name, String).ilike(f"%{filter.value}%"))
+        if label_ids:
+            try:
+                ids = [
+                    from_global_id_with_expected_type(label_id, "DecisionLabel")
+                    for label_id in label_ids
+                ]
+            except ValueError as error:
+                raise BadRequest(str(error)) from error
+            stmt = stmt.where(
+                models.Decision.id.in_(
+                    select(models.DecisionDecisionLabel.decision_id).where(
+                        models.DecisionDecisionLabel.decision_label_id.in_(ids)
+                    )
+                )
+            )
+        async with info.context.db.read() as session:
+            decisions = (await session.scalars(stmt)).all()
+        return connection_from_list(
+            data=[Decision(id=decision.id, db_record=decision) for decision in decisions],
+            args=args,
+        )
+
+    @strawberry.field
+    async def decision_labels(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        after: Optional[CursorString] = UNSET,
+    ) -> Connection[DecisionLabel]:
+        async with info.context.db.read() as session:
+            labels = (
+                await session.scalars(
+                    select(models.DecisionLabel).order_by(models.DecisionLabel.name)
+                )
+            ).all()
+        return connection_from_list(
+            data=[DecisionLabel(id=label.id, db_record=label) for label in labels],
+            args=ConnectionArgs(
+                first=first, after=after if isinstance(after, CursorString) else None
+            ),
+        )
 
     @strawberry.field
     async def prompts(
@@ -1221,12 +1418,14 @@ class Query:
         # escaping LIKE metacharacters (% and _) so they match literally rather
         # than acting as wildcards.
         projects_stmt = (
-            exclude_dataset_evaluator_projects(
-                exclude_experiment_projects(
-                    select(models.Project).where(
-                        or_(
-                            models.Project.name.icontains(search_term, autoescape=True),
-                            models.Project.description.icontains(search_term, autoescape=True),
+            exclude_project_evaluator_trace_projects(
+                exclude_dataset_evaluator_projects(
+                    exclude_experiment_projects(
+                        select(models.Project).where(
+                            or_(
+                                models.Project.name.icontains(search_term, autoescape=True),
+                                models.Project.description.icontains(search_term, autoescape=True),
+                            )
                         )
                     )
                 )
@@ -1414,6 +1613,7 @@ class Query:
         before: Optional[CursorString] = UNSET,
         sort: Optional[EvaluatorSort] = UNSET,
         filter: Optional[EvaluatorFilter] = UNSET,
+        exclude_project_id: Optional[GlobalID] = UNSET,
     ) -> Connection[Evaluator]:
         args = ConnectionArgs(
             first=first,
@@ -1425,7 +1625,13 @@ class Query:
         # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
         # base `evaluators` table.
         PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
+            models.Evaluator,
+            [
+                models.LLMEvaluator,
+                models.CodeEvaluator,
+                models.BuiltinEvaluator,
+                models.DecisionEvaluator,
+            ],
         )  # eagerly join sub-classed evaluator tables
 
         has_dataset_association = exists(
@@ -1441,6 +1647,16 @@ class Query:
                 has_dataset_association,
             )
         )
+
+        if isinstance(exclude_project_id, GlobalID):
+            project_rowid = from_global_id_with_expected_type(exclude_project_id, Project.__name__)
+            has_project_association = exists(
+                select(models.ProjectEvaluator.id).where(
+                    models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
+                    models.ProjectEvaluator.project_id == project_rowid,
+                )
+            )
+            query = query.where(~has_project_association)
 
         if filter:
             if filter.col.value == "name":
@@ -1468,6 +1684,7 @@ class Query:
                 # this special case can be removed if we add updated_at to the base table
                 sort_col = case(
                     (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "DECISION", models.DecisionEvaluator.updated_at),
                     (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
                     (PolymorphicEvaluator.kind == "BUILTIN", models.BuiltinEvaluator.synced_at),
                     else_=None,
@@ -1480,18 +1697,36 @@ class Query:
 
         async with info.context.db.read() as session:
             evaluators = await session.scalars(query)
-        data: list[Evaluator] = []
-        for evaluator in evaluators:
-            if isinstance(evaluator, models.LLMEvaluator):
-                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
-            elif isinstance(evaluator, models.CodeEvaluator):
-                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
-            elif isinstance(evaluator, models.BuiltinEvaluator):
-                data.append(BuiltInEvaluator(id=evaluator.id, db_record=evaluator))
-            else:
-                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        data = [to_gql_evaluator(evaluator) for evaluator in evaluators]
 
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description=(
+            "Every project evaluator on the server, across projects, newest first. "
+            "projectId narrows to one project."
+        ),
+    )  # type: ignore
+    async def project_evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        after: Optional[CursorString] = UNSET,
+        filter: Optional[ProjectEvaluatorFilter] = UNSET,
+        project_id: Optional[GlobalID] = UNSET,
+    ) -> Connection[ProjectEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+        )
+        stmt = select(models.ProjectEvaluator).order_by(
+            models.ProjectEvaluator.created_at.desc(),
+            models.ProjectEvaluator.id.desc(),
+        )
+        if isinstance(project_id, GlobalID):
+            project_rowid = from_global_id_with_expected_type(project_id, Project.__name__)
+            stmt = stmt.where(models.ProjectEvaluator.project_id == project_rowid)
+        return await project_evaluator_connection(info, stmt, filter, args)
 
     @strawberry.field
     async def annotation_configs(
@@ -1521,51 +1756,18 @@ class Query:
         info: Info[Context, None],
         labels: Optional[list[str]] = UNSET,
     ) -> list[ClassificationEvaluatorConfig]:
-        pydantic_configs = get_classification_evaluator_configs(
+        configs = get_classification_evaluator_configs(
             labels=labels if labels is not UNSET else None
         )
+        return [_to_gql_classification_evaluator_config(config) for config in configs]
 
-        gql_configs: list[ClassificationEvaluatorConfig] = []
-        for config in pydantic_configs:
-            if config.optimization_direction == "maximize":
-                optimization_direction = OptimizationDirection.MAXIMIZE
-            elif config.optimization_direction == "minimize":
-                optimization_direction = OptimizationDirection.MINIMIZE
-            else:
-                optimization_direction = OptimizationDirection.NONE
-
-            gql_messages: list[PromptMessage] = []
-            for msg in config.messages:
-                role_str = msg.role.lower()
-                if role_str == "user":
-                    role = PromptMessageRole.USER
-                elif role_str == "system":
-                    role = PromptMessageRole.SYSTEM
-                elif role_str in ("ai", "assistant"):
-                    role = PromptMessageRole.AI
-                elif role_str == "tool":
-                    role = PromptMessageRole.TOOL
-                else:
-                    # Default to USER if unknown role
-                    role = PromptMessageRole.USER
-
-                content = type_cast(
-                    list[ContentPart],
-                    [TextContentPart(text=TextContentValue(text=msg.content))],
-                )
-
-                gql_messages.append(PromptMessage(role=role, content=content))
-
-            gql_config = ClassificationEvaluatorConfig(
-                name=config.name,
-                description=config.description,
-                optimization_direction=optimization_direction,
-                messages=gql_messages,
-                choices=JSON(config.choices),
-            )
-            gql_configs.append(gql_config)
-
-        return gql_configs
+    @strawberry.field
+    async def evaluator_gallery_configs(
+        self,
+        info: Info[Context, None],
+    ) -> list[ClassificationEvaluatorConfig]:
+        configs = get_classification_evaluator_configs(gallery_ready=True)
+        return [_to_gql_classification_evaluator_config(config) for config in configs]
 
     @strawberry.field
     async def default_project_trace_retention_policy(
@@ -1665,6 +1867,34 @@ class Query:
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
             database_encryption_key_is_public=database_encryption_key_is_public,
+        )
+
+    @strawberry.field(
+        description=(
+            "The online evaluation queue, shared by every project on the server and by span, "
+            "trace, and session evaluations."
+        ),
+    )  # type: ignore
+    async def evaluation_queue(self, info: Info[Context, None]) -> EvaluationQueue:
+        return EvaluationQueue(queue=await info.context.data_loaders.evaluation_queue.load(None))
+
+    @strawberry.field(
+        description=(
+            "Evaluation activity of every project evaluator on the server, grouped by project. "
+            + EVALUATION_ACTIVITY_RETENTION_NOTE
+        ),
+    )  # type: ignore
+    async def evaluation_activity(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> EvaluationActivity:
+        return await resolve_evaluation_activity(
+            info,
+            project_id=None,
+            time_range=time_range,
+            time_bin_config=time_bin_config or None,
         )
 
     @strawberry.field(
@@ -1953,6 +2183,7 @@ class Query:
         stmt = select(func.count(models.Project.id))
         stmt = exclude_experiment_projects(stmt)
         stmt = exclude_dataset_evaluator_projects(stmt)
+        stmt = exclude_project_evaluator_trace_projects(stmt)
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
@@ -1960,6 +2191,11 @@ class Query:
     async def dataset_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.Dataset.id))) or 0
+
+    @strawberry.field
+    async def decision_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.Decision.id))) or 0
 
     @strawberry.field
     async def prompt_count(self, info: Info[Context, None]) -> int:
@@ -2071,3 +2307,19 @@ def _comparison_count_expression(
         ),
         0,
     )
+
+
+async def _decision_node(
+    info: Info[Context, None], type_name: str, node_id: int, global_id: strawberry.ID
+) -> Node:
+    """A saved decision, version, or tag by its row ID."""
+    async with info.context.db.read() as session:
+        if type_name == Decision.__name__:
+            if decision := await session.get(models.Decision, node_id):
+                return Decision(id=decision.id, db_record=decision)
+        elif type_name == DecisionVersion.__name__:
+            if version := await session.get(models.DecisionVersion, node_id):
+                return DecisionVersion(id=version.id, db_record=version)
+        elif tag := await session.get(models.DecisionVersionTag, node_id):
+            return DecisionVersionTag(id=tag.id, db_record=tag)
+    raise NotFound(f"Unknown {type_name}: {global_id}")

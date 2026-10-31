@@ -1,17 +1,49 @@
 import { Flex, Text, View } from "@phoenix/components";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { readDecisionVariable } from "./decisionUtils";
 import { useDerivedPlaygroundVariables } from "./useDerivedPlaygroundVariables";
-import { VariableEditor } from "./VariableEditor";
+import { type VariableDecisionReading, VariableEditor } from "./VariableEditor";
+
+/** How decisions read a typed value, for its badge and read-as-text switch. */
+function toDecisionReading({
+  text,
+  isReadAsText,
+  onReadAsTextChange,
+}: {
+  text: string | undefined;
+  isReadAsText: boolean;
+  onReadAsTextChange: (isReadAsText: boolean) => void;
+}): VariableDecisionReading {
+  const reading = readDecisionVariable({ text, isReadAsText });
+  return reading.kind === "missing"
+    ? { type: null, isJson: false, isReadAsText, onReadAsTextChange }
+    : {
+        type: reading.type,
+        isJson: reading.isJson,
+        isReadAsText,
+        onReadAsTextChange,
+      };
+}
 
 export function PlaygroundInput() {
   const { variableKeys, variablesMap } = useDerivedPlaygroundVariables();
   const setVariableValue = usePlaygroundContext(
     (state) => state.setVariableValue
   );
+  const setVariableReadAsText = usePlaygroundContext(
+    (state) => state.setVariableReadAsText
+  );
+  const variablesReadAsText = usePlaygroundContext(
+    (state) => state.input.variablesReadAsText
+  );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const isDecision = usePlaygroundContext((state) =>
+    state.instances.some(isDecisionInstance)
+  );
   if (variableKeys.length === 0) {
     let templateSyntax = "";
     switch (templateFormat) {
@@ -33,9 +65,19 @@ export function PlaygroundInput() {
       <View padding="size-100">
         <Flex direction="column" justifyContent="center" alignItems="center">
           <Text color="text-700">
-            Add variable inputs to your prompt using{" "}
-            <Text color="text-900">{templateSyntax}</Text> within your prompt
-            template.
+            {isDecision ? (
+              <>
+                Add variables to your prompts or decision templates using{" "}
+                <Text color="text-900">{templateSyntax}</Text>, or select part
+                of a decision&apos;s state to make one, to fill them in here.
+              </>
+            ) : (
+              <>
+                Add variable inputs to your prompt using{" "}
+                <Text color="text-900">{templateSyntax}</Text> within your
+                prompt template.
+              </>
+            )}
           </Text>
         </Flex>
       </View>
@@ -55,6 +97,19 @@ export function PlaygroundInput() {
             label={variableKey}
             defaultValue={variablesMap[variableKey] ?? ""}
             onChange={(value) => setVariableValue(variableKey, value)}
+            decisionReading={
+              isDecision
+                ? toDecisionReading({
+                    text: variablesMap[variableKey],
+                    isReadAsText: variablesReadAsText?.[variableKey] ?? false,
+                    onReadAsTextChange: (isReadAsText) =>
+                      setVariableReadAsText({
+                        name: variableKey,
+                        isReadAsText,
+                      }),
+                  })
+                : undefined
+            }
           />
         );
       })}

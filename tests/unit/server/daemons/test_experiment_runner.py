@@ -1,32 +1,99 @@
 from __future__ import annotations
 
 import heapq
+import json
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Hashable, Sequence
+from secrets import token_hex
+from typing import Any, AsyncIterator, Hashable, Sequence, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
+from anyio.streams.memory import MemoryObjectReceiveStream
+from pydantic import SecretStr
+from sqlalchemy import select
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+    OutputConfigType,
+)
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, resolve_scoring_policy
+from phoenix.db.types.decisions import (
+    ChoiceOption,
+    ChoiceQuestion,
+    DecisionQuestion,
+    DecisionTaskConfig,
+    JsonState,
+    PredicateQuestion,
+)
+from phoenix.db.types.evaluator_definition import (
+    EvaluatorDefinition,
+    InlineCodeEvaluatorDefinition,
+    InlineLLMEvaluatorDefinition,
+    InlineLLMEvaluatorPromptVersion,
+    StoredDecisionEvaluatorDefinition,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptChatTemplate,
+    PromptMessage,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptToolChoiceOneOrMore,
+    PromptToolFunction,
+    PromptToolFunctionDefinition,
+    PromptTools,
+)
+from phoenix.server.api.helpers.decision_clients import (
+    ChoiceAnswer,
+    DecisionRateLimitError,
+    DecisionRequest,
+    DecisionResponse,
+    DecisionTransientError,
+    PredicateAnswer,
+    RefusalAnswer,
+    TypeSafeDecisionClient,
+)
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
+    ChatCompletionSubscriptionPayload,
+    ChatCompletionSubscriptionResult,
     EvaluationChunk,
+    FunctionCallChunk,
+    ToolCallChunk,
 )
 from phoenix.server.daemons.experiment_runner import (
     CircuitBreaker,
+    DecisionTaskWorkItem,
     EvaluatorRunSpec,
+    EvaluatorTaskWorkItem,
     EvalWorkItem,
     ExperimentRunner,
     RetryItem,
     RunningExperiment,
     TaskWorkItem,
     WorkItem,
-    _NoOpLLMClient,
 )
+from phoenix.server.evaluators.runtime.base import BaseEvaluator, EvaluationResult
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
+from phoenix.server.evaluators.runtime.llm import LLMEvaluator
+from phoenix.server.evaluators.snapshots import pin_evaluator_definition
 from phoenix.server.monty_runtime import MontyBusy
 from phoenix.server.rate_limiters import UnavailableTokensError
+from phoenix.server.sandbox.result_protocol import PHOENIX_RESULT_BEGIN, PHOENIX_RESULT_END
+from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
+from phoenix.tracers import Tracer
 
 # ---------------------------------------------------------------------------
 # Helpers / Factories
@@ -98,20 +165,20 @@ class _BlockingTokenBucket:
 class _StubTokenBucketRegistry:
     """Registry that returns the same bucket for all keys."""
 
-    def __init__(self, bucket: Any = None) -> None:
+    def __init__(self, bucket: _StubTokenBucket | _BlockingTokenBucket | None = None) -> None:
         self._bucket = bucket or _StubTokenBucket()
 
-    def __getitem__(self, key: Hashable) -> Any:
+    def __getitem__(self, key: Hashable) -> _StubTokenBucket | _BlockingTokenBucket:
         return self._bucket
 
 
 class _AsyncSessionContext:
     """Minimal async context manager wrapper for mocked DB sessions."""
 
-    def __init__(self, session: Any) -> None:
+    def __init__(self, session: MagicMock) -> None:
         self._session = session
 
-    async def __aenter__(self) -> Any:
+    async def __aenter__(self) -> MagicMock:
         return self._session
 
     async def __aexit__(self, *args: Any) -> None:
@@ -135,7 +202,6 @@ def _make_running_experiment(
     return RunningExperiment(
         experiment=_make_experiment(experiment_id),
         experiment_job=_make_experiment_job(experiment_id, max_concurrency=max_concurrency),
-        llm_client=_NoOpLLMClient(),
         db=MagicMock(spec=DbSessionFactory),
         decrypt=lambda b: b,
         tracer_factory=MagicMock(),
@@ -187,26 +253,38 @@ def _make_eval_work_item(
     *,
     run_id: int = 1,
     dataset_evaluator_id: int = 10,
+    name: str = "test-evaluator",
     output_names: Sequence[str] = ("test-output",),
     retry_count: int = 0,
 ) -> EvalWorkItem:
     evaluator = MagicMock()
+    evaluator.provider_client = None
+    evaluator.annotator_kind = "CODE"
     evaluator.name = "test-evaluator"
     output_configs = []
     for output_name in output_names:
         output_config = MagicMock()
         output_config.name = output_name
         output_configs.append(output_config)
+    spec = EvaluatorRunSpec(
+        dataset_evaluator_id=dataset_evaluator_id,
+        name=name,
+        evaluator=evaluator,
+        input_mapping=MagicMock(),
+        output_configs=output_configs,
+        evaluator_project_id=1,
+    )
     return EvalWorkItem(
         running_experiment=running_experiment,
         experiment_run=_make_experiment_run(run_id=run_id),
         dataset_example_revision=_make_dataset_example_revision(),
-        dataset_evaluator_id=dataset_evaluator_id,
+        dataset_evaluator_id=spec.dataset_evaluator_id,
+        name=spec.evaluation_name,
         evaluator=evaluator,
         db=running_experiment._db,
         tracer_factory=running_experiment._tracer_factory,
         project_id=1,
-        input_mapping=MagicMock(),
+        input_mapping=spec.input_mapping,
         output_configs=output_configs,
         retry_count=retry_count,
     )
@@ -395,6 +473,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=91,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -424,6 +503,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=92,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -655,7 +735,10 @@ class TestRunningExperimentQueueLogic:
         assert mock_broadcast.call_count == 2
         emitted = [call.args[0] for call in mock_broadcast.call_args_list]
         assert all(isinstance(chunk, EvaluationChunk) for chunk in emitted)
-        assert [chunk.evaluator_name for chunk in emitted] == ["accuracy", "conciseness"]
+        assert [chunk.evaluator_name for chunk in emitted] == [
+            "test-evaluator.accuracy",
+            "test-evaluator.conciseness",
+        ]
         assert all(chunk.error == "timeout after 1 retries" for chunk in emitted)
 
     @pytest.mark.anyio
@@ -669,6 +752,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=42,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config_a, output_config_b],
@@ -704,6 +788,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=77,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -738,6 +823,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=88,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -775,6 +861,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=89,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -817,6 +904,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=95,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -870,6 +958,7 @@ class TestRunningExperimentQueueLogic:
         evaluator.name = "quality-evaluator"
         spec = EvaluatorRunSpec(
             dataset_evaluator_id=90,
+            name="quality-evaluator",
             evaluator=evaluator,
             input_mapping=MagicMock(),
             output_configs=[output_config],
@@ -1040,6 +1129,60 @@ class TestRoundRobinFairness:
 # ===========================================================================
 # Group 5: EvalWorkItem cancellation
 # ===========================================================================
+
+
+class TestEvalWorkItemContext:
+    async def test_hides_every_annotation_under_its_own_name(self) -> None:
+        experiment = _make_running_experiment()
+        work_item = _make_eval_work_item(experiment, output_names=("quality",))
+        work_item.dataset_example_revision.metadata_ = {
+            "annotations": {
+                "quality": [
+                    {"label": "good", "annotator_kind": "HUMAN"},
+                    {"label": "bad", "annotator_kind": "LLM"},
+                ],
+                "tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        }
+        with (
+            patch.object(work_item.evaluator, "evaluate", new_callable=AsyncMock) as evaluate,
+            patch.object(work_item, "_persist_eval_results", new_callable=AsyncMock),
+        ):
+            evaluate.return_value = []
+            await work_item.execute()
+
+        assert evaluate.await_args is not None
+        assert evaluate.await_args.kwargs["context"]["metadata"] == {
+            "annotations": {"tone": [{"label": "warm", "annotator_kind": "HUMAN"}]},
+            "source": "unit",
+        }
+
+    async def test_a_multi_output_evaluator_writes_and_hides_names_under_its_binding(
+        self,
+    ) -> None:
+        experiment = _make_running_experiment()
+        work_item = _make_eval_work_item(experiment, name="judge", output_names=("quality", "tone"))
+        work_item.dataset_example_revision.metadata_ = {
+            "annotations": {
+                "judge.quality": [{"label": "good", "annotator_kind": "HUMAN"}],
+                "judge.tone": [{"label": "warm", "annotator_kind": "HUMAN"}],
+                "quality": [{"label": "bad", "annotator_kind": "HUMAN"}],
+            },
+        }
+        with (
+            patch.object(work_item.evaluator, "evaluate", new_callable=AsyncMock) as evaluate,
+            patch.object(work_item, "_persist_eval_results", new_callable=AsyncMock),
+        ):
+            evaluate.return_value = []
+            await work_item.execute()
+
+        assert work_item.annotation_names == ["judge.quality", "judge.tone"]
+        assert evaluate.await_args is not None
+        assert evaluate.await_args.kwargs["name"] == "judge"
+        assert evaluate.await_args.kwargs["context"]["metadata"] == {
+            "annotations": {"quality": [{"label": "bad", "annotator_kind": "HUMAN"}]},
+        }
 
 
 class TestEvalWorkItemCancellation:
@@ -1279,6 +1422,157 @@ class TestTaskWorkItemPersistsErrorRun:
         assert isinstance(error_broadcast, ChatCompletionSubscriptionError)
 
 
+class _FailingDecisionClient:
+    """Decision client stub whose create() raises, with a hashable rate limit key."""
+
+    def __init__(self, error: BaseException) -> None:
+        self.create = AsyncMock(side_effect=error)
+
+    def get_rate_limit_key(self) -> Hashable:
+        return "stub-decision"
+
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return False
+
+    def is_transient_error(self, e: Exception) -> bool:
+        return False
+
+
+def _make_decision_work_item(
+    running_experiment: RunningExperiment,
+    client: Any,
+    *,
+    timeout: float = 120.0,
+    input: dict[str, Any] | None = None,
+) -> DecisionTaskWorkItem:
+    revision = _make_dataset_example_revision(42)
+    revision.input = input if input is not None else {"ticket": "hi"}
+    decision_task = MagicMock(spec=models.ExperimentDecisionTask)
+    decision_task.config = DecisionTaskConfig.model_validate(
+        {
+            "template_format": "MUSTACHE",
+            "state": {"type": "json", "template": "{{ticket}}"},
+            "questions": [{"type": "predicate", "name": "urgent", "instructions": "Is it urgent?"}],
+        }
+    )
+    tracer = MagicMock(spec=Tracer)
+    tracer.get_db_traces.return_value = []
+    return DecisionTaskWorkItem(
+        running_experiment=running_experiment,
+        experiment=running_experiment._experiment,
+        dataset_example_revision=revision,
+        repetition_number=0,
+        decision_task=decision_task,
+        decision_client=client,
+        db=running_experiment._db,
+        tracer_factory=lambda: tracer,
+        project_id=1,
+        timeout=timeout,
+    )
+
+
+class TestDecisionTaskWorkItem:
+    @pytest.mark.anyio
+    async def test_timeout_calls_on_timeout_without_persisting(self) -> None:
+        exp = _make_running_experiment()
+        client = _FailingDecisionClient(TimeoutError())
+        work_item = _make_decision_work_item(exp, client)
+        mock_persist = AsyncMock()
+        with (
+            patch.object(exp, "on_timeout", AsyncMock()) as on_timeout,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(work_item, "_persist_run", mock_persist),
+        ):
+            await work_item.execute()
+        on_timeout.assert_awaited_once_with(work_item)
+        on_failure.assert_not_awaited()
+        mock_persist.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_cancellation_is_reraised(self) -> None:
+        exp = _make_running_experiment()
+        client = _FailingDecisionClient(anyio.get_cancelled_exc_class()())
+        work_item = _make_decision_work_item(exp, client)
+        with (
+            patch.object(exp, "on_timeout", AsyncMock()) as on_timeout,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(work_item, "_persist_run", AsyncMock()) as mock_persist,
+        ):
+            with pytest.raises(anyio.get_cancelled_exc_class()):
+                await work_item.execute()
+        on_timeout.assert_not_awaited()
+        on_failure.assert_not_awaited()
+        mock_persist.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_non_retryable_error_persists_error_run_and_fails(self) -> None:
+        exp = _make_running_experiment()
+        error = RuntimeError("Bad request (injected)")
+        work_item = _make_decision_work_item(exp, _FailingDecisionClient(error))
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 801
+        mock_persist = AsyncMock(return_value=persisted_run)
+        with (
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "on_task_success", AsyncMock()) as on_success,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+            patch.object(work_item, "_persist_run", mock_persist),
+        ):
+            await work_item.execute()
+        db_run = mock_persist.await_args.args[0]  # type: ignore[union-attr]
+        assert isinstance(db_run, models.ExperimentRun)
+        assert db_run.error == "Bad request (injected)"
+        assert db_run.output == {}
+        assert db_run.dataset_example_id == 42
+        assert db_run.experiment_id == exp._experiment.id
+        on_failure.assert_awaited_once_with(work_item, error)
+        on_success.assert_not_awaited()
+        assert broadcast.call_count == 1
+        assert isinstance(broadcast.call_args.args[0], ChatCompletionSubscriptionError)
+        assert broadcast.call_args.args[0].message == "Bad request (injected)"
+
+    @pytest.mark.anyio
+    async def test_persist_failure_calls_on_failure_without_broadcast(self) -> None:
+        exp = _make_running_experiment()
+        error = RuntimeError("Bad request (injected)")
+        work_item = _make_decision_work_item(exp, _FailingDecisionClient(error))
+        persist_error = RuntimeError("db down")
+        with (
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "on_task_success", AsyncMock()) as on_success,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+            patch.object(work_item, "_persist_run", AsyncMock(side_effect=persist_error)),
+        ):
+            await work_item.execute()
+        on_failure.assert_awaited_once_with(work_item, persist_error)
+        on_success.assert_not_awaited()
+        broadcast.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_unbuildable_example_records_error_without_calling_the_model(self) -> None:
+        exp = _make_running_experiment()
+        client = _FailingDecisionClient(RuntimeError("must not be called"))
+        work_item = _make_decision_work_item(exp, client, input={"other": "x"})
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 802
+        mock_persist = AsyncMock(return_value=persisted_run)
+        with (
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "on_timeout", AsyncMock()) as on_timeout,
+            patch.object(exp, "_broadcast", MagicMock()),
+            patch.object(work_item, "_persist_run", mock_persist),
+        ):
+            await work_item.execute()
+        client.create.assert_not_awaited()
+        on_timeout.assert_not_awaited()
+        db_run = mock_persist.await_args.args[0]  # type: ignore[union-attr]
+        assert db_run.error is not None
+        assert db_run.error.startswith("Could not build the decision request: ")
+        assert db_run.output == {}
+        on_failure.assert_awaited_once()
+        assert isinstance(on_failure.await_args.args[1], ValueError)  # type: ignore[union-attr]
+
+
 class TestEvalWorkItemPersistsErrorAnnotation:
     @pytest.mark.anyio
     async def test_non_retryable_eval_error_persists_error_annotation(self) -> None:
@@ -1317,3 +1611,985 @@ class TestEvalWorkItemPersistsErrorAnnotation:
         assert failure_args is not None
         assert failure_args.args[0] is eval_item
         assert failure_args.args[1] is error
+
+
+# ===========================================================================
+# Group 8: Evaluator tasks (the evaluator is the experiment's task)
+# ===========================================================================
+
+_ANSWER_LENGTH_SOURCE = "def evaluate(output):\n    return len(output)"
+
+_LENGTH_CONFIG = ContinuousOutputConfig(
+    type="CONTINUOUS",
+    name="length",
+    optimization_direction=OptimizationDirection.MAXIMIZE,
+    description=None,
+    lower_bound=0.0,
+    upper_bound=None,
+)
+
+_CORRECTNESS_CONFIG = CategoricalOutputConfig(
+    type="CATEGORICAL",
+    name="correctness",
+    optimization_direction=OptimizationDirection.MAXIMIZE,
+    values=[
+        CategoricalAnnotationValue(label="correct", score=1.0),
+        CategoricalAnnotationValue(label="incorrect", score=0.0),
+    ],
+)
+
+_OUTPUT_ANSWER_MAPPING = InputMapping(
+    literal_mapping={}, path_mapping={"output": "$.output.answer"}
+)
+
+
+@dataclass(frozen=True)
+class _EvaluatorExperiment:
+    """An experiment over two examples whose metadata carries reviewer-recorded verdicts."""
+
+    project: models.Project
+    experiment: models.Experiment
+    revisions: list[models.DatasetExampleRevision]
+
+
+@pytest.fixture
+async def evaluator_experiment(db: DbSessionFactory) -> _EvaluatorExperiment:
+    async with db() as session:
+        project = models.Project(name=f"Experiment-{token_hex(4)}")
+        dataset = models.Dataset(name=f"dataset-{token_hex(4)}", metadata_={})
+        session.add_all([project, dataset])
+        await session.flush()
+        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(version)
+        await session.flush()
+        revisions: list[models.DatasetExampleRevision] = []
+        for answer in ("Paris", "Tokyo"):
+            example = models.DatasetExample(
+                dataset_id=dataset.id, created_at=datetime.now(timezone.utc)
+            )
+            session.add(example)
+            await session.flush()
+            revision = models.DatasetExampleRevision(
+                dataset_example_id=example.id,
+                dataset_version_id=version.id,
+                input={"question": "Which capital?"},
+                output={"answer": answer},
+                # An expected output a reviewer recorded; the evaluator must never see it
+                metadata_={
+                    "annotations": {"length": [{"score": 5.0, "annotator_kind": "HUMAN"}]},
+                    "source": "unit",
+                },
+                revision_kind="CREATE",
+            )
+            session.add(revision)
+            revisions.append(revision)
+        await session.flush()
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=version.id,
+            name="answer-length",
+            repetitions=1,
+            metadata_={},
+            project_name=project.name,
+        )
+        session.add(experiment)
+        await session.flush()
+        session.add_all(
+            [
+                models.ExperimentDatasetExample(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revision.dataset_example_id,
+                    dataset_example_revision_id=revision.id,
+                )
+                for revision in revisions
+            ]
+        )
+    return _EvaluatorExperiment(project=project, experiment=experiment, revisions=revisions)
+
+
+def _code_definition(
+    name: str, output_configs: Sequence[OutputConfigType], *, sandbox_config_id: int = 1
+) -> InlineCodeEvaluatorDefinition:
+    return InlineCodeEvaluatorDefinition(
+        type="inline_code_evaluator",
+        name=name,
+        description=None,
+        language="PYTHON",
+        source_code=_ANSWER_LENGTH_SOURCE,
+        sandbox_config_id=sandbox_config_id,
+        output_configs=list(output_configs),
+    )
+
+
+async def _create_evaluator_task(
+    db: DbSessionFactory,
+    experiment_id: int,
+    *,
+    definition: EvaluatorDefinition,
+    evaluator_kind: str = "CODE",
+    output_configs: Sequence[OutputConfigType] = (_LENGTH_CONFIG,),
+    input_mapping: InputMapping = _OUTPUT_ANSWER_MAPPING,
+) -> models.ExperimentEvaluatorTask:
+    """Persist the EVALUATOR job row of an experiment and return it, detached."""
+    async with db() as session:
+        evaluator_task = models.ExperimentEvaluatorTask(
+            id=experiment_id,
+            name=Identifier(definition.name if hasattr(definition, "name") else "evaluator"),
+            evaluator_kind=evaluator_kind,
+            definition=definition,
+            input_mapping=input_mapping,
+            output_configs=list(output_configs),
+        )
+        session.add(evaluator_task)
+    return evaluator_task
+
+
+def _code_evaluator(result_text: str = "0.75") -> tuple[CodeEvaluatorRunner, AsyncMock]:
+    """A code evaluator over a mocked sandbox backend that prints ``result_text``."""
+    backend = AsyncMock()
+    backend.execute_with_inputs = AsyncMock(
+        return_value=ExecutionResult(
+            stdout=f"{PHOENIX_RESULT_BEGIN}\n{result_text}\n{PHOENIX_RESULT_END}\n",
+            stderr="",
+            error=None,
+        )
+    )
+    backend.close = AsyncMock(return_value=None)
+    runner = CodeEvaluatorRunner(
+        name="answer-length",
+        description=None,
+        source_code=_ANSWER_LENGTH_SOURCE,
+        stored_output_configs=[_LENGTH_CONFIG],
+        sandbox_backend=backend,
+        language="PYTHON",
+        sandbox_session_manager=None,
+        timeout=30,
+    )
+    return runner, backend
+
+
+class _FakeJudgeClient:
+    """Stands in for the judge model and always votes 'correct' through the evaluator's tool."""
+
+    def get_rate_limit_key(self) -> Hashable:
+        return "fake-judge"
+
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return False
+
+    def is_transient_error(self, e: Exception) -> bool:
+        return False
+
+    async def chat_completion_create(self, **_: Any) -> AsyncIterator[ToolCallChunk]:
+        yield ToolCallChunk(
+            id="call-1",
+            function=FunctionCallChunk(
+                name="correctness",
+                arguments=json.dumps({"label": "correct", "explanation": "matches"}),
+            ),
+        )
+
+
+def _correctness_prompt() -> tuple[PromptChatTemplate, PromptTools]:
+    template = PromptChatTemplate(
+        type="chat",
+        messages=[PromptMessage(role="user", content="Q: {{input}}\nA: {{output}}\nCorrect?")],
+    )
+    tools = PromptTools(
+        type="tools",
+        tools=[
+            PromptToolFunction(
+                type="function",
+                function=PromptToolFunctionDefinition(
+                    name="correctness",
+                    description="judges the correctness of the answer",
+                    parameters={
+                        "type": "object",
+                        "properties": {
+                            "label": {
+                                "type": "string",
+                                "enum": ["correct", "incorrect"],
+                                "description": "correctness",
+                            },
+                        },
+                        "required": ["label"],
+                    },
+                ),
+            )
+        ],
+        tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+    )
+    return template, tools
+
+
+def _running_evaluator_experiment(
+    db: DbSessionFactory,
+    experiment: models.Experiment,
+    evaluator_task: models.ExperimentEvaluatorTask,
+    evaluator: BaseEvaluator | None,
+    *,
+    max_retries: int = 3,
+) -> RunningExperiment:
+    return RunningExperiment(
+        experiment=experiment,
+        experiment_job=evaluator_task,
+        db=db,
+        decrypt=lambda b: b,
+        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        token_buckets=_StubTokenBucketRegistry(),
+        on_done=_make_on_done(),
+        task_evaluator=evaluator,
+        max_retries=max_retries,
+        base_backoff_seconds=0.01,
+    )
+
+
+def _drain(
+    receive: MemoryObjectReceiveStream[ChatCompletionSubscriptionPayload],
+) -> list[ChatCompletionSubscriptionPayload]:
+    payloads: list[ChatCompletionSubscriptionPayload] = []
+    while True:
+        try:
+            payloads.append(receive.receive_nowait())
+        except anyio.WouldBlock:
+            return payloads
+
+
+async def _stored_run_and_annotations(
+    db: DbSessionFactory, experiment_id: int
+) -> tuple[models.ExperimentRun, list[models.ExperimentRunAnnotation]]:
+    async with db() as session:
+        runs = (
+            await session.scalars(
+                select(models.ExperimentRun).where(
+                    models.ExperimentRun.experiment_id == experiment_id
+                )
+            )
+        ).all()
+        assert len(runs) == 1
+        annotations = (
+            await session.scalars(
+                select(models.ExperimentRunAnnotation)
+                .where(models.ExperimentRunAnnotation.experiment_run_id == runs[0].id)
+                .order_by(models.ExperimentRunAnnotation.name)
+            )
+        ).all()
+    return runs[0], list(annotations)
+
+
+class TestEvaluatorTaskWorkItem:
+    async def test_context_hides_annotations_under_its_own_name(self) -> None:
+        """The evaluator judges the example itself and never sees the reviewer's answer key."""
+        exp = _make_running_experiment()
+        revision = _make_dataset_example_revision()
+        # As the span→example converter writes them: records grouped by name. Both records
+        # under ``length`` are hidden — the human expected output and an earlier verdict of
+        # this evaluator's own — while the ``tone`` annotation stays.
+        revision.metadata_ = {
+            "annotations": {
+                "length": [
+                    {"label": "long", "score": 5.0, "annotator_kind": "HUMAN"},
+                    {"label": "short", "score": 1.0, "annotator_kind": "LLM"},
+                ],
+                "tone": [{"label": "polite", "annotator_kind": "HUMAN"}],
+            },
+            "source": "unit",
+        }
+        evaluator_task = MagicMock(spec=models.ExperimentEvaluatorTask)
+        evaluator_task.name = Identifier("length")
+        evaluator_task.output_configs = [_LENGTH_CONFIG]
+        evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
+        evaluator.evaluate = AsyncMock(return_value=[])
+        work_item = EvaluatorTaskWorkItem(
+            running_experiment=exp,
+            experiment=exp._experiment,
+            dataset_example_revision=revision,
+            repetition_number=1,
+            evaluator_task=evaluator_task,
+            evaluator=evaluator,
+            db=exp._db,
+            tracer_factory=exp._tracer_factory,
+            project_id=1,
+        )
+
+        assert work_item._build_context() == {
+            "input": revision.input,
+            "output": revision.output,
+            "metadata": revision.metadata_,
+        }
+        with patch.object(work_item, "_record_results", new_callable=AsyncMock):
+            await work_item.execute()
+        assert evaluator.evaluate.await_args.kwargs["context"] == {
+            "input": revision.input,
+            "output": revision.output,
+            "metadata": {
+                "annotations": {"tone": [{"label": "polite", "annotator_kind": "HUMAN"}]},
+                "source": "unit",
+            },
+        }
+
+    async def test_code_evaluator_persists_run_and_annotation_and_broadcasts(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        evaluator, backend = _code_evaluator("0.75")
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        assert isinstance(work_item, EvaluatorTaskWorkItem)
+        await work_item.execute()
+
+        # The evaluator was handed the example's output, mapped by the task's input mapping
+        call = backend.execute_with_inputs.await_args
+        assert call is not None
+        assert call.kwargs["inputs"] == {"_inputs": {"output": "Paris"}}
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert run.dataset_example_id == revision.dataset_example_id
+        assert run.repetition_number == 1
+        assert run.trace_id is not None
+        verdict = run.output["task_output"]
+        assert set(verdict) == {"name", "label", "score", "explanation", "metadata"}
+        assert (verdict["name"], verdict["label"], verdict["score"]) == (
+            "answer-length",
+            None,
+            0.75,
+        )
+        assert [(a.name, a.annotator_kind, a.score, a.trace_id) for a in annotations] == [
+            ("answer-length", "CODE", 0.75, run.trace_id)
+        ]
+        async with db() as session:
+            trace = await session.scalar(
+                select(models.Trace).where(models.Trace.trace_id == run.trace_id)
+            )
+            assert trace is not None
+            assert trace.project_rowid == evaluator_experiment.project.id
+
+        result, chunk = _drain(receive)
+        assert isinstance(result, ChatCompletionSubscriptionResult)
+        assert result.experiment_run is not None
+        assert result.experiment_run.id == run.id
+        assert result.span is not None
+        assert result.dataset_example_id == GlobalID(
+            "DatasetExample", str(revision.dataset_example_id)
+        )
+        assert result.repetition_number == 1
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.evaluator_name == "answer-length"
+        assert chunk.error is None
+        assert chunk.experiment_run_evaluation is not None
+        assert chunk.experiment_run_evaluation.id == annotations[0].id
+        assert chunk.trace is not None
+        assert exp._tasks_succeeded == 1
+        assert exp._tasks_failed == 0
+
+    async def test_llm_evaluator_persists_llm_annotation(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        template, tools = _correctness_prompt()
+        invocation_parameters = PromptOpenAIInvocationParameters(
+            type="openai", openai=PromptOpenAIInvocationParametersContent()
+        )
+        definition = InlineLLMEvaluatorDefinition(
+            type="inline_llm_evaluator",
+            name="correctness",
+            description=None,
+            prompt_version=InlineLLMEvaluatorPromptVersion(
+                template_format=PromptTemplateFormat.MUSTACHE,
+                template=template,
+                tools=tools,
+                response_format=None,
+                invocation_parameters=invocation_parameters,
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                custom_provider_id=None,
+            ),
+            output_configs=[_CORRECTNESS_CONFIG],
+        )
+        evaluator_task = await _create_evaluator_task(
+            db,
+            experiment.id,
+            definition=definition,
+            evaluator_kind="LLM",
+            output_configs=[_CORRECTNESS_CONFIG],
+            input_mapping=InputMapping(
+                literal_mapping={}, path_mapping={"input": "$.input", "output": "$.output"}
+            ),
+        )
+        evaluator = LLMEvaluator(
+            name="correctness",
+            description=None,
+            template=template,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+            model_provider=ModelProvider.OPENAI,
+            llm_client=cast(Any, _FakeJudgeClient()),
+            output_configs=[_CORRECTNESS_CONFIG],
+            prompt_name="correctness",
+        )
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        await work_item.execute()
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert run.output["task_output"]["label"] == "correct"
+        assert [
+            (a.name, a.annotator_kind, a.label, a.score, a.explanation) for a in annotations
+        ] == [("correctness", "LLM", "correct", 1.0, "matches")]
+        result, chunk = _drain(receive)
+        assert isinstance(result, ChatCompletionSubscriptionResult)
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.evaluator_name == "correctness"
+        assert exp._tasks_succeeded == 1
+
+    async def test_evaluator_exception_persists_errored_run_and_annotation(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
+        evaluator.evaluate = AsyncMock(side_effect=RuntimeError("sandbox exploded"))
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        await work_item.execute()
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error == "sandbox exploded"
+        assert run.output == {}
+        assert [(a.name, a.annotator_kind, a.error, a.label, a.score) for a in annotations] == [
+            ("answer-length", "CODE", "sandbox exploded", None, None)
+        ]
+        error, chunk = _drain(receive)
+        assert isinstance(error, ChatCompletionSubscriptionError)
+        assert error.message == "sandbox exploded"
+        assert error.experiment_run is not None
+        assert error.experiment_run.id == run.id
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.error == "sandbox exploded"
+        assert chunk.experiment_run_evaluation is None
+        assert exp._tasks_failed == 1
+        assert exp._tasks_succeeded == 0
+
+    async def test_evaluator_reported_error_is_an_errored_run(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        """An error the evaluator returns (not raises) still lands as an errored run."""
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        now = datetime.now(timezone.utc)
+        error_result: EvaluationResult = {
+            "name": "answer-length",
+            "annotator_kind": "CODE",
+            "label": None,
+            "score": None,
+            "explanation": None,
+            "metadata": {},
+            "error": "Input mapping failed: output",
+            "trace_id": None,
+            "start_time": now,
+            "end_time": now,
+        }
+        evaluator = MagicMock(spec=BaseEvaluator)
+        evaluator.provider_client = None
+        evaluator.annotator_kind = "CODE"
+        evaluator.evaluate = AsyncMock(return_value=[error_result])
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+        receive = exp.subscribe()
+
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+        await work_item.execute()
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error == "Input mapping failed: output"
+        assert run.output == {}
+        assert [(a.name, a.error) for a in annotations] == [
+            ("answer-length", "Input mapping failed: output")
+        ]
+        error, chunk = _drain(receive)
+        assert isinstance(error, ChatCompletionSubscriptionError)
+        assert error.message == "Input mapping failed: output"
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.error == "Input mapping failed: output"
+        assert exp._tasks_failed == 1
+
+    async def test_exhausted_retries_persist_errored_run_and_annotation(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        evaluator, _ = _code_evaluator()
+        exp = _running_evaluator_experiment(
+            db, experiment, evaluator_task, evaluator, max_retries=0
+        )
+        receive = exp.subscribe()
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+
+        await exp._retry_or_fail(work_item, "timeout")
+
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error == "timeout after 0 retries"
+        assert [(a.name, a.error) for a in annotations] == [
+            ("answer-length", "timeout after 0 retries")
+        ]
+        error, chunk = _drain(receive)
+        assert isinstance(error, ChatCompletionSubscriptionError)
+        assert error.message == "timeout after 0 retries"
+        assert isinstance(chunk, EvaluationChunk)
+        assert chunk.evaluator_name == "answer-length"
+        assert chunk.error == "timeout after 0 retries"
+        assert exp._tasks_failed == 1
+
+
+_TRIAGE_QUESTIONS: list[DecisionQuestion] = [
+    PredicateQuestion(type="predicate", name="urgent", instructions="Is the ticket urgent?"),
+    ChoiceQuestion(
+        type="choice",
+        name="team",
+        instructions="Which team owns it?",
+        choices=[ChoiceOption(value="billing"), ChoiceOption(value="technical")],
+    ),
+]
+
+
+def _triage_version(questions: list[DecisionQuestion], **fields: Any) -> models.DecisionVersion:
+    return models.DecisionVersion(
+        template_format=PromptTemplateFormat.MUSTACHE,
+        state=JsonState(type="json", template="{{ticket}}"),
+        questions=questions,
+        model_provider=ModelProvider.TYPESAFE,
+        model_name="tev1",
+        metadata_={},
+        **fields,
+    )
+
+
+async def _saved_decision_evaluator_task(
+    db: DbSessionFactory,
+    experiment_id: int,
+    questions: list[DecisionQuestion],
+    scoring_policy: DecisionScoringPolicy | None = None,
+) -> int:
+    """Save a decision evaluator and freeze it as the experiment's task, returning its id."""
+    async with db() as session:
+        version = _triage_version(
+            questions, decision=models.Decision(name=Identifier("triage"), metadata_={})
+        )
+        session.add(version)
+        await session.flush()
+        evaluator = models.DecisionEvaluator(
+            name=Identifier("triage"),
+            description=None,
+            metadata_={},
+            kind="DECISION",
+            decision_id=version.decision_id,
+            selected_version=version,
+            scoring_policy=resolve_scoring_policy(
+                questions, scoring_policy or DecisionScoringPolicy()
+            ),
+        )
+        session.add(evaluator)
+        await session.flush()
+        definition = await pin_evaluator_definition(
+            StoredDecisionEvaluatorDefinition(
+                type="decision_evaluator", decision_evaluator_id=evaluator.id
+            ),
+            session=session,
+        )
+        session.add(
+            models.ExperimentEvaluatorTask(
+                id=experiment_id,
+                name=Identifier("triage"),
+                evaluator_kind="DECISION",
+                definition=definition,
+                input_mapping=InputMapping(
+                    literal_mapping={}, path_mapping={"ticket": "$.output.answer"}
+                ),
+                output_configs=evaluator.output_configs,
+            )
+        )
+    return evaluator.id
+
+
+async def _resume_decision_evaluator_experiment(
+    db: DbSessionFactory, experiment: models.Experiment
+) -> RunningExperiment:
+    runner = ExperimentRunner(
+        db,
+        decrypt=lambda b: b,
+        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+        sandbox_runtime=cast(Any, MagicMock()),
+    )
+    async with db() as session:
+        job, _, _, evaluator, _ = await runner._load_experiment_config(
+            session,
+            experiment.id,
+            credentials=[
+                GenerativeCredentialInput(env_var_name="TYPESAFE_API_KEY", value=SecretStr("test"))
+            ],
+        )
+    assert isinstance(job, models.ExperimentEvaluatorTask)
+    return _running_evaluator_experiment(db, experiment, job, evaluator)
+
+
+def _triage_answers(request: DecisionRequest, span: Any) -> DecisionResponse:
+    return DecisionResponse(
+        model="tev1",
+        answers={
+            question.name: PredicateAnswer(probability=0.9)
+            if question.type == "predicate"
+            else ChoiceAnswer(
+                choice="billing", confidence=0.8, probabilities={"billing": 0.8, "technical": 0.2}
+            )
+            for question in request.questions
+        },
+        input_tokens=1,
+        output_tokens=1,
+    )
+
+
+class TestDecisionEvaluatorTaskWorkItem:
+    @pytest.mark.parametrize(
+        "questions, expected",
+        [
+            pytest.param(_TRIAGE_QUESTIONS[:1], [("triage", "true", 0.9)], id="one-question"),
+            pytest.param(
+                _TRIAGE_QUESTIONS,
+                [("triage.team", "billing", None), ("triage.urgent", "true", 0.9)],
+                id="several-questions",
+            ),
+        ],
+    )
+    async def test_records_an_annotation_per_question_with_the_evaluator_source(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+        questions: list[DecisionQuestion],
+        expected: list[tuple[str, str, float | None]],
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_id = await _saved_decision_evaluator_task(db, experiment.id, questions)
+        invoke = AsyncMock(side_effect=_triage_answers)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+
+        await exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        ).execute()
+
+        invoke.assert_awaited_once()
+        assert invoke.await_args_list[0].args[0].state == "Paris"
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert [(a.name, a.label, a.score) for a in annotations] == expected
+        assert {a.annotator_kind for a in annotations} == {"LLM"}
+        assert {a.metadata_["decision"]["source"]["evaluator_id"] for a in annotations} == {
+            evaluator_id
+        }
+        assert exp._tasks_succeeded == 1
+
+    async def test_a_refused_question_is_not_asked_again_on_resume(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        experiment, revisions = evaluator_experiment.experiment, evaluator_experiment.revisions
+        await _saved_decision_evaluator_task(db, experiment.id, _TRIAGE_QUESTIONS)
+
+        def refuse_team(request: DecisionRequest, span: Any) -> DecisionResponse:
+            response = _triage_answers(request, span)
+            response.answers["team"] = RefusalAnswer()
+            return response
+
+        invoke = AsyncMock(side_effect=refuse_team)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+        await exp._create_example_work_item(
+            dataset_example_revision=revisions[0],
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        ).execute()
+        run, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert run.error is None
+        assert [(a.name, a.metadata_["decision"]["status"]) for a in annotations] == [
+            ("triage.team", "refused"),
+            ("triage.urgent", "answered"),
+        ]
+
+        resumed = await _resume_decision_evaluator_experiment(db, experiment)
+        await resumed._ensure_task_buffer()
+
+        queued = list(resumed._task_queue)
+        assert all(isinstance(item, EvaluatorTaskWorkItem) for item in queued)
+        assert [
+            cast(EvaluatorTaskWorkItem, item).dataset_example_revision.dataset_example_id
+            for item in queued
+        ] == [revisions[1].dataset_example_id]
+        invoke.assert_awaited_once()
+
+    async def test_resume_asks_the_captured_questions_after_the_saved_evaluator_is_edited(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        evaluator_id = await _saved_decision_evaluator_task(
+            db,
+            experiment.id,
+            _TRIAGE_QUESTIONS,
+            scoring_policy=DecisionScoringPolicy.model_validate(
+                {"questions": {"team": {"type": "choice", "scores": {"billing": 1}}}}
+            ),
+        )
+        edited_questions: list[DecisionQuestion] = [
+            PredicateQuestion(type="predicate", name="angry", instructions="Is the customer angry?")
+        ]
+        async with db() as session:
+            saved = await session.get(models.DecisionEvaluator, evaluator_id)
+            assert saved is not None
+            session.add(_triage_version(edited_questions, decision_id=saved.decision_id))
+            saved.scoring_policy = resolve_scoring_policy(edited_questions, DecisionScoringPolicy())
+        invoke = AsyncMock(side_effect=_triage_answers)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+
+        await exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        ).execute()
+
+        assert [question.name for question in invoke.await_args_list[0].args[0].questions] == [
+            "urgent",
+            "team",
+        ]
+        _, annotations = await _stored_run_and_annotations(db, experiment.id)
+        assert [(a.name, a.label, a.score) for a in annotations] == [
+            ("triage.team", "billing", 1.0),
+            ("triage.urgent", "true", 0.9),
+        ]
+
+    @pytest.mark.parametrize(
+        "error, retry_handler",
+        [
+            pytest.param(DecisionRateLimitError("slow down"), "on_rate_limit", id="429"),
+            pytest.param(DecisionTransientError("unavailable"), "on_transient_error", id="5xx"),
+        ],
+    )
+    async def test_a_retryable_provider_failure_is_retried_by_the_runner(
+        self,
+        db: DbSessionFactory,
+        evaluator_experiment: _EvaluatorExperiment,
+        monkeypatch: pytest.MonkeyPatch,
+        error: Exception,
+        retry_handler: str,
+    ) -> None:
+        experiment, revision = evaluator_experiment.experiment, evaluator_experiment.revisions[0]
+        await _saved_decision_evaluator_task(db, experiment.id, _TRIAGE_QUESTIONS)
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(side_effect=error))
+        exp = await _resume_decision_evaluator_experiment(db, experiment)
+        retry = AsyncMock()
+        monkeypatch.setattr(exp, retry_handler, retry)
+        on_failure = AsyncMock()
+        monkeypatch.setattr(exp, "on_failure", on_failure)
+        work_item = exp._create_example_work_item(
+            dataset_example_revision=revision,
+            repetition_number=1,
+            project_id=evaluator_experiment.project.id,
+        )
+
+        await work_item.execute()
+
+        retry.assert_awaited_once()
+        assert retry.await_args_list[0].args[0] is work_item
+        on_failure.assert_not_awaited()
+        async with db() as session:
+            runs = await session.scalars(
+                select(models.ExperimentRun).where(
+                    models.ExperimentRun.experiment_id == experiment.id
+                )
+            )
+            assert runs.all() == []
+
+
+class TestEvaluatorExperimentResume:
+    async def test_ensure_task_buffer_queues_only_incomplete_examples(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        """Resuming a half-finished evaluator experiment queues the examples without a run."""
+        experiment, revisions = evaluator_experiment.experiment, evaluator_experiment.revisions
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        now = datetime.now(timezone.utc)
+        async with db() as session:
+            session.add(
+                models.ExperimentRun(
+                    experiment_id=experiment.id,
+                    dataset_example_id=revisions[0].dataset_example_id,
+                    repetition_number=1,
+                    output={"task_output": {"name": "answer-length", "score": 5.0}},
+                    start_time=now,
+                    end_time=now,
+                    error=None,
+                    trace_id=None,
+                )
+            )
+        evaluator, _ = _code_evaluator()
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, evaluator)
+
+        await exp._ensure_task_buffer()
+
+        assert exp._task_db_exhausted is True
+        queued = list(exp._task_queue)
+        assert len(queued) == 1
+        assert isinstance(queued[0], EvaluatorTaskWorkItem)
+        assert (
+            queued[0].dataset_example_revision.dataset_example_id == revisions[1].dataset_example_id
+        )
+        assert queued[0].repetition_number == 1
+        assert queued[0].evaluator is evaluator
+
+    async def test_ensure_task_buffer_dispatches_nothing_without_a_task_evaluator(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment = evaluator_experiment.experiment
+        evaluator_task = await _create_evaluator_task(
+            db, experiment.id, definition=_code_definition("answer-length", [_LENGTH_CONFIG])
+        )
+        exp = _running_evaluator_experiment(db, experiment, evaluator_task, None)
+
+        await exp._ensure_task_buffer()
+
+        assert exp._task_db_exhausted is True
+        assert not exp._task_queue
+
+
+class TestLoadEvaluatorTaskConfig:
+    async def test_rebuilds_the_evaluator_from_its_frozen_definition(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment = evaluator_experiment.experiment
+        async with db() as session:
+            sandbox_config = models.SandboxConfig(
+                backend_type="WASM",
+                language="PYTHON",
+                name=Identifier("wasm-python"),
+                description=None,
+                config={},
+                timeout=30,
+            )
+            session.add(sandbox_config)
+            await session.flush()
+            sandbox_config_id = sandbox_config.id
+        await _create_evaluator_task(
+            db,
+            experiment.id,
+            definition=_code_definition(
+                "answer-length", [_LENGTH_CONFIG], sandbox_config_id=sandbox_config_id
+            ),
+        )
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda b: b,
+            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+            sandbox_runtime=cast(Any, MagicMock()),
+        )
+
+        with patch(
+            "phoenix.server.evaluators.resolution.build_sandbox_backend",
+            return_value=MagicMock(),
+        ):
+            async with db() as session:
+                (
+                    job,
+                    llm_client,
+                    specs,
+                    evaluator,
+                    decision_client,
+                ) = await runner._load_experiment_config(session, experiment.id, credentials=None)
+
+        assert isinstance(job, models.ExperimentEvaluatorTask)
+        assert decision_client is None
+        assert job.name == Identifier("answer-length")
+        assert llm_client is None
+        assert specs == []
+        assert isinstance(evaluator, CodeEvaluatorRunner)
+        assert evaluator.name == "answer-length"
+        assert list(evaluator.output_configs) == [_LENGTH_CONFIG]
+
+
+class TestLoadDecisionTaskConfig:
+    async def test_a_task_whose_custom_provider_was_deleted_fails_instead_of_using_a_built_in(
+        self, db: DbSessionFactory
+    ) -> None:
+        decision_task = MagicMock(spec=models.ExperimentDecisionTask)
+        decision_task.custom_provider_id = None
+        decision_task.config = DecisionTaskConfig.model_validate(
+            {
+                "template_format": "MUSTACHE",
+                "state": {"type": "json", "template": "{{ticket}}"},
+                "questions": [],
+                "custom_provider_name": "Gone provider",
+            }
+        )
+        session = MagicMock()
+        session.scalar = AsyncMock(return_value=decision_task)
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda b: b,
+            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+            sandbox_runtime=cast(Any, MagicMock()),
+        )
+
+        with pytest.raises(ValueError, match="custom provider 'Gone provider'.*deleted"):
+            await runner._load_experiment_config(session, 1, credentials=None)

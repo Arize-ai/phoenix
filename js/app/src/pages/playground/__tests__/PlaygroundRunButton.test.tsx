@@ -1,0 +1,190 @@
+import { act } from "react";
+import type { Root } from "react-dom/client";
+import { createRoot } from "react-dom/client";
+import { MemoryRouter } from "react-router";
+import { userEvent } from "storybook/test";
+
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { PlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { ThemeContext } from "@phoenix/contexts/ThemeContext";
+import { createPlaygroundStore } from "@phoenix/store/playground";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
+
+import {
+  createDecisionDraft,
+  createDecisionStateDraft,
+} from "../decisionUtils";
+import { PlaygroundExampleEditingProvider } from "../examplesEditing";
+import { PlaygroundRunButton } from "../PlaygroundRunButton";
+
+vi.mock("../useCancelPlaygroundRun", () => ({
+  useCancelPlaygroundRun: () => vi.fn(),
+}));
+
+installTestStorage();
+
+describe("PlaygroundRunButton with decision instances", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  function mount(datasetId: string | null) {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId,
+    });
+    const chatInstance = store.getState().instances[0];
+    store.getState().updateInstance({
+      dirty: false,
+      instanceId: chatInstance.id,
+      patch: {
+        llmModel: chatInstance.model,
+        task: { type: "decision" },
+        model: {
+          ...chatInstance.model,
+          modelType: "DECISION",
+          provider: "TYPESAFE",
+          modelName: "jev-latest",
+        },
+      },
+    });
+    store.getState().updateDecisionPrompt({
+      instanceId: chatInstance.id,
+      request: createDecisionDraft(),
+    });
+    const runPlaygroundInstances = vi.fn();
+    store.setState({ runPlaygroundInstances });
+    act(() =>
+      root.render(
+        <ThemeContext.Provider
+          value={{
+            theme: "dark",
+            themeMode: "dark",
+            systemTheme: "dark",
+            setThemeMode: vi.fn(),
+          }}
+        >
+          <MemoryRouter>
+            <PlaygroundContext.Provider value={store}>
+              <PlaygroundExampleEditingProvider>
+                <PlaygroundRunButton />
+              </PlaygroundExampleEditingProvider>
+            </PlaygroundContext.Provider>
+          </MemoryRouter>
+        </ThemeContext.Provider>
+      )
+    );
+    return { store, runPlaygroundInstances };
+  }
+
+  function runButton() {
+    return container.querySelector<HTMLButtonElement>(
+      '[data-testid="playground-run-button"]'
+    );
+  }
+
+  it("runs a valid decision prompt when no dataset is loaded", () => {
+    const { runPlaygroundInstances } = mount(null);
+    const button = runButton();
+    expect(button?.disabled).toBe(false);
+    act(() => button?.click());
+    expect(runPlaygroundInstances).toHaveBeenCalledTimes(1);
+  });
+
+  it("explains which instance blocks the run when its request is invalid", async () => {
+    const { store, runPlaygroundInstances } = mount(null);
+    const instance = store.getState().instances[0];
+    const request = selectPlaygroundInstanceDecisionPrompt(instance.id)(
+      store.getState()
+    )!;
+    act(() =>
+      store.getState().updateDecisionPrompt({
+        instanceId: instance.id,
+        request: {
+          ...request,
+          questions: request.questions.map((question) => ({
+            ...question,
+            name: "",
+          })),
+        },
+      })
+    );
+    const button = runButton();
+    expect(button?.disabled).toBe(true);
+    act(() => button?.click());
+    expect(runPlaygroundInstances).not.toHaveBeenCalled();
+    const user = userEvent.setup();
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" })
+    );
+    await act(async () => user.hover(button!.parentElement!));
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+        "Instance A: Question name: required"
+      );
+    });
+  });
+
+  it("runs over a dataset when the state is valid", () => {
+    const { store, runPlaygroundInstances } = mount("RGF0YXNldDox");
+    const instance = store.getState().instances[0];
+    act(() =>
+      store.getState().updateDecisionPrompt({
+        instanceId: instance.id,
+        request: {
+          ...selectPlaygroundInstanceDecisionPrompt(instance.id)(
+            store.getState()
+          )!,
+          state: createDecisionStateDraft({ text: "{{ticket}}" }),
+        },
+      })
+    );
+    const button = runButton();
+    expect(button?.disabled).toBe(false);
+    act(() => button?.click());
+    expect(runPlaygroundInstances).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a run and explains why when the JSON state is not valid JSON", async () => {
+    const { store, runPlaygroundInstances } = mount("RGF0YXNldDox");
+    const instance = store.getState().instances[0];
+    act(() =>
+      store.getState().updateDecisionPrompt({
+        instanceId: instance.id,
+        request: {
+          ...selectPlaygroundInstanceDecisionPrompt(instance.id)(
+            store.getState()
+          )!,
+          state: createDecisionStateDraft({ mode: "json", json: '{"a": ' }),
+        },
+      })
+    );
+    const button = runButton();
+    expect(button?.disabled).toBe(true);
+    act(() => button?.click());
+    expect(runPlaygroundInstances).not.toHaveBeenCalled();
+    // The reason is a tooltip on a wrap around the disabled button, since a
+    // disabled button receives no pointer events of its own.
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    const triggerWrap = button?.parentElement;
+    expect(triggerWrap).not.toBeNull();
+    const user = userEvent.setup();
+    document.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" })
+    );
+    await act(async () => user.hover(triggerWrap!));
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="tooltip"]')?.textContent).toContain(
+        "Instance A: The state is not valid JSON"
+      );
+    });
+  });
+});
