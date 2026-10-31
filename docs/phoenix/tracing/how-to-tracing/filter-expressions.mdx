@@ -19,12 +19,11 @@ Session filters require Phoenix **19.18.0+**.
 | :--- | :--- | :--- | :--- |
 | UI filter bar | Yes — spans table (via GraphQL) | Yes — traces table (via GraphQL) | Yes — sessions table (via GraphQL) |
 | GraphQL | `filterCondition` argument | `traceFilterCondition` argument | `sessionFilterCondition` argument |
-| Python client (dataframe export) | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` | No filter surface | Not yet |
-| REST list / search endpoints | Discrete query params only — no filter expression | No filter surface | No filter surface |
+| Python / TypeScript clients | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` (Python only) | `filter` argument on `traces.get_traces(...)` / `getTraces(...)` | `filter` argument on `sessions.list(...)` / `listSessions(...)` |
+| REST list / search endpoints | Discrete query params only — no filter expression | `filter` query param on `GET /v1/projects/{project_identifier}/traces` | `filter` query param on `GET /v1/projects/{project_identifier}/sessions` |
 
-Support for session filters in the REST API and Python client is tracked in
-[#15099](https://github.com/Arize-ai/phoenix/issues/15099) and
-[#15112](https://github.com/Arize-ai/phoenix/issues/15112).
+Span filter expressions on the REST list endpoints are tracked in
+[#15099](https://github.com/Arize-ai/phoenix/issues/15099).
 
 <Info>
 The **Experiment Compare** view has its own filter language for filtering experiment runs,

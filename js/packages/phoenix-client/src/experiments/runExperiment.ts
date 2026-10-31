@@ -48,6 +48,7 @@ import {
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
 import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
+import { toExperimentEvaluationRequestBody } from "./helpers/toExperimentEvaluationRequestBody";
 import {
   logEvalSummary,
   logLinks,
@@ -852,18 +853,16 @@ export async function evaluateExperiment({
               // Log the evaluation to the server
               // We log this without awaiting (e.g. best effort)
               client.POST("/v1/experiment_evaluations", {
-                body: {
-                  experiment_run_id: evaluatorAndRun.run.id,
+                body: toExperimentEvaluationRequestBody({
+                  experimentRunId: evaluatorAndRun.run.id,
                   name: evaluatorAndRun.evaluator.name,
-                  annotator_kind: evaluatorAndRun.evaluator.kind,
-                  start_time: evalResult.startTime.toISOString(),
-                  end_time: evalResult.endTime.toISOString(),
-                  result: {
-                    ...evalResult.result,
-                  },
+                  annotatorKind: evaluatorAndRun.evaluator.kind,
+                  startTime: evalResult.startTime,
+                  endTime: evalResult.endTime,
+                  result: evalResult.result,
                   error: evalResult.error,
-                  trace_id: evalResult.traceId,
-                },
+                  traceId: evalResult.traceId,
+                }),
               });
             }
             span.end();

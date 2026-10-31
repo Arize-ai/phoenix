@@ -31,5 +31,6 @@ class LastUsedTimesByGenerativeModelIdDataLoader(DataLoader[Key, Result]):
                     .where(models.SpanCost.model_id.in_(keys))
                     .group_by(models.SpanCost.model_id)
                 )
+                if model_id is not None
             }
         return [last_used_times_by_model_id.get(model_id) for model_id in keys]

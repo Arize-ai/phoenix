@@ -1,8 +1,7 @@
-import type { CellContext } from "@tanstack/react-table";
-
 import { JSONText } from "@phoenix/components/code/JSONText";
 
 import { LargeTextWrap } from "./LargeTextWrap";
+import type { CellContext } from "./tableFeatures";
 
 export type JSONCellProps<TData extends object, TValue> = CellContext<
   TData,

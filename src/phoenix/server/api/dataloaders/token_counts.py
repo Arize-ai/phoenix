@@ -109,13 +109,13 @@ def _has_llm_child() -> ColumnElement[bool]:
 def _get_stmt(
     segment: Segment,
     *params: Param,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     (start_time, end_time), filter_condition = segment
     prompt = coalesce(func.sum(models.Span.llm_token_count_prompt), 0)
     completion = coalesce(func.sum(models.Span.llm_token_count_completion), 0)
     total = prompt + completion
     pid = models.Trace.project_rowid
-    stmt: Select[Any] = (
+    stmt: Select[*tuple[Any, ...]] = (
         select(
             pid,
             prompt.label("prompt"),

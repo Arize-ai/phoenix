@@ -1,5 +1,6 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
@@ -10,6 +11,10 @@ import type { deleteDatasetLabelsToolMutation } from "./__generated__/deleteData
 import { fetchLabelsByNames } from "./listLabels";
 import type { DeleteDatasetLabelsInput } from "./types";
 
+/**
+ * Mounted label lists and dataset summaries refetch through the agent
+ * data-change bridge after deletion.
+ */
 const mutation = graphql`
   mutation deleteDatasetLabelsToolMutation($input: DeleteDatasetLabelsInput!) {
     deleteDatasetLabels(input: $input) {
@@ -45,7 +50,12 @@ export async function commitDeleteDatasetLabels({
 
   return runDatasetMutation<deleteDatasetLabelsToolMutation>({
     mutation,
-    variables: { input: { datasetLabelIds: ids } },
-    onSuccess: () => `Deleted label(s): ${labelNames.join(", ")}.`,
+    variables: {
+      input: { datasetLabelIds: ids },
+    },
+    onSuccess: () => {
+      emitAgentDataChange({ entity: "datasetLabels" });
+      return `Deleted label(s): ${labelNames.join(", ")}.`;
+    },
   });
 }

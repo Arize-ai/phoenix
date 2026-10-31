@@ -60,6 +60,13 @@ POSITIVE_SHORTHANDS = "dws"  # \d \w \s - digit, word, space
 NEGATIVE_SHORTHANDS = "DWS"  # \D \W \S - non-digit, non-word, non-space
 META_CHARS = "()^$"  # Regex metacharacters that don't affect scoring
 
+# A global inline flag group such as (?i) or (?im). Other constructs that open
+# with "(?", like (?:...) or (?=...), are groups whose content must be scored.
+INLINE_FLAGS = re.compile(r"\(\?[aiLmsux]+\)")
+# Openers of groups whose "(?..." prefix is syntax rather than content:
+# (?:  (?=  (?!  (?<=  (?<!  (?P<name>  and scoped flags like (?i:  (?-i:
+GROUP_OPENER = re.compile(r"\(\?(?::|=|!|<=|<!|P<\w+>|[aiLmsux]*(?:-[imsx]+)?:)")
+
 
 def score(regex: Union[str, re.Pattern[str]]) -> int:
     r"""
@@ -121,7 +128,7 @@ def score(regex: Union[str, re.Pattern[str]]) -> int:
 
     # Score anchors - most significant factor
     has_start_anchor = _has_start_anchor(pattern)
-    has_end_anchor = pattern.endswith("$")
+    has_end_anchor = _has_end_anchor(pattern)
 
     if has_start_anchor and has_end_anchor:
         score_value += FULL_ANCHOR
@@ -143,15 +150,34 @@ def _has_start_anchor(pattern: str) -> bool:
     Check if pattern has a start anchor (after all leading inline flags).
     Handles multiple inline flags robustly.
     """
-    i = 0
-    # Skip all leading inline flags
-    while pattern.startswith("(?", i):
-        close = pattern.find(")", i)
-        if close == -1:
-            break
-        i = close + 1
+    i = _skip_inline_flags(pattern)
     # After all flags, check for ^
     return i < len(pattern) and pattern[i] == "^"
+
+
+def _has_end_anchor(pattern: str) -> bool:
+    r"""
+    Check if pattern ends with an unescaped $. A trailing \$ is a literal dollar.
+    """
+    if not pattern.endswith("$"):
+        return False
+    backslashes = 0
+    j = len(pattern) - 2
+    while j >= 0 and pattern[j] == "\\":
+        backslashes += 1
+        j -= 1
+    return backslashes % 2 == 0
+
+
+def _skip_inline_flags(pattern: str) -> int:
+    """
+    Return the position just past all leading global inline flag groups.
+    Groups that merely start with "(?", such as (?:...) or lookarounds, are not skipped.
+    """
+    i = 0
+    while match := INLINE_FLAGS.match(pattern, i):
+        i = match.end()
+    return i
 
 
 def _strip_anchors(pattern: str) -> str:
@@ -159,19 +185,13 @@ def _strip_anchors(pattern: str) -> str:
     Remove all leading inline flags and anchors from pattern for content analysis.
     Handles multiple inline flags robustly.
     """
-    i = 0
-    # Remove all leading inline flags
-    while pattern.startswith("(?", i):
-        close = pattern.find(")", i)
-        if close == -1:
-            break
-        i = close + 1
+    i = _skip_inline_flags(pattern)
     # Remove start anchor
     if i < len(pattern) and pattern[i] == "^":
         i += 1
     content = pattern[i:]
     # Remove end anchor
-    if content.endswith("$"):
+    if _has_end_anchor(pattern) and content.endswith("$"):
         content = content[:-1]
     return content
 
@@ -203,6 +223,9 @@ def _score_content(content: str) -> int:
             # Handle escape sequences
             score_value += _score_escape(content[i + 1])
             i += 2
+        elif char == "(" and (opener := GROUP_OPENER.match(content, i)):
+            # Group syntax like (?: or (?= is not content; score what it wraps
+            i = opener.end()
         elif char == "[":
             # Handle character classes
             bracket_score, new_pos = _score_bracket(content, i)

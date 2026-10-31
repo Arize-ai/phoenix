@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyBedrockModelPrefix,
   hasRequiredLocalCredentials,
   isProviderProvisioned,
   isProviderReady,
   providerNeedsCredentials,
   providerRequiresCredentials,
   providerSupportsDefaultCredentialChain,
+  stripBedrockRegionPrefix,
 } from "../modelProviderUtils";
 
 describe("providerNeedsCredentials", () => {
@@ -369,5 +371,29 @@ describe("isProviderProvisioned", () => {
         localCredentials: {},
       })
     ).toBe(true);
+  });
+});
+
+describe("applyBedrockModelPrefix", () => {
+  it.each([
+    ["anthropic.x", "us", "us.anthropic.x"],
+    ["anthropic.x", "", "anthropic.x"],
+    ["us.anthropic.x", "us", "us.anthropic.x"],
+    ["global.anthropic.x", "us", "global.anthropic.x"],
+    ["us-gov.anthropic.x", "us", "us-gov.anthropic.x"],
+    ["us.anthropic.x", "us-gov", "us.anthropic.x"],
+  ])("%s with prefix %j is %s", (modelName, prefix, expected) => {
+    expect(applyBedrockModelPrefix({ modelName, prefix })).toBe(expected);
+  });
+});
+
+describe("stripBedrockRegionPrefix", () => {
+  it.each([
+    ["us.anthropic.x", "anthropic.x"],
+    ["us-gov.anthropic.x", "anthropic.x"],
+    ["anthropic.x", "anthropic.x"],
+    ["usa.anthropic.x", "usa.anthropic.x"],
+  ])("%s is %s", (modelName, expected) => {
+    expect(stripBedrockRegionPrefix(modelName)).toBe(expected);
   });
 });

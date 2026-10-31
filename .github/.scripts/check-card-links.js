@@ -5,6 +5,8 @@
  *
  * Scans all .mdx/.md/.html files for <Card ... href="..."> attributes and validates:
  * - External links (http/https): HEAD check (fallback to GET) with timeout.
+ *   A link into this repository on GitHub is accepted when the file exists in
+ *   the checkout, so a PR may link to a file it adds.
  * - Internal links (starting with "/" or relative paths): verify file exists in repo.
  *
  * Outputs any broken links with file path and line number, then exits non-zero if any are found.
@@ -18,6 +20,7 @@ const path = require("path");
 const { URL } = require("url");
 
 const CARD_HREF_REGEX = /<Card\b[^>]*?\bhref\s*=\s*(['"])(?<href>[^'\"]+)\1/gis;
+const THIS_REPO_FILE_URL = /^https:\/\/github\.com\/Arize-ai\/phoenix\/(?:blob|tree)\/main\/(?<path>[^#?]+)/;
 const MDX_COMMENT_BLOCK = /\{\/\*.*?\*\/\}/gs;
 
 function parseArgs(argv) {
@@ -140,6 +143,11 @@ function extractCardHrefs(filePath) {
 
 function isExternalUrl(href) {
   return href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:");
+}
+
+function existsInThisRepo(root, href) {
+  const match = href.match(THIS_REPO_FILE_URL);
+  return match !== null && fs.existsSync(path.join(root, decodeURIComponent(match.groups.path)));
 }
 
 function normalizeInternalPath(href) {
@@ -290,7 +298,9 @@ async function main() {
 
     for (const [href, line] of hrefs) {
       if (isExternalUrl(href)) {
-        externalsToCheck.push({ href, filePath, line });
+        if (!existsInThisRepo(repoRoot, href)) {
+          externalsToCheck.push({ href, filePath, line });
+        }
       } else {
         if (!existsInternal(repoRoot, href)) {
           broken.push({

@@ -86,7 +86,7 @@ interface SpanListOptions
   /**
    * `--span-kind <kinds...>`: Filter by OpenInference span kind — `LLM`,
    * `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`,
-   * `GUARDRAIL`, `EVALUATOR`, or `UNKNOWN`.
+   * `GUARDRAIL`, `EVALUATOR`, `DECISION`, or `UNKNOWN`.
    *
    * @example ["LLM", "TOOL"]
    */
@@ -432,7 +432,7 @@ export function createSpanListCommand(): Command {
     )
     .option(
       "--span-kind <kinds...>",
-      "Filter by span kind (LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN)"
+      "Filter by span kind (LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN)"
     )
     .option(
       "--status-code <codes...>",
@@ -557,7 +557,10 @@ export function createSpanAnnotateCommand(): Command {
     .option("--label <label>", "Annotation label")
     .option("--score <number>", "Annotation score")
     .option("--explanation <text>", "Annotation explanation")
-    .option("--annotator-kind <kind>", "Annotation kind: HUMAN, LLM, or CODE")
+    .option(
+      "--annotator-kind <kind>",
+      "Annotation kind: HUMAN, LLM, CODE, DECISION, or AGENT"
+    )
     .option(
       "--identifier <string>",
       "Optional caller-supplied annotation identifier. Repeated calls with the same identifier overwrite the existing annotation. Default: empty string (server-side default)."

@@ -3,7 +3,7 @@ export interface OrderableColumnDef {
   id?: string;
   accessorKey?: string | number;
   header?: unknown;
-  columns?: OrderableColumnDef[];
+  columns?: readonly OrderableColumnDef[];
 }
 
 /** Resolves a column def's id the same way tanstack table does: id, then accessorKey (dots to underscores), then string header. */
@@ -21,7 +21,9 @@ export function getColumnDefId(def: OrderableColumnDef): string | null {
 }
 
 /** Resolves the ids of the top-level (group or leaf) column defs. */
-export function getTopLevelColumnIds(defs: OrderableColumnDef[]): string[] {
+export function getTopLevelColumnIds(
+  defs: readonly OrderableColumnDef[]
+): string[] {
   return defs.map(getColumnDefId).filter((id): id is string => id != null);
 }
 
@@ -60,7 +62,7 @@ export function mergeColumnOrder({
  */
 export function expandColumnOrderToLeafIds(
   columnOrder: string[],
-  defs: OrderableColumnDef[]
+  defs: readonly OrderableColumnDef[]
 ): string[] {
   const leafIdsByTopLevelId = getLeafIdsByTopLevelId(defs);
   return columnOrder.flatMap((id) => leafIdsByTopLevelId.get(id) ?? [id]);
@@ -68,7 +70,7 @@ export function expandColumnOrderToLeafIds(
 
 /** Maps each top-level column id to its leaf column ids (a leaf def maps to itself). */
 export function getLeafIdsByTopLevelId(
-  defs: OrderableColumnDef[]
+  defs: readonly OrderableColumnDef[]
 ): Map<string, string[]> {
   const leafIdsByTopLevelId = new Map<string, string[]>();
   for (const def of defs) {

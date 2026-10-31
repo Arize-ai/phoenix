@@ -1166,3 +1166,45 @@ describe("dataset-scoped state", () => {
     ).toBe(customPath);
   });
 });
+
+describe("experiment name and description", () => {
+  it("stores per-dataset identity and nulls empty values", () => {
+    const datasetId = "ds-1";
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId,
+    });
+
+    store.getState().setExperimentName({
+      experimentName: "baseline",
+      datasetId,
+    });
+    store.getState().setExperimentDescription({
+      experimentDescription: "trimmed prompt",
+      datasetId,
+    });
+
+    expect(store.getState().stateByDatasetId[datasetId].experimentName).toBe(
+      "baseline"
+    );
+    expect(
+      store.getState().stateByDatasetId[datasetId].experimentDescription
+    ).toBe("trimmed prompt");
+
+    store.getState().setExperimentName({
+      experimentName: null,
+      datasetId,
+    });
+    store.getState().setExperimentDescription({
+      experimentDescription: null,
+      datasetId,
+    });
+
+    expect(
+      store.getState().stateByDatasetId[datasetId].experimentName
+    ).toBeNull();
+    expect(
+      store.getState().stateByDatasetId[datasetId].experimentDescription
+    ).toBeNull();
+  });
+});

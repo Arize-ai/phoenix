@@ -1,7 +1,7 @@
 import { css, keyframes } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { View } from "@phoenix/components";
+import { Skeleton, View } from "@phoenix/components";
 
 import { CHART_MIN_WIDTH } from "./ChartPanel";
 
@@ -122,6 +122,9 @@ const chartPanelStripCSS = (chartCount: number) => css`
   }
 `;
 
+/** The height a chart panel strip reads well at, shared by every placement. */
+export const CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS = 230;
+
 /**
  * The horizontal strip of chart panels shown above a table (project spans,
  * traces and sessions, or dataset experiments). Panels share the available
@@ -160,6 +163,26 @@ export function ChartPanelStrip({
           />
         </div>
       </div>
+    </View>
+  );
+}
+
+/**
+ * A loading placeholder for a {@link ChartPanelStrip}: one skeleton block
+ * inset by the strip's gutters. It also stops short of the strip's bottom
+ * edge, so the block reads apart from the skeleton of the content below,
+ * which stays where the loaded content will stand.
+ */
+export function ChartPanelStripSkeleton() {
+  return (
+    <View
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      paddingTop="size-100"
+      paddingBottom="size-100"
+      height="100%"
+    >
+      <Skeleton height="100%" borderRadius="medium" />
     </View>
   );
 }

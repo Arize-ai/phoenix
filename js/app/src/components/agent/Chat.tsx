@@ -60,7 +60,7 @@ import {
   type MessageRewindRequest,
   UserMessage,
 } from "./ChatMessage";
-import { ChatScrollContext } from "./ChatScrollContext";
+import { ChatScrollContext, useChatScrollContext } from "./ChatScrollContext";
 import { getConversationUsage } from "./ChatSessionUsage";
 import {
   ElicitationDraftProvider,
@@ -72,12 +72,12 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { isVisibleMessagePart } from "./partitionMessageParts";
+import { getPromptHistory } from "./promptHistory";
 import { PxiGlyph } from "./PxiGlyph";
-import { useScrollAnchor } from "./scrollAnchor";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
 import type { AgentChatOperationError } from "./useAgentChat";
-import { useChatFollowScroll } from "./useChatFollowScroll";
+import { useChatScroll } from "./useChatScroll";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -205,10 +205,9 @@ const chatCSS = css`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    /* The transcript does its own scroll management (follow-bottom via
-       useChatFollowScroll, expand/collapse anchoring via useScrollAnchor).
-       Native scroll anchoring is a second, invisible compensator that
-       double-adjusts on the same layout changes and fights those writers. */
+    /* The transcript's scroll controller owns turn placement, streaming
+       follow, and expand/collapse anchoring. Native scroll anchoring would be
+       a second, invisible compensator fighting the same layout changes. */
     overflow-anchor: none;
   }
 
@@ -251,6 +250,13 @@ const chatCSS = css`
     padding: var(--global-dimension-size-200) var(--chat-sidebar-inset);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
+  }
+
+  .chat__turn-spacer {
+    flex: none;
+    width: 100%;
+    min-height: 0;
+    pointer-events: none;
   }
 
   .chat__compaction-divider {
@@ -314,19 +320,31 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  .chat__credential-form,
   .chat__operation-error,
   .chat__session-notice {
     margin-bottom: var(--global-dimension-size-100);
   }
 
   /* Elicitation-style surfaces (consent gate, rewind confirmation, question
-     carousel) can be taller than the panel; let the input region shrink and
-     scroll internally instead of clipping at the panel edge. */
-  .chat__input:has([data-input-mode="elicitation"]) {
+     carousel) and the credential form can be taller than the panel; let the
+     input region shrink and scroll internally instead of clipping at the
+     panel edge. */
+  .chat__input:has([data-input-mode="elicitation"]),
+  .chat__input:has(.chat__credential-form) {
     flex-shrink: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
+  }
+
+  /* Cap the credential form so the conversation keeps some room, and let it
+     give up height first so the composer and its model picker stay reachable. */
+  .chat__credential-form {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 40vh;
+    overflow-y: auto;
   }
 
   .chat__loading {
@@ -384,15 +402,17 @@ function getCompactionSummaryMarkdown(summary: string): string {
 function ChatCompaction({ summary }: { summary: string }) {
   const containerRef = useRef<HTMLElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const scrollAnchor = useScrollAnchor();
+  const chatScrollContext = useChatScrollContext();
   const markdown = getCompactionSummaryMarkdown(summary);
   const handleExpandedChange = useCallback(
     (nextIsExpanded: boolean) => {
-      scrollAnchor.capture(containerRef.current);
+      chatScrollContext?.captureAnchor(containerRef.current);
       setIsExpanded(nextIsExpanded);
-      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+      requestAnimationFrame(() =>
+        chatScrollContext?.restoreAnchor(containerRef.current)
+      );
     },
-    [scrollAnchor]
+    [chatScrollContext]
   );
 
   return (
@@ -509,23 +529,33 @@ export function ChatView({
   autoFocusInput?: boolean;
 }>) {
   const { theme } = useTheme();
-  const { contentRef, scrollRef, scrollToBottom, stopScroll } =
-    useChatFollowScroll();
+  const isRequestActive = status === "submitted" || status === "streaming";
+  const {
+    captureAnchor,
+    contentRef,
+    restoreAnchor,
+    resumeFollowing,
+    scrollElementToTop,
+    scrollRef,
+    startTurn,
+    stopScroll,
+    turnSpacerRef,
+  } = useChatScroll({ isRequestActive });
   const chatScrollContextValue = useMemo(
-    () => ({ stopScroll, scrollToBottom }),
-    [stopScroll, scrollToBottom]
-  );
-  const handleScrollRef = useCallback(
-    (element: HTMLElement | null) => {
-      scrollRef(element);
-      if (!element) {
-        return;
-      }
-      // Align restored chat history before first paint; useChatFollowScroll
-      // handles later resize/follow behavior once its observers are attached.
-      element.scrollTop = element.scrollHeight - element.clientHeight;
-    },
-    [scrollRef]
+    () => ({
+      captureAnchor,
+      restoreAnchor,
+      resumeFollowing,
+      scrollElementToTop,
+      stopScroll,
+    }),
+    [
+      captureAnchor,
+      restoreAnchor,
+      resumeFollowing,
+      scrollElementToTop,
+      stopScroll,
+    ]
   );
   const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -593,13 +623,24 @@ export function ChatView({
 
   const showsEmptyState = messages.length === 0 && !isBusyElsewhere;
   const conversationUsage = getConversationUsage({ messages });
+  const promptHistory = getPromptHistory(messages);
   const chatClassName = showsEmptyState ? "chat--empty" : "";
-  const { missingCredentialsProvider, refreshCredentialStatus } =
+  const { missingCredentials, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
+  const credentialForm =
+    hasAcknowledgedConsent && missingCredentials ? (
+      <AgentModelCredentialForm
+        missingCredentials={missingCredentials}
+        modelName={modelMenuValue.modelName}
+        onCredentialsUpdated={refreshCredentialStatus}
+      />
+    ) : null;
   const isWaitingForAssistant =
     status === "submitted" || status === "streaming";
+  // A "may-work" provider (AWS, Azure) can still authenticate on the server
+  // through its ambient credential chain, so only "no-key" blocks sending
   const isSendDisabledForMissingCredentials =
-    !isWaitingForAssistant && Boolean(missingCredentialsProvider);
+    !isWaitingForAssistant && missingCredentials?.credentialState === "no-key";
   const isSubmitDisabled =
     isSendDisabledForMissingCredentials || isCompacting || isBusyElsewhere;
   const showThinkingIndicator = shouldShowThinkingIndicator({
@@ -633,6 +674,27 @@ export function ChatView({
       preventDefault: true,
     },
     [canToggleEditPermission, editPermissionMode, setPermissions]
+  );
+
+  // Escape cancels the in-flight response from anywhere in the chat panel. It is
+  // only enabled while a turn is streaming, so Escape keeps its normal behavior
+  // otherwise. We defer to any popup that already consumed the key: the
+  // slash-command menu the session list.
+  useHotkeys(
+    "escape",
+    (event) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      event.preventDefault();
+      void stop();
+    },
+    {
+      enabled: isRequestActive,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+    },
+    [isRequestActive, stop]
   );
 
   // Quick actions track the agent contexts the assistant is advertising for the current
@@ -726,7 +788,7 @@ export function ChatView({
       if (restoredInput == null) {
         return;
       }
-      scrollToBottom();
+      startTurn();
       sendMessage({ text: messageText });
     } catch (error) {
       setHistoryActionError({
@@ -755,6 +817,11 @@ export function ChatView({
     if (!textarea) {
       return;
     }
+    // The chat can mount late (session queries resolving, session switches)
+    // while a modal dialog already owns focus. The modal keeps it.
+    if (document.activeElement?.closest('[data-overlay-container="modal"]')) {
+      return;
+    }
 
     textarea.focus();
     const cursorPosition = textarea.value.length;
@@ -780,7 +847,7 @@ export function ChatView({
         <ChatLantern isVisible={showsEmptyState} />
         <ChatScrollContext.Provider value={chatScrollContextValue}>
           <div className="chat__scroll-frame">
-            <div className="chat__scroll" ref={handleScrollRef}>
+            <div className="chat__scroll" ref={scrollRef}>
               <div className="chat__messages" ref={contentRef}>
                 {showsEmptyState && (
                   <ChatEmptyState
@@ -789,13 +856,7 @@ export function ChatView({
                     quickActions={quickActions}
                     onQuickAction={handleQuickAction}
                   >
-                    {hasAcknowledgedConsent && missingCredentialsProvider ? (
-                      <AgentModelCredentialForm
-                        modelName={modelMenuValue.modelName}
-                        onCredentialsUpdated={refreshCredentialStatus}
-                        provider={missingCredentialsProvider}
-                      />
-                    ) : undefined}
+                    {credentialForm}
                   </ChatEmptyState>
                 )}
                 {messages.map((message, index) => {
@@ -819,6 +880,7 @@ export function ChatView({
                     // Only the last assistant message can still be streaming — hide
                     // its actions until the chat reports it is settled.
                     const isLast = index === messages.length - 1;
+                    const isMessageStreaming = isLast && status === "streaming";
                     const showActions = !isLast || hasChatSettled;
                     // Pin the most recent assistant turn's toolbar so its actions
                     // stay visible; other turns reveal their toolbars on hover to
@@ -830,6 +892,7 @@ export function ChatView({
                     renderedMessage = (
                       <AssistantMessage
                         message={message}
+                        isStreaming={isMessageStreaming}
                         showActions={showActions}
                         pinToolbar={pinToolbar}
                         onRewindRequest={onRewindRequest}
@@ -862,6 +925,11 @@ export function ChatView({
                     onRewind={onRewindRequest}
                   />
                 )}
+                <div
+                  ref={turnSpacerRef}
+                  className="chat__turn-spacer"
+                  aria-hidden="true"
+                />
               </div>
             </div>
           </div>
@@ -917,6 +985,11 @@ export function ChatView({
               </Alert>
             </div>
           ) : null}
+          {/* The empty state shows the credential form in place of the hero;
+              once a conversation has started, show it above the input. */}
+          {!showsEmptyState && credentialForm ? (
+            <div className="chat__credential-form">{credentialForm}</div>
+          ) : null}
           {(operationError || (!rewindRequest && historyActionError)) && (
             <div className="chat__operation-error" role="alert">
               <Alert
@@ -971,7 +1044,7 @@ export function ChatView({
                       pendingElicitation.questions.length - 1
                     ),
                   });
-                  scrollToBottom();
+                  resumeFollowing();
                   handleElicitationSubmit(output);
                 }}
                 onCancel={() => {
@@ -1005,7 +1078,7 @@ export function ChatView({
                 if (!text) {
                   return;
                 }
-                scrollToBottom();
+                startTurn();
                 sendMessage(
                   { text },
                   requestedSkills.length > 0
@@ -1013,6 +1086,7 @@ export function ChatView({
                     : undefined
                 );
               }}
+              promptHistory={promptHistory}
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}

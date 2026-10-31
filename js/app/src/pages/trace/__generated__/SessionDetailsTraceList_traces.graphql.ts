@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dd452f2885fb0f0b4d1111e5dea38ff7>>
+ * @generated SignedSource<<5ca48c09b42e39a9be31d7b612d1f773>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type MimeType = "json" | "text";
+export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SessionDetailsTraceList_traces$data = {
   readonly id: string;
@@ -42,6 +43,16 @@ export type SessionDetailsTraceList_traces$data = {
           };
           readonly spanId: string;
           readonly startTime: string;
+          readonly statusCode: SpanStatusCode;
+          readonly summarySpanAnnotationSummaries: ReadonlyArray<{
+            readonly count: number;
+            readonly labelFractions: ReadonlyArray<{
+              readonly fraction: number;
+              readonly label: string;
+            }>;
+            readonly meanScore: number | null;
+            readonly name: string;
+          }>;
           readonly trace: {
             readonly costSummary: {
               readonly total: {
@@ -49,6 +60,15 @@ export type SessionDetailsTraceList_traces$data = {
               };
             };
             readonly id: string;
+            readonly summaryTraceAnnotationSummaries: ReadonlyArray<{
+              readonly count: number;
+              readonly labelFractions: ReadonlyArray<{
+                readonly fraction: number;
+                readonly label: string;
+              }>;
+              readonly meanScore: number | null;
+              readonly name: string;
+            }>;
             readonly " $fragmentSpreads": FragmentRefs<"TraceActionToolbar_trace" | "TraceAnnotationSummaryGroup">;
           };
           readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
@@ -78,6 +98,68 @@ v1 = {
   "storageKey": null
 },
 v2 = [
+  {
+    "kind": "Literal",
+    "name": "filter",
+    "value": {
+      "exclude": {
+        "names": [
+          "note"
+        ]
+      }
+    }
+  }
+],
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v4 = [
+  (v3/*:: as any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "count",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "meanScore",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "LabelFraction",
+    "kind": "LinkedField",
+    "name": "labelFractions",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "fraction",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "label",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -254,18 +336,22 @@ return {
                             }
                           ],
                           "storageKey": null
+                        },
+                        {
+                          "alias": "summaryTraceAnnotationSummaries",
+                          "args": (v2/*:: as any*/),
+                          "concreteType": "AnnotationSummary",
+                          "kind": "LinkedField",
+                          "name": "traceAnnotationSummaries",
+                          "plural": true,
+                          "selections": (v4/*:: as any*/),
+                          "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                         }
                       ],
                       "storageKey": null
                     },
                     (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
+                    (v3/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -292,7 +378,7 @@ return {
                       "kind": "LinkedField",
                       "name": "input",
                       "plural": false,
-                      "selections": (v2/*:: as any*/),
+                      "selections": (v5/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -302,7 +388,7 @@ return {
                       "kind": "LinkedField",
                       "name": "output",
                       "plural": false,
-                      "selections": (v2/*:: as any*/),
+                      "selections": (v5/*:: as any*/),
                       "storageKey": null
                     },
                     {
@@ -337,8 +423,25 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "statusCode",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "spanId",
                       "storageKey": null
+                    },
+                    {
+                      "alias": "summarySpanAnnotationSummaries",
+                      "args": (v2/*:: as any*/),
+                      "concreteType": "AnnotationSummary",
+                      "kind": "LinkedField",
+                      "name": "spanAnnotationSummaries",
+                      "plural": true,
+                      "selections": (v4/*:: as any*/),
+                      "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                     },
                     {
                       "args": null,
@@ -414,6 +517,6 @@ return {
 };
 })();
 
-(node as any).hash = "dd466658a3841327050505e5f6591bab";
+(node as any).hash = "1f111ea1e2186d1062bc2322d38a9796";
 
 export default node;

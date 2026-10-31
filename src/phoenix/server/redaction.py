@@ -1,37 +1,20 @@
 """Cross-replica redaction for transient payloads.
 
-The active redactor is exposed via a `ContextVar` (`current_redactor`), bound
-per HTTP request by `RedactorMiddleware` from `app.state.redactor`. Access via
-`get_redactor()` — it raises `RedactorNotBoundError` if nothing is bound, so a
-missing middleware or a call from a background task / thread pool fails loudly
-instead of silently passing plaintext secrets through.
+RedactorMiddleware binds the request redactor. get_redactor() raises
+RedactorNotBoundError outside a bound context to prevent plaintext disclosure.
 
-The `Redactor` key is derived from `PHOENIX_SECRET` via PBKDF2, so redacted
-tokens issued by one replica are decryptable by any other replica sharing the
-same secret. A domain-separating salt keeps the redaction key distinct from
-`EncryptionService`'s DB-persistence key.
+Redacted values remain valid across replicas and restarts while the deployment
+seed and PHOENIX_SECRET are unchanged.
 
-Redacted strings optionally carry the last 4 characters of the plaintext as
-a preview, so the UI can hint at which key is stored without revealing the
-whole value. The preview is only emitted when the plaintext is at least 32
-characters; shorter values get no preview so the leak stays proportionate.
-Previews persist wherever redacted strings do (logs, screenshots, support
-tickets), so the full secret remains confidential but partial end-of-string
-leaks are expected by design.
+Plaintexts of at least 32 characters expose a four-character suffix preview.
+Treat previews as partial secret disclosure wherever redacted values are stored.
 """
 
 import base64
 from contextvars import ContextVar
 
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from pydantic import SecretStr
 
-# Domain separation: redaction keys must not equal DB-encryption keys even when
-# derived from the same PHOENIX_SECRET.
-_REDACTION_KEY_DERIVATION_SALT = b"phoenix-redaction-2a7f1d9b4e6c8a0f2d3b5c7e9a1f4b6d"
-_PBKDF2_ITERATIONS = 600_000
 _FERNET_KEY_LENGTH = 32
 
 # U+E000 (Private Use Area) as a universal delimiter. Unassigned in Unicode
@@ -52,21 +35,12 @@ _WIRE_PREFIX = f"{_DELIM}{_MARKER}{_DELIM}"
 
 
 class Redactor:
-    """Symmetric redact/unredact keyed off PHOENIX_SECRET."""
+    """Symmetric redact/unredact with the deployment redaction key."""
 
-    def __init__(self, secret: SecretStr) -> None:
-        self._fernet = Fernet(self._derive_key(secret))
-
-    @staticmethod
-    def _derive_key(secret: SecretStr) -> bytes:
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=_FERNET_KEY_LENGTH,
-            salt=_REDACTION_KEY_DERIVATION_SALT,
-            iterations=_PBKDF2_ITERATIONS,
-        )
-        key_bytes = kdf.derive(secret.get_secret_value().encode("utf-8"))
-        return base64.urlsafe_b64encode(key_bytes)
+    def __init__(self, key: bytes) -> None:
+        if len(key) != _FERNET_KEY_LENGTH:
+            raise ValueError("redaction key must be 32 bytes")
+        self._fernet = Fernet(base64.urlsafe_b64encode(key))
 
     @staticmethod
     def _build_preview(data: str) -> str:

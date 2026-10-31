@@ -12,6 +12,7 @@ import {
   Popover,
   PopoverArrow,
   Text,
+  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
@@ -52,6 +53,9 @@ export function PlaygroundExperimentSettingsButton({
   );
   const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
     playgroundDatasetState ?? {};
+  const experimentName = playgroundDatasetState?.experimentName ?? "";
+  const experimentDescription =
+    playgroundDatasetState?.experimentDescription ?? "";
   const setAppendedMessagesPath = usePlaygroundContext(
     (state) => state.setAppendedMessagesPath
   );
@@ -60,6 +64,12 @@ export function PlaygroundExperimentSettingsButton({
   );
   const setMaxConcurrency = usePlaygroundContext(
     (state) => state.setMaxConcurrency
+  );
+  const setExperimentName = usePlaygroundContext(
+    (state) => state.setExperimentName
+  );
+  const setExperimentDescription = usePlaygroundContext(
+    (state) => state.setExperimentDescription
   );
 
   return (
@@ -75,6 +85,39 @@ export function PlaygroundExperimentSettingsButton({
         <Dialog>
           <View padding="size-200">
             <Flex direction="column" gap="size-200">
+              <TextField
+                value={experimentName}
+                size="S"
+                onChange={(value) => {
+                  setExperimentName({
+                    experimentName: value || null,
+                    datasetId,
+                  });
+                }}
+              >
+                <Label>Name</Label>
+                <Input placeholder="playground-experiment" />
+                <Text slot="description">
+                  Optional name for the next experiment. Leave empty to use the
+                  generated default.
+                </Text>
+              </TextField>
+              <TextField
+                value={experimentDescription}
+                size="S"
+                onChange={(value) => {
+                  setExperimentDescription({
+                    experimentDescription: value || null,
+                    datasetId,
+                  });
+                }}
+              >
+                <Label>Description</Label>
+                <TextArea />
+                <Text slot="description">
+                  Optional description for the next experiment.
+                </Text>
+              </TextField>
               <ComboBox
                 label="Template variables path"
                 description="Path prefix for template variables"

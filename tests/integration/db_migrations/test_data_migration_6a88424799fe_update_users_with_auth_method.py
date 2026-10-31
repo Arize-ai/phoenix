@@ -300,7 +300,7 @@ def _create_local_user(
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
         AssertionError: If user creation fails or returned ID is not an integer
     """
-    result = conn.execute(
+    result: int = conn.execute(
         text(
             """
             INSERT INTO users (
@@ -350,7 +350,7 @@ def _create_oauth_user(
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
         AssertionError: If user creation fails or returned ID is not an integer
     """
-    result = conn.execute(
+    result: int = conn.execute(
         text(
             """
             INSERT INTO users (

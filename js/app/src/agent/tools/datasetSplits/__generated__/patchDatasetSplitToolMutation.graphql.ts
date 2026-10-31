@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14febe7877f57eb6d2b648eed01fe192>>
+ * @generated SignedSource<<09734a7c1271b446b40af0176954686a>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,8 @@ export type patchDatasetSplitToolMutation$variables = {
 export type patchDatasetSplitToolMutation$data = {
   readonly patchDatasetSplit: {
     readonly datasetSplit: {
+      readonly color: string;
+      readonly description: string | null;
       readonly id: string;
       readonly name: string;
     };
@@ -75,6 +77,20 @@ v1 = [
             "kind": "ScalarField",
             "name": "name",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "description",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "color",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -101,16 +117,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "3e394aa58bc567d8fe36b8f13a646de7",
+    "cacheID": "432a39964e7fc79408773f6e17bb182d",
     "id": null,
     "metadata": {},
     "name": "patchDatasetSplitToolMutation",
     "operationKind": "mutation",
-    "text": "mutation patchDatasetSplitToolMutation(\n  $input: PatchDatasetSplitInput!\n) {\n  patchDatasetSplit(input: $input) {\n    datasetSplit {\n      id\n      name\n    }\n  }\n}\n"
+    "text": "mutation patchDatasetSplitToolMutation(\n  $input: PatchDatasetSplitInput!\n) {\n  patchDatasetSplit(input: $input) {\n    datasetSplit {\n      id\n      name\n      description\n      color\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "696379fef929d95dc7fcc8f3e6fad43b";
+(node as any).hash = "a796a80f7dd8025734c89e64e6c600e7";
 
 export default node;

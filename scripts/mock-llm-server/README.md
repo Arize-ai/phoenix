@@ -343,9 +343,9 @@ The server supports multiple rate limiting strategies per endpoint:
 The Responses API uses a different format from Chat Completions:
 
 ```python
-import httpx
+import httpx2
 
-response = httpx.post(
+response = httpx2.post(
     "http://localhost:57593/v1/responses",
     headers={"Authorization": "Bearer fake-key"},
     json={
@@ -363,9 +363,9 @@ print(response.json())
 The Responses API uses event-based streaming with named events:
 
 ```python
-import httpx
+import httpx2
 
-with httpx.stream(
+with httpx2.stream(
     "POST",
     "http://localhost:57593/v1/responses",
     headers={"Authorization": "Bearer fake-key"},

@@ -4,12 +4,11 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, IDBadge, Text } from "@phoenix/components";
+import { dotSeparatedRowCSS } from "@phoenix/components/core/styles";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanMetrics } from "@phoenix/components/trace/SpanMetrics";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
-import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
-import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { useTimeFormatters } from "@phoenix/hooks";
-import { latencyMsFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
 
@@ -40,22 +39,8 @@ const identityRowCSS = css`
 `;
 
 const metaRowCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: center;
+  ${dotSeparatedRowCSS}
   flex-wrap: wrap;
-  gap: var(--global-dimension-size-100);
-  min-width: 0;
-
-  .span-header__meta-item {
-    display: inline-flex;
-    align-items: center;
-  }
-  .span-header__meta-item + .span-header__meta-item::before {
-    content: "·";
-    color: var(--global-text-color-300);
-    margin-right: var(--global-dimension-size-100);
-  }
 `;
 
 type SpanHeaderProps = {
@@ -68,8 +53,9 @@ type SpanHeaderProps = {
 
 /**
  * Identifies a span: an identity row (kind, name, status) with actions at
- * the trailing edge, above a full-width meta row (id, latency, time, tokens,
- * cost) of uniformly muted mono text separated by dots.
+ * the trailing edge, above a full-width meta row (id, time, then the span's
+ * latency · tokens · cost) of uniformly muted mono text separated by dots.
+ * The metrics are the same component the trace tree draws under each row.
  */
 export function SpanHeader(props: SpanHeaderProps) {
   const { fullTimeFormatter } = useTimeFormatters();
@@ -116,45 +102,25 @@ export function SpanHeader(props: SpanHeaderProps) {
         ) : null}
       </div>
       <div className="span-header__meta" css={metaRowCSS}>
-        <span className="span-header__meta-item">
+        <span>
           <IDBadge
             id={span.spanId}
             variant="quiet"
             tooltipText="Copy Span ID"
           />
         </span>
-        {typeof span.latencyMs === "number" ? (
-          <span className="span-header__meta-item">
-            <Text size="S" color="text-500" fontFamily="mono">
-              {latencyMsFormatter(span.latencyMs)}
-            </Text>
-          </span>
-        ) : null}
-        <span className="span-header__meta-item">
+        <span>
           <Text size="S" color="text-500" fontFamily="mono">
             {fullTimeFormatter(startTime)}
           </Text>
         </span>
-        {span.tokenCountTotal ? (
-          <span className="span-header__meta-item">
-            <SpanTokenCount
-              tokenCountTotal={span.tokenCountTotal}
-              nodeId={span.id}
-              size="S"
-              color="text-500"
-            />
-          </span>
-        ) : null}
-        {span.costSummary?.total?.cost ? (
-          <span className="span-header__meta-item">
-            <SpanTokenCosts
-              totalCost={span.costSummary.total.cost}
-              spanNodeId={span.id}
-              size="S"
-              color="text-500"
-            />
-          </span>
-        ) : null}
+        <SpanMetrics
+          spanNodeId={span.id}
+          size="S"
+          latencyMs={span.latencyMs ?? null}
+          tokenCountTotal={span.tokenCountTotal}
+          costTotal={span.costSummary?.total?.cost}
+        />
       </div>
     </Flex>
   );

@@ -18,7 +18,8 @@ We recommend using `llama_index >= 0.11.0`
 ## Install
 
 ```bash
-pip install openinference-instrumentation-llama_index
+pip install openinference-instrumentation-llama_index \
+  openinference-instrumentation-openai llama-index-core llama-index-llms-openai
 ```
 
 ## Setup
@@ -34,6 +35,30 @@ LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 ## Run LlamaIndex Workflows
+
+```python expandable
+from llama_index.core.workflow import StartEvent, StopEvent, Workflow, step
+from llama_index.llms.openai import OpenAI
+
+
+class JokeWorkflow(Workflow):
+    @step
+    async def write_joke(self, event: StartEvent) -> StopEvent:
+        joke = OpenAI(model="gpt-4o-mini").complete(
+            f"Write a one-sentence joke about {event.topic}."
+        )
+        return StopEvent(result=joke.text)
+
+
+async def main():
+    result = await JokeWorkflow().run(topic="observability")
+    print(result)
+
+
+import asyncio
+
+asyncio.run(main())
+```
 
 By instrumenting LlamaIndex, spans will be created whenever an agent is invoked and will be sent to the Phoenix server for collection.
 

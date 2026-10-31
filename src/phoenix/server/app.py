@@ -8,7 +8,7 @@ import os
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from functools import cached_property
+from functools import cached_property, partial
 from pathlib import Path
 from types import MethodType
 from typing import (
@@ -33,6 +33,7 @@ import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.telemetry import TelemetryConfig
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
@@ -40,7 +41,6 @@ from pydantic import SecretStr
 from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.authentication import UnauthenticatedUser
 from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -62,6 +62,7 @@ from phoenix.config import (
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_agents_mcp_code_mode,
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_allowed_sandbox_providers,
@@ -79,10 +80,12 @@ from phoenix.config import (
     get_env_host_root_path,
     get_env_max_spans_queue_size,
     get_env_mcp_code_mode,
+    get_env_model_cost_manifest_url,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
+    server_log_export_is_enabled,
     verify_server_environment_variables,
 )
 from phoenix.db import models
@@ -94,11 +97,13 @@ from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.api.redaction import RedactingOpenTelemetryExtension
 from phoenix.server.api.routers import (
     AgentSessionConflict,
     agent_session_conflict_handler,
     create_agents_router,
     create_auth_router,
+    create_client_errors_router,
     create_legacy_agents_router,
     create_v1_router,
     oauth2_as_router,
@@ -118,20 +123,33 @@ from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.daemons.model_cost_manifest_fetcher import ModelCostManifestFetcher
 from phoenix.server.daemons.system_settings import SystemSettings
+from phoenix.server.deployment_secret import (
+    OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
+    REDACTION_KEY_PURPOSE,
+    TOKEN_SIGNING_KEY_PURPOSE,
+    derive_deployment_key,
+    load_deployment_seed,
+)
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOTS
+from phoenix.server.mcp.skills import (
+    PXI_SKILLS_ROOTS,
+    load_external_skills,
+    load_skills,
+    merge_skills,
+)
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     BearerAuthGuard,
@@ -156,7 +174,10 @@ from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.settings.registry import SETTINGS_REGISTRY
-from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
+from phoenix.server.telemetry import (
+    initialize_opentelemetry_logger_provider,
+    initialize_opentelemetry_tracer_provider,
+)
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -184,6 +205,7 @@ from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
+    from opentelemetry._logs import LoggerProvider
     from opentelemetry.trace import TracerProvider
 
     from phoenix.config import LDAPConfig
@@ -624,7 +646,9 @@ class CapacityInterceptor(AsyncServerInterceptor):
     ) -> Any:
         if self._indicator.is_full:
             SPAN_QUEUE_REJECTIONS.inc()
-            context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+            # OTLP clients treat RESOURCE_EXHAUSTED without RetryInfo as non-retryable,
+            # and the spec names UNAVAILABLE as the backpressure signal.
+            context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details("Server is at capacity and cannot process more requests")
             return
 
@@ -639,8 +663,8 @@ def _lifespan(
     trace_data_sweeper: Optional[TraceDataSweeper],
     agent_session_sweeper: AgentSessionSweeper,
     experiment_sweeper: ExperimentSweeper,
-    span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
+    model_cost_manifest_fetcher: Optional[ModelCostManifestFetcher],
     system_settings: SystemSettings,
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
@@ -653,14 +677,40 @@ def _lifespan(
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    grpc_host: str,
     initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: Optional[_WelcomeMessage] = None,
     docs_mcp_server: Optional[MCPToolset[Any]] = None,
+    secret: Optional[SecretStr] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
+        seed = await load_deployment_seed(db)
+        effective_secret = secret or SecretStr("")
+        app.state.redactor = Redactor(
+            derive_deployment_key(
+                seed=seed,
+                secret=effective_secret,
+                purpose=REDACTION_KEY_PURPOSE,
+            )
+        )
+        app.state.oauth2_login_context_key = derive_deployment_key(
+            seed=seed,
+            secret=effective_secret,
+            purpose=OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
+        )
+        if isinstance(token_store, JwtStore):
+            if secret:
+                token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
+            else:
+                token_store.set_signing_key(
+                    derive_deployment_key(
+                        seed=seed, secret=SecretStr(""), purpose=TOKEN_SIGNING_KEY_PURPOSE
+                    ),
+                    require_stored_hash=True,
+                )
         resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
@@ -680,6 +730,7 @@ def _lifespan(
             grpc_server = GrpcServer(
                 enqueue_span,
                 port=resolved_grpc_port,
+                host=grpc_host,
                 disabled=read_only,
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
@@ -694,8 +745,9 @@ def _lifespan(
                 await stack.enter_async_context(trace_data_sweeper)
             await stack.enter_async_context(agent_session_sweeper)
             await stack.enter_async_context(experiment_sweeper)
-            await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
+            if model_cost_manifest_fetcher:
+                await stack.enter_async_context(model_cost_manifest_fetcher)
             await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
             await stack.enter_async_context(sandbox_runtime.monty)
@@ -751,13 +803,17 @@ def _lifespan(
                     print(welcome_message(system_settings), flush=True)
                 except Exception:
                     logger.exception("Failed to render the startup banner")
-            yield {
+            lifespan_state: dict[str, Any] = {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
                 "enqueue_span": enqueue_span,
                 "enqueue_operation": enqueue_operation,
                 "experiment_runner": experiment_runner,
             }
+            # Read by the in-process MCP dispatch, which has no server to copy
+            # the yielded state into its request scopes.
+            app.state.lifespan_state = lifespan_state
+            yield lifespan_state
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
@@ -804,7 +860,7 @@ def create_graphql_router(
     """Creates the GraphQL router.
 
     Args:
-        schema (BaseSchema): The GraphQL schema.
+        graphql_schema (strawberry.Schema): The GraphQL schema.
         db (DbSessionFactory): The database session factory pointing to a SQL database.
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
@@ -927,6 +983,7 @@ def create_app(
     dev_vite_port: int = 5173,
     read_only: bool = False,
     grpc_port: Optional[int] = None,
+    grpc_host: Optional[str] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
     initial_annotation_precursors: Optional[Iterable[AnnotationPrecursor]] = None,
@@ -947,6 +1004,8 @@ def create_app(
     management_url: Optional[str] = None,
     welcome_message: Optional[_WelcomeMessage] = None,
 ) -> FastAPI:
+    if grpc_host is None:
+        grpc_host = get_env_host()
     verify_server_environment_variables()
     _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
@@ -998,8 +1057,8 @@ def create_app(
             "This is recommended when setting up OAuth2 clients or sending "
             "password reset emails."
         )
-    if authentication_enabled and secret:
-        token_store = JwtStore(db, secret)
+    if authentication_enabled:
+        token_store = JwtStore(db)
         middlewares.append(
             Middleware(
                 AuthenticationMiddleware,
@@ -1021,7 +1080,12 @@ def create_app(
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
-    span_cost_calculator = SpanCostCalculator(db, generative_model_store)
+    # A read-only server leaves the built-in prices to the server that writes.
+    model_cost_manifest_url = None if read_only else get_env_model_cost_manifest_url()
+    model_cost_manifest_fetcher = (
+        ModelCostManifestFetcher(db, model_cost_manifest_url) if model_cost_manifest_url else None
+    )
+    span_cost_calculator = SpanCostCalculator(generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
         span_cost_calculator=span_cost_calculator,
@@ -1038,24 +1102,16 @@ def create_app(
 
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
-        from opentelemetry.trace import TracerProvider
-        from strawberry.extensions.tracing import OpenTelemetryExtension
-
-        if TYPE_CHECKING:
-            # Type-check the class before monkey-patching its private attribute.
-            assert OpenTelemetryExtension._tracer
-
-        class _OpenTelemetryExtension(OpenTelemetryExtension):
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                super().__init__(*args, **kwargs)
-                # Monkey-patch its private tracer to eliminate usage of the global
-                # TracerProvider, which in a notebook setting could be the one
-                # used by OpenInference.
-                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
-
-        graphql_schema_extensions.append(_OpenTelemetryExtension)
+        # Bound to this provider rather than the global one, which in a notebook
+        # could be the provider OpenInference is using.
+        graphql_schema_extensions.append(
+            partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)
+        )
+    logger_provider = None
+    if server_log_export_is_enabled():
+        logger_provider = initialize_opentelemetry_logger_provider()
+        shutdown_callbacks_list.append(logger_provider.shutdown)
     encryption_service = EncryptionService(secret=secret)
-    redactor = Redactor(secret=secret or SecretStr(""))
     sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
     sandbox_session_manager = SandboxSessionManager()
     experiment_runner = ExperimentRunner(
@@ -1103,14 +1159,15 @@ def create_app(
             db=db,
             read_only=read_only,
             grpc_port=grpc_port,
+            grpc_host=grpc_host,
             initial_annotation_precursors=startup_annotation_precursors,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
             agent_session_sweeper=agent_session_sweeper,
             experiment_sweeper=experiment_sweeper,
-            span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
+            model_cost_manifest_fetcher=model_cost_manifest_fetcher,
             system_settings=system_settings,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
@@ -1125,6 +1182,7 @@ def create_app(
             scaffolder_config=scaffolder_config,
             welcome_message=welcome_message,
             docs_mcp_server=docs_mcp_server,
+            secret=secret,
         ),
         middleware=middlewares,
         exception_handlers={
@@ -1132,11 +1190,15 @@ def create_app(
             AgentSessionConflict: agent_session_conflict_handler,
         },
         debug=debug,
+        telemetry=_native_telemetry_config(
+            tracer_provider=tracer_provider, logger_provider=logger_provider
+        ),
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
+    app.include_router(create_client_errors_router(authentication_enabled))
     if not get_env_disable_agent_assistant():
         app.include_router(create_legacy_agents_router(authentication_enabled))
         app.include_router(create_agents_router(authentication_enabled))
@@ -1205,6 +1267,8 @@ def create_app(
         return schema
 
     app.openapi = _openapi  # type: ignore[method-assign]
+    external_skills = load_external_skills()
+    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), external_skills)
     mcp_http_app = None
     mcp_code_mode_sandbox = None
     if mcp_mount_path is not None:
@@ -1216,6 +1280,8 @@ def create_app(
             app,
             monty_runtime=sandbox_runtime.monty,
             db=db,
+            read_only=read_only,
+            external_skills=external_skills,
         )
         # The guard reads scope["user"], so it is installed exactly when the
         # AuthenticationMiddleware that populates it is (token_store above).
@@ -1228,27 +1294,35 @@ def create_app(
         app.add_middleware(MountPathNormalizer)
     app.state.mcp_http_app = mcp_http_app
     # FastMCP adapter backed by ``sandbox_runtime.monty``. None unless code mode
-    # is enabled.
+    # is enabled for the mount.
     app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
     # Consumed by the OAuth2 authorization server (resource-indicator validation)
     # and the protected-resource metadata routes; None when the mount is disabled.
     app.state.mcp_mount_path = mcp_mount_path
-    # The agent's own instance, independent of the mount and its configuration.
-    # Read-only: mutations belong to the agent's editing tools, which route
-    # approval through the user. Its sandbox takes the ``agent`` admission class,
-    # capped one below the worker pool size: consumers compete for workers and a
-    # loser waits at checkout, but no consumer can hold them all.
+    # The agent's own instance, independent of the mount and its configuration:
+    # PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, not PHOENIX_ENABLE_MCP_CODE_MODE,
+    # selects its code-mode surface. Read-only: mutations belong to the agent's
+    # editing tools, which route approval through the user. Its sandbox takes
+    # the ``agent`` admission class, capped one below the worker pool size:
+    # consumers compete for workers and a loser waits at checkout, but no
+    # consumer can hold them all.
     pxi_mcp_server = None
     pxi_mcp_sandbox = None
     if not get_env_disable_agent_assistant():
         pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
             app,
             monty_runtime=sandbox_runtime.monty,
-            code_mode=True,
+            code_mode=get_env_agents_mcp_code_mode(),
             monty_consumer="agent",
             read_only=True,
             db=db,
+            # PXI reaches GraphQL through the `phoenix-gql` shell builtin, which
+            # carries the mutation policy and the approval gate. These tools
+            # stand in only where the bash capability, and the builtin with it,
+            # is off.
+            graphql_tools=get_env_phoenix_agents_disable_bash(),
             skills_roots=PXI_SKILLS_ROOTS,
+            external_skills=external_skills,
         )
     app.state.pxi_mcp_server = pxi_mcp_server
     app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
@@ -1330,7 +1404,6 @@ def create_app(
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
     app.state.decrypt = encryption_service.decrypt
-    app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
@@ -1359,14 +1432,7 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
     )
-    app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
-    if tracer_provider:
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-        FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
-        FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
-        shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
     if allowed_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -1414,20 +1480,28 @@ def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfi
         )
 
 
-def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:
-    """
-    Dynamically adds a `get_secret` method to the app's `state`.
-    """
-    app.state._secret = secret
+def _native_telemetry_config(
+    *,
+    tracer_provider: Optional["TracerProvider"],
+    logger_provider: Optional["LoggerProvider"],
+) -> TelemetryConfig:
+    """Configure FastAPI's native OpenTelemetry support.
 
-    def get_secret(self: StarletteState) -> SecretStr:
-        if (secret := self._secret) is None:
-            raise ValueError("app secret is not set")
-        assert isinstance(secret, SecretStr)
-        return secret
-
-    app.state.get_secret = MethodType(get_secret, app.state)
-    return app
+    Request spans and log events go only to Phoenix's own providers (when server
+    instrumentation or log export is enabled), never to global providers that a host
+    process may have configured. Metrics stay off because the server exposes its
+    metrics through Prometheus instead.
+    """
+    config: TelemetryConfig = {"metrics": False}
+    if tracer_provider is not None:
+        config["tracer_provider"] = tracer_provider
+    else:
+        config["tracing"] = False
+    if logger_provider is not None:
+        config["logger_provider"] = logger_provider
+    else:
+        config["logs"] = False
+    return config
 
 
 def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]) -> FastAPI:
@@ -1469,12 +1543,10 @@ def _get_build_graphql_context_function(
     """Factory for creating GraphQL context."""
 
     def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
-        request = Request(
-            {
-                "type": "http",
-                "user": user if user is not None else UnauthenticatedUser(),
-            }
-        )
+        scope: dict[str, Any] = {"type": "http"}
+        if user is not None:
+            scope["user"] = user
+        request = Request(scope)
         return build_context(
             db=db,
             settings=system_settings,

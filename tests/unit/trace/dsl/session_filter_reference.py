@@ -161,7 +161,7 @@ class ReferenceSession:
 
     @property
     def duration_ms(self) -> float:
-        return round((self.end_time - self.start_time).total_seconds() * 1000, 1)
+        return (self.end_time - self.start_time).total_seconds() * 1000
 
     @property
     def num_traces(self) -> int:

@@ -860,7 +860,9 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -1209,7 +1211,9 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -1558,7 +1562,9 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -2924,6 +2930,100 @@
       }
     },
     "/v1/datasets/{dataset_identifier}/splits": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List dataset splits",
+        "operationId": "listDatasetSplits",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "The max number of dataset splits to return at a time.",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "The max number of dataset splits to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetSplitsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      },
       "post": {
         "tags": [
           "datasets"
@@ -4755,10 +4855,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
+              "deprecated": true,
               "title": "Error"
             },
-            "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI."
+            "description": "Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.",
+            "deprecated": true
           },
           {
             "name": "min_latency_ms",
@@ -4774,10 +4876,12 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive lower bound on trace latency in milliseconds.",
+              "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+              "deprecated": true,
               "title": "Min Latency Ms"
             },
-            "description": "Inclusive lower bound on trace latency in milliseconds."
+            "description": "Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.",
+            "deprecated": true
           },
           {
             "name": "max_latency_ms",
@@ -4793,10 +4897,30 @@
                   "type": "null"
                 }
               ],
-              "description": "Inclusive upper bound on trace latency in milliseconds.",
+              "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+              "deprecated": true,
               "title": "Max Latency Ms"
             },
-            "description": "Inclusive upper bound on trace latency in milliseconds."
+            "description": "Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.",
+            "deprecated": true
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -4819,6 +4943,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -5471,10 +5605,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Pagination cursor (Span Global ID)",
+              "description": "Pagination cursor: the next_cursor of a previous response with the same sort",
               "title": "Cursor"
             },
-            "description": "Pagination cursor (Span Global ID)"
+            "description": "Pagination cursor: the next_cursor of a previous response with the same sort"
           },
           {
             "name": "limit",
@@ -5489,6 +5623,38 @@
               "title": "Limit"
             },
             "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "id",
+                "start_time"
+              ],
+              "type": "string",
+              "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id.",
+              "default": "id",
+              "title": "Sort"
+            },
+            "description": "Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction",
+              "default": "desc",
+              "title": "Order"
+            },
+            "description": "Sort direction"
           },
           {
             "name": "start_time",
@@ -5625,10 +5791,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN",
+              "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN",
               "title": "Span Kind"
             },
-            "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+            "description": "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN"
           },
           {
             "name": "status_code",
@@ -5786,6 +5952,16 @@
               }
             },
             "description": "Bad Request"
+          },
+          "503": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Span ingestion queue is at capacity"
           },
           "422": {
             "description": "Validation Error",
@@ -7631,6 +7807,24 @@
               "title": "Order"
             },
             "description": "Sort order by ID: 'asc' (ascending) or 'desc' (descending)."
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400.",
+              "title": "Filter"
+            },
+            "description": "Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400."
           }
         ],
         "responses": {
@@ -7653,6 +7847,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "400": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "404": {
             "content": {
@@ -8727,7 +8931,7 @@
     "/auth/logout": {
       "get": {
         "summary": " Logout",
-        "description": "Log out user by revoking tokens and clearing cookies.",
+        "description": "Log out of every browser session by revoking its tokens, and clear the cookies.",
         "operationId": "_logout_auth_logout_get",
         "responses": {
           "200": {
@@ -8997,6 +9201,22 @@
             "schema": {
               "type": "string",
               "title": "Phoenix-Oauth2-State"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-login-context",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phoenix-Oauth2-Login-Context"
             }
           },
           {
@@ -11896,7 +12116,7 @@
             },
             "type": "array",
             "title": "Example Ids",
-            "description": "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
+            "description": "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
           }
         },
         "type": "object",
@@ -13207,98 +13427,6 @@
         ],
         "title": "DynamicToolInputAvailablePart",
         "description": "Dynamic tool part in input-available state."
-      },
-      "DynamicToolInputStreamingPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dynamic-tool",
-            "title": "Type",
-            "default": "dynamic-tool"
-          },
-          "toolName": {
-            "type": "string",
-            "title": "Toolname"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "input-streaming",
-            "title": "State",
-            "default": "input-streaming"
-          },
-          "input": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "toolName",
-          "toolCallId"
-        ],
-        "title": "DynamicToolInputStreamingPart",
-        "description": "Dynamic tool part in input-streaming state."
       },
       "DynamicToolOutputDeniedPart": {
         "properties": {
@@ -14794,7 +14922,7 @@
                   "$ref": "#/components/schemas/ReasoningUIPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__ToolInputStreamingPart"
                 },
                 {
                   "$ref": "#/components/schemas/ToolInputAvailablePart"
@@ -14815,7 +14943,7 @@
                   "$ref": "#/components/schemas/ToolOutputDeniedPart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                  "$ref": "#/components/schemas/pydantic_ai__ui__vercel_ai__request_types__DynamicToolInputStreamingPart"
                 },
                 {
                   "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
@@ -15158,6 +15286,34 @@
           "data"
         ],
         "title": "ListDatasetLabelsForDatasetResponseBody"
+      },
+      "ListDatasetSplitsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSplit"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "ListDatasetSplitsResponseBody"
       },
       "ListDatasetVersionsResponseBody": {
         "properties": {
@@ -16255,7 +16411,7 @@
                   "$ref": "#/components/schemas/ReasoningUIPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__ToolInputStreamingPart"
                 },
                 {
                   "$ref": "#/components/schemas/ToolInputAvailablePart"
@@ -16276,7 +16432,7 @@
                   "$ref": "#/components/schemas/ToolOutputDeniedPart"
                 },
                 {
-                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                  "$ref": "#/components/schemas/phoenix__db__types__data_stream_protocol__request_types__DynamicToolInputStreamingPart"
                 },
                 {
                   "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
@@ -18487,6 +18643,12 @@
           "id": {
             "type": "string",
             "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The creation timestamp of the prompt version."
           }
         },
         "type": "object",
@@ -18497,7 +18659,8 @@
           "template_type",
           "template_format",
           "invocation_parameters",
-          "id"
+          "id",
+          "created_at"
         ],
         "title": "PromptVersion"
       },
@@ -19066,7 +19229,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19132,7 +19297,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19773,7 +19940,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19839,7 +20008,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19954,7 +20125,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -20732,93 +20905,6 @@
         "title": "ToolInputAvailablePart",
         "description": "Tool part in input-available state."
       },
-      "ToolInputStreamingPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "pattern": "^tool-",
-            "title": "Type"
-          },
-          "toolCallId": {
-            "type": "string",
-            "title": "Toolcallid"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "state": {
-            "type": "string",
-            "const": "input-streaming",
-            "title": "State",
-            "default": "input-streaming"
-          },
-          "input": {
-            "anyOf": [
-              {},
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Input"
-          },
-          "providerExecuted": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerexecuted"
-          },
-          "callProviderMetadata": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Callprovidermetadata"
-          },
-          "approval": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ToolApprovalRequested"
-              },
-              {
-                "$ref": "#/components/schemas/ToolApprovalResponded"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Approval"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "toolCallId"
-        ],
-        "title": "ToolInputStreamingPart",
-        "description": "Tool part in input-streaming state."
-      },
       "ToolOutputDeniedPart": {
         "properties": {
           "type": {
@@ -21000,7 +21086,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21066,7 +21154,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21658,7 +21748,7 @@
             },
             "type": "array",
             "title": "Add Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
           },
           "remove_example_ids": {
             "items": {
@@ -21666,7 +21756,7 @@
             },
             "type": "array",
             "title": "Remove Example Ids",
-            "description": "Dataset example IDs (GlobalIDs) to remove from the split."
+            "description": "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
           }
         },
         "type": "object",
@@ -21831,7 +21921,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the evaluation"
@@ -22087,6 +22179,109 @@
         "title": "WebAccessContext",
         "description": "User's per-turn request to expose web search / fetch tools."
       },
+      "phoenix__db__types__data_stream_protocol__request_types__DynamicToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId"
+        ],
+        "title": "DynamicToolInputStreamingPart",
+        "description": "Dynamic tool part in input-streaming state."
+      },
       "phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart": {
         "properties": {
           "type": {
@@ -22310,6 +22505,104 @@
         ],
         "title": "DynamicToolOutputErrorPart",
         "description": "Dynamic tool part in output-error state."
+      },
+      "phoenix__db__types__data_stream_protocol__request_types__ToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolInputStreamingPart",
+        "description": "Tool part in input-streaming state."
       },
       "phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart": {
         "properties": {
@@ -22549,6 +22842,98 @@
         "title": "ToolOutputErrorPart",
         "description": "Tool part in output-error state."
       },
+      "pydantic_ai__ui__vercel_ai__request_types__DynamicToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId"
+        ],
+        "title": "DynamicToolInputStreamingPart",
+        "description": "Dynamic tool part in input-streaming state."
+      },
       "pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart": {
         "properties": {
           "type": {
@@ -22742,6 +23127,93 @@
         ],
         "title": "DynamicToolOutputErrorPart",
         "description": "Dynamic tool part in output-error state."
+      },
+      "pydantic_ai__ui__vercel_ai__request_types__ToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolInputStreamingPart",
+        "description": "Tool part in input-streaming state."
       },
       "pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart": {
         "properties": {

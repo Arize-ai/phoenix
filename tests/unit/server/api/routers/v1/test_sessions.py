@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
 from uuid import UUID
 
-import httpx
+import httpx2
+import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -39,7 +40,7 @@ class TestParseSessionGlobalId:
 class TestGetSession:
     async def test_get_session_by_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, session_model, traces = await _insert_session_with_traces(db)
@@ -53,7 +54,7 @@ class TestGetSession:
 
     async def test_get_session_by_session_id_string(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, session_model, traces = await _insert_session_with_traces(db)
@@ -66,7 +67,7 @@ class TestGetSession:
 
     async def test_get_session_traces_ordered_by_start_time(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, session_model, traces = await _insert_session_with_traces(db, num_traces=5)
@@ -81,7 +82,7 @@ class TestGetSession:
 
     async def test_get_session_with_no_traces(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, session_model, _ = await _insert_session_with_traces(db, num_traces=0)
@@ -94,7 +95,7 @@ class TestGetSession:
 
     async def test_get_session_not_found_by_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         fake_id = str(GlobalID(ProjectSessionNodeType.__name__, "999999"))
         response = await httpx_client.get(f"v1/sessions/{fake_id}")
@@ -102,7 +103,7 @@ class TestGetSession:
 
     async def test_get_session_not_found_by_session_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.get(f"v1/sessions/{token_hex(16)}")
         assert response.status_code == 404
@@ -111,7 +112,7 @@ class TestGetSession:
 class TestDeleteSession:
     async def test_delete_session_by_session_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, session_model, traces = await _insert_session_with_traces(db)
@@ -125,7 +126,7 @@ class TestDeleteSession:
 
     async def test_delete_session_by_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, session_model, traces = await _insert_session_with_traces(db)
@@ -140,14 +141,14 @@ class TestDeleteSession:
 
     async def test_delete_session_not_found(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.delete(f"v1/sessions/{token_hex(16)}")
         assert response.status_code == 404
 
     async def test_delete_session_cascades_traces(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, session_model, traces = await _insert_session_with_traces(db, num_traces=3)
@@ -171,7 +172,7 @@ class TestDeleteSession:
 class TestDeleteSessions:
     async def test_bulk_delete_sessions(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=3)
@@ -189,7 +190,7 @@ class TestDeleteSessions:
 
     async def test_bulk_delete_partial_match(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=2)
@@ -208,7 +209,7 @@ class TestDeleteSessions:
 
     async def test_bulk_delete_by_global_ids(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=3)
@@ -229,7 +230,7 @@ class TestDeleteSessions:
 
     async def test_bulk_delete_mixed_identifiers_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=2)
@@ -246,7 +247,7 @@ class TestDeleteSessions:
 
     async def test_bulk_delete_empty_list(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.post("v1/sessions/delete", json={"session_identifiers": []})
         assert response.status_code == 422
@@ -255,7 +256,7 @@ class TestDeleteSessions:
 class TestAnnotateSessions:
     async def test_rest_session_annotation_sync_returns_global_ids_and_emits_dml_event(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         monkeypatch: Any,
     ) -> None:
@@ -307,7 +308,7 @@ class TestAnnotateSessions:
 
     async def test_rest_session_annotation_rejects_note_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, session_model, _ = await _insert_session_with_traces(db)
@@ -334,7 +335,7 @@ class TestAnnotateSessions:
 class TestCreateSessionNote:
     async def test_rest_create_session_note(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, session_model, _ = await _insert_session_with_traces(db)
@@ -374,7 +375,7 @@ class TestCreateSessionNote:
 
     async def test_rest_create_session_note_not_found(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         missing_session_id = token_hex(16)
 
@@ -388,7 +389,7 @@ class TestCreateSessionNote:
 
     async def test_rest_create_multiple_session_notes(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, session_model, _ = await _insert_session_with_traces(db)
@@ -425,7 +426,7 @@ class TestCreateSessionNote:
 
     async def test_rest_create_session_note_blank_text_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, session_model, _ = await _insert_session_with_traces(db)
@@ -439,7 +440,7 @@ class TestCreateSessionNote:
 
     async def test_rest_create_session_note_with_identifier_upserts(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, session_model, _ = await _insert_session_with_traces(db)
@@ -479,7 +480,7 @@ class TestCreateSessionNote:
 class TestListProjectSessions:
     async def test_list_sessions_for_project_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=3)
@@ -503,7 +504,7 @@ class TestListProjectSessions:
 
     async def test_list_sessions_for_project_by_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, sessions_with_traces = await _insert_project_with_sessions(db, num_sessions=2)
@@ -517,7 +518,7 @@ class TestListProjectSessions:
 
     async def test_list_sessions_includes_traces(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, sessions_with_traces = await _insert_project_with_sessions(
@@ -536,7 +537,7 @@ class TestListProjectSessions:
 
     async def test_list_sessions_pagination(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _ = await _insert_project_with_sessions(db, num_sessions=5)
@@ -572,7 +573,7 @@ class TestListProjectSessions:
 
     async def test_list_sessions_empty(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -589,7 +590,7 @@ class TestListProjectSessions:
 
     async def test_list_sessions_invalid_cursor(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -605,14 +606,14 @@ class TestListProjectSessions:
 
     async def test_list_sessions_project_not_found(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.get(f"v1/projects/{token_hex(16)}/sessions")
         assert response.status_code == 404
 
     async def test_list_sessions_only_returns_sessions_for_given_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project_a, sessions_a = await _insert_project_with_sessions(db, num_sessions=2)
@@ -630,7 +631,7 @@ class TestListProjectSessions:
 class TestSessionTokenCounts:
     async def test_get_session_token_counts_single_trace(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, session_model, trace = await _insert_session_with_token_spans(
@@ -796,3 +797,148 @@ async def _insert_project_with_sessions(
             results.append((project_session, traces))
 
     return project, results
+
+
+async def _insert_project_with_annotated_sessions(
+    db: DbSessionFactory,
+) -> tuple[models.Project, list[str]]:
+    """Four single-trace sessions where session ``i`` lasts ``100 * (i + 1)`` ms. Even-indexed
+    sessions have an errored child span and two ``quality`` annotations so that joins would
+    duplicate them without deduplication. Returns the project and the session identifiers."""
+    async with db() as session:
+        project = models.Project(name=token_hex(16))
+        session.add(project)
+        await session.flush()
+        session_ids: list[str] = []
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for index in range(4):
+            start = base + timedelta(seconds=index)
+            end = start + timedelta(milliseconds=100 * (index + 1))
+            has_error = index % 2 == 0
+            project_session = models.ProjectSession(
+                session_id=token_hex(8), project_id=project.id, start_time=start, end_time=end
+            )
+            session.add(project_session)
+            await session.flush()
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=project.id,
+                project_session_rowid=project_session.id,
+                start_time=start,
+                end_time=end,
+            )
+            session.add(trace)
+            await session.flush()
+            root_span_id = token_hex(8)
+            for is_child in (False, True):
+                session.add(
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8) if is_child else root_span_id,
+                        parent_id=root_span_id if is_child else None,
+                        name="tool" if is_child else "root",
+                        span_kind="TOOL" if is_child else "CHAIN",
+                        start_time=start,
+                        end_time=end,
+                        attributes={},
+                        events=[],
+                        status_code="ERROR" if is_child and has_error else "OK",
+                        status_message="",
+                        cumulative_error_count=int(has_error),
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    )
+                )
+            if has_error:
+                for identifier in ("first", "second"):
+                    session.add(
+                        models.ProjectSessionAnnotation(
+                            project_session_id=project_session.id,
+                            name="quality",
+                            score=0.2,
+                            identifier=identifier,
+                            annotator_kind="CODE",
+                            source="API",
+                            metadata_={},
+                        )
+                    )
+            session_ids.append(project_session.session_id)
+        await session.flush()
+    return project, session_ids
+
+
+async def _paginate_session_ids(
+    httpx_client: httpx2.AsyncClient, project_name: str, **params: Any
+) -> list[str]:
+    session_ids: list[str] = []
+    for _ in range(10):
+        response = await httpx_client.get(f"v1/projects/{project_name}/sessions", params=params)
+        assert response.status_code == 200
+        body = response.json()
+        session_ids.extend(project_session["session_id"] for project_session in body["data"])
+        if body["next_cursor"] is None:
+            return session_ids
+        params["cursor"] = body["next_cursor"]
+    raise AssertionError("pagination did not terminate")
+
+
+class TestListProjectSessionsFilterExpressions:
+    @pytest.mark.parametrize("order", ["asc", "desc"])
+    @pytest.mark.parametrize(
+        "condition",
+        [
+            'any(span.status_code == "ERROR" for span in spans)',
+            'session_annotations["quality"].score < 0.5',
+        ],
+    )
+    async def test_filters_before_pagination_without_duplicates(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        order: str,
+        condition: str,
+    ) -> None:
+        project, session_ids = await _insert_project_with_annotated_sessions(db)
+        expected = session_ids[::2]
+        returned = await _paginate_session_ids(
+            httpx_client, project.name, filter=condition, order=order, limit=1
+        )
+        assert returned == (expected if order == "asc" else expected[::-1])
+
+    @pytest.mark.parametrize(
+        "condition,indices",
+        [
+            ("num_traces_with_error > 0 and duration_ms >= 200", [2]),
+            ("num_traces == 1 and duration_ms <= 200", [0, 1]),
+            ("", [0, 1, 2, 3]),
+        ],
+    )
+    async def test_filter_semantics(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        condition: str,
+        indices: list[int],
+    ) -> None:
+        project, session_ids = await _insert_project_with_annotated_sessions(db)
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/sessions", params={"filter": condition}
+        )
+        assert response.status_code == 200
+        assert {project_session["session_id"] for project_session in response.json()["data"]} == {
+            session_ids[index] for index in indices
+        }
+
+    @pytest.mark.parametrize("condition", ["(", "unknown_field > 0", "duration_ms.lower() == 'x'"])
+    async def test_invalid_filters_return_client_errors(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        condition: str,
+    ) -> None:
+        project, _ = await _insert_project_with_annotated_sessions(db)
+        response = await httpx_client.get(
+            f"v1/projects/{project.name}/sessions", params={"filter": condition}
+        )
+        assert response.status_code == 400
+        assert response.text

@@ -23,7 +23,7 @@ from tests.unit.conftest import (
     TestBulkInserter as BulkInserterForStartupTests,
 )
 from tests.unit.conftest import (
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -59,7 +59,7 @@ async def test_create_app_ingests_initial_evaluations(
     span_id = "span-startup"
     now = datetime.now(timezone.utc)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,

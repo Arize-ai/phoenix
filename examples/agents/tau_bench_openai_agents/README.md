@@ -48,7 +48,7 @@ conversation.turn (manual, AGENT)       <- wraps the full turn
 
 ### Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - `OPENAI_API_KEY` environment variable set
 - Phoenix running locally (`python -m phoenix.server.main serve`)
 

@@ -11,9 +11,16 @@ from ...prompts import (
 )
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ..tool_calling import TOOL_INSTRUCTION, TOOL_NAME
 from .factories import AnthropicClientWrapper, create_anthropic_client
 
 logger = logging.getLogger(__name__)
+
+
+def _with_tool_instruction(system: Any) -> Any:
+    if isinstance(system, list):
+        return [*system, {"type": "text", "text": TOOL_INSTRUCTION}]
+    return f"{system}\n\n{TOOL_INSTRUCTION}" if system else TOOL_INSTRUCTION
 
 
 def identify_anthropic_client(client: Any) -> bool:
@@ -187,20 +194,7 @@ class AnthropicAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        messages, system = self._build_messages(prompt)
-        tool_definition = self._schema_to_tool(schema)
-
-        # Add system message if present
-        if system:
-            kwargs["system"] = system
-
-        response = self.client.messages.create(
-            model=self.model,
-            messages=messages,
-            tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
-            **kwargs,
-        )
+        response = self.client.messages.create(**self._tool_calling_params(prompt, schema, kwargs))
 
         for content_block in response.content:
             if hasattr(content_block, "type") and content_block.type == "tool_use":
@@ -214,19 +208,8 @@ class AnthropicAdapter(BaseLLMAdapter):
         schema: Dict[str, Any],
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        messages, system = self._build_messages(prompt)
-        tool_definition = self._schema_to_tool(schema)
-
-        # Add system message if present
-        if system:
-            kwargs["system"] = system
-
         response = await self.client.messages.create(
-            model=self.model,
-            messages=messages,
-            tools=[tool_definition],
-            tool_choice={"type": "tool", "name": "extract_structured_data"},
-            **kwargs,
+            **self._tool_calling_params(prompt, schema, kwargs)
         )
 
         for content_block in response.content:
@@ -235,11 +218,25 @@ class AnthropicAdapter(BaseLLMAdapter):
 
         raise ValueError("No tool use in response")
 
+    def _tool_calling_params(
+        self, prompt: PromptLike, schema: Dict[str, Any], kwargs: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        messages, system = self._build_messages(prompt)
+        return {
+            "tool_choice": {"type": "auto"},
+            **kwargs,
+            "model": self.model,
+            "messages": messages,
+            "tools": [self._schema_to_tool(schema)],
+            # A system message in the prompt takes precedence over a `system` kwarg.
+            "system": _with_tool_instruction(system or kwargs.get("system")),
+        }
+
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         description = schema.get("description", "Respond in a format matching the provided schema")
 
         tool_definition = {
-            "name": "extract_structured_data",
+            "name": TOOL_NAME,
             "description": description,
             "input_schema": schema,
         }
@@ -289,8 +286,10 @@ class AnthropicAdapter(BaseLLMAdapter):
             role = msg["role"]
             content = msg["content"]
 
-            # Skip system messages - they should be handled separately
-            if role == MessageRole.SYSTEM:
+            # Skip system messages - they should be handled separately.
+            # Anthropic has no "developer" role, so DEVELOPER folds into the
+            # same system-extraction path as SYSTEM.
+            if role in (MessageRole.SYSTEM, MessageRole.DEVELOPER):
                 continue
 
             # Map MessageRole enum to Anthropic role strings
@@ -345,8 +344,13 @@ class AnthropicAdapter(BaseLLMAdapter):
                         {k: v for k, v in msg.items() if k not in ("role", "content")}
                     )
 
-            # Extract system messages first
-            system_messages = [msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM]
+            # Extract system messages first (DEVELOPER folds into SYSTEM here —
+            # Anthropic has no separate wire role for it).
+            system_messages = [
+                msg
+                for msg in messages_typed
+                if msg["role"] in (MessageRole.SYSTEM, MessageRole.DEVELOPER)
+            ]
             system_content = "\n".join(
                 self._extract_text_from_content(msg["content"]) for msg in system_messages
             )
@@ -358,7 +362,7 @@ class AnthropicAdapter(BaseLLMAdapter):
             non_system_extras = [
                 extras
                 for extras, msg in zip(extras_per_msg, messages_typed)
-                if msg["role"] != MessageRole.SYSTEM
+                if msg["role"] not in (MessageRole.SYSTEM, MessageRole.DEVELOPER)
             ]
             anthropic_messages = [
                 {**extras, **out} for extras, out in zip(non_system_extras, anthropic_messages)

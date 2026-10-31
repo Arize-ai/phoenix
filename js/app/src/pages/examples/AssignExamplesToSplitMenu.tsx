@@ -27,6 +27,7 @@ import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
 import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
+import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import type { Mutable } from "@phoenix/typeUtils";
 
@@ -37,6 +38,8 @@ type AssignExamplesToSplitMenuProps = {
   examplesCache: ExamplesCache;
   size?: ButtonProps["size"];
 };
+
+const REFRESH_ON = ["datasetSplits"] as const;
 
 /**
  * The AssignExamplesToSplitMenu is a menu that allows the user to assign splits to selected examples.
@@ -117,6 +120,7 @@ const SplitApplyMenu = ({
   onRequestKeepMenuOpen: () => void;
 }) => {
   const { contains } = useFilter({ sensitivity: "base" });
+  const fetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const data = useLazyLoadQuery<AssignExamplesToSplitMenuQuery>(
     graphql`
       query AssignExamplesToSplitMenuQuery {
@@ -133,7 +137,7 @@ const SplitApplyMenu = ({
     `,
     {},
     // fetch when menu is opened, but show cache data first to prevent flickering
-    { fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
   const [setExampleSplits] = useMutation(graphql`
     mutation AssignExamplesToSplitMenuSetDatasetExampleSplitsMutation(

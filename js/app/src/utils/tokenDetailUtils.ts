@@ -6,6 +6,8 @@
 
 import type { useCategoryChartColors } from "@phoenix/components/chart";
 
+import { isPositiveNumber } from "./numberUtils";
+
 type CategoryChartColors = ReturnType<typeof useCategoryChartColors>;
 
 /**
@@ -53,22 +55,113 @@ const TOKEN_DETAIL_FALLBACK_COLORS = [
  * @returns A sentence-cased label with underscores replaced by spaces.
  */
 export function getTokenDetailLabel(tokenType: string) {
-  const words = tokenType.split("_").join(" ");
-  return words.charAt(0).toUpperCase() + words.slice(1);
+  return capitalize(tokenType.split("_").join(" "));
+}
+
+function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** The two sides of an LLM call's usage, as the API keys them. */
+export type TokenKind = "prompt" | "completion";
+
+/**
+ * The API's key for a side of an LLM call's usage, so the spelling has one
+ * home wherever prompt and completion are told apart by name.
+ */
+export function getTokenKind({ isPrompt }: { isPrompt: boolean }): TokenKind {
+  return isPrompt ? "prompt" : "completion";
 }
 
 /**
- * The token type that absorbs value a group's details do not account for.
+ * The user-facing name of a side, "Prompt" or "Completion": Phoenix's terms
+ * for the split wherever it appears.
+ */
+export function getTokenKindLabel({ isPrompt }: { isPrompt: boolean }) {
+  return capitalize(getTokenKind({ isPrompt }));
+}
+
+/**
+ * A token type's label, qualified by the side it was used on only when the
+ * same type occurs on both: "Audio" alone, but "Prompt audio" beside
+ * "Completion audio".
+ *
+ * @param params - Label context.
+ * @param params.tokenType - Raw token type received from the API.
+ * @param params.isPrompt - Whether the usage is prompt rather than completion.
+ * @param params.isUsedByBothKinds - Whether the type also occurs on the other side.
+ */
+export function getTokenDetailLabelForKind({
+  tokenType,
+  isPrompt,
+  isUsedByBothKinds,
+}: {
+  tokenType: string;
+  isPrompt: boolean;
+  isUsedByBothKinds: boolean;
+}) {
+  const label = getTokenDetailLabel(tokenType);
+  if (!isUsedByBothKinds) {
+    return label;
+  }
+  return `${getTokenKindLabel({ isPrompt })} ${label.toLowerCase()}`;
+}
+
+/**
+ * The token type that absorbs value a side's details do not account for.
  *
  * Details refine the authoritative prompt and completion totals but may be
  * incomplete for spans recorded before a token type was tracked; the leftover
  * is plain input or output usage.
  *
- * @param isPrompt - Whether the group holds prompt rather than completion usage.
+ * @param isPrompt - Whether the side holds prompt rather than completion usage.
  * @returns The token type to attribute the remainder to.
  */
-export function getRemainderTokenType(isPrompt: boolean) {
+function getRemainderTokenType(isPrompt: boolean) {
   return isPrompt ? "input" : "output";
+}
+
+/**
+ * One side's positive per-token-type values, with whatever the side's total
+ * they do not account for attributed to that side's plain type.
+ *
+ * Details refine the authoritative prompt and completion totals but may be
+ * incomplete for spans recorded before a token type was tracked, so the
+ * values always add up to the total they are drawn against. A side with no
+ * details at all comes back as one plain segment; a side with no total keeps
+ * its details as they are.
+ *
+ * @param params - Attribution context.
+ * @param params.details - Values keyed by token type, if any.
+ * @param params.sideTotal - The side's authoritative total, if known.
+ * @param params.isPrompt - Whether the side is the prompt rather than the completion.
+ * @returns Positive values keyed by token type.
+ */
+export function getTokenDetailValuesWithRemainder({
+  details,
+  sideTotal,
+  isPrompt,
+}: {
+  details: Record<string, number | null | undefined> | null | undefined;
+  sideTotal: number | null | undefined;
+  isPrompt: boolean;
+}): Record<string, number> {
+  const values: Record<string, number> = {};
+  let detailTotal = 0;
+  Object.entries(details ?? {}).forEach(([tokenType, value]) => {
+    if (isPositiveNumber(value)) {
+      values[tokenType] = value;
+      detailTotal += value;
+    }
+  });
+  if (sideTotal != null) {
+    const remainder = sideTotal - detailTotal;
+    if (remainder > TOKEN_DETAIL_EPSILON) {
+      const tokenType = getRemainderTokenType(isPrompt);
+      values[tokenType] = (values[tokenType] ?? 0) + remainder;
+    }
+  }
+  return values;
 }
 
 /**
@@ -115,6 +208,46 @@ export function getTokenDetailColor({
   return colors[
     TOKEN_DETAIL_FALLBACK_COLORS[index % TOKEN_DETAIL_FALLBACK_COLORS.length]
   ];
+}
+
+/**
+ * Assigns every series in a token-detail chart or legend a distinct color.
+ *
+ * A token type carries one semantic color, but when its prompt and
+ * completion usage are separate series the second has to give up the
+ * semantic color; sharing it would draw the two as one continuous block with
+ * indistinguishable legend swatches. A series whose preferred color is taken
+ * gets the first free fallback color instead.
+ *
+ * @param params - Color assignment context.
+ * @param params.colors - Theme-aware categorical chart colors.
+ * @param params.series - Every series, in drawing order, each with a key to
+ *   look its color up by and the token type it draws.
+ * @returns A color for each series, keyed by the series key.
+ */
+export function getTokenDetailSeriesColors<Key>({
+  colors,
+  series,
+}: {
+  colors: CategoryChartColors;
+  series: ReadonlyArray<{ key: Key; tokenType: string }>;
+}): Map<Key, string> {
+  const fallbackColors = getTokenDetailFallbackColors(colors);
+  const takenColors = new Set<string>();
+  const claimColor = (preferredColor: string) => {
+    const color = takenColors.has(preferredColor)
+      ? (fallbackColors.find((candidate) => !takenColors.has(candidate)) ??
+        preferredColor)
+      : preferredColor;
+    takenColors.add(color);
+    return color;
+  };
+  return new Map(
+    series.map(({ key, tokenType }, index) => [
+      key,
+      claimColor(getTokenDetailColor({ colors, index, tokenType })),
+    ])
+  );
 }
 
 /**

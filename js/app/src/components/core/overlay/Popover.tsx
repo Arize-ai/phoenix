@@ -14,6 +14,7 @@ import {
   useSlottedContext,
 } from "react-aria-components";
 
+import { OVERLAY_ANIMATION_DURATION_MS } from "./constants";
 import {
   OverlayTreeContext,
   useConsumeOutsidePress,
@@ -45,8 +46,8 @@ const popoverCSS = css`
   ${popoverSurfaceCSS}
 
   transition:
-    transform 200ms,
-    opacity 200ms;
+    transform ${OVERLAY_ANIMATION_DURATION_MS}ms,
+    opacity ${OVERLAY_ANIMATION_DURATION_MS}ms;
 
   &[data-entering],
   &[data-exiting] {
@@ -55,11 +56,12 @@ const popoverCSS = css`
   }
 
   &[data-entering] {
-    animation: ${popoverSlideKeyframes} 200ms;
+    animation: ${popoverSlideKeyframes} ${OVERLAY_ANIMATION_DURATION_MS}ms;
   }
 
   &[data-exiting] {
-    animation: ${popoverSlideKeyframes} 200ms reverse ease-in;
+    animation: ${popoverSlideKeyframes} ${OVERLAY_ANIMATION_DURATION_MS}ms
+      reverse ease-in;
   }
 
   .react-aria-OverlayArrow svg {

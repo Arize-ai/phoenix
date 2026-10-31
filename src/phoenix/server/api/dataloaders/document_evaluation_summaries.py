@@ -90,7 +90,7 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
             async with self._db.read() as session:
-                dialect = SupportedSQLDialect(session.bind.dialect.name)
+                dialect = SupportedSQLDialect(session.get_bind().dialect.name)
                 stmt = _get_stmt(dialect, segment, *params.keys())
                 data = await session.stream(stmt)
                 async for eval_name, group in groupby(data, lambda d: d.name):
@@ -115,7 +115,7 @@ def _get_stmt(
     dialect: SupportedSQLDialect,
     segment: Segment,
     *eval_names: Param,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     project_rowid, (start_time, end_time), filter_condition = segment
     mda = models.DocumentAnnotation
     stmt = (
