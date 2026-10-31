@@ -210,6 +210,7 @@ async function fetchLatestVersion({
         dataset: node(id: $datasetId) {
           id
           ... on Dataset {
+            exampleCount
             latestVersions: versions(
               first: 1
               sort: { col: createdAt, dir: desc }
