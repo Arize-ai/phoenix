@@ -135,6 +135,14 @@ export function registerGlobalClientErrorReporting(): void {
   }
   hasRegisteredGlobalListeners = true;
   window.addEventListener("error", (event) => {
+    // Browsers dispatch this benign notice, raised when a ResizeObserver
+    // callback causes another layout in the same frame, with no `error`.
+    if (
+      event.error == null &&
+      event.message.startsWith("ResizeObserver loop")
+    ) {
+      return;
+    }
     reportClientError({ error: event.error ?? event.message });
   });
   window.addEventListener("unhandledrejection", (event) => {

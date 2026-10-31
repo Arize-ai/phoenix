@@ -344,7 +344,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 for candidate in response.candidates:
                     if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
                         for part in candidate.content.parts:
-                            if hasattr(part, "function_call"):
+                            if getattr(part, "function_call", None) is not None:
                                 return cast(Dict[str, Any], dict(part.function_call.args))
 
             raise ValueError("No function call in response")
@@ -381,7 +381,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 for candidate in response.candidates:
                     if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
                         for part in candidate.content.parts:
-                            if hasattr(part, "function_call"):
+                            if getattr(part, "function_call", None) is not None:
                                 return cast(Dict[str, Any], dict(part.function_call.args))
 
             raise ValueError("No function call in response")

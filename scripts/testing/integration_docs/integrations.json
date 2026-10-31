@@ -1879,6 +1879,323 @@
       "verification": {
         "kind": "phoenix_spans"
       }
+    },
+    {
+      "id": "gemini-go",
+      "document": "docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk.mdx",
+      "language": "go",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Gemini",
+      "required_env": [
+        "GEMINI_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "go"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "required_attributes": [
+          "gen_ai.request.model"
+        ],
+        "non_empty_attributes": [
+          "gen_ai.request.model"
+        ]
+      }
+    },
+    {
+      "id": "google-genai-python",
+      "document": "docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Observe",
+      "required_env": [
+        "GEMINI_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "google-adk-provider-python",
+      "document": "docs/phoenix/integrations/llm-providers/google-adk/google-adk-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Observe",
+      "required_env": [
+        "GOOGLE_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "google-adk-java",
+      "document": "docs/phoenix/integrations/java/google-adk/google-adk-tracing.mdx",
+      "language": "java",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Google ADK",
+      "required_env": [
+        "GOOGLE_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "java",
+        "main_class": "Main",
+        "java_agent_dependency": "com.arize:openinference-instrumentation-adk-java:0.1.2:all",
+        "java_files": [
+          {
+            "filename": "Main.java",
+            "sections": [
+              "Setup",
+              "Run Google ADK"
+            ],
+            "compose": "main"
+          }
+        ]
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "google-adk-python",
+      "document": "docs/phoenix/integrations/python/google-adk/google-adk-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup <a href=\"#setup\" id=\"setup\"></a>",
+      "run_section": "Observe <a href=\"#observe\" id=\"observe\"></a>",
+      "required_env": [
+        "GOOGLE_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "claude-agent-sdk-python",
+      "document": "docs/phoenix/integrations/python/claude-agent-sdk.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Claude Agent SDK",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "python_version": "3.11",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "AGENT",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "claude-agent-sdk-typescript",
+      "document": "docs/phoenix/integrations/typescript/claude-agent-sdk.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Usage",
+      "required_env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "AGENT",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      }
+    },
+    {
+      "id": "amazon-bedrock-javascript-lint",
+      "document": "docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js.mdx",
+      "language": "javascript",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Bedrock",
+      "setup": {
+        "source": "section_code",
+        "language": "javascript"
+      },
+      "output": {
+        "require_non_empty": false
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "qdrant-python-lint",
+      "document": "docs/phoenix/integrations/vector-databases/qdrant.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Full Script",
+      "run_section": "Full Script",
+      "setup": {
+        "source": "section_code",
+        "language": "python",
+        "filename": "qdrant_trace.py"
+      },
+      "output": {
+        "require_non_empty": false
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
+      "id": "groq-python",
+      "document": "docs/phoenix/integrations/llm-providers/groq/groq-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Groq",
+      "required_env": [
+        "GROQ_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
+    },
+    {
+      "id": "mistral-python",
+      "document": "docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Mistral",
+      "required_env": [
+        "MISTRAL_API_KEY"
+      ],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName",
+        "flush_code": "tracer_provider.force_flush(timeout_millis=10000)"
+      },
+      "output": {
+        "require_non_empty": true
+      },
+      "verification": {
+        "kind": "phoenix_spans",
+        "span_kind": "LLM",
+        "required_attributes": [
+          "llm.model_name"
+        ],
+        "non_empty_attributes": [
+          "llm.model_name"
+        ]
+      },
+      "python_version": "3.11"
     }
   ]
 }

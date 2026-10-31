@@ -10,7 +10,7 @@ Similar to data retention being infinite by default, Phoenix also does not gate 
 In Phoenix 9.0 or greater you can automatically purge traces from projects by configuring a retention policy. Retention policies can be either time based or trace count based.
 
 <Frame caption="A retention policy starts deleting traces that are outside of the retention window">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/654ba32c-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/654ba32c-image.jpeg" alt="Retention windows determine which traces are kept and deleted during scheduled sweeps" />
 </Frame>
 
 By default Phoenix comes with 1 project retention policy called `Default`. Every project in your instance is associated with this retention policy unless specified otherwise. The `Default` policy also specifies 0 days, which is equal to "Indefinite" retention.
@@ -46,13 +46,13 @@ docker run -e PHOENIX_DEFAULT_RETENTION_POLICY_DAYS=30 arizephoenix/phoenix
 - The cleanup runs on a scheduled basis (weekly by default) as configured in the retention policy
 
 <Frame caption="By default phoenix retains all the data you send it">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/2a8882f0-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/2a8882f0-image.jpeg" alt="Phoenix project retention policy settings and storage usage" />
 </Frame>
 
 If you simply want to preserve a static set amount of traces per project, you can simply adjust the max days traces will be stored in Phoenix and this will be applied to all current and future projects that get created. In some cases you might want to specify a different retention policy for a particular project (e.g. you might want to age out your playground spans quicker than spans from an actual application). In this case you can navigate to the `Data Retention` tab and create a new policy.
 
 <Frame caption="Create a new retention policy to associate with projects">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6a7abd89-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6a7abd89-image.jpeg" alt="Phoenix dialog for creating a default retention policy" />
 </Frame>
 
 A policy is made up of:
@@ -64,7 +64,7 @@ A policy is made up of:
 Once you have created a policy you can go to the project config and associate the policy to the project. You must be an admin to perform this action.
 
 <Frame caption="Select your new policy in the project config tab">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3869a5d8-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3869a5d8-image.jpeg" alt="Phoenix project settings with its retention policy" />
 </Frame>
 <br></br>
 
@@ -77,12 +77,12 @@ When a retention policy (or a manual deletion) removes the last traces belonging
 You can either delete traces by time or individually. To delete traces older than a certain date, click on the action button on a project and select `remove data`
 
 <Frame caption="Click Remove Data. You will be able to delete traces older than a certain date.">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ceeea308-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ceeea308-image.jpeg" alt="Phoenix project menu with actions to clear or remove data" />
 </Frame>
 <br></br>
 
 <Frame caption="Select a date. Traces older than the given date will be purged.">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3dbac656-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/3dbac656-image.jpeg" alt="Phoenix Remove Data dialog with a cutoff date and confirmation" />
 </Frame>
 <br></br>
 

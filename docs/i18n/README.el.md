@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@
 
 Το Phoenix είναι ανεξάρτητο από προμηθευτές και γλώσσες, με έτοιμη υποστήριξη για δημοφιλή frameworks ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) και παρόχους LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) και άλλους). Για λεπτομέρειες σχετικά με το αυτόματο instrumentation, δείτε το έργο [OpenInference](https://github.com/Arize-ai/openinference).
 
-Το Phoenix εκτελείται σχεδόν οπουδήποτε, όπως στον τοπικό σας υπολογιστή, σε ανάπτυξη με containers ή στο cloud. Δείτε την ενότητα [Περιβάλλοντα](https://arize.com/docs/phoenix/environments) για αναλυτική περιγραφή κάθε επιλογής ή μεταβείτε κατευθείαν στον [Οδηγό γρήγορης εκκίνησης για tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Το Phoenix εκτελείται σχεδόν οπουδήποτε, όπως στον τοπικό σας υπολογιστή, σε ανάπτυξη με containers ή στο cloud. Δείτε την ενότητα [Περιβάλλοντα](https://arize.com/docs/phoenix/self-hosting) για αναλυτική περιγραφή κάθε επιλογής ή μεταβείτε κατευθείαν στον [Οδηγό γρήγορης εκκίνησης για tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > Το Phoenix είναι ανοιχτού κώδικα και αυτο-φιλοξενούμενο. Για διαχειριζόμενη πλατφόρμα, η Arize προσφέρει το [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-el) — το ίδιο instrumentation OpenTelemetry/OpenInference λειτουργεί και με τα δύο. Δείτε την [πλήρη σύγκριση](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
@@ -291,9 +287,9 @@ npx @arizeai/phoenix-cli setup
 
 | Skill                                              | Περιγραφή                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Αποσφαλμάτωση εφαρμογών LLM με το Phoenix CLI — ανάκτηση traces, ανάλυση σφαλμάτων, επισκόπηση πειραμάτων και ερωτήματα στο GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Δημιουργία και εκτέλεση αξιολογητών για εφαρμογές AI/LLM με το Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Σημασιολογικές συμβάσεις και instrumentation του OpenInference για tracing εφαρμογών LLM                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Αποσφαλμάτωση εφαρμογών LLM με το Phoenix CLI — ανάκτηση traces, ανάλυση σφαλμάτων, επισκόπηση πειραμάτων και ερωτήματα στο GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Δημιουργία και εκτέλεση αξιολογητών για εφαρμογές AI/LLM με το Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Σημασιολογικές συμβάσεις και instrumentation του OpenInference για tracing εφαρμογών LLM                                        |
 
 ## Ασφάλεια & απόρρητο
 

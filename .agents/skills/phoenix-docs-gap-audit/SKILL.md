@@ -220,7 +220,7 @@ For server changes touching `src/phoenix/server/...`:
    `schemas/openapi.json`. Check corresponding Python/TS client wrappers.
 2. GraphQL: the schema is self-documenting, but user-facing features built on it belong in
    `docs/phoenix/`. Check whether a product doc exists.
-3. Env vars / config: grep `docs/phoenix/environments.mdx`, `self-hosting/`, and
+3. Env vars / config: grep `docs/snippets/phoenix-client-env-vars.mdx`, `self-hosting/`, and
    `production-guide.mdx`. New env vars with no mention in any of those are gaps —
    **except feature flags** (e.g. `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES`,
    experimental toggles, or any env var the code treats as an internal escape hatch).
@@ -354,7 +354,7 @@ it and know exactly what to fix next.
 |---|---|
 | Commit message says `refactor:` — skip? | Read the diff. Refactors often add exports. |
 | Feature exists only in an example file? | Not a public API — skip unless `examples/` is documented as a supported surface. |
-| New env var, no doc anywhere? | High-severity Missing in `docs/phoenix/environments.mdx` — **unless** it is a feature flag (e.g. `*_DANGEROUSLY_*`, experimental toggle). Feature flags are deliberately undocumented; skip them. |
+| New env var, no doc anywhere? | High-severity Missing in `docs/snippets/phoenix-client-env-vars.mdx` — **unless** it is a feature flag (e.g. `*_DANGEROUSLY_*`, experimental toggle). Feature flags are deliberately undocumented; skip them. |
 | Feature flag appears in public docs? | Flag as a gap in the opposite direction — feature flags should be removed from user-facing docs. |
 | Stale doc with old param name? | High-severity Stale. Stale examples mislead users. |
 | Python docstring missing on exported function? | Medium Incomplete (package-level docs). |
