@@ -880,7 +880,30 @@ describe("getChatRole", () => {
   });
 });
 
+describe("explicit span provider recognition", () => {
+  it.each([
+    ["mistralai", "unfamiliar-model", "MISTRAL"],
+    ["ollama", "mistral-large-latest", "OLLAMA"],
+  ])(
+    "recognizes %s independently of the model name",
+    (provider, modelName, expected) => {
+      const { modelConfig, parsingErrors } = getBaseModelConfigFromAttributes({
+        llm: { provider, model_name: modelName },
+      });
+      expect(parsingErrors).toEqual([]);
+      expect(modelConfig?.provider).toBe(expected);
+    }
+  );
+});
+
 describe("getModelProviderFromModelName", () => {
+  it.each(["mistral-large-latest", "codestral-latest", "mistral-nemo:latest"])(
+    "infers Mistral from %s when provider metadata is absent",
+    (modelName) => {
+      expect(getModelProviderFromModelName(modelName)).toBe("MISTRAL");
+    }
+  );
+
   it("should return OPENAI if the model name includes 'gpt' or 'o1'", () => {
     expect(getModelProviderFromModelName("gpt-3.5-turbo")).toEqual("OPENAI");
     expect(getModelProviderFromModelName("o1")).toEqual("OPENAI");

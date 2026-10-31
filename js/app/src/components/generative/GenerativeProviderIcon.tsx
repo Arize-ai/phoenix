@@ -283,7 +283,6 @@ const ZAISVG = ({ height }: { height: number }) => (
   </svg>
 );
 
-
 const MistralSVG = ({ height }: { height: number }) => (
   <svg
     viewBox="0 0 24 24"

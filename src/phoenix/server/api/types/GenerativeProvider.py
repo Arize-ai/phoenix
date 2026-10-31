@@ -209,6 +209,7 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
         OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.AWS,
         OpenInferenceLLMProviderValues.MISTRALAI.value: GenerativeProviderKey.MISTRAL,
+        OpenInferenceLLMProviderValues.OLLAMA.value: GenerativeProviderKey.OLLAMA,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
@@ -348,6 +349,10 @@ class GenerativeProvider:
         for provider, prefixes in cls.model_provider_to_model_prefix_map.items():
             if any(prefix.lower() in model_name.lower() for prefix in prefixes):
                 return provider
+        # Model names are heuristic; explicit provider attributes take precedence.
+        # Preserve Ollama's bare model and colon-tag forms without matching hosted IDs.
+        if model_name.lower().split(":", 1)[0] == "mistral":
+            return GenerativeProviderKey.OLLAMA
         return None
 
     @classmethod

@@ -392,6 +392,10 @@ export function openInferenceModelProviderToPhoenixModelProvider(
       return "GOOGLE";
     case "azure":
       return "AZURE_OPENAI";
+    case "mistralai":
+      return "MISTRAL";
+    case "ollama":
+      return "OLLAMA";
     default:
       return null;
   }
