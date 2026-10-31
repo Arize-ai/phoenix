@@ -25,7 +25,12 @@ class EvaluatorByIdDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             evaluator_model = with_polymorphic(
                 models.Evaluator,
-                [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+                [
+                    models.LLMEvaluator,
+                    models.CodeEvaluator,
+                    models.BuiltinEvaluator,
+                    models.DecisionEvaluator,
+                ],
             )
             data = await session.stream_scalars(
                 select(evaluator_model).where(evaluator_model.id.in_(evaluator_ids))

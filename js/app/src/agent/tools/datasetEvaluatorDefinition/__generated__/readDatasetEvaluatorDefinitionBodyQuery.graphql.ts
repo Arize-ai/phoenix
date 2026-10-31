@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d5760adce666b083765743be33b6dbd>>
+ * @generated SignedSource<<013a15ce2e2e2a1775adf7c06bdb48b3>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type readDatasetEvaluatorDefinitionBodyQuery$variables = {

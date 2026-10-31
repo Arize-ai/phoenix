@@ -1,9 +1,60 @@
-import type { PromptParam } from "../playgroundURLSearchParamsUtils";
+import { createPlaygroundEvaluatorTask } from "@phoenix/store/playground";
+import type { PlaygroundInstance } from "@phoenix/store/playground";
+
+import type {
+  PlaygroundTaskParams,
+  PromptParam,
+} from "../playgroundURLSearchParamsUtils";
 import {
+  arePlaygroundTaskParamsEqual,
+  getPlaygroundTaskParams,
+  parseDecisionParams,
+  parseEvaluatorTaskParams,
   parsePromptParams,
   resolvePlaygroundDatasetId,
+  setDecisionParams,
+  setPlaygroundTaskParams,
   setPromptParams,
 } from "../playgroundURLSearchParamsUtils";
+
+type TaskInstance = Pick<PlaygroundInstance, "task" | "prompt" | "decision">;
+
+const promptInstance = (id: string | null): TaskInstance => ({
+  task: { type: "prompt" },
+  prompt: id ? { id, name: id, version: `${id}-v`, tag: null } : null,
+  decision: null,
+});
+
+const decisionInstance = (
+  id: string | null,
+  tag: string | null = null
+): TaskInstance => ({
+  task: { type: "decision" },
+  prompt: null,
+  decision: id ? { id, name: id, versionId: `${id}-v`, tag } : null,
+});
+
+const evaluatorInstance = (
+  source: {
+    evaluatorId?: string;
+    datasetEvaluatorId?: string;
+    projectEvaluatorId?: string;
+  } = {}
+): TaskInstance => ({
+  task: {
+    type: "evaluator",
+    evaluator: createPlaygroundEvaluatorTask({
+      kind: "CODE",
+      source: {
+        evaluatorId: source.evaluatorId ?? null,
+        datasetEvaluatorId: source.datasetEvaluatorId ?? null,
+        projectEvaluatorId: source.projectEvaluatorId ?? null,
+      },
+    }),
+  },
+  prompt: null,
+  decision: null,
+});
 
 describe("parsePromptParams", () => {
   it("returns an empty array when no promptId params are present", () => {
@@ -200,5 +251,382 @@ describe("resolvePlaygroundDatasetId", () => {
     expect(
       resolvePlaygroundDatasetId({ searchParams, storeDatasetId: null })
     ).toBeNull();
+  });
+});
+
+describe("parseEvaluatorTaskParams", () => {
+  it("is a prompt page when nothing names an evaluator", () => {
+    expect(
+      parseEvaluatorTaskParams(new URLSearchParams("promptId=P1&datasetId=D"))
+    ).toEqual({ isEvaluatorKind: false, evaluators: [] });
+  });
+
+  it("orders tasks by position and compacts gaps", () => {
+    expect(
+      parseEvaluatorTaskParams(
+        new URLSearchParams("evaluator2=E2&datasetEvaluator0=DE0")
+      )
+    ).toEqual({
+      isEvaluatorKind: true,
+      evaluators: [
+        {
+          evaluatorId: null,
+          datasetEvaluatorId: "DE0",
+          projectEvaluatorId: null,
+        },
+        {
+          evaluatorId: "E2",
+          datasetEvaluatorId: null,
+          projectEvaluatorId: null,
+        },
+      ],
+    });
+  });
+
+  it("marks a fresh draft page with taskKind=evaluator alone", () => {
+    expect(
+      parseEvaluatorTaskParams(new URLSearchParams("taskKind=evaluator"))
+    ).toEqual({ isEvaluatorKind: true, evaluators: [] });
+  });
+
+  it("ignores empty values and unrelated params", () => {
+    expect(
+      parseEvaluatorTaskParams(
+        new URLSearchParams("evaluator0=&evaluatorSlot=A&evaluatorA=old")
+      )
+    ).toEqual({ isEvaluatorKind: false, evaluators: [] });
+  });
+});
+
+describe("getPlaygroundTaskParams", () => {
+  it("names saved prompts and leaves out prompt tasks without one", () => {
+    expect(
+      getPlaygroundTaskParams([promptInstance("P1"), promptInstance(null)])
+    ).toEqual({
+      mode: "task",
+      prompts: [{ promptId: "P1", promptVersionId: "P1-v", tagName: null }],
+      decisions: [],
+    });
+  });
+
+  it("names saved decisions beside the prompts of a task page", () => {
+    expect(
+      getPlaygroundTaskParams([
+        decisionInstance("D1", "prod"),
+        promptInstance("P1"),
+        decisionInstance(null),
+      ])
+    ).toEqual({
+      mode: "task",
+      prompts: [{ promptId: "P1", promptVersionId: "P1-v", tagName: null }],
+      decisions: [
+        { decisionId: "D1", decisionVersionId: "D1-v", tagName: "prod" },
+      ],
+    });
+  });
+
+  it("keeps evaluator positions, with null for drafts", () => {
+    expect(
+      getPlaygroundTaskParams([
+        evaluatorInstance(),
+        evaluatorInstance({
+          evaluatorId: "E1",
+          datasetEvaluatorId: "DE1",
+        }),
+      ])
+    ).toEqual({
+      mode: "evaluator",
+      evaluators: [
+        null,
+        {
+          evaluatorId: "E1",
+          datasetEvaluatorId: "DE1",
+          projectEvaluatorId: null,
+        },
+      ],
+    });
+  });
+});
+
+describe("arePlaygroundTaskParamsEqual", () => {
+  it("compares within a mode and never across modes", () => {
+    const prompts: PlaygroundTaskParams = {
+      mode: "task",
+      prompts: [{ promptId: "P1", promptVersionId: null, tagName: null }],
+      decisions: [],
+    };
+
+    const evaluators: PlaygroundTaskParams = {
+      mode: "evaluator",
+      evaluators: [
+        {
+          evaluatorId: "E1",
+          datasetEvaluatorId: null,
+          projectEvaluatorId: null,
+        },
+      ],
+    };
+
+    expect(arePlaygroundTaskParamsEqual(prompts, { ...prompts })).toBe(true);
+    expect(arePlaygroundTaskParamsEqual(prompts, evaluators)).toBe(false);
+    expect(
+      arePlaygroundTaskParamsEqual(evaluators, {
+        mode: "evaluator",
+        evaluators: [
+          {
+            evaluatorId: "E1",
+            datasetEvaluatorId: null,
+            projectEvaluatorId: null,
+          },
+        ],
+      })
+    ).toBe(true);
+    expect(
+      arePlaygroundTaskParamsEqual(evaluators, {
+        mode: "evaluator",
+        evaluators: [null],
+      })
+    ).toBe(false);
+  });
+});
+
+describe("setPlaygroundTaskParams", () => {
+  it("writes evaluator tasks by position, preferring the dataset evaluator, and clears prompt params", () => {
+    const searchParams = new URLSearchParams(
+      "datasetId=D&promptId=P1&promptVersionId=V1&promptTagName="
+    );
+
+    const changed = setPlaygroundTaskParams({
+      searchParams,
+      tasks: {
+        mode: "evaluator",
+        evaluators: [
+          null,
+          {
+            evaluatorId: "E1",
+            datasetEvaluatorId: "DE1",
+            projectEvaluatorId: null,
+          },
+          {
+            evaluatorId: "E2",
+            datasetEvaluatorId: null,
+            projectEvaluatorId: null,
+          },
+        ],
+      },
+    });
+
+    expect(changed).toBe(true);
+    expect(searchParams.toString()).toBe(
+      "datasetId=D&taskKind=evaluator&datasetEvaluator1=DE1&evaluator2=E2"
+    );
+  });
+
+  it("round-trips through parseEvaluatorTaskParams", () => {
+    const searchParams = new URLSearchParams();
+    setPlaygroundTaskParams({
+      searchParams,
+      tasks: {
+        mode: "evaluator",
+        evaluators: [
+          {
+            evaluatorId: "E0",
+            datasetEvaluatorId: null,
+            projectEvaluatorId: null,
+          },
+          null,
+        ],
+      },
+    });
+    expect(parseEvaluatorTaskParams(searchParams)).toEqual({
+      isEvaluatorKind: true,
+      evaluators: [
+        {
+          evaluatorId: "E0",
+          datasetEvaluatorId: null,
+          projectEvaluatorId: null,
+        },
+      ],
+    });
+  });
+
+  it("reports no change when the evaluator params are already in sync", () => {
+    const searchParams = new URLSearchParams(
+      "taskKind=evaluator&evaluator0=E0"
+    );
+
+    expect(
+      setPlaygroundTaskParams({
+        searchParams,
+        tasks: {
+          mode: "evaluator",
+          evaluators: [
+            {
+              evaluatorId: "E0",
+              datasetEvaluatorId: null,
+              projectEvaluatorId: null,
+            },
+          ],
+        },
+      })
+    ).toBe(false);
+  });
+
+  it("clears evaluator params when the page holds prompts", () => {
+    const searchParams = new URLSearchParams(
+      "taskKind=evaluator&evaluator0=E0&datasetId=D"
+    );
+
+    const changed = setPlaygroundTaskParams({
+      searchParams,
+      tasks: {
+        mode: "task",
+        prompts: [{ promptId: "P1", promptVersionId: "V1", tagName: null }],
+        decisions: [],
+      },
+    });
+
+    expect(changed).toBe(true);
+    expect(searchParams.toString()).toBe(
+      "datasetId=D&promptId=P1&promptVersionId=V1&promptTagName="
+    );
+  });
+
+  it("reports no change for an unsaved prompt draft on a clean URL", () => {
+    const searchParams = new URLSearchParams("datasetId=D");
+    expect(
+      setPlaygroundTaskParams({
+        searchParams,
+        tasks: { mode: "task", prompts: [], decisions: [] },
+      })
+    ).toBe(false);
+  });
+});
+
+describe("decision params", () => {
+  it("parses decisions by position, with missing versions and tags as null", () => {
+    expect(
+      parseDecisionParams(
+        new URLSearchParams(
+          "decisionId=D1&decisionVersionId=V1&decisionTagName=&decisionId=D2&decisionVersionId=&decisionTagName=prod"
+        )
+      )
+    ).toEqual([
+      { decisionId: "D1", decisionVersionId: "V1", tagName: null },
+      { decisionId: "D2", decisionVersionId: null, tagName: "prod" },
+    ]);
+    expect(parseDecisionParams(new URLSearchParams("datasetId=D"))).toEqual([]);
+  });
+
+  it("round-trips through setDecisionParams and reports whether anything changed", () => {
+    const searchParams = new URLSearchParams("datasetId=D");
+    const decisions = [
+      { decisionId: "D1", decisionVersionId: "V1", tagName: null },
+      { decisionId: "D2", decisionVersionId: "V2", tagName: "prod" },
+    ];
+
+    expect(setDecisionParams({ searchParams, decisions })).toBe(true);
+    expect(parseDecisionParams(searchParams)).toEqual(decisions);
+    expect(setDecisionParams({ searchParams, decisions })).toBe(false);
+    expect(setDecisionParams({ searchParams, decisions: [] })).toBe(true);
+    expect(searchParams.toString()).toBe("datasetId=D");
+  });
+
+  it("writes prompts and decisions of a task page together, and clears both for a evaluator page", () => {
+    const searchParams = new URLSearchParams("datasetId=D");
+
+    expect(
+      setPlaygroundTaskParams({
+        searchParams,
+        tasks: {
+          mode: "task",
+          prompts: [{ promptId: "P1", promptVersionId: "V1", tagName: null }],
+          decisions: [
+            { decisionId: "D1", decisionVersionId: "DV1", tagName: "prod" },
+          ],
+        },
+      })
+    ).toBe(true);
+    expect(searchParams.toString()).toBe(
+      "datasetId=D&promptId=P1&promptVersionId=V1&promptTagName=&decisionId=D1&decisionVersionId=DV1&decisionTagName=prod"
+    );
+
+    expect(
+      setPlaygroundTaskParams({
+        searchParams,
+        tasks: { mode: "evaluator", evaluators: [null] },
+      })
+    ).toBe(true);
+    expect(searchParams.toString()).toBe("datasetId=D&taskKind=evaluator");
+  });
+
+  it("compares decisions as part of a task page", () => {
+    const base: PlaygroundTaskParams = {
+      mode: "task",
+      prompts: [],
+      decisions: [{ decisionId: "D1", decisionVersionId: "V1", tagName: null }],
+    };
+
+    expect(arePlaygroundTaskParamsEqual(base, { ...base })).toBe(true);
+    expect(
+      arePlaygroundTaskParamsEqual(base, {
+        ...base,
+        decisions: [
+          { decisionId: "D1", decisionVersionId: "V2", tagName: null },
+        ],
+      })
+    ).toBe(false);
+    expect(arePlaygroundTaskParamsEqual(base, { ...base, decisions: [] })).toBe(
+      false
+    );
+  });
+
+  it("clears newDecision when a decision draft is replaced by a prompt draft or saved decision", () => {
+    const decisionDraftParams = getPlaygroundTaskParams([
+      decisionInstance(null),
+    ]);
+    expect(decisionDraftParams).toEqual({
+      mode: "task",
+      prompts: [],
+      decisions: [],
+      hasDecisionDraft: true,
+    });
+
+    const promptDraftParams = getPlaygroundTaskParams([promptInstance(null)]);
+    expect(
+      arePlaygroundTaskParamsEqual(decisionDraftParams, promptDraftParams)
+    ).toBe(false);
+
+    const searchParams = new URLSearchParams("newDecision=");
+    expect(
+      setPlaygroundTaskParams({ searchParams, tasks: decisionDraftParams })
+    ).toBe(false);
+    expect(searchParams.toString()).toBe("newDecision=");
+
+    expect(
+      setPlaygroundTaskParams({ searchParams, tasks: promptDraftParams })
+    ).toBe(true);
+    expect(searchParams.toString()).toBe("");
+  });
+
+  it("preserves projectEvaluatorId in equality checks and URL serialization", () => {
+    const projectEvalParams = getPlaygroundTaskParams([
+      evaluatorInstance({ evaluatorId: "E1", projectEvaluatorId: "PE1" }),
+    ]);
+    const sharedEvalParams = getPlaygroundTaskParams([
+      evaluatorInstance({ evaluatorId: "E1" }),
+    ]);
+
+    expect(
+      arePlaygroundTaskParamsEqual(projectEvalParams, sharedEvalParams)
+    ).toBe(false);
+
+    const searchParams = new URLSearchParams();
+    expect(
+      setPlaygroundTaskParams({ searchParams, tasks: projectEvalParams })
+    ).toBe(true);
+    expect(searchParams.toString()).toBe(
+      "taskKind=evaluator&projectEvaluator0=PE1"
+    );
   });
 });

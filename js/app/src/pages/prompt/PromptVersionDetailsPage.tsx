@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useLoaderData, useParams } from "react-router";
+import { useLoaderData, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -48,9 +47,17 @@ function PromptVersionDetailsPageContent({
 }) {
   const { promptId } = useParams();
   invariant(promptId, "promptId is required");
-  const [showDiff, setShowDiff] = useState(false);
+  // The diff toggle lives in the URL so a diff view can be reloaded or shared.
+  const [searchParams, setSearchParams] = useSearchParams();
   const previousVersion = promptVersion.previousVersion;
   const hasPreviousVersion = previousVersion != null;
+  const showDiff = searchParams.get("diff") === "true" && hasPreviousVersion;
+  const setShowDiff = (enabled: boolean) =>
+    setSearchParams((params) => {
+      if (enabled) params.set("diff", "true");
+      else params.delete("diff");
+      return params;
+    });
   return (
     <View width="100%" overflow="auto" elementType="section">
       <View padding="size-200" width="100%" overflow="auto">

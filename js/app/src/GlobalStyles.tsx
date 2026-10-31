@@ -1,5 +1,7 @@
 import { css, Global } from "@emotion/react";
 
+import { typeaheadMenuCSS } from "@phoenix/components/filter/styles";
+
 import type { ThemeContextType } from "./contexts";
 import { useTheme } from "./contexts";
 
@@ -88,6 +90,9 @@ const staticCSS = css`
     --global-button-height-s: var(--global-input-height-s);
     --global-button-height-m: var(--global-input-height-m);
     --global-button-height-l: var(--global-input-height-l);
+
+    // layout sizing
+    --global-text-content-max-width: 800px;
   }
 `;
 
@@ -1327,6 +1332,11 @@ const resizeHandleCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-resize-handle-background-color: var(--global-border-color-default);
     --global-resize-handle-indicator-color-hover: var(--global-color-gray-600);
+    // The grip separator, for splits that are meant to be dragged: a line a
+    // step stronger than the default border, and a grip. In use it takes the
+    // indicator color above, like every other resize handle.
+    --global-resize-handle-line-color: var(--global-color-gray-300);
+    --global-resize-handle-grip-color: var(--global-color-gray-500);
   }
 `;
 
@@ -1650,6 +1660,9 @@ const chartCSS = css`
       0.84
     );
     --chart-panel-background-color: var(--global-color-gray-75);
+    /* Drawn around each segment of a stacked bar, so adjacent segments read as
+       separate; match the surface the chart sits on */
+    --chart-bar-separator-color: var(--chart-panel-background-color);
     --chart-panel-border-color: var(--global-border-color-default);
   }
   .theme--dark {
@@ -1696,6 +1709,7 @@ export function GlobalStyles() {
         mediumRootCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,
+        typeaheadMenuCSS,
         chartCSS,
         fontFamilyCSS
       )}

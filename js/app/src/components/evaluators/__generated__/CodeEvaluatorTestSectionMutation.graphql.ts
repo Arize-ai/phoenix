@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<821ddf852f9acfc89d96a4e6f742e473>>
+ * @generated SignedSource<<22407fcbed9b7ff3b80357e6da89cda3>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";
@@ -22,30 +22,152 @@ export type EvaluatorPreviewsInput = {
   previews: ReadonlyArray<EvaluatorPreviewItemInput>;
 };
 export type EvaluatorPreviewItemInput = {
+  applyOnlineEvaluationLimits?: boolean;
   context: any;
-  evaluator: EvaluatorPreviewInput;
+  datasetEvaluatorId?: string | null;
+  evaluator?: EvaluatorDefinitionInput | null;
   inputMapping: EvaluatorInputMappingInput;
 };
-export type EvaluatorPreviewInput = {
-  builtInEvaluatorId: string;
+export type EvaluatorDefinitionInput = {
+  builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator: InlineDecisionEvaluatorInput;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId: string;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId: string;
+  codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
+  inlineLlmEvaluator?: never;
+} | {
+  builtInEvaluatorId?: never;
+  codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
+  inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator: InlineLLMEvaluatorInput;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId: string;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator?: never;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
 } | {
   builtInEvaluatorId?: never;
   codeEvaluatorId?: never;
+  decisionEvaluatorId?: never;
   inlineCodeEvaluator: InlineCodeEvaluatorInput;
+  inlineDecisionEvaluator?: never;
   inlineLlmEvaluator?: never;
+};
+export type InlineDecisionEvaluatorInput = {
+  decisionVersion: DecisionVersionInput;
+  description?: string | null;
+  name: string;
+  scoringPolicy?: DecisionScoringPolicyInput | null;
+};
+export type DecisionVersionInput = {
+  customProviderId?: string | null;
+  description?: string | null;
+  metadata?: any | null;
+  modelName: string;
+  modelProvider: GenerativeProviderKey;
+  questions: ReadonlyArray<DecisionQuestionInput>;
+  state: DecisionStateInput;
+  templateFormat: PromptTemplateFormat;
+};
+export type DecisionStateInput = {
+  json?: never;
+  text: string;
+} | {
+  json: any;
+  text?: never;
+};
+export type DecisionQuestionInput = {
+  choice?: never;
+  predicate: PredicateQuestionInput;
+  scale?: never;
+} | {
+  choice: ChoiceQuestionInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: ScaleQuestionInput;
+};
+export type PredicateQuestionInput = {
+  criteria?: PredicateCriteriaInput | null;
+  instructions: string;
+  name: string;
+};
+export type PredicateCriteriaInput = {
+  false?: string | null;
+  true?: string | null;
+};
+export type ChoiceQuestionInput = {
+  choices: ReadonlyArray<ChoiceOptionInput>;
+  instructions: string;
+  name: string;
+};
+export type ChoiceOptionInput = {
+  description?: string | null;
+  value: string;
+};
+export type ScaleQuestionInput = {
+  instructions: string;
+  levels: ReadonlyArray<ScaleLevelInput>;
+  name: string;
+};
+export type ScaleLevelInput = {
+  description?: string | null;
+  label: string;
+};
+export type DecisionScoringPolicyInput = {
+  questions?: ReadonlyArray<DecisionQuestionScoringInput>;
+};
+export type DecisionQuestionScoringInput = {
+  choice?: never;
+  predicate: DecisionPredicateScoringInput;
+  scale?: never;
+} | {
+  choice: DecisionChoiceScoringInput;
+  predicate?: never;
+  scale?: never;
+} | {
+  choice?: never;
+  predicate?: never;
+  scale: DecisionScaleScoringInput;
+};
+export type DecisionPredicateScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  threshold?: number;
+};
+export type DecisionChoiceScoringInput = {
+  name: string;
+  optimizationDirection?: OptimizationDirection;
+  scores?: ReadonlyArray<DecisionChoiceScoreInput>;
+};
+export type DecisionChoiceScoreInput = {
+  choice: string;
+  score: number;
+};
+export type DecisionScaleScoringInput = {
+  includeLabel?: boolean;
+  name: string;
+  optimizationDirection?: OptimizationDirection;
 };
 export type InlineLLMEvaluatorInput = {
   description?: string | null;

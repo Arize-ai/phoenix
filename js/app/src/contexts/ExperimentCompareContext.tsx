@@ -10,10 +10,19 @@ import {
 
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
+import type { DecisionQuestionDraft } from "@phoenix/store/playground";
 
-type Experiment = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
->["edges"][number]["experiment"];
+type Experiment = Pick<
+  NonNullable<
+    ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
+  >["edges"][number]["experiment"],
+  "id" | "name" | "repetitions"
+>;
+
+const NO_DECISION_QUESTIONS: ReadonlyMap<
+  string,
+  DecisionQuestionDraft[] | null
+> = new Map();
 
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
@@ -44,6 +53,11 @@ interface ExperimentCompareContextType {
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
+  /** Each decision experiment's questions; null for other tasks. */
+  decisionQuestionsByExperimentId: ReadonlyMap<
+    string,
+    DecisionQuestionDraft[] | null
+  >;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
   annotationConfigs: readonly AnnotationConfig[];
@@ -82,6 +96,7 @@ export function ExperimentCompareDetailsProvider({
   baseExperimentId,
   compareExperimentIds,
   experimentsById,
+  decisionQuestionsByExperimentId = NO_DECISION_QUESTIONS,
   experimentRepetitionsByExperimentId,
   annotationSummaries,
   annotationConfigs,
@@ -94,6 +109,10 @@ export function ExperimentCompareDetailsProvider({
   baseExperimentId: string;
   compareExperimentIds: string[];
   experimentsById: Record<string, Experiment>;
+  decisionQuestionsByExperimentId?: ReadonlyMap<
+    string,
+    DecisionQuestionDraft[] | null
+  >;
   experimentRepetitionsByExperimentId: Record<string, ExperimentRepetition[]>;
   annotationSummaries: AnnotationSummaries;
   annotationConfigs: readonly AnnotationConfig[];
@@ -224,6 +243,7 @@ export function ExperimentCompareDetailsProvider({
     baseExperimentId,
     compareExperimentIds,
     experimentsById,
+    decisionQuestionsByExperimentId,
     experimentRepetitionsByExperimentId,
     annotationSummaries,
     annotationConfigs,

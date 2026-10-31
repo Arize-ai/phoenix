@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, TypeVar, cast
 
 import orjson
 import sqlalchemy as sa
@@ -35,6 +35,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
+from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -42,6 +43,7 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     WriteOnlyMapped,
+    foreign,
     mapped_column,
     relationship,
 )
@@ -49,10 +51,19 @@ from sqlalchemy.sql import Values, column, compiler, expression, literal, roles,
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.elements import Case
 from sqlalchemy.sql.functions import coalesce
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self, TypeAlias, TypeAliasType
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.eval_work import (
+    done_eval_work_index_predicate,
+    eval_session_work_status_check,
+    eval_work_status_check,
+    failed_eval_work_index_predicate,
+    live_eval_work_index_predicate,
+    terminal_eval_session_work_index_predicate,
+    terminal_eval_work_index_predicate,
+)
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -67,6 +78,17 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PhoenixUIMessageAdapter,
+)
+from phoenix.db.types.decision_evaluators import DecisionScoringPolicy
+from phoenix.db.types.decisions import (
+    DecisionQuestion,
+    DecisionState,
+    DecisionTaskConfig,
+)
+from phoenix.db.types.evaluator_definition import (
+    DecisionEvaluatorSnapshot,
+    EvaluatorDefinition,
+    EvaluatorDefinitionRootModel,
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
@@ -175,19 +197,41 @@ def render_values_w_union(
 
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
-EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
+EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN", "DECISION"]
 SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
-LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
+LanguageName = TypeAliasType("LanguageName", Literal["PYTHON", "TYPESCRIPT"])
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
     "anthropic",
     "google_genai",
     "aws_bedrock",
+    "typesafe",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
+EvalWorkStatus: TypeAlias = Literal[
+    "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
+]
+EvalSessionWorkStatus: TypeAlias = Literal[
+    "PENDING",
+    "RUNNING",
+    "DONE",
+    "ERROR",
+    "FAILED",
+    "EXPIRED",
+    "DROPPED",
+    "CONTENT_LOST",
+    "FILTERED_OUT",
+    "SAMPLED_OUT",
+]
+EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
+
+# Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
+# and store 0; the check constraint on project_evaluators enforces both rules.
+DEFAULT_EVALUATION_DELAY_SECONDS = 300
+MINIMUM_EVALUATION_DELAY_SECONDS = 10
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -222,6 +266,23 @@ JSON_ = (
     )
     .with_variant(
         JSONB(),
+        "sqlite",
+    )
+)
+
+# JSON on every dialect, for columns whose object keys must keep their order: PostgreSQL's
+# JSONB reorders them.
+_OrderedJSON = JSON().with_variant(JSON(), "postgresql")
+
+# Stores Python None as SQL NULL instead of the JSON value null.
+_NullableJSON = (
+    JSON(none_as_null=True)
+    .with_variant(
+        postgresql.JSONB(none_as_null=True),
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(none_as_null=True),
         "sqlite",
     )
 )
@@ -343,6 +404,8 @@ class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptInvocationParameters]:
+        if value is None:
+            return None
         assert isinstance(value, dict)
         return PromptInvocationParametersRootModel.model_validate(value).root
 
@@ -361,6 +424,8 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptTemplate]:
+        if value is None:
+            return None
         assert isinstance(value, dict)
         return PromptTemplateRootModel.model_validate(value).root
 
@@ -532,6 +597,12 @@ class _OutputConfigList(TypeDecorator[list[OutputConfigType]]):
         return [OutputConfigModel.model_validate(config).root for config in value]
 
 
+class _OutputConfigOverrideList(_OutputConfigList):
+    # SQL NULL marks a dataset evaluator that inherits its evaluator's output configs.
+    cache_ok = True
+    impl = _NullableJSON
+
+
 class _CategoricalOutputConfigList(TypeDecorator[list[CategoricalOutputConfig]]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -619,6 +690,49 @@ class _HexColor(TypeDecorator[str]):
         return value
 
 
+_PydanticJSONT = TypeVar("_PydanticJSONT")
+
+
+class _PydanticJSON(TypeDecorator[_PydanticJSONT]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+    _adapter: TypeAdapter[Any]
+    _label: str
+
+    def process_bind_param(self, value: Optional[_PydanticJSONT], _: Dialect) -> Any:
+        if value is None:
+            raise ValueError(f"{self._label} cannot be None")
+        return self._adapter.dump_python(value, mode="json", exclude_unset=True, by_alias=True)
+
+    def process_result_value(self, value: Any, _: Dialect) -> Optional[_PydanticJSONT]:
+        return self._adapter.validate_python(value) if value is not None else None
+
+
+class _DecisionState(_PydanticJSON[DecisionState]):
+    # JSON, not JSONB: a JSON template's object keys keep the order they were written in.
+    impl = _OrderedJSON
+    _adapter = TypeAdapter(DecisionState)
+    _label = "Decision state"
+
+
+class _DecisionQuestions(_PydanticJSON[list[DecisionQuestion]]):
+    _adapter = TypeAdapter(list[DecisionQuestion])
+    _label = "Decision questions"
+
+
+class _DecisionTaskConfig(_PydanticJSON[DecisionTaskConfig]):
+    # JSON, not JSONB: the copied state template keeps its key order.
+    impl = _OrderedJSON
+    _adapter = TypeAdapter(DecisionTaskConfig)
+    _label = "Decision task config"
+
+
+class _DecisionScoringPolicy(_PydanticJSON[DecisionScoringPolicy]):
+    _adapter = TypeAdapter(DecisionScoringPolicy)
+    _label = "Decision scoring policy"
+
+
 class _InputMapping(TypeDecorator[InputMapping]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -634,6 +748,25 @@ class _InputMapping(TypeDecorator[InputMapping]):
     def process_result_value(self, value: Optional[dict[str, Any]], _: Dialect) -> InputMapping:
         if value is None:
             return InputMapping(literal_mapping={}, path_mapping={})
+        return InputMapping.model_validate(value)
+
+
+class _OptionalInputMapping(TypeDecorator[Optional[InputMapping]]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[InputMapping], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[InputMapping]:
+        if value is None:
+            return None
         return InputMapping.model_validate(value)
 
 
@@ -674,6 +807,46 @@ class _ConnectionConfig(TypeDecorator[ConnectionConfig]):
         if value is None:
             return None
         return self._adapter.validate_python(value)
+
+
+class _EvaluatorDefinition(TypeDecorator[EvaluatorDefinition]):
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[EvaluatorDefinition], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            return None
+        # JSON mode so the enum members (model provider, template format) store as values.
+        return value.model_dump(mode="json")
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[EvaluatorDefinition]:
+        if value is None:
+            return None
+        return EvaluatorDefinitionRootModel.model_validate(value).root
+
+
+class _DecisionEvaluatorSnapshots(TypeDecorator[list[DecisionEvaluatorSnapshot]]):
+    cache_ok = True
+    # JSON, not JSONB: the copied state templates keep their key order.
+    impl = JSON
+
+    def process_bind_param(
+        self, value: Optional[list[DecisionEvaluatorSnapshot]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            return None
+        return [snapshot.model_dump(mode="json") for snapshot in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[DecisionEvaluatorSnapshot]]:
+        if value is None:
+            return None
+        return [DecisionEvaluatorSnapshot.model_validate(snapshot) for snapshot in value]
 
 
 class _ExperimentLogDetail(TypeDecorator[ExperimentLogDetail]):
@@ -786,6 +959,10 @@ class ProjectSession(HasId):
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    last_span_ingested_at: Mapped[Optional[datetime]] = mapped_column(
+        UtcTimeStamp,
+        nullable=True,
+    )
     # Deleting a session deletes its traces (ON DELETE CASCADE) rather than detaching them.
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
@@ -804,6 +981,13 @@ class ProjectSession(HasId):
             "project_id",
             text("end_time DESC"),
         ),
+        Index(
+            "ix_project_sessions_project_id_last_span_ingested_at",
+            "project_id",
+            "last_span_ingested_at",
+            postgresql_where=column("last_span_ingested_at").is_not(None),
+            sqlite_where=column("last_span_ingested_at").is_not(None),
+        ),
     )
 
 
@@ -820,6 +1004,10 @@ class Trace(HasId):
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+    last_span_ingested_at: Mapped[Optional[datetime]] = mapped_column(
+        UtcTimeStamp,
+        nullable=True,
+    )
 
     @hybrid_property
     def latency_ms(self) -> float:
@@ -862,6 +1050,13 @@ class Trace(HasId):
             "ix_traces_project_rowid_start_time",
             "project_rowid",
             text("start_time DESC"),
+        ),
+        Index(
+            "ix_traces_project_rowid_last_span_ingested_at",
+            "project_rowid",
+            "last_span_ingested_at",
+            postgresql_where=column("last_span_ingested_at").is_not(None),
+            sqlite_where=column("last_span_ingested_at").is_not(None),
         ),
     )
 
@@ -911,14 +1106,14 @@ class Span(HasId):
         return cls.attributes[INPUT_VALUE]
 
     @hybrid_property
-    def input_value_first_101_chars(self) -> Any:
+    def input_value_first_101_chars(self) -> str | None:
         if (v := get_attribute_value(self.attributes, INPUT_VALUE)) is None:
             return None
         return str(v)[:101]
 
     @input_value_first_101_chars.inplace.expression
     @classmethod
-    def _input_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+    def _input_value_first_101_chars_expression(cls) -> ColumnElement[str | None]:
         return case(
             (
                 cls.attributes[INPUT_VALUE] != sql.null(),
@@ -945,14 +1140,14 @@ class Span(HasId):
         return cls.attributes[OUTPUT_VALUE]
 
     @hybrid_property
-    def output_value_first_101_chars(self) -> Any:
+    def output_value_first_101_chars(self) -> str | None:
         if (v := get_attribute_value(self.attributes, OUTPUT_VALUE)) is None:
             return None
         return str(v)[:101]
 
     @output_value_first_101_chars.inplace.expression
     @classmethod
-    def _output_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+    def _output_value_first_101_chars_expression(cls) -> ColumnElement[str | None]:
         return case(
             (
                 cls.attributes[OUTPUT_VALUE] != sql.null(),
@@ -1067,7 +1262,7 @@ class LatencyMs(expression.FunctionElement[float]):
 
 
 @compiles(LatencyMs)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     return compiler.process(
@@ -1077,7 +1272,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(LatencyMs, "sqlite")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     start_time, end_time = list(element.clauses)
     # time_sub (sqlean's time extension) returns exact integer nanoseconds,
@@ -1095,7 +1290,7 @@ class NumDocuments(expression.FunctionElement[int]):
 
 
 @compiles(NumDocuments)
-def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     attributes, span_kind = list(element.clauses)
     retrieval_docs = attributes[RETRIEVAL_DOCUMENTS]
@@ -1156,7 +1351,7 @@ class SafeJsonBoolean(expression.FunctionElement[bool]):
 
 
 @compiles(SafeJsonFloat)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     scalar = f"json_extract({value}, '$')"
     return (
@@ -1167,7 +1362,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(SafeJsonFloat, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     # `strict` matters: in lax mode a jsonpath auto-unwraps arrays, so
     # `$.double()` applied to `[1, 2]` returns 1 and the row matches a
@@ -1178,7 +1373,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(SafeJsonBoolean)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     scalar = f"lower(json_extract({value}, '$'))"
     # SQLite's JSON functions return booleans as integers (JSON_QUOTE of an
@@ -1192,7 +1387,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(SafeJsonBoolean, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     value = compiler.process(list(element.clauses)[0], **kw)
     # The jsonpath `.boolean()` method requires PostgreSQL 17; this CASE works
     # on every supported version.
@@ -1212,21 +1407,21 @@ class TextContains(expression.FunctionElement[str]):
 
 
 @compiles(TextContains)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(string.contains(substring), **kw)
 
 
 @compiles(TextContains, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.strpos(string, substring) > 0, **kw)
 
 
 @compiles(TextContains, "sqlite")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.text_contains(string, substring) > 0, **kw)
@@ -1240,14 +1435,14 @@ class CaseInsensitiveContains(expression.FunctionElement[bool]):
 
 
 @compiles(CaseInsensitiveContains)
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     string, substring = list(element.clauses)
     result = compiler.process(func.lower(string).contains(func.lower(substring)), **kw)
     return result
 
 
 @compiles(CaseInsensitiveContains, "postgresql")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     string, substring = list(element.clauses)
     escaped = func.replace(
         func.replace(func.replace(substring, "\\", "\\\\"), "%", "\\%"), "_", "\\_"
@@ -1258,7 +1453,7 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
 
 
 @compiles(CaseInsensitiveContains, "sqlite")
-def _(element: Any, compiler: Any, **kw: Any) -> Any:
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> str:
     # sqlean's `text_casefold`, not `text_lower`: case folding is the operation
     # Unicode defines for caseless matching.
     string, substring = list(element.clauses)
@@ -1913,12 +2108,15 @@ class ExperimentJob(HasId):
     )
     type: Mapped[str] = mapped_column(
         CheckConstraint(
-            "type IN ('PROMPT', 'EVAL_ONLY')",
+            "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR', 'DECISION')",
             name="valid_type",
         ),
         nullable=False,
     )
 
+    decision_evaluator_snapshots: Mapped[list[DecisionEvaluatorSnapshot]] = mapped_column(
+        _DecisionEvaluatorSnapshots, nullable=False, default=list, server_default="[]"
+    )
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",
         passive_deletes="all",
@@ -2047,6 +2245,104 @@ class ExperimentEvalOnlyConfig(ExperimentJob):
     __mapper_args__ = {
         "polymorphic_identity": "EVAL_ONLY",
     }
+
+
+class ExperimentDecisionTask(ExperimentJob):
+    """Decision task configuration for an experiment.
+
+    Each dataset example becomes one decision request, and its answers are the run's
+    output. The connection is stored as columns, as a prompt task's is; how examples
+    become requests and how answers are scored is frozen in ``config``, so a resumed
+    experiment asks and scores exactly as it started.
+    """
+
+    __tablename__ = "experiment_decision_tasks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[Literal["DECISION"]] = mapped_column(
+        CheckConstraint("type = 'DECISION'", name="valid_type"),
+        server_default="DECISION",
+        nullable=False,
+    )
+
+    # Model identity
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str] = mapped_column(String)
+
+    # Provider routing: a custom provider, or a built-in one with an optional endpoint
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    base_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    config: Mapped[DecisionTaskConfig] = mapped_column(_DecisionTaskConfig, nullable=False)
+
+    # The saved version the definition was copied from, if any; the copy keeps running when
+    # the version is deleted.
+    decision_version_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decision_versions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "DECISION",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint(
+            "NOT (custom_provider_id IS NOT NULL AND base_url IS NOT NULL)",
+            name="custom_provider_or_base_url",
+        ),
+    )
+
+
+class ExperimentEvaluatorTask(ExperimentJob):
+    """Evaluator task configuration for an experiment.
+
+    The evaluator is the task: each dataset example is judged directly and the verdict is
+    the experiment run. ``definition`` freezes the evaluator as it was drafted, or names the
+    stored evaluator, so the runner rebuilds the same evaluator on start and on resume.
+    """
+
+    __tablename__ = "experiment_evaluator_tasks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[Literal["EVALUATOR"]] = mapped_column(
+        CheckConstraint("type = 'EVALUATOR'", name="valid_type"),
+        server_default="EVALUATOR",
+        nullable=False,
+    )
+
+    # The evaluator's name; the run annotations are named after it
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    evaluator_kind: Mapped[EvaluatorKind] = mapped_column(
+        CheckConstraint(
+            "evaluator_kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')",
+            name="valid_evaluator_kind",
+        ),
+        nullable=False,
+    )
+    definition: Mapped[EvaluatorDefinition] = mapped_column(_EvaluatorDefinition, nullable=False)
+    input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
+    output_configs: Mapped[list[OutputConfigType]] = mapped_column(
+        _OutputConfigList, nullable=False
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "EVALUATOR",
+    }
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["type", "id"],
+            ["experiment_jobs.type", "experiment_jobs.id"],
+            ondelete="CASCADE",
+        ),
+    )
 
 
 class ExperimentDatasetEvaluator(Base):
@@ -2899,6 +3195,149 @@ class PromptVersionTag(HasId):
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
 
 
+class DecisionLabel(HasId):
+    __tablename__ = "decision_labels"
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    color: Mapped[Optional[str]] = mapped_column(_HexColor, nullable=True)
+
+
+class DecisionDecisionLabel(Base):
+    __tablename__ = "decisions_decision_labels"
+    decision_label_id: Mapped[int] = mapped_column(
+        ForeignKey("decision_labels.id", ondelete="CASCADE"), nullable=False
+    )
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    __table_args__ = (PrimaryKeyConstraint("decision_label_id", "decision_id"),)
+
+
+class Decision(HasId):
+    """A saved decision: a named, versioned typed function apps fetch by tag."""
+
+    __tablename__ = "decisions"
+    source_decision_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decisions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    decision_versions: Mapped[list["DecisionVersion"]] = relationship(
+        "DecisionVersion",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+    decision_version_tags: Mapped[list["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag",
+        back_populates="decision",
+        cascade="all, delete-orphan",
+        uselist=True,
+        overlaps="decision_version_tags",
+    )
+
+
+class DecisionVersion(HasId):
+    """An immutable version of a decision: its templates, questions, and model."""
+
+    __tablename__ = "decision_versions"
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    template_format: Mapped[PromptTemplateFormat] = mapped_column(
+        _TemplateFormat,
+        CheckConstraint(
+            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')", name="template_format"
+        ),
+        nullable=False,
+    )
+    state: Mapped[DecisionState] = mapped_column(_DecisionState, nullable=False)
+    questions: Mapped[list[DecisionQuestion]] = mapped_column(_DecisionQuestions, nullable=False)
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str]
+    custom_provider_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    decision: Mapped["Decision"] = relationship("Decision", back_populates="decision_versions")
+    decision_version_tags: Mapped[list["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag",
+        back_populates="decision_version",
+        cascade="all, delete-orphan",
+        uselist=True,
+        overlaps="decision_version_tags",
+    )
+
+    # The target of the tags' composite foreign key, so a tag can never point at another
+    # decision's version.
+    __table_args__ = (UniqueConstraint("decision_id", "id"),)
+
+
+class DecisionVersionTag(HasId):
+    """A movable name for one of a decision's versions, such as ``production``."""
+
+    __tablename__ = "decision_version_tags"
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    decision_version_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    decision: Mapped["Decision"] = relationship(
+        "Decision", back_populates="decision_version_tags", overlaps="decision_version_tags"
+    )
+    decision_version: Mapped["DecisionVersion"] = relationship(
+        "DecisionVersion",
+        back_populates="decision_version_tags",
+        overlaps="decision,decision_version_tags",
+    )
+    decision_evaluators: Mapped[list["DecisionEvaluator"]] = relationship(
+        "DecisionEvaluator",
+        back_populates="decision_version_tag",
+        uselist=True,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", "decision_id"),
+        ForeignKeyConstraint(
+            ["decision_id", "decision_version_id"],
+            ["decision_versions.decision_id", "decision_versions.id"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
 class AnnotationConfig(HasId):
     __tablename__ = "annotation_configs"
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -3058,7 +3497,9 @@ class SpanCostDetail(HasId):
 class Evaluator(HasId):
     __tablename__ = "evaluators"
     kind: Mapped[EvaluatorKind] = mapped_column(
-        CheckConstraint("kind IN ('LLM', 'CODE', 'BUILTIN')", name="valid_evaluator_kind"),
+        CheckConstraint(
+            "kind IN ('LLM', 'CODE', 'BUILTIN', 'DECISION')", name="valid_evaluator_kind"
+        ),
         nullable=False,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False, unique=True)
@@ -3087,6 +3528,93 @@ class Evaluator(HasId):
     __table_args__ = (UniqueConstraint("kind", "id"),)
 
 
+class DecisionEvaluator(Evaluator):
+    __tablename__ = "decision_evaluators"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[Literal["DECISION"]] = mapped_column(
+        CheckConstraint("kind = 'DECISION'", name="valid_evaluator_kind"),
+        server_default="DECISION",
+        nullable=False,
+    )
+    decision_id: Mapped[int] = mapped_column(
+        ForeignKey("decisions.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    decision_version_tag_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("decision_version_tags.id", ondelete="SET NULL"),
+        index=True,
+    )
+    scoring_policy: Mapped[DecisionScoringPolicy] = mapped_column(
+        _DecisionScoringPolicy, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    decision_version_tag: Mapped[Optional["DecisionVersionTag"]] = relationship(
+        "DecisionVersionTag", back_populates="decision_evaluators"
+    )
+    selected_version: Mapped["DecisionVersion"] = relationship(
+        "DecisionVersion",
+        secondary=lambda: _DECISION_EVALUATOR_SELECTED_VERSIONS,
+        primaryjoin=lambda: (
+            DecisionEvaluator.id
+            == foreign(_DECISION_EVALUATOR_SELECTED_VERSIONS.c.decision_evaluator_id)
+        ),
+        secondaryjoin=lambda: (
+            DecisionVersion.id
+            == foreign(_DECISION_EVALUATOR_SELECTED_VERSIONS.c.decision_version_id)
+        ),
+        viewonly=True,
+        uselist=False,
+        innerjoin=True,
+        lazy="joined",
+    )
+
+    @property
+    def output_configs(self) -> list[OutputConfigType]:
+        from phoenix.db.types.decision_evaluators import (
+            adapt_scoring_policy,
+            derive_decision_output_configs,
+        )
+
+        questions = self.selected_version.questions
+        return derive_decision_output_configs(
+            questions, adapt_scoring_policy(questions, self.scoring_policy)
+        )
+
+    __mapper_args__ = {"polymorphic_identity": "DECISION"}
+    __table_args__ = (  # type: ignore[assignment]
+        ForeignKeyConstraint(
+            ["kind", "id"], ["evaluators.kind", "evaluators.id"], ondelete="CASCADE"
+        ),
+    )
+
+
+def _decision_evaluator_selected_versions() -> sa.Subquery:
+    """The version each decision evaluator runs: its tag's, or its decision's newest."""
+    evaluators = DecisionEvaluator.__table__
+    tags = DecisionVersionTag.__table__
+    versions = DecisionVersion.__table__
+    tagged = (
+        select(tags.c.decision_version_id)
+        .where(tags.c.id == evaluators.c.decision_version_tag_id)
+        .scalar_subquery()
+    )
+    newest = (
+        select(func.max(versions.c.id))
+        .where(versions.c.decision_id == evaluators.c.decision_id)
+        .scalar_subquery()
+    )
+    return select(
+        evaluators.c.id.label("decision_evaluator_id"),
+        func.coalesce(tagged, newest).label("decision_version_id"),
+    ).subquery("decision_evaluator_selected_versions")
+
+
+_DECISION_EVALUATOR_SELECTED_VERSIONS: sa.Subquery = _decision_evaluator_selected_versions()
+
+
 class LLMEvaluator(Evaluator):
     __tablename__ = "llm_evaluators"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -3107,6 +3635,9 @@ class LLMEvaluator(Evaluator):
     output_configs: Mapped[list[CategoricalOutputConfig]] = mapped_column(
         _CategoricalOutputConfigList, nullable=False
     )
+    input_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON_, nullable=True)
+    """The prompt's variables with a description on each the author described. NULL means
+    none were, and the schema is inferred from the prompt alone."""
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
@@ -3204,6 +3735,9 @@ class CodeEvaluator(Evaluator):
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
         _AnnotationConfigList, nullable=False, server_default="[]"
     )
+    input_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON_, nullable=True)
+    """The `evaluate` parameters with a description on each the author described. NULL
+    means none were, and the schema is inferred from the current version's source alone."""
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
@@ -3326,7 +3860,7 @@ class DatasetEvaluators(HasId):
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
-        _OutputConfigList, nullable=True
+        _OutputConfigOverrideList, nullable=True
     )
     input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
@@ -3586,3 +4120,314 @@ class AgentSessionSnapshot(HasId):
         back_populates="snapshot",
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+def _default_evaluation_delay_seconds(context: DefaultExecutionContext) -> int:
+    """Spans have no quiet period; every other target starts at the default delay."""
+    target = context.get_current_parameters()["evaluation_target"]  # type: ignore[no-untyped-call]
+    return 0 if target == "SPAN" else DEFAULT_EVALUATION_DELAY_SECONDS
+
+
+class ProjectEvaluator(HasId):
+    """Attaches an evaluator to a project for online evaluation: which spans, traces or
+    sessions to match, how they are sampled, and the annotation name results are
+    written under. filter_condition and sampling_rate apply to every evaluation_target;
+    evaluation_delay_seconds applies to TRACE and SESSION, which are evaluated once no
+    new span has arrived for that long."""
+
+    __tablename__ = "project_evaluators"
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    trace_project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    filter_condition: Mapped[str] = mapped_column(String, nullable=False, server_default="")
+    evaluation_target: Mapped[EvaluationTarget] = mapped_column(
+        CheckConstraint(
+            "evaluation_target IN ('SPAN', 'TRACE', 'SESSION')",
+            name="valid_evaluation_target",
+        ),
+        nullable=False,
+    )
+    evaluation_delay_seconds: Mapped[int] = mapped_column(
+        Integer,
+        CheckConstraint(
+            "(evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0) OR "
+            "(evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= "
+            f"{MINIMUM_EVALUATION_DELAY_SECONDS})",
+            name="valid_evaluation_delay_seconds",
+        ),
+        nullable=False,
+        default=_default_evaluation_delay_seconds,
+    )
+    input_mapping: Mapped[Optional[InputMapping]] = mapped_column(
+        _OptionalInputMapping, nullable=True
+    )
+    sampling_rate: Mapped[float] = mapped_column(
+        Float,
+        CheckConstraint(
+            "0.0 <= sampling_rate AND sampling_rate <= 1.0",
+            name="valid_sampling_rate",
+        ),
+        nullable=False,
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    swept_through_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
+    trace_project: Mapped["Project"] = relationship("Project", foreign_keys=[trace_project_id])
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+
+    __table_args__ = (UniqueConstraint("project_id", "name"),)
+
+
+class EvalWorkLease(HasId):
+    """A named lease that normally keeps one replica at a time doing an online-eval
+    materializer's work, so replicas do not repeat each other's queries. It is held while
+    heartbeat_at stays fresh; once it goes stale another replica may take it. The lease is
+    advisory: no write is fenced on it."""
+
+    __tablename__ = "eval_work_leases"
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    holder: Mapped[Optional[str]] = mapped_column(String)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("name"),)
+
+
+class EvalSpanCursor(Base):
+    """The span producer's position in the span arrival log, as Span.id values. The table
+    holds a single row."""
+
+    __tablename__ = "eval_span_cursors"
+    id: Mapped[int] = mapped_column(
+        _Integer,
+        CheckConstraint("id = 1", name="single_row"),
+        primary_key=True,
+        autoincrement=False,
+    )
+    produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
+    observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
+    observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class EvalWorkUnit(HasId):
+    """A span-level eval task — run one evaluator against one span. The producer
+    materializes rows here; consumers claim, run, and complete them."""
+
+    __tablename__ = "eval_work_units"
+    span_rowid: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(eval_work_status_check(), name="valid_eval_work_status"),
+        default="PENDING",
+        server_default="PENDING",
+    )
+
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    span: Mapped["Span"] = relationship("Span")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
+
+    __table_args__ = (
+        UniqueConstraint("span_rowid", "project_evaluator_id"),
+        Index(
+            "ix_eval_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_work_units_terminal",
+            "updated_at",
+            postgresql_where=text(terminal_eval_work_index_predicate()),
+            sqlite_where=text(terminal_eval_work_index_predicate()),
+        ),
+        # Each evaluator's newest success and newest failure, found without walking its history.
+        Index(
+            "ix_eval_work_units_project_evaluator_done",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(done_eval_work_index_predicate()),
+            sqlite_where=text(done_eval_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
+        ),
+    )
+
+
+class EvalSessionWorkUnit(HasId):
+    __tablename__ = "eval_session_work_units"
+    project_session_rowid: Mapped[int] = mapped_column(
+        ForeignKey("project_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    status: Mapped[EvalSessionWorkStatus] = mapped_column(
+        CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
+        default="PENDING",
+        server_default="PENDING",
+    )
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project_session: Mapped["ProjectSession"] = relationship("ProjectSession")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
+
+    __table_args__ = (
+        UniqueConstraint("project_session_rowid", "project_evaluator_id"),
+        Index(
+            "ix_eval_session_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_session_work_units_terminal",
+            "updated_at",
+            postgresql_where=text(terminal_eval_session_work_index_predicate()),
+            sqlite_where=text(terminal_eval_session_work_index_predicate()),
+        ),
+        # Each evaluator's newest success and newest failure, found without walking its history.
+        Index(
+            "ix_eval_session_work_units_project_evaluator_done",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(done_eval_work_index_predicate()),
+            sqlite_where=text(done_eval_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_session_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
+        ),
+    )
+
+
+class EvalTraceWorkUnit(HasId):
+    """A trace-level eval task — run one evaluator against one trace."""
+
+    __tablename__ = "eval_trace_work_units"
+    trace_rowid: Mapped[int] = mapped_column(
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    status: Mapped[EvalSessionWorkStatus] = mapped_column(
+        CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
+        default="PENDING",
+        server_default="PENDING",
+    )
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    trace: Mapped["Trace"] = relationship("Trace")
+    project_evaluator: Mapped["ProjectEvaluator"] = relationship("ProjectEvaluator")
+
+    __table_args__ = (
+        UniqueConstraint("trace_rowid", "project_evaluator_id"),
+        Index(
+            "ix_eval_trace_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_trace_work_units_terminal",
+            "updated_at",
+            postgresql_where=text(terminal_eval_session_work_index_predicate()),
+            sqlite_where=text(terminal_eval_session_work_index_predicate()),
+        ),
+        # Each evaluator's newest success and newest failure, found without walking its history.
+        Index(
+            "ix_eval_trace_work_units_project_evaluator_done",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(done_eval_work_index_predicate()),
+            sqlite_where=text(done_eval_work_index_predicate()),
+        ),
+        Index(
+            "ix_eval_trace_work_units_project_evaluator_failed",
+            "project_evaluator_id",
+            "updated_at",
+            postgresql_where=text(failed_eval_work_index_predicate()),
+            sqlite_where=text(failed_eval_work_index_predicate()),
+        ),
+    )

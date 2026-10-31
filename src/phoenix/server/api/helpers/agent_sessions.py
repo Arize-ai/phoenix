@@ -7,14 +7,20 @@ from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.db.models import GenerativeModelSDK
-from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.agents.exceptions import ProviderNotFoundError
+from phoenix.db.types.model_provider import (
+    ModelProvider,
+    model_provider_from_sdk,
+    sdk_offers_chat,
+)
+from phoenix.server.agents.exceptions import ProviderNotFoundError, ProviderUnsupportedError
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
     BuiltInProviderModelSelection,
     CustomProviderModelSelection,
 )
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.playground_registry import require_chat_provider
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 TURN_LOCK_STALENESS = timedelta(seconds=60)
@@ -42,20 +48,7 @@ def is_turn_active(heartbeat_at: Optional[datetime], *, now: datetime) -> bool:
     return heartbeat_at is not None and heartbeat_at >= now - TURN_LOCK_STALENESS
 
 
-def model_provider_from_generative_model_sdk(
-    sdk: GenerativeModelSDK,
-) -> ModelProvider:
-    if sdk == "openai":
-        return ModelProvider.OPENAI
-    if sdk == "azure_openai":
-        return ModelProvider.AZURE_OPENAI
-    if sdk == "anthropic":
-        return ModelProvider.ANTHROPIC
-    if sdk == "google_genai":
-        return ModelProvider.GOOGLE
-    if sdk == "aws_bedrock":
-        return ModelProvider.AWS
-    assert_never(sdk)
+model_provider_from_generative_model_sdk = model_provider_from_sdk
 
 
 class AgentModelRouting(NamedTuple):
@@ -88,6 +81,33 @@ async def get_custom_provider(
     return provider
 
 
+def require_chat_custom_provider(provider: models.GenerativeModelCustomProvider) -> None:
+    """Reject custom providers whose SDK serves no chat models.
+
+    The built-in guard checks a provider key; a custom provider is checked by its
+    SDK, since an ``openai`` provider may point at any OpenAI-compatible host.
+    """
+    if not sdk_offers_chat(provider.sdk):
+        raise ProviderUnsupportedError(
+            f"Custom provider '{provider.name}' serves decision models only; "
+            "choose a provider with chat models."
+        )
+
+
+def require_chat_model_provider(provider: ModelProvider) -> None:
+    """Reject providers with no chat models.
+
+    Agent sessions are chat sessions, so a decision-only provider is unsupported
+    independent of which provider it is. The guard's GraphQL-flavoured
+    ``BadRequest`` is translated to the agents domain so REST callers get a 400
+    rather than an unhandled error.
+    """
+    try:
+        require_chat_provider(GenerativeProviderKey.from_model_provider(provider))
+    except BadRequest as exc:
+        raise ProviderUnsupportedError(str(exc)) from exc
+
+
 async def resolve_model_routing(
     session: AsyncSession,
     model: AgentModelSelection,
@@ -95,16 +115,19 @@ async def resolve_model_routing(
     """Resolve a request's model selection into routing column values.
 
     Raises ``ProviderNotFoundError`` when a custom selection references a
-    provider that does not exist.
+    provider that does not exist, and ``ProviderUnsupportedError`` when a
+    built-in selection names a provider with no chat models.
     """
     if isinstance(model, CustomProviderModelSelection):
         provider = await get_custom_provider(session, model.provider_id)
+        require_chat_custom_provider(provider)
         return AgentModelRouting(
             model_provider=model_provider_from_generative_model_sdk(provider.sdk),
             model_name=model.model_name,
             custom_provider_id=provider.id,
         )
     if isinstance(model, BuiltInProviderModelSelection):
+        require_chat_model_provider(model.provider)
         return AgentModelRouting(
             model_provider=model.provider,
             model_name=model.model_name,

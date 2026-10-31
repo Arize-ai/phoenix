@@ -64,6 +64,20 @@ class ChatPromptVersionInput(BaseModel):
     custom_provider_id: Optional[str] = Field(alias="customProviderId", default=None)
 
 
+class ChoiceOptionInput(BaseModel):
+    value: str
+    description: Optional[str] = None
+
+
+class ChoiceQuestionInput(BaseModel):
+    """One option from a fixed set of 2–255."""
+
+    name: str
+    "The name the answer is returned under."
+    instructions: str
+    choices: list["ChoiceOptionInput"]
+
+
 class ContentPartInput(BaseModel):
     text: Optional["TextContentValueInput"] = None
     tool_call: Optional["ToolCallContentValueInput"] = Field(
@@ -82,12 +96,98 @@ class ContinuousAnnotationConfigInput(BaseModel):
     upper_bound: Optional[float] = Field(alias="upperBound", default=None)
 
 
-class EvaluatorInputMappingInput(BaseModel):
-    literal_mapping: Any = Field(alias="literalMapping")
-    path_mapping: Any = Field(alias="pathMapping")
+class DecisionChoiceScoreInput(BaseModel):
+    """The score for one of a choice question's declared choices."""
+
+    choice: str
+    score: float
 
 
-class EvaluatorPreviewInput(BaseModel):
+class DecisionChoiceScoringInput(BaseModel):
+    """Scoring for a choice question."""
+
+    name: str
+    scores: list["DecisionChoiceScoreInput"] = Field(default_factory=lambda: [])
+    "Scores by choice; a choice left out gets a null score."
+    optimization_direction: OptimizationDirection = Field(
+        alias="optimizationDirection", default=OptimizationDirection.NONE
+    )
+
+
+class DecisionPredicateScoringInput(BaseModel):
+    """Scoring for a predicate question."""
+
+    name: str
+    threshold: float = 0.5
+    "The probability, in [0, 1], at or above which the label is `true`."
+    optimization_direction: OptimizationDirection = Field(
+        alias="optimizationDirection", default=OptimizationDirection.NONE
+    )
+
+
+class DecisionQuestionInput(BaseModel):
+    """One decision question. Exactly one type must be set."""
+
+    predicate: Optional["PredicateQuestionInput"] = None
+    choice: Optional["ChoiceQuestionInput"] = None
+    scale: Optional["ScaleQuestionInput"] = None
+
+
+class DecisionQuestionScoringInput(BaseModel):
+    """Scoring settings for one named decision question."""
+
+    predicate: Optional["DecisionPredicateScoringInput"] = None
+    choice: Optional["DecisionChoiceScoringInput"] = None
+    scale: Optional["DecisionScaleScoringInput"] = None
+
+
+class DecisionScaleScoringInput(BaseModel):
+    """Scoring for a scale question; its score is the expected level."""
+
+    name: str
+    include_label: bool = Field(alias="includeLabel", default=False)
+    "Also label the annotation with the most probable level."
+    optimization_direction: OptimizationDirection = Field(
+        alias="optimizationDirection", default=OptimizationDirection.NONE
+    )
+
+
+class DecisionScoringPolicyInput(BaseModel):
+    """Scoring settings by question. A question left out keeps its default, or on a dataset binding, the judge's own setting."""
+
+    questions: list["DecisionQuestionScoringInput"] = Field(default_factory=lambda: [])
+
+
+class DecisionStateInput(BaseModel):
+    """The state template. Exactly one must be set: `text` is a text template; `json` is any JSON value whose string leaves are templates, where a string that is exactly one variable tag becomes the variable's value with its JSON type kept."""
+
+    text: Optional[str] = None
+    json_: Optional[Any] = Field(alias="json", default=None)
+
+
+class DecisionVersionInput(BaseModel):
+    """A decision version to save: its template format, state template, questions, and the model that answers. Saved versions are immutable; saving again adds a version."""
+
+    template_format: PromptTemplateFormat = Field(alias="templateFormat")
+    "How variable tags are read in the state and the question fields."
+    state: "DecisionStateInput"
+    questions: list["DecisionQuestionInput"]
+    model_provider: GenerativeProviderKey = Field(alias="modelProvider")
+    "The provider whose decision API answers; it must offer decision models. For a custom provider, the API its SDK speaks (OPENAI or TYPESAFE)."
+    model_name: str = Field(alias="modelName")
+    custom_provider_id: Optional[str] = Field(alias="customProviderId", default=None)
+    "Run on this custom provider instead of the built-in one."
+    description: Optional[str] = None
+    metadata: Optional[Any] = None
+
+
+class EvaluatorDefinitionInput(BaseModel):
+    inline_decision_evaluator: Optional["InlineDecisionEvaluatorInput"] = Field(
+        alias="inlineDecisionEvaluator", default=None
+    )
+    decision_evaluator_id: Optional[str] = Field(
+        alias="decisionEvaluatorId", default=None
+    )
     built_in_evaluator_id: Optional[str] = Field(
         alias="builtInEvaluatorId", default=None
     )
@@ -100,10 +200,23 @@ class EvaluatorPreviewInput(BaseModel):
     )
 
 
+class EvaluatorInputMappingInput(BaseModel):
+    literal_mapping: Any = Field(alias="literalMapping")
+    path_mapping: Any = Field(alias="pathMapping")
+
+
 class EvaluatorPreviewItemInput(BaseModel):
-    evaluator: "EvaluatorPreviewInput"
+    evaluator: Optional["EvaluatorDefinitionInput"] = None
     context: Any
     input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
+    dataset_evaluator_id: Optional[str] = Field(
+        alias="datasetEvaluatorId", default=None
+    )
+    "Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy."
+    apply_online_evaluation_limits: bool = Field(
+        alias="applyOnlineEvaluationLimits", default=False
+    )
+    "Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request."
 
 
 class EvaluatorPreviewsInput(BaseModel):
@@ -136,11 +249,38 @@ class InlineCodeEvaluatorInput(BaseModel):
     description: Optional[str] = None
 
 
+class InlineDecisionEvaluatorInput(BaseModel):
+    name: str
+    decision_version: "DecisionVersionInput" = Field(alias="decisionVersion")
+    scoring_policy: Optional["DecisionScoringPolicyInput"] = Field(
+        alias="scoringPolicy", default=None
+    )
+    description: Optional[str] = None
+
+
 class InlineLLMEvaluatorInput(BaseModel):
     name: str
     prompt_version: "ChatPromptVersionInput" = Field(alias="promptVersion")
     output_configs: list["AnnotationConfigInput"] = Field(alias="outputConfigs")
     description: Optional[str] = None
+
+
+class PredicateCriteriaInput(BaseModel):
+    """What counts as true and as false; either may be omitted."""
+
+    true: Optional[str] = None
+    "What counts as true."
+    false: Optional[str] = None
+    "What counts as false."
+
+
+class PredicateQuestionInput(BaseModel):
+    """A statement or yes/no question, answered with the probability that it is true."""
+
+    name: str
+    "The name the answer is returned under."
+    instructions: str
+    criteria: Optional["PredicateCriteriaInput"] = None
 
 
 class PromptAnthropicInvocationParametersInput(BaseModel):
@@ -273,6 +413,20 @@ class PromptToolsInput(BaseModel):
     )
 
 
+class ScaleLevelInput(BaseModel):
+    label: str
+    description: Optional[str] = None
+
+
+class ScaleQuestionInput(BaseModel):
+    """2–10 ordered levels; a level's position, from zero, is its value."""
+
+    name: str
+    "The name the answer is returned under."
+    instructions: str
+    levels: list["ScaleLevelInput"]
+
+
 class TextContentValueInput(BaseModel):
     text: str
 
@@ -296,12 +450,20 @@ class ToolResultContentValueInput(BaseModel):
 AnnotationConfigInput.model_rebuild()
 CategoricalAnnotationConfigInput.model_rebuild()
 ChatPromptVersionInput.model_rebuild()
+ChoiceQuestionInput.model_rebuild()
 ContentPartInput.model_rebuild()
-EvaluatorPreviewInput.model_rebuild()
+DecisionChoiceScoringInput.model_rebuild()
+DecisionQuestionInput.model_rebuild()
+DecisionQuestionScoringInput.model_rebuild()
+DecisionScoringPolicyInput.model_rebuild()
+DecisionVersionInput.model_rebuild()
+EvaluatorDefinitionInput.model_rebuild()
 EvaluatorPreviewItemInput.model_rebuild()
 EvaluatorPreviewsInput.model_rebuild()
 InlineCodeEvaluatorInput.model_rebuild()
+InlineDecisionEvaluatorInput.model_rebuild()
 InlineLLMEvaluatorInput.model_rebuild()
+PredicateQuestionInput.model_rebuild()
 PromptAnthropicInvocationParametersInput.model_rebuild()
 PromptAnthropicThinkingConfigInput.model_rebuild()
 PromptChatTemplateInput.model_rebuild()
@@ -311,4 +473,5 @@ PromptMessageInput.model_rebuild()
 PromptResponseFormatJSONSchemaInput.model_rebuild()
 PromptToolInput.model_rebuild()
 PromptToolsInput.model_rebuild()
+ScaleQuestionInput.model_rebuild()
 ToolCallContentValueInput.model_rebuild()

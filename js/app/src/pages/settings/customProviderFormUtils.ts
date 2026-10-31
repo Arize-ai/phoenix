@@ -30,6 +30,7 @@ import type {
   GoogleGenAIFormData,
   OpenAIFormData,
   ProviderFormData,
+  TypeSafeFormData,
 } from "./CustomProviderForm";
 
 export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
@@ -118,6 +119,16 @@ export function createDefaultFormData(
         google_headers: undefined,
       } satisfies GoogleGenAIFormData;
 
+    case "TYPESAFE":
+      return {
+        ...baseDefaults,
+        sdk: "TYPESAFE",
+        provider: SDK_DEFAULT_PROVIDER.TYPESAFE,
+        typesafe_api_key: "",
+        typesafe_base_url: undefined,
+        typesafe_default_headers: undefined,
+      } satisfies TypeSafeFormData;
+
     default: {
       const _exhaustive: never = sdk;
       invariant(
@@ -161,6 +172,8 @@ export function transformConfigToFormValues(
       return transformAwsBedrockConfig(customProvider);
     case "GOOGLE_GENAI":
       return transformGoogleGenAIConfig(customProvider);
+    case "TYPESAFE":
+      return transformTypeSafeConfig(customProvider);
     default:
       throw new Error("Unknown SDK type received from backend.");
   }
@@ -290,6 +303,21 @@ function transformGoogleGenAIConfig(
     google_api_key: config?.googleGenaiAuthenticationMethod?.apiKey || "",
     google_base_url: httpOptions?.baseUrl ?? undefined,
     google_headers: safelyJSONStringify(httpOptions?.headers),
+  };
+}
+
+function transformTypeSafeConfig(
+  provider: CustomProviderNode
+): TypeSafeFormData {
+  const config = provider.config;
+  return {
+    ...getBaseFormValues(provider),
+    sdk: "TYPESAFE",
+    typesafe_api_key: config?.typesafeAuthenticationMethod?.apiKey || "",
+    typesafe_base_url: config?.typesafeClientKwargs?.baseUrl ?? undefined,
+    typesafe_default_headers: safelyJSONStringify(
+      config?.typesafeClientKwargs?.defaultHeaders
+    ),
   };
 }
 
@@ -496,6 +524,21 @@ export function buildClientConfig(
         },
       };
     }
+    case "TYPESAFE":
+      return {
+        typesafe: {
+          typesafeAuthenticationMethod: {
+            apiKey: formData.typesafe_api_key,
+          },
+          typesafeClientKwargs: compressObject({
+            baseUrl: formData.typesafe_base_url,
+            defaultHeaders:
+              typeof formData.typesafe_default_headers === "string"
+                ? safelyParseJSONObjectString(formData.typesafe_default_headers)
+                : undefined,
+          }),
+        },
+      };
     default: {
       return assertUnreachable(formData);
     }
@@ -592,6 +635,11 @@ const CONFIG_FIELDS_BY_SDK: Record<GenerativeModelSDK, readonly string[]> = {
     "aws_endpoint_url",
   ],
   GOOGLE_GENAI: ["google_api_key", "google_base_url", "google_headers"],
+  TYPESAFE: [
+    "typesafe_api_key",
+    "typesafe_base_url",
+    "typesafe_default_headers",
+  ],
 };
 
 function hasConfigChanged(

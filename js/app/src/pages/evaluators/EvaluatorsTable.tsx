@@ -17,11 +17,17 @@ import {
 import { graphql, readInlineData } from "react-relay";
 import { Link, useNavigate } from "react-router";
 
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, LinkButton, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { ProjectToken } from "@phoenix/components/project";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { ACTIONS_COLUMN_ID } from "@phoenix/components/table";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
@@ -32,6 +38,7 @@ import type {
   EvaluatorFilter,
   EvaluatorSort,
 } from "@phoenix/pages/evaluators/__generated__/GlobalEvaluatorsTableEvaluatorsQuery.graphql";
+import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { useEvaluatorsFilterContext } from "@phoenix/pages/evaluators/EvaluatorsFilterProvider";
 import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEvaluatorsEmptyState";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
@@ -89,8 +96,21 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             }
           }
         }
+        projects(first: 10) {
+          edges {
+            node {
+              id
+              name
+              gradientStartColor
+              gradientEndColor
+            }
+          }
+        }
         datasetEvaluators {
           id
+          evaluator {
+            kind
+          }
           name
           description
           updatedAt
@@ -112,6 +132,21 @@ const readRow = (row: EvaluatorsTable_row$key) => {
             name
           }
           promptVersion {
+            modelName
+            modelProvider
+          }
+          user {
+            username
+            profilePictureUrl
+          }
+        }
+        ... on DecisionEvaluator {
+          decisionVersion {
+            id
+            decisionId
+            decision {
+              name
+            }
             modelName
             modelProvider
           }
@@ -182,6 +217,23 @@ const filterRows = (
     return [{ ...parent, children: matchingChildren }];
   });
 };
+
+const UsedInLink = ({
+  to,
+  icon,
+  name,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  name: string;
+}) => (
+  <Link to={to}>
+    <Flex direction="row" gap="size-50" alignItems="center">
+      <Icon svg={icon} />
+      <Truncate maxWidth="10rem">{name}</Truncate>
+    </Flex>
+  </Link>
+);
 
 type EvaluatorsTableProps = {
   /**
@@ -313,7 +365,8 @@ export const EvaluatorsTable = ({
         size: 320,
       },
       {
-        header: "prompt",
+        // Holds the LLM evaluator's prompt or the decision evaluator's decision.
+        header: "prompt / decision",
         accessorKey: "prompt",
         size: 180,
         enableSorting: false,
@@ -321,11 +374,17 @@ export const EvaluatorsTable = ({
           // TODO: should dataset evaluators have a prompt?
           if (row.original.rowType === "evaluator") {
             return (
-              <PromptCell
-                prompt={row.original.data.prompt}
-                promptVersionTag={row.original.data.promptVersionTag?.name}
-                wrapWidth={200}
-              />
+              <>
+                <PromptCell
+                  prompt={row.original.data.prompt}
+                  promptVersionTag={row.original.data.promptVersionTag?.name}
+                  wrapWidth={200}
+                />
+                <DecisionCell
+                  decisionVersion={row.original.data.decisionVersion}
+                  wrapWidth={200}
+                />
+              </>
             );
           }
           return "--";
@@ -338,7 +397,9 @@ export const EvaluatorsTable = ({
         enableSorting: false,
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
-            const promptVersion = row.original.data.promptVersion;
+            const promptVersion =
+              row.original.data.promptVersion ??
+              row.original.data.decisionVersion;
             if (!promptVersion) {
               return "--";
             }
@@ -369,23 +430,43 @@ export const EvaluatorsTable = ({
         cell: ({ row }) => {
           if (row.original.rowType === "evaluator") {
             const datasets = row.original.data.datasets?.edges ?? [];
-            if (datasets.length === 0) {
+            const projects = row.original.data.projects?.edges ?? [];
+            if (datasets.length === 0 && projects.length === 0) {
               return "--";
             }
             return (
               <Flex direction="row" gap="size-100" wrap="wrap">
                 {datasets.map(({ node }) => (
-                  <Link key={node.id} to={`/datasets/${node.id}`}>
-                    {node.name}
+                  <UsedInLink
+                    key={node.id}
+                    to={`/datasets/${node.id}`}
+                    icon={<Icons.Database />}
+                    name={node.name}
+                  />
+                ))}
+                {projects.map(({ node }) => (
+                  <Link
+                    key={node.id}
+                    to={`/projects/${node.id}/evaluators`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <ProjectToken
+                      name={node.name}
+                      gradientStartColor={node.gradientStartColor}
+                      gradientEndColor={node.gradientEndColor}
+                      maxWidth="10rem"
+                    />
                   </Link>
                 ))}
               </Flex>
             );
           }
           return (
-            <Link to={`/datasets/${row.original.data.dataset.id}`}>
-              {row.original.data.dataset.name}
-            </Link>
+            <UsedInLink
+              to={`/datasets/${row.original.data.dataset.id}`}
+              icon={<Icons.Database />}
+              name={row.original.data.dataset.name}
+            />
           );
         },
       },
@@ -418,6 +499,43 @@ export const EvaluatorsTable = ({
         size: 160,
         cell: TimestampCell,
       },
+      {
+        // Pinned to the right edge like the prompts table's actions column.
+        id: ACTIONS_COLUMN_ID,
+        header: "",
+        size: 130,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const kind =
+            row.original.rowType === "evaluator"
+              ? row.original.data.kind
+              : row.original.data.evaluator.kind;
+
+          // TODO: support opening a decision evaluator as a playground evaluator task.
+          if (kind === "BUILTIN" || kind === "DECISION") return null;
+          const params = new URLSearchParams();
+
+          if (row.original.rowType === "datasetEvaluator") {
+            params.set("datasetId", row.original.data.dataset.id);
+            params.set("datasetEvaluator0", row.original.data.id);
+          } else params.set("evaluator0", row.original.data.id);
+
+          return (
+            <Flex direction="row" justifyContent="end" width="100%">
+              <StopPropagation>
+                <LinkButton
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                  size="S"
+                  aria-label="Open in playground"
+                  to={`/playground?${params}`}
+                >
+                  Playground
+                </LinkButton>
+              </StopPropagation>
+            </Flex>
+          );
+        },
+      },
     ];
     return cols;
   }, []);
@@ -434,6 +552,7 @@ export const EvaluatorsTable = ({
       sorting,
       expanded,
       columnSizing,
+      columnPinning: { start: [], end: [ACTIONS_COLUMN_ID] },
     },
     columnResizeMode: "onChange",
     onSortingChange: setSorting,
@@ -521,6 +640,7 @@ export const EvaluatorsTable = ({
                   colSpan={header.colSpan}
                   key={header.id}
                   style={{
+                    ...getCommonPinningStyles(header.column),
                     width: `calc(var(--header-${header.id}-size) * 1px)`,
                   }}
                 >
@@ -591,6 +711,7 @@ export const EvaluatorsTable = ({
                     <td
                       key={cell.id}
                       style={{
+                        ...getCommonPinningStyles(cell.column),
                         width: `calc(var(${colSizeVar}) * 1px)`,
                         maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                         overflow: "hidden",

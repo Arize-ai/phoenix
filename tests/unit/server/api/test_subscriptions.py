@@ -1,7 +1,10 @@
+import asyncio
 import json
 import re
+from collections import Counter
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Mapping, Optional, cast
+from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, cast
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
@@ -26,14 +29,31 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     OptimizationDirection,
 )
+from phoenix.db.types.evaluator_definition import (
+    EvaluatorSource,
+    InlineDecisionEvaluatorDefinition,
+)
 from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.prompts import PromptMessageRole, PromptTemplateFormat
+from phoenix.server.api.helpers.decision_clients import (
+    DecisionResponse,
+    PredicateAnswer,
+    RefusalAnswer,
+    TypeSafeDecisionClient,
+)
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
+from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
+    ExperimentsOverDatasetInput,
+    ExperimentTaskInput,
+    PromptTaskInput,
+)
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (
     AnthropicThinkingEnabledInput,
     PromptAnthropicInvocationParametersInput,
     PromptAnthropicThinkingConfigInput,
     PromptInvocationParametersInput,
+    PromptOpenAIInvocationParametersInput,
 )
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
@@ -42,7 +62,10 @@ from phoenix.server.api.input_types.PromptVersionInput import (
     PromptMessageInput,
     TextContentValueInput,
 )
-from phoenix.server.api.subscriptions import _stream_single_chat_completion
+from phoenix.server.api.subscriptions import (
+    _stream_experiments_over_dataset,
+    _stream_single_chat_completion,
+)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -65,10 +88,14 @@ from phoenix.server.daemons.experiment_runner import (
     WorkItem,
 )
 from phoenix.server.experiments.utils import is_experiment_project_name
+from phoenix.server.sandbox.result_protocol import PHOENIX_RESULT_BEGIN, PHOENIX_RESULT_END
+from phoenix.server.sandbox.types import BaseNoSessionBackend, ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
+from phoenix.tracers import Tracer
 from tests.unit._helpers import verify_experiment_examples_junction_table
 from tests.unit.graphql import AsyncGraphQLClient
+from tests.unit.server.evaluators.test_decision_evaluator_resume import _bind_judge
 from tests.unit.vcr import CustomVCR
 
 
@@ -187,7 +214,7 @@ class TestChatCompletionSubscription:
         db: DbSessionFactory,
     ) -> None:
         class Client:
-            async def chat_completion_create(self, **_: Any) -> Any:
+            async def chat_completion_create(self, **_: Any) -> AsyncIterator[None]:
                 raise AssertionError("validation should fail before the LLM client is called")
                 yield
 
@@ -1049,10 +1076,12 @@ class TestChatCompletionSubscription:
         assert not attributes
 
 
-class TestChatCompletionOverDatasetSubscription:
+class TestExperimentsOverDatasetPromptTaskSubscription:
+    """Prompt-task behaviours the legacy single-task dataset subscription used to carry."""
+
     QUERY = """
-      subscription ChatCompletionOverDatasetSubscription($input: ChatCompletionOverDatasetInput!) {
-        chatCompletionOverDataset(input: $input) {
+      subscription ExperimentsOverDatasetSubscription($input: ExperimentsOverDatasetInput!) {
+        experimentsOverDataset(input: $input) {
           __typename
           datasetExampleId
           ... on TextChunk {
@@ -1189,27 +1218,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
+                ],
                 "repetitions": 1,
                 "createEphemeralExperiment": True,
             }
@@ -1222,10 +1257,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1242,10 +1277,10 @@ class TestChatCompletionOverDatasetSubscription:
         subscription_runs = {}
         subscription_spans = {}
         for example_id in example_ids:
-            last_payload = payloads[example_id][-1]["chatCompletionOverDataset"]
+            last_payload = payloads[example_id][-1]["experimentsOverDataset"]
             if last_payload["__typename"] != ChatCompletionSubscriptionResult.__name__:
                 continue
-            result_payload = payloads[example_id].pop()["chatCompletionOverDataset"]
+            result_payload = payloads[example_id].pop()["experimentsOverDataset"]
             assert result_payload.pop("__typename") == ChatCompletionSubscriptionResult.__name__
             assert result_payload.pop("datasetExampleId") == example_id
             subscription_runs[example_id] = result_payload.pop("experimentRun")
@@ -1255,35 +1290,35 @@ class TestChatCompletionOverDatasetSubscription:
         # check example 1 response text
         example_id = example_ids[0]
         assert all(
-            payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+            payload["experimentsOverDataset"]["__typename"] == TextChunk.__name__
             for payload in payloads[example_id]
         )
         response_text = "".join(
-            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
+            payload["experimentsOverDataset"]["content"] for payload in payloads[example_id]
         )
         assert response_text == "France"
 
         # check example 2 response text
         example_id = example_ids[1]
         assert all(
-            payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+            payload["experimentsOverDataset"]["__typename"] == TextChunk.__name__
             for payload in payloads[example_id]
         )
         response_text = "".join(
-            payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
+            payload["experimentsOverDataset"]["content"] for payload in payloads[example_id]
         )
         assert response_text == "Japan"
 
         # check example 3 error message
         example_id = example_ids[2]
-        assert (error_payload := payloads[example_id].pop()["chatCompletionOverDataset"])[
+        assert (error_payload := payloads[example_id].pop()["experimentsOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionError.__name__
         assert error_payload["message"] == "Missing template variable(s): city"
 
         # check experiment payload
         assert len(payloads[None]) == 1
-        assert (experiment_payload := payloads[None].pop()["chatCompletionOverDataset"])[
+        assert (experiment_payload := payloads[None].pop()["experimentsOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionExperiment.__name__
         experiment = experiment_payload["experiment"]
@@ -1592,30 +1627,36 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": (
-                                                "What country is {city} in? "
-                                                "Answer with the country name only without punctuation."
-                                            )
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": (
+                                                            "What country is {city} in? "
+                                                            "Answer with the country name only without punctuation."
+                                                        )
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
+                ],
                 "repetitions": 1,
             }
         }
@@ -1627,10 +1668,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1646,11 +1687,11 @@ class TestChatCompletionOverDatasetSubscription:
 
         # check span payloads
         for example_id in example_ids:
-            assert (span_payload := payloads[example_id].pop()["chatCompletionOverDataset"])[
+            assert (span_payload := payloads[example_id].pop()["experimentsOverDataset"])[
                 "__typename"
             ] == ChatCompletionSubscriptionResult.__name__
             assert all(
-                payload["chatCompletionOverDataset"]["__typename"] == TextChunk.__name__
+                payload["experimentsOverDataset"]["__typename"] == TextChunk.__name__
                 for payload in payloads[example_id]
             )
             assert (span := span_payload["span"])
@@ -1673,13 +1714,13 @@ class TestChatCompletionOverDatasetSubscription:
             )
             assert output_message_content == cities_to_countries[city]
             response_text = "".join(
-                payload["chatCompletionOverDataset"]["content"] for payload in payloads[example_id]
+                payload["experimentsOverDataset"]["content"] for payload in payloads[example_id]
             )
             assert response_text == output_message_content
 
         # check experiment payload
         assert len(payloads[None]) == 1
-        assert (experiment := payloads[None].pop()["chatCompletionOverDataset"]["experiment"])
+        assert (experiment := payloads[None].pop()["experimentsOverDataset"]["experiment"])
         experiment_id = experiment["id"]
         assert isinstance(experiment_id, str)
 
@@ -1703,27 +1744,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
+                ],
                 "repetitions": 1,
                 "splitIds": [train_split_id],  # Only train split
             }
@@ -1737,10 +1784,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1760,7 +1807,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment payload exists
         assert len(payloads[None]) == 1
-        assert (experiment_payload := payloads[None][0]["chatCompletionOverDataset"])[
+        assert (experiment_payload := payloads[None][0]["experimentsOverDataset"])[
             "__typename"
         ] == ChatCompletionSubscriptionExperiment.__name__
         experiment_id = experiment_payload["experiment"]["id"]
@@ -1795,27 +1842,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
+                ],
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],  # Both splits
             }
@@ -1829,10 +1882,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -1845,7 +1898,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment has both split associations in DB
         assert len(payloads[None]) == 1
-        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+        experiment_id = payloads[None][0]["experimentsOverDataset"]["experiment"]["id"]
 
         async with db() as session:
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
@@ -1947,27 +2000,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
+                ],
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],
             }
@@ -1984,9 +2043,9 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                dataset_example_id = payload["chatCompletionOverDataset"]["datasetExampleId"]
+                dataset_example_id = payload["experimentsOverDataset"]["datasetExampleId"]
                 payloads.setdefault(dataset_example_id, []).append(payload)
 
         all_example_ids = [
@@ -1995,9 +2054,9 @@ class TestChatCompletionOverDatasetSubscription:
         assert set(payloads.keys()) == set(all_example_ids) | {None}
         for example_id in all_example_ids:
             result_payloads = [
-                p["chatCompletionOverDataset"]
+                p["experimentsOverDataset"]
                 for p in payloads[example_id]
-                if p["chatCompletionOverDataset"]["__typename"]
+                if p["experimentsOverDataset"]["__typename"]
                 == ChatCompletionSubscriptionResult.__name__
             ]
             assert len(result_payloads) == 1, f"expected one result for {example_id}"
@@ -2018,27 +2077,33 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                        },
                     },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
+                ],
                 "repetitions": 1,
                 # No splitIds provided
             }
@@ -2052,10 +2117,10 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
                 if (
-                    dataset_example_id := payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id := payload["experimentsOverDataset"]["datasetExampleId"]
                 ) not in payloads:
                     payloads[dataset_example_id] = []
                 payloads[dataset_example_id].append(payload)
@@ -2068,7 +2133,7 @@ class TestChatCompletionOverDatasetSubscription:
 
         # Verify experiment has NO split associations in DB
         assert len(payloads[None]) == 1
-        experiment_id = payloads[None][0]["chatCompletionOverDataset"]["experiment"]["id"]
+        experiment_id = payloads[None][0]["experimentsOverDataset"]["experiment"]["id"]
 
         async with db() as session:
             _, exp_id = from_global_id(GlobalID.from_id(experiment_id))
@@ -2119,41 +2184,46 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
+                "tasks": [
+                    {
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
                                         }
-                                    }
-                                ],
-                            }
-                        ]
-                    },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "repetitions": 1,
-                "tracingEnabled": True,
-                "evaluators": [
-                    {
-                        "id": llm_evaluator_gid,
-                        "name": "correctness",
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                    },
-                    {
-                        "id": builtin_evaluator_gid,
-                        "name": "exact-match",
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                            "evaluators": [
+                                {
+                                    "id": llm_evaluator_gid,
+                                    "name": "correctness",
+                                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                },
+                                {
+                                    "id": builtin_evaluator_gid,
+                                    "name": "exact-match",
+                                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                },
+                            ],
+                        },
                     },
                 ],
+                "repetitions": 1,
             }
         }
 
@@ -2164,13 +2234,13 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                typename = payload["chatCompletionOverDataset"]["__typename"]
+                typename = payload["experimentsOverDataset"]["__typename"]
                 if typename == EvaluationChunk.__name__:
-                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
+                    evaluation_chunks.append(payload["experimentsOverDataset"])
                 else:
-                    dataset_example_id = payload["chatCompletionOverDataset"]["datasetExampleId"]
+                    dataset_example_id = payload["experimentsOverDataset"]["datasetExampleId"]
                     if dataset_example_id not in payloads:
                         payloads[dataset_example_id] = []
                     payloads[dataset_example_id].append(payload)
@@ -2329,8 +2399,8 @@ class TestChatCompletionOverDatasetSubscription:
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
             assert output_value == {
-                "input": "{'city': 'Paris'}",
-                "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
+                "input": '{"city": "Paris"}',
+                "output": '{"messages": [{"role": "assistant", "content": "France"}], "available_tools": []}',
             }
             assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
             assert not attributes
@@ -2345,8 +2415,8 @@ class TestChatCompletionOverDatasetSubscription:
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "PROMPT"
             input_value = json.loads(attributes.pop(INPUT_VALUE))
             assert input_value == {
-                "input": "{'city': 'Paris'}",
-                "output": "{'messages': [{'role': 'assistant', 'content': 'France'}], 'available_tools': []}",
+                "input": '{"city": "Paris"}',
+                "output": '{"messages": [{"role": "assistant", "content": "France"}], "available_tools": []}',
             }
             assert attributes.pop(INPUT_MIME_TYPE) == JSON
             output_value = json.loads(attributes.pop(OUTPUT_VALUE))
@@ -2359,9 +2429,9 @@ class TestChatCompletionOverDatasetSubscription:
                     {
                         "role": "user",
                         "content": (
-                            "Input: {'city': 'Paris'}\n\n"
-                            "Output: {'messages': [{'role': 'assistant', 'content': 'France'}], "
-                            "'available_tools': []}\n\n"
+                            'Input: {"city": "Paris"}\n\n'
+                            'Output: {"messages": [{"role": "assistant", "content": "France"}], '
+                            '"available_tools": []}\n\n'
                             "Is this output correct?"
                         ),
                     },
@@ -2707,41 +2777,47 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
-                                        }
-                                    }
-                                ],
-                            }
-                        ]
-                    },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-nonexistent-model",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "repetitions": 1,
-                "evaluators": [
+                "tasks": [
                     {
-                        "id": evaluator_gid,
-                        "name": "correctness",
-                        "inputMapping": {
-                            "literalMapping": {},
-                            "pathMapping": {
-                                "input": "$.input",
-                                "output": "$.output",
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
+                                        }
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-nonexistent-model",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
                             },
+                            "evaluators": [
+                                {
+                                    "id": evaluator_gid,
+                                    "name": "correctness",
+                                    "inputMapping": {
+                                        "literalMapping": {},
+                                        "pathMapping": {
+                                            "input": "$.input",
+                                            "output": "$.output",
+                                        },
+                                    },
+                                }
+                            ],
                         },
-                    }
+                    },
                 ],
+                "repetitions": 1,
             }
         }
 
@@ -2752,13 +2828,13 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                typename = payload["chatCompletionOverDataset"]["__typename"]
+                typename = payload["experimentsOverDataset"]["__typename"]
                 if typename == ChatCompletionSubscriptionError.__name__:
-                    error_chunks.append(payload["chatCompletionOverDataset"])
+                    error_chunks.append(payload["experimentsOverDataset"])
                 elif typename == EvaluationChunk.__name__:
-                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
+                    evaluation_chunks.append(payload["experimentsOverDataset"])
 
         # Verify we got an error chunk (message may mention model or be a connection/API error)
         assert len(error_chunks) == 1
@@ -2818,35 +2894,41 @@ class TestChatCompletionOverDatasetSubscription:
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
-                "promptVersion": {
-                    "templateFormat": "F_STRING",
-                    "template": {
-                        "messages": [
-                            {
-                                "role": "USER",
-                                "content": [
-                                    {
-                                        "text": {
-                                            "text": "What country is {city} in? Answer in one word, no punctuation."
-                                        }
-                                    }
-                                ],
-                            }
-                        ]
-                    },
-                    "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
-                    "invocationParameters": {"openai": {}},
-                    "tools": None,
-                },
-                "repetitions": 1,
-                "evaluators": [
+                "tasks": [
                     {
-                        "id": evaluator_gid,
-                        "name": custom_name,
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                    }
+                        "prompt": {
+                            "promptVersion": {
+                                "templateFormat": "F_STRING",
+                                "template": {
+                                    "messages": [
+                                        {
+                                            "role": "USER",
+                                            "content": [
+                                                {
+                                                    "text": {
+                                                        "text": "What country is {city} in? Answer in one word, no punctuation."
+                                                    }
+                                                }
+                                            ],
+                                        }
+                                    ]
+                                },
+                                "modelProvider": "OPENAI",
+                                "modelName": "gpt-4",
+                                "invocationParameters": {"openai": {}},
+                                "tools": None,
+                            },
+                            "evaluators": [
+                                {
+                                    "id": evaluator_gid,
+                                    "name": custom_name,
+                                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                                }
+                            ],
+                        },
+                    },
                 ],
+                "repetitions": 1,
             }
         }
 
@@ -2859,11 +2941,11 @@ class TestChatCompletionOverDatasetSubscription:
             async for payload in gql_client.subscription(
                 query=self.QUERY,
                 variables=variables,
-                operation_name="ChatCompletionOverDatasetSubscription",
+                operation_name="ExperimentsOverDatasetSubscription",
             ):
-                typename = payload["chatCompletionOverDataset"]["__typename"]
+                typename = payload["experimentsOverDataset"]["__typename"]
                 if typename == EvaluationChunk.__name__:
-                    evaluation_chunks.append(payload["chatCompletionOverDataset"])
+                    evaluation_chunks.append(payload["experimentsOverDataset"])
 
         # Verify we got exactly 1 evaluation chunk with custom display name
         assert len(evaluation_chunks) == 1
@@ -2881,6 +2963,613 @@ class TestChatCompletionOverDatasetSubscription:
             annotation = annotations[0]
             assert annotation.name == custom_name
             assert annotation.annotator_kind == "CODE"
+
+
+class TestExperimentsOverDatasetSubscription:
+    QUERY = """
+      subscription ExperimentsOverDatasetSubscription($input: ExperimentsOverDatasetInput!) {
+        experimentsOverDataset(input: $input) {
+          __typename
+          experimentId
+          datasetExampleId
+          ... on ChatCompletionSubscriptionExperiment {
+            experiment {
+              id
+              name
+            }
+          }
+          ... on ChatCompletionSubscriptionResult {
+            experimentRun {
+              id
+              output
+              error
+            }
+          }
+          ... on ChatCompletionSubscriptionError {
+            message
+          }
+          ... on EvaluationChunk {
+            evaluatorName
+            error
+            experimentRunEvaluation {
+              id
+              name
+              label
+              score
+              annotatorKind
+            }
+          }
+        }
+      }
+    """
+
+    @staticmethod
+    def _prompt_task(template_text: str, *, prompt_name: Optional[str] = None) -> dict[str, Any]:
+        return {
+            "prompt": {
+                "promptName": prompt_name,
+                "promptVersion": {
+                    "templateFormat": "F_STRING",
+                    "template": {
+                        "messages": [
+                            {"role": "USER", "content": [{"text": {"text": template_text}}]}
+                        ]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {"openai": {}},
+                    "tools": None,
+                },
+            }
+        }
+
+    @staticmethod
+    def _evaluator_task(sandbox_config_id: str, **evaluator_fields: Any) -> dict[str, Any]:
+        return {
+            "evaluator": {
+                "evaluator": {
+                    "inlineCodeEvaluator": {
+                        "name": "answer-length",
+                        "language": "PYTHON",
+                        "sourceCode": "def evaluate(output):\n    return len(output)",
+                        "sandboxConfigId": sandbox_config_id,
+                        "outputConfigs": [
+                            {
+                                "continuous": {
+                                    "name": "length",
+                                    "optimizationDirection": "MAXIMIZE",
+                                    "lowerBound": 0,
+                                }
+                            }
+                        ],
+                    }
+                },
+                "inputMapping": {"literalMapping": {}, "pathMapping": {"output": "$.input"}},
+                **evaluator_fields,
+            }
+        }
+
+    @staticmethod
+    def _decision_evaluator_task(evaluator_id: GlobalID, source: dict[str, str]) -> dict[str, Any]:
+        return {
+            "evaluator": {
+                "evaluator": {"decisionEvaluatorId": str(evaluator_id)},
+                "inputMapping": {"literalMapping": {"ticket": "hi"}, "pathMapping": {}},
+                "source": source,
+            }
+        }
+
+    @staticmethod
+    async def _saved_decision_evaluators(
+        gql_client: AsyncGraphQLClient, db: DbSessionFactory
+    ) -> dict[str, GlobalID]:
+        binding_ids = [await _bind_judge(gql_client, name=name) for name in ("triage", "other")]
+        async with db() as session:
+            evaluators = []
+            for binding_id in binding_ids:
+                binding = await session.get(models.DatasetEvaluators, binding_id)
+                assert binding is not None
+                evaluator = await session.get(models.DecisionEvaluator, binding.evaluator_id)
+                assert evaluator is not None
+                evaluators.append(evaluator)
+        return {
+            "evaluator": GlobalID("DecisionEvaluator", str(evaluators[0].id)),
+            "version": GlobalID("DecisionVersion", str(evaluators[0].selected_version.id)),
+            "binding": GlobalID("DatasetEvaluator", str(binding_ids[0])),
+            "deleted_binding": GlobalID("DatasetEvaluator", "999"),
+            "other_evaluator": GlobalID("DecisionEvaluator", str(evaluators[1].id)),
+            "other_version": GlobalID("DecisionVersion", str(evaluators[1].selected_version.id)),
+            "other_binding": GlobalID("DatasetEvaluator", str(binding_ids[1])),
+            "code_evaluator": GlobalID("CodeEvaluator", "1"),
+            "prompt_version": GlobalID("PromptVersion", "1"),
+            "project_binding": GlobalID("ProjectEvaluator", "1"),
+        }
+
+    @staticmethod
+    def _input(tasks: list[dict[str, Any]], **fields: Any) -> dict[str, Any]:
+        return {
+            "input": {
+                "datasetId": str(GlobalID(type_name=Dataset.__name__, node_id="1")),
+                "datasetVersionId": str(GlobalID(type_name=DatasetVersion.__name__, node_id="1")),
+                "repetitions": 1,
+                "tasks": tasks,
+                **fields,
+            }
+        }
+
+    async def _collect(
+        self, gql_client: AsyncGraphQLClient, variables: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        return [
+            payload["experimentsOverDataset"]
+            async for payload in gql_client.subscription(
+                query=self.QUERY,
+                variables=variables,
+                operation_name="ExperimentsOverDatasetSubscription",
+            )
+        ]
+
+    async def test_two_prompt_tasks_become_two_experiments_emitted_in_task_order(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+    ) -> None:
+        # A template variable no example has: every run fails while formatting, so the
+        # experiments complete without a model call.
+        variables = self._input(
+            [
+                self._prompt_task("Where is {country}?", prompt_name="first"),
+                self._prompt_task("Where is {country}?", prompt_name="second"),
+            ]
+        )
+
+        payloads = await self._collect(gql_client, variables)
+
+        experiment_payloads, run_payloads = payloads[:2], payloads[2:]
+        assert [p["__typename"] for p in experiment_payloads] == [
+            ChatCompletionSubscriptionExperiment.__name__
+        ] * 2
+        assert [p["experiment"]["name"] for p in experiment_payloads] == [
+            "playground-experiment prompt:first",
+            "playground-experiment prompt:second",
+        ]
+        experiment_ids = [p["experimentId"] for p in experiment_payloads]
+        assert len(set(experiment_ids)) == 2
+        assert [p["experiment"]["id"] for p in experiment_payloads] == experiment_ids
+        assert run_payloads
+        assert all(
+            p["__typename"] == ChatCompletionSubscriptionError.__name__ for p in run_payloads
+        )
+        assert all("country" in p["message"] for p in run_payloads)
+        # every payload names its experiment, and each experiment covers the three examples
+        assert Counter(p["experimentId"] for p in run_payloads) == {
+            experiment_ids[0]: 3,
+            experiment_ids[1]: 3,
+        }
+
+        db_experiment_ids = [int(GlobalID.from_id(gid).node_id) for gid in experiment_ids]
+        async with db() as session:
+            prompt_tasks = (
+                await session.scalars(
+                    select(models.ExperimentPromptTask).where(
+                        models.ExperimentPromptTask.id.in_(db_experiment_ids)
+                    )
+                )
+            ).all()
+            assert len(prompt_tasks) == 2
+            runs = (
+                await session.scalars(
+                    select(models.ExperimentRun).where(
+                        models.ExperimentRun.experiment_id.in_(db_experiment_ids)
+                    )
+                )
+            ).all()
+            assert len(runs) == 6
+            assert all(run.error for run in runs)
+
+    async def test_example_ids_scope_each_experiment_to_those_examples(
+        self,
+        gql_client: AsyncGraphQLClient,
+        openai_api_key: str,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+    ) -> None:
+        # A row's play button: the tasks run on one example, as experiments whose
+        # snapshot holds only that example. The missing template variable fails the
+        # run while formatting, so no model is called.
+        example_id = str(GlobalID(type_name=DatasetExample.__name__, node_id="2"))
+        variables = self._input(
+            [self._prompt_task("Where is {country}?")],
+            exampleIds=[example_id],
+        )
+
+        payloads = await self._collect(gql_client, variables)
+
+        experiment_payload, *run_payloads = payloads
+        assert experiment_payload["__typename"] == ChatCompletionSubscriptionExperiment.__name__
+        assert [p["datasetExampleId"] for p in run_payloads] == [example_id]
+
+        db_experiment_id = int(GlobalID.from_id(experiment_payload["experimentId"]).node_id)
+        async with db() as session:
+            snapshot = (
+                await session.scalars(
+                    select(models.ExperimentDatasetExample.dataset_example_id).where(
+                        models.ExperimentDatasetExample.experiment_id == db_experiment_id
+                    )
+                )
+            ).all()
+            assert list(snapshot) == [2]
+            runs = (
+                await session.scalars(
+                    select(models.ExperimentRun).where(
+                        models.ExperimentRun.experiment_id == db_experiment_id
+                    )
+                )
+            ).all()
+            assert len(runs) == 1
+
+    async def test_code_evaluator_task_persists_runs_and_annotations_and_emits_chunks(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        sandbox_config: models.SandboxConfig,
+        db: DbSessionFactory,
+    ) -> None:
+        # A stateless backend takes the ephemeral execution path in the daemon too
+        backend = AsyncMock(spec=BaseNoSessionBackend)
+        backend.execute_with_inputs = AsyncMock(
+            return_value=ExecutionResult(
+                stdout=f"{PHOENIX_RESULT_BEGIN}\n0.75\n{PHOENIX_RESULT_END}\n",
+                stderr="",
+                error=None,
+            )
+        )
+        sandbox_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
+        # A draft that was never saved: the client sends a source with every id null
+        source = {
+            "evaluatorId": None,
+            "promptVersionId": None,
+            "datasetEvaluatorId": None,
+            "projectEvaluatorId": None,
+        }
+        variables = self._input([self._evaluator_task(sandbox_config_id, source=source)])
+
+        with patch(
+            "phoenix.server.evaluators.resolution.build_sandbox_backend", return_value=backend
+        ):
+            payloads = await self._collect(gql_client, variables)
+
+        experiment_payload = payloads[0]
+        assert experiment_payload["__typename"] == ChatCompletionSubscriptionExperiment.__name__
+        assert experiment_payload["experiment"]["name"] == (
+            "playground-experiment evaluator:answer-length"
+        )
+        experiment_id = experiment_payload["experimentId"]
+        assert all(p["experimentId"] == experiment_id for p in payloads)
+        results = [
+            p for p in payloads if p["__typename"] == ChatCompletionSubscriptionResult.__name__
+        ]
+        chunks = [p for p in payloads if p["__typename"] == EvaluationChunk.__name__]
+        assert len(payloads) == 1 + len(results) + len(chunks)
+        assert len(results) == 3
+        assert len(chunks) == 3
+        for result in results:
+            assert result["experimentRun"]["error"] is None
+            # ExperimentRun.output resolves to the stored task_output
+            verdict = result["experimentRun"]["output"]
+            assert (verdict["name"], verdict["score"]) == ("answer-length", 0.75)
+        for chunk in chunks:
+            assert chunk["evaluatorName"] == "answer-length"
+            assert chunk["error"] is None
+            evaluation = chunk["experimentRunEvaluation"]
+            assert (evaluation["name"], evaluation["score"], evaluation["annotatorKind"]) == (
+                "answer-length",
+                0.75,
+                "CODE",
+            )
+        # each example's run arrives before its evaluation
+        for example_id in {p["datasetExampleId"] for p in results}:
+            assert [p["__typename"] for p in payloads if p["datasetExampleId"] == example_id] == [
+                ChatCompletionSubscriptionResult.__name__,
+                EvaluationChunk.__name__,
+            ]
+
+        db_experiment_id = int(GlobalID.from_id(experiment_id).node_id)
+        async with db() as session:
+            evaluator_task = await session.get(models.ExperimentEvaluatorTask, db_experiment_id)
+            assert evaluator_task is not None
+            assert evaluator_task.name == Identifier("answer-length")
+            assert evaluator_task.evaluator_kind == "CODE"
+            assert evaluator_task.definition.type == "inline_code_evaluator"
+            assert evaluator_task.definition.source is None
+            assert evaluator_task.input_mapping.path_mapping == {"output": "$.input"}
+            assert [config.name for config in evaluator_task.output_configs] == ["length"]
+            runs = (
+                await session.scalars(
+                    select(models.ExperimentRun).where(
+                        models.ExperimentRun.experiment_id == db_experiment_id
+                    )
+                )
+            ).all()
+            assert len(runs) == 3
+            annotations = (
+                await session.scalars(
+                    select(models.ExperimentRunAnnotation).where(
+                        models.ExperimentRunAnnotation.experiment_run_id.in_(
+                            [run.id for run in runs]
+                        )
+                    )
+                )
+            ).all()
+            assert [(a.name, a.annotator_kind, a.score) for a in annotations] == [
+                ("answer-length", "CODE", 0.75)
+            ] * 3
+
+    async def test_mixed_task_kinds_are_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        sandbox_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
+        variables = self._input(
+            [self._prompt_task("Where is {city}?"), self._evaluator_task(sandbox_config_id)]
+        )
+
+        with pytest.raises(
+            RuntimeError, match="Tasks must all be prompt or decision tasks or all evaluators"
+        ):
+            await self._collect(gql_client, variables)
+
+    async def test_dataset_evaluators_cannot_be_attached_to_an_evaluator_task(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        sandbox_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
+        variables = self._input([self._evaluator_task(sandbox_config_id, evaluators=[])])
+
+        with pytest.raises(RuntimeError, match="evaluators"):
+            await self._collect(gql_client, variables)
+
+    async def test_a_built_in_evaluator_task_rejects_a_source(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+    ) -> None:
+        task = {
+            "evaluator": {
+                "evaluator": {"builtInEvaluatorId": str(GlobalID("BuiltInEvaluator", "1"))},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "source": {"datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "1"))},
+            }
+        }
+
+        with pytest.raises(RuntimeError, match="built-in evaluator task does not take a source"):
+            await self._collect(gql_client, self._input([task]))
+
+    @pytest.mark.parametrize(
+        "source, binding",
+        [
+            pytest.param({}, None, id="empty"),
+            pytest.param({"decisionVersionId": "version"}, None, id="version-only"),
+            pytest.param({"datasetEvaluatorId": "binding"}, "binding", id="binding-only"),
+            pytest.param(
+                {
+                    "evaluatorId": "evaluator",
+                    "decisionVersionId": "version",
+                    "datasetEvaluatorId": "binding",
+                },
+                "binding",
+                id="matching-ids",
+            ),
+            pytest.param(
+                {"datasetEvaluatorId": "deleted_binding"}, "deleted_binding", id="deleted-binding"
+            ),
+        ],
+    )
+    async def test_a_decision_evaluator_task_keeps_its_evaluator_and_version_as_its_source(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        source: dict[str, str],
+        binding: Optional[str],
+    ) -> None:
+        ids = await self._saved_decision_evaluators(gql_client, db)
+        answers = DecisionResponse(
+            model="tev1",
+            answers={"urgent": PredicateAnswer(probability=0.7), "team": RefusalAnswer()},
+            input_tokens=1,
+            output_tokens=1,
+        )
+        monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(return_value=answers))
+        task = self._decision_evaluator_task(
+            ids["evaluator"], {field: str(ids[name]) for field, name in source.items()}
+        )
+        variables = self._input(
+            [task], credentials=[{"envVarName": "TYPESAFE_API_KEY", "value": "test"}]
+        )
+
+        payloads = await self._collect(gql_client, variables)
+
+        db_experiment_id = int(GlobalID.from_id(payloads[0]["experimentId"]).node_id)
+        async with db() as session:
+            evaluator_task = await session.get(models.ExperimentEvaluatorTask, db_experiment_id)
+        assert evaluator_task is not None
+        assert isinstance(evaluator_task.definition, InlineDecisionEvaluatorDefinition)
+        assert evaluator_task.definition.source == EvaluatorSource(
+            evaluator_id=int(ids["evaluator"].node_id),
+            decision_version_id=int(ids["version"].node_id),
+            dataset_evaluator_id=int(ids[binding].node_id) if binding else None,
+        )
+
+    @pytest.mark.parametrize(
+        "source, message",
+        [
+            pytest.param(
+                {"evaluatorId": "other_evaluator"},
+                "source evaluator is not the evaluator this task runs",
+                id="conflicting-evaluator",
+            ),
+            pytest.param(
+                {"decisionVersionId": "other_version"},
+                "source decision version is not the version this task runs",
+                id="conflicting-version",
+            ),
+            pytest.param(
+                {"datasetEvaluatorId": "other_binding"},
+                "source binding is for a different evaluator",
+                id="mismatched-binding",
+            ),
+            pytest.param(
+                {"evaluatorId": "code_evaluator"},
+                "Expected a DecisionEvaluator id for the source evaluator",
+                id="evaluator-of-another-kind",
+            ),
+            pytest.param(
+                {"promptVersionId": "prompt_version"},
+                "Only an LLM evaluator task's source takes a prompt version",
+                id="prompt-version",
+            ),
+            pytest.param(
+                {"datasetEvaluatorId": "binding", "projectEvaluatorId": "project_binding"},
+                "dataset evaluator or a project evaluator, not both",
+                id="both-bindings",
+            ),
+        ],
+    )
+    async def test_a_decision_evaluator_task_rejects_a_source_that_disagrees_with_it(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        db: DbSessionFactory,
+        source: dict[str, str],
+        message: str,
+    ) -> None:
+        ids = await self._saved_decision_evaluators(gql_client, db)
+        task = self._decision_evaluator_task(
+            ids["evaluator"], {field: str(ids[name]) for field, name in source.items()}
+        )
+
+        with pytest.raises(RuntimeError, match=message):
+            await self._collect(gql_client, self._input([task]))
+
+    async def test_a_code_evaluator_task_source_rejects_a_decision_version(
+        self,
+        gql_client: AsyncGraphQLClient,
+        playground_dataset_with_patch_revision: None,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        sandbox_config_id = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
+        source = {"decisionVersionId": str(GlobalID("DecisionVersion", "1"))}
+
+        with pytest.raises(
+            RuntimeError, match="Only a decision evaluator task's source takes a decision version"
+        ):
+            await self._collect(
+                gql_client, self._input([self._evaluator_task(sandbox_config_id, source=source)])
+            )
+
+    async def test_ephemeral_experiments_are_stopped_when_the_stream_closes(
+        self,
+        db: DbSessionFactory,
+        openai_api_key: str,
+        playground_dataset_with_patch_revision: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Closing the stream stops every ephemeral experiment the run created.
+
+        The HTTP test client cannot leave a multipart stream early, so this drives the
+        subscription's generator directly against a real runner.
+        """
+        stopped: list[int] = []
+        original_stop = ExperimentRunner.stop_experiment
+
+        async def stop_and_record(runner: ExperimentRunner, experiment_id: int) -> bool:
+            stopped.append(experiment_id)
+            return await original_stop(runner, experiment_id)
+
+        monkeypatch.setattr(ExperimentRunner, "stop_experiment", stop_and_record)
+
+        # Hold every task, so both experiments are still running when the client leaves
+        task_started = anyio.Event()
+
+        async def hold(work_item: TaskWorkItem) -> None:
+            task_started.set()
+            await anyio.sleep_forever()
+
+        monkeypatch.setattr(TaskWorkItem, "execute", hold)
+
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda b: b,
+            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+            sandbox_runtime=cast(Any, None),
+        )
+        info = MagicMock()
+        info.context.db = db
+        info.context.decrypt = lambda b: b
+        info.context.sandbox_runtime = None
+        info.context.experiment_runner = runner
+        info.context.user_id = None
+        prompt_task = ExperimentTaskInput(
+            prompt=PromptTaskInput(
+                prompt_version=ChatPromptVersionInput(
+                    template_format=PromptTemplateFormat.F_STRING,
+                    template=PromptChatTemplateInput(
+                        messages=[
+                            PromptMessageInput(
+                                role=PromptMessageRole.USER,
+                                content=[
+                                    ContentPartInput(
+                                        text=TextContentValueInput(text="Where is {city}?")
+                                    )
+                                ],
+                            )
+                        ],
+                    ),
+                    invocation_parameters=PromptInvocationParametersInput(
+                        openai=PromptOpenAIInvocationParametersInput()
+                    ),
+                    model_provider=GenerativeProviderKey.OPENAI,
+                    model_name="gpt-4",
+                    tools=None,
+                ),
+            )
+        )
+        input = ExperimentsOverDatasetInput(
+            dataset_id=GlobalID(Dataset.__name__, "1"),
+            dataset_version_id=GlobalID(DatasetVersion.__name__, "1"),
+            repetitions=1,
+            create_ephemeral_experiment=True,
+            tasks=[prompt_task, prompt_task],
+        )
+
+        async with runner:
+            stream = _stream_experiments_over_dataset(cast(Any, info), input)
+            experiment_ids: list[int] = []
+            for _ in range(2):
+                payload = await stream.__anext__()
+                assert isinstance(payload, ChatCompletionSubscriptionExperiment)
+                assert payload.experiment_id is not None
+                experiment_ids.append(int(payload.experiment_id.node_id))
+            # The next payload starts both experiments and then waits on their streams
+            next_payload = asyncio.ensure_future(stream.__anext__())
+            with anyio.fail_after(30):
+                await task_started.wait()
+            assert set(runner._experiments) == set(experiment_ids)
+
+            next_payload.cancel()  # the client leaves
+            await asyncio.gather(next_payload, return_exceptions=True)
+
+            assert sorted(stopped) == sorted(experiment_ids)
+            assert runner._experiments == {}
 
 
 def _request_bodies_contain_same_city(request1: VCRRequest, request2: VCRRequest) -> None:

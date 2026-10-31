@@ -45,6 +45,7 @@ async function renderOutput(
           onOpenTraceDetails={() => {}}
           annotationSummaries={[]}
           annotationConfigs={[]}
+          decisionQuestions={null}
           height={300}
         />
       </ThemeProvider>

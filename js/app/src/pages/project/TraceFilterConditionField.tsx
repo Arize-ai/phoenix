@@ -290,6 +290,39 @@ export function getTraceFilterContextualCompletions({
   return null;
 }
 
+export const EMPTY_TRACE_FILTER_VOCABULARY: readonly TraceFilterVocabularyTerm[] =
+  [];
+
+/** Suspends until the vocabulary loads; render with {@link EMPTY_TRACE_FILTER_VOCABULARY} until then. */
+export function useTraceFilterVocabulary(
+  projectId: string,
+  timeRange?: { start?: string; end?: string }
+): readonly TraceFilterVocabularyTerm[] {
+  const data = useLazyLoadQuery<TraceFilterConditionFieldVocabularyQuery>(
+    graphql`
+      query TraceFilterConditionFieldVocabularyQuery(
+        $id: ID!
+        $timeRange: TimeRange
+      ) {
+        project: node(id: $id) {
+          ... on Project {
+            traceFilterVocabulary(timeRange: $timeRange) {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId, timeRange: timeRange ?? null }
+  );
+  return data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY;
+}
+
+/** Requires `TraceFiltersProvider`/`TracingProvider`; use {@link TraceFilterConditionFieldCore} outside them. */
 export function TraceFilterConditionField(
   props: TraceFilterConditionFieldProps
 ) {
@@ -302,6 +335,47 @@ export function TraceFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useTraceFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  return (
+    <TraceFilterConditionFieldCore
+      projectId={projectId}
+      vocabulary={vocabulary}
+      filterCondition={filterCondition}
+      onFilterConditionChange={setFilterCondition}
+      onValidCondition={onValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
+      placeholder={placeholder}
+    />
+  );
+}
+
+export type TraceFilterConditionFieldCoreProps = {
+  projectId: string;
+  vocabulary: readonly TraceFilterVocabularyTerm[];
+  filterCondition: string;
+  onFilterConditionChange: (condition: string) => void;
+  onValidCondition: (args: TraceFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
+  /** An empty condition reports as valid (unfiltered). */
+  onValidityChange?: (isValid: boolean) => void;
+  placeholder?: string;
+};
+
+export function TraceFilterConditionFieldCore(
+  props: TraceFilterConditionFieldCoreProps
+) {
+  const {
+    projectId,
+    vocabulary,
+    filterCondition,
+    onFilterConditionChange,
+    onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
+    onValidityChange,
+    placeholder = "filter condition (e.g. num_spans >= 5)",
+  } = props;
   // An empty vocabulary means the project's terms haven't arrived (the field
   // renders ahead of them, see the Suspense fallback in TracesTable), so AI
   // query waits rather than prompting the model with no field names.
@@ -375,7 +449,7 @@ export function TraceFilterConditionField(
       aria-label="Filter traces"
       className="trace-filter-condition-field"
       value={filterCondition}
-      onChange={setFilterCondition}
+      onChange={onFilterConditionChange}
       placeholder={placeholder}
       completions={completions}
       snippets={traceFilterSnippets}
@@ -386,12 +460,11 @@ export function TraceFilterConditionField(
       onValidCondition={handleValidCondition}
       onValidationFailed={onValidationFailed}
       validationRetryKey={validationRetryKey}
+      onValidationStateChange={onValidityChange}
       aiQuery={traceFilterAIQuery}
     />
   );
 }
-
-const EMPTY_TRACE_FILTER_VOCABULARY = [] as const;
 
 type TraceFilterConditionFieldWithVocabularyProps = Omit<
   TraceFilterConditionFieldProps,
@@ -424,33 +497,6 @@ function LoadedTraceFilterConditionField(
 ) {
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
-  const data = useLazyLoadQuery<TraceFilterConditionFieldVocabularyQuery>(
-    graphql`
-      query TraceFilterConditionFieldVocabularyQuery(
-        $id: ID!
-        $timeRange: TimeRange!
-      ) {
-        project: node(id: $id) {
-          ... on Project {
-            traceFilterVocabulary(timeRange: $timeRange) {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId, timeRange: timeRangeISOStrings }
-  );
-  return (
-    <TraceFilterConditionField
-      vocabulary={
-        data.project?.traceFilterVocabulary ?? EMPTY_TRACE_FILTER_VOCABULARY
-      }
-      {...props}
-    />
-  );
+  const vocabulary = useTraceFilterVocabulary(projectId, timeRangeISOStrings);
+  return <TraceFilterConditionField vocabulary={vocabulary} {...props} />;
 }

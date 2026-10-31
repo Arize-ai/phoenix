@@ -56,7 +56,10 @@ vi.mock("@phoenix/components/generative/useModelMenuData", async () => ({
   ...(await vi.importActual<object>(
     "@phoenix/components/generative/useModelMenuData"
   )),
-  useModelMenuData: () => MODEL_MENU_DATA,
+  useModelMenuData: () => ({
+    ...MODEL_MENU_DATA,
+    chatModelProviders: MODEL_MENU_DATA.data.modelProviders,
+  }),
 }));
 
 vi.mock("@phoenix/contexts/ViewerContext", async () => ({
