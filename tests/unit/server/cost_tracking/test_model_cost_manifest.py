@@ -307,6 +307,31 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     assert model.name == expected_entry
 
 
+@pytest.mark.parametrize(
+    "entry",
+    json.loads(MANIFEST_PATH.read_text())["models"],
+    ids=lambda entry: entry["name"],
+)
+def test_every_manifest_entry_resolves_to_its_own_entry(
+    built_in_lookup: CostModelLookup,
+    entry: dict[str, Any],
+) -> None:
+    # The hand-picked lineup above only guards the models someone thought to list. A model
+    # ID that extends an older one (claude-opus-5-5 of claude-opus-5) also matches the older
+    # entry's unanchored pattern, so check every entry and let each sync verify itself.
+    # The provider is passed because some hosts list the same ID: groq/ and together_ai/
+    # both carry openai/gpt-oss-120b.
+    llm: dict[str, Any] = {"model_name": entry["name"]}
+    if entry.get("provider"):
+        llm["provider"] = entry["provider"]
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes={"llm": llm},
+    )
+    assert model is not None, f"no built-in model priced {entry['name']}"
+    assert model.name == entry["name"], f"a span for {entry['name']} bills as {model.name}"
+
+
 def test_checked_in_manifest_parses_without_skipping_entries(
     manifest: dict[str, Any],
 ) -> None:
