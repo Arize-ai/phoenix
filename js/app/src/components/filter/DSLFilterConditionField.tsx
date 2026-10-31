@@ -57,6 +57,7 @@ import { classNames } from "@phoenix/utils/classNames";
 
 import {
   createDSLFilterCompletionSource,
+  canInsertDSLFilterConditionAtToken,
   type DSLFilterCompletionRequest,
 } from "./dslFilterConditionFieldUtils";
 import {
@@ -632,10 +633,13 @@ export function DSLFilterConditionField<
           ? contextualOptions.slice(0, MAX_BROWSE_FIELDS)
           : contextualOptions;
       }
+      const suggestionOptions = canInsertDSLFilterConditionAtToken(request)
+        ? snippetOptions
+        : [];
       return [
         ...(request.isBrowsing
-          ? snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
-          : snippetOptions),
+          ? suggestionOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
+          : suggestionOptions),
         ...(request.isBrowsing
           ? fieldOptions.slice(0, MAX_BROWSE_FIELDS)
           : fieldOptions),
