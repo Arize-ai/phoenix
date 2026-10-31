@@ -61,13 +61,16 @@ describe("CustomProviderForm decision models", () => {
     });
   }
 
-  function render(initialValues?: ProviderFormData) {
+  function render(
+    initialValues?: ProviderFormData,
+    onSubmit: (data: ProviderFormData) => void = vi.fn()
+  ) {
     act(() => {
       root.render(
         <RelayEnvironmentProvider environment={environment()}>
           <ThemeProvider themeMode="light" disableBodyTheme>
             <ProviderForm
-              onSubmit={vi.fn()}
+              onSubmit={onSubmit}
               onCancel={vi.fn()}
               initialValues={initialValues}
             />
@@ -252,6 +255,26 @@ describe("CustomProviderForm decision models", () => {
     expect(headings.filter((text) => text === "Decision models")).toHaveLength(
       1
     );
+  });
+
+  it("saves an edit without retyping the stored API key", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    // A stored key comes back as a server-issued redaction token.
+    render(
+      {
+        ...(createDefaultFormData("OPENAI") as ProviderFormData),
+        name: "proxy",
+        openai_api_key: "\ue000REDACTED\ue000d6b6\ue000token",
+      } as ProviderFormData,
+      onSubmit
+    );
+    const submit = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Update Provider"
+    );
+    if (!submit) throw new Error("no submit button");
+    await act(() => user.click(submit));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it("offers no LLM model names on TypeSafe, which serves decisions only", () => {
