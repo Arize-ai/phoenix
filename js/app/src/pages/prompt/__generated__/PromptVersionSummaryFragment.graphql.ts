@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d8b4276755e9e6fa1fdea27897b4af7d>>
+ * @generated SignedSource<<61a26545659c855ec4f0097584762602>>
  * @lightSyntaxTransform
  */
 
@@ -14,12 +14,15 @@ export type PromptVersionSummaryFragment$data = {
   readonly description: string | null;
   readonly id: string;
   readonly sequenceNumber: number;
+  readonly tags: ReadonlyArray<{
+    readonly id: string;
+    readonly name: string;
+  }>;
   readonly user: {
     readonly id: string;
     readonly profilePictureUrl: string | null;
     readonly username: string;
   } | null;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsList_data">;
   readonly " $fragmentType": "PromptVersionSummaryFragment";
 };
 export type PromptVersionSummaryFragment$key = {
@@ -90,9 +93,23 @@ return {
       "storageKey": null
     },
     {
+      "alias": null,
       "args": null,
-      "kind": "FragmentSpread",
-      "name": "PromptVersionTagsList_data"
+      "concreteType": "PromptVersionTag",
+      "kind": "LinkedField",
+      "name": "tags",
+      "plural": true,
+      "selections": [
+        (v0/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "PromptVersion",
@@ -100,6 +117,6 @@ return {
 };
 })();
 
-(node as any).hash = "80901eff49852a413f643ee876638174";
+(node as any).hash = "bf86a3f7fbf70b54c20b3056f1f3c173";
 
 export default node;

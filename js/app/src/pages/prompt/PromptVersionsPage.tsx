@@ -11,6 +11,10 @@ import { promptLoaderQuery } from "./promptLoader";
 import { PromptVersionsList } from "./PromptVersionsList";
 import { usePromptIdLoader } from "./usePromptIdLoader";
 
+/**
+ * The prompt's versions beside the selected version, which is the latest
+ * version when the URL does not name one
+ */
 export function PromptVersionsPage() {
   const loaderData = usePromptIdLoader();
   const data = usePreloadedQuery<promptLoaderQueryType>(
@@ -31,22 +35,31 @@ function PromptVersionsPageContent({
   prompt: PromptVersionsPageContent__main$key;
   promptVersionId?: string;
 }) {
-  const promptVersions = useFragment(
+  const data = useFragment(
     graphql`
       fragment PromptVersionsPageContent__main on Prompt {
+        latestVersion: promptVersions(first: 1) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
         ...PromptVersionsList__main
       }
     `,
     prompt
   );
+  const selectedVersionId =
+    promptVersionId ?? data.latestVersion.edges[0]?.node.id;
   const itemActive = useCallback(
-    (version: { id: string }) => version.id === promptVersionId,
-    [promptVersionId]
+    (version: { id: string }) => version.id === selectedVersionId,
+    [selectedVersionId]
   );
   return (
     <View height="100%">
       <Flex direction="row" height="100%">
-        <PromptVersionsList prompt={promptVersions} itemActive={itemActive} />
+        <PromptVersionsList prompt={data} itemActive={itemActive} />
         <Outlet />
       </Flex>
     </View>

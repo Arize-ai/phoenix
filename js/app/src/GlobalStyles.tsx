@@ -1594,6 +1594,9 @@ const appGlobalStylesCSS = css`
     --global-line-height-xl: 36px;
     --global-line-height-xxl: 48px;
 
+    /* The longest comfortable line of running text */
+    --global-line-length-max: 80ch;
+
     /* Fields */
     --global-input-field-min-width: 100px;
 

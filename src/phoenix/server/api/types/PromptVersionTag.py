@@ -7,9 +7,11 @@ from strawberry.relay import GlobalID, Node, NodeID
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.User import User
 
 if TYPE_CHECKING:
+    from .PromptVersion import PromptVersion
     from .User import User
 
 
@@ -36,6 +38,24 @@ class PromptVersionTag(Node):
                 (self.id, models.PromptVersionTag.prompt_version_id),
             )
         return GlobalID(PromptVersion.__name__, str(version_id))
+
+    @strawberry.field
+    async def prompt_version(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated["PromptVersion", strawberry.lazy(".PromptVersion")]:
+        from phoenix.server.api.types.PromptVersion import to_gql_prompt_version
+
+        if self.db_record:
+            version_id = self.db_record.prompt_version_id
+        else:
+            version_id = await info.context.data_loaders.prompt_version_tag_fields.load(
+                (self.id, models.PromptVersionTag.prompt_version_id),
+            )
+        version = await info.context.data_loaders.prompt_versions.load(version_id)
+        if version is None:
+            raise NotFound(f"Prompt version not found: id={version_id}")
+        return to_gql_prompt_version(version)
 
     @strawberry.field
     async def name(

@@ -9,7 +9,8 @@ export const promptConfigLoaderQuery = graphql`
   query promptConfigLoaderQuery($id: ID!) {
     prompt: node(id: $id) {
       ... on Prompt {
-        ...PromptVersionTagsConfigCard_data
+        ...PromptDetails_data
+        ...PromptVersionTagsConfig_data
       }
     }
   }

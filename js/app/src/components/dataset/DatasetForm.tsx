@@ -119,7 +119,10 @@ export function DatasetForm({
               value={value.toString()}
             >
               <Label>Description</Label>
-              <TextArea placeholder="e.x. A golden dataset for structured data extraction" />
+              <TextArea
+                rows={4}
+                placeholder="e.x. A golden dataset for structured data extraction"
+              />
               {error?.message ? (
                 <FieldError>{error.message}</FieldError>
               ) : (

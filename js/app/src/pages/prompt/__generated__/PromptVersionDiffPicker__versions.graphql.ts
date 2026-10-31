@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3057f120ec7f6b06bf98194c94f56357>>
+ * @generated SignedSource<<ea2cbce7cbf60f5ee2ea52fa75667629>>
  * @lightSyntaxTransform
  */
 
@@ -9,40 +9,39 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptLatestVersionsListFragment$data = {
-  readonly latestVersions: {
+export type PromptVersionDiffPicker__versions$data = {
+  readonly promptVersions: {
     readonly edges: ReadonlyArray<{
       readonly version: {
-        readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
         readonly sequenceNumber: number;
+        readonly tags: ReadonlyArray<{
+          readonly name: string;
+        }>;
+        readonly user: {
+          readonly username: string;
+        } | null;
         readonly " $fragmentSpreads": FragmentRefs<"PromptVersionSummaryFragment">;
       };
     }>;
   };
-  readonly " $fragmentType": "PromptLatestVersionsListFragment";
+  readonly " $fragmentType": "PromptVersionDiffPicker__versions";
 };
-export type PromptLatestVersionsListFragment$key = {
-  readonly " $data"?: PromptLatestVersionsListFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptLatestVersionsListFragment">;
+export type PromptVersionDiffPicker__versions$key = {
+  readonly " $data"?: PromptVersionDiffPicker__versions$data;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptVersionDiffPicker__versions">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "PromptLatestVersionsListFragment",
+  "name": "PromptVersionDiffPicker__versions",
   "selections": [
     {
-      "alias": "latestVersions",
-      "args": [
-        {
-          "kind": "Literal",
-          "name": "first",
-          "value": 5
-        }
-      ],
+      "alias": null,
+      "args": null,
       "concreteType": "PromptVersionConnection",
       "kind": "LinkedField",
       "name": "promptVersions",
@@ -75,21 +74,50 @@ const node: ReaderFragment = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "sequenceNumber",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "description",
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "createdAt",
+                  "concreteType": "PromptVersionTag",
+                  "kind": "LinkedField",
+                  "name": "tags",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "name",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "sequenceNumber",
+                  "concreteType": "User",
+                  "kind": "LinkedField",
+                  "name": "user",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "username",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -104,13 +132,13 @@ const node: ReaderFragment = {
           "storageKey": null
         }
       ],
-      "storageKey": "promptVersions(first:5)"
+      "storageKey": null
     }
   ],
   "type": "Prompt",
   "abstractKey": null
 };
 
-(node as any).hash = "a473a6f0d927379542694312449a4c63";
+(node as any).hash = "64695b05d5746009fb989217a91fe86e";
 
 export default node;

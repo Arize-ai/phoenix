@@ -161,6 +161,28 @@ export const States: StoryFn = () => (
 States.tags = ["!dev"];
 States.parameters = { themeLayout: "column" };
 
+/**
+ * An empty section, such as a prompt version with no tools, has nothing to
+ * expand. It stays collapsed, and its trigger shows a subdued "None" at the
+ * end of the row in place of the arrow, whatever the arrow position.
+ */
+export const Empty: StoryFn = () => (
+  <OptionGrid
+    rows={ARROW_POSITIONS}
+    renderCell={(row) => (
+      <Frame>
+        <Disclosure id="tools" isEmpty>
+          <DisclosureTrigger arrowPosition={row.arrowPosition}>
+            Tools
+          </DisclosureTrigger>
+        </Disclosure>
+      </Frame>
+    )}
+  />
+);
+Empty.tags = ["!dev"];
+Empty.parameters = { themeLayout: "row" };
+
 const SIZES = (["S", "M", "L"] as const).map((size) => ({
   label: size,
   code: true,

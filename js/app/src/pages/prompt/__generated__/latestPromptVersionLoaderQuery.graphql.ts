@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78f21802be0f7498872e8120f2e40f25>>
+ * @generated SignedSource<<9573a491eeeb317072ed66f9dc78aa71>>
  * @lightSyntaxTransform
  */
 
@@ -8,10 +8,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type promptVersionsLoaderQuery$variables = {
+export type latestPromptVersionLoaderQuery$variables = {
   id: string;
 };
-export type promptVersionsLoaderQuery$data = {
+export type latestPromptVersionLoaderQuery$data = {
   readonly prompt: {
     readonly promptVersions?: {
       readonly edges: ReadonlyArray<{
@@ -22,9 +22,9 @@ export type promptVersionsLoaderQuery$data = {
     };
   };
 };
-export type promptVersionsLoaderQuery = {
-  response: promptVersionsLoaderQuery$data;
-  variables: promptVersionsLoaderQuery$variables;
+export type latestPromptVersionLoaderQuery = {
+  response: latestPromptVersionLoaderQuery$data;
+  variables: latestPromptVersionLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -101,7 +101,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "promptVersionsLoaderQuery",
+    "name": "latestPromptVersionLoaderQuery",
     "selections": [
       {
         "alias": "prompt",
@@ -123,7 +123,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "promptVersionsLoaderQuery",
+    "name": "latestPromptVersionLoaderQuery",
     "selections": [
       {
         "alias": "prompt",
@@ -148,16 +148,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "72451f81ebdef0195b7338c67ae5f327",
+    "cacheID": "02a89cafe6d899a0e58d451a20418d96",
     "id": null,
     "metadata": {},
-    "name": "promptVersionsLoaderQuery",
+    "name": "latestPromptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionsLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query latestPromptVersionLoaderQuery(\n  $id: ID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "82115f75fbd5968bbe774fb7e006718f";
+(node as any).hash = "4d7c4f1c0cfd990c1c1fd7b46ec476fd";
 
 export default node;

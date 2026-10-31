@@ -1,13 +1,27 @@
+import { css } from "@emotion/react";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Flex, View } from "@phoenix/components";
+import { View } from "@phoenix/components";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { PromptConfigLoaderData } from "@phoenix/pages/prompt/promptConfigLoader";
 import { promptConfigLoaderQuery } from "@phoenix/pages/prompt/promptConfigLoader";
 
 import type { promptConfigLoaderQuery as PromptConfigLoaderQuery } from "./__generated__/promptConfigLoaderQuery.graphql";
-import { PromptVersionTagsConfigCard } from "./PromptVersionTagsConfigCard";
+import { PromptDetails } from "./PromptDetails";
+import { PROMPT_PAGE_ONE_COLUMN_MAX_WIDTH } from "./promptPageLayout";
+import { PromptVersionTagsConfig } from "./PromptVersionTagsConfig";
+
+const layoutCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-200);
+  max-width: ${PROMPT_PAGE_ONE_COLUMN_MAX_WIDTH}px;
+  margin-inline: auto;
+  & > * {
+    min-width: 0;
+  }
+`;
 
 export function PromptConfigPage() {
   const loaderData = useLoaderData<PromptConfigLoaderData>();
@@ -18,25 +32,18 @@ export function PromptConfigPage() {
   });
 
   return (
-    <Flex direction="row" height="100%">
-      <View
-        height="100%"
-        overflow="auto"
-        width="100%"
-        data-testid="scroll-container"
-      >
-        <View padding="size-200">
-          <Flex
-            direction="column"
-            gap="size-200"
-            marginStart="auto"
-            marginEnd="auto"
-            maxWidth={900}
-          >
-            <PromptVersionTagsConfigCard prompt={data.prompt} />
-          </Flex>
-        </View>
+    <View
+      height="100%"
+      overflow="auto"
+      width="100%"
+      data-testid="scroll-container"
+    >
+      <View padding="size-200">
+        <div css={layoutCSS}>
+          <PromptDetails prompt={data.prompt} />
+          <PromptVersionTagsConfig prompt={data.prompt} />
+        </div>
       </View>
-    </Flex>
+    </View>
   );
 }

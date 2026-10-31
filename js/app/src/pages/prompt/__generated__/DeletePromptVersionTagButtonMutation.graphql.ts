@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<93b582bfb5e7c439025b3b08825702b5>>
+ * @generated SignedSource<<3563a3a37ccda3fbf388ca45da0ffade>>
  * @lightSyntaxTransform
  */
 
@@ -20,7 +20,7 @@ export type DeletePromptVersionTagButtonMutation$data = {
   readonly deletePromptVersionTag: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfigCard_data">;
+        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfig_data">;
       };
     };
   };
@@ -63,6 +63,20 @@ v3 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -98,7 +112,7 @@ return {
                   {
                     "args": null,
                     "kind": "FragmentSpread",
-                    "name": "PromptVersionTagsConfigCard_data"
+                    "name": "PromptVersionTagsConfig_data"
                   }
                 ],
                 "storageKey": null
@@ -163,25 +177,72 @@ return {
                         "plural": true,
                         "selections": [
                           (v3/*:: as any*/),
+                          (v4/*:: as any*/),
+                          (v5/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "name",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "description",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "promptVersionId",
+                            "concreteType": "PromptVersion",
+                            "kind": "LinkedField",
+                            "name": "promptVersion",
+                            "plural": false,
+                            "selections": [
+                              (v3/*:: as any*/),
+                              (v5/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "sequenceNumber",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "createdAt",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "User",
+                                "kind": "LinkedField",
+                                "name": "user",
+                                "plural": false,
+                                "selections": [
+                                  (v3/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "username",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "profilePictureUrl",
+                                    "storageKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "PromptVersionTag",
+                                "kind": "LinkedField",
+                                "name": "tags",
+                                "plural": true,
+                                "selections": [
+                                  (v3/*:: as any*/),
+                                  (v4/*:: as any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
                             "storageKey": null
                           }
                         ],
@@ -203,16 +264,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "387e2e286ff86ad049a2b4afbd189b22",
+    "cacheID": "164d74a5edd6aeb01338cd002189d06a",
     "id": null,
     "metadata": {},
     "name": "DeletePromptVersionTagButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeletePromptVersionTagButtonMutation(\n  $input: DeletePromptVersionTagInput!\n  $promptId: ID!\n) {\n  deletePromptVersionTag(input: $input) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ...PromptVersionTagsConfigCard_data\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
+    "text": "mutation DeletePromptVersionTagButtonMutation(\n  $input: DeletePromptVersionTagInput!\n  $promptId: ID!\n) {\n  deletePromptVersionTag(input: $input) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ...PromptVersionTagsConfig_data\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionTagsConfig_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersion {\n      id\n      ...PromptVersionSummaryFragment\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "58fa5b2b6e7af186229c70b90082644a";
+(node as any).hash = "0f3e5f82988536c6585cc9e6c1d96fbc";
 
 export default node;

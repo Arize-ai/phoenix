@@ -5,9 +5,6 @@ import {
   Disclosure,
   DisclosurePanel,
   DisclosureTrigger,
-  Flex,
-  Text,
-  View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import type { PromptResponseFormatFragment$key } from "@phoenix/pages/prompt/__generated__/PromptResponseFormatFragment.graphql";
@@ -41,17 +38,8 @@ export function PromptResponseFormat({
 
   if (!formattedResponseFormat) {
     return (
-      <Disclosure id="response-format">
+      <Disclosure id="response-format" isEmpty>
         <DisclosureTrigger>Response Format</DisclosureTrigger>
-        <DisclosurePanel>
-          <View padding="size-200">
-            <Flex justifyContent="center" alignItems="center">
-              <Text color="text-300">
-                No response format specified for this prompt
-              </Text>
-            </Flex>
-          </View>
-        </DisclosurePanel>
       </Disclosure>
     );
   }

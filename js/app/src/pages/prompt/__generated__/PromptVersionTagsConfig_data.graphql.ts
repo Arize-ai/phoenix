@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<26e504910016a696a3a6329740f6d69c>>
+ * @generated SignedSource<<ed8271fff8b5764f1ab644abc17a0fd6>>
  * @lightSyntaxTransform
  */
 
@@ -9,19 +9,22 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptVersionTagsConfigCard_data$data = {
+export type PromptVersionTagsConfig_data$data = {
   readonly id: string;
   readonly versionTags: ReadonlyArray<{
     readonly description: string | null;
     readonly id: string;
     readonly name: string;
-    readonly promptVersionId: string;
+    readonly promptVersion: {
+      readonly id: string;
+      readonly " $fragmentSpreads": FragmentRefs<"PromptVersionSummaryFragment">;
+    };
   }>;
-  readonly " $fragmentType": "PromptVersionTagsConfigCard_data";
+  readonly " $fragmentType": "PromptVersionTagsConfig_data";
 };
-export type PromptVersionTagsConfigCard_data$key = {
-  readonly " $data"?: PromptVersionTagsConfigCard_data$data;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfigCard_data">;
+export type PromptVersionTagsConfig_data$key = {
+  readonly " $data"?: PromptVersionTagsConfig_data$data;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsConfig_data">;
 };
 
 const node: ReaderFragment = (function(){
@@ -36,7 +39,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "PromptVersionTagsConfigCard_data",
+  "name": "PromptVersionTagsConfig_data",
   "selections": [
     (v0/*:: as any*/),
     {
@@ -65,8 +68,18 @@ return {
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "promptVersionId",
+          "concreteType": "PromptVersion",
+          "kind": "LinkedField",
+          "name": "promptVersion",
+          "plural": false,
+          "selections": [
+            (v0/*:: as any*/),
+            {
+              "args": null,
+              "kind": "FragmentSpread",
+              "name": "PromptVersionSummaryFragment"
+            }
+          ],
           "storageKey": null
         }
       ],
@@ -78,6 +91,6 @@ return {
 };
 })();
 
-(node as any).hash = "3650e60f18eb8d95b707df7bdbce99a9";
+(node as any).hash = "890bae48fd91f3daa8aa7d7239519bcc";
 
 export default node;

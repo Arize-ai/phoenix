@@ -133,6 +133,45 @@ async def test_version_count_latest_version_and_tags_resolve_per_prompt(
     assert actual == prompts_with_versions_and_tags
 
 
+async def test_version_tags_resolve_their_prompt_version(
+    gql_client: AsyncGraphQLClient,
+    prompts_with_versions_and_tags: dict[str, dict[str, object]],
+) -> None:
+    query = """
+      query {
+        prompts {
+          edges {
+            node {
+              versionTags {
+                name
+                promptVersionId
+                promptVersion {
+                  id
+                  sequenceNumber
+                  description
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data
+    tags = [
+        tag for edge in response.data["prompts"]["edges"] for tag in edge["node"]["versionTags"]
+    ]
+    assert {
+        tag["name"]: (tag["promptVersion"]["sequenceNumber"], tag["promptVersion"]["description"])
+        for tag in tags
+    } == {
+        "production": (2, "prompt-a version 2"),
+        "staging": (3, "prompt-a version 3"),
+    }
+    assert all(tag["promptVersion"]["id"] == tag["promptVersionId"] for tag in tags)
+
+
 @pytest.fixture
 async def prompt_authored_by_two_users(db: DbSessionFactory) -> dict[str, str]:
     """

@@ -10,7 +10,6 @@ import {
   Flex,
   SectionHeading,
   Text,
-  View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import type { PromptTools__main$key } from "@phoenix/pages/prompt/__generated__/PromptTools__main.graphql";
@@ -92,15 +91,8 @@ export function PromptTools({
 
   if (items.length === 0) {
     return (
-      <Disclosure id="tools">
+      <Disclosure id="tools" isEmpty>
         <DisclosureTrigger>Tools</DisclosureTrigger>
-        <DisclosurePanel>
-          <View padding="size-200">
-            <Flex justifyContent="center" alignItems="center">
-              <Text color="text-300">No tools specified for this prompt</Text>
-            </Flex>
-          </View>
-        </DisclosurePanel>
       </Disclosure>
     );
   }

@@ -13,12 +13,14 @@ export function EditDatasetForm({
   datasetDescription,
   onDatasetEdited,
   datasetMetadata,
+  onCancel,
 }: {
   datasetName: string;
   datasetId: string;
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
   onDatasetEdited: () => void;
+  onCancel?: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
@@ -73,6 +75,7 @@ export function EditDatasetForm({
       submitButtonText={isCommitting ? "Saving..." : "Save"}
       formMode="edit"
       errorMessage={error}
+      onCancel={onCancel}
     />
   );
 }
