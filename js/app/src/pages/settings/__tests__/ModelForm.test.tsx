@@ -2,25 +2,12 @@ import { act } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
-import { Environment, Network, RecordSource, Store } from "relay-runtime";
+import { createMockEnvironment } from "relay-test-utils";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ModelFormParams } from "../ModelForm";
 import { ModelForm } from "../ModelForm";
-
-function createTestEnvironment() {
-  return new Environment({
-    network: Network.create(() =>
-      Promise.resolve({
-        data: {
-          validateRegularExpression: { isValid: true, errorMessage: null },
-        },
-      })
-    ),
-    store: new Store(new RecordSource()),
-  });
-}
 
 describe("ModelForm", () => {
   let container: HTMLDivElement;
@@ -34,7 +21,7 @@ describe("ModelForm", () => {
     root = createRoot(container);
     await act(async () => {
       root.render(
-        <RelayEnvironmentProvider environment={createTestEnvironment()}>
+        <RelayEnvironmentProvider environment={createMockEnvironment()}>
           <ModelForm
             modelName="my-model"
             modelNamePattern="^my-model$"
