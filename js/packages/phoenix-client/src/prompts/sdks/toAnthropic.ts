@@ -55,13 +55,26 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
       );
     }
 
-    const messages = formattedMessages.map((message) => {
+    const systemMessages: string[] = [];
+    const messages = formattedMessages.flatMap((message) => {
+      if (message.role === "system" || message.role === "developer") {
+        if (typeof message.content === "string") {
+          systemMessages.push(message.content);
+        } else {
+          for (const part of message.content) {
+            if (part.type === "text") {
+              systemMessages.push(part.text);
+            }
+          }
+        }
+        return [];
+      }
       const anthropicMessage = safelyConvertMessageToProvider({
         message,
         targetProvider: "ANTHROPIC",
       });
       invariant(anthropicMessage, "Message is not valid");
-      return anthropicMessage;
+      return [anthropicMessage];
     });
 
     const toolsList = prompt.tools?.tools ?? [];
@@ -94,6 +107,12 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
     // combine base and computed params
     const completionParams = {
       ...baseCompletionParams,
+      ...(systemMessages.length > 0 && {
+        system:
+          systemMessages.length === 1
+            ? systemMessages[0]
+            : systemMessages.map((text) => ({ type: "text" as const, text })),
+      }),
       messages,
       tools,
       tool_choice,
