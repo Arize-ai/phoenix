@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import ConfigDict, Field
-from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     FinishReason,
     ModelMessage,
@@ -432,8 +432,12 @@ async def create_chat_completion(
         )
     try:
         response = await model.request(messages, settings, ModelRequestParameters())
-    except ModelAPIError as exc:
+    except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
+    except UnicodeEncodeError as exc:
+        if not _is_non_ascii_header_error(exc):
+            raise
+        return _non_ascii_header_error_response()
     completion = ChatCompletion(
         id=_completion_id(response.provider_response_id),
         created=int(response.timestamp.timestamp()),
@@ -452,7 +456,23 @@ async def create_chat_completion(
 _HTTP_STATUS_CODE_LIMIT = 600
 
 
-def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
+def _is_non_ascii_header_error(exc: UnicodeEncodeError) -> bool:
+    # httpx encodes header values as ASCII before anything is sent; other encoding
+    # failures (e.g. a lone surrogate in the UTF-8 request body) are not credential problems.
+    return exc.encoding == "ascii"
+
+
+def _non_ascii_header_error_response() -> JSONResponse:
+    # The message deliberately omits the offending value, which may be a secret.
+    return _error_response(
+        "The provider's API key or a custom header contains non-ASCII characters, "
+        "so the request to the provider could not be built. HTTP headers must be ASCII; "
+        "re-enter the credential or header without hidden or special characters.",
+        status_code=HTTP_400_BAD_REQUEST,
+    )
+
+
+def _provider_error_response(exc: Union[ModelAPIError, UnexpectedModelBehavior]) -> JSONResponse:
     if isinstance(exc, ModelHTTPError):
         provider_status_code = exc.status_code
         provider_status_is_forwardable = (
@@ -462,7 +482,8 @@ def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
             provider_status_code if provider_status_is_forwardable else HTTP_502_BAD_GATEWAY
         )
     else:
-        # The provider never answered (DNS failure, refused connection, timeout).
+        # The provider never answered (DNS failure, refused connection, timeout),
+        # or answered with something that isn't a valid completion.
         response_status_code = HTTP_502_BAD_GATEWAY
     return _error_response(str(exc), status_code=response_status_code)
 
@@ -553,8 +574,12 @@ async def _create_streaming_response(
     producer = asyncio.create_task(produce())
     try:
         await provider_stream_opened
-    except ModelAPIError as exc:
+    except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
+    except UnicodeEncodeError as exc:
+        if not _is_non_ascii_header_error(exc):
+            raise
+        return _non_ascii_header_error_response()
     except BaseException:
         producer.cancel()
         raise
