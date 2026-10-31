@@ -1179,7 +1179,14 @@ export const ProviderForm = ({
   invariant(sdk, "SDK field must be defined in form state");
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit)} css={formCSS}>
+    <Form
+      onSubmit={handleSubmit(onSubmit)}
+      css={formCSS}
+      // The schema validates. A stored key shows as a masked placeholder over an
+      // empty input, which the browser's own required check would reject, so
+      // edits couldn't be saved without retyping the key.
+      validationBehavior="aria"
+    >
       <div css={formBodyCSS}>
         <ProviderFormSection title="Provider">
           <Controller
