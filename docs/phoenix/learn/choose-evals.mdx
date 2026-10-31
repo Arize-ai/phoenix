@@ -10,8 +10,8 @@ With the [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) shoppi
 This page helps you choose what to evaluate and what evidence you need. The next 2 lessons show you how to build each evaluator.
 
 <Frame>
-  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-eval-plan-light-c670455b9eab.svg" alt="Choose a requirement, identify the evidence, and decide whether to use code, an LLM, or human review." />
-  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-eval-plan-dark-53e8951c1c8f.svg" alt="Choose a requirement, identify the evidence, and decide whether to use code, an LLM, or human review." />
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-eval-plan-light-5fdb6e59f763.svg" alt="Choose a requirement, identify the evidence, and choose how to check it." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-eval-plan-dark-ec5fb620d871.svg" alt="Choose a requirement, identify the evidence, and choose how to check it." />
 </Frame>
 
 ## Before you start
@@ -54,11 +54,12 @@ Once you've identified the evidence you need, choose how you'll evaluate it:
 
 - **[Code evaluator](/docs/phoenix/evaluation/how-to-evals/code-evaluators):** A function that checks a result against explicit rules. Use it to validate formats, check required fields, or compare values, such as a saved order's products and quantities.
 - **[LLM evaluator (LLM judge)](/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge):** A model that assesses an answer using your criteria. Use it when applying those criteria requires interpreting meaning, such as whether an expensive toy was recommended or ruled out.
+- **[Decision model judge](https://github.com/Arize-ai/phoenix/blob/main/packages/phoenix-evals/src/phoenix/evals/decision/decision.py):** A model that selects from fixed labels, such as pass/fail. Phoenix's Python evals SDK supports this through `DecisionModel`, including [TypeSafe's Jev](https://docs.typesafe.ai/introduction). Use it when you need classification results and label probabilities without a written explanation.
 - **[Human review](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui):** Review examples yourself to clarify the criteria and verify both code and LLM results. Review unclear cases before relying on their scores.
 
 You can use these methods together to check different requirements. Before writing an evaluator, see whether a Phoenix [pre-built evaluator](/docs/phoenix/evaluation/pre-built-metrics) fits your requirement, and validate it on your examples.
 
-For Wonder Toys, we'll use an LLM judge to distinguish recommendations from products mentioned but ruled out. If the recommended products and their prices were available as structured values, a code evaluator could compare them with the budget directly.
+For this walkthrough, we'll use an LLM judge so we can inspect an explanation alongside each budget decision. The judge needs to distinguish recommendations from products mentioned but ruled out. If the recommended products and their prices were available as structured values, a code evaluator could compare them with the budget directly.
 
 ## Step 4: Record your evaluation plan
 
