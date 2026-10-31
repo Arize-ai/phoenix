@@ -55,7 +55,7 @@ PixeltableInstrumentor().instrument(span_level="debug")
 
 If you use the HTTP `register()` call further down, keep `PixeltableInstrumentor().instrument(span_level="debug")` after it. `project_name` is exported as the `openinference.project.name` resource attribute. That is what selects the Phoenix project for the gRPC export `register()` uses by default (`localhost:4317`).
 
-For Phoenix Cloud, or any Phoenix with authentication, copy the collector URL and API key from that space's Settings page and export them before calling `register()`. `register()` sends `Authorization: Bearer` with `PHOENIX_API_KEY`. See [Environments](/docs/phoenix/environments).
+For Phoenix Cloud, or any Phoenix with authentication, copy the collector URL and API key from that space's Settings page and export them before calling `register()`. `register()` sends `Authorization: Bearer` with `PHOENIX_API_KEY`. See [Environment Variables](/docs/phoenix/sdk-api-reference#environment-variables).
 
 ```bash
 export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix.example.com"
@@ -99,6 +99,12 @@ export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
 export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
 export OTEL_RESOURCE_ATTRIBUTES="openinference.project.name=pixeltable-app"
 ```
+
+```python
+pxt_otel.init(span_level="debug", metrics=False)
+```
+
+Explicit arguments override the `OTEL_*` variables.
 
 `pxt_otel.init()` only creates a provider when an endpoint resolves from the argument, from `OTEL_EXPORTER_OTLP_ENDPOINT`, or from Pixeltable config. Setting only `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` does not start export. Arguments left as `None` also fall back to `OTEL_EXPORTER_OTLP_HEADERS`, `OTEL_SERVICE_NAME`, and the `[otel]` section of `~/.pixeltable/config.toml`.
 

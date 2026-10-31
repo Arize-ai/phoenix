@@ -576,6 +576,9 @@ logo = "pandas"
 [integrations.pipecat]
 logo = "pipecat"
 
+[integrations.pixeltable]
+logo = "pixeltable"
+
 [integrations.portkey]
 logo = "portkey"
 replaces = [
