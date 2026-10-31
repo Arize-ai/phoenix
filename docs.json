@@ -465,6 +465,7 @@
             "group": "Understand behavior",
             "pages": [
               "docs/phoenix/learn/capture-first-run",
+              "docs/phoenix/learn/add-context-to-traces",
               "docs/phoenix/learn/read-agent-run",
               "docs/phoenix/learn/sessions"
             ]

@@ -1,59 +1,50 @@
 ---
 title: "Capture your first agent run"
-description: "Run Wonder Toys locally and find the trace of your first shopping request in Phoenix."
+description: "Add auto instrumentation to the Wonder Toys agent, send a shopping request, and find its model and tool calls in your first Phoenix trace."
 ---
 
-{/* video: TODO */}
+When you ask the [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) shopping agent to find a toy, you see its answer in the chat. To understand how it reached that answer, you'll add [**instrumentation**](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument), code that records its model and tool calls so you can inspect them in Phoenix.
 
-You'll run [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone), a shopping assistant agent, and find its first request in Phoenix. Phoenix records the request as a **trace**, showing the steps behind the assistant's answer.
-
-Wonder Toys already has tracing set up. The optional section below explains how to add tracing to your own app.
+We'll start with the [uninstrumented Wonder Toys agent](https://github.com/Arize-ai/project-rosetta-stone/tree/main/no-observability/langchain-py), add tracing, and send a shopping request. Then we'll open its trace in Phoenix to see what happened.
 
 ## Before you start
 
 You'll need:
 
-- Git and Node.js 22 installed.
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) to run the Python services.
-- An [Anthropic API key](https://console.anthropic.com/). Requests use this key and incur model API charges.
+- [Git](https://git-scm.com/downloads) and [Node.js 22](https://nodejs.org/en/download) installed.
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) to run Phoenix and the Python backend.
+- An [Anthropic API key](https://console.anthropic.com/) for the default model. An OpenAI alternative is shown in Step 2.
 
-Keep 2 terminals open for the setup below.
+For this walkthrough, we'll use the [LangChain Python version of Wonder Toys](/docs/phoenix/integrations/python/langchain/langchain-tracing), though Phoenix also supports [other frameworks](/docs/phoenix/integrations). Keep 2 terminals open: one for Phoenix and one for the app.
 
 ## Step 1: Start Phoenix
 
-If Phoenix is already running at `http://localhost:6006`, skip to Step 2. Otherwise, run in the first terminal:
+Start [Phoenix locally](/docs/phoenix/self-hosting/deployment-options/terminal) in the first terminal so it can receive traces from your app:
 
 ```bash
 uvx --python 3.11 arize-phoenix serve
 ```
 
-Open `http://localhost:6006` in your browser. The [local Phoenix setup guide](/docs/phoenix/self-hosting/deployment-options/terminal) has more details.
+Open `http://localhost:6006` in your browser and leave the terminal running. If Phoenix is already running there, use that instance.
 
-<Accordion title="Add tracing to your own app (optional)">
-  For an app without tracing, keep Phoenix running and run this command from your app's root directory:
+<span id="step-2-set-up-wonder-toys" />
 
-  ```bash
-  npx -y @arizeai/phoenix-cli setup
-  ```
+## Step 2: Prepare the practice app
 
-  Follow the prompts to choose an installed coding agent, such as Claude Code or Codex. The agent adds tracing to your code, and the CLI checks that a trace reaches Phoenix.
-</Accordion>
-
-## Step 2: Set up Wonder Toys
-
-In the second terminal, clone the repository and install the app's frontend dependencies:
+With Phoenix running, let's prepare the app that will send it traces. In the second terminal, get the uninstrumented Wonder Toys app and install its frontend dependencies:
 
 ```bash
 git clone https://github.com/Arize-ai/project-rosetta-stone.git
-cd project-rosetta-stone/phoenix/langchain-py
+cd project-rosetta-stone/no-observability/langchain-py
 npm install
 cp env.example .env.local
 ```
 
-In `phoenix/langchain-py`, set `.env.local` to these values, replacing `your-anthropic-api-key` with your key:
+Next, open `.env.local` to configure the app and tell it where Phoenix is running. Set these values, replacing the key placeholder with your Anthropic key:
 
 ```dotenv
 ANTHROPIC_API_KEY=your-anthropic-api-key
+ANTHROPIC_OPEN_TELEMETRY=false
 BACKEND_SECRET=academy-local-demo
 BACKEND_URL=http://localhost:8001
 CHROMA_URL=http://localhost:8000
@@ -61,44 +52,129 @@ PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=wonder-toys
 ```
 
-`PHOENIX_COLLECTOR_ENDPOINT` connects the app to your local Phoenix instance. The **wonder-toys** project appears after the app sends its first trace.
+LangChain will record the model calls in Step 3. The [Anthropic setting](https://platform.claude.com/docs/en/manage-claude/opentelemetry/sdk) prevents its SDK from recording a second copy.
 
-Start the app from the same directory:
+Keep working in `no-observability/langchain-py`; the file paths below start from this folder.
+
+<Accordion title="Use OpenAI for this lesson instead">
+  You can use OpenAI for this lesson if you prefer. Later lessons use Anthropic, so keep the default model if you want to follow those commands unchanged.
+
+  You can use [ChatOpenAI](https://docs.langchain.com/oss/python/integrations/chat/openai) with the same LangChain instrumentation. Add `langchain-openai` to `backend/requirements.txt`, then replace the Anthropic key in `.env.local` with your [OpenAI API key](https://platform.openai.com/api-keys):
+
+  ```dotenv
+  OPENAI_API_KEY=your-openai-api-key
+  ```
+
+  In `backend/agent.py`, replace the `ChatAnthropic` import with:
+
+  ```python
+  from langchain_openai import ChatOpenAI
+  ```
+
+  Replace the entire `_build_agent` function, including its Anthropic key check, with:
+
+  ```python
+  def _build_agent():
+      model = ChatOpenAI(model="gpt-4.1-mini")
+      return create_react_agent(model, all_tools, prompt=SYSTEM_PROMPT)
+  ```
+
+  `ChatOpenAI` reads your `OPENAI_API_KEY` automatically.
+</Accordion>
+
+## Step 3: Record the model and tool calls
+
+With the app configured, let's enable [**auto instrumentation**](/docs/phoenix/integrations/python/langchain/langchain-tracing) to record its model and tool calls. You can add the setup code yourself or ask a coding assistant to do it.
+
+<Tabs>
+  <Tab title="Add the code yourself">
+    Add these packages to [`backend/requirements.txt`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/backend/requirements.txt) to record calls and send them to Phoenix:
+
+    ```text
+    arize-phoenix-otel
+    openinference-instrumentation-langchain
+    ```
+
+    Then create `backend/tracing.py` to connect to Phoenix and enable auto instrumentation:
+
+    ```python
+    from phoenix.otel import register
+    from openinference.instrumentation.langchain import LangChainInstrumentor
+
+    _tracer_provider = register(protocol="http/protobuf")
+    LangChainInstrumentor().instrument(tracer_provider=_tracer_provider)
+    ```
+
+    [`register`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel#register) uses the Phoenix address and project name you set in Step 2.
+
+    To load this setup before the agent starts, add this import before all other imports in [`backend/main.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/backend/main.py):
+
+    ```python
+    import backend.tracing
+    ```
+  </Tab>
+  <Tab title="Use a coding assistant">
+    If you have a coding assistant such as Claude Code or Codex installed, you can use Phoenix's [setup command](/docs/phoenix/integrations/developer-tools/cli#connect-a-project-with-px-setup) to add tracing. Run it from `no-observability/langchain-py`:
+
+    ```bash
+    npx -y @arizeai/phoenix-cli setup \
+      --endpoint http://localhost:6006 \
+      --project wonder-toys \
+      --language python
+    ```
+
+    - Choose your assistant and follow the prompts to add tracing. Setup checks that a trace arrives and may send a test request using your model API key.
+    - Ask it to keep registration in `backend/tracing.py`, with the provider named `_tracer_provider`.
+    - Review its changes: check those names, confirm tracing starts before the agent, and verify the project is **wonder-toys**.
+  </Tab>
+</Tabs>
+
+We chose `tracing.py` and `_tracer_provider` for these lessons; the next lesson reuses those names.
+
+## Step 4: Send a shopping request
+
+With tracing in place, start the app from `no-observability/langchain-py` in the second terminal. If your coding assistant already started it, stop the app before running this command so it loads your changes:
 
 ```bash
 UV_PYTHON=3.11 npm run dev
 ```
 
-The first launch installs Python dependencies and downloads the product-search model.
+This command runs the [startup script](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/scripts/start.sh), which installs the Python dependencies and starts the app. On its first run, it also downloads the product-search model.
 
-- Once startup finishes, open `http://localhost:3000` to chat with Wonder Toys.
-- Keep both terminals running.
+Once startup finishes, open `http://localhost:3000` and send:
 
-## Step 3: Send a shopping request
-
-In the Wonder Toys chat, send:
-
-```text
+```text wrap
 Find dinosaur toys for a 6-year-old under $25. Recommend at most 3 options.
 ```
 
-Wait for the reply, then find the trace in Phoenix to inspect what happened.
+Wait for the reply, then return to Phoenix. Keep both terminals running.
 
-## Step 4: Find your request in Phoenix
+## Step 5: Find your first trace
 
-- In Phoenix, open **wonder-toys → Traces** and select the most recent **Wonder Toys** run.
-- Select **Wonder Toys** at the top of the trace tree to check your request in **Input** and the reply in **Output**.
+Now let's see what happened when the agent handled your request. A [**trace**](/docs/phoenix/tracing/concepts-tracing/what-are-traces#traces) is the record of one request, from start to finish. Each [**span**](/docs/phoenix/tracing/concepts-tracing/what-are-traces#spans) records a step within that trace, such as a model call or a tool call.
 
-<Frame caption="The request and reply appear beside the tree of model calls and product searches.">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-first-trace.png" alt="Phoenix trace showing the Wonder Toys request and reply beside the tree of model calls and product searches" />
+<Frame caption="LangGraph's agent and tools steps contain the model and tool calls. Each row is a span; other intermediate spans and repeated calls are omitted.">
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/capture-auto-spans-light-b294807fa5fe.svg" alt="LangGraph contains an agent step with a model call, a tools step with a tool call, and another agent step with a model call." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/capture-auto-spans-dark-31f2217a4e9f.svg" alt="LangGraph contains an agent step with a model call, a tools step with a tool call, and another agent step with a model call." />
 </Frame>
 
-## Step 5: Identify the model and search steps
+In Phoenix:
 
-Each step in the trace is a **span**. Expand the tree to find a `ChatAnthropic` model call and a `search-products` tool call, then select each to inspect its input and output. Your products and number of calls may differ from the screenshot.
+- Open **wonder-toys → Traces** and select the chat request you just sent, usually named **POST /chat** or **LangGraph**.
+- Expand the span tree and find **LangGraph**, which contains the agent's workflow.
+- Select a **ChatAnthropic** model span, or **ChatOpenAI** if you used that option. Under **Info**, look for your shopping request in **Input** and the model's reply in **Output**.
+- If the agent searched for products, select **search-products** to see its arguments and returned products.
 
-You've captured your first run when you can find the request, reply, and both kinds of span.
+<Frame caption="Select ChatAnthropic in the span tree to see the shopper's request under Info → Input.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/capture-model-span-input-b6599210b33a.png" alt="Phoenix trace with LangGraph and its child spans visible on the left, ChatAnthropic selected, and the shopper's dinosaur toy request expanded under Info and Input on the right." />
+</Frame>
 
-## Continue with the same run
+You've completed this lesson when you can find your request in a model span and inspect the recorded calls.
 
-Keep the chat open. Next, [read the model, retrieval, and tool steps](/docs/phoenix/learn/read-agent-run) to understand how the agent reached its recommendation.
+<Note>
+  To apply this to your own app, use the [integration guide for your framework](/docs/phoenix/integrations). The same pattern applies: initialize tracing before the framework runs, then send a request.
+</Note>
+
+## Next: Make the complete interaction easier to review
+
+You can now inspect individual model and tool calls. In [Add an agent span](/docs/phoenix/learn/add-context-to-traces), you'll put the shopper's request and the complete answer together, making it easier to check whether the agent answered what was asked.
