@@ -7,7 +7,7 @@ import httpx2
 import pytest
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk as OpenAIChatCompletionChunk
-from pydantic_ai.exceptions import ModelAPIError
+from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -321,6 +321,36 @@ class TestCreateChatCompletion:
         error = response.json()["error"]
         assert error["type"] == "api_error"
         assert "connection refused" in error["message"]
+
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_invalid_provider_response_returns_openai_502(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        stream: bool,
+    ) -> None:
+        # pydantic-ai raises UnexpectedModelBehavior, not ModelAPIError, when the provider
+        # answers 200 with a body that doesn't validate as a chat completion.
+        invalid_response = "Invalid response from openai chat completions endpoint"
+
+        async def build_misbehaving_model(*_: Any, **__: Any) -> FunctionModel:
+            def respond(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+                raise UnexpectedModelBehavior(invalid_response)
+
+            async def respond_stream(
+                messages: list[ModelMessage], _info: AgentInfo
+            ) -> AsyncIterator[Union[str, DeltaToolCalls]]:
+                raise UnexpectedModelBehavior(invalid_response)
+                yield ""
+
+            return FunctionModel(function=respond, stream_function=respond_stream)
+
+        monkeypatch.setattr(chat_completions_module, "build_model", build_misbehaving_model)
+        response = await httpx_client.post("v1/chat/completions", json=_request_body(stream=stream))
+        assert response.status_code == 502, response.text
+        error = response.json()["error"]
+        assert error["type"] == "api_error"
+        assert invalid_response in error["message"]
 
     async def test_malformed_custom_provider_id_returns_404(
         self,
