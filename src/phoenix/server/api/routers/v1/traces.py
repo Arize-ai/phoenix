@@ -858,7 +858,7 @@ async def get_trace(
                 GlobalID.from_id(trace_identifier),
                 TraceNodeType.__name__,
             )
-        except Exception:
+        except ValueError:
             stmt = select(models.Trace).where(models.Trace.trace_id == trace_identifier)
             error_detail = f"Trace with trace_id '{trace_identifier}' not found"
         else:

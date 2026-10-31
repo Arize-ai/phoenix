@@ -20,8 +20,9 @@ async def _insert_trace(
     *,
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
+    span_kind: str = "LLM",
 ) -> tuple[models.Project, models.Trace]:
-    """Insert a project with a single LLM-root trace and return both."""
+    """Insert a project with a single-span trace and return both."""
     async with db() as session:
         project_rowid = await session.scalar(
             insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
@@ -43,7 +44,7 @@ async def _insert_trace(
                 span_id=token_hex(8),
                 parent_id=None,
                 name="root",
-                span_kind="LLM",
+                span_kind=span_kind,
                 start_time=BASE_TIME,
                 end_time=BASE_TIME + timedelta(seconds=5),
                 attributes={},
@@ -119,11 +120,11 @@ async def test_get_trace_includes_token_counts(
     assert data["token_count_total"] == 150
 
 
-async def test_get_trace_zero_token_counts(
+async def test_get_trace_zero_token_counts_without_llm_spans(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    _, trace = await _insert_trace(db)
+    _, trace = await _insert_trace(db, span_kind="CHAIN")
     response = await httpx_client.get(f"v1/traces/{trace.trace_id}")
     assert response.status_code == 200
     data = response.json()["data"]
