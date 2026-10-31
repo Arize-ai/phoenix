@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-30T04:41:09Z",
-  "models_sha256": "0f43f1c24d37803a98ea5a1df4edfda3e0a7c4974b305d95007b2d64dffe30ac",
+  "generated_at": "2026-10-31T07:15:50Z",
+  "models_sha256": "dfc05fe4efc226905ee7176df516551c1f69561fd4fe74bea793a75cf9fabc10",
   "models": [
     {
       "name": "chatgpt-image-latest",
-      "name_pattern": "chatgpt-image-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "chatgpt-image-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -37,7 +37,7 @@
     },
     {
       "name": "claude-fable-5",
-      "name_pattern": "claude-fable-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-fable-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -64,7 +64,7 @@
     },
     {
       "name": "claude-fable-5-1",
-      "name_pattern": "claude-fable-5-1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-fable-5-1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -91,7 +91,7 @@
     },
     {
       "name": "claude-haiku-4-5",
-      "name_pattern": "claude-haiku-4-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-haiku-4-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -118,7 +118,7 @@
     },
     {
       "name": "claude-haiku-4-5-20251001",
-      "name_pattern": "claude-haiku-4-5-20251001(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-haiku-4-5-20251001(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -145,7 +145,7 @@
     },
     {
       "name": "claude-haiku-5-5",
-      "name_pattern": "claude-haiku-5-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-haiku-5-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -196,7 +196,7 @@
     },
     {
       "name": "claude-mythos-5",
-      "name_pattern": "claude-mythos-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-mythos-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -223,7 +223,7 @@
     },
     {
       "name": "claude-mythos-5-1",
-      "name_pattern": "claude-mythos-5-1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-mythos-5-1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -250,7 +250,7 @@
     },
     {
       "name": "claude-mythos-preview",
-      "name_pattern": "claude-mythos-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-mythos-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -277,7 +277,7 @@
     },
     {
       "name": "claude-opus-4-5",
-      "name_pattern": "claude-opus-4-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-4-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -304,7 +304,7 @@
     },
     {
       "name": "claude-opus-4-5-20251101",
-      "name_pattern": "claude-opus-4-5-20251101(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-4-5-20251101(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -331,7 +331,7 @@
     },
     {
       "name": "claude-opus-4-6",
-      "name_pattern": "claude-opus-4-6(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-4-6(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -358,7 +358,7 @@
     },
     {
       "name": "claude-opus-4-6-20260205",
-      "name_pattern": "claude-opus-4-6-20260205(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-4-6-20260205(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -385,7 +385,7 @@
     },
     {
       "name": "claude-opus-4-7",
-      "name_pattern": "claude-opus-4-7(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-4-7(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -412,7 +412,7 @@
     },
     {
       "name": "claude-opus-4-7-20260416",
-      "name_pattern": "claude-opus-4-7-20260416(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-4-7-20260416(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -439,7 +439,7 @@
     },
     {
       "name": "claude-opus-4-8",
-      "name_pattern": "claude-opus-4-8(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-4-8(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -466,7 +466,7 @@
     },
     {
       "name": "claude-opus-5",
-      "name_pattern": "claude-opus-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -493,7 +493,7 @@
     },
     {
       "name": "claude-opus-5-5",
-      "name_pattern": "claude-opus-5-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-opus-5-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -520,7 +520,7 @@
     },
     {
       "name": "claude-sonnet-4-5",
-      "name_pattern": "claude-sonnet-4-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-sonnet-4-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -571,7 +571,7 @@
     },
     {
       "name": "claude-sonnet-4-5-20250929",
-      "name_pattern": "claude-sonnet-4-5-20250929(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-sonnet-4-5-20250929(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -622,7 +622,7 @@
     },
     {
       "name": "claude-sonnet-4-5-20250929-v1:0",
-      "name_pattern": "claude-sonnet-4-5-20250929-v1:0(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-sonnet-4-5-20250929-v1:0(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -673,7 +673,7 @@
     },
     {
       "name": "claude-sonnet-4-6",
-      "name_pattern": "claude-sonnet-4-6(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-sonnet-4-6(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -700,7 +700,7 @@
     },
     {
       "name": "claude-sonnet-5",
-      "name_pattern": "claude-sonnet-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-sonnet-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -727,7 +727,7 @@
     },
     {
       "name": "claude-sonnet-5-5",
-      "name_pattern": "claude-sonnet-5-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "claude-sonnet-5-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -754,7 +754,7 @@
     },
     {
       "name": "gemini-2.5-computer-use-preview-10-2025",
-      "name_pattern": "gemini-2\\.5-computer-use-preview-10-2025(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-computer-use-preview-10-2025(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -783,7 +783,7 @@
     },
     {
       "name": "gemini-2.5-flash",
-      "name_pattern": "gemini-2.5-flash(@[a-zA-Z0-9]+)?(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2.5-flash(@[a-zA-Z0-9]+)?(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -815,7 +815,7 @@
     },
     {
       "name": "gemini-2.5-flash-image",
-      "name_pattern": "gemini-2\\.5-flash-image(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-image(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -847,7 +847,7 @@
     },
     {
       "name": "gemini-2.5-flash-lite",
-      "name_pattern": "gemini-2\\.5-flash-lite(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-lite(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -879,7 +879,7 @@
     },
     {
       "name": "gemini-2.5-flash-lite-preview-09-2025",
-      "name_pattern": "gemini-2\\.5-flash-lite-preview-09-2025(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-lite-preview-09-2025(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -911,7 +911,7 @@
     },
     {
       "name": "gemini-2.5-flash-native-audio-latest",
-      "name_pattern": "gemini-2\\.5-flash-native-audio-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-native-audio-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -938,7 +938,7 @@
     },
     {
       "name": "gemini-2.5-flash-native-audio-preview-09-2025",
-      "name_pattern": "gemini-2\\.5-flash-native-audio-preview-09-2025(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-native-audio-preview-09-2025(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -965,7 +965,7 @@
     },
     {
       "name": "gemini-2.5-flash-native-audio-preview-12-2025",
-      "name_pattern": "gemini-2\\.5-flash-native-audio-preview-12-2025(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-native-audio-preview-12-2025(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -992,7 +992,7 @@
     },
     {
       "name": "gemini-2.5-flash-preview-09-2025",
-      "name_pattern": "gemini-2\\.5-flash-preview-09-2025(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-preview-09-2025(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1024,7 +1024,7 @@
     },
     {
       "name": "gemini-2.5-flash-preview-tts",
-      "name_pattern": "gemini-2\\.5-flash-preview-tts(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-flash-preview-tts(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1046,7 +1046,7 @@
     },
     {
       "name": "gemini-2.5-pro",
-      "name_pattern": "gemini-2.5-pro(@[a-zA-Z0-9]+)?(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2.5-pro(@[a-zA-Z0-9]+)?(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1086,7 +1086,7 @@
     },
     {
       "name": "gemini-2.5-pro-preview-tts",
-      "name_pattern": "gemini-2\\.5-pro-preview-tts(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-2\\.5-pro-preview-tts(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1118,7 +1118,7 @@
     },
     {
       "name": "gemini-3-flash-preview",
-      "name_pattern": "gemini-3-flash-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3-flash-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1150,7 +1150,7 @@
     },
     {
       "name": "gemini-3-pro-image",
-      "name_pattern": "gemini-3-pro-image(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3-pro-image(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1195,7 +1195,7 @@
     },
     {
       "name": "gemini-3-pro-image-preview",
-      "name_pattern": "gemini-3-pro-image-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3-pro-image-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1240,7 +1240,7 @@
     },
     {
       "name": "gemini-3.1-flash-image",
-      "name_pattern": "gemini-3\\.1-flash-image(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-flash-image(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1267,7 +1267,7 @@
     },
     {
       "name": "gemini-3.1-flash-image-preview",
-      "name_pattern": "gemini-3\\.1-flash-image-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-flash-image-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1294,7 +1294,7 @@
     },
     {
       "name": "gemini-3.1-flash-lite",
-      "name_pattern": "gemini-3\\.1-flash-lite(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-flash-lite(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1326,7 +1326,7 @@
     },
     {
       "name": "gemini-3.1-flash-lite-image",
-      "name_pattern": "gemini-3\\.1-flash-lite-image(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-flash-lite-image(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1353,7 +1353,7 @@
     },
     {
       "name": "gemini-3.1-flash-lite-preview",
-      "name_pattern": "gemini-3\\.1-flash-lite-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-flash-lite-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1385,7 +1385,7 @@
     },
     {
       "name": "gemini-3.1-flash-live-preview",
-      "name_pattern": "gemini-3\\.1-flash-live-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-flash-live-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1417,7 +1417,7 @@
     },
     {
       "name": "gemini-3.1-pro-preview",
-      "name_pattern": "gemini-3\\.1-pro-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-pro-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1457,7 +1457,7 @@
     },
     {
       "name": "gemini-3.1-pro-preview-customtools",
-      "name_pattern": "gemini-3\\.1-pro-preview-customtools(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.1-pro-preview-customtools(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1497,7 +1497,7 @@
     },
     {
       "name": "gemini-3.5-flash",
-      "name_pattern": "gemini-3\\.5-flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.5-flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1529,7 +1529,7 @@
     },
     {
       "name": "gemini-3.5-flash-lite",
-      "name_pattern": "gemini-3\\.5-flash-lite(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.5-flash-lite(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1556,7 +1556,7 @@
     },
     {
       "name": "gemini-3.6-flash",
-      "name_pattern": "gemini-3\\.6-flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.6-flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1583,7 +1583,7 @@
     },
     {
       "name": "gemini-3.7-flash",
-      "name_pattern": "gemini-3\\.7-flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.7-flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1610,7 +1610,7 @@
     },
     {
       "name": "gemini-3.8-flash",
-      "name_pattern": "gemini-3\\.8-flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.8-flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1637,7 +1637,7 @@
     },
     {
       "name": "gemini-3.8-flash-cyber",
-      "name_pattern": "gemini-3\\.8-flash-cyber(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.8-flash-cyber(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1664,7 +1664,7 @@
     },
     {
       "name": "gemini-3.8-live",
-      "name_pattern": "gemini-3\\.8-live(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.8-live(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1696,7 +1696,7 @@
     },
     {
       "name": "gemini-3.8-live-extended-thinking",
-      "name_pattern": "gemini-3\\.8-live-extended-thinking(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-3\\.8-live-extended-thinking(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1728,7 +1728,7 @@
     },
     {
       "name": "gemini-4-argon",
-      "name_pattern": "gemini-4-argon(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-4-argon(?!-\\d{1,2}(?!\\d))",
       "source": "manual",
       "token_prices": [
         {
@@ -1755,7 +1755,7 @@
     },
     {
       "name": "gemini-exp-1206",
-      "name_pattern": "gemini-exp-1206(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-exp-1206(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1787,7 +1787,7 @@
     },
     {
       "name": "gemini-flash-latest",
-      "name_pattern": "gemini-flash-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-flash-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1814,7 +1814,7 @@
     },
     {
       "name": "gemini-flash-lite-latest",
-      "name_pattern": "gemini-flash-lite-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-flash-lite-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1841,7 +1841,7 @@
     },
     {
       "name": "gemini-live-2.5-flash-native-audio",
-      "name_pattern": "gemini-live-2\\.5-flash-native-audio(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-live-2\\.5-flash-native-audio(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1873,7 +1873,7 @@
     },
     {
       "name": "gemini-live-2.5-flash-preview-native-audio-09-2025",
-      "name_pattern": "gemini-live-2\\.5-flash-preview-native-audio-09-2025(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-live-2\\.5-flash-preview-native-audio-09-2025(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1905,7 +1905,7 @@
     },
     {
       "name": "gemini-nano-banana-2.1",
-      "name_pattern": "gemini-nano-banana-2\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-nano-banana-2\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1932,7 +1932,7 @@
     },
     {
       "name": "gemini-omni-flash-preview",
-      "name_pattern": "gemini-omni-flash-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-omni-flash-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1959,7 +1959,7 @@
     },
     {
       "name": "gemini-robotics-er-1.5-preview",
-      "name_pattern": "gemini-robotics-er-1\\.5-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemini-robotics-er-1\\.5-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -1986,7 +1986,7 @@
     },
     {
       "name": "global.openai.gpt-5.4",
-      "name_pattern": "global\\.openai\\.gpt-5\\.4(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-5\\.4(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2026,7 +2026,7 @@
     },
     {
       "name": "global.openai.gpt-5.5",
-      "name_pattern": "global\\.openai\\.gpt-5\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-5\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2066,7 +2066,7 @@
     },
     {
       "name": "global.openai.gpt-5.6-luna",
-      "name_pattern": "global\\.openai\\.gpt-5\\.6-luna(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-5\\.6-luna(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2117,7 +2117,7 @@
     },
     {
       "name": "global.openai.gpt-5.6-sol",
-      "name_pattern": "global\\.openai\\.gpt-5\\.6-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-5\\.6-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2168,7 +2168,7 @@
     },
     {
       "name": "global.openai.gpt-5.6-terra",
-      "name_pattern": "global\\.openai\\.gpt-5\\.6-terra(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-5\\.6-terra(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2219,7 +2219,7 @@
     },
     {
       "name": "global.openai.gpt-6-astra",
-      "name_pattern": "global\\.openai\\.gpt-6-astra(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-6-astra(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2270,7 +2270,7 @@
     },
     {
       "name": "global.openai.gpt-6-luna",
-      "name_pattern": "global\\.openai\\.gpt-6-luna(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-6-luna(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2321,7 +2321,7 @@
     },
     {
       "name": "global.openai.gpt-6-sol",
-      "name_pattern": "global\\.openai\\.gpt-6-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-6-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2372,7 +2372,7 @@
     },
     {
       "name": "global.openai.gpt-6.1-sol",
-      "name_pattern": "global\\.openai\\.gpt-6\\.1-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "global\\.openai\\.gpt-6\\.1-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2423,7 +2423,7 @@
     },
     {
       "name": "gpt-3.5-turbo",
-      "name_pattern": "gpt-(35|3.5)-turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-(35|3.5)-turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2440,7 +2440,7 @@
     },
     {
       "name": "gpt-3.5-turbo-0125",
-      "name_pattern": "gpt-(35|3.5)-turbo-0125(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-(35|3.5)-turbo-0125(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2457,7 +2457,7 @@
     },
     {
       "name": "gpt-3.5-turbo-1106",
-      "name_pattern": "gpt-(35|3.5)-turbo-1106(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-(35|3.5)-turbo-1106(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2474,7 +2474,7 @@
     },
     {
       "name": "gpt-3.5-turbo-16k",
-      "name_pattern": "gpt-(35|3.5)-turbo-16k(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-(35|3.5)-turbo-16k(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2491,7 +2491,7 @@
     },
     {
       "name": "gpt-3.5-turbo-instruct",
-      "name_pattern": "gpt-(35|3.5)-turbo-instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-(35|3.5)-turbo-instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2508,7 +2508,7 @@
     },
     {
       "name": "gpt-3.5-turbo-instruct-0914",
-      "name_pattern": "gpt-3\\.5-turbo-instruct-0914(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-3\\.5-turbo-instruct-0914(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2525,7 +2525,7 @@
     },
     {
       "name": "gpt-4",
-      "name_pattern": "gpt-4(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2542,7 +2542,7 @@
     },
     {
       "name": "gpt-4-0613",
-      "name_pattern": "gpt-4-0613(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4-0613(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2559,7 +2559,7 @@
     },
     {
       "name": "gpt-4-1106-preview",
-      "name_pattern": "gpt-4-1106-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4-1106-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2576,7 +2576,7 @@
     },
     {
       "name": "gpt-4-turbo",
-      "name_pattern": "gpt-4-turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4-turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2593,7 +2593,7 @@
     },
     {
       "name": "gpt-4-turbo-2024-04-09",
-      "name_pattern": "gpt-4-turbo-2024-04-09(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4-turbo-2024-04-09(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2610,7 +2610,7 @@
     },
     {
       "name": "gpt-4.1",
-      "name_pattern": "gpt-4.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2632,7 +2632,7 @@
     },
     {
       "name": "gpt-4.1-2025-04-14",
-      "name_pattern": "gpt-4\\.1-2025-04-14(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4\\.1-2025-04-14(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2654,7 +2654,7 @@
     },
     {
       "name": "gpt-4.1-mini",
-      "name_pattern": "gpt-4\\.1-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4\\.1-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2676,7 +2676,7 @@
     },
     {
       "name": "gpt-4.1-mini-2025-04-14",
-      "name_pattern": "gpt-4\\.1-mini-2025-04-14(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4\\.1-mini-2025-04-14(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2698,7 +2698,7 @@
     },
     {
       "name": "gpt-4.1-nano",
-      "name_pattern": "gpt-4\\.1-nano(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4\\.1-nano(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2720,7 +2720,7 @@
     },
     {
       "name": "gpt-4.1-nano-2025-04-14",
-      "name_pattern": "gpt-4\\.1-nano-2025-04-14(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4\\.1-nano-2025-04-14(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2742,7 +2742,7 @@
     },
     {
       "name": "gpt-4o",
-      "name_pattern": "gpt-4o(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2764,7 +2764,7 @@
     },
     {
       "name": "gpt-4o-2024-05-13",
-      "name_pattern": "gpt-4o-2024-05-13(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-2024-05-13(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2781,7 +2781,7 @@
     },
     {
       "name": "gpt-4o-2024-08-06",
-      "name_pattern": "gpt-4o-2024-08-06(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-2024-08-06(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2803,7 +2803,7 @@
     },
     {
       "name": "gpt-4o-2024-11-20",
-      "name_pattern": "gpt-4o-2024-11-20(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-2024-11-20(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2825,7 +2825,7 @@
     },
     {
       "name": "gpt-4o-audio-preview-2024-12-17",
-      "name_pattern": "gpt-4o-audio-preview-2024-12-17(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-audio-preview-2024-12-17(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2852,7 +2852,7 @@
     },
     {
       "name": "gpt-4o-audio-preview-2025-06-03",
-      "name_pattern": "gpt-4o-audio-preview-2025-06-03(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-audio-preview-2025-06-03(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2879,7 +2879,7 @@
     },
     {
       "name": "gpt-4o-mini",
-      "name_pattern": "gpt-4o-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2901,7 +2901,7 @@
     },
     {
       "name": "gpt-4o-mini-2024-07-18",
-      "name_pattern": "gpt-4o-mini-2024-07-18(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-2024-07-18(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2923,7 +2923,7 @@
     },
     {
       "name": "gpt-4o-mini-audio-preview-2024-12-17",
-      "name_pattern": "gpt-4o-mini-audio-preview-2024-12-17(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-audio-preview-2024-12-17(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2950,7 +2950,7 @@
     },
     {
       "name": "gpt-4o-mini-realtime-preview-2024-12-17",
-      "name_pattern": "gpt-4o-mini-realtime-preview-2024-12-17(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-realtime-preview-2024-12-17(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -2982,7 +2982,7 @@
     },
     {
       "name": "gpt-4o-mini-search-preview",
-      "name_pattern": "gpt-4o-mini-search-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-search-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3004,7 +3004,7 @@
     },
     {
       "name": "gpt-4o-mini-transcribe",
-      "name_pattern": "gpt-4o-mini-transcribe(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-transcribe(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3026,7 +3026,7 @@
     },
     {
       "name": "gpt-4o-mini-transcribe-2025-03-20",
-      "name_pattern": "gpt-4o-mini-transcribe-2025-03-20(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-transcribe-2025-03-20(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3048,7 +3048,7 @@
     },
     {
       "name": "gpt-4o-mini-transcribe-2025-12-15",
-      "name_pattern": "gpt-4o-mini-transcribe-2025-12-15(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-transcribe-2025-12-15(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3070,7 +3070,7 @@
     },
     {
       "name": "gpt-4o-mini-tts",
-      "name_pattern": "gpt-4o-mini-tts(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-tts(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3092,7 +3092,7 @@
     },
     {
       "name": "gpt-4o-mini-tts-2025-03-20",
-      "name_pattern": "gpt-4o-mini-tts-2025-03-20(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-tts-2025-03-20(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3114,7 +3114,7 @@
     },
     {
       "name": "gpt-4o-mini-tts-2025-12-15",
-      "name_pattern": "gpt-4o-mini-tts-2025-12-15(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-mini-tts-2025-12-15(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3136,7 +3136,7 @@
     },
     {
       "name": "gpt-4o-search-preview",
-      "name_pattern": "gpt-4o-search-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-search-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3158,7 +3158,7 @@
     },
     {
       "name": "gpt-4o-transcribe",
-      "name_pattern": "gpt-4o-transcribe(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-transcribe(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3180,7 +3180,7 @@
     },
     {
       "name": "gpt-4o-transcribe-diarize",
-      "name_pattern": "gpt-4o-transcribe-diarize(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-4o-transcribe-diarize(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3202,7 +3202,7 @@
     },
     {
       "name": "gpt-5",
-      "name_pattern": "gpt-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3224,7 +3224,7 @@
     },
     {
       "name": "gpt-5-2025-08-07",
-      "name_pattern": "gpt-5-2025-08-07(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-2025-08-07(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3246,7 +3246,7 @@
     },
     {
       "name": "gpt-5-chat",
-      "name_pattern": "gpt-5-chat(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-chat(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3268,7 +3268,7 @@
     },
     {
       "name": "gpt-5-chat-latest",
-      "name_pattern": "gpt-5-chat-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-chat-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3290,7 +3290,7 @@
     },
     {
       "name": "gpt-5-codex",
-      "name_pattern": "gpt-5-codex(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-codex(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3312,7 +3312,7 @@
     },
     {
       "name": "gpt-5-mini",
-      "name_pattern": "gpt-5-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3334,7 +3334,7 @@
     },
     {
       "name": "gpt-5-mini-2025-08-07",
-      "name_pattern": "gpt-5-mini-2025-08-07(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-mini-2025-08-07(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3356,7 +3356,7 @@
     },
     {
       "name": "gpt-5-nano",
-      "name_pattern": "gpt-5-nano(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-nano(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3378,7 +3378,7 @@
     },
     {
       "name": "gpt-5-nano-2025-08-07",
-      "name_pattern": "gpt-5-nano-2025-08-07(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-nano-2025-08-07(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3400,7 +3400,7 @@
     },
     {
       "name": "gpt-5-pro",
-      "name_pattern": "gpt-5-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3417,7 +3417,7 @@
     },
     {
       "name": "gpt-5-pro-2025-10-06",
-      "name_pattern": "gpt-5-pro-2025-10-06(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-pro-2025-10-06(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3434,7 +3434,7 @@
     },
     {
       "name": "gpt-5-search-api",
-      "name_pattern": "gpt-5-search-api(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-search-api(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3456,7 +3456,7 @@
     },
     {
       "name": "gpt-5-search-api-2025-10-14",
-      "name_pattern": "gpt-5-search-api-2025-10-14(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5-search-api-2025-10-14(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3478,7 +3478,7 @@
     },
     {
       "name": "gpt-5.1",
-      "name_pattern": "gpt-5\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3500,7 +3500,7 @@
     },
     {
       "name": "gpt-5.1-2025-11-13",
-      "name_pattern": "gpt-5\\.1-2025-11-13(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.1-2025-11-13(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3522,7 +3522,7 @@
     },
     {
       "name": "gpt-5.1-chat-latest",
-      "name_pattern": "gpt-5\\.1-chat-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.1-chat-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3544,7 +3544,7 @@
     },
     {
       "name": "gpt-5.1-codex",
-      "name_pattern": "gpt-5\\.1-codex(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.1-codex(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3566,7 +3566,7 @@
     },
     {
       "name": "gpt-5.1-codex-max",
-      "name_pattern": "gpt-5\\.1-codex-max(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.1-codex-max(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3588,7 +3588,7 @@
     },
     {
       "name": "gpt-5.1-codex-mini",
-      "name_pattern": "gpt-5\\.1-codex-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.1-codex-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3610,7 +3610,7 @@
     },
     {
       "name": "gpt-5.2",
-      "name_pattern": "gpt-5\\.2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3632,7 +3632,7 @@
     },
     {
       "name": "gpt-5.2-2025-12-11",
-      "name_pattern": "gpt-5\\.2-2025-12-11(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.2-2025-12-11(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3654,7 +3654,7 @@
     },
     {
       "name": "gpt-5.2-chat-latest",
-      "name_pattern": "gpt-5\\.2-chat-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.2-chat-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3676,7 +3676,7 @@
     },
     {
       "name": "gpt-5.2-codex",
-      "name_pattern": "gpt-5\\.2-codex(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.2-codex(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3698,7 +3698,7 @@
     },
     {
       "name": "gpt-5.2-pro",
-      "name_pattern": "gpt-5\\.2-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.2-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3715,7 +3715,7 @@
     },
     {
       "name": "gpt-5.2-pro-2025-12-11",
-      "name_pattern": "gpt-5\\.2-pro-2025-12-11(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.2-pro-2025-12-11(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3732,7 +3732,7 @@
     },
     {
       "name": "gpt-5.3-chat-latest",
-      "name_pattern": "gpt-5\\.3-chat-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.3-chat-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3754,7 +3754,7 @@
     },
     {
       "name": "gpt-5.3-codex",
-      "name_pattern": "gpt-5\\.3-codex(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.3-codex(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3776,7 +3776,7 @@
     },
     {
       "name": "gpt-5.4",
-      "name_pattern": "gpt-5\\.4(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3816,7 +3816,7 @@
     },
     {
       "name": "gpt-5.4-2026-03-05",
-      "name_pattern": "gpt-5\\.4-2026-03-05(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4-2026-03-05(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3856,7 +3856,7 @@
     },
     {
       "name": "gpt-5.4-mini",
-      "name_pattern": "gpt-5\\.4-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3878,7 +3878,7 @@
     },
     {
       "name": "gpt-5.4-mini-2026-03-17",
-      "name_pattern": "gpt-5\\.4-mini-2026-03-17(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4-mini-2026-03-17(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3900,7 +3900,7 @@
     },
     {
       "name": "gpt-5.4-nano",
-      "name_pattern": "gpt-5\\.4-nano(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4-nano(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3922,7 +3922,7 @@
     },
     {
       "name": "gpt-5.4-nano-2026-03-17",
-      "name_pattern": "gpt-5\\.4-nano-2026-03-17(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4-nano-2026-03-17(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3944,7 +3944,7 @@
     },
     {
       "name": "gpt-5.4-pro",
-      "name_pattern": "gpt-5\\.4-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -3973,7 +3973,7 @@
     },
     {
       "name": "gpt-5.4-pro-2026-03-05",
-      "name_pattern": "gpt-5\\.4-pro-2026-03-05(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.4-pro-2026-03-05(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4002,7 +4002,7 @@
     },
     {
       "name": "gpt-5.5",
-      "name_pattern": "gpt-5\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4042,7 +4042,7 @@
     },
     {
       "name": "gpt-5.5-2026-04-23",
-      "name_pattern": "gpt-5\\.5-2026-04-23(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.5-2026-04-23(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4082,7 +4082,7 @@
     },
     {
       "name": "gpt-5.5-cyber",
-      "name_pattern": "gpt-5\\.5-cyber(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.5-cyber(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4104,7 +4104,7 @@
     },
     {
       "name": "gpt-5.5-pro",
-      "name_pattern": "gpt-5\\.5-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.5-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4133,7 +4133,7 @@
     },
     {
       "name": "gpt-5.5-pro-2026-04-23",
-      "name_pattern": "gpt-5\\.5-pro-2026-04-23(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.5-pro-2026-04-23(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4162,7 +4162,7 @@
     },
     {
       "name": "gpt-5.6",
-      "name_pattern": "gpt-5\\.6(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.6(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4213,7 +4213,7 @@
     },
     {
       "name": "gpt-5.6-cyber",
-      "name_pattern": "gpt-5\\.6-cyber(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.6-cyber(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4264,7 +4264,7 @@
     },
     {
       "name": "gpt-5.6-luna",
-      "name_pattern": "gpt-5\\.6-luna(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.6-luna(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4315,7 +4315,7 @@
     },
     {
       "name": "gpt-5.6-sol",
-      "name_pattern": "gpt-5\\.6-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.6-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4366,7 +4366,7 @@
     },
     {
       "name": "gpt-5.6-terra",
-      "name_pattern": "gpt-5\\.6-terra(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-5\\.6-terra(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4417,7 +4417,7 @@
     },
     {
       "name": "gpt-6-astra",
-      "name_pattern": "gpt-6-astra(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-6-astra(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4468,7 +4468,7 @@
     },
     {
       "name": "gpt-6-luna",
-      "name_pattern": "gpt-6-luna(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-6-luna(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4519,7 +4519,7 @@
     },
     {
       "name": "gpt-6-sol",
-      "name_pattern": "gpt-6-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-6-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4570,7 +4570,7 @@
     },
     {
       "name": "gpt-6.1-sol",
-      "name_pattern": "gpt-6\\.1-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-6\\.1-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4621,7 +4621,7 @@
     },
     {
       "name": "gpt-audio",
-      "name_pattern": "gpt-audio(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-audio(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4648,7 +4648,7 @@
     },
     {
       "name": "gpt-audio-1.5",
-      "name_pattern": "gpt-audio-1\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-audio-1\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4675,7 +4675,7 @@
     },
     {
       "name": "gpt-audio-2025-08-28",
-      "name_pattern": "gpt-audio-2025-08-28(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-audio-2025-08-28(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4702,7 +4702,7 @@
     },
     {
       "name": "gpt-audio-mini",
-      "name_pattern": "gpt-audio-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-audio-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4729,7 +4729,7 @@
     },
     {
       "name": "gpt-audio-mini-2025-12-15",
-      "name_pattern": "gpt-audio-mini-2025-12-15(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-audio-mini-2025-12-15(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4756,7 +4756,7 @@
     },
     {
       "name": "gpt-daybreak-blue-latest",
-      "name_pattern": "gpt-daybreak-blue-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-daybreak-blue-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4807,7 +4807,7 @@
     },
     {
       "name": "gpt-daybreak-red-latest",
-      "name_pattern": "gpt-daybreak-red-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-daybreak-red-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4858,7 +4858,7 @@
     },
     {
       "name": "gpt-image-1",
-      "name_pattern": "gpt-image-1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4890,7 +4890,7 @@
     },
     {
       "name": "gpt-image-1-mini",
-      "name_pattern": "gpt-image-1-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-1-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4922,7 +4922,7 @@
     },
     {
       "name": "gpt-image-1.5",
-      "name_pattern": "gpt-image-1\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-1\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4954,7 +4954,7 @@
     },
     {
       "name": "gpt-image-1.5-2025-12-16",
-      "name_pattern": "gpt-image-1\\.5-2025-12-16(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-1\\.5-2025-12-16(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -4986,7 +4986,7 @@
     },
     {
       "name": "gpt-image-2",
-      "name_pattern": "gpt-image-2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5018,7 +5018,7 @@
     },
     {
       "name": "gpt-image-2-2026-04-21",
-      "name_pattern": "gpt-image-2-2026-04-21(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-2-2026-04-21(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5050,7 +5050,7 @@
     },
     {
       "name": "gpt-image-2.5-flare",
-      "name_pattern": "gpt-image-2\\.5-flare(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-2\\.5-flare(?!-\\d{1,2}(?!\\d))",
       "source": "manual",
       "token_prices": [
         {
@@ -5082,7 +5082,7 @@
     },
     {
       "name": "gpt-image-2.5-flare-2026-09-08",
-      "name_pattern": "gpt-image-2\\.5-flare-2026-09-08(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-2\\.5-flare-2026-09-08(?!-\\d{1,2}(?!\\d))",
       "source": "manual",
       "token_prices": [
         {
@@ -5114,7 +5114,7 @@
     },
     {
       "name": "gpt-image-2.5-sunburst",
-      "name_pattern": "gpt-image-2\\.5-sunburst(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-2\\.5-sunburst(?!-\\d{1,2}(?!\\d))",
       "source": "manual",
       "token_prices": [
         {
@@ -5146,7 +5146,7 @@
     },
     {
       "name": "gpt-image-2.5-sunburst-2026-09-08",
-      "name_pattern": "gpt-image-2\\.5-sunburst-2026-09-08(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-image-2\\.5-sunburst-2026-09-08(?!-\\d{1,2}(?!\\d))",
       "source": "manual",
       "token_prices": [
         {
@@ -5178,7 +5178,7 @@
     },
     {
       "name": "gpt-realtime",
-      "name_pattern": "gpt-realtime(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5215,7 +5215,7 @@
     },
     {
       "name": "gpt-realtime-1.5",
-      "name_pattern": "gpt-realtime-1\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime-1\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5252,7 +5252,7 @@
     },
     {
       "name": "gpt-realtime-2",
-      "name_pattern": "gpt-realtime-2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime-2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5289,7 +5289,7 @@
     },
     {
       "name": "gpt-realtime-2.1",
-      "name_pattern": "gpt-realtime-2\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime-2\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5326,7 +5326,7 @@
     },
     {
       "name": "gpt-realtime-2.1-mini",
-      "name_pattern": "gpt-realtime-2\\.1-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime-2\\.1-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5363,7 +5363,7 @@
     },
     {
       "name": "gpt-realtime-2025-08-28",
-      "name_pattern": "gpt-realtime-2025-08-28(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime-2025-08-28(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5400,7 +5400,7 @@
     },
     {
       "name": "gpt-realtime-mini",
-      "name_pattern": "gpt-realtime-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5437,7 +5437,7 @@
     },
     {
       "name": "gpt-realtime-mini-2025-12-15",
-      "name_pattern": "gpt-realtime-mini-2025-12-15(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-realtime-mini-2025-12-15(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5474,7 +5474,7 @@
     },
     {
       "name": "gpt-rosalind-research",
-      "name_pattern": "gpt-rosalind-research(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-rosalind-research(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5496,7 +5496,7 @@
     },
     {
       "name": "o1",
-      "name_pattern": "o1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5518,7 +5518,7 @@
     },
     {
       "name": "o1-2024-12-17",
-      "name_pattern": "o1-2024-12-17(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o1-2024-12-17(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5540,7 +5540,7 @@
     },
     {
       "name": "o1-pro",
-      "name_pattern": "o1-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o1-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5557,7 +5557,7 @@
     },
     {
       "name": "o1-pro-2025-03-19",
-      "name_pattern": "o1-pro-2025-03-19(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o1-pro-2025-03-19(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5574,7 +5574,7 @@
     },
     {
       "name": "o3",
-      "name_pattern": "o3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5596,7 +5596,7 @@
     },
     {
       "name": "o3-2025-04-16",
-      "name_pattern": "o3-2025-04-16(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o3-2025-04-16(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5618,7 +5618,7 @@
     },
     {
       "name": "o3-deep-research",
-      "name_pattern": "o3-deep-research(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o3-deep-research(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5640,7 +5640,7 @@
     },
     {
       "name": "o3-mini",
-      "name_pattern": "o3-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o3-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5662,7 +5662,7 @@
     },
     {
       "name": "o3-mini-2025-01-31",
-      "name_pattern": "o3-mini-2025-01-31(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o3-mini-2025-01-31(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5684,7 +5684,7 @@
     },
     {
       "name": "o3-pro",
-      "name_pattern": "o3-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o3-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5701,7 +5701,7 @@
     },
     {
       "name": "o3-pro-2025-06-10",
-      "name_pattern": "o3-pro-2025-06-10(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o3-pro-2025-06-10(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5718,7 +5718,7 @@
     },
     {
       "name": "o4-mini",
-      "name_pattern": "o4-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o4-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5740,7 +5740,7 @@
     },
     {
       "name": "o4-mini-2025-04-16",
-      "name_pattern": "o4-mini-2025-04-16(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o4-mini-2025-04-16(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5762,7 +5762,7 @@
     },
     {
       "name": "o4-mini-deep-research",
-      "name_pattern": "o4-mini-deep-research(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "o4-mini-deep-research(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5784,7 +5784,7 @@
     },
     {
       "name": "openai.gpt-6-luna",
-      "name_pattern": "openai\\.gpt-6-luna(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai\\.gpt-6-luna(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5835,7 +5835,7 @@
     },
     {
       "name": "openai.gpt-6-sol",
-      "name_pattern": "openai\\.gpt-6-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai\\.gpt-6-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5886,7 +5886,7 @@
     },
     {
       "name": "openai.gpt-oss-120b-1:0",
-      "name_pattern": "openai\\.gpt-oss-120b-1:0(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai\\.gpt-oss-120b-1:0(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5903,7 +5903,7 @@
     },
     {
       "name": "openai.gpt-oss-20b-1:0",
-      "name_pattern": "openai\\.gpt-oss-20b-1:0(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai\\.gpt-oss-20b-1:0(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5920,7 +5920,7 @@
     },
     {
       "name": "openai.gpt-oss-safeguard-120b",
-      "name_pattern": "openai\\.gpt-oss-safeguard-120b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai\\.gpt-oss-safeguard-120b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5937,7 +5937,7 @@
     },
     {
       "name": "openai.gpt-oss-safeguard-20b",
-      "name_pattern": "openai\\.gpt-oss-safeguard-20b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai\\.gpt-oss-safeguard-20b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5954,7 +5954,7 @@
     },
     {
       "name": "us-gov.openai.gpt-oss-120b-1:0",
-      "name_pattern": "us-gov\\.openai\\.gpt-oss-120b-1:0(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us-gov\\.openai\\.gpt-oss-120b-1:0(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5971,7 +5971,7 @@
     },
     {
       "name": "us-gov.openai.gpt-oss-20b-1:0",
-      "name_pattern": "us-gov\\.openai\\.gpt-oss-20b-1:0(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us-gov\\.openai\\.gpt-oss-20b-1:0(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -5988,7 +5988,7 @@
     },
     {
       "name": "us.openai.gpt-5.4",
-      "name_pattern": "us\\.openai\\.gpt-5\\.4(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-5\\.4(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6028,7 +6028,7 @@
     },
     {
       "name": "us.openai.gpt-5.5",
-      "name_pattern": "us\\.openai\\.gpt-5\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-5\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6068,7 +6068,7 @@
     },
     {
       "name": "us.openai.gpt-5.6-luna",
-      "name_pattern": "us\\.openai\\.gpt-5\\.6-luna(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-5\\.6-luna(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6119,7 +6119,7 @@
     },
     {
       "name": "us.openai.gpt-5.6-sol",
-      "name_pattern": "us\\.openai\\.gpt-5\\.6-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-5\\.6-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6170,7 +6170,7 @@
     },
     {
       "name": "us.openai.gpt-5.6-terra",
-      "name_pattern": "us\\.openai\\.gpt-5\\.6-terra(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-5\\.6-terra(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6221,7 +6221,7 @@
     },
     {
       "name": "us.openai.gpt-6-astra",
-      "name_pattern": "us\\.openai\\.gpt-6-astra(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-6-astra(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6272,7 +6272,7 @@
     },
     {
       "name": "us.openai.gpt-6-luna",
-      "name_pattern": "us\\.openai\\.gpt-6-luna(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-6-luna(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6323,7 +6323,7 @@
     },
     {
       "name": "us.openai.gpt-6-sol",
-      "name_pattern": "us\\.openai\\.gpt-6-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-6-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6374,7 +6374,7 @@
     },
     {
       "name": "us.openai.gpt-6.1-sol",
-      "name_pattern": "us\\.openai\\.gpt-6\\.1-sol(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "us\\.openai\\.gpt-6\\.1-sol(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -6425,7 +6425,7 @@
     },
     {
       "name": "cerebras/gemma-4-31b",
-      "name_pattern": "gemma-4-31b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gemma-4-31b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "cerebras",
       "token_prices": [
@@ -6443,7 +6443,7 @@
     },
     {
       "name": "cerebras/gpt-oss-120b",
-      "name_pattern": "gpt-oss-120b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "gpt-oss-120b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "cerebras",
       "token_prices": [
@@ -6461,7 +6461,7 @@
     },
     {
       "name": "cerebras/llama-3.3-70b",
-      "name_pattern": "llama-3\\.3-70b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "llama-3\\.3-70b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "cerebras",
       "token_prices": [
@@ -6479,7 +6479,7 @@
     },
     {
       "name": "cerebras/llama3.1-70b",
-      "name_pattern": "llama3\\.1-70b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "llama3\\.1-70b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "cerebras",
       "token_prices": [
@@ -6497,7 +6497,7 @@
     },
     {
       "name": "cerebras/llama3.1-8b",
-      "name_pattern": "llama3\\.1-8b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "llama3\\.1-8b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "cerebras",
       "token_prices": [
@@ -6515,7 +6515,7 @@
     },
     {
       "name": "cerebras/qwen-3-32b",
-      "name_pattern": "qwen-3-32b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "qwen-3-32b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "cerebras",
       "token_prices": [
@@ -6533,7 +6533,7 @@
     },
     {
       "name": "cerebras/qwen-3.8-27b",
-      "name_pattern": "qwen-3\\.8-27b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "qwen-3\\.8-27b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "cerebras",
       "token_prices": [
@@ -6551,7 +6551,7 @@
     },
     {
       "name": "groq/llama-guard-3-8b",
-      "name_pattern": "llama-guard-3-8b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "llama-guard-3-8b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "groq",
       "token_prices": [
@@ -6569,7 +6569,7 @@
     },
     {
       "name": "groq/meta-llama/llama-prompt-guard-2-22m",
-      "name_pattern": "meta-llama/llama-prompt-guard-2-22m(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/llama-prompt-guard-2-22m(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "groq",
       "token_prices": [
@@ -6587,7 +6587,7 @@
     },
     {
       "name": "groq/meta-llama/llama-prompt-guard-2-86m",
-      "name_pattern": "meta-llama/llama-prompt-guard-2-86m(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/llama-prompt-guard-2-86m(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "groq",
       "token_prices": [
@@ -6605,7 +6605,7 @@
     },
     {
       "name": "groq/openai/gpt-oss-120b",
-      "name_pattern": "openai/gpt-oss-120b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai/gpt-oss-120b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "groq",
       "token_prices": [
@@ -6628,7 +6628,7 @@
     },
     {
       "name": "groq/openai/gpt-oss-20b",
-      "name_pattern": "openai/gpt-oss-20b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai/gpt-oss-20b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "groq",
       "token_prices": [
@@ -6651,7 +6651,7 @@
     },
     {
       "name": "groq/openai/gpt-oss-safeguard-20b",
-      "name_pattern": "openai/gpt-oss-safeguard-20b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai/gpt-oss-safeguard-20b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "groq",
       "token_prices": [
@@ -6674,7 +6674,7 @@
     },
     {
       "name": "groq/qwen/qwen3.8-27b",
-      "name_pattern": "qwen/qwen3\\.8-27b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "qwen/qwen3\\.8-27b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "groq",
       "token_prices": [
@@ -6692,7 +6692,7 @@
     },
     {
       "name": "meta/muse-spark-1.1",
-      "name_pattern": "muse-spark-1\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "muse-spark-1\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "meta",
       "token_prices": [
@@ -6715,7 +6715,7 @@
     },
     {
       "name": "meta/muse-spark-1.2",
-      "name_pattern": "muse-spark-1\\.2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "muse-spark-1\\.2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "meta",
       "token_prices": [
@@ -6738,7 +6738,7 @@
     },
     {
       "name": "meta/muse-spark-1.2-contributor",
-      "name_pattern": "muse-spark-1\\.2-contributor(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "muse-spark-1\\.2-contributor(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "meta",
       "token_prices": [
@@ -6761,7 +6761,7 @@
     },
     {
       "name": "meta/muse-spark-1.3",
-      "name_pattern": "muse-spark-1\\.3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "muse-spark-1\\.3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "meta",
       "token_prices": [
@@ -6784,7 +6784,7 @@
     },
     {
       "name": "meta/muse-spark-1.3-contributor",
-      "name_pattern": "muse-spark-1\\.3-contributor(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "muse-spark-1\\.3-contributor(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "meta",
       "token_prices": [
@@ -6807,7 +6807,7 @@
     },
     {
       "name": "meta/muse-wonder-1.0",
-      "name_pattern": "muse-wonder-1\\.0(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "muse-wonder-1\\.0(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "meta",
       "token_prices": [
@@ -6830,7 +6830,7 @@
     },
     {
       "name": "minimax/MiniMax-M2",
-      "name_pattern": "MiniMax-M2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMax-M2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "minimax",
       "token_prices": [
@@ -6858,7 +6858,7 @@
     },
     {
       "name": "minimax/MiniMax-M2.1",
-      "name_pattern": "MiniMax-M2\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMax-M2\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "minimax",
       "token_prices": [
@@ -6886,7 +6886,7 @@
     },
     {
       "name": "minimax/MiniMax-M2.1-lightning",
-      "name_pattern": "MiniMax-M2\\.1-lightning(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMax-M2\\.1-lightning(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "minimax",
       "token_prices": [
@@ -6914,7 +6914,7 @@
     },
     {
       "name": "minimax/MiniMax-M2.5",
-      "name_pattern": "MiniMax-M2\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMax-M2\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "minimax",
       "token_prices": [
@@ -6942,7 +6942,7 @@
     },
     {
       "name": "minimax/MiniMax-M2.5-lightning",
-      "name_pattern": "MiniMax-M2\\.5-lightning(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMax-M2\\.5-lightning(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "minimax",
       "token_prices": [
@@ -6970,7 +6970,7 @@
     },
     {
       "name": "minimax/MiniMax-M3",
-      "name_pattern": "MiniMax-M3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMax-M3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "minimax",
       "token_prices": [
@@ -7011,7 +7011,7 @@
     },
     {
       "name": "mistral/codestral-2508",
-      "name_pattern": "codestral-2508(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "codestral-2508(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7034,7 +7034,7 @@
     },
     {
       "name": "mistral/codestral-latest",
-      "name_pattern": "codestral-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "codestral-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7057,7 +7057,7 @@
     },
     {
       "name": "mistral/codestral-mamba-latest",
-      "name_pattern": "codestral-mamba-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "codestral-mamba-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7080,7 +7080,7 @@
     },
     {
       "name": "mistral/devstral-latest",
-      "name_pattern": "devstral-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "devstral-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7103,7 +7103,7 @@
     },
     {
       "name": "mistral/devstral-medium-latest",
-      "name_pattern": "devstral-medium-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "devstral-medium-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7126,7 +7126,7 @@
     },
     {
       "name": "mistral/devstral-small-latest",
-      "name_pattern": "devstral-small-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "devstral-small-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7149,7 +7149,7 @@
     },
     {
       "name": "mistral/glm-5-2",
-      "name_pattern": "glm-5-2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-5-2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7172,7 +7172,7 @@
     },
     {
       "name": "mistral/magistral-medium-latest",
-      "name_pattern": "magistral-medium-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "magistral-medium-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7195,7 +7195,7 @@
     },
     {
       "name": "mistral/magistral-small-latest",
-      "name_pattern": "magistral-small-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "magistral-small-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7218,7 +7218,7 @@
     },
     {
       "name": "mistral/ministral-14b-2512",
-      "name_pattern": "ministral-14b-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-14b-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7241,7 +7241,7 @@
     },
     {
       "name": "mistral/ministral-14b-latest",
-      "name_pattern": "ministral-14b-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-14b-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7264,7 +7264,7 @@
     },
     {
       "name": "mistral/ministral-3-14b-2512",
-      "name_pattern": "ministral-3-14b-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-3-14b-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7287,7 +7287,7 @@
     },
     {
       "name": "mistral/ministral-3-3b-2512",
-      "name_pattern": "ministral-3-3b-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-3-3b-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7310,7 +7310,7 @@
     },
     {
       "name": "mistral/ministral-3-8b-2512",
-      "name_pattern": "ministral-3-8b-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-3-8b-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7333,7 +7333,7 @@
     },
     {
       "name": "mistral/ministral-3b-2512",
-      "name_pattern": "ministral-3b-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-3b-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7356,7 +7356,7 @@
     },
     {
       "name": "mistral/ministral-3b-latest",
-      "name_pattern": "ministral-3b-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-3b-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7379,7 +7379,7 @@
     },
     {
       "name": "mistral/ministral-8b-2512",
-      "name_pattern": "ministral-8b-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-8b-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7402,7 +7402,7 @@
     },
     {
       "name": "mistral/ministral-8b-latest",
-      "name_pattern": "ministral-8b-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "ministral-8b-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7425,7 +7425,7 @@
     },
     {
       "name": "mistral/mistral-code-agent-latest",
-      "name_pattern": "mistral-code-agent-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-code-agent-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7448,7 +7448,7 @@
     },
     {
       "name": "mistral/mistral-code-fim-latest",
-      "name_pattern": "mistral-code-fim-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-code-fim-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7471,7 +7471,7 @@
     },
     {
       "name": "mistral/mistral-code-latest",
-      "name_pattern": "mistral-code-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-code-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7494,7 +7494,7 @@
     },
     {
       "name": "mistral/mistral-large-2512",
-      "name_pattern": "mistral-large-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-large-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7517,7 +7517,7 @@
     },
     {
       "name": "mistral/mistral-large-3",
-      "name_pattern": "mistral-large-3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-large-3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7540,7 +7540,7 @@
     },
     {
       "name": "mistral/mistral-large-4",
-      "name_pattern": "mistral-large-4(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-large-4(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7563,7 +7563,7 @@
     },
     {
       "name": "mistral/mistral-large-4-0",
-      "name_pattern": "mistral-large-4-0(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-large-4-0(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7586,7 +7586,7 @@
     },
     {
       "name": "mistral/mistral-large-latest",
-      "name_pattern": "mistral-large-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-large-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7609,7 +7609,7 @@
     },
     {
       "name": "mistral/mistral-medium",
-      "name_pattern": "mistral-medium(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-medium(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7632,7 +7632,7 @@
     },
     {
       "name": "mistral/mistral-medium-2604",
-      "name_pattern": "mistral-medium-2604(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-medium-2604(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7655,7 +7655,7 @@
     },
     {
       "name": "mistral/mistral-medium-3",
-      "name_pattern": "mistral-medium-3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-medium-3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7678,7 +7678,7 @@
     },
     {
       "name": "mistral/mistral-medium-3-5",
-      "name_pattern": "mistral-medium-3-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-medium-3-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7701,7 +7701,7 @@
     },
     {
       "name": "mistral/mistral-medium-3.5",
-      "name_pattern": "mistral-medium-3\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-medium-3\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7724,7 +7724,7 @@
     },
     {
       "name": "mistral/mistral-medium-latest",
-      "name_pattern": "mistral-medium-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-medium-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7747,7 +7747,7 @@
     },
     {
       "name": "mistral/mistral-small",
-      "name_pattern": "mistral-small(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-small(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7770,7 +7770,7 @@
     },
     {
       "name": "mistral/mistral-small-2603",
-      "name_pattern": "mistral-small-2603(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-small-2603(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7793,7 +7793,7 @@
     },
     {
       "name": "mistral/mistral-small-latest",
-      "name_pattern": "mistral-small-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-small-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7816,7 +7816,7 @@
     },
     {
       "name": "mistral/mistral-tiny",
-      "name_pattern": "mistral-tiny(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-tiny(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7839,7 +7839,7 @@
     },
     {
       "name": "mistral/mistral-vibe-cli-fast",
-      "name_pattern": "mistral-vibe-cli-fast(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-vibe-cli-fast(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7862,7 +7862,7 @@
     },
     {
       "name": "mistral/mistral-vibe-cli-latest",
-      "name_pattern": "mistral-vibe-cli-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-vibe-cli-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7885,7 +7885,7 @@
     },
     {
       "name": "mistral/mistral-vibe-cli-with-tools",
-      "name_pattern": "mistral-vibe-cli-with-tools(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistral-vibe-cli-with-tools(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7908,7 +7908,7 @@
     },
     {
       "name": "mistral/open-mistral-nemo",
-      "name_pattern": "open-mistral-nemo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "open-mistral-nemo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7931,7 +7931,7 @@
     },
     {
       "name": "mistral/pixtral-large-latest",
-      "name_pattern": "pixtral-large-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "pixtral-large-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7954,7 +7954,7 @@
     },
     {
       "name": "mistral/voxtral-small-2507",
-      "name_pattern": "voxtral-small-2507(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "voxtral-small-2507(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -7977,7 +7977,7 @@
     },
     {
       "name": "mistral/voxtral-small-latest",
-      "name_pattern": "voxtral-small-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "voxtral-small-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -8000,7 +8000,7 @@
     },
     {
       "name": "mistral/zai-glm-5",
-      "name_pattern": "zai-glm-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-glm-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -8023,7 +8023,7 @@
     },
     {
       "name": "mistral/zai-glm-5-2",
-      "name_pattern": "zai-glm-5-2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-glm-5-2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -8046,7 +8046,7 @@
     },
     {
       "name": "mistral/zai-glm-5-3",
-      "name_pattern": "zai-glm-5-3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-glm-5-3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -8069,7 +8069,7 @@
     },
     {
       "name": "mistral/zai-glm-latest",
-      "name_pattern": "zai-glm-latest(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-glm-latest(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "mistralai",
       "token_prices": [
@@ -8092,7 +8092,7 @@
     },
     {
       "name": "moonshot/kimi-k2.5",
-      "name_pattern": "kimi-k2\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "kimi-k2\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8114,7 +8114,7 @@
     },
     {
       "name": "moonshot/kimi-k2.6",
-      "name_pattern": "kimi-k2\\.6(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "kimi-k2\\.6(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8136,7 +8136,7 @@
     },
     {
       "name": "moonshot/kimi-k2.7-code",
-      "name_pattern": "kimi-k2\\.7-code(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "kimi-k2\\.7-code(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8158,7 +8158,7 @@
     },
     {
       "name": "moonshot/kimi-k3",
-      "name_pattern": "kimi-k3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "kimi-k3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8180,7 +8180,7 @@
     },
     {
       "name": "moonshot/moonshot-v1-128k",
-      "name_pattern": "moonshot-v1-128k(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshot-v1-128k(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8197,7 +8197,7 @@
     },
     {
       "name": "moonshot/moonshot-v1-128k-vision-preview",
-      "name_pattern": "moonshot-v1-128k-vision-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshot-v1-128k-vision-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8214,7 +8214,7 @@
     },
     {
       "name": "moonshot/moonshot-v1-32k",
-      "name_pattern": "moonshot-v1-32k(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshot-v1-32k(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8231,7 +8231,7 @@
     },
     {
       "name": "moonshot/moonshot-v1-32k-vision-preview",
-      "name_pattern": "moonshot-v1-32k-vision-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshot-v1-32k-vision-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8248,7 +8248,7 @@
     },
     {
       "name": "moonshot/moonshot-v1-8k",
-      "name_pattern": "moonshot-v1-8k(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshot-v1-8k(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8265,7 +8265,7 @@
     },
     {
       "name": "moonshot/moonshot-v1-8k-vision-preview",
-      "name_pattern": "moonshot-v1-8k-vision-preview(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshot-v1-8k-vision-preview(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8282,7 +8282,7 @@
     },
     {
       "name": "moonshot/moonshot-v1-auto",
-      "name_pattern": "moonshot-v1-auto(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshot-v1-auto(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8299,7 +8299,7 @@
     },
     {
       "name": "perplexity/sonar",
-      "name_pattern": "sonar(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8316,7 +8316,7 @@
     },
     {
       "name": "perplexity/sonar-deep-research",
-      "name_pattern": "sonar-deep-research(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-deep-research(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8338,7 +8338,7 @@
     },
     {
       "name": "perplexity/sonar-medium-chat",
-      "name_pattern": "sonar-medium-chat(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-medium-chat(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8355,7 +8355,7 @@
     },
     {
       "name": "perplexity/sonar-medium-online",
-      "name_pattern": "sonar-medium-online(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-medium-online(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8372,7 +8372,7 @@
     },
     {
       "name": "perplexity/sonar-pro",
-      "name_pattern": "sonar-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8389,7 +8389,7 @@
     },
     {
       "name": "perplexity/sonar-reasoning",
-      "name_pattern": "sonar-reasoning(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-reasoning(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8406,7 +8406,7 @@
     },
     {
       "name": "perplexity/sonar-reasoning-pro",
-      "name_pattern": "sonar-reasoning-pro(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-reasoning-pro(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8423,7 +8423,7 @@
     },
     {
       "name": "perplexity/sonar-small-chat",
-      "name_pattern": "sonar-small-chat(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-small-chat(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8440,7 +8440,7 @@
     },
     {
       "name": "perplexity/sonar-small-online",
-      "name_pattern": "sonar-small-online(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "sonar-small-online(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "token_prices": [
         {
@@ -8457,7 +8457,7 @@
     },
     {
       "name": "together_ai/MiniMaxAI/MiniMax-M2.7",
-      "name_pattern": "MiniMaxAI/MiniMax-M2\\.7(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMaxAI/MiniMax-M2\\.7(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8480,7 +8480,7 @@
     },
     {
       "name": "together_ai/MiniMaxAI/MiniMax-M3",
-      "name_pattern": "MiniMaxAI/MiniMax-M3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "MiniMaxAI/MiniMax-M3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8503,7 +8503,7 @@
     },
     {
       "name": "together_ai/NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
-      "name_pattern": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8521,7 +8521,7 @@
     },
     {
       "name": "together_ai/Qwen/QwQ-32B",
-      "name_pattern": "Qwen/QwQ-32B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/QwQ-32B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8539,7 +8539,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2-1.5B-Instruct",
-      "name_pattern": "Qwen/Qwen2-1\\.5B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2-1\\.5B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8557,7 +8557,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2-72B-Instruct",
-      "name_pattern": "Qwen/Qwen2-72B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2-72B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8575,7 +8575,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2-VL-72B-Instruct",
-      "name_pattern": "Qwen/Qwen2-VL-72B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2-VL-72B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8593,7 +8593,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2.5-14B-Instruct",
-      "name_pattern": "Qwen/Qwen2\\.5-14B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2\\.5-14B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8611,7 +8611,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2.5-72B-Instruct",
-      "name_pattern": "Qwen/Qwen2\\.5-72B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2\\.5-72B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8629,7 +8629,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2.5-72B-Instruct-Turbo",
-      "name_pattern": "Qwen/Qwen2\\.5-72B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2\\.5-72B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8647,7 +8647,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2.5-7B-Instruct-Turbo",
-      "name_pattern": "Qwen/Qwen2\\.5-7B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2\\.5-7B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8665,7 +8665,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2.5-Coder-32B-Instruct",
-      "name_pattern": "Qwen/Qwen2\\.5-Coder-32B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2\\.5-Coder-32B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8683,7 +8683,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen2.5-VL-72B-Instruct",
-      "name_pattern": "Qwen/Qwen2\\.5-VL-72B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen2\\.5-VL-72B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8701,7 +8701,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
-      "name_pattern": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8719,7 +8719,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3-Coder-Next-FP8",
-      "name_pattern": "Qwen/Qwen3-Coder-Next-FP8(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3-Coder-Next-FP8(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8737,7 +8737,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3-Next-80B-A3B-Instruct",
-      "name_pattern": "Qwen/Qwen3-Next-80B-A3B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3-Next-80B-A3B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8755,7 +8755,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3-Next-80B-A3B-Thinking",
-      "name_pattern": "Qwen/Qwen3-Next-80B-A3B-Thinking(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3-Next-80B-A3B-Thinking(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8773,7 +8773,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3-VL-32B-Instruct",
-      "name_pattern": "Qwen/Qwen3-VL-32B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3-VL-32B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8791,7 +8791,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3-VL-8B-Instruct",
-      "name_pattern": "Qwen/Qwen3-VL-8B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3-VL-8B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8809,7 +8809,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3.5-397B-A17B",
-      "name_pattern": "Qwen/Qwen3\\.5-397B-A17B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3\\.5-397B-A17B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8832,7 +8832,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3.5-9B",
-      "name_pattern": "Qwen/Qwen3\\.5-9B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3\\.5-9B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8850,7 +8850,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3.6-Plus",
-      "name_pattern": "Qwen/Qwen3\\.6-Plus(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3\\.6-Plus(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8868,7 +8868,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3.7-Max",
-      "name_pattern": "Qwen/Qwen3\\.7-Max(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3\\.7-Max(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8891,7 +8891,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3.7-Plus",
-      "name_pattern": "Qwen/Qwen3\\.7-Plus(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3\\.7-Plus(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8909,7 +8909,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3.8-2.4T-A95B",
-      "name_pattern": "Qwen/Qwen3\\.8-2\\.4T-A95B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3\\.8-2\\.4T-A95B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8932,7 +8932,7 @@
     },
     {
       "name": "together_ai/Qwen/Qwen3.8-Flash",
-      "name_pattern": "Qwen/Qwen3\\.8-Flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "Qwen/Qwen3\\.8-Flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8950,7 +8950,7 @@
     },
     {
       "name": "together_ai/arcee-ai/trinity-mini",
-      "name_pattern": "arcee-ai/trinity-mini(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "arcee-ai/trinity-mini(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8968,7 +8968,7 @@
     },
     {
       "name": "together_ai/arize-ai/qwen-2-1.5b-instruct",
-      "name_pattern": "arize-ai/qwen-2-1\\.5b-instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "arize-ai/qwen-2-1\\.5b-instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -8986,7 +8986,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-R1-0528",
-      "name_pattern": "deepseek-ai/DeepSeek-R1-0528(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-R1-0528(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9004,7 +9004,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Llama-70B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9022,7 +9022,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
-      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1\\.5B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1\\.5B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9040,7 +9040,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
-      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9058,7 +9058,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-V3",
-      "name_pattern": "deepseek-ai/DeepSeek-V3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-V3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9076,7 +9076,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-V3.1",
-      "name_pattern": "deepseek-ai/DeepSeek-V3\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-V3\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9094,7 +9094,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-V4-Flash-0731",
-      "name_pattern": "deepseek-ai/DeepSeek-V4-Flash-0731(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-V4-Flash-0731(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9117,7 +9117,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-V4-Pro-0813",
-      "name_pattern": "deepseek-ai/DeepSeek-V4-Pro-0813(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-V4-Pro-0813(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9140,7 +9140,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/DeepSeek-V4.1-Flash",
-      "name_pattern": "deepseek-ai/DeepSeek-V4\\.1-Flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/DeepSeek-V4\\.1-Flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9163,7 +9163,7 @@
     },
     {
       "name": "together_ai/deepseek-ai/deepseek-coder-33b-instruct",
-      "name_pattern": "deepseek-ai/deepseek-coder-33b-instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "deepseek-ai/deepseek-coder-33b-instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9181,7 +9181,7 @@
     },
     {
       "name": "together_ai/google/gemma-2-27b-it",
-      "name_pattern": "google/gemma-2-27b-it(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "google/gemma-2-27b-it(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9199,7 +9199,7 @@
     },
     {
       "name": "together_ai/google/gemma-4-31B-it",
-      "name_pattern": "google/gemma-4-31B-it(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "google/gemma-4-31B-it(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9217,7 +9217,7 @@
     },
     {
       "name": "together_ai/meta-llama/Llama-3-8b-chat-hf",
-      "name_pattern": "meta-llama/Llama-3-8b-chat-hf(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Llama-3-8b-chat-hf(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9235,7 +9235,7 @@
     },
     {
       "name": "together_ai/meta-llama/Llama-3.1-405B-Instruct",
-      "name_pattern": "meta-llama/Llama-3\\.1-405B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Llama-3\\.1-405B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9253,7 +9253,7 @@
     },
     {
       "name": "together_ai/meta-llama/Llama-3.2-1B-Instruct",
-      "name_pattern": "meta-llama/Llama-3\\.2-1B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Llama-3\\.2-1B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9271,7 +9271,7 @@
     },
     {
       "name": "together_ai/meta-llama/Llama-3.2-3B-Instruct",
-      "name_pattern": "meta-llama/Llama-3\\.2-3B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Llama-3\\.2-3B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9289,7 +9289,7 @@
     },
     {
       "name": "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo",
-      "name_pattern": "meta-llama/Llama-3\\.3-70B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Llama-3\\.3-70B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9307,7 +9307,7 @@
     },
     {
       "name": "together_ai/meta-llama/Llama-4-Scout-17B-16E-Instruct",
-      "name_pattern": "meta-llama/Llama-4-Scout-17B-16E-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Llama-4-Scout-17B-16E-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9325,7 +9325,7 @@
     },
     {
       "name": "together_ai/meta-llama/Meta-Llama-3-70B-Instruct-Turbo",
-      "name_pattern": "meta-llama/Meta-Llama-3-70B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Meta-Llama-3-70B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9343,7 +9343,7 @@
     },
     {
       "name": "together_ai/meta-llama/Meta-Llama-3-8B-Instruct",
-      "name_pattern": "meta-llama/Meta-Llama-3-8B-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Meta-Llama-3-8B-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9361,7 +9361,7 @@
     },
     {
       "name": "together_ai/meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-      "name_pattern": "meta-llama/Meta-Llama-3\\.1-70B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Meta-Llama-3\\.1-70B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9379,7 +9379,7 @@
     },
     {
       "name": "together_ai/meta-llama/Meta-Llama-3.1-8B",
-      "name_pattern": "meta-llama/Meta-Llama-3\\.1-8B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Meta-Llama-3\\.1-8B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9397,7 +9397,7 @@
     },
     {
       "name": "together_ai/meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
-      "name_pattern": "meta-llama/Meta-Llama-3\\.1-8B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-llama/Meta-Llama-3\\.1-8B-Instruct-Turbo(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9415,7 +9415,7 @@
     },
     {
       "name": "together_ai/meta-models/Muse-Glimmer-30B",
-      "name_pattern": "meta-models/Muse-Glimmer-30B(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "meta-models/Muse-Glimmer-30B(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9438,7 +9438,7 @@
     },
     {
       "name": "together_ai/mistralai/Ministral-3-14B-Instruct-2512",
-      "name_pattern": "mistralai/Ministral-3-14B-Instruct-2512(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistralai/Ministral-3-14B-Instruct-2512(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9456,7 +9456,7 @@
     },
     {
       "name": "together_ai/mistralai/Mistral-7B-Instruct-v0.1",
-      "name_pattern": "mistralai/Mistral-7B-Instruct-v0\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistralai/Mistral-7B-Instruct-v0\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9474,7 +9474,7 @@
     },
     {
       "name": "together_ai/mistralai/Mistral-7B-Instruct-v0.3",
-      "name_pattern": "mistralai/Mistral-7B-Instruct-v0\\.3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistralai/Mistral-7B-Instruct-v0\\.3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9492,7 +9492,7 @@
     },
     {
       "name": "together_ai/mistralai/Mistral-Small-24B-Instruct-2501",
-      "name_pattern": "mistralai/Mistral-Small-24B-Instruct-2501(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistralai/Mistral-Small-24B-Instruct-2501(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9510,7 +9510,7 @@
     },
     {
       "name": "together_ai/mistralai/Mixtral-8x7B-Instruct-v0.1",
-      "name_pattern": "mistralai/Mixtral-8x7B-Instruct-v0\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "mistralai/Mixtral-8x7B-Instruct-v0\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9528,7 +9528,7 @@
     },
     {
       "name": "together_ai/moonshotai/Kimi-K2-Instruct",
-      "name_pattern": "moonshotai/Kimi-K2-Instruct(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshotai/Kimi-K2-Instruct(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9546,7 +9546,7 @@
     },
     {
       "name": "together_ai/moonshotai/Kimi-K2.5-fp4",
-      "name_pattern": "moonshotai/Kimi-K2\\.5-fp4(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshotai/Kimi-K2\\.5-fp4(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9564,7 +9564,7 @@
     },
     {
       "name": "together_ai/moonshotai/Kimi-K2.6",
-      "name_pattern": "moonshotai/Kimi-K2\\.6(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshotai/Kimi-K2\\.6(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9587,7 +9587,7 @@
     },
     {
       "name": "together_ai/moonshotai/Kimi-K2.7-Code",
-      "name_pattern": "moonshotai/Kimi-K2\\.7-Code(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshotai/Kimi-K2\\.7-Code(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9610,7 +9610,7 @@
     },
     {
       "name": "together_ai/moonshotai/Kimi-K3",
-      "name_pattern": "moonshotai/Kimi-K3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "moonshotai/Kimi-K3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9633,7 +9633,7 @@
     },
     {
       "name": "together_ai/nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
-      "name_pattern": "nvidia/Llama-3\\.1-Nemotron-70B-Instruct-HF(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "nvidia/Llama-3\\.1-Nemotron-70B-Instruct-HF(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9651,7 +9651,7 @@
     },
     {
       "name": "together_ai/nvidia/NVIDIA-Nemotron-Nano-9B-v2",
-      "name_pattern": "nvidia/NVIDIA-Nemotron-Nano-9B-v2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "nvidia/NVIDIA-Nemotron-Nano-9B-v2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9669,7 +9669,7 @@
     },
     {
       "name": "together_ai/nvidia/nemotron-3-ultra-550b-a55b",
-      "name_pattern": "nvidia/nemotron-3-ultra-550b-a55b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "nvidia/nemotron-3-ultra-550b-a55b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9692,7 +9692,7 @@
     },
     {
       "name": "together_ai/openai/gpt-oss-120b",
-      "name_pattern": "openai/gpt-oss-120b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai/gpt-oss-120b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9710,7 +9710,7 @@
     },
     {
       "name": "together_ai/openai/gpt-oss-20b",
-      "name_pattern": "openai/gpt-oss-20b(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "openai/gpt-oss-20b(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9728,7 +9728,7 @@
     },
     {
       "name": "together_ai/thinkingmachines/Inkling",
-      "name_pattern": "thinkingmachines/Inkling(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "thinkingmachines/Inkling(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9751,7 +9751,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-4.5-Air-FP8",
-      "name_pattern": "zai-org/GLM-4\\.5-Air-FP8(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-4\\.5-Air-FP8(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9769,7 +9769,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-4.6",
-      "name_pattern": "zai-org/GLM-4\\.6(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-4\\.6(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9787,7 +9787,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-4.7",
-      "name_pattern": "zai-org/GLM-4\\.7(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-4\\.7(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9805,7 +9805,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-5",
-      "name_pattern": "zai-org/GLM-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9823,7 +9823,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-5.1",
-      "name_pattern": "zai-org/GLM-5\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-5\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9846,7 +9846,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-5.2",
-      "name_pattern": "zai-org/GLM-5\\.2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-5\\.2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9869,7 +9869,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-5.3",
-      "name_pattern": "zai-org/GLM-5\\.3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-5\\.3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9892,7 +9892,7 @@
     },
     {
       "name": "together_ai/zai-org/GLM-5.3-Flash",
-      "name_pattern": "zai-org/GLM-5\\.3-Flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "zai-org/GLM-5\\.3-Flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -9915,7 +9915,7 @@
     },
     {
       "name": "zai/glm-4-32b-0414-128k",
-      "name_pattern": "glm-4-32b-0414-128k(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4-32b-0414-128k(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -9933,7 +9933,7 @@
     },
     {
       "name": "zai/glm-4.5",
-      "name_pattern": "glm-4\\.5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4\\.5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -9951,7 +9951,7 @@
     },
     {
       "name": "zai/glm-4.5-air",
-      "name_pattern": "glm-4\\.5-air(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4\\.5-air(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -9969,7 +9969,7 @@
     },
     {
       "name": "zai/glm-4.5-airx",
-      "name_pattern": "glm-4\\.5-airx(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4\\.5-airx(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -9987,7 +9987,7 @@
     },
     {
       "name": "zai/glm-4.5-x",
-      "name_pattern": "glm-4\\.5-x(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4\\.5-x(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10005,7 +10005,7 @@
     },
     {
       "name": "zai/glm-4.5v",
-      "name_pattern": "glm-4\\.5v(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4\\.5v(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10023,7 +10023,7 @@
     },
     {
       "name": "zai/glm-4.6",
-      "name_pattern": "glm-4\\.6(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4\\.6(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10051,7 +10051,7 @@
     },
     {
       "name": "zai/glm-4.7",
-      "name_pattern": "glm-4\\.7(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-4\\.7(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10079,7 +10079,7 @@
     },
     {
       "name": "zai/glm-5",
-      "name_pattern": "glm-5(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-5(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10107,7 +10107,7 @@
     },
     {
       "name": "zai/glm-5-code",
-      "name_pattern": "glm-5-code(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-5-code(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10135,7 +10135,7 @@
     },
     {
       "name": "zai/glm-5.1",
-      "name_pattern": "glm-5\\.1(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-5\\.1(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10163,7 +10163,7 @@
     },
     {
       "name": "zai/glm-5.2",
-      "name_pattern": "glm-5\\.2(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-5\\.2(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10191,7 +10191,7 @@
     },
     {
       "name": "zai/glm-5.3",
-      "name_pattern": "glm-5\\.3(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-5\\.3(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [
@@ -10219,7 +10219,7 @@
     },
     {
       "name": "zai/glm-5.3-flash",
-      "name_pattern": "glm-5\\.3-flash(?!-\\d{1,2}(?!\\d))(?!-[a-zA-Z]+)",
+      "name_pattern": "glm-5\\.3-flash(?!-\\d{1,2}(?!\\d))",
       "source": "litellm",
       "provider": "zai",
       "token_prices": [

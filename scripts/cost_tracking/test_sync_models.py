@@ -92,6 +92,18 @@ def test_serialized_header_comes_before_models() -> None:
     )
 
 
+def test_new_entry_pattern_stops_at_a_version_boundary() -> None:
+    manifest = ModelCostManifest(models=[])
+    entry = LiteLLMPricingEntry(
+        name="claude-test-5",
+        provider=None,
+        name_pattern="claude-test-5",
+        token_prices=[TokenPrice(base_rate=1e-6, is_prompt=True, token_type="input")],
+    )
+    updated = update_manifest(manifest, [entry])
+    assert [model.name_pattern for model in updated.models] == [r"claude-test-5(?!-\d{1,2}(?!\d))"]
+
+
 def test_extract_litellm_entries_preserves_zero_input_rate() -> None:
     entries = extract_litellm_entries(
         {
