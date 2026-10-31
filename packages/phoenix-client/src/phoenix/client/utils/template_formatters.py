@@ -122,6 +122,9 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
     This formatter uses Mustache-style syntax with double curly braces
     and optional whitespace to substitute variables in templates.
 
+    Dotted names such as ``{{ input.query }}`` are matched as-is, so the
+    placeholder above is filled from the ``input.query`` variable.
+
     Example::
 
         formatter = MustacheBaseTemplateFormatter()
@@ -129,7 +132,7 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
         # result == "world"
     """
 
-    PATTERN = re.compile(r"(?<!\\){{\s*(\w+)\s*}}")
+    PATTERN = re.compile(r"(?<!\\){{\s*(\w+(?:\.\w+)*)\s*}}")
 
     def parse(self, template: str) -> set[str]:
         return set(match for match in re.findall(self.PATTERN, template))

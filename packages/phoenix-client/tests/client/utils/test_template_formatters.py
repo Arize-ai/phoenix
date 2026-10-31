@@ -7,6 +7,7 @@ from phoenix.client.utils.template_formatters import (
     MustacheBaseTemplateFormatter,
     NoOpFormatterBase,
     TemplateFormatter,
+    TemplateFormatterError,
 )
 
 
@@ -77,6 +78,20 @@ from phoenix.client.utils.template_formatters import (
             id="mustache-value-is-variable-name",
         ),
         pytest.param(
+            MustacheBaseTemplateFormatter,
+            "{{ user.name }}",
+            {"user.name": "Alice"},
+            "Alice",
+            id="mustache-dotted-variable-name",
+        ),
+        pytest.param(
+            MustacheBaseTemplateFormatter,
+            "{{user.name}}: {{ user.answer }}",
+            {"user.name": "Alice", "user.answer": "42"},
+            "Alice: 42",
+            id="mustache-dotted-variable-names",
+        ),
+        pytest.param(
             FStringBaseTemplateFormatter,
             "{hello}",
             {"hello": "world"},
@@ -122,3 +137,9 @@ def test_formatters_produce_expected_output(
     formatter = formatter_cls()
     output = formatter.format(template, variables=variables)
     assert output == expected_output
+
+
+def test_mustache_formatter_reports_missing_dotted_variable() -> None:
+    formatter = MustacheBaseTemplateFormatter()
+    with pytest.raises(TemplateFormatterError, match=r"Missing template variable\(s\): user\.name"):
+        formatter.format("{{ user.name }}", variables={})
