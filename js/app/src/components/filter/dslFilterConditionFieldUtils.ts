@@ -70,6 +70,27 @@ export function getDSLFilterCompletionTokenBeforeCursor(
 }
 
 /**
+ * Whether a whole condition can stand in place of the token being completed.
+ * Accepting a full-condition suggestion replaces only that token, so anywhere
+ * else it would splice into the surrounding expression and break the query.
+ */
+export function canInsertDSLFilterConditionAtToken({
+  textBeforeCursor,
+  textAfterCursor,
+}: {
+  textBeforeCursor: string;
+  textAfterCursor: string;
+}): boolean {
+  const { from } = getDSLFilterCompletionTokenBeforeCursor(textBeforeCursor);
+  const before = textBeforeCursor.slice(0, from).trimEnd();
+  const after = textAfterCursor.trimStart();
+  return (
+    (before === "" || /(?:^|[\s()])(?:and|or|not)$|\($/.test(before)) &&
+    (after === "" || /^(?:(?:and|or)\b|\))/.test(after))
+  );
+}
+
+/**
  * Finds an unmatched quote before the cursor while respecting backslash
  * escapes. This is intentionally lightweight: it only needs enough string
  * awareness to avoid offering field completions while the user is typing a

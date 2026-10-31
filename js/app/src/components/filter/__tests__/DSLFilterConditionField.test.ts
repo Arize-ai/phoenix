@@ -5,6 +5,7 @@ import type {
 import { describe, expect, it } from "vitest";
 
 import {
+  canInsertDSLFilterConditionAtToken,
   createDSLFilterCompletionSource,
   type DSLFilterCompletionRequest,
   detectDSLFilterComprehensionCall,
@@ -33,6 +34,38 @@ function detectScopeAtCursor(conditionWithCursor: string) {
     isIterableName: (name) => sessionIterableNames.has(name),
   });
 }
+
+describe("canInsertDSLFilterConditionAtToken", () => {
+  it.each([
+    ["", ""],
+    ["lat", ""],
+    ["  lat", "  "],
+    ["span_kind == 'LLM' and lat", ""],
+    ["span_kind == 'LLM' or ", ""],
+    ["not ", ""],
+    ["(", ")"],
+    ["", " and span_kind == 'LLM'"],
+    ["lat", " or span_kind == 'LLM'"],
+  ])("allows a condition at %j|%j", (textBeforeCursor, textAfterCursor) => {
+    expect(
+      canInsertDSLFilterConditionAtToken({ textBeforeCursor, textAfterCursor })
+    ).toBe(true);
+  });
+
+  it.each([
+    ["span_kind == 'LLM' ", ""],
+    ["span_kind == 'LLM' lat", ""],
+    ["latency_ms > ", ""],
+    ["brand ", ""],
+    ["lat", " > 100"],
+    ["", " span_kind == 'LLM'"],
+    ["", " android"],
+  ])("rejects a condition at %j|%j", (textBeforeCursor, textAfterCursor) => {
+    expect(
+      canInsertDSLFilterConditionAtToken({ textBeforeCursor, textAfterCursor })
+    ).toBe(false);
+  });
+});
 
 describe("DSLFilterConditionField completion helpers", () => {
   it("includes quoted subscripts with spaces in the replacement token", () => {
