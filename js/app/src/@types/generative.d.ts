@@ -15,6 +15,7 @@ declare type ModelProvider =
   | "MINIMAX"
   | "PERPLEXITY"
   | "TOGETHER"
+  | "MISTRAL"
   | "ZAI"
   | "META";
 

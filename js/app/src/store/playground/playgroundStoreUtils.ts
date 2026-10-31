@@ -33,6 +33,7 @@ export const convertMessageToolCallsToProvider = ({
       case "MINIMAX":
       case "PERPLEXITY":
       case "TOGETHER":
+      case "MISTRAL":
       case "ZAI":
       case "META":
       case "AZURE_OPENAI": {

@@ -130,6 +130,8 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("PERPLEXITY_API_KEY",)
     if provider is ModelProvider.TOGETHER:
         return ("TOGETHER_API_KEY",)
+    if provider is ModelProvider.MISTRAL:
+        return ("MISTRAL_API_KEY",)
     if provider is ModelProvider.ZAI:
         return ("ZAI_API_KEY",)
     if provider is ModelProvider.META:
@@ -458,6 +460,7 @@ def _get_pydantic_ai_model_from_builtin_provider(
         ModelProvider.MINIMAX,
         ModelProvider.PERPLEXITY,
         ModelProvider.TOGETHER,
+        ModelProvider.MISTRAL,
         ModelProvider.ZAI,
         ModelProvider.META,
     }:
@@ -533,6 +536,13 @@ def _get_pydantic_ai_model_from_builtin_provider(
                 "https://api.together.xyz/v1",
                 "An API key is required for Together AI models. "
                 "Set TOGETHER_API_KEY in the environment or Phoenix secrets.",
+            ),
+            ModelProvider.MISTRAL: (
+                "MISTRAL_API_KEY",
+                getenv("MISTRAL_BASE_URL") or "https://api.mistral.ai/v1",
+                "https://api.mistral.ai/v1",
+                "An API key is required for Mistral AI models. "
+                "Set MISTRAL_API_KEY in the environment or Phoenix secrets.",
             ),
             ModelProvider.ZAI: (
                 "ZAI_API_KEY",

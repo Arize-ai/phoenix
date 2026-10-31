@@ -43,6 +43,7 @@ export const TOOL_CHOICE_CONFIG_BY_PROVIDER = {
   MINIMAX: { oneOrMoreToken: "required" },
   PERPLEXITY: { oneOrMoreToken: "required" },
   TOGETHER: { oneOrMoreToken: "required" },
+  MISTRAL: { oneOrMoreToken: "required" },
   ZAI: { oneOrMoreToken: "required" },
   META: { oneOrMoreToken: "required" },
   ANTHROPIC: { oneOrMoreToken: "any" },
