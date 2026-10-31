@@ -129,12 +129,12 @@ import { layoutLoader } from "./pages/layoutLoader";
 import { NotFoundPage } from "./pages/NotFound";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
 import { ProjectRoot } from "./pages/project/ProjectRoot";
+import { latestPromptVersionLoader } from "./pages/prompt/latestPromptVersionLoader";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
 import { PromptLayout } from "./pages/prompt/PromptLayout";
 import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
 import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
-import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
 import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { exampleRedirectLoader } from "./pages/redirects/exampleRedirectLoader";
 import { projectRedirectLoader } from "./pages/redirects/projectRedirectLoader";
@@ -172,21 +172,19 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
   return currentParams.projectId !== nextParams.projectId;
 };
 
-// :promptId's loader always revalidates so versions saved elsewhere show up,
-// except when opening or switching versions of the same prompt: its query
-// holds only the first page of the paginated versions list, so re-running it
-// would drop the pages already scrolled in, including the version just clicked.
-const revalidatePromptUnlessOpeningVersion: ShouldRevalidateFunction = ({
+// :promptId's loader revalidates when entering a prompt so versions saved
+// elsewhere show up, but not when moving between its tabs or versions: its
+// query holds only the first page of the paginated versions list, so re-running
+// it would drop the pages already scrolled in. Saves on the prompt page
+// revalidate explicitly.
+const revalidateOnPromptChange: ShouldRevalidateFunction = ({
   currentUrl,
   nextUrl,
   currentParams,
   nextParams,
 }) => {
   if (currentUrl.href === nextUrl.href) return true;
-  const isOpeningVersion =
-    currentParams.promptId === nextParams.promptId &&
-    nextParams.versionId != null;
-  return !isOpeningVersion;
+  return currentParams.promptId !== nextParams.promptId;
 };
 
 // Shared by the traces and spans tabs, which both host the compare drawer
@@ -861,7 +859,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":promptId"
             loader={promptLoader}
-            shouldRevalidate={revalidatePromptUnlessOpeningVersion}
+            shouldRevalidate={revalidateOnPromptChange}
             handle={{
               crumb: (data: PromptLoaderData) => {
                 if (data?.prompt?.__typename === "Prompt") {
@@ -894,19 +892,24 @@ export const appRouteObjects = createRoutesFromElements(
             }}
           >
             <Route element={<PromptLayout />}>
-              <Route index element={<PromptIndexPage />} />
               <Route
-                path="versions"
-                loader={promptVersionsLoader}
-                element={<PromptVersionsPage />}
-                handle={{
-                  agentRoute: {
-                    label: "Prompt Versions",
-                    description:
-                      "Browse prompt versions, prompt history, and saved prompt revisions.",
-                  },
-                }}
-              >
+                index
+                loader={latestPromptVersionLoader}
+                element={<PromptIndexPage />}
+              />
+              <Route path="versions" element={<PromptVersionsPage />}>
+                <Route
+                  index
+                  loader={latestPromptVersionLoader}
+                  element={<PromptVersionDetailsPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Prompt Versions",
+                      description:
+                        "Browse prompt versions, prompt history, and saved prompt revisions.",
+                    },
+                  }}
+                />
                 <Route
                   path=":versionId"
                   loader={promptVersionLoader}

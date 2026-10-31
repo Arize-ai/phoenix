@@ -62,11 +62,10 @@ test.describe("Prompt Management", () => {
     await page.waitForURL("**/prompts");
     await page.getByRole("link", { name: promptName }).click();
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
-    await page.getByRole("tab", { name: "versions" }).click();
+    await page.getByRole("tab", { name: "Versions" }).click();
     await expect(page.getByRole("heading", { name: "Version" })).toBeVisible();
     await page
-      .getByLabel("Versions")
-      .getByRole("link", { name: "Playground" })
+      .getByRole("link", { name: "Open this Prompt version in Playground" })
       .click();
 
     // Ensure the playground loads with the correct prompt params
@@ -93,9 +92,11 @@ test.describe("Prompt Management", () => {
 
     // Check if the prompt was updated
     await expect(page.getByRole("heading", { name: promptName })).toBeVisible();
-    // Simply check the description is visible
+    await page.getByRole("tab", { name: "Versions" }).click();
     await expect(
-      page.getByRole("tabpanel").getByText("very angry chatbot")
+      page
+        .getByTestId("prompt-version-item-description")
+        .getByText("very angry chatbot")
     ).toBeVisible();
   });
 

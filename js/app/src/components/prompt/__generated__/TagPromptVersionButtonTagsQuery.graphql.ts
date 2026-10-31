@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ac1c8524f239294be0b0a18def54751c>>
+ * @generated SignedSource<<e229165be0eda3ca0f014cc47f986505>>
  * @lightSyntaxTransform
  */
 
@@ -10,19 +10,21 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type TagPromptVersionButtonTagsQuery$variables = {
   promptId: string;
-  versionId: string;
 };
 export type TagPromptVersionButtonTagsQuery$data = {
   readonly prompt: {
+    readonly promptVersions?: {
+      readonly edges: ReadonlyArray<{
+        readonly version: {
+          readonly id: string;
+          readonly sequenceNumber: number;
+        };
+      }>;
+    };
     readonly versionTags?: ReadonlyArray<{
       readonly id: string;
       readonly name: string;
-    }>;
-  };
-  readonly promptVersion: {
-    readonly tags?: ReadonlyArray<{
-      readonly id: string;
-      readonly name: string;
+      readonly promptVersionId: string;
     }>;
   };
 };
@@ -37,11 +39,6 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "promptId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "versionId"
   }
 ],
 v1 = [
@@ -58,17 +55,7 @@ v2 = {
   "name": "id",
   "storageKey": null
 },
-v3 = [
-  (v2/*:: as any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  }
-],
-v4 = {
+v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -78,43 +65,69 @@ v4 = {
       "kind": "LinkedField",
       "name": "versionTags",
       "plural": true,
-      "selections": (v3/*:: as any*/),
+      "selections": [
+        (v2/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "promptVersionId",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "PromptVersionConnection",
+      "kind": "LinkedField",
+      "name": "promptVersions",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PromptVersionEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": "version",
+              "args": null,
+              "concreteType": "PromptVersion",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v2/*:: as any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "sequenceNumber",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
   "type": "Prompt",
   "abstractKey": null
-},
-v5 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "versionId"
-  }
-],
-v6 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "PromptVersionTag",
-      "kind": "LinkedField",
-      "name": "tags",
-      "plural": true,
-      "selections": (v3/*:: as any*/),
-      "storageKey": null
-    }
-  ],
-  "type": "PromptVersion",
-  "abstractKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
 };
 return {
   "fragment": {
@@ -131,19 +144,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*:: as any*/)
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": "promptVersion",
-        "args": (v5/*:: as any*/),
-        "concreteType": null,
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          (v6/*:: as any*/)
+          (v3/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -165,22 +166,14 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*:: as any*/),
-          (v4/*:: as any*/),
-          (v2/*:: as any*/)
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": "promptVersion",
-        "args": (v5/*:: as any*/),
-        "concreteType": null,
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": [
-          (v7/*:: as any*/),
-          (v6/*:: as any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "__typename",
+            "storageKey": null
+          },
+          (v3/*:: as any*/),
           (v2/*:: as any*/)
         ],
         "storageKey": null
@@ -188,16 +181,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "07290a8880ce785c72cb316417da40f0",
+    "cacheID": "0302797a7318df24443eef696490d19f",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonTagsQuery",
     "operationKind": "query",
-    "text": "query TagPromptVersionButtonTagsQuery(\n  $promptId: ID!\n  $versionId: ID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      versionTags {\n        id\n        name\n      }\n    }\n    id\n  }\n  promptVersion: node(id: $versionId) {\n    __typename\n    ... on PromptVersion {\n      tags {\n        id\n        name\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TagPromptVersionButtonTagsQuery(\n  $promptId: ID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      versionTags {\n        id\n        name\n        promptVersionId\n      }\n      promptVersions {\n        edges {\n          version: node {\n            id\n            sequenceNumber\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6f96cbb8864a597a74d85547a9b49ed0";
+(node as any).hash = "b437ab7163cd2e5fbec6ad4cd152ce4b";
 
 export default node;

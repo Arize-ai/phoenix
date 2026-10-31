@@ -53,12 +53,14 @@
     width: 100%;
   }
 
-  /* h1 styles for readability */
-  .sbdocs.sbdocs-wrapper h1 {
+  /* h1 styles for readability, kept off headings rendered by the stories
+     themselves */
+  .sbdocs.sbdocs-wrapper h1:not(.sbdocs-preview h1, .sb-story h1) {
     border-bottom: 3px solid color-mix(in srgb, currentColor 15%, transparent);
     padding-bottom: 10px;
   }
-  .sbdocs.sbdocs-wrapper h1:not(:first-of-type) {
+  .sbdocs.sbdocs-wrapper
+    h1:not(:first-of-type):not(.sbdocs-preview h1, .sb-story h1) {
     padding-top: 150px;
   }
 

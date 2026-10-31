@@ -10,7 +10,10 @@ import { describe, expect, it } from "vitest";
 
 import PromptVersionsListPaginationQuery from "@phoenix/pages/prompt/__generated__/PromptVersionsListPaginationQuery.graphql";
 
-import { movePromptVersionTag } from "../movePromptVersionTag";
+import {
+  movePromptVersionTag,
+  removePromptVersionTag,
+} from "../movePromptVersionTag";
 
 const PROMPT_ID = "prompt-1";
 const PRODUCTION_TAG = { id: "tag-production", name: "production" };
@@ -135,6 +138,27 @@ describe("movePromptVersionTag", () => {
       "version-3": ["production"],
       "version-2": [],
       "version-1": ["staging"],
+    });
+  });
+});
+
+describe("removePromptVersionTag", () => {
+  it("removes the tag from a version on a later page", () => {
+    const environment = createEnvironmentWithTwoLoadedPages();
+
+    commitLocalUpdate(environment, (store) =>
+      removePromptVersionTag({
+        store,
+        promptId: PROMPT_ID,
+        versionId: "version-1",
+        tagId: STAGING_TAG.id,
+      })
+    );
+
+    expect(getTagNamesByVersionId(environment)).toEqual({
+      "version-3": ["production"],
+      "version-2": [],
+      "version-1": [],
     });
   });
 });

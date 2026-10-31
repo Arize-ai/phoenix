@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e33dbfd63bd87bc97a0b61bcdbd201f>>
+ * @generated SignedSource<<dbbf6e2c0aff9539a85cd6f96a3ee0bd>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,18 @@ import { FragmentRefs } from "relay-runtime";
 export type PromptLayout__main$data = {
   readonly description: string | null;
   readonly id: string;
+  readonly labels: ReadonlyArray<{
+    readonly color: string | null;
+    readonly id: string;
+    readonly name: string;
+  }>;
+  readonly latestVersion: {
+    readonly edges: ReadonlyArray<{
+      readonly node: {
+        readonly id: string;
+      };
+    }>;
+  };
   readonly metadata: any;
   readonly name: string;
   readonly sourcePrompt: {
@@ -66,6 +78,26 @@ return {
     {
       "alias": null,
       "args": null,
+      "concreteType": "PromptLabel",
+      "kind": "LinkedField",
+      "name": "labels",
+      "plural": true,
+      "selections": [
+        (v0/*:: as any*/),
+        (v1/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "color",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "Prompt",
       "kind": "LinkedField",
       "name": "sourcePrompt",
@@ -75,6 +107,46 @@ return {
         (v1/*:: as any*/)
       ],
       "storageKey": null
+    },
+    {
+      "alias": "latestVersion",
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "first",
+          "value": 1
+        }
+      ],
+      "concreteType": "PromptVersionConnection",
+      "kind": "LinkedField",
+      "name": "promptVersions",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PromptVersionEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "PromptVersion",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v0/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": "promptVersions(first:1)"
     },
     {
       "alias": null,
@@ -89,6 +161,6 @@ return {
 };
 })();
 
-(node as any).hash = "c6fc27d4f5202b24b3f1c42cdf893f25";
+(node as any).hash = "2be0c97f96c06b6116f5a4b27a70450f";
 
 export default node;

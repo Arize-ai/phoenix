@@ -18,7 +18,7 @@ import {
   SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
-import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
+import { ComparisonPickerButton } from "@phoenix/components/compare";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { selectCSS } from "@phoenix/components/core/select/styles";
 import {
@@ -125,10 +125,9 @@ export function ExperimentMultiSelector(props: {
       <div css={css(fieldBaseCSS, selectCSS)}>
         <Label>experiment</Label>
         <DialogTrigger>
-          <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
-            {data.baseExperiment != null ? (
+          {data.baseExperiment != null ? (
+            <ComparisonPickerButton color={baseExperimentColor}>
               <Flex direction="row" gap="size-100" alignItems="center">
-                <ColorSwatch color={baseExperimentColor} shape="circle" />
                 <Text
                   css={css`
                     white-space: nowrap;
@@ -143,10 +142,12 @@ export function ExperimentMultiSelector(props: {
                   <BaselineExperimentBadge />
                 ) : null}
               </Flex>
-            ) : (
-              "No experiment selected"
-            )}
-          </Button>
+            </ComparisonPickerButton>
+          ) : (
+            <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
+              No experiment selected
+            </Button>
+          )}
           <Popover placement="bottom start">
             <Dialog>
               <ListBox

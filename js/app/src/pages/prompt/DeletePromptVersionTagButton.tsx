@@ -11,6 +11,7 @@ import {
   DialogTrigger,
   Flex,
   Icon,
+  IconButton,
   Icons,
   Modal,
   ModalOverlay,
@@ -39,7 +40,7 @@ export function DeletePromptVersionTagButton({
         deletePromptVersionTag(input: $input) {
           query {
             node(id: $promptId) {
-              ...PromptVersionTagsConfigCard_data
+              ...PromptVersionTagsConfig_data
             }
           }
         }
@@ -47,11 +48,9 @@ export function DeletePromptVersionTagButton({
     `);
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
-      <Button
-        aria-label="Delete tag"
-        size="S"
-        leadingVisual={<Icon svg={<Icons.Trash />} />}
-      />
+      <IconButton aria-label="Delete tag" size="S">
+        <Icon svg={<Icons.Trash />} />
+      </IconButton>
       <ModalOverlay>
         <Modal size="S">
           <Dialog>
@@ -63,7 +62,7 @@ export function DeletePromptVersionTagButton({
             </DialogHeader>
             <View padding="size-200">
               <View paddingBottom="size-100">
-                <Text color="danger" size="XS">
+                <Text size="XS">
                   Are you sure you want to delete this tag? This will make
                   pulling prompts by this tag no longer possible. Make sure this
                   tag is not used before deleting.

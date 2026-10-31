@@ -7,20 +7,27 @@ import {
   Checkbox,
   Dialog,
   DialogTrigger,
+  Flex,
   Icon,
+  IconButton,
   Icons,
   Loading,
   Popover,
   PopoverArrow,
+  Text,
   View,
 } from "@phoenix/components";
+import type { TagPromptVersionButtonDeleteTagMutation } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonDeleteTagMutation.graphql";
 import type { TagPromptVersionButtonSetTagMutation } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonSetTagMutation.graphql";
 import type { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
 
-import { movePromptVersionTag } from "./movePromptVersionTag";
+import {
+  movePromptVersionTag,
+  removePromptVersionTag,
+} from "./movePromptVersionTag";
 
 type TagPromptVersionButtonProps = {
   promptId: string;
@@ -34,21 +41,16 @@ export function TagPromptVersionButton({
   const [showTagList, setShowTagList] = useState<boolean>(false);
   const [showNewTagDialog, setShowNewTagDialog] = useState<boolean>(false);
   const [fetchKey, setFetchKey] = useState<number>(0);
+  const [restoreTargets, setRestoreTargets] = useState<RestoreTargets>({});
   const notifySuccess = useNotifySuccess();
 
   return (
-    <div>
+    <>
       <DialogTrigger isOpen={showTagList} onOpenChange={setShowTagList}>
-        <Button
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PriceTags />} />}
-          css={css`
-            text-wrap: nowrap;
-          `}
-        >
-          Tag Version
-        </Button>
-        <Popover placement="bottom end">
+        <IconButton size="S" aria-label="Edit tags">
+          <Icon svg={<Icons.PriceTags />} />
+        </IconButton>
+        <Popover placement="bottom start">
           <PopoverArrow />
           <Dialog>
             <Suspense
@@ -62,12 +64,11 @@ export function TagPromptVersionButton({
                 promptId={promptId}
                 versionId={versionId}
                 fetchKey={fetchKey}
-                onTagSet={(tagName) => {
+                restoreTargets={restoreTargets}
+                onRestoreTargetsChange={setRestoreTargets}
+                onTagChanged={(notification) => {
                   setFetchKey((prev) => prev + 1);
-                  notifySuccess({
-                    title: "Tag Set",
-                    message: `The tag ${tagName} has been set on the version`,
-                  });
+                  notifySuccess(notification);
                 }}
               />
             </Suspense>
@@ -108,53 +109,74 @@ export function TagPromptVersionButton({
           }}
         />
       </DialogTrigger>
-    </div>
+    </>
   );
 }
+
+/**
+ * For each tag checked from this menu, the version it was taken from, or null
+ * when the tag did not exist. Unchecking the tag restores that state, so a
+ * mistaken check can be undone.
+ */
+type RestoreTargets = Record<string, string | null>;
 
 function TagList({
   promptId,
   versionId,
   fetchKey,
-  onTagSet,
+  restoreTargets,
+  onRestoreTargetsChange,
+  onTagChanged,
 }: {
   promptId: string;
   versionId: string;
   fetchKey: number;
-  onTagSet: (tagName: string) => void;
+  restoreTargets: RestoreTargets;
+  onRestoreTargetsChange: (restoreTargets: RestoreTargets) => void;
+  onTagChanged: (notification: { title: string; message: string }) => void;
 }) {
   const data = useLazyLoadQuery<TagPromptVersionButtonTagsQuery>(
     graphql`
-      query TagPromptVersionButtonTagsQuery($promptId: ID!, $versionId: ID!) {
+      query TagPromptVersionButtonTagsQuery($promptId: ID!) {
         prompt: node(id: $promptId) {
           ... on Prompt {
             versionTags {
               id
               name
+              promptVersionId
             }
-          }
-        }
-        promptVersion: node(id: $versionId) {
-          ... on PromptVersion {
-            tags {
-              id
-              name
+            promptVersions {
+              edges {
+                version: node {
+                  id
+                  ... on PromptVersion {
+                    sequenceNumber
+                  }
+                }
+              }
             }
           }
         }
       }
     `,
-    { promptId, versionId },
+    { promptId },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
 
-  const allVersionTags = useMemo(() => {
-    return data?.prompt?.versionTags?.map((tag) => tag.name) || [];
+  const tagsByName = useMemo(() => {
+    return new Map(
+      (data?.prompt?.versionTags ?? []).map((tag) => [tag.name, tag])
+    );
   }, [data?.prompt?.versionTags]);
 
-  const tagsSetOnVersion = useMemo(() => {
-    return data?.promptVersion?.tags?.map((tag) => tag.name) || [];
-  }, [data?.promptVersion?.tags]);
+  const sequenceNumberByVersionId = useMemo(() => {
+    return new Map(
+      (data?.prompt?.promptVersions?.edges ?? []).map(({ version }) => [
+        version.id,
+        version.sequenceNumber,
+      ])
+    );
+  }, [data?.prompt?.promptVersions]);
 
   const allVersionTagsWithDefaults = useMemo(() => {
     return Array.from(
@@ -162,29 +184,168 @@ function TagList({
         ...DEFAULT_PROMPT_VERSION_TAGS.map(
           (tagDefinition) => tagDefinition.name
         ),
-        ...allVersionTags,
+        ...tagsByName.keys(),
       ])
     );
-  }, [allVersionTags]);
+  }, [tagsByName]);
 
-  const [commitSetTag, isCommitting] =
+  const [commitSetTag, isSetting] =
     useMutation<TagPromptVersionButtonSetTagMutation>(graphql`
       mutation TagPromptVersionButtonSetTagMutation(
         $input: SetPromptVersionTagInput!
+        $promptId: ID!
       ) {
         setPromptVersionTag(input: $input) {
           promptVersionTag {
             id
-            name
             promptVersionId
+          }
+          query {
+            prompt: node(id: $promptId) {
+              ... on Prompt {
+                ...PromptVersionTagsConfig_data
+              }
+            }
           }
         }
       }
     `);
+  const [commitDeleteTag, isDeleting] =
+    useMutation<TagPromptVersionButtonDeleteTagMutation>(graphql`
+      mutation TagPromptVersionButtonDeleteTagMutation(
+        $input: DeletePromptVersionTagInput!
+        $promptId: ID!
+      ) {
+        deletePromptVersionTag(input: $input) {
+          query {
+            prompt: node(id: $promptId) {
+              ... on Prompt {
+                ...PromptVersionTagsConfig_data
+              }
+            }
+          }
+        }
+      }
+    `);
+  const isCommitting = isSetting || isDeleting;
+
+  const commitMoveTag = ({
+    tagName,
+    targetVersionId,
+    previousVersionId,
+    description,
+    onCompleted,
+  }: {
+    tagName: string;
+    targetVersionId: string;
+    previousVersionId?: string;
+    description?: string;
+    onCompleted: () => void;
+  }) => {
+    commitSetTag({
+      variables: {
+        input: { name: tagName, promptVersionId: targetVersionId, description },
+        promptId,
+      },
+      updater: (store, response) => {
+        const tagId = response?.setPromptVersionTag.promptVersionTag?.id;
+        if (tagId) {
+          if (previousVersionId) {
+            removePromptVersionTag({
+              store,
+              promptId,
+              versionId: previousVersionId,
+              tagId,
+            });
+          }
+          movePromptVersionTag({
+            store,
+            promptId,
+            versionId: targetVersionId,
+            tagId,
+          });
+        }
+      },
+      onCompleted,
+    });
+  };
+
+  const setTag = (tagName: string) => {
+    const existingTag = tagsByName.get(tagName);
+    const description = existingTag
+      ? undefined
+      : DEFAULT_PROMPT_VERSION_TAGS.find(
+          (tagDefinition) => tagDefinition.name === tagName
+        )?.description;
+    commitMoveTag({
+      tagName,
+      targetVersionId: versionId,
+      description,
+      onCompleted: () => {
+        onRestoreTargetsChange({
+          ...restoreTargets,
+          [tagName]: existingTag?.promptVersionId ?? null,
+        });
+        onTagChanged({
+          title: "Tag Set",
+          message: `The tag ${tagName} has been set on the version`,
+        });
+      },
+    });
+  };
+
+  const unsetTag = (tagName: string) => {
+    const tag = tagsByName.get(tagName);
+    if (!tag) {
+      return;
+    }
+    const { [tagName]: restoreVersionId, ...remainingRestoreTargets } =
+      restoreTargets;
+    const onCompleted = (message: string) => {
+      onRestoreTargetsChange(remainingRestoreTargets);
+      onTagChanged({ title: "Tag Removed", message });
+    };
+    if (restoreVersionId) {
+      commitMoveTag({
+        tagName,
+        targetVersionId: restoreVersionId,
+        previousVersionId: tag.promptVersionId,
+        onCompleted: () => {
+          const sequenceNumber =
+            sequenceNumberByVersionId.get(restoreVersionId);
+          onCompleted(
+            `The tag ${tagName} has been moved back to ${sequenceNumber != null ? `v${sequenceNumber}` : "its previous version"}`
+          );
+        },
+      });
+      return;
+    }
+    commitDeleteTag({
+      variables: { input: { promptVersionTagId: tag.id }, promptId },
+      updater: (store) => {
+        removePromptVersionTag({
+          store,
+          promptId,
+          versionId: tag.promptVersionId,
+          tagId: tag.id,
+        });
+      },
+      onCompleted: () => {
+        onCompleted(`The tag ${tagName} has been deleted`);
+      },
+    });
+  };
+
   return (
     <ul>
       {allVersionTagsWithDefaults.map((tagName: string) => {
-        const isTagSet = tagsSetOnVersion.includes(tagName);
+        const tag = tagsByName.get(tagName);
+        const isTagSet = tag?.promptVersionId === versionId;
+        const canUnset = restoreTargets[tagName] !== undefined;
+        const otherVersionSequenceNumber =
+          tag && !isTagSet
+            ? sequenceNumberByVersionId.get(tag.promptVersionId)
+            : undefined;
         return (
           <li key={tagName}>
             <View
@@ -193,50 +354,32 @@ function TagList({
               borderBottomColor="default"
               borderBottomWidth="thin"
             >
-              <Checkbox
-                name={tagName}
-                isSelected={isTagSet}
-                isDisabled={isTagSet || isCommitting}
-                onChange={(isSelected) => {
-                  if (isSelected) {
-                    const isCreate = !tagsSetOnVersion.includes(tagName);
-                    let description = "";
-                    if (isCreate) {
-                      const tagDefinition = DEFAULT_PROMPT_VERSION_TAGS.find(
-                        (tagDefinition) => tagDefinition.name === tagName
-                      );
-                      description = tagDefinition?.description || "";
-                    }
-
-                    commitSetTag({
-                      variables: {
-                        input: {
-                          name: tagName,
-                          promptVersionId: versionId,
-                          description,
-                        },
-                      },
-                      updater: (store, data) => {
-                        const tagId =
-                          data?.setPromptVersionTag.promptVersionTag?.id;
-                        if (tagId) {
-                          movePromptVersionTag({
-                            store,
-                            promptId,
-                            versionId,
-                            tagId,
-                          });
-                        }
-                      },
-                      onCompleted: () => {
-                        onTagSet(tagName);
-                      },
-                    });
-                  }
-                }}
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                gap="size-100"
               >
-                {tagName}
-              </Checkbox>
+                <Checkbox
+                  name={tagName}
+                  isSelected={isTagSet}
+                  isDisabled={isCommitting || (isTagSet && !canUnset)}
+                  onChange={(isSelected) => {
+                    if (isSelected) {
+                      setTag(tagName);
+                    } else {
+                      unsetTag(tagName);
+                    }
+                  }}
+                >
+                  {tagName}
+                </Checkbox>
+                {otherVersionSequenceNumber != null ? (
+                  <Text size="XS" color="text-500" fontFamily="mono">
+                    {`v${otherVersionSequenceNumber}`}
+                  </Text>
+                ) : null}
+              </Flex>
             </View>
           </li>
         );

@@ -31,6 +31,11 @@ import type { PlaygroundInstanceProps } from "./types";
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {
   appendedMessagesPath?: string | null;
   availablePaths: string[] | undefined;
+  /**
+   * Whether to hide the header row with the prompt menu and model controls.
+   * The consumer then renders PlaygroundInstanceModelControls itself.
+   */
+  disableHeader?: boolean;
 }
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
@@ -116,52 +121,40 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
   return (
     <>
-      <Flex direction="row" justifyContent="space-between">
-        <Flex
-          direction="row"
-          gap="size-100"
-          alignItems="center"
-          marginEnd="size-100"
-          minWidth={0}
-          flex="1 1 auto"
-          css={css`
-            overflow: hidden;
-          `}
-        >
-          {!disableAlphabeticIndex ? (
-            <View flex="none">
-              <AlphabeticIndexIcon index={index} />
-            </View>
-          ) : null}
-          {!disablePromptMenu ? (
-            <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
-          ) : null}
-          {!disablePromptSave ? (
-            <SaveButton instanceId={instanceId} dirty={dirty} />
-          ) : null}
-        </Flex>
-        <Flex direction="row" gap="size-100" flex="none">
-          <Suspense
-            fallback={
-              <div>
-                <Loading size="S" />
-              </div>
-            }
+      {props.disableHeader ? null : (
+        <Flex direction="row" justifyContent="space-between">
+          <Flex
+            direction="row"
+            gap="size-100"
+            alignItems="center"
+            marginEnd="size-100"
+            minWidth={0}
+            flex="1 1 auto"
+            css={css`
+              overflow: hidden;
+            `}
           >
-            {/* Keeps instance invocation parameters aligned with the frontend
-              spec table when model metadata or saved defaults change. */}
-            <InvocationParameterSpecsSync instanceId={instanceId} />
-          </Suspense>
-          <CompositeField>
-            <PlaygroundModelMenu playgroundInstanceId={instanceId} />
-            <ModelParametersConfigButton
+            {!disableAlphabeticIndex ? (
+              <View flex="none">
+                <AlphabeticIndexIcon index={index} />
+              </View>
+            ) : null}
+            {!disablePromptMenu ? (
+              <PromptMenu value={promptMenuValue} onChange={onChangePrompt} />
+            ) : null}
+            {!disablePromptSave ? (
+              <SaveButton instanceId={instanceId} dirty={dirty} />
+            ) : null}
+          </Flex>
+          <Flex direction="row" gap="size-100" flex="none">
+            <PlaygroundInstanceModelControls
               playgroundInstanceId={instanceId}
               disableEphemeralRouting={props.disableEphemeralRouting}
             />
-          </CompositeField>
-          {instances.length > 1 ? <DeleteButton {...props} /> : null}
+            {instances.length > 1 ? <DeleteButton {...props} /> : null}
+          </Flex>
         </Flex>
-      </Flex>
+      )}
       <View paddingY="size-100">
         {instance.template.__type === "chat" ? (
           <Suspense>
@@ -171,6 +164,40 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           "Completion Template"
         )}
       </View>
+    </>
+  );
+}
+
+/**
+ * The instance's model picker and parameters
+ */
+export function PlaygroundInstanceModelControls({
+  playgroundInstanceId,
+  disableEphemeralRouting,
+}: Pick<
+  PlaygroundInstanceProps,
+  "playgroundInstanceId" | "disableEphemeralRouting"
+>) {
+  return (
+    <>
+      <Suspense
+        fallback={
+          <div>
+            <Loading size="S" />
+          </div>
+        }
+      >
+        {/* Keeps instance invocation parameters aligned with the frontend
+          spec table when model metadata or saved defaults change. */}
+        <InvocationParameterSpecsSync instanceId={playgroundInstanceId} />
+      </Suspense>
+      <CompositeField>
+        <PlaygroundModelMenu playgroundInstanceId={playgroundInstanceId} />
+        <ModelParametersConfigButton
+          playgroundInstanceId={playgroundInstanceId}
+          disableEphemeralRouting={disableEphemeralRouting}
+        />
+      </CompositeField>
     </>
   );
 }

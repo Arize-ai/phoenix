@@ -134,6 +134,11 @@ export const ClonePromptDialog = ({
             <View padding="size-200">
               <form onSubmit={onSubmit(close)}>
                 <Flex direction="column" gap="size-100">
+                  <Text color="text-700">
+                    Creates a new, separate prompt with a copy of every version
+                    of this one, but not its version tags. Changes to either
+                    prompt won&apos;t affect the other.
+                  </Text>
                   <Controller
                     control={control}
                     name="name"

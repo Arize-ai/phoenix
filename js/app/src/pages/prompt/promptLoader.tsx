@@ -61,8 +61,8 @@ export const promptLoaderQuery = graphql`
       id
       ... on Prompt {
         name
-        ...PromptIndexPage__main
         ...PromptVersionsPageContent__main
+        ...PromptVersionDetailsPage__prompt
         ...PromptLayout__main
       }
     }

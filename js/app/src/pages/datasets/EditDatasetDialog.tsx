@@ -4,11 +4,9 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components";
 import {
-  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { EditDatasetForm } from "@phoenix/components/dataset";
 
@@ -45,9 +43,6 @@ export function EditDatasetDialog({
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Dataset</DialogTitle>
-              <DialogTitleExtra>
-                <DialogCloseButton />
-              </DialogTitleExtra>
             </DialogHeader>
             <EditDatasetForm
               datasetName={datasetName}
@@ -55,6 +50,7 @@ export function EditDatasetDialog({
               datasetDescription={datasetDescription}
               datasetMetadata={datasetMetadata}
               onDatasetEdited={handleSuccess}
+              onCancel={() => onOpenChange?.(false)}
             />
           </DialogContent>
         </Dialog>

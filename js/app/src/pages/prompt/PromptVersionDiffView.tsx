@@ -87,24 +87,24 @@ const templateFragment = graphql`
 `;
 
 export function PromptVersionDiffView({
-  current,
-  previous,
+  oldVersion,
+  newVersion,
 }: {
-  current: PromptVersionDiffView__template$key;
-  previous: PromptVersionDiffView__template$key;
+  oldVersion: PromptVersionDiffView__template$key;
+  newVersion: PromptVersionDiffView__template$key;
 }) {
   const { theme } = useTheme();
-  const currentData = useFragment(templateFragment, current);
-  const previousData = useFragment(templateFragment, previous);
+  const oldData = useFragment(templateFragment, oldVersion);
+  const newData = useFragment(templateFragment, newVersion);
 
   const fileDiff = useMemo(() => {
-    const oldText = promptTemplateToText(previousData.template);
-    const newText = promptTemplateToText(currentData.template);
+    const oldText = promptTemplateToText(oldData.template);
+    const newText = promptTemplateToText(newData.template);
     return parseDiffFromFile(
       { name: "prompt.txt", contents: oldText },
       { name: "prompt.txt", contents: newText }
     );
-  }, [currentData.template, previousData.template]);
+  }, [oldData.template, newData.template]);
 
   return (
     <FileDiff

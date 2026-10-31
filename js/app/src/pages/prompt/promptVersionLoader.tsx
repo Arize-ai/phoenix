@@ -16,6 +16,8 @@ export const promptVersionLoaderQuery = graphql`
       id
       ... on PromptVersion {
         ...PromptInvocationParameters__main
+        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion
+        templateFormat
         ...PromptChatMessagesCard__main
         ...PromptCodeExportCard__main
         ...PromptModelConfigurationCard__main
@@ -23,12 +25,15 @@ export const promptVersionLoaderQuery = graphql`
         ...PromptVersionTagsList_data
         description
         modelName
+        sequenceNumber
 
         tags {
           name
         }
         ...PromptVersionDiffView__template
         previousVersion {
+          id
+          sequenceNumber
           ...PromptVersionDiffView__template
         }
       }

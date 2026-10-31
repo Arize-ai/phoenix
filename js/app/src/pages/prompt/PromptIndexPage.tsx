@@ -1,162 +1,303 @@
-import { Heading } from "react-aria-components";
-import { graphql, useFragment, usePreloadedQuery } from "react-relay";
+import { css } from "@emotion/react";
+import { useResizeObserver } from "@react-aria/utils";
+import { useLayoutEffect, useRef, useState } from "react";
+import { graphql, useLazyLoadQuery, usePreloadedQuery } from "react-relay";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
+import { useLoaderData } from "react-router";
 
-import { Flex, Text, View } from "@phoenix/components";
-import { JSONBlock } from "@phoenix/components/code";
-import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
-import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
-import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
-import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
+import {
+  Button,
+  DialogTrigger,
+  Flex,
+  View,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
+import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
+import { usePreferencesContext } from "@phoenix/contexts";
+import {
+  PlaygroundProvider,
+  usePlaygroundContext,
+} from "@phoenix/contexts/PlaygroundContext";
+import {
+  useOwnedPreloadedQuery,
+  useUnsavedChangesBlocker,
+} from "@phoenix/hooks";
+import { promptVersionToInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { NoInstalledProvider } from "@phoenix/pages/playground/NoInstalledProvider";
+import { PlaygroundCredentialsDropdown } from "@phoenix/pages/playground/PlaygroundCredentialsDropdown";
+import {
+  PlaygroundInstanceModelControls,
+  PlaygroundTemplate,
+} from "@phoenix/pages/playground/PlaygroundTemplate";
+import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
+import { generateInstanceId } from "@phoenix/store";
 
-import type { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
-import type { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
-import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
-import { EditPromptButton } from "./EditPromptButton";
-import { PromptCodeExportCard } from "./PromptCodeExportCard";
-import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
+import type { PromptIndexPageQuery } from "./__generated__/PromptIndexPageQuery.graphql";
+import type { promptLoaderQuery as PromptLoaderQuery } from "./__generated__/promptLoaderQuery.graphql";
+import type {
+  promptVersionLoaderQuery as PromptVersionLoaderQuery,
+  promptVersionLoaderQuery$data,
+} from "./__generated__/promptVersionLoaderQuery.graphql";
+import {
+  PROMPT_CHAT_MAX_WIDTH,
+  PROMPT_CHAT_MIN_WIDTH,
+  PromptChat,
+} from "./PromptChat";
 import { promptLoaderQuery } from "./promptLoader";
+import { PROMPT_PAGE_ONE_COLUMN_MAX_WIDTH } from "./promptPageLayout";
+import type { PromptVersionLoaderData } from "./promptVersionLoader";
+import { promptVersionLoaderQuery } from "./promptVersionLoader";
+import { SavePromptVersionDialog } from "./SavePromptVersionDialog";
 import { usePromptIdLoader } from "./usePromptIdLoader";
+import { usePromptPlaygroundChat } from "./usePromptPlaygroundChat";
 
+const PROMPT_EDITOR_MIN_WIDTH = 420;
+
+/**
+ * Below this width the editor and chat cannot both fit, so the chat is hidden
+ */
+const PROMPT_CHAT_VISIBLE_MIN_WIDTH =
+  PROMPT_EDITOR_MIN_WIDTH + PROMPT_CHAT_MIN_WIDTH;
+
+const promptIndexPageCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  & > * {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .prompt-index-page__chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-inline-start: var(--global-border-size-thin) solid
+      var(--global-border-color-default);
+  }
+`;
+
+/**
+ * The prompt's latest version, editable as in the playground, beside a chat
+ * with the prompt as edited. Saving creates the prompt's next version.
+ */
 export function PromptIndexPage() {
-  const loaderData = usePromptIdLoader();
-  const data = usePreloadedQuery<promptLoaderQueryType>(
+  const loaderData = useLoaderData<PromptVersionLoaderData>();
+  const { promptVersion } = useOwnedPreloadedQuery<PromptVersionLoaderQuery>({
+    query: promptVersionLoaderQuery,
+    queryRef: loaderData.queryRef,
+  });
+  const promptData = usePreloadedQuery<PromptLoaderQuery>(
     promptLoaderQuery,
-    loaderData.queryRef
+    usePromptIdLoader().queryRef
   );
-  return <PromptIndexPageContent prompt={data.prompt} />;
-}
-
-export function PromptIndexPageContent({
-  prompt,
-}: {
-  prompt: PromptIndexPage__main$key;
-}) {
-  const data = useFragment<PromptIndexPage__main$key>(
+  const { modelProviders } = useLazyLoadQuery<PromptIndexPageQuery>(
     graphql`
-      fragment PromptIndexPage__main on Prompt {
-        promptVersions {
-          edges {
-            node {
-              ...PromptInvocationParameters__main
-              ...PromptChatMessagesCard__main
-              ...PromptCodeExportCard__main
-              ...PromptModelConfigurationCard__main
-            }
-          }
+      query PromptIndexPageQuery {
+        modelProviders {
+          name
+          dependenciesInstalled
+          dependencies
         }
-        ...PromptIndexPage__aside
       }
     `,
-    prompt
+    {}
   );
-
-  const latestVersion = data?.promptVersions?.edges?.[0]?.node;
+  if (!modelProviders.some((provider) => provider.dependenciesInstalled)) {
+    return <NoInstalledProvider availableProviders={modelProviders} />;
+  }
   return (
-    <Flex direction="row" height="100%">
-      <View
-        height="100%"
-        overflow="auto"
-        width="100%"
-        data-testid="scroll-container"
-      >
-        <View padding="size-200">
-          <Flex
-            direction="column"
-            gap="size-200"
-            marginStart="auto"
-            marginEnd="auto"
-            maxWidth={900}
-          >
-            <PromptChatMessagesCard
-              title="Prompt Template"
-              promptVersion={latestVersion}
-            />
-            <PromptModelConfigurationCard promptVersion={latestVersion} />
-            <PromptCodeExportCard promptVersion={latestVersion} />
-          </Flex>
-        </View>
-      </View>
-      <PromptIndexPageAside prompt={data} />
-    </Flex>
+    <PromptPlayground
+      key={promptData.prompt.id}
+      promptId={promptData.prompt.id}
+      promptName={promptData.prompt.name ?? ""}
+      promptVersion={promptVersion}
+    />
   );
 }
 
 /**
- * The aside content for the prompt details. Displays the description,
- * tags, and history
+ * Seeds the playground from the version the page first loads. A saved
+ * version leaves the edited prompt in place rather than reseeding it.
  */
-function PromptIndexPageAside({
-  prompt,
+function PromptPlayground({
+  promptId,
+  promptName,
+  promptVersion,
 }: {
-  prompt: PromptIndexPage__aside$key;
+  promptId: string;
+  promptName: string;
+  promptVersion: promptVersionLoaderQuery$data["promptVersion"];
 }) {
-  const data = useFragment(
-    graphql`
-      fragment PromptIndexPage__aside on Prompt {
-        id
-        name
-        description
-        metadata
-        ...PromptLatestVersionsListFragment
-        ...EditPromptButton_data
-        ...PromptLabels
-      }
-    `,
-    prompt
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
   );
-  const hasDescription = Boolean(data?.description);
+  const streaming = usePreferencesContext(
+    (state) => state.playgroundStreamingEnabled
+  );
+  const [initialState] = useState(() => {
+    const instance = {
+      ...promptVersionToInstance({
+        promptId,
+        promptName,
+        promptVersionRef: promptVersion,
+        promptVersionTag: null,
+      }),
+      id: generateInstanceId(),
+    };
+    return {
+      instances: [instance],
+      templateFormat: promptVersion.templateFormat as TemplateFormat,
+    };
+  });
   return (
-    <View
-      flex="none"
-      width={400}
-      height="100%"
-      borderStartColor="default"
-      borderStartWidth="thin"
+    <PlaygroundProvider
+      instances={initialState.instances}
+      templateFormat={initialState.templateFormat}
+      modelConfigByProvider={modelConfigByProvider}
+      streaming={streaming}
     >
-      <View padding="size-200" overflow="auto" height="100%">
+      <PromptPlaygroundLayout
+        promptId={promptId}
+        instanceId={initialState.instances[0].id}
+        savedTemplateFormat={initialState.templateFormat}
+      />
+    </PlaygroundProvider>
+  );
+}
+
+function PromptPlaygroundLayout({
+  promptId,
+  instanceId,
+  savedTemplateFormat: initialSavedTemplateFormat,
+}: {
+  promptId: string;
+  instanceId: number;
+  savedTemplateFormat: TemplateFormat;
+}) {
+  const [savedTemplateFormat, setSavedTemplateFormat] = useState(
+    initialSavedTemplateFormat
+  );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const isInstanceDirty = usePlaygroundContext(
+    (state) => state.dirtyInstances[instanceId] ?? false
+  );
+  const hasUnsavedChanges =
+    isInstanceDirty || templateFormat !== savedTemplateFormat;
+  const blocker = useUnsavedChangesBlocker({ hasUnsavedChanges });
+  // The conversation lives here so that it survives the chat being hidden
+  const chat = usePromptPlaygroundChat({ instanceId });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+  const measureContainer = () => {
+    if (containerRef.current) {
+      setContainerWidth(containerRef.current.offsetWidth);
+    }
+  };
+  useLayoutEffect(measureContainer, []);
+  useResizeObserver({ ref: containerRef, onResize: measureContainer });
+  const showsChat =
+    containerWidth != null && containerWidth >= PROMPT_CHAT_VISIBLE_MIN_WIDTH;
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "prompt-index-page-panels",
+    panelIds: ["prompt-index-page-prompt", "prompt-index-page-chat"],
+    storage: localStorage,
+  });
+  const editor = (
+    <View height="100%" overflow="auto" data-testid="scroll-container">
+      <View padding="size-200">
         <Flex
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
+          direction="column"
+          gap="size-100"
+          marginStart="auto"
+          marginEnd="auto"
+          maxWidth={PROMPT_PAGE_ONE_COLUMN_MAX_WIDTH}
         >
-          <Heading level={3}>Description</Heading>
-          <EditPromptButton prompt={data} />
-        </Flex>
-        {/* TODO: Add a markdown view here */}
-        <Text color={hasDescription ? "text-900" : "text-700"}>
-          {data.description || "No Description"}
-        </Text>
-        <section>
           <Flex
             direction="row"
-            justifyContent="space-between"
+            gap="size-100"
             alignItems="center"
-          >
-            <Heading level={3}>Labels</Heading>
-            <PromptLabelConfigButton promptId={data.id} />
-          </Flex>
-          <PromptLabels prompt={data} />
-        </section>
-        <section>
-          <Flex
-            direction="row"
             justifyContent="space-between"
-            alignItems="center"
           >
-            <Heading level={3}>Metadata</Heading>
-            <EditPromptButton prompt={data} />
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <PlaygroundInstanceModelControls
+                playgroundInstanceId={instanceId}
+              />
+              <PlaygroundCredentialsDropdown />
+            </Flex>
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <TemplateFormatRadioGroup size="S" />
+              <DialogTrigger>
+                <Button
+                  size="S"
+                  variant={hasUnsavedChanges ? "primary" : "default"}
+                >
+                  Save Version
+                </Button>
+                <ViewportModalOverlay>
+                  <ViewportModal size="M">
+                    <SavePromptVersionDialog
+                      promptId={promptId}
+                      instanceId={instanceId}
+                      onSaved={() => setSavedTemplateFormat(templateFormat)}
+                    />
+                  </ViewportModal>
+                </ViewportModalOverlay>
+              </DialogTrigger>
+            </Flex>
           </Flex>
-          <JSONBlock
-            value={
-              data.metadata ? JSON.stringify(data.metadata, null, 2) : "{}"
-            }
+          <PlaygroundTemplate
+            playgroundInstanceId={instanceId}
+            availablePaths={undefined}
+            disableHeader
+            disablePromptMenu
+            disablePromptSave
+            disableAlphabeticIndex
           />
-        </section>
-        <section>
-          <Heading level={3}>Latest Versions</Heading>
-          <PromptLatestVersionsList prompt={data} />
-        </section>
+        </Flex>
       </View>
     </View>
+  );
+  return (
+    <div css={promptIndexPageCSS} ref={containerRef}>
+      {showsChat ? (
+        <Group
+          id="prompt-index-page-panels"
+          orientation="horizontal"
+          defaultLayout={defaultLayout}
+          onLayoutChanged={onLayoutChanged}
+        >
+          <Panel
+            id="prompt-index-page-prompt"
+            minSize={`${PROMPT_EDITOR_MIN_WIDTH}px`}
+          >
+            {editor}
+          </Panel>
+          <Separator css={compactResizeHandleCSS} />
+          <Panel
+            id="prompt-index-page-chat"
+            defaultSize="40%"
+            minSize={`${PROMPT_CHAT_MIN_WIDTH}px`}
+            maxSize={`${PROMPT_CHAT_MAX_WIDTH}px`}
+            className="prompt-index-page__chat"
+          >
+            <PromptChat instanceId={instanceId} chat={chat} />
+          </Panel>
+        </Group>
+      ) : (
+        editor
+      )}
+      <ConfirmNavigationDialog
+        blocker={blocker}
+        message="This prompt has unsaved changes. Are you sure you want to leave?"
+      />
+    </div>
   );
 }

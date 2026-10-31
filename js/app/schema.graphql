@@ -3928,6 +3928,7 @@ type PromptVersionTag implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   promptVersionId: ID!
+  promptVersion: PromptVersion!
   name: Identifier!
   description: String
   user: User
