@@ -924,7 +924,7 @@ def create_evaluator(
         - A boolean (converted to integer Score.score and string Score.label)
         - A short string (≤3 words, converted to Score.label)
         - A long string (≥4 words, converted to Score.explanation)
-        - A dictionary with keys "score", "label", or "explanation"
+        - A dictionary with keys "score", "label", "explanation", or "metadata"
         - A tuple of values (only bool, number, str types allowed)
 
         An input_schema is automatically created from the function signature, capturing the required
@@ -1000,7 +1000,7 @@ def create_evaluator(
         if isinstance(result, dict):
             dict_score_data: Dict[str, Any] = {}
             for key, value in result.items():
-                if key in ["score", "label", "explanation"]:
+                if key in ["score", "label", "explanation", "metadata"]:
                     dict_score_data[key] = value
             return Score(name=name, kind=kind, direction=direction, **dict_score_data)
 
