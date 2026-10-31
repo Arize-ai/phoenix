@@ -393,6 +393,8 @@ px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq 
 `prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
 an array of full version objects. `created_at` is absent on older servers (blank
 in pretty output); tags are not included. Use the IDs with `prompt get --version`.
+Missing prompts exit nonzero. JSON/raw errors go to stderr as
+`{ error, code, hint? }`.
 
 ## Annotation Configs
 

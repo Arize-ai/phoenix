@@ -7,8 +7,13 @@ import {
   resolveConfig,
   validateConfig,
 } from "../config";
-import { getExitCodeForError, InvalidArgumentError } from "../exitCodes";
-import { writeError, writeOutput, writeProgress } from "../io";
+import {
+  ExitCode,
+  getExitCodeForError,
+  InvalidArgumentError,
+} from "../exitCodes";
+import { writeOutput, writeProgress } from "../io";
+import { writeStructuredError } from "../structuredError";
 import {
   formatPromptVersionsOutput,
   type PromptVersion,
@@ -69,14 +74,14 @@ async function promptVersionsListHandler({
   promptIdentifier: string;
   options: PromptVersionsListOptions;
 }): Promise<void> {
+  let hint: string | undefined;
   try {
     if (
       options.limit !== undefined &&
       (!Number.isSafeInteger(options.limit) || options.limit <= 0)
     ) {
-      throw new InvalidArgumentError(
-        "--limit must be a positive integer. Use: px prompt-versions list <prompt-identifier> --limit <number>"
-      );
+      hint = "px prompt-versions list <prompt-identifier> --limit <number>";
+      throw new InvalidArgumentError("--limit must be a positive integer");
     }
     const config = resolveConfig({ cliOptions: options });
     const validation = validateConfig({ config, projectRequired: false });
@@ -97,6 +102,12 @@ async function promptVersionsListHandler({
       limit: options.limit,
     });
 
+    // Prompts are created with a version, so an empty list means a missing prompt.
+    if (promptVersions.length === 0) {
+      hint = "px prompt list";
+      throw new Error(`Prompt "${promptIdentifier}" not found`);
+    }
+
     writeProgress({
       message: `Found ${promptVersions.length} prompt version(s)`,
       noProgress: !options.progress,
@@ -108,10 +119,16 @@ async function promptVersionsListHandler({
       }),
     });
   } catch (error) {
-    writeError({
+    const exitCode = getExitCodeForError(error);
+    writeStructuredError({
+      format: options.format,
       message: `Error fetching prompt versions: ${error instanceof Error ? error.message : String(error)}`,
+      code:
+        Object.entries(ExitCode).find(([, value]) => value === exitCode)?.[0] ??
+        "FAILURE",
+      hint,
     });
-    process.exit(getExitCodeForError(error));
+    process.exit(exitCode);
   }
 }
 

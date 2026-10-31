@@ -161,18 +161,63 @@ describe("prompt-versions list", () => {
     }
   );
 
-  it("prints an empty result without treating it as an error", async () => {
+  it.each(["pretty", "json", "raw"] as const)(
+    "exits FAILURE with a discovery hint for a missing prompt in %s output",
+    async (format) => {
+      mock.server.use(
+        http.get("/v1/prompts/{prompt_identifier}/versions", ({ response }) =>
+          response(200).json({ data: [], next_cursor: null })
+        )
+      );
+      const io = captureCliOutput();
+      const exitSpy = mockProcessExit();
+      await expect(
+        createPromptVersionsCommand().parseAsync(
+          ["list", "missing", "--format", format, ...BASE_ARGS],
+          { from: "user" }
+        )
+      ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+      expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+      expect(io.stdout).not.toHaveBeenCalled();
+      expect(io.stderr).toHaveBeenCalledTimes(1);
+      const message = String(io.stderr.mock.calls[0]?.[0]);
+      if (format === "pretty") {
+        expect(message).toContain('Prompt "missing" not found');
+        expect(message).toContain("px prompt list");
+      } else {
+        expect(JSON.parse(message)).toEqual({
+          error: expect.stringContaining('Prompt "missing" not found'),
+          code: "FAILURE",
+          hint: "px prompt list",
+        });
+      }
+    }
+  );
+
+  it("accepts an empty final page after fetching versions", async () => {
+    const cursors: (string | null)[] = [];
     mock.server.use(
-      http.get("/v1/prompts/{prompt_identifier}/versions", ({ response }) =>
-        response(200).json({ data: [], next_cursor: null })
+      http.get(
+        "/v1/prompts/{prompt_identifier}/versions",
+        ({ request, response }) => {
+          const cursor = new URL(request.url).searchParams.get("cursor");
+          cursors.push(cursor);
+          return response(200).json(
+            cursor
+              ? { data: [], next_cursor: null }
+              : { data: [PROMPT_VERSION], next_cursor: "last-page" }
+          );
+        }
       )
     );
     const io = captureCliOutput();
     await createPromptVersionsCommand().parseAsync(
-      ["list", "greeting", ...BASE_ARGS],
+      ["list", "greeting", "--format", "raw", ...BASE_ARGS],
       { from: "user" }
     );
-    expect(io.stdout).toHaveBeenCalledWith("No prompt versions found");
+    expect(cursors).toEqual([null, "last-page"]);
+    expect(io.stdout).toHaveBeenCalledWith(JSON.stringify([PROMPT_VERSION]));
+    expect(io.stderr).not.toHaveBeenCalled();
   });
 
   it.each([404, 500])("exits FAILURE on HTTP %i", async (status) => {
@@ -196,21 +241,58 @@ describe("prompt-versions list", () => {
     );
   });
 
-  it("exits NETWORK_ERROR on a connection failure", async () => {
-    mock.server.use(
-      http.get("/v1/prompts/{prompt_identifier}/versions", () =>
-        HttpResponse.error()
-      )
-    );
-    captureCliOutput();
-    mockProcessExit();
-    await expect(
-      createPromptVersionsCommand().parseAsync(
-        ["list", "greeting", ...BASE_ARGS],
-        { from: "user" }
-      )
-    ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
-  });
+  it.each(["json", "raw"] as const)(
+    "writes structured HTTP errors in %s output",
+    async (format) => {
+      mock.server.use(
+        http.get("/v1/prompts/{prompt_identifier}/versions", ({ response }) =>
+          response.untyped(
+            HttpResponse.json({ error: "Failed" }, { status: 500 })
+          )
+        )
+      );
+      const io = captureCliOutput();
+      mockProcessExit();
+      await expect(
+        createPromptVersionsCommand().parseAsync(
+          ["list", "greeting", "--format", format, ...BASE_ARGS],
+          { from: "user" }
+        )
+      ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+      expect(io.stdout).not.toHaveBeenCalled();
+      expect(io.stderr).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(String(io.stderr.mock.calls[0]?.[0]))).toEqual({
+        error: expect.stringContaining("Error fetching prompt versions"),
+        code: "FAILURE",
+      });
+    }
+  );
+
+  it.each(["pretty", "json", "raw"] as const)(
+    "exits NETWORK_ERROR on a connection failure in %s output",
+    async (format) => {
+      mock.server.use(
+        http.get("/v1/prompts/{prompt_identifier}/versions", () =>
+          HttpResponse.error()
+        )
+      );
+      const io = captureCliOutput();
+      mockProcessExit();
+      await expect(
+        createPromptVersionsCommand().parseAsync(
+          ["list", "greeting", "--format", format, ...BASE_ARGS],
+          { from: "user" }
+        )
+      ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
+      expect(io.stdout).not.toHaveBeenCalled();
+      if (format !== "pretty") {
+        expect(JSON.parse(String(io.stderr.mock.calls[0]?.[0]))).toEqual({
+          error: expect.stringContaining("Error fetching prompt versions"),
+          code: "NETWORK_ERROR",
+        });
+      }
+    }
+  );
 
   it.each(["0", "-1", "1.5", "abc", "2oops"])(
     "rejects invalid limit %s without making a request",
@@ -226,6 +308,35 @@ describe("prompt-versions list", () => {
       expect(io.stderr).toHaveBeenCalledWith(
         expect.stringContaining("--limit must be a positive integer")
       );
+    }
+  );
+
+  it.each(["json", "raw"] as const)(
+    "writes structured invalid-limit errors with an invocation hint in %s output",
+    async (format) => {
+      const io = captureCliOutput();
+      mockProcessExit();
+      await expect(
+        createPromptVersionsCommand().parseAsync(
+          [
+            "list",
+            "greeting",
+            "--limit",
+            "0",
+            "--format",
+            format,
+            ...BASE_ARGS,
+          ],
+          { from: "user" }
+        )
+      ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+      expect(io.stdout).not.toHaveBeenCalled();
+      expect(io.stderr).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(String(io.stderr.mock.calls[0]?.[0]))).toEqual({
+        error: expect.stringContaining("--limit must be a positive integer"),
+        code: "INVALID_ARGUMENT",
+        hint: "px prompt-versions list <prompt-identifier> --limit <number>",
+      });
     }
   );
 
