@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-typescript-${{ github.head_ref }}
+  group: test-typescript-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -482,6 +482,63 @@ describe("agentStore", () => {
     });
   });
 
+  describe("recentModels", () => {
+    it("records a pick in the recent models", () => {
+      const store = createAgentStore();
+      expect(store.getState().recentModels).toEqual([]);
+      store.getState().recordRecentModel({
+        provider: "OPENAI",
+        modelName: "gpt-9-preview",
+      });
+      expect(store.getState().recentModels).toEqual([
+        { provider: "OPENAI", modelName: "gpt-9-preview" },
+      ]);
+    });
+
+    it("persists recent models and drops malformed entries on rehydration", () => {
+      const store = createAgentStore();
+      store.getState().recordRecentModel({
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+        customProvider: { id: "custom-acme", name: "Acme" },
+      });
+      const persisted = JSON.parse(
+        localStorage.getItem(resolveAssistantStorageKey()) ?? "{}"
+      );
+      expect(persisted.state.recentModels).toEqual([
+        {
+          provider: "OPENAI",
+          modelName: "gpt-5.4",
+          customProvider: { id: "custom-acme", name: "Acme" },
+        },
+      ]);
+
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: {
+            recentModels: [
+              { provider: "OPENAI", modelName: "gpt-5.4" },
+              { provider: "BOGUS", modelName: "x" },
+            ],
+          },
+          version: 0,
+        })
+      );
+      expect(createAgentStore().getState().recentModels).toEqual([
+        { provider: "OPENAI", modelName: "gpt-5.4" },
+      ]);
+    });
+
+    it("starts empty for blobs written before recent models existed", () => {
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({ state: { position: "detached" }, version: 0 })
+      );
+      expect(createAgentStore().getState().recentModels).toEqual([]);
+    });
+  });
+
   describe("persisted capabilities", () => {
     it("backfills missing capability keys when rehydrating persisted state", () => {
       const persistedCapabilities: Partial<AgentCapabilities> = {

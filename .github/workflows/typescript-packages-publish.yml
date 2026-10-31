@@ -16,6 +16,14 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - name: checkout code repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -50,7 +58,7 @@ jobs:
         # can trigger subsequent workflows (like publish) when merged
         uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
-          github-token: ${{ secrets.MY_CHANGESET_TOKEN }}
+          github-token: ${{ steps.factory-token.outputs.token }}
           version-script: pnpm ci:version
           commit-message: "chore(js): update versions"
           pr-title: "chore(js): update versions"

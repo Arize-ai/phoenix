@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix هي منصة Arize مفتوحة المصدر لقابلية مر�
 
 Phoenix مستقلة عن المزوّد واللغة، مع دعم جاهز لأطر العمل الشائعة ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk)، [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk)، [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain)، [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk)، [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)، [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai)، [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex)، [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) ومزوّدي LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai)، [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic)، [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai)، [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing)، [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock)، [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter)، [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm)، وغيرها). لمزيد من التفاصيل حول القياس التلقائي (auto-instrumentation)، اطّلع على مشروع [OpenInference](https://github.com/Arize-ai/openinference).
 
-تعمل Phoenix في أي مكان تقريبًا، بما في ذلك جهازك المحلي، أو في نشر عبر الحاويات، أو في السحابة. راجع [البيئات](https://arize.com/docs/phoenix/environments) للاطلاع على شرح لكل خيار، أو انتقل مباشرةً إلى [دليل البدء السريع للتتبع](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+تعمل Phoenix في أي مكان تقريبًا، بما في ذلك جهازك المحلي، أو في نشر عبر الحاويات، أو في السحابة. راجع [البيئات](https://arize.com/docs/phoenix/self-hosting) للاطلاع على شرح لكل خيار، أو انتقل مباشرةً إلى [دليل البدء السريع للتتبع](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > Phoenix مفتوحة المصدر وذاتية الاستضافة. وللحصول على منصة مُدارة، تقدم Arize منصة [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ar) — وتعمل أدوات القياس نفسها من OpenTelemetry/OpenInference مع كلتيهما. راجع [المقارنة الكاملة](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
@@ -291,9 +287,9 @@ Phoenix مبنية على OpenTelemetry وهي مستقلة عن المزوّد 
 
 | المهارة (Skill) | الوصف |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/) | تصحيح أخطاء تطبيقات LLM باستخدام Phoenix CLI — جلب الـ traces وتحليل الأخطاء ومراجعة التجارب والاستعلام عبر GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/) | بناء وتشغيل المقيّمات لتطبيقات AI/LLM باستخدام Phoenix |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | الاصطلاحات الدلالية وأدوات القياس من OpenInference لتتبّع تطبيقات LLM |
+| [phoenix-cli](../../skills/phoenix-cli/) | تصحيح أخطاء تطبيقات LLM باستخدام Phoenix CLI — جلب الـ traces وتحليل الأخطاء ومراجعة التجارب والاستعلام عبر GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/) | بناء وتشغيل المقيّمات لتطبيقات AI/LLM باستخدام Phoenix |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | الاصطلاحات الدلالية وأدوات القياس من OpenInference لتتبّع تطبيقات LLM |
 
 ## الأمان والخصوصية
 

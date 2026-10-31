@@ -2,22 +2,22 @@
 title: "Using a prompt"
 ---
 
-Once you have tagged a version of a prompt as ready (e.x. "staging") you can pull a prompt into your code base and use it to prompt an LLM.
+This guide shows how to pull a prompt into your code and use it to prompt an LLM. Before you start, [tag](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) a prompt version as ready (for example, "staging").
 
 <Accordion title="ℹ️ A caution about using prompts inside your application code">
-When integrating Phoenix prompts into your application, it's important to understand that prompts are treated as code and are stored externally from your primary codebase. This architectural decision introduces several considerations:
+Phoenix treats prompts as code, but stores them outside your codebase. This has these effects on your application:
 
 **Key Implementation Impacts**
 
-* Network dependencies for prompt retrieval
+* Your application must use the network to get prompts.
 
-* Additional debugging complexity
+* Debugging is more complex.
 
-* External system dependencies
+* Your application depends on an external system.
 
 **Current Status**
 
-The Phoenix team is actively implementing safeguards to minimize these risks through:
+The Phoenix team is adding safeguards to decrease these risks:
 
 * Caching mechanisms
 
@@ -25,19 +25,19 @@ The Phoenix team is actively implementing safeguards to minimize these risks thr
 
 **Best Practices**
 
-If you choose to implement Phoenix prompts in your application, ensure you:
+If you use Phoenix prompts in your application, do these steps:
 
-1. Implement robust caching strategies
+1. Implement robust caching.
 
-2. Develop comprehensive fallback mechanisms
+2. Implement fallback mechanisms.
 
-3. Consider the impact on your application's reliability requirements
+3. Examine the effect on the reliability requirements of your application.
 
-If you have any feedback on the above improvements, please let us know [https://github.com/Arize-ai/phoenix/issues/6290](https://github.com/Arize-ai/docs/phoenix/issues/6290)
+To give feedback on these improvements, open an issue: [https://github.com/Arize-ai/phoenix/issues/6290](https://github.com/Arize-ai/docs/phoenix/issues/6290)
 
 </Accordion>
 
-To use prompts in your code you will need to install the phoenix client library.
+Install the phoenix client library.
 
 For Python:
 
@@ -53,11 +53,13 @@ npm install @arizeai/phoenix-client
 
 ## Pulling a prompt
 
-There are three major ways pull prompts, pull by [name or ID](/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt#pulling-a-prompt-by-name-or-id) (latest), pull by version, and pull by tag.
+You can pull a prompt in three ways: by [name or ID](/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt#pulling-a-prompt-by-name-or-id) (latest version), by version, or by tag.
 
 ### Pulling a prompt by Name or ID
 
-Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull a prompt. Note that since name and ID doesn't specify a specific version, you will always get the latest version of a prompt. For this reason we only recommend doing this during development.
+Pull a prompt by its name or ID (the identifier) to get the latest version of the prompt. This is the easiest method.
+
+A name or ID does not identify a specific version, so you always get the latest version. Thus, use this method only during development.
 
 <Tabs>
 
@@ -78,7 +80,7 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
     print(prompt.id)
     ```
 
-    Note prompt names and IDs are synonymous.
+    Prompt names and IDs are synonymous.
 
   </Tab>
 
@@ -94,7 +96,7 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
     // ^ the latest version of the prompt with Id "a1234"
     ```
     
-    Note prompt names and IDs are synonymous.
+    Prompt names and IDs are synonymous.
 
   </Tab>
 
@@ -102,10 +104,10 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
 
 ### Pulling a prompt by Version ID
 
-Pulling a prompt by version retrieves the content of a prompt at a particular point in time. The version can never change, nor be deleted, so you can reasonably rely on it in production-like use cases.
+Pull a prompt by version ID to get the content of a prompt at a specific point in time. A version cannot change and you cannot delete it. Thus, you can use it in production-like use cases.
 
 <Frame caption="The ID of a specific prompt version can be found in the prompt history.">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6c02bb6f-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6c02bb6f-image.jpeg" alt="Phoenix saved prompt showing its version identifier" />
 </Frame>
 
 <Tabs>
@@ -141,10 +143,10 @@ Pulling a prompt by version retrieves the content of a prompt at a particular po
 
 ### Pulling a prompt by Tag
 
-Pulling by prompt by tag is most useful when you want a particular version of a prompt to be automatically used in a specific environment (say "staging"). To pull prompts by tag, you must [Tag a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) in the UI first.
+Pull a prompt by tag to use a specific prompt version automatically in an environment (for example, "staging"). Before you pull by tag, [Tag a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) in the UI.
 
 <Frame caption="You can control the prompt version tags in the UI.">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d216c9ac-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d216c9ac-image.jpeg" alt="Phoenix saved prompt showing its assigned tag" />
 </Frame>
 
 
@@ -164,7 +166,7 @@ Pulling by prompt by tag is most useful when you want a particular version of a 
     print(prompt.id)
     ```
 
-    Note that tags are unique per prompt so it must be paired with the **prompt\_identifier**
+    Tags are unique per prompt. Thus, you must pair the tag with the **prompt\_identifier**.
 
   </Tab>
 
@@ -181,13 +183,13 @@ Pulling by prompt by tag is most useful when you want a particular version of a 
 
 </Tabs>
 
-A Prompt pulled in this way can be automatically updated in your application by simply moving the "staging" tag from one prompt version to another.
+To update a prompt pulled by tag in your application, move the "staging" tag to a different prompt version. Your application then gets the new version automatically.
 
 ## Using a prompt
 
-The phoenix clients support formatting the prompt with variables, and providing the messages, model information, [tools](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#tools), and response format (when applicable).
+Use the Phoenix client to format the prompt with variables. The client gives the messages, model information, [tools](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#tools), and response format (if applicable).
 
-The Phoenix Client libraries make it simple to transform prompts to the SDK that you are using (no proxying necessary!)
+The Phoenix client libraries transform prompts to the format of your SDK. You do not need a proxy.
 
 <Tabs>
 
@@ -238,10 +240,10 @@ The Phoenix Client libraries make it simple to transform prompts to the SDK that
 
 </Tabs>
 
-Both the Python and TypeScript SDKs support transforming your prompts to a variety of SDKs (no proprietary SDK necessary).
+The Python and TypeScript SDKs can transform your prompts to these SDKs. You do not need a proprietary SDK.
 
-* Python - support for OpenAI, Anthropic, Gemini
+* Python - OpenAI, Anthropic, Gemini
 
-* TypeScript - support for OpenAI, Anthropic, and the Vercel AI SDK
+* TypeScript - OpenAI, Anthropic, and the Vercel AI SDK
 
 

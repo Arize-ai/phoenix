@@ -1,11 +1,15 @@
+import socket
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import httpx2
 import pandas as pd
 import pytest
+from fastapi import FastAPI
 
 import phoenix.session.session as session_module
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.thread_server import ThreadServer
 from phoenix.session.session import launch_app
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.trace.span_evaluations import (
@@ -121,3 +125,66 @@ def test_launch_app_passes_trace_dataset_evaluations_to_create_app() -> None:
     assert any(isinstance(p, Precursors.SpanAnnotation) for p in initial_annotation_precursors)
     assert any(isinstance(p, Precursors.DocumentAnnotation) for p in initial_annotation_precursors)
     assert any(isinstance(p, Precursors.TraceAnnotation) for p in initial_annotation_precursors)
+
+
+@pytest.mark.parametrize(
+    "host,expected",
+    [
+        ("127.0.0.1", "http://localhost:6006/"),
+        ("0.0.0.0", "http://localhost:6006/"),
+        ("::", "http://localhost:6006/"),
+        ("::1", "http://[::1]:6006/"),
+        ("fd00::1", "http://[fd00::1]:6006/"),
+        ("10.0.0.5", "http://10.0.0.5:6006/"),
+        ("example.com", "http://example.com:6006/"),
+    ],
+)
+def test_get_url_formats_local_host(host: str, expected: str) -> None:
+    url = session_module._get_url(host, 6006, session_module.NotebookEnvironment.LOCAL, "/")
+    assert url == expected
+
+
+@pytest.mark.parametrize(
+    "notebook_env, host, env_host, expected",
+    [
+        pytest.param("databricks", None, None, "0.0.0.0", id="databricks_default"),
+        pytest.param("databricks", None, "127.0.0.1", "127.0.0.1", id="databricks_env_host"),
+        pytest.param("databricks", "127.0.0.1", None, "127.0.0.1", id="databricks_host_arg"),
+        pytest.param("local", None, None, "127.0.0.1", id="local_default"),
+    ],
+)
+def test_default_host(
+    monkeypatch: pytest.MonkeyPatch,
+    notebook_env: str,
+    host: str | None,
+    env_host: str | None,
+    expected: str,
+) -> None:
+    if env_host is None:
+        monkeypatch.delenv("PHOENIX_HOST", raising=False)
+    else:
+        monkeypatch.setenv("PHOENIX_HOST", env_host)
+    nb_env = session_module.NotebookEnvironment(notebook_env)
+    assert session_module._default_host(host, nb_env) == expected
+
+
+def test_thread_server_dual_stack_binds_ipv4_when_host_is_ipv6_unspecified() -> None:
+    app = FastAPI()
+
+    @app.get("/healthz")
+    def _healthz() -> dict[str, str]:
+        return {"status": "ok"}
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = int(sock.getsockname()[1])
+
+    server = ThreadServer(app=app, host="::", port=port, root_path="")
+    assert server.config.host is None
+    generator = server.run_in_thread()
+    next(generator)
+    try:
+        response = httpx2.get(f"http://127.0.0.1:{port}/healthz", timeout=5)
+        assert response.status_code == 200
+    finally:
+        generator.close()

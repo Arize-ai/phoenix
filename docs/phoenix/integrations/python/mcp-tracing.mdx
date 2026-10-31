@@ -8,7 +8,9 @@ The `openinference-instrumentation-mcp` instrumentor is unique compared to other
 ## Install
 
 ```bash
-pip install openinference-instrumentation-mcp
+pip install openinference-instrumentation-mcp \
+  openinference-instrumentation-openai openai openai-agents fastmcp python-dotenv \
+  arize-phoenix-otel
 ```
 
 <Warning>
@@ -16,27 +18,25 @@ Because the MCP instrumentor does not generate its own telemetry, you must use i
 
 </Warning>
 
-The example code below uses OpenAI agents, which you can instrument using:
+## Setup
 
-```bash
-pip install openinference-instrumentation-openai_agents
+```python
+from phoenix.otel import register
+
+tracer_provider = register(auto_instrument=True, verbose=False)
 ```
 
-## Add Tracing to your MCP Client
+## Run MCP Client
 
 ```python expandable
 import asyncio
+import os
 
 from agents import Agent, Runner
 from agents.mcp import MCPServer, MCPServerStdio
 from dotenv import load_dotenv
 
-from phoenix.otel import register
-
 load_dotenv()
-
-# Connect to your Phoenix instance
-tracer_provider = register(auto_instrument=True)
 
 
 async def run(mcp_server: MCPServer):
@@ -45,13 +45,11 @@ async def run(mcp_server: MCPServer):
         instructions="Use the tools to answer the users question.",
         mcp_servers=[mcp_server],
     )
-    while True:
-        message = input("\n\nEnter your question (or 'exit' to quit): ")
-        if message.lower() == "exit" or message.lower() == "q":
-            break
-        print(f"\n\nRunning: {message}")
-        result = await Runner.run(starting_agent=agent, input=message)
-        print(result.final_output)
+    result = await Runner.run(
+        starting_agent=agent,
+        input="Analyze the stock ticker AAPL briefly.",
+    )
+    print(result.final_output)
 
 
 async def main():
@@ -60,6 +58,12 @@ async def main():
         params={
             "command": "fastmcp",
             "args": ["run", "./server.py"],
+            "env": {
+                "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
+                "PHOENIX_COLLECTOR_ENDPOINT": os.environ["PHOENIX_COLLECTOR_ENDPOINT"],
+                "PHOENIX_PROJECT_NAME": os.environ["PHOENIX_PROJECT_NAME"],
+                "PHOENIX_API_KEY": os.environ.get("PHOENIX_API_KEY", ""),
+            },
         },
         client_session_timeout_seconds=30,
     ) as server:
@@ -69,16 +73,16 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Add Tracing to your MCP Server
+## MCP Server
 
-```ruby expandable
+```python expandable
 import json
 import os
 from datetime import datetime, timedelta
 
 import openai
 from dotenv import load_dotenv
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from pydantic import BaseModel
 
 from phoenix.otel import register
@@ -86,7 +90,7 @@ from phoenix.otel import register
 load_dotenv()
 
 # You must also connect your MCP server to Phoenix
-tracer_provider = register(auto_instrument=True)
+tracer_provider = register(auto_instrument=True, verbose=False)
 
 # Get a tracer to add additional instrumentattion
 tracer = tracer_provider.get_tracer("financial-analysis-server")
@@ -160,7 +164,7 @@ if __name__ == "__main__":
 Now that you have tracing setup, all invocations of your client and server will be streamed to Phoenix for observability and evaluation, and connected in the platform.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/365fb8f4-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/365fb8f4-image.jpeg" alt="Phoenix trace showing MCP tool execution and span attributes" />
 </Frame>
 
 ### Resources

@@ -5,7 +5,6 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # Tools
-TOX := tox
 PNPM := pnpm
 UV := $(CURDIR)/scripts/uv.sh
 UV_BIN := uv
@@ -38,7 +37,8 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	test-integration-docs \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -59,7 +59,8 @@ help: ## Show this help message
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
 	@echo -e "  codegen-harbor-graphql - Compile the Harbor verifiers' GraphQL queries into typed Python models"
-	@echo -e "  mcp-skills             - Compile the MCP server's shared skills from .agents/skills"
+	@echo -e "  skills                 - Build every shipped copy of the public skills in skills/"
+	@echo -e "  skills-check           - Ensure the skill copies are current and npx offers only skills/"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -81,6 +82,7 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
 	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
+	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
 	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
 	@echo -e "  typecheck-python       - Type check Python only"
@@ -108,6 +110,7 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
+	@echo -e "  test-sync-models       - Test the model cost manifest sync script"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
@@ -141,8 +144,6 @@ check-tools: ## Verify required tools are installed
 	@echo -e "$(GREEN)✓$(NC) uv found: $$($(UV) --version)"
 	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) pnpm found: $$($(PNPM) --version)"
-	@command -v $(TOX) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: tox is not installed. Run: pip install tox$(NC)"; exit 1; }
-	@echo -e "$(GREEN)✓$(NC) tox found: $$($(TOX) --version)"
 	@command -v $(NODE) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: node is not installed. Install from https://nodejs.org$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) node found: $$($(NODE) --version)"
 	@command -v dekit >/dev/null 2>&1 && echo -e "$(GREEN)✓$(NC) dekit found: $$(dekit --version)" || echo -e "$(YELLOW)WARNING: dekit is not installed (needed by make dev). Run: curl -fsSL https://dekit.run/install.sh | sh$(NC)"
@@ -180,16 +181,16 @@ setup-remote-export: ## Configure PXI remote trace export
 # Schema Generation
 #=============================================================================
 
-mcp-skills: ## Compile the MCP server's shared skills from .agents/skills
-	@echo -e "$(CYAN)Compiling MCP skills from src/phoenix/server/mcp/skills-lock.json...$(NC)"
-	@# The skills CLI can only install into <cwd>/.agents/skills, so alias that to skills/ for the compile.
-	@cd src/phoenix/server/mcp \
-		&& mkdir -p .agents && ln -sfn ../skills .agents/skills \
-		&& trap 'rm -rf .agents' EXIT \
-		&& for source in $$(python3 -c 'import json; print(" ".join(e["source"] for e in json.load(open("skills-lock.json"))["skills"].values()))'); do \
-			npx --yes skills add "$$source" --project --agent universal --yes || exit 1; \
-		done
-	@echo -e "$(GREEN)✓ src/phoenix/server/mcp/skills$(NC)"
+skills: ## Build every shipped copy of the public skills in skills/
+	@echo -e "$(CYAN)Building skill copies from skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_skills.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+skills-check: ## Ensure the skill copies are current and npx offers only skills/
+	@echo -e "$(CYAN)Checking skill copies against skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/test_sync_skills.py
+	@python3 $(CURDIR)/scripts/sync_skills.py --check --npx
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
@@ -287,11 +288,14 @@ dev-frontend: ## Frontend only (React dev server)
 # Testing
 #=============================================================================
 
+test-integration-docs: ## Run configured integration docs against a running Phoenix server
+	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
+
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
-	@$(TOX) run -q -e unit_tests -- -n auto
+	@$(UV) run --all-packages pytest -q -n auto tests/unit
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
-	@$(TOX) run -q -e integration_tests
+	@$(UV) run pytest -q tests/integration
 
 # Run doctests across all modules under src/ by default; override on the command
 # line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
@@ -424,6 +428,11 @@ codegen-prompts: ## Generate prompts code from YAML files
 sync-models: ## Sync model cost manifest from remote sources
 	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
 	@$(UV) run python scripts/cost_tracking/sync_models.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+test-sync-models: ## Test the model cost manifest sync script
+	@echo -e "$(CYAN)Testing the model cost manifest sync script...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/cost_tracking
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 # ARGS=--external points the PostgreSQL extractor at a foreign database, which

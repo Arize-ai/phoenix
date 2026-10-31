@@ -21,7 +21,8 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Variable names MUST be descriptive — short names like `x` or `cv` MUST NOT be used. Use names like `num_experiments` or `current_version`
 - Variable names SHOULD use prefixes to denote the type — e.g. `num_records` rather than `records`
 - Functions MUST be named with precise action verbs — e.g. `list_sessions()` rather than `sessions()`
-- Keyword or object arguments SHOULD be preferred over positional arguments for clarity — e.g. `({ numerator, denominator }) => quotient` rather than `(x, y) => z`
+- TypeScript functions with two or more parameters MUST take a single destructured object parameter — e.g. `divide({ numerator, denominator })` rather than `divide(x, y)`. Callbacks whose signature is fixed by a library or the DOM are exempt
+- Python functions SHOULD take keyword arguments over positional ones for clarity — e.g. `divide(*, numerator, denominator)` rather than `divide(x, y)`
 - Composition SHOULD be preferred over inheritance
 - All functions MUST have type annotations — lean on the type system to catch bugs at compile time, not runtime
 - Path aliases or absolute imports SHOULD be used — deep relative import chains are NOT RECOMMENDED
@@ -43,6 +44,7 @@ An implementation is compliant if it satisfies all "MUST", "MUST NOT", "REQUIRED
 - Public API parameters, config options and exports the change does not need MUST NOT be added
 - Code, props and exports the change leaves unused MUST be removed
 - Modules MUST live in the layer they belong to — `utils` holds pure functions only, and imports SHOULD flow one way
+- Code MUST NOT branch on hard-coded model names, model ID substrings, or version strings to decide how to call a provider, and SHOULD NOT send a request it expects some models to reject and then retry it in another form. When models disagree on a parameter, the request SHOULD use the form every supported model accepts. Name lists go stale with every model release and miss aliases, deployment IDs, and proxied model names
 
 ## Security
 

@@ -17,7 +17,7 @@
       "source": "github/gh-stack",
       "sourceType": "github",
       "skillPath": "skills/gh-stack/SKILL.md",
-      "computedHash": "15d9ce292d8b90b097463c8c3232fdc61f93474add776235245326de532fef2e"
+      "computedHash": "e54bf50370987f13ca2803b3be829f36350b68a79dc36ffd3b27350bc6d2fde1"
     },
     "harbor-exec": {
       "source": "harbor-framework/harbor",
@@ -29,8 +29,8 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "9167e4668a5f98a5d4f5bf821dc33d7bdb5c4b0dffd7ac2338b8be9b65204044",
-      "wellKnownDigest": "sha256:cf52f2852b90beef89e1c34f0f073c08480904c8d2dd59d014082897545e5edc"
+      "computedHash": "257163cff410f68fc23ab5ee64c7396aeb7a1fd72335af8805b832f310fa4a5a",
+      "wellKnownDigest": "sha256:fca8fc074c8261e79c6db407f128fd3f262c1011cb4635475416c24561ec8ee3"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",

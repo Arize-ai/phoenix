@@ -14,7 +14,7 @@ From this plugin's directory:
 claude plugin eval . \
   --ablation with-without \
   --judge-model sonnet \
-  --allow-tools Write "Read(//$(pwd)/**)" "Read(//$(git rev-parse --show-toplevel)/.agents/skills/**)"
+  --allow-tools Write "Read(//$(pwd)/**)" "Read(//$(git rev-parse --show-toplevel)/skills/**)"
 ```
 
 Every flag matters:

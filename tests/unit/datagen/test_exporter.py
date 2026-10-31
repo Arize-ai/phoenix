@@ -1,6 +1,6 @@
 import logging
 
-import httpx
+import httpx2
 import pytest
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -16,7 +16,7 @@ def test_exporter_posts_with_headers_and_continues_after_failure(
     request = ExportTraceServiceRequest()
     attempts = 0
 
-    def handle(posted_request: httpx.Request) -> httpx.Response:
+    def handle(posted_request: httpx2.Request) -> httpx2.Response:
         nonlocal attempts
         attempts += 1
         assert str(posted_request.url) == "https://collector.example/prefix/v1/traces"
@@ -24,12 +24,12 @@ def test_exporter_posts_with_headers_and_continues_after_failure(
         assert posted_request.headers["authorization"] == "Bearer test-key"
         assert posted_request.headers["x-tenant"] == "tenant-one"
         assert posted_request.content == request.SerializeToString()
-        return httpx.Response(503 if attempts == 1 else 200, request=posted_request)
+        return httpx2.Response(503 if attempts == 1 else 200, request=posted_request)
 
-    transport = httpx.MockTransport(handle)
-    client_type = httpx.Client
+    transport = httpx2.MockTransport(handle)
+    client_type = httpx2.Client
     monkeypatch.setattr(
-        "phoenix.experimental.datagen.exporter.httpx.Client",
+        "phoenix.experimental.datagen.exporter.httpx2.Client",
         lambda **kwargs: client_type(transport=transport, **kwargs),
     )
 

@@ -12,7 +12,7 @@ Phoenix makes your DSPy applications observable by visualizing the underlying st
 ## Install
 
 ```bash
-pip install openinference-instrumentation-dspy openinference-instrumentation-litellm dspy "litellm<1.82.7"
+pip install openinference-instrumentation-dspy openinference-instrumentation-litellm dspy litellm
 ```
 
 <Info>
@@ -29,6 +29,8 @@ DSPy uses LiteLLM under the hood to make some calls. By adding the OpenInference
 Now run invoke your compiled DSPy module. Your traces should appear inside of Phoenix.
 
 ```python expandable
+import dspy
+
 class BasicQA(dspy.Signature):
     """Answer questions with short factoid answers."""
 
@@ -77,7 +79,10 @@ if __name__ == "__main__":
 Now that you have tracing setup, all predictions will be streamed to your running Phoenix for observability and evaluation.
 
 <Frame caption="">
-![Traces and spans from an instrumented DSPy custom module.](https://storage.googleapis.com/arize-phoenix-assets/assets/docs/notebooks/dspy-tracing-tutorial/dspy_spans_and_traces.gif)
+  <video controls autoPlay muted loop playsInline preload="metadata" aria-label="Traces and spans from an instrumented DSPy custom module." width="100%">
+    <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/dspy_spans_and_traces.mp4" type="video/mp4" />
+    Traces and spans from an instrumented DSPy custom module.
+  </video>
 
 </Frame>
 

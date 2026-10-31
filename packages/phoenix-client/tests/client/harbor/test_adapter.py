@@ -12,7 +12,7 @@ from typing import Any, cast
 
 import pytest
 
-pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12 and <3.15")
 
 from harbor.models.job.config import DatasetConfig, JobConfig
 from harbor.models.job.lock import TaskLock

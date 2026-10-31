@@ -1,5 +1,17 @@
 # @arizeai/phoenix-client
 
+## 7.17.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+## 7.16.3
+
+### Patch Changes
+
+- 86ab99c: fix(client): keep `description`, `default` and other keywords next to `anyOf` when converting prompt tool and response-format schemas with `toSDK`
+
 ## 7.16.2
 
 ### Patch Changes
