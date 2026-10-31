@@ -39,6 +39,7 @@ flowchart TB
   maintainer -->|"factory-review label<br/>on any PR"| prreview
   prreview -->|"start session,<br/>report verdict"| reviewer
   reviewer -->|"one COMMENT review"| pr
+  prreview -->|"verdict label"| pr
   triage -->|"factory-candidate label"| issue
   candidates -->|"candidates by authors<br/>with write access"| dispatch
   issue -->|"labeled"| dispatch
@@ -103,7 +104,7 @@ Each part does one job, so it can be changed and tested on its own:
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
-| `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, and comments the review's verdict on the PR, or that none was posted. See [Reviewing a PR](#reviewing-a-pr) |
+| `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, then comments the review's verdict on the PR and labels it `factory-approved`, `factory-request-changes` or `factory-close`, or says why there is no verdict. See [Reviewing a PR](#reviewing-a-pr) |
 | `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
 | `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
@@ -117,36 +118,84 @@ Each part does one job, so it can be changed and tested on its own:
 - **Community code in the sandbox.** The review lane checks out a contributor's commit and runs the project's `make` targets and tests on it, so that code runs with the sandbox's access: the factory app's installation token (injected by the vault into GitHub calls, never visible as a value) and the limited network. The agent runs nothing the PR adds except through those targets, and the token's three permissions bound what it can do. The Actions job itself only ever checks out the base branch.
 - **Human gates.** Only someone with write access can start a run, by labeling or dispatching an issue or a PR, or by writing an issue that triage nominates, and only a human merges. The review agent recommends a verdict in the review body but is instructed to submit only `COMMENT` reviews, never to approve or request changes.
 
-A maintainer's part is to label an issue, or a `factory-candidate` someone without write access wrote, answer the questions on a `NEEDS_DECISION` comment, and review PRs once they leave draft, as deeply as the assessment's review depth says. To run an issue again, re-add the `factory` label. To have the factory review a pull request, label it `factory-review`.
+A maintainer's part is to label an issue, or a `factory-candidate` someone without write access wrote, answer the questions on a `NEEDS_DECISION` comment, and review PRs once they leave draft, as deeply as the assessment's review depth says. To run an issue again, re-add the `factory` label. To have the factory review a pull request, label it `factory-review`, then act on the verdict label it leaves.
 
 ## Reviewing a PR
 
-Claude Code Review runs on the `pull_request` event, which carries no secrets for a fork, so community PRs get no automated review. The review lane fills that gap on demand: a maintainer adds the `factory-review` label to a PR, or runs **Factory Review** with its number, and `review.py` starts a `pr-reviewer` session in the factory sandbox.
+Claude Code Review runs on the `pull_request` event, which carries no secrets for a fork, so community PRs get no automated review. The review lane fills that gap on demand. A maintainer asks for a review with one label, and the factory answers with one review and one verdict label. The PR list then works as the review queue.
+
+### The maintainer's loop
+
+1. **Ask for a review.** Add the `factory-review` label to an open PR, or run **Factory Review** from the Actions tab with the PR's number. You need write access; a request from anyone else gets a comment saying why it was skipped.
+2. **Wait for the report.** The factory comments that it started, with a link to the session. A review takes up to 100 minutes, and `factory-review` stays on the PR while it runs.
+3. **Read the result.** When the session ends, the PR has three new things: one `COMMENT` review with inline findings and a summary table, a comment that names the verdict and the commit it is for, and one verdict label. `factory-review` comes off.
+4. **Act on the verdict label.** The label is a recommendation. You make the decision, at the depth the review's Review depth row says:
+
+   | Label | Verdict | What to do |
+   |---|---|---|
+   | `factory-review` | (running) | Wait for the report. |
+   | `factory-approved` | **Approve** | Read the diff at the review's depth, then approve and merge. |
+   | `factory-request-changes` | **Request changes** | Check the **Blocking** findings. Then request changes in GitHub, linking the factory's review, or fix the PR yourself. |
+   | `factory-close` | **Close** | Read the sentence under the review's heading, which gives the reason, such as a duplicate PR or a declined approach. Then close the PR with a comment to the author. |
+
+5. **Review again after new commits.** Re-add `factory-review`. The new run removes the old verdict label when it starts, and adds the new one when it ends.
+
+Saved searches for the queue:
+
+- [`is:pr is:open label:factory-approved`](https://github.com/Arize-ai/phoenix/pulls?q=is%3Apr+is%3Aopen+label%3Afactory-approved): ready for a maintainer to approve and merge.
+- [`is:pr is:open label:factory-request-changes`](https://github.com/Arize-ai/phoenix/pulls?q=is%3Apr+is%3Aopen+label%3Afactory-request-changes): waiting on the author.
+- [`is:pr is:open label:factory-close`](https://github.com/Arize-ai/phoenix/pulls?q=is%3Apr+is%3Aopen+label%3Afactory-close): to close.
+- [`is:pr is:open label:factory-review`](https://github.com/Arize-ai/phoenix/pulls?q=is%3Apr+is%3Aopen+label%3Afactory-review): reviews in progress.
+
+### Verdict label rules
+
+- A PR has at most one verdict label. It is for the factory's latest finished review.
+- `review.py` removes every verdict label when it admits a new review, so a verdict for an older commit never stays on during a new run.
+- A push to the PR does not remove the label. The verdict comment names the reviewed commit; if the PR head is newer, re-add `factory-review`.
+- A run that ends without a verdict leaves no verdict label. The comment tells you why; see [When a review has no verdict](#when-a-review-has-no-verdict).
+- `review.py` creates a verdict label the first time it uses it, with the color and description in `VERDICT_LABELS`, so a repo never lacks one. Removing a label by hand is safe; the next review sets it again.
+
+### How it works
 
 ```mermaid
 sequenceDiagram
   actor maintainer as Maintainer
   participant github as GitHub
   participant review as review.py
-  participant session as Session
+  participant session as pr-reviewer session
 
   maintainer->>github: add the factory-review label
   github->>review: pull_request_target labeled
   review->>github: check the requester and the PR, read its head commit
   alt not admissible
-    review->>github: comment why, remove the label
+    review->>github: comment why, remove factory-review
   else admitted
+    review->>github: remove any old verdict label, comment that the review started
     review->>session: create with pr-reviewer, the repo mounted on the base branch, the commit to review
     session->>session: bootstrap, fetch pull/N/head, check out the commit, run checks, area review, verify findings
     session->>github: submit one COMMENT review with inline findings and the summary
-    review->>github: comment the verdict with a link to the review, remove the label
+    review->>github: read the verdict from the review heading
+    review->>github: comment the verdict, add its label, remove factory-review
   end
-  maintainer->>github: read the verdict and table at its depth, then decide
+  maintainer->>github: act on the verdict label at the review's depth
 ```
 
-The workflow runs on `pull_request_target` so it has the factory secrets for a fork PR, and it is safe for the same reason the other factory jobs are: the Actions runner checks out the base branch and runs `review.py` from it, never the PR's code. The PR's code runs only in the sandbox, as [Trust boundaries](#trust-boundaries) describes. The session is pinned to the head commit at the time of the label, and reviews the current head only if that commit is gone; the PR comment names the commit the review is on. `review.py` finds the review as the first one the factory submitted after the session started, so a review from an earlier run is never reported as this one's. Re-add the label to review a new head. Each review session has a spend cap of $10 at list price and the job waits up to 100 minutes for it.
+The workflow runs on `pull_request_target` so it has the factory secrets for a fork PR. It is safe for the same reason the other factory jobs are: the Actions runner checks out the base branch and runs `review.py` from it, never the PR's code. The PR's code runs only in the sandbox, as [Trust boundaries](#trust-boundaries) describes. The session is pinned to the head commit at the time of the label. It reviews the current head only if that commit is gone, and the PR comment names the commit the review is on. `review.py` finds the review as the first one the factory submitted after the session started, so a review from an earlier run is never reported as this one's. Each review session has a spend cap of $10 at list price, and the job waits up to 100 minutes for it.
 
-The review's body follows the summary template in `agents/pr-reviewer.md`: a verdict of **Approve**, **Request changes** or **Close**, the one criterion that decided it, and a table grading Fit, Checks, Tests, the finding counts, Risk and Review depth, with the full intent, verification and risk notes collapsed under Details. The verdict follows fixed rules in [`agents/pr-reviewer.md` § Verdict](agents/pr-reviewer.md#verdict) and is only a recommendation; the review is always a `COMMENT`. Findings go inline on the lines they concern, each verified, each marked **Blocking** or **Non-blocking**. When the session ends, `review.py` comments the verdict on the PR with a link to the review, or says the session posted none; the stop reason and cost go to the job log. The lane has no graded outcome: a posted review can't be taken back, so a grader's revision cycles could only edit or repost it.
+The review's body follows the summary template in `agents/pr-reviewer.md`: a heading with the verdict (**Approve**, **Request changes** or **Close**), one sentence that names the criterion that decided it, and a table that grades Fit, Checks, Tests, the finding counts, Risk and Review depth. The full intent, verification and risk notes are collapsed under Details. The verdict follows fixed rules in [`agents/pr-reviewer.md` § Verdict](agents/pr-reviewer.md#verdict). It is only a recommendation, and the review is always a `COMMENT`, never a GitHub approval or change request; the verdict label is the machine-readable copy of the heading. Findings go inline on the lines they concern, each verified, each marked **Blocking** or **Non-blocking**. The stop reason and cost go to the job log. The lane has no graded outcome: a posted review can't be taken back, so a grader's revision cycles could only edit or repost it.
+
+### When a review has no verdict
+
+Every run ends with a comment. If no verdict label was added, the comment says which of these happened:
+
+| Comment | Cause | What to do |
+|---|---|---|
+| The factory skipped reviewing this pull request | The requester lacks write access, or the PR is not open | A maintainer re-adds `factory-review` |
+| The factory hit an error before it could report | The start step failed, for example a missing secret or `claude-lock.json` | Read the linked workflow run, fix it, re-add `factory-review` |
+| The session is still running after 100 minutes | The job stopped watching; the session may still post a review, but gets no label | Open the session link. Re-add `factory-review` for a run that is labeled |
+| The session ended without posting a review | The session hit its budget or failed; the stop reason is in the job log | Read the job log and the session, then re-add `factory-review` |
+| The review's heading names no verdict | The agent did not follow the summary template | Read the review yourself. Fix `agents/pr-reviewer.md` if it happens again |
+| The factory lost track of the session | The watch step failed, for example the app token could not be minted | Read the workflow run and the session, then re-add `factory-review` |
 
 ## Run outcomes
 
@@ -170,7 +219,7 @@ assessment.md    the fit-and-risk comment coordinators post on their PR
 bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
 github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
-review.py        admits a pull request, starts its pr-reviewer session, and reports the review it posts
+review.py        admits a pull request, starts its pr-reviewer session, and reports and labels the review's verdict
 log_scan.py      counts the day's server errors in Grafana or Datadog and, if any, runs the matching triage session
 ```
 
@@ -184,7 +233,7 @@ log_scan.py      counts the day's server errors in Grafana or Datadog and, if an
 4. Create the repo variable `FACTORY_APP_CLIENT_ID` with the app's Client ID and the repo secret `FACTORY_APP_PRIVATE_KEY` with the private key. For each session, `dispatch.py`, `review.py` and `log_scan.py` mint an installation token limited to this repo and those three permissions, mount it as the session's repo token, and write it to the GitHub vault as a `static_bearer` credential for `https://api.githubcopilot.com/mcp/` and a header-only `GH_TOKEN` environment-variable credential for `api.github.com`, creating them on first use. Tokens last an hour, so they re-mint one while they follow a session. The sandbox sees only placeholders. The app then authors factory PRs, so any maintainer can approve them. The release and sync workflows (`release.yml`, `typescript-packages-publish.yml`, `sync-lockfile-release-pr.yml`, `update-phoenix-package-versions.yml`, `docker-build-release.yml`, `cost-sync.yml`, `generate-sitemap.yml`, `daily-skills-update.yml` and `phoenix-sqlean-upstream.yml`) mint their own installation token from the same variable and secret with `actions/create-github-app-token`, so the app authors those PRs too.
 5. Create the repo variable `FACTORY_GITHUB_LOGIN` with the app's bot login, `arize-phoenix-factory[bot]`. CI uses it to recognize factory PRs, `dispatch.py` accepts it as a requester, `review.py` finds the review it posts by it, and the factory commits as its noreply address. The login is in the `allowlist` in `cla.yml` and in `allowed_bots` in `claude-code-review.yml`.
 6. Don't restrict the app's branches. It pushes the release-please, changesets, version-bump and sync branches as well as `factory/**`. If a ruleset from an earlier bootstrap keeps it on `factory/**`, delete the ruleset or add the app to its bypass list. Branch protection on `main` still applies to it, so its PRs need a maintainer's approval.
-7. Create the `factory`, `factory-candidate` and `factory-review` labels, and make `Factory Guard` a required check on `main`.
+7. Create the `factory`, `factory-candidate` and `factory-review` labels, and make `Factory Guard` a required check on `main`. `review.py` creates the verdict labels `factory-approved`, `factory-request-changes` and `factory-close` on first use; to create them up front, run `gh label create <name> --color <color> --description <description> --force` with the values in `VERDICT_LABELS` in `review.py`.
 8. Try it on one small issue with **Run workflow** on `Factory Dispatch`, and on one open PR with **Run workflow** on `Factory Review`.
 
 ## Grafana access
