@@ -196,20 +196,6 @@ export function useModelMenuData({
     [catalogModels]
   );
 
-  const providerInfoMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { name: string; dependenciesInstalled: boolean }
-    >();
-    for (const provider of data.modelProviders) {
-      map.set(provider.key, {
-        name: provider.name,
-        dependenciesInstalled: provider.dependenciesInstalled,
-      });
-    }
-    return map;
-  }, [data.modelProviders]);
-
   // Chat pickers choose chat models, so a provider that serves decision
   // models only (a TypeSafe endpoint) is left out.
   const chatCustomProviders = useMemo((): CustomProviderInfo[] => {
@@ -389,7 +375,6 @@ export function useModelMenuData({
     data,
     modelCatalog,
     modelsByProvider,
-    providerInfoMap,
     visibleProviders,
   };
 }

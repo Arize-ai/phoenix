@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { AGENT_MODEL_CURATION } from "@phoenix/components/agent/agentCuratedModels";
-
 import {
   type ModelCatalogInput,
   buildModelCatalog,
@@ -18,7 +16,22 @@ import {
   resolveModelRow,
   toModelMenuValueFromRow,
   tokenMatchScore,
+  getModelKeyForValue,
+  type ModelCuration,
 } from "../modelSearch";
+
+/** A picker's curated models, local so the shared search doesn't depend on PXI. */
+const CURATED_MODELS: Record<string, string> = {
+  "ANTHROPIC:claude-fable-5-1": "Claude Fable 5.1",
+  "ANTHROPIC:claude-opus-5-5": "Claude Opus 5.5",
+  "ANTHROPIC:claude-sonnet-5-5": "Claude Sonnet 5.5",
+  "OPENAI:gpt-6-sol": "GPT-6 Sol",
+};
+
+const TEST_CURATION: ModelCuration = {
+  isCurated: (model) => getModelKeyForValue(model) in CURATED_MODELS,
+  getDisplayName: (model) => CURATED_MODELS[getModelKeyForValue(model)] ?? null,
+};
 
 type ModelProviderInput = ModelCatalogInput["modelProviders"][number];
 
@@ -88,7 +101,7 @@ function buildCatalog({
       customProviders,
     }),
     customProviders,
-    curation: AGENT_MODEL_CURATION,
+    curation: TEST_CURATION,
   });
 }
 
@@ -637,7 +650,7 @@ describe("resolveModelRow", () => {
       model,
       rows: ROWS,
       providers: PROVIDERS,
-      curation: AGENT_MODEL_CURATION,
+      curation: TEST_CURATION,
     });
   }
 
