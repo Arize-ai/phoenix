@@ -4,13 +4,13 @@ import io
 import json
 from datetime import datetime, timezone
 from io import BytesIO, StringIO
-from typing import Any
+from typing import Any, Optional, cast
 
-import httpx
+import httpx2
 import pandas as pd
 import pyarrow as pa
 import pytest
-from httpx import HTTPStatusError
+from httpx2 import HTTPStatusError
 from pandas.testing import assert_frame_equal
 from sqlalchemy import func, insert, select
 from sqlalchemy.orm import joinedload
@@ -24,7 +24,7 @@ from phoenix.server.types import DbSessionFactory
 
 
 async def test_get_simple_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(0))
@@ -45,7 +45,7 @@ async def test_get_simple_dataset(
 
 
 async def test_get_empty_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     empty_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(1))
@@ -66,7 +66,7 @@ async def test_get_empty_dataset(
 
 
 async def test_get_dataset_with_revisions(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(2))
@@ -87,7 +87,7 @@ async def test_get_dataset_with_revisions(
 
 
 async def test_list_datasets(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     empty_dataset: Any,
     dataset_with_revisions: Any,
@@ -134,7 +134,7 @@ async def test_list_datasets(
 
 
 async def test_list_fewer_datasets(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     empty_dataset: Any,
 ) -> None:
@@ -170,7 +170,7 @@ async def test_list_fewer_datasets(
 
 
 async def test_list_datasets_with_cursor(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     empty_dataset: Any,
     dataset_with_revisions: Any,
@@ -227,7 +227,7 @@ async def test_list_datasets_with_cursor(
 
 
 async def test_get_dataset_versions(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
@@ -254,7 +254,7 @@ async def test_get_dataset_versions(
 
 
 async def test_get_dataset_versions_with_cursor(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
@@ -278,7 +278,7 @@ async def test_get_dataset_versions_with_cursor(
 
 
 async def test_get_dataset_versions_with_nonexistent_cursor(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
@@ -292,7 +292,7 @@ async def test_get_dataset_versions_with_nonexistent_cursor(
 
 
 async def test_get_dataset_download_empty_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     empty_dataset: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(1))
@@ -309,7 +309,7 @@ async def test_get_dataset_download_empty_dataset(
 
 
 async def test_get_dataset_download_nonexistent_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     empty_dataset: Any,
     dataset_with_revisions: Any,
 ) -> None:
@@ -330,7 +330,7 @@ async def test_get_dataset_download_nonexistent_version(
 
 
 async def test_get_dataset_download_latest_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
@@ -358,7 +358,7 @@ async def test_get_dataset_download_latest_version(
 
 
 async def test_get_dataset_download_specific_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
@@ -391,7 +391,7 @@ async def test_get_dataset_download_specific_version(
 
 
 async def test_get_dataset_jsonl_openai_ft(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_messages: tuple[int, int],
 ) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
@@ -423,7 +423,7 @@ async def test_get_dataset_jsonl_openai_ft(
 
 
 async def test_get_dataset_jsonl_openai_evals(
-    httpx_client: httpx.AsyncClient, dataset_with_messages: tuple[int, int]
+    httpx_client: httpx2.AsyncClient, dataset_with_messages: tuple[int, int]
 ) -> None:
     dataset_id, dataset_version_id = dataset_with_messages
     dataset_global_id = GlobalID(Dataset.__name__, str(dataset_id))
@@ -448,7 +448,7 @@ async def test_get_dataset_jsonl_openai_evals(
 
 
 async def test_get_dataset_jsonl_empty_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     empty_dataset: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(1))
@@ -463,7 +463,7 @@ async def test_get_dataset_jsonl_empty_dataset(
 
 
 async def test_get_dataset_jsonl_latest_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
@@ -491,7 +491,7 @@ async def test_get_dataset_jsonl_latest_version(
 
 
 async def test_get_dataset_jsonl_specific_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     dataset_global_id = GlobalID("Dataset", str(2))
@@ -505,7 +505,7 @@ async def test_get_dataset_jsonl_specific_version(
 
 
 async def test_get_dataset_jsonl_with_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_splits: tuple[int, int],
 ) -> None:
     dataset_id, _ = dataset_with_splits
@@ -536,7 +536,7 @@ async def test_get_dataset_jsonl_with_splits(
 
 
 async def test_post_dataset_upload_json_create_then_append(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -606,7 +606,7 @@ async def test_post_dataset_upload_json_create_then_append(
 
 
 async def test_post_dataset_upload_json_reupload_reports_no_changes(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -639,7 +639,7 @@ async def test_post_dataset_upload_json_reupload_reports_no_changes(
 
 
 async def test_post_dataset_upload_create_conflicts_on_existing_name_while_update_converges(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -673,7 +673,7 @@ async def test_post_dataset_upload_create_conflicts_on_existing_name_while_updat
 
 
 async def test_post_dataset_upload_update_diffs_against_latest_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -728,7 +728,7 @@ async def test_post_dataset_upload_update_diffs_against_latest_version(
 
 
 async def test_post_dataset_upload_update_auto_creates_missing_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -748,7 +748,7 @@ async def test_post_dataset_upload_update_auto_creates_missing_dataset(
 
 
 async def test_post_dataset_upload_splits_only_change_counts_as_patched(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Re-uploading identical content with a different split membership should
@@ -789,7 +789,7 @@ async def test_post_dataset_upload_splits_only_change_counts_as_patched(
 
 
 async def test_post_dataset_upload_deleted_example_with_split_does_not_count_as_updated(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Deleting an example that was assigned to a split should count as a
@@ -832,7 +832,7 @@ async def test_post_dataset_upload_deleted_example_with_split_does_not_count_as_
 
 
 async def test_post_dataset_upload_csv_create_then_append(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -900,7 +900,7 @@ async def test_post_dataset_upload_csv_create_then_append(
 
 
 async def test_post_dataset_upload_jsonl_create_then_append(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -971,7 +971,7 @@ async def test_post_dataset_upload_jsonl_create_then_append(
 
 
 async def test_post_dataset_upload_jsonl_preserves_per_row_keys(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Each JSONL example should retain only the keys present in its source row.
@@ -1011,7 +1011,7 @@ async def test_post_dataset_upload_jsonl_preserves_per_row_keys(
 
 
 async def test_post_dataset_upload_jsonl_preserves_explicit_null(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """An explicit null in a JSONL row must be preserved, distinct from a missing key."""
@@ -1046,7 +1046,7 @@ async def test_post_dataset_upload_jsonl_preserves_explicit_null(
 
 
 async def test_post_dataset_upload_pyarrow_create_then_append(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -1124,7 +1124,7 @@ async def test_post_dataset_upload_pyarrow_create_then_append(
 
 
 async def test_delete_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     empty_dataset: Any,
 ) -> None:
     url = f"v1/datasets/{GlobalID(Dataset.__name__, str(1))}"
@@ -1136,7 +1136,7 @@ async def test_delete_dataset(
 
 
 async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     global_id = GlobalID("Dataset", str(0))
     response = await httpx_client.get(f"/v1/datasets/{global_id}/examples")
@@ -1145,7 +1145,7 @@ async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
 
 
 async def test_get_dataset_examples_404s_with_invalid_global_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     global_id = GlobalID("InvalidDataset", str(0))
@@ -1155,7 +1155,7 @@ async def test_get_dataset_examples_404s_with_invalid_global_id(
 
 
 async def test_get_dataset_examples_404s_with_nonexistent_version_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(0))
@@ -1168,7 +1168,7 @@ async def test_get_dataset_examples_404s_with_nonexistent_version_id(
 
 
 async def test_get_dataset_examples_404s_with_invalid_version_global_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(0))
@@ -1181,7 +1181,7 @@ async def test_get_dataset_examples_404s_with_invalid_version_global_id(
 
 
 async def test_get_simple_dataset_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(0))
@@ -1208,7 +1208,7 @@ async def test_get_simple_dataset_examples(
 
 
 async def test_get_dataset_examples_prefers_external_id_for_public_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = inspect.stack()[0][3]
@@ -1246,7 +1246,7 @@ async def test_get_dataset_examples_prefers_external_id_for_public_id(
 
 
 async def test_list_simple_dataset_examples_at_each_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(0))
@@ -1263,7 +1263,7 @@ async def test_list_simple_dataset_examples_at_each_version(
 
 
 async def test_list_empty_dataset_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     empty_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(1))
@@ -1275,7 +1275,7 @@ async def test_list_empty_dataset_examples(
 
 
 async def test_list_empty_dataset_examples_at_each_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     empty_dataset: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(1))
@@ -1312,7 +1312,7 @@ async def test_list_empty_dataset_examples_at_each_version(
 
 
 async def test_list_dataset_with_revisions_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(2))
@@ -1351,7 +1351,7 @@ async def test_list_dataset_with_revisions_examples(
 
 
 async def test_list_dataset_with_revisions_examples_at_each_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
 ) -> None:
     global_id = GlobalID("Dataset", str(2))
@@ -1418,7 +1418,7 @@ async def test_list_dataset_with_revisions_examples_at_each_version(
 
 
 async def test_post_dataset_upload_json_with_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test JSON upload with various split formats: string, list, null, and mixed."""
@@ -1477,7 +1477,7 @@ async def test_post_dataset_upload_json_with_splits(
 
 
 async def test_post_dataset_upload_csv_with_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test CSV upload with split_keys, including whitespace stripping."""
@@ -1535,7 +1535,7 @@ async def test_post_dataset_upload_csv_with_splits(
 
 
 async def test_post_dataset_upload_jsonl_with_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test JSONL upload with split_keys, including whitespace stripping."""
@@ -1594,7 +1594,7 @@ async def test_post_dataset_upload_jsonl_with_splits(
 
 
 async def test_post_dataset_upload_pyarrow_with_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test PyArrow upload with split_keys."""
@@ -1651,7 +1651,7 @@ async def test_post_dataset_upload_pyarrow_with_splits(
 
 
 async def test_post_dataset_upload_reuses_existing_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test that uploading datasets reuses existing splits instead of creating duplicates."""
@@ -1757,7 +1757,7 @@ async def test_post_dataset_upload_reuses_existing_splits(
 
 
 async def test_post_dataset_upload_rejects_invalid_split_formats(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Test that JSON upload rejects invalid split formats (dict, integer, boolean)."""
     name = inspect.stack()[0][3]
@@ -1806,7 +1806,7 @@ async def test_post_dataset_upload_rejects_invalid_split_formats(
 
 
 async def test_post_dataset_upload_append_with_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test appending to a dataset with splits - both reusing existing and adding new splits."""
@@ -1910,7 +1910,7 @@ async def test_post_dataset_upload_append_with_splits(
 
 
 async def test_append_upserts_existing_example_by_external_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Appending with a matching external_id should PATCH the existing example, not create a duplicate."""
@@ -1968,7 +1968,7 @@ async def test_append_upserts_existing_example_by_external_id(
 
 
 async def test_append_never_deletes_existing_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Appending a subset of examples should NOT delete examples not in the upload."""
@@ -2015,7 +2015,7 @@ async def test_append_never_deletes_existing_examples(
 
 
 async def test_append_mixed_upsert_and_create(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Appending a batch with some matching IDs and some new should handle both correctly."""
@@ -2087,7 +2087,7 @@ async def test_append_mixed_upsert_and_create(
 
 
 async def test_append_preserves_splits_of_untouched_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Appending new examples should not disturb the splits of existing untouched examples."""
@@ -2268,7 +2268,7 @@ class TestBuildFlattenPlan:
 
 
 async def test_post_dataset_upload_csv_with_split_key(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test CSV upload with split_key (singular), supporting JSON lists and plain strings."""
@@ -2319,7 +2319,7 @@ async def test_post_dataset_upload_csv_with_split_key(
 
 
 async def test_post_dataset_upload_split_key_and_split_keys_conflict(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Test that providing both split_key and split_keys[] returns 422."""
     name = inspect.stack()[0][3]
@@ -2340,7 +2340,7 @@ async def test_post_dataset_upload_split_key_and_split_keys_conflict(
 
 
 async def test_get_dataset_csv_includes_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test that CSV download includes a splits column when splits exist."""
@@ -2376,7 +2376,7 @@ async def test_get_dataset_csv_includes_splits(
 
 
 async def test_get_dataset_csv_omits_splits_when_none(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Test that CSV download omits splits column when no splits exist."""
     name = inspect.stack()[0][3]
@@ -2403,7 +2403,7 @@ async def test_get_dataset_csv_omits_splits_when_none(
 
 
 async def test_csv_roundtrip_with_splits(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test that uploading a CSV with splits, downloading, and re-uploading preserves splits."""
@@ -2475,7 +2475,7 @@ async def test_csv_roundtrip_with_splits(
 
 
 async def test_post_dataset_upload_csv_with_flatten_keys(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test CSV upload with flatten_keys to collapse nested JSON columns.
@@ -2544,7 +2544,7 @@ async def test_post_dataset_upload_csv_with_flatten_keys(
 
 
 async def test_post_dataset_upload_csv_with_dotted_keys(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test CSV upload with period-separated column names that unflatten into nested dicts."""
@@ -2594,7 +2594,7 @@ async def test_post_dataset_upload_csv_with_dotted_keys(
 
 
 async def test_post_dataset_upload_csv_omits_empty_cells(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Empty CSV cells should be dropped rather than stored as empty strings."""
@@ -2629,7 +2629,7 @@ async def test_post_dataset_upload_csv_omits_empty_cells(
 
 
 async def test_post_dataset_upload_csv_omits_missing_trailing_cells(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Rows shorter than the header (DictReader restval=None) drop the missing keys."""
@@ -2660,7 +2660,7 @@ async def test_post_dataset_upload_csv_omits_missing_trailing_cells(
 
 
 async def test_post_dataset_upload_csv_omits_whitespace_only_cells(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Whitespace-only CSV cells should be treated as missing and dropped."""
@@ -2691,7 +2691,7 @@ async def test_post_dataset_upload_csv_omits_whitespace_only_cells(
 
 
 async def test_post_dataset_upload_csv_with_dotted_keys_omits_empty_leaf(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Dotted-key columns whose row cell is empty are omitted from the bucket."""
@@ -2722,7 +2722,7 @@ async def test_post_dataset_upload_csv_with_dotted_keys_omits_empty_leaf(
 
 
 async def test_post_dataset_upload_csv_with_dotted_keys_omits_empty_nested_leaf(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Empty nested dotted-key cells do not leave a stub entry under the parent."""
@@ -2753,7 +2753,7 @@ async def test_post_dataset_upload_csv_with_dotted_keys_omits_empty_nested_leaf(
 
 
 async def test_post_dataset_upload_csv_allows_fully_empty_bucket(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """A bucket whose columns are all empty for a row is stored as an empty dict."""
@@ -2786,7 +2786,7 @@ async def test_post_dataset_upload_csv_allows_fully_empty_bucket(
 
 
 async def test_post_dataset_upload_jsonl_with_flatten_keys(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test JSONL upload with flatten_keys to collapse nested objects.
@@ -2851,7 +2851,7 @@ async def test_post_dataset_upload_jsonl_with_flatten_keys(
 
 
 async def test_post_dataset_upload_jsonl_preserves_null_values(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Explicit JSON nulls in JSONL are preserved as None (unlike CSV empty cells, which are dropped)."""
@@ -2883,7 +2883,7 @@ async def test_post_dataset_upload_jsonl_preserves_null_values(
 
 
 async def test_post_dataset_upload_flatten_keys_no_effect_when_empty(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test that empty flatten_keys doesn't change anything."""
@@ -2921,7 +2921,7 @@ async def test_post_dataset_upload_flatten_keys_no_effect_when_empty(
 
 
 async def test_post_dataset_upload_flatten_keys_partial(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Test flattening only some keys while leaving others nested.
@@ -2970,7 +2970,7 @@ async def test_post_dataset_upload_flatten_keys_partial(
 
 
 async def test_post_dataset_upload_jsonl_flatten_metadata_missing_in_some_rows(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Flattening a metadata parent unwraps it even when some rows omit the key.
@@ -3110,7 +3110,7 @@ async def test_post_dataset_upload_jsonl_flatten_metadata_missing_in_some_rows(
     ],
 )
 async def test_invalid_dataset_upload_request_returns_422(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     request_body: dict[str, Any],
     expected_error: str,
     action: str,
@@ -3125,7 +3125,7 @@ async def test_invalid_dataset_upload_request_returns_422(
 
 
 async def test_append_with_nonexistent_node_id_returns_422(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     name = inspect.stack()[0][3]
     create_response = await httpx_client.post(
@@ -3156,7 +3156,7 @@ async def test_append_with_nonexistent_node_id_returns_422(
 
 
 async def test_append_with_node_id_from_different_dataset_returns_422(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     stack_name = inspect.stack()[0][3]
@@ -3208,7 +3208,7 @@ async def test_append_with_node_id_from_different_dataset_returns_422(
 
 
 async def test_append_with_multiple_bad_node_ids_lists_all_of_them(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     name = inspect.stack()[0][3]
     await httpx_client.post(
@@ -3242,7 +3242,7 @@ async def test_append_with_multiple_bad_node_ids_lists_all_of_them(
 
 
 async def test_append_with_wrong_type_node_id_stored_as_custom_external_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Node IDs of other types (e.g. Span) look like valid GlobalIDs but don't
@@ -3287,7 +3287,7 @@ async def test_append_with_wrong_type_node_id_stored_as_custom_external_id(
 
 
 async def test_update_empty_examples_list_creates_empty_version(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     response = await httpx_client.post(
@@ -3406,7 +3406,7 @@ async def test_update_on_datasets_with_single_example(
     expected_num_versions: int,
     expected_num_examples: int,
     expected_revision_kinds: list[str],
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = "ds"
@@ -3452,7 +3452,7 @@ async def test_deleting_and_creating_examples_with_the_same_content(
     initial_example: ExampleContent,
     updated_example: ExampleContent,
     expected_num_examples: int,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = "ds"
@@ -3477,7 +3477,7 @@ async def test_deleting_and_creating_examples_with_the_same_content(
 
 
 async def test_append_with_changed_external_id_same_content_creates_new_example(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Append with a different external_id must not dedupe by content_hash."""
@@ -3495,7 +3495,7 @@ async def test_append_with_changed_external_id_same_content_creates_new_example(
 
 
 async def test_append_adding_external_id_to_unided_example_creates_new_example(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Providing an external_id on a new example must not pair it with an un-ID'd example via content_hash."""
@@ -3513,7 +3513,7 @@ async def test_append_adding_external_id_to_unided_example_creates_new_example(
 
 
 async def test_update_with_changed_external_id_same_content_deletes_old_and_creates_new(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Under CREATE (upsert) semantics, a changed external_id removes the old example and adds the new one."""
@@ -3538,7 +3538,7 @@ async def test_update_with_changed_external_id_same_content_deletes_old_and_crea
 
 
 async def test_append_with_same_external_id_different_content_still_patches(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Regression guard: matching external_id + different content must still PATCH, not create a new example."""
@@ -3560,7 +3560,7 @@ async def test_append_with_same_external_id_different_content_still_patches(
 
 
 async def test_creating_two_examples_that_match_content_hash_of_previous_example_adds_one_create_revision(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = "ds"
@@ -3580,7 +3580,7 @@ async def test_creating_two_examples_that_match_content_hash_of_previous_example
 
 
 async def test_update_with_removed_example_results_in_delete_revision(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     name = "ds"
@@ -3604,7 +3604,7 @@ async def test_update_with_removed_example_results_in_delete_revision(
 
 
 async def test_update_batch_with_mix_of_new_unchanged_and_changed_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """3 examples: unchanged (carry-over), changed (patch), new (create)."""
@@ -3628,7 +3628,7 @@ async def test_update_batch_with_mix_of_new_unchanged_and_changed_examples(
 
 
 async def test_update_batch_with_mix_of_examples_with_and_without_external_ids(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Mixed batch: examples with and without external_ids."""
@@ -3654,7 +3654,7 @@ async def test_update_batch_with_mix_of_examples_with_and_without_external_ids(
 
 
 async def test_update_creates_new_dataset_when_name_does_not_exist(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create on non-existent dataset creates Dataset + DatasetVersion + CREATE revisions."""
@@ -3674,7 +3674,7 @@ async def test_update_creates_new_dataset_when_name_does_not_exist(
 
 
 async def test_update_creates_new_version_on_existing_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create with changes creates a second DatasetVersion."""
@@ -3687,7 +3687,7 @@ async def test_update_creates_new_version_on_existing_dataset(
 
 
 async def test_update_does_not_create_new_version_for_unchanged_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """All carry-over → no new version, returns existing version_id."""
@@ -3711,7 +3711,7 @@ async def test_update_does_not_create_new_version_for_unchanged_examples(
 
 
 async def test_update_with_no_prior_version_creates_all_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Dataset exists but has no versions → all examples are new → CREATE all."""
@@ -3738,7 +3738,7 @@ async def test_update_with_no_prior_version_creates_all_examples(
 
 
 async def test_update_with_splits_assigns_splits_to_new_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create on a fresh dataset with splits assigns them to the created examples."""
@@ -3777,7 +3777,7 @@ async def test_update_with_splits_assigns_splits_to_new_examples(
 
 
 async def test_update_with_splits_on_created_examples_after_delete(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """When create deletes old examples and creates new ones with splits, splits are assigned."""
@@ -3821,7 +3821,7 @@ async def test_update_with_splits_on_created_examples_after_delete(
 
 
 async def test_update_replaces_split_assignments(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create replaces split assignments for patched, unchanged, and new examples."""
@@ -3889,7 +3889,7 @@ async def test_update_replaces_split_assignments(
 
 
 async def test_update_removes_split_assignments_when_splits_empty(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create with empty splits removes previous split assignments."""
@@ -3934,7 +3934,7 @@ async def test_update_removes_split_assignments_when_splits_empty(
 
 
 async def test_update_preserves_split_assignments_when_splits_not_provided(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create without splits parameter preserves existing splits; deleted examples cascade."""
@@ -4015,7 +4015,7 @@ def _examples_to_body(*, action: str, name: str, examples: list[ExampleContent])
 
 
 async def _update(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     name: str,
     examples: list[ExampleContent],
 ) -> None:
@@ -4027,7 +4027,7 @@ async def _update(
 
 
 async def _append(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     name: str,
     examples: list[ExampleContent],
 ) -> None:
@@ -4101,7 +4101,7 @@ async def _create_span_in_db(
                 )
                 .returning(models.Trace.id)
             )
-        span_rowid = await session.scalar(
+        span_rowid: int | None = await session.scalar(
             insert(models.Span)
             .values(
                 trace_rowid=trace_rowid,
@@ -4130,7 +4130,7 @@ async def _create_span_in_db(
 
 
 async def test_update_resolves_span_ids(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """CREATE revisions resolve span_ids and link them to DatasetExamples."""
@@ -4155,7 +4155,7 @@ async def test_update_resolves_span_ids(
 
 
 async def test_update_with_nonexistent_span_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Create with a span_id that doesn't exist in the DB still creates the example."""
@@ -4173,7 +4173,7 @@ async def test_update_with_nonexistent_span_id(
 
 
 async def test_update_patch_preserves_span_rowid(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """PATCH revisions don't alter span_rowid, even when a different span_id is provided."""
@@ -4205,7 +4205,7 @@ async def test_update_patch_preserves_span_rowid(
 
 
 async def test_update_revived_example_preserves_old_span_rowid(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Reviving a deleted example reuses the old row, keeping the original span_rowid."""
@@ -4248,7 +4248,7 @@ async def test_update_revived_example_preserves_old_span_rowid(
 
 
 async def test_node_id_roundtrip_unchanged(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Example without external_id, re-sent with its node ID and same content → no new version."""
@@ -4275,7 +4275,7 @@ async def test_node_id_roundtrip_unchanged(
 
 
 async def test_node_id_roundtrip_patch(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Example without external_id, re-sent with its node ID and changed content → PATCH."""
@@ -4303,7 +4303,7 @@ async def test_node_id_roundtrip_patch(
 
 
 async def test_node_id_roundtrip_delete(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """Example without external_id, omitted from next create → DELETE."""
@@ -4331,7 +4331,7 @@ async def test_node_id_roundtrip_delete(
 
 
 async def test_node_id_without_example_record_rejected(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """A node ID that doesn't match any existing example is rejected with 422."""
@@ -4356,7 +4356,7 @@ async def test_node_id_without_example_record_rejected(
 
 
 async def test_node_id_not_persisted_as_external_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """When a node ID is used for matching, the DB external_id stays NULL."""
@@ -4392,7 +4392,7 @@ async def test_node_id_not_persisted_as_external_id(
 
 
 async def test_update_roundtrip_all_eight_cases(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """
@@ -4570,7 +4570,7 @@ async def test_update_roundtrip_all_eight_cases(
 
 
 async def _create_dataset_with_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     name: str,
     num_examples: int,
 ) -> tuple[str, list[str]]:
@@ -4593,8 +4593,53 @@ async def _create_dataset_with_examples(
     return dataset_id, example_ids
 
 
+async def _soft_delete_example(db: DbSessionFactory, *, dataset_id: str, example_id: str) -> None:
+    """Soft-delete an example with a DELETE revision, leaving split memberships intact."""
+    async with db() as session:
+        version = models.DatasetVersion(
+            dataset_id=int(GlobalID.from_id(dataset_id).node_id), metadata_={}
+        )
+        session.add(version)
+        await session.flush()
+        session.add(
+            models.DatasetExampleRevision(
+                dataset_example_id=int(GlobalID.from_id(example_id).node_id),
+                dataset_version_id=version.id,
+                input={},
+                output={},
+                metadata_={},
+                revision_kind="DELETE",
+            )
+        )
+
+
+async def _create_dataset_with_user_ids(
+    httpx_client: httpx2.AsyncClient,
+    name: str,
+    user_ids: list[str],
+) -> tuple[str, list[str]]:
+    """Create a dataset and return its ID and example GlobalIDs."""
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": f"Q{index}"} for index, _ in enumerate(user_ids)],
+            "outputs": [{"a": f"A{index}"} for index, _ in enumerate(user_ids)],
+            "example_ids": user_ids,
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+    examples_response = await httpx_client.get(f"/v1/datasets/{dataset_id}/examples")
+    assert examples_response.status_code == 200
+    examples = examples_response.json()["data"]["examples"]
+    assert [example["id"] for example in examples] == user_ids
+    return dataset_id, [example["node_id"] for example in examples]
+
+
 async def test_create_dataset_split_empty(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_split_empty", 1)
@@ -4619,7 +4664,7 @@ async def test_create_dataset_split_empty(
 
 
 async def test_create_dataset_split_with_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_split_seed", 3)
@@ -4648,8 +4693,26 @@ async def test_create_dataset_split_with_examples(
         assert member_count == 2
 
 
+async def test_create_dataset_split_accepts_mixed_example_identifiers(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    user_ids = ["example-one", "example-two"]
+    dataset_id, global_ids = await _create_dataset_with_user_ids(
+        httpx_client, "ds_split_mixed_ids", user_ids
+    )
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={
+            "name": "mixed",
+            "example_ids": [global_ids[0], user_ids[0], user_ids[1]],
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["data"]["example_count"] == 2
+
+
 async def test_create_dataset_split_accepts_dataset_name(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     await _create_dataset_with_examples(httpx_client, "named_dataset", 1)
     response = await httpx_client.post(
@@ -4661,7 +4724,7 @@ async def test_create_dataset_split_accepts_dataset_name(
 
 
 async def test_create_dataset_split_duplicate_name_conflict(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_split_dup", 1)
     first = await httpx_client.post(
@@ -4677,7 +4740,7 @@ async def test_create_dataset_split_duplicate_name_conflict(
 
 
 async def test_create_dataset_split_empty_name_rejected(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_split_blank", 1)
     response = await httpx_client.post(
@@ -4688,7 +4751,7 @@ async def test_create_dataset_split_empty_name_rejected(
 
 
 async def test_create_dataset_split_example_not_in_dataset(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_a, _ = await _create_dataset_with_examples(httpx_client, "ds_split_a", 1)
     _, other_examples = await _create_dataset_with_examples(httpx_client, "ds_split_b", 1)
@@ -4699,8 +4762,23 @@ async def test_create_dataset_split_example_not_in_dataset(
     assert response.status_code == 404
 
 
+async def test_create_dataset_split_user_id_not_in_dataset(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    dataset_a, _ = await _create_dataset_with_user_ids(
+        httpx_client, "ds_split_external_a", ["dataset-a-example"]
+    )
+    await _create_dataset_with_user_ids(httpx_client, "ds_split_external_b", ["dataset-b-example"])
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_a}/splits",
+        json={"name": "cross-external", "example_ids": ["dataset-b-example"]},
+    )
+    assert response.status_code == 404
+    assert "dataset-b-example" in response.text
+
+
 async def test_create_dataset_split_dataset_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     missing = str(GlobalID("Dataset", "99999"))
     response = await httpx_client.post(
@@ -4711,7 +4789,7 @@ async def test_create_dataset_split_dataset_not_found(
 
 
 async def test_update_dataset_split_fields(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_fields", 1)
     created = await httpx_client.post(
@@ -4733,7 +4811,7 @@ async def test_update_dataset_split_fields(
 
 
 async def test_update_dataset_split_clear_description(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_clear", 1)
     created = await httpx_client.post(
@@ -4750,7 +4828,7 @@ async def test_update_dataset_split_clear_description(
 
 
 async def test_update_dataset_split_add_and_remove_examples(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, example_ids = await _create_dataset_with_examples(
         httpx_client, "ds_patch_membership", 3
@@ -4775,8 +4853,33 @@ async def test_update_dataset_split_add_and_remove_examples(
     assert response.json()["data"]["example_count"] == 2
 
 
+async def test_update_dataset_split_membership_by_user_id(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    user_ids = ["example-one", "example-two"]
+    dataset_id, _ = await _create_dataset_with_user_ids(
+        httpx_client, "ds_patch_external_membership", user_ids
+    )
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train", "example_ids": [user_ids[0]]},
+    )
+    assert created.status_code == 201
+    split_id = created.json()["data"]["id"]
+
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{split_id}",
+        json={
+            "add_example_ids": [user_ids[1]],
+            "remove_example_ids": [user_ids[0]],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["example_count"] == 1
+
+
 async def test_update_dataset_split_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_404", 1)
     missing = str(GlobalID("DatasetSplit", "99999"))
@@ -4788,7 +4891,7 @@ async def test_update_dataset_split_not_found(
 
 
 async def test_update_dataset_split_invalid_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_422", 1)
     response = await httpx_client.patch(
@@ -4799,7 +4902,7 @@ async def test_update_dataset_split_invalid_id(
 
 
 async def test_update_dataset_split_duplicate_name_conflict(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_conflict", 1)
     await httpx_client.post(
@@ -4819,7 +4922,7 @@ async def test_update_dataset_split_duplicate_name_conflict(
 
 
 async def test_update_dataset_split_duplicate_name_with_membership_edit_conflict(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """A duplicate rename combined with a membership edit must still return 409, not 500.
 
@@ -4846,7 +4949,7 @@ async def test_update_dataset_split_duplicate_name_with_membership_edit_conflict
 
 
 async def test_delete_dataset_split(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_delete", 2)
@@ -4885,7 +4988,7 @@ async def test_delete_dataset_split(
 
 
 async def test_delete_dataset_split_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_404", 1)
     missing = str(GlobalID("DatasetSplit", "99999"))
@@ -4894,8 +4997,182 @@ async def test_delete_dataset_split_not_found(
 
 
 async def test_delete_dataset_split_invalid_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_422", 1)
     response = await httpx_client.delete(f"/v1/datasets/{dataset_id}/splits/not-a-global-id")
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Dataset split list endpoint
+# ---------------------------------------------------------------------------
+
+
+async def _create_split(
+    httpx_client: httpx2.AsyncClient,
+    dataset_id: str,
+    name: str,
+    example_ids: Optional[list[str]] = None,
+) -> dict[str, Any]:
+    """Create a split under the dataset and return its response payload."""
+    body: dict[str, Any] = {"name": name}
+    if example_ids is not None:
+        body["example_ids"] = example_ids
+    response = await httpx_client.post(url=f"/v1/datasets/{dataset_id}/splits", json=body)
+    assert response.status_code == 201
+    return cast(dict[str, Any], response.json()["data"])
+
+
+async def _list_split_counts(httpx_client: httpx2.AsyncClient, dataset_id: str) -> dict[str, int]:
+    """Return {split name: example_count} for the dataset."""
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits")
+    assert response.status_code == 200
+    return {s["name"]: s["example_count"] for s in response.json()["data"]}
+
+
+async def test_list_dataset_splits_returns_splits_with_scoped_counts(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_list", 3)
+    await _create_split(httpx_client, dataset_id, "train", example_ids[:2])
+    await _create_split(httpx_client, dataset_id, "test", example_ids[2:])
+
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["next_cursor"] is None
+    assert {s["name"]: s["example_count"] for s in body["data"]} == {"train": 2, "test": 1}
+    for split in body["data"]:
+        assert split["color"]
+        assert "created_at" in split and "updated_at" in split
+
+
+async def test_list_dataset_splits_accepts_dataset_name(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    _, example_ids = await _create_dataset_with_examples(httpx_client, "ds_list_by_name", 1)
+    await _create_split(httpx_client, "ds_list_by_name", "by_name", example_ids)
+    assert await _list_split_counts(httpx_client, "ds_list_by_name") == {"by_name": 1}
+
+
+async def test_list_dataset_splits_scopes_splits_through_example_membership(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    """A split is listed only under datasets holding at least one of its examples, so
+    a split with no examples is listed under none."""
+    dataset_a, _ = await _create_dataset_with_examples(httpx_client, "ds_scope_a", 1)
+    dataset_b, examples_b = await _create_dataset_with_examples(httpx_client, "ds_scope_b", 1)
+    await _create_split(httpx_client, dataset_b, "b_only", examples_b)
+    await _create_split(httpx_client, dataset_a, "no_examples")
+
+    assert await _list_split_counts(httpx_client, dataset_a) == {}
+    assert await _list_split_counts(httpx_client, dataset_b) == {"b_only": 1}
+
+
+@pytest.mark.parametrize("num_examples, expected_count", [(3, 2), (1, 0)])
+async def test_list_dataset_splits_excludes_soft_deleted_examples_from_counts(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    num_examples: int,
+    expected_count: int,
+) -> None:
+    """Soft-deleted examples are excluded from example_count; the split stays listed."""
+    dataset_id, example_ids = await _create_dataset_with_examples(
+        httpx_client, "ds_split_soft_delete", num_examples
+    )
+    created = await _create_split(httpx_client, dataset_id, "train", example_ids)
+    assert created["example_count"] == num_examples
+
+    await _soft_delete_example(db, dataset_id=dataset_id, example_id=example_ids[-1])
+
+    assert await _list_split_counts(httpx_client, dataset_id) == {"train": expected_count}
+    # Membership rows survive the soft delete; only the count changes.
+    split_rowid = int(GlobalID.from_id(created["id"]).node_id)
+    async with db() as session:
+        member_count = await session.scalar(
+            select(func.count())
+            .select_from(models.DatasetSplitDatasetExample)
+            .where(models.DatasetSplitDatasetExample.dataset_split_id == split_rowid)
+        )
+    assert member_count == num_examples
+
+
+async def test_list_dataset_splits_paginates(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_page", 1)
+    for i in range(3):
+        await _create_split(httpx_client, dataset_id, f"split_{i}", example_ids)
+
+    url = f"/v1/datasets/{dataset_id}/splits"
+    first = await httpx_client.get(url, params={"limit": 2})
+    assert first.status_code == 200
+    first_page = first.json()
+    assert len(first_page["data"]) == 2
+    assert first_page["next_cursor"] is not None
+
+    second = await httpx_client.get(url, params={"limit": 2, "cursor": first_page["next_cursor"]})
+    assert second.status_code == 200
+    second_page = second.json()
+    assert len(second_page["data"]) == 1
+    assert second_page["next_cursor"] is None
+
+    names = [s["name"] for page in (first_page, second_page) for s in page["data"]]
+    assert sorted(names) == ["split_0", "split_1", "split_2"]
+
+
+async def test_list_dataset_splits_empty(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_no_splits", 1)
+    response = await httpx_client.get(f"/v1/datasets/{dataset_id}/splits")
+    assert response.status_code == 200
+    assert response.json() == {"data": [], "next_cursor": None}
+
+
+async def test_list_dataset_splits_dataset_not_found(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    missing = str(GlobalID("Dataset", "99999"))
+    response = await httpx_client.get(f"/v1/datasets/{missing}/splits")
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "cursor",
+    [
+        "not-a-global-id",
+        str(GlobalID("Dataset", "1")),
+        # Ids the DB driver cannot bind as int32 must 422 rather than 500.
+        *(str(GlobalID("DatasetSplit", str(n))) for n in (2**31, 2**63, 10**20)),
+    ],
+)
+async def test_list_dataset_splits_invalid_cursor(
+    httpx_client: httpx2.AsyncClient,
+    cursor: str,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_bad_cursor", 1)
+    response = await httpx_client.get(
+        f"/v1/datasets/{dataset_id}/splits", params={"cursor": cursor}
+    )
+    assert response.status_code == 422
+
+
+async def test_list_dataset_splits_counts_are_dataset_scoped_for_cross_dataset_split(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    """A split spanning two datasets reports each dataset's own example count."""
+    dataset_a, examples_a = await _create_dataset_with_examples(httpx_client, "ds_cross_a", 1)
+    dataset_b, examples_b = await _create_dataset_with_examples(httpx_client, "ds_cross_b", 1)
+    # Seed with A's example, then add B's example by PATCHing through dataset B.
+    split_id = (await _create_split(httpx_client, dataset_a, "cross_ds", examples_a))["id"]
+    patched = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_b}/splits/{split_id}",
+        json={"add_example_ids": examples_b},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["data"]["example_count"] == 1
+
+    assert await _list_split_counts(httpx_client, dataset_a) == {"cross_ds": 1}
+    assert await _list_split_counts(httpx_client, dataset_b) == {"cross_ds": 1}

@@ -1,17 +1,17 @@
 import type {
   ColumnOrderState,
   ColumnSizingState,
+  ColumnVisibilityState,
   Updater,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 export interface TablePreferencesState {
-  columnVisibility: VisibilityState;
+  columnVisibility: ColumnVisibilityState;
   columnSizing: ColumnSizingState;
   columnOrder: ColumnOrderState;
-  setColumnVisibility: (visibility: Updater<VisibilityState>) => void;
+  setColumnVisibility: (visibility: Updater<ColumnVisibilityState>) => void;
   setColumnSizing: (sizing: Updater<ColumnSizingState>) => void;
   setColumnOrder: (order: Updater<ColumnOrderState>) => void;
 }
@@ -28,7 +28,7 @@ function applyUpdater<T>(updater: Updater<T>, previous: T): T {
 /**
  * Creates a store holding a single table's column preferences, persisted to
  * local storage under `storageKey`. The setters take tanstack `Updater`s so
- * they can be passed straight to `useReactTable`'s `onColumn*Change` handlers.
+ * they can be passed straight to `useTable`'s `onColumn*Change` handlers.
  */
 export function createTablePreferencesStore({
   name,

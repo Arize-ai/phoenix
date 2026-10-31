@@ -116,10 +116,29 @@ SPAN_QUEUE_SIZE = Gauge(
     documentation="Current number of spans in the processing queue",
 )
 
+SPAN_INGESTION_FAILED_SPANS = Counter(
+    namespace="phoenix",
+    name="span_ingestion_failed_spans_total",
+    documentation="Number of accepted spans released after a confirmed insertion failure",
+    labelnames=["reason"],
+)
+
+SPAN_INGESTION_UNRESOLVED_SPANS = Counter(
+    namespace="phoenix",
+    name="span_ingestion_unresolved_spans_total",
+    documentation="Number of accepted spans released without a confirmed commit outcome",
+)
+
+SPAN_INGESTION_LAST_SUCCESS = Gauge(
+    namespace="phoenix",
+    name="span_ingestion_last_success_timestamp_seconds",
+    documentation="Unix timestamp of the last confirmed transaction that inserted spans",
+)
+
 BULK_LOADER_LAST_ACTIVITY = Gauge(
     namespace="phoenix",
     name="bulk_loader_last_activity_timestamp_seconds",
-    documentation="Unix timestamp when bulk loader last processed items",
+    documentation="Unix timestamp of the bulk loader loop heartbeat, including idle iterations",
 )
 
 RETENTION_SWEEPER_LAST_RUN = Gauge(
@@ -179,9 +198,13 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def start_prometheus() -> None:
+def start_prometheus(host: str) -> None:
+    """Start the unauthenticated metrics endpoint on port 9090.
+
+    ``host`` comes from ``canonicalize_host``.
+    """
     Thread(target=gather_system_data, daemon=True).start()
-    start_http_server(9090, addr="::")
+    start_http_server(9090, addr=host)
 
 
 def gather_system_data() -> None:

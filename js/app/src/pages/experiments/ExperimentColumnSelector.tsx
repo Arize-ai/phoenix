@@ -1,4 +1,4 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 
 import {
   applySubsetColumnOrder,
@@ -6,12 +6,13 @@ import {
   ColumnSelector,
   mergeColumnOrder,
 } from "@phoenix/components/table";
+import type { Column } from "@phoenix/components/table/tableFeatures";
 
 import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 
 const UN_HIDABLE_COLUMN_IDS = ["name"];
 
-type ExperimentColumnSelectorProps<T extends object> = {
+type ExperimentColumnSelectorProps<T extends RowData> = {
   /** All of the columns of the experiments table. */
   columns: Column<T>[];
   columnVisibility: Record<string, boolean>;
@@ -20,7 +21,7 @@ type ExperimentColumnSelectorProps<T extends object> = {
   onColumnOrderChange: (columnOrder: string[]) => void;
 };
 
-function getColumnLabel<T extends object>(column: Column<T>): string {
+function getColumnLabel<T extends RowData>(column: Column<T>): string {
   if (column.id.startsWith(ANNOTATION_COLUMN_PREFIX)) {
     return column.id.slice(ANNOTATION_COLUMN_PREFIX.length);
   }
@@ -29,7 +30,7 @@ function getColumnLabel<T extends object>(column: Column<T>): string {
 }
 
 /** The column selector for the experiments table. */
-export function ExperimentColumnSelector<T extends object>({
+export function ExperimentColumnSelector<T extends RowData>({
   columns,
   columnVisibility,
   onColumnVisibilityChange,

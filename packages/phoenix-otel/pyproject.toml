@@ -2,7 +2,7 @@
 name = "arize-phoenix-otel"
 description = "LLM Observability"
 readme = "README.md"
-requires-python = ">=3.10, <3.15"
+requires-python = ">=3.11, <3.16"
 license = {text="Apache-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -15,16 +15,17 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
-version = "0.17.1"
+version = "0.17.2"
 dependencies = [
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
+  "opentelemetry-exporter-otlp-proto-http>=1.45.0",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk",
   "openinference-semantic-conventions>=0.1.17",
@@ -35,6 +36,18 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
+]
+
+[dependency-groups]
+dev = [
+  "mypy==2.4.0",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-timeout",
+  "pytest-xdist",
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [project.urls]
@@ -53,10 +66,10 @@ packages = ["src/phoenix"]
 only-packages = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", ".tox", "dist"]
+exclude = [".git", "__pycache__", "dist"]
 extend-include = ["*.ipynb"]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

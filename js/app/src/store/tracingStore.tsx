@@ -3,6 +3,7 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { TRACING_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import type { ProjectTab } from "@phoenix/pages/project/constants";
 import { TRACE_ANNOTATIONS_COLUMN_ID } from "@phoenix/pages/project/tableUtils";
 
@@ -67,7 +68,16 @@ const makeTracingStoreKey = ({
 }: {
   projectId: string;
   tableId: ProjectTab;
-}) => `arize-phoenix-tracing-${projectId}-${tableId}`;
+}) => `${TRACING_TABLE_STORAGE_KEY_PREFIX}${projectId}-${tableId}`;
+
+const defaultColumnVisibility = (tableId: ProjectTab): VisibilityState => ({
+  metadata: false,
+  spanNotes: false,
+  traceNotes: false,
+  spanId: false,
+  traceId: false,
+  ...(tableId === "traces" ? {} : { [TRACE_ANNOTATIONS_COLUMN_ID]: false }),
+});
 
 export type CreateTracingStoreProps = {
   projectId: string;
@@ -80,14 +90,7 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     [["zustand/devtools", unknown]]
   > = (set) => ({
     projectId: initialProps.projectId,
-    columnVisibility: {
-      metadata: false,
-      spanNotes: false,
-      traceNotes: false,
-      spanId: false,
-      traceId: false,
-      [TRACE_ANNOTATIONS_COLUMN_ID]: false,
-    },
+    columnVisibility: defaultColumnVisibility(initialProps.tableId),
     columnSizing: {
       metadata: 200,
     },

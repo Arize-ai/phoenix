@@ -5,6 +5,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
@@ -13,12 +14,12 @@ from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 class UpdateAnnotationInput:
     id: GlobalID
     name: str
-    annotator_kind: AnnotatorKind = AnnotatorKind.HUMAN
+    annotator_kind: AnnotatorKind
     label: Optional[str] = None
     score: Optional[float] = None
-    explanation: Optional[str] = None
+    explanation: Redacted[Optional[str]] = None
     metadata: JSON
-    source: AnnotationSource = AnnotationSource.APP
+    source: AnnotationSource
 
     def __post_init__(self) -> None:
         self.name = self.name.strip()

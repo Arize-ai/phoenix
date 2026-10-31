@@ -17,16 +17,15 @@ Add the dependencies to your `build.gradle`:
 ```groovy
 dependencies {
     // OpenInference instrumentation
-    implementation project(path: ':instrumentation:openinference-instrumentation-langchain4j')
+    implementation 'com.arize:openinference-instrumentation-langchain4j:0.1.8'
 
     // LangChain4j
-    implementation "dev.langchain4j:langchain4j:${langchain4jVersion}"
-    implementation "dev.langchain4j:langchain4j-open-ai:${langchain4jVersion}"
+    implementation 'dev.langchain4j:langchain4j-open-ai:1.22.0'
 
     // OpenTelemetry
-    implementation "io.opentelemetry:opentelemetry-sdk"
-    implementation "io.opentelemetry:opentelemetry-exporter-otlp"
-    implementation "io.opentelemetry:opentelemetry-exporter-logging"
+    implementation 'io.opentelemetry:opentelemetry-sdk:1.49.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.49.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-logging:1.49.0'
 }
 ```
 
@@ -41,34 +40,43 @@ If your Phoenix instance isn't running on localhost, adjust the endpoint in the 
 ## Configuration for Phoenix Tracing
 
 ```java expandable
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
+import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporterBuilder;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+private static SdkTracerProvider tracerProvider;
+
 private static void initializeOpenTelemetry() {
         // Create resource with service name
         Resource resource = Resource.getDefault()
                 .merge(Resource.create(Attributes.of(
                         AttributeKey.stringKey("service.name"), "langchain4j",
-                        AttributeKey.stringKey(SEMRESATTRS_PROJECT_NAME), "langchain4j-project",
+                        AttributeKey.stringKey("openinference.project.name"),
+                        System.getenv().getOrDefault("PHOENIX_PROJECT_NAME", "langchain4j-project"),
                         AttributeKey.stringKey("service.version"), "0.1.0")));
 
         String apiKey = System.getenv("PHOENIX_API_KEY");
         OtlpGrpcSpanExporterBuilder otlpExporterBuilder = OtlpGrpcSpanExporter.builder()
-                .setEndpoint("http://localhost:4317") // adjust as needed
-                .setTimeout(Duration.ofSeconds(2));
-        OtlpGrpcSpanExporter otlpExporter = null;
+                .setEndpoint("http://localhost:4317");
         if (apiKey != null && !apiKey.isEmpty()) {
-            otlpExporter = otlpExporterBuilder
-                    .setHeaders(() -> Map.of("Authorization", String.format("Bearer %s", apiKey)))
-                    .build();
-        } else {
-            logger.log(Level.WARNING, "Please set PHOENIX_API_KEY environment variable if auth is enabled.");
-            otlpExporter = otlpExporterBuilder.build();
+            otlpExporterBuilder.addHeader("Authorization", "Bearer " + apiKey);
         }
+        OtlpGrpcSpanExporter otlpExporter = otlpExporterBuilder.build();
 
-        // Create tracer provider with both OTLP (for Phoenix) and console exporters
+        // Create a tracer provider with the OTLP exporter for Phoenix.
         tracerProvider = SdkTracerProvider.builder()
                 .addSpanProcessor(BatchSpanProcessor.builder(otlpExporter)
                         .setScheduleDelay(Duration.ofSeconds(1))
                         .build())
-                .addSpanProcessor(SimpleSpanProcessor.create(LoggingSpanExporter.create()))
                 .setResource(resource)
                 .build();
 
@@ -80,29 +88,33 @@ private static void initializeOpenTelemetry() {
 
         System.out.println("OpenTelemetry initialized. Traces will be sent to Phoenix at http://localhost:6006");
     }
-}
 ```
 
 ## Run LangChain4j
 
-By instrumenting your application, spans will be created whenever it is run and will be sent to the Phoenix server for collection.
+Attach the OpenInference model listener to the LangChain4j chat model so requests and responses produce OpenInference LLM spans.
 
 ```java expandable
-import io.openinference.instrumentation.langchain4j.LangChain4jInstrumentor;
+import com.arize.instrumentation.langchain4j.LangChain4jInstrumentor;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import java.util.List;
 
 initializeOpenTelemetry();
 
-// Auto-instrument LangChain4j
-LangChain4jInstrumentor.instrument();
+// Create the OpenInference listener for LangChain4j model events.
+LangChain4jInstrumentor instrumentor = LangChain4jInstrumentor.instrument();
 
-// Use LangChain4j as normal - traces will be automatically created
+// Use LangChain4j as normal; the listener emits an OpenInference LLM span.
 OpenAiChatModel model = OpenAiChatModel.builder()
-    .apiKey("your-openai-api-key")
-    .modelName("gpt-4")
+    .apiKey(System.getenv("OPENAI_API_KEY"))
+    .modelName("gpt-4o-mini")
+    .listeners(List.of(instrumentor.createModelListener()))
     .build();
 
-String response = model.generate("What is the capital of France?");
+String response = model.chat("What is the capital of France?");
+System.out.println(response);
+tracerProvider.forceFlush().join(10, TimeUnit.SECONDS);
+tracerProvider.shutdown().join(10, TimeUnit.SECONDS);
 ```
 
 <Success>

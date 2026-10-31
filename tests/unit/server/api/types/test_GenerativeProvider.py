@@ -15,8 +15,9 @@ class TestGenerativeProvider:
         provider = GenerativeProvider._infer_model_provider_from_model_name("claude-v1")
         assert provider == GenerativeProviderKey.ANTHROPIC
 
-        provider = GenerativeProvider._infer_model_provider_from_model_name("MiniMax-M3")
-        assert provider == GenerativeProviderKey.MINIMAX
+        for model_name in ("MiniMax-M3.1-Flash", "MiniMax-M3"):
+            provider = GenerativeProvider._infer_model_provider_from_model_name(model_name)
+            assert provider == GenerativeProviderKey.MINIMAX
 
         provider = GenerativeProvider._infer_model_provider_from_model_name("unknown-model")
         assert provider is None

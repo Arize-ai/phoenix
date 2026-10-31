@@ -16,7 +16,10 @@ import type { CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluat
 import type { CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import { EditBuiltInEvaluatorDialogContent } from "@phoenix/components/evaluators/EditBuiltInEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
+import {
+  buildOutputConfigsInput,
+  normalizeInputMapping,
+} from "@phoenix/components/evaluators/utils";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
@@ -217,7 +220,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
           datasetId,
           evaluatorId: evaluator.id,
           name,
-          inputMapping,
+          inputMapping: normalizeInputMapping(inputMapping),
           outputConfigs: buildOutputConfigsInput(outputConfigs),
           description: normalizedDescription,
         },

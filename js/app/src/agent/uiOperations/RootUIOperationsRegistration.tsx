@@ -100,7 +100,16 @@ export function RootUIOperationsRegistration() {
           },
           {
             descriptor: deleteDatasetOperation,
-            handler: createDeleteDatasetClientAction({ agentStore }),
+            handler: createDeleteDatasetClientAction({
+              agentStore,
+              // The deleted dataset is the one in view; leave its dead page
+              // for the list, the same place the UI's own delete lands.
+              onDatasetDeleted: () => {
+                if (pathRef.current.startsWith("/datasets/")) {
+                  navigateRef.current("/datasets");
+                }
+              },
+            }),
           },
           {
             descriptor: addDatasetExamplesOperation,

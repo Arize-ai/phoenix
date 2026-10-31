@@ -26,6 +26,13 @@ export type PxiCommand = {
 
 export const SLASH_COMMANDS: PxiCommand[] = [
   {
+    name: "help",
+    description: "Show available slash commands",
+    handler: (_args, _ctx) => {
+      // handled specially in the UI to print the command list
+    },
+  },
+  {
     name: "clear",
     description: "Start a new persisted session (alias for /new)",
     handler: (_args, ctx) => ctx.startNewSession({ temporary: false }),
@@ -59,13 +66,6 @@ export const SLASH_COMMANDS: PxiCommand[] = [
     name: "exit",
     description: "Exit PXI",
     handler: (_args, ctx) => ctx.exit(),
-  },
-  {
-    name: "help",
-    description: "Show available slash commands",
-    handler: (_args, _ctx) => {
-      // handled specially in the UI to print the command list
-    },
   },
 ];
 
@@ -119,4 +119,16 @@ export function getSlashCommandName(draft: string): string | null {
 export function matchingCommands(prefix: string): PxiCommand[] {
   const lower = prefix.toLowerCase();
   return SLASH_COMMANDS.filter((c) => c.name.startsWith(lower));
+}
+
+/**
+ * Return the commands to suggest while the draft is a bare command token.
+ *
+ * A lone `/` suggests every command. Once whitespace follows the name the
+ * user has moved on to arguments, so nothing is suggested.
+ */
+export function getSlashCommandSuggestions(draft: string): PxiCommand[] {
+  const name = getSlashCommandName(draft);
+  if (name === null || /\s/.test(draft)) return [];
+  return matchingCommands(name);
 }

@@ -1,7 +1,7 @@
 import time
 from contextlib import contextmanager
 from math import exp, isclose
-from typing import Any, Callable, Iterator, List, Optional
+from typing import Any, Callable, Generator, List, Optional
 from unittest import mock
 
 import pytest
@@ -13,7 +13,7 @@ from phoenix.client.utils.rate_limiters import (
 
 
 @contextmanager
-def freeze_time(frozen_time: Optional[float] = None) -> Iterator[Callable[[], None]]:
+def freeze_time(frozen_time: Optional[float] = None) -> Generator[Callable[[], None], None, None]:
     frozen_time = time.time() if frozen_time is None else frozen_time
 
     with mock.patch("time.time") as mock_time:
@@ -22,7 +22,7 @@ def freeze_time(frozen_time: Optional[float] = None) -> Iterator[Callable[[], No
 
 
 @contextmanager
-def warp_time(start: Optional[float]) -> Iterator[Any]:
+def warp_time(start: Optional[float]) -> Generator[Any, None, None]:
     sleeps: List[float] = [0]
     current_time = start if start is not None else time.time()
 
@@ -47,7 +47,7 @@ def warp_time(start: Optional[float]) -> Iterator[Any]:
 
 
 @contextmanager
-def async_warp_time(start: Optional[float]) -> Iterator[Any]:
+def async_warp_time(start: Optional[float]) -> Generator[Any, None, None]:
     sleeps: List[float] = [0]
     current_time = start if start is not None else time.time()
 

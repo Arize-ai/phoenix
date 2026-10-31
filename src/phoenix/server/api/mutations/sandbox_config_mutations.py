@@ -32,6 +32,7 @@ from phoenix.server.sandbox.types import (
     DaytonaDeployment,
     DenoConfig,
     DependenciesConfig,
+    DockerConfig,
     E2BConfig,
     E2BDeployment,
     EnvVarValue,
@@ -192,6 +193,27 @@ class ModalConfigInput:
         return ModalConfig.model_validate(fields)
 
 
+@strawberry.input
+class DockerConfigInput:
+    language: Language
+    env_vars: list[EnvVarInput] = strawberry.field(default_factory=list)
+    internet_access: Optional[InternetAccessInput] = None
+    dependencies: Optional[DependenciesInput] = None
+
+    def __post_init__(self) -> None:
+        _names_are_unique(self.env_vars)
+
+    def to_orm(self) -> DockerConfig:
+        fields: dict[str, Any] = {"language": self.language.to_orm()}
+        if self.env_vars:
+            fields["env_vars"] = {ev.name: ev.to_orm() for ev in self.env_vars}
+        if self.internet_access is not None:
+            fields["internet_access"] = self.internet_access.to_orm()
+        if self.dependencies is not None:
+            fields["dependencies"] = self.dependencies.to_orm()
+        return DockerConfig.model_validate(fields)
+
+
 @strawberry.input(one_of=True)
 class SandboxConfigVariantInput:
     """Config payload, discriminated by provider kind. Exactly one variant must be set."""
@@ -203,6 +225,7 @@ class SandboxConfigVariantInput:
     wasm: Optional[WASMConfigInput] = strawberry.UNSET
     modal: Optional[ModalConfigInput] = strawberry.UNSET
     monty: Optional[MontyConfigInput] = strawberry.UNSET
+    docker: Optional[DockerConfigInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxConfigModel:
         if self.e2b is not None and self.e2b is not strawberry.UNSET:
@@ -219,6 +242,8 @@ class SandboxConfigVariantInput:
             return self.modal.to_orm()
         if self.monty is not None and self.monty is not strawberry.UNSET:
             return self.monty.to_orm()
+        if self.docker is not None and self.docker is not strawberry.UNSET:
+            return self.docker.to_orm()
         raise BadRequest("config: exactly one provider variant must be set")
 
 

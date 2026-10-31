@@ -29,28 +29,33 @@ The fastest path from a fresh clone to a running Phoenix dev server. See the sec
 
 **Prerequisites**
 
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python environment management)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python environment management). Any recent 0.12.x works; you don't need the exact version the repo pins.
 - [nvm](https://github.com/nvm-sh/nvm) (Node version management)
 
 ```bash
 # 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
-uv sync --all-extras
+uv sync --all-extras --all-packages
 
 # 2. Install the pinned Node.js and pnpm versions
 nvm install
 npm i -g pnpm@12.0.0
 
-# 3. Install the JavaScript workspace and build the web app
+# 3. Install dekit, the process manager that `pnpm dev` uses to run the API and UI together
+curl -fsSL https://dekit.run/install.sh | sh
+
+# 4. Install the JavaScript workspace and build the web app
 cd js
 pnpm install
 pnpm build
 cp app/.env.example app/.env
 # Set PHOENIX_ENABLE_AUTH=False in app/.env to disable authentication locally
 
-# 4. Start the dev server (Python API + frontend with hot reload)
+# 5. Start the dev server (Python API + frontend with hot reload)
 cd app
 pnpm dev
 ```
+
+`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `dekit help` documents the rest of the CLI.
 
 Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `js/app/.env` to bypass it.
 
@@ -68,12 +73,17 @@ If a step fails, consult the detailed setup instructions below.
 
 We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-We recommend installing the project version of `uv` (found in `pyproject.toml` under `tool.uv.required-version`) by using the [standalone installer](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer). This will enable you to upgrade `uv` using the `uv self update` command when the project `uv` version is updated.
-
-The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the lowest currently supported Python version to ensure compatibility with all supported Python versions.
+Your system `uv` only needs to satisfy the range in `pyproject.toml` under `tool.uv.required-version`. The range's lower bound is the exact version CI uses, and `uv.lock` should be written by that version: different `uv` versions can serialize the same lockfile differently. You don't have to install it. `scripts/uv.sh` runs the pinned `uv` through `uv tool run` (cached, nothing installed globally), and `make`, the `js/app` pnpm scripts and the Playwright test server all go through it. When you change dependencies, use the wrapper instead of a bare `uv`:
 
 ```bash
-uv sync --python 3.10
+scripts/uv.sh add <package>   # or: scripts/uv.sh lock
+pnpm --dir js/app uv lock     # the same wrapper, from pnpm
+```
+
+The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the default development Python version. CI still tests the lowest supported version.
+
+```bash
+uv sync --python 3.11 --all-packages
 ```
 
 The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located under the packages/ directory are automatically installed in editable mode via the `uv` workspace configuration.
@@ -125,18 +135,16 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more.
-
-`tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
+Phoenix uses `uv` to manage the development environment and run linters, formatters, type-checks, and tests. `uv.lock` pins every dependency, so a fresh `uv sync` reproduces the environment CI tests against.
 
 ```bash
-tox list
+uv sync --all-packages
 ```
 
-Commands corresponding to an environment can be executed by running `tox run -e <env-name>`. For example, you can execute unit tests by running
+Unit tests run with `pytest` from the `tests` directory:
 
 ```bash
-tox run -e unit_tests
+cd tests && uv run pytest unit/
 ```
 
 By default, database tests run against `sqlite`. To run them against `postgresql` instead,
@@ -144,13 +152,13 @@ pass `--db postgresql`; pytest-postgresql finds `pg_ctl` through `pg_config`, or
 `--postgresql-exec /path/to/pg_ctl`.
 
 ```bash
-tox run -e unit_tests -- --db postgresql
+cd tests && uv run pytest unit/ --db postgresql
 ```
 
 To run unit tests faster using parallel execution:
 
 ```bash
-tox r -e unit_tests -- -n auto
+cd tests && uv run pytest unit/ -n auto
 ```
 
 To run type checking:
@@ -159,7 +167,7 @@ To run type checking:
 make typecheck-python
 ```
 
-Check the output of `tox list` to find commands for linters, formatters, and other tools.
+Run `make help` to find commands for linters, formatters, and other tools.
 
 ## Installing Pre-Commit Hooks
 
@@ -181,8 +189,8 @@ Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` wil
 
 To add or modify a Jupyter notebook, the following commands are needed to pass CI.
 
-- `tox run -e ruff`: Runs formatters
-- `tox run -e clean_jupyter_notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
+- `make format-python`: Runs formatters
+- `make clean-notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
 
 ## Contributing Documentation
 
@@ -334,7 +342,7 @@ After doing so, consider pasting the following settings into your workspace sett
       "source.fixAll.oxlint": "always"
     }
   },
-  "mypy-type-checker.ignorePatterns": [".tox,.venv,js/app"],
+  "mypy-type-checker.ignorePatterns": [".venv,js/app"],
   "javascript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.importModuleSpecifier": "non-relative",
   "oxc.fmt.configPath": ".oxfmtrc.jsonc",
@@ -389,7 +397,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
  pnpm dev
 ```
 
-This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
+This launches both the Python server and the frontend UI simultaneously using [dekit](https://dekit.run) (see `js/app/dekit.yaml`). The server will start with debugpy listening on port 5678.
 
 > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
 >
@@ -402,6 +410,8 @@ This launches both the Python server and the frontend UI simultaneously using `m
 > ```bash
 > VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
 > ```
+>
+> Environment variables apply when the dekit runner starts. If a runner is already up, run `dekit down` first so the new values take effect.
 >
 > Or add to `js/app/.env`:
 >

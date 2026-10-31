@@ -1,17 +1,18 @@
 ---
 title: "Test Prompts at Scale"
-description: Measure and Edit Prompts at Scale
+description: Run a prompt on a labeled dataset, measure its accuracy, and use an LLM evaluator to find the most frequent errors.
 ---
 
-To truly improve a prompt, you first need visibility - and visibility comes from data. In Part 1, we identified a misclassification in our traces and edited our prompt to fix it. **But validating on a single example isn't enough.** A single trace can show you one mistake, but only a dataset can show you the pattern behind many.&#x20;
+In Part 1, you fixed one wrong classification. One trace shows one mistake. A dataset shows the patterns across many mistakes.
 
-Part 2 of this walkthrough focuses on using Phoenix to:
+In this part, you run the `support-classifier` prompt on a dataset of support queries. At the end, you have a baseline accuracy score and a new instruction that fixes the most frequent type of error.
 
-1. Run our current prompt across a dataset of inputs
-2. Compute metrics to measure prompt performance
-3. Generate natural-language feedback to guide improvements
-4. Edit and retest prompts to build confidence in our changes
-5. Save and manage our prompt versions in **Prompt Hub**
+You do these tasks:
+
+1. Upload a dataset of support queries.
+2. Run an experiment with the current prompt.
+3. Score each output and generate feedback with evaluators.
+4. Analyze the results to find the most frequent error type.
 
 <Info>
 **Follow along with code**: This guide has a companion notebook with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/prompts/phoenix_prompt_tutorial.ipynb), and go to Part 2: Test Prompts at Scale.
@@ -19,15 +20,15 @@ Part 2 of this walkthrough focuses on using Phoenix to:
 
 <Steps>
   <Step title={<span className="step-title">Load Dataset of Inputs</span>}>
-    Let's upload a dataset of support queries and run our new classification prompt against all of them. This lets us measure performance systematically before deploying to production.
+    Upload a dataset of support queries. Each row has a query and its correct class.
 
     <Tabs>
       <Tab title="UI">
     1. Download `support_queries.csv` [here](https://storage.googleapis.com/arize-phoenix-assets/assets/images/support_queries.csv).
-    2. Navigate to Datasets and Experiments, click Create Dataset, and upload.
-    3. Select `query` for Input keys, as this is our input column.
-    4. Select `ground_truth` for Output keys, as this is our ground truth output.&#x20;
-    5. Click Create Dataset and navigate to your new dataset.&#x20;
+    2. Go to **Datasets and Experiments**. Click **Create Dataset** and upload the file.
+    3. For **Input keys**, select `query`. This is the input column.
+    4. For **Output keys**, select `ground_truth`. This is the correct output.
+    5. Click **Create Dataset**. Open the new dataset.
 
         <Frame caption="Upload dataset to Phoenix">
           <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/upload_dataset.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
@@ -89,11 +90,11 @@ Part 2 of this walkthrough focuses on using Phoenix to:
   </Step>
 
   <Step title={<span className="step-title">Run Experiment with Our Current Prompt</span>}>
-    With a dataset in place, the next step is to measure how our prompt performs across many examples. This gives us a clear baseline for accuracy and helps surface the common failure patterns we’ll address next.
+    Run the current prompt on all the examples in the dataset. The result is your baseline accuracy.
 
     ### Define Task Function
 
-    The **task** function specifies how to generate output for every input in the dataset. For us, we generate output by asking our LLM to classify a support query.&#x20;
+    Define a **task** function. The task generates an output for each input in the dataset. Here, the task asks the LLM to classify a support query.
 
     <Tabs>
       <Tab title="Python" icon="python">
@@ -161,21 +162,19 @@ Part 2 of this walkthrough focuses on using Phoenix to:
 
     ### Define Evaluators
 
-    Running the model gives us raw predictions, but that alone doesn’t tell us much. **Evaluators** help turn those predictions into meaningful feedback by scoring performance and explaining why the model was right or wrong. This gives us a **clearer picture of how our prompt is actually performing**.
+    Define **evaluators**. An evaluator scores each output and can explain why the output is correct or incorrect.
 
-    In this example, we’ll use two evaluators:
+    Use two evaluators:
 
-    * **`ground_truth_evaluator`** – Verifies whether the model’s predicted classification matches the ground truth.
-    * **`output_evaluator`** – Uses an LLM to provide a richer, qualitative analysis of each classification, including:
+    * **`ground_truth_evaluator`** – Checks if the predicted class matches the ground truth.
+    * **`output_evaluator`** – Uses an LLM to analyze each classification. It returns these fields:
       * **`explanation`** – Why the classification is correct or incorrect.
       * **`confusion_reason`** – If incorrect, why the model might have made the wrong choice.
       * **`error_type`** – If incorrect, what kind of error occurred (`broad_vs_specific`, `keyword_bias`, `multi_intent_confusion`, `ambiguous_query`, `off_topic`, `paraphrase_gap`, or `other`).
       * **`evidence_span`** – The exact phrase in the query that supports the correct classification.
-      * **`prompt_fix_suggestion`** – A clear instruction you could add to the classifier prompt to prevent this kind of error in the future.
+      * **`prompt_fix_suggestion`** – An instruction to add to the classifier prompt to prevent this type of error.
 
-    See the full eval prompt we use for analysis\_evaluator in the Define Evaluators section in the notebook.
-
-    By leveraging the reasoning abilities of LLMs, we can automatically annotate our failure cases with rich diagnostic information—helping us identify weaknesses and iteratively improve our prompt.
+    The code uses `analysis_evaluator_template`. Copy the full template from the "Define Evaluators" section of the notebook.
 
     <Tabs>
       <Tab title="Python" icon="python">
@@ -244,7 +243,7 @@ Part 2 of this walkthrough focuses on using Phoenix to:
 
     ### Run Experiment
 
-    The **task** function specifies how to generate output for every input in the dataset. For us, we generate output by asking our LLM to classify a support query.&#x20;
+    Run the experiment with the task and the two evaluators.
 
     <Tabs>
       <Tab title="Python" icon="python">
@@ -258,7 +257,7 @@ Part 2 of this walkthrough focuses on using Phoenix to:
     )
     ```
 
-    Your stdout should look like
+    The output is similar to this:
 
     ```
     running tasks |██████████| 154/154 (100.0%) | ⏳ 00:47<00:00 |  3.21it/s
@@ -284,21 +283,21 @@ Part 2 of this walkthrough focuses on using Phoenix to:
   </Step>
 
   <Step title={<span className="step-title">Analyze Experiment Results</span>}>
-    After collecting our outputs and evaluation results, the next step is to interpret them. This analysis helps us see where the prompt performs well, where it fails, and which types of errors occur most often - insights we can use to guide our next round of improvements.
+    Find the most frequent type of error in the results.
 
-    After running the experiment in code, it will show up in the Phoenix UI on the Datasets and Experiments page and under our support query dataset.
+    Go to **Datasets and Experiments** and open the support query dataset. The experiment shows in the dataset.
 
-    We see that our ground\_truth\_evaluator gave us a score of 0.53. This means that 53% of our LLM classifications correctly matched the ground truth, leaving lots of room for improvement!
+    The `ground_truth_evaluator` score is 0.53. This means that 53% of the classifications match the ground truth.
 
-    But we don't just have that scalar score - we also have rich, natural language feedback that we generated from our LLM. This helps guide us into writing better prompts, based on our data!
+    The `output_evaluator` also gives feedback in natural language for each output. Use this feedback to find the errors.
 
-    You can filter for all rows that had incorrect classifications with the following query:
+    To show only the incorrect classifications, use this filter:
 
     ```python
     evals["output_evaluator"].score == 0
     ```
 
-    Now, hover over the output\_evaluator to see the natural language feedback we generated. Here's one that stood out:
+    Hover over the `output_evaluator` score to see the feedback. This is one example:
 
     ```
     input: "downgraded me mid-billing cycle"
@@ -313,15 +312,15 @@ Part 2 of this walkthrough focuses on using Phoenix to:
     prompt_fix_suggestion: Instruct the classifier to prefer more specific classes (like 'Subscription Upgrade/Downgrade') over broader categories (like 'Billing Inquiry') when a query mentions subscription changes.
     ```
 
-    It seems we're hitting that same broad vs specific issue that we corrected for integration help/technical bug report in Part 1. Let's filter for all rows with `broad_vs_specific` error type.
+    This is the same broad-versus-specific error that you fixed in Part 1. To show all rows with the `broad_vs_specific` error type, use this filter:
 
     ```python
     'broad_vs_specific' in evals["output_evaluator"].explanation
     ```
 
-    Seems like we have a lot (30) of `broad_vs_specific` error types. This makes up, by far, the largest plurality of our errors. Note that without our LLM evaluator, it would have been really hard, and much more time consuming, to figure this out!
+    The filter shows 30 rows. `broad_vs_specific` is the most frequent error type.
 
-    Let's add a specific instruction to our prompt to address broad\_vs\_specific errors.&#x20;
+    Write down this instruction to fix `broad_vs_specific` errors. You add it to the prompt in Part 3.
 
     ```
     When classifying user queries, always prefer the most specific applicable category over a broader one. If a query mentions a clear, concrete action or object (e.g., subscription downgrade, invoice, profile name), classify it under that specific intent rather than a general one (e.g., Billing Inquiry, General Feedback).
@@ -331,12 +330,9 @@ Part 2 of this walkthrough focuses on using Phoenix to:
 
 ## Summary
 
-**Congratulations!** You’ve successfully validated your prompt at scale-running real experiments, collecting quantitative and qualitative feedback, and uncovering exactly where and why your model fails.&#x20;
-
-You used an LLM evaluator to analyze your application at scale, instead of manually reading every singe input/output pair.&#x20;
+**You tested your prompt on a full dataset.**\
+You have a baseline accuracy of 53%. An LLM evaluator explained each failure, so you did not read every input and output pair. You found the most frequent error type and wrote an instruction to fix it.
 
 ## Next Steps
 
-In Part 3, we’ll enhance our prompt by adding the new instruction and adjusting key model parameters, such as model choice, temperature, top\_p. Then, we’ll rerun experiments using the updated prompt and directly compare the results with our previous version. You’ll learn how to use Phoenix to experiment with and evaluate multiple prompt versions side by side-helping you identify which performs best.
-
-[^1]: 
+In [Compare Prompt Versions](/docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions), you add the new instruction to the prompt and change the model parameters. Then you run experiments with the new versions and compare them with the baseline. 

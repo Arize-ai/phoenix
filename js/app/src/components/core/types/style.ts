@@ -255,7 +255,12 @@ export type DimensionValue =
   // https://github.com/microsoft/TypeScript/issues/29729.
   | (string & {});
 
-export type BorderRadiusValue = "small" | "medium";
+export type BorderRadiusValue =
+  | "xsmall"
+  | "small"
+  | "medium"
+  | "large"
+  | "full";
 export type BorderColorValue = "default" | ColorValue;
 export type BorderSizeValue = "thin" | "thick" | "thicker" | "thickest";
 export type BackgroundColorValue = ColorValue;

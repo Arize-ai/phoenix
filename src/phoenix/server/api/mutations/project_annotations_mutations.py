@@ -118,7 +118,7 @@ async def _delete_project_annotations_by_name(
         )
         if project_exists is None:
             raise NotFound(f"Could not find project with ID: {input.project_id}")
-        deleted_ids = tuple(await session.scalars(stmt))
+        deleted_ids: tuple[int, ...] = tuple(await session.scalars(stmt))
 
     if deleted_ids:
         info.context.event_queue.put(target_type.event_cls(deleted_ids))

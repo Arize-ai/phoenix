@@ -564,7 +564,14 @@ class SyncExecutor(Executor):
                             break
                         except Exception as exc:
                             execution_details[index].log_exception(exc)
-                            is_phoenix_exception = isinstance(exc, PhoenixException)
+                            is_client_rate_limit_error = isinstance(exc, RateLimitError)
+                            is_evals_rate_limit_error = isinstance(exc, EvalsRateLimitError)
+                            is_rate_limit_error = (
+                                is_client_rate_limit_error or is_evals_rate_limit_error
+                            )
+                            is_phoenix_exception = (
+                                isinstance(exc, PhoenixException) and not is_rate_limit_error
+                            )
                             if attempt >= self.max_retries or is_phoenix_exception:
                                 raise exc
                             else:

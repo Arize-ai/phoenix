@@ -6,8 +6,14 @@ import {
   isRedirectingToLogin,
   isRedirectingToLoginError,
 } from "@phoenix/authFetch";
-import { Button, ExternalLink, Flex, Loading } from "@phoenix/components";
-import { isConnectionTimeoutError } from "@phoenix/components/exception/isConnectionTimeoutError";
+import {
+  Button,
+  classifyServerConnectionError,
+  ExternalLink,
+  Flex,
+  Loading,
+  ServerConnectionErrorContent,
+} from "@phoenix/components";
 
 import { NotFoundContent, ProjectOnboardingNotFound } from "./NotFound";
 import type { NotFoundErrorData } from "./redirects/notFound";
@@ -39,9 +45,11 @@ export function ErrorElement() {
       // We know this means the server disconnected
       return <ServerDisconnectedContent />;
     }
-    if (error instanceof Error && isConnectionTimeoutError(error)) {
-      // Load balancer or proxy timed out before server could respond
-      return <ConnectionTimeoutContent />;
+    if (error instanceof Error) {
+      const connectionErrorKind = classifyServerConnectionError(error);
+      if (connectionErrorKind != null) {
+        return <ServerConnectionErrorContent kind={connectionErrorKind} />;
+      }
     }
     return <ErrorContent error={error} />;
   }, [error, is404, notFoundData]);
@@ -83,7 +91,10 @@ export function ErrorElement() {
     >
       <section
         css={css`
-          width: 500px;
+          width: 100%;
+          max-width: 500px;
+          box-sizing: border-box;
+          padding: 0 var(--global-dimension-size-200);
           /* Add spacing on the bottom so it gets pushed down */
           margin-top: 200px;
           display: flex;
@@ -110,51 +121,6 @@ function ServerDisconnectedContent() {
   );
 }
 
-function ConnectionTimeoutContent() {
-  return (
-    <>
-      <Flex direction="column" width="100%" alignItems="center">
-        <h1>Connection timed out</h1>
-      </Flex>
-      <p>
-        The connection to the Phoenix server timed out before a response was
-        received. This typically happens when a load balancer or proxy closes
-        the connection before the server can respond.
-      </p>
-      <p>Possible solutions:</p>
-      <ul
-        css={css`
-          margin: var(--global-dimension-size-100) 0;
-          padding-left: var(--global-dimension-size-300);
-        `}
-      >
-        <li>Increase your load balancer or proxy timeout settings</li>
-        <li>Check if the Phoenix server is overloaded or slow to respond</li>
-        <li>Verify network connectivity between components</li>
-      </ul>
-      <div
-        css={css`
-          display: flex;
-          flex-direction: row;
-          justify-content: flex-end;
-          align-items: center;
-          gap: var(--global-dimension-size-100);
-        `}
-      >
-        <Button
-          variant="primary"
-          size="S"
-          onPress={() => {
-            window.location.reload();
-          }}
-        >
-          Retry
-        </Button>
-      </div>
-    </>
-  );
-}
-
 function ErrorContent({ error }: { error: unknown }) {
   return (
     <>
@@ -175,19 +141,7 @@ function ErrorContent({ error }: { error: unknown }) {
           gap: var(--global-dimension-size-100);
         `}
       >
-        <span
-          css={css`
-            display: inline-flex;
-            flex-direction: row;
-            align-items: baseline;
-            gap: 0.2em;
-          `}
-        >
-          💙 the
-          <ExternalLink href="mailto:phoenix-devs@arize.com">
-            phoenix team
-          </ExternalLink>
-        </span>
+        <span>💙 the phoenix team</span>
       </p>
       <div
         css={css`

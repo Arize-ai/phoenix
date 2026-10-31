@@ -74,7 +74,8 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
         )
     dialect_functions = (
         "JSON json_extract, json_type, json_each; "
-        "time date, datetime, unixepoch, julianday, strftime; typeof, median"
+        "time date, datetime, unixepoch, julianday, strftime, time_parse, time_trunc, "
+        "time_sub, time_fmt_datetime; typeof, median"
         if dialect == "sqlite"
         else "JSON jsonb_agg, jsonb_each, jsonb_object_keys, jsonb_path_exists, jsonb_set, "
         "jsonb_typeof; time date_trunc, extract, to_char"
@@ -86,9 +87,14 @@ def _preamble(dialect: str, engine: Optional[EngineInfo]) -> str:
     )
     if dialect == "sqlite":
         lines.append(
-            "-- SQLite JSON: `->` yields JSON text; use `->>` or `json_extract` for scalar "
-            "values. Cast scalar values before MIN, MAX, or ORDER BY if they may hold numeric "
-            "strings."
+            "-- SQLite JSON: use `attributes ->> '$.llm.model_name'` for a nested scalar. "
+            "`->` yields JSON text; `->>` and `json_extract` yield SQL values. "
+            "Cast numeric strings before MIN, MAX, or ORDER BY."
+        )
+    else:
+        lines.append(
+            "-- PostgreSQL JSON: `->`/`->>` read one key; `#>`/`#>>` read a path, "
+            "e.g. `attributes #>> '{llm,model_name}'`. `->>`/`#>>` return text."
         )
     backstop = "statement_timeout" if dialect == "postgresql" else "sqlite_progress_handler"
     lines.append(
@@ -160,10 +166,12 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
     """Register the analytics SQL tools against a database.
 
     Open to any caller who reaches the MCP mount, deliberately. These tools read
-    telemetry, datasets and experiments, and Phoenix already lets any
-    authenticated user read all of that: only `users`, `user_api_keys`,
+    telemetry, datasets, experiments, evaluators and prompts, and Phoenix already
+    lets any authenticated user read all of that: only `users`, `user_api_keys`,
     `oauth2_grants` and `system_api_keys` carry `IsAdmin`, and none of them is
-    allowlisted here. A role check would therefore have been stricter for this
+    allowlisted here. Nor is anything that stores credentials or configuration
+    for operators: `secrets`, the custom model providers, the sandbox providers
+    and `system_settings`. A role check would therefore have been stricter for this
     data than the API it sits beside, refusing in SQL what the same caller can
     fetch through GraphQL.
 
@@ -198,7 +206,8 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         detail: DetailLevel = "brief",
         search: Optional[str] = None,
     ) -> str:
-        """Return the allowlisted analytics SQL schema for telemetry, datasets, and experiments."""
+        """Return the active SQL dialect and allowlisted schema for telemetry, datasets,
+        experiments, evaluators, and prompts."""
         if detail not in {"brief", "detailed", "full"}:
             raise ToolError("detail must be one of: brief, detailed, full")
 
@@ -265,6 +274,9 @@ def register_analytics_sql_tools(mcp: FastMCP, *, db: DbSessionFactory) -> None:
         row_limit: Optional[int] = None,
     ) -> ExecuteSqlOutput:
         """Execute read-only analytics SQL against allowlisted Phoenix tables.
+
+        Call describeSqlSchema first for the active dialect and tables. Write SQL
+        in that dialect.
 
         Returns either the columns, rows, and applied limits, or an error
         envelope when the SQL cannot be accepted.

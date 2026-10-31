@@ -39,18 +39,6 @@ export const TOOL_ICON_BY_CATEGORY = {
   web: "Globe",
 } as const satisfies Record<ToolIconCategory, IconKey>;
 
-/** Built-in skills with a natural Phoenix noun icon override the skill glyph. */
-export const SKILL_ICON_BY_NAME: Partial<Record<string, IconKey>> = {
-  "annotate-spans": "Edit2",
-  datasets: "Database",
-  "debug-trace": "Trace",
-  evaluators: "Scale",
-  experiments: "Experiment",
-  "phoenix-graphql": "Code",
-  playground: "Play",
-  "span-coding": "PriceTags",
-};
-
 const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   // Ask
   ask_user: "ask",
@@ -112,7 +100,6 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   submit_llm_evaluator_draft: "edit",
   update_annotation_config: "edit",
   write_prompt_tools: "edit",
-  write_span_note: "edit",
 
   // Filtering
   set_spans_filter: "filter",
@@ -158,33 +145,7 @@ const TOOL_ICON_CATEGORY_BY_NAME: Partial<Record<string, ToolIconCategory>> = {
   web_fetch: "web",
 };
 
-/**
- * Returns the configured icon for a PXI tool. Built-in skills use their noun
- * icon when known. Unknown tools intentionally use the generic wrench so newly
- * introduced tools are never miscategorized.
- */
-export function getToolIconKey({
-  toolName,
-  input,
-}: {
-  toolName: string;
-  input?: unknown;
-}): IconKey {
-  if (toolName === "load_skill" || toolName === "load_skill_reference") {
-    const skillName = getSkillName(input);
-    const skillIcon = skillName ? SKILL_ICON_BY_NAME[skillName] : undefined;
-    if (skillIcon) {
-      return skillIcon;
-    }
-  }
+export function getToolIconKey({ toolName }: { toolName: string }): IconKey {
   const category = TOOL_ICON_CATEGORY_BY_NAME[toolName];
   return category ? TOOL_ICON_BY_CATEGORY[category] : "Wrench";
-}
-
-function getSkillName(input: unknown): string | null {
-  if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    return null;
-  }
-  const skillName = (input as Record<string, unknown>).skill_name;
-  return typeof skillName === "string" ? skillName : null;
 }

@@ -45,6 +45,14 @@ extern PyObject* pysqlite_NotSupportedError;
  */
 extern PyObject* _pysqlite_converters;
 
+/* Interned method names, created once at import. */
+extern PyObject* pysqlite_str___adapt__;
+extern PyObject* pysqlite_str___conform__;
+extern PyObject* pysqlite_str_cursor;
+extern PyObject* pysqlite_str_finalize;
+extern PyObject* pysqlite_str_upper;
+extern PyObject* pysqlite_str_value;
+
 extern int _pysqlite_enable_callback_tracebacks;
 extern int pysqlite_BaseTypeAdapted;
 

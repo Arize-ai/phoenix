@@ -1,6 +1,6 @@
 from typing import Annotated, Any, Generic, Optional, TypedDict, TypeVar, Union
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from phoenix.db import models
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
+from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 
 from .models import V1RoutesBaseModel
 
@@ -33,6 +34,16 @@ enforced at the database layer (`_HexColor` in `phoenix.db.models`) so that
 invalid colors are rejected at request-validation time (422) rather than
 surfacing as an opaque database error.
 """
+
+
+def is_not_at_capacity(request: Request) -> None:
+    """Reject ingestion when the span queue has reached its capacity limit."""
+    if request.app.state.span_queue_is_full():
+        SPAN_QUEUE_REJECTIONS.inc()
+        raise HTTPException(
+            detail="Server is at capacity and cannot process more requests",
+            status_code=503,
+        )
 
 
 class StatusCodeWithDescription(TypedDict):
@@ -70,6 +81,29 @@ class PaginatedResponseBody(V1RoutesBaseModel, Generic[DataType]):
 
     data: list[DataType]
     next_cursor: Optional[str]
+
+
+# Rowid columns are 32-bit integers on Postgres; a wider value fails at bind time.
+MAX_CURSOR_ROWID = 2**31 - 1
+
+
+def parse_cursor_rowid(cursor: str, node_name: str) -> int:
+    """Parse a pagination cursor into a rowid for the given node type.
+
+    Raises 422 for malformed cursors and for ids outside the bindable range.
+    """
+    try:
+        rowid: Optional[int] = from_global_id_with_expected_type(
+            GlobalID.from_id(cursor), node_name
+        )
+    except ValueError:
+        rowid = None
+    if rowid is None or not 0 <= rowid <= MAX_CURSOR_ROWID:
+        raise HTTPException(
+            detail=f"Invalid cursor format: {cursor}",
+            status_code=422,
+        )
+    return rowid
 
 
 def add_errors_to_responses(

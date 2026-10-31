@@ -1,0 +1,36 @@
+plugins {
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.google.adk:google-adk:0.4.0'
+    implementation platform('io.opentelemetry:opentelemetry-bom:1.49.0')
+    implementation 'io.opentelemetry:opentelemetry-sdk'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    runtimeOnly 'org.slf4j:slf4j-simple:2.0.17'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+application {
+    mainClass = 'com.arize.phoenix.examples.adk.WeatherAgent'
+}
+
+tasks.named('run') {
+    doFirst {
+        def agentJar = providers.gradleProperty('agentJar').orNull
+        if (agentJar == null) {
+            throw new GradleException(
+                'Pass the shaded OpenInference agent with -PagentJar=/path/to/*-all.jar')
+        }
+        jvmArgs "-javaagent:${file(agentJar).absolutePath}"
+    }
+}

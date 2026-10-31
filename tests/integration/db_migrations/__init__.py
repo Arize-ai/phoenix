@@ -51,13 +51,13 @@ async def _down(engine: _AnyEngine, alembic_config: Config, revision: str, schem
     assert (await _version_num(engine, schema)) == (None if revision == "base" else (revision,))
 
 
-async def _version_num(engine: _AnyEngine, schema: str) -> Optional[Row[tuple[str]]]:
+async def _version_num(engine: _AnyEngine, schema: str) -> Optional[Row[str]]:
     table, column = "alembic_version", "version_num"
     if schema:
         table = f"{schema}.{table}"
     stmt = text(f"SELECT {column} FROM {table}")
 
-    def _do(conn: Connection) -> Optional[Row[tuple[str]]]:
+    def _do(conn: Connection) -> Optional[Row[str]]:
         return conn.execute(stmt).first()
 
     return await _run_async(engine, _do)
@@ -120,7 +120,7 @@ def _get_table_schema_info(
     """
     if db_backend == "postgresql":
         # Check if table exists
-        table_exists = conn.execute(
+        table_exists: bool = conn.execute(
             text(
                 """
                 SELECT EXISTS (
@@ -231,7 +231,7 @@ def _get_table_schema_info(
             constraint_names.add(f"pk_{table_name}")
 
         # Get table definition to identify CHECK constraints
-        table_def = conn.execute(
+        table_def: str = conn.execute(
             text(
                 """
                 SELECT sql FROM sqlite_master

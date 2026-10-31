@@ -444,7 +444,10 @@ class OpenAIAdapter(BaseLLMAdapter):
                 openai_role = "assistant"
             elif role == MessageRole.USER:
                 openai_role = "user"
-            elif role == MessageRole.SYSTEM:
+            elif role in (MessageRole.SYSTEM, MessageRole.DEVELOPER):
+                # Both spellings defer to the model-aware heuristic — the
+                # caller's exact choice of "system" vs "developer" doesn't
+                # override what the target model actually accepts.
                 openai_role = self._system_role()
             else:
                 # Fallback for any unexpected roles

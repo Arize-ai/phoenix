@@ -250,13 +250,17 @@ class _FilterBindings:
     annotation_table_prefix: str
     reject_unbound_names: bool
     caller_bound_string_names: frozenset[str] = frozenset()
-    boolean_names: NameMap = MappingProxyType({})
+    boolean_names: NameMap = field(default_factory=lambda: MappingProxyType({}))
     quantifiers: frozenset[str] = frozenset()
     exists_names: frozenset[str] = frozenset()
     supports_parent_keyword: bool = False
-    iterables: typing.Mapping[str, "_IterableGrammar"] = MappingProxyType({})
+    iterables: typing.Mapping[str, "_IterableGrammar"] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     annotation_accessors: frozenset[str] = frozenset(_ANNOTATION_ACCESSORS)
-    annotation_accessor_errors: typing.Mapping[str, str] = MappingProxyType({})
+    annotation_accessor_errors: typing.Mapping[str, str] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     # The iterable that reads this grain's annotations element-wise, named when an
     # annotation accessor is rejected for being out of scope.
     annotation_iterable: typing.Optional[str] = None
@@ -489,10 +493,8 @@ def _element_access_path(node: ast.expr) -> tuple[typing.Optional[str], list[typ
 
 
 def _scope_of(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optional[_ElementScope]:
-    for scope in reversed(scopes):
-        if scope.variable == name:
-            return scope
-    return None
+    index = _scope_index(name, scopes)
+    return scopes[index] if index is not None else None
 
 
 def _scope_index(name: str, scopes: typing.Sequence[_ElementScope]) -> typing.Optional[int]:
@@ -1122,10 +1124,10 @@ def _compile_condition(
 
 
 def _join_annotations(
-    stmt: Select[typing.Any],
+    stmt: Select[*tuple[typing.Any, ...]],
     bindings: _FilterBindings,
     aliased_annotation_relations: typing.Iterable[AliasedAnnotationRelation],
-) -> Select[typing.Any]:
+) -> Select[*tuple[typing.Any, ...]]:
     """Outer-join each aliased annotation relation to its entity and matching name.
 
     E.g. for ``evals["Hallucination"].score > 0.5`` an alias ``A`` is generated and
@@ -1155,9 +1157,9 @@ def _join_annotations(
 
 
 def _join_span_cost(
-    stmt: Select[typing.Any],
+    stmt: Select[*tuple[typing.Any, ...]],
     members: typing.AbstractSet[str],
-) -> tuple[Select[typing.Any], typing.Any, dict[str, typing.Any]]:
+) -> tuple[Select[*tuple[typing.Any, ...]], typing.Any, dict[str, typing.Any]]:
     """Join the filtered span's cost row and bind referenced cost scalars.
 
     The alias avoids collisions with caller-owned joins. The join is added only when the
@@ -1296,6 +1298,12 @@ class SpanFilter:
             raise SpanFilterError("filter condition is nested too deeply") from None
         except SyntaxError as error:
             raise SpanFilterError(_format_syntax_error(error)) from error
+        except IndexError as error:
+            # Belt-and-suspenders alongside the line-offset table's own
+            # universal-newline handling: a lineno/col_offset the table
+            # doesn't have an entry for is a malformed-filter condition to
+            # the caller, not a 500.
+            raise SpanFilterError("invalid filter condition") from error
 
     def _initialize(self) -> None:
         object.__setattr__(self, "root_scope", None)
@@ -1335,7 +1343,7 @@ class SpanFilter:
             compiled_condition.referenced_deferred_numbers,
         )
 
-    def __call__(self, select: Select[typing.Any]) -> Select[typing.Any]:
+    def __call__(self, select: Select[*tuple[typing.Any, ...]]) -> Select[*tuple[typing.Any, ...]]:
         if not self.condition:
             return select
         # `parent_span is None` / `parent_span is not None` select spans whose parent span does
@@ -1644,7 +1652,7 @@ class Projector:
         # confusable-identifier hazard the filter side already rejects.
         _validate_python_surface(root.body, source)
         _validate_projection_expression(root)
-        translated = _ProjectionTranslator(source).visit(root)
+        translated = _ProjectionTranslator().visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
         object.__setattr__(self, "translated", translated)
@@ -2423,7 +2431,28 @@ class _ProjectionTranslator(ast.NodeTransformer):
             )
         )
 
-    def visit_generic(self, node: ast.AST) -> typing.Any:
+    # Node types this translator (and `_FilterTranslator` below) has no
+    # explicit `visit_*` for and relies on the inherited `generic_visit`
+    # traversal to pass through unchanged: leaf values (`_VALID_PROJECTION_NODE_TYPES`
+    # and `_validate_expression`'s allowlist both admit them with no
+    # corresponding `visit_Constant`/`visit_List`/`visit_Tuple`/`visit_Load`
+    # here) and the operator-symbol nodes (`ast.BoolOp.op`, `ast.Compare.ops`,
+    # `ast.BinOp.op`, `ast.UnaryOp.op`) that `visit_BoolOp` etc. read directly
+    # off the node rather than visiting.
+    _PASSTHROUGH_NODE_TYPES: typing.ClassVar[tuple[type, ...]] = (
+        ast.Constant,
+        ast.List,
+        ast.Tuple,
+        ast.Load,
+        ast.boolop,
+        ast.cmpop,
+        ast.operator,
+        ast.unaryop,
+    )
+
+    def generic_visit(self, node: ast.AST) -> typing.Any:
+        if isinstance(node, self._PASSTHROUGH_NODE_TYPES):
+            return super().generic_visit(node)
         raise SyntaxError(f"invalid expression: {ast.unparse(node)}")
 
     def visit_Expression(self, node: ast.Expression) -> typing.Any:
@@ -3817,18 +3846,23 @@ def _apply_eval_aliasing(
 class _AnnotationExpressionAliaser(ast.NodeVisitor):
     def __init__(self, source: str, bindings: _FilterBindings = SPAN_BINDINGS) -> None:
         self._bindings = bindings
-        # Split on "\n" only. `str.splitlines` also breaks on \v, \f, \x1c-\x1e,
-        # \x85, \u2028 and \u2029, while the tokenizer that produced the AST
-        # positions these offsets are matched against counts none of them. One
-        # of those characters inside an earlier string literal would start a
-        # line here that the tokenizer never saw, shifting every later offset
-        # and splicing the alias at the wrong byte.
-        lines = source.split("\n")
+        # Split on the same universal newlines the tokenizer that produced the
+        # AST positions these offsets are matched against uses: "\r\n", "\r"
+        # and "\n", each counted as exactly one line break. `str.splitlines`
+        # breaks on \v, \f, \x1c-\x1e, \x85, \u2028 and \u2029 too, none of
+        # which the tokenizer treats as a line break -- one of those inside an
+        # earlier string literal would start a line here the tokenizer never
+        # saw, shifting every later offset and splicing the alias at the wrong
+        # byte. A lone "\r" is the same hazard from the other direction: the
+        # tokenizer breaks the line there, so the offset table must too.
         self._line_offsets = [0]
-        for line in lines:
-            # +1 for the "\n" that `split` consumed. A trailing "\r" of a CRLF
-            # pair stays in `line`, so its byte is already counted.
-            self._line_offsets.append(self._line_offsets[-1] + len(line.encode()) + 1)
+        pos = 0
+        for match in re.finditer(r"\r\n|\r|\n", source):
+            line = source[pos : match.start()]
+            self._line_offsets.append(
+                self._line_offsets[-1] + len(line.encode()) + len(match.group().encode())
+            )
+            pos = match.end()
         self._relations_by_key: dict[
             tuple[AnnotationRelationKind, AnnotationName], AliasedAnnotationRelation
         ] = {}

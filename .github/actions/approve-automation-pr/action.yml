@@ -1,0 +1,34 @@
+name: Approve automation PR
+description: >-
+  Approves a pull request that the calling workflow just opened so that
+  auto-merge can proceed. The approval must come from an account other than
+  the one that opened the PR, so callers pass a PAT belonging to a second
+  maintainer rather than the token used by `gh pr create`.
+inputs:
+  pr:
+    description: Pull request number, URL, or head branch name.
+    required: true
+  token:
+    description: PAT (pull_requests:write) of the approving account.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Approve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PR: ${{ inputs.pr }}
+      run: |
+        if [[ -z "$GH_TOKEN" ]]; then
+          echo "::warning::No approver token configured; skipping approval of $PR"
+          exit 0
+        fi
+        state=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state --jq .state 2>/dev/null || true)
+        if [[ "$state" != "OPEN" ]]; then
+          echo "No open pull request found for '$PR'; skipping approval."
+          exit 0
+        fi
+        gh pr review "$PR" --repo "$GITHUB_REPOSITORY" --approve \
+          --body "Auto-approved: opened by the \`$GITHUB_WORKFLOW\` workflow ([run $GITHUB_RUN_ID]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID))." \
+          || echo "::warning::Could not approve $PR"

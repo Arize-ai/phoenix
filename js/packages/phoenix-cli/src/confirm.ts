@@ -1,5 +1,6 @@
-import { cancel, confirm, isCancel } from "@clack/prompts";
+import { cancel, confirm } from "@clack/prompts";
 
+import { isCancelled } from "./clackCancel.js";
 import { ExitCode, InvalidArgumentError } from "./exitCodes.js";
 
 export const ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES =
@@ -17,7 +18,7 @@ export function confirmAction(message: string): Promise<boolean> {
     active: "Yes",
     inactive: "No",
   }).then((value) => {
-    if (isCancel(value)) {
+    if (isCancelled(value)) {
       cancel("Operation cancelled");
       return false;
     }

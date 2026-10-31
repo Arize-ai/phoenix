@@ -122,6 +122,15 @@ class TestSessionsList:
         result = Sessions(client, Spans(client)).list(project_id="proj-id-123")
         assert result == []
 
+    @pytest.mark.parametrize("limit", [0, -1])
+    def test_list_non_positive_limit_returns_empty_without_request(self, limit: int) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise AssertionError("no request should be made for a non-positive limit")
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = Sessions(client, Spans(client)).list(project_name="proj", limit=limit)
+        assert result == []
+
 
 class TestGetSessionsDataframe:
     def test_returns_dataframe_with_expected_columns(self) -> None:
@@ -264,6 +273,18 @@ class TestAsyncSessionsList:
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         result = await AsyncSessions(client, AsyncSpans(client)).list(project_name="proj")
         assert len(result) == 2
+
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("limit", [0, -1])
+    async def test_list_non_positive_limit_returns_empty_without_request(self, limit: int) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            raise AssertionError("no request should be made for a non-positive limit")
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = await AsyncSessions(client, AsyncSpans(client)).list(
+            project_name="proj", limit=limit
+        )
+        assert result == []
 
 
 class TestAsyncGetSessionsDataframe:

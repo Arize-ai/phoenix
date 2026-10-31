@@ -15,6 +15,7 @@ import httpx
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
+    GET_TRACES_FILTER_EXPRESSION,
     GET_TRACES_FILTERS,
     LIST_PROJECT_TRACES,
 )
@@ -69,9 +70,12 @@ def _build_trace_query_params(
     error: Optional[bool],
     min_latency_ms: Optional[float],
     max_latency_ms: Optional[float],
+    filter: Optional[str],
 ) -> _TraceQueryParams:
     """Build the query params shared by every page of a ``get_traces`` request."""
     params: _TraceQueryParams = {}
+    if filter:
+        params["filter"] = filter
     if start_time:
         params["start_time"] = start_time.isoformat()
     if end_time:
@@ -113,7 +117,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -128,7 +132,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -143,7 +147,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -157,7 +161,7 @@ class Traces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -170,8 +174,8 @@ class Traces:
         Args:
             trace_id (str): The ID of the trace to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -291,7 +295,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[True],
     ) -> list[InsertedTraceAnnotation]: ...
 
@@ -301,7 +305,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -311,7 +315,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool,
     ) -> Optional[list[InsertedTraceAnnotation]]: ...
 
@@ -320,7 +324,7 @@ class Traces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool = False,
     ) -> Optional[list[InsertedTraceAnnotation]]:
         """Log multiple trace annotations from a pandas DataFrame.
@@ -340,10 +344,10 @@ class Traces:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.
@@ -412,6 +416,7 @@ class Traces:
         error: Optional[bool] = None,
         min_latency_ms: Optional[float] = None,
         max_latency_ms: Optional[float] = None,
+        filter: Optional[str] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.TraceData]:
@@ -434,11 +439,17 @@ class Traces:
             error (Optional[bool]): If True, only return traces containing at least one
                 errored span. If False, only return traces with no errored spans. If
                 None (default), traces are not filtered by error status.
+                Deprecated: use ``filter="error_count > 0"`` or ``filter="error_count == 0"``.
                 Requires Phoenix server >= 20.8.0.
             min_latency_ms (Optional[float]): Inclusive lower bound on trace latency in
                 milliseconds. Requires Phoenix server >= 20.8.0.
+                Deprecated: use ``filter="latency_ms >= N"``.
             max_latency_ms (Optional[float]): Inclusive upper bound on trace latency in
                 milliseconds. Requires Phoenix server >= 20.8.0.
+                Deprecated: use ``filter="latency_ms <= N"``.
+            filter: Trace filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
+                Combined with deprecated filters using AND. Empty strings do not filter.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 
@@ -463,12 +474,13 @@ class Traces:
             # Only slow traces that errored
             slow_failures = client.traces.get_traces(
                 project_identifier="my-project",
-                error=True,
-                min_latency_ms=1000,
+                filter="error_count > 0 and latency_ms >= 1000",
             )
         """
         _validate_latency_bounds(min_latency_ms, max_latency_ms)
         self._guard.require(LIST_PROJECT_TRACES)
+        if filter:
+            self._guard.require(GET_TRACES_FILTER_EXPRESSION)
         if error is not None or min_latency_ms is not None or max_latency_ms is not None:
             self._guard.require(GET_TRACES_FILTERS)
         all_traces: list[v1.TraceData] = []
@@ -485,6 +497,7 @@ class Traces:
             error=error,
             min_latency_ms=min_latency_ms,
             max_latency_ms=max_latency_ms,
+            filter=filter,
         )
 
         while len(all_traces) < limit:
@@ -528,7 +541,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -543,7 +556,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -558,7 +571,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -572,7 +585,7 @@ class AsyncTraces:
         *,
         trace_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -585,8 +598,8 @@ class AsyncTraces:
         Args:
             trace_id (str): The ID of the trace to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -706,7 +719,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[True],
     ) -> list[InsertedTraceAnnotation]: ...
 
@@ -716,7 +729,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -726,7 +739,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool,
     ) -> Optional[list[InsertedTraceAnnotation]]: ...
 
@@ -735,7 +748,7 @@ class AsyncTraces:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool = False,
     ) -> Optional[list[InsertedTraceAnnotation]]:
         """Log multiple trace annotations from a pandas DataFrame asynchronously.
@@ -755,10 +768,10 @@ class AsyncTraces:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.
@@ -827,6 +840,7 @@ class AsyncTraces:
         error: Optional[bool] = None,
         min_latency_ms: Optional[float] = None,
         max_latency_ms: Optional[float] = None,
+        filter: Optional[str] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.TraceData]:
@@ -849,11 +863,18 @@ class AsyncTraces:
             error (Optional[bool]): If True, only return traces containing at least one
                 errored span. If False, only return traces with no errored spans. If
                 None (default), traces are not filtered by error status.
+                Deprecated: use ``filter="error_count > 0"`` or ``filter="error_count == 0"``.
                 Requires Phoenix server >= 20.8.0.
             min_latency_ms (Optional[float]): Inclusive lower bound on trace latency in
                 milliseconds. Requires Phoenix server >= 20.8.0.
+                Deprecated: use ``filter="latency_ms >= N"``.
             max_latency_ms (Optional[float]): Inclusive upper bound on trace latency in
                 milliseconds. Requires Phoenix server >= 20.8.0.
+                Deprecated: use ``filter="latency_ms <= N"``.
+            filter: Trace filter expression, as documented at
+                https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions.
+                Combined with other filters using AND. Empty strings do not filter.
+                Requires Phoenix server >= 20.12.0.
             limit (int): Maximum number of traces to return. Defaults to 100.
             timeout (Optional[int]): Request timeout in seconds.
 
@@ -878,12 +899,13 @@ class AsyncTraces:
             # Only slow traces that errored
             slow_failures = await client.traces.get_traces(
                 project_identifier="my-project",
-                error=True,
-                min_latency_ms=1000,
+                filter="error_count > 0 and latency_ms >= 1000",
             )
         """
         _validate_latency_bounds(min_latency_ms, max_latency_ms)
         await self._guard.require(LIST_PROJECT_TRACES)
+        if filter:
+            await self._guard.require(GET_TRACES_FILTER_EXPRESSION)
         if error is not None or min_latency_ms is not None or max_latency_ms is not None:
             await self._guard.require(GET_TRACES_FILTERS)
         all_traces: list[v1.TraceData] = []
@@ -900,6 +922,7 @@ class AsyncTraces:
             error=error,
             min_latency_ms=min_latency_ms,
             max_latency_ms=max_latency_ms,
+            filter=filter,
         )
 
         while len(all_traces) < limit:

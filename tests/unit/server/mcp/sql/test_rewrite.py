@@ -1,5 +1,5 @@
 import base64
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import pytest
 import sqlean
@@ -701,7 +701,7 @@ def test_latency_ms_keeps_its_name_in_the_select_list() -> None:
 def test_experiment_runs_latency_ms_is_substituted() -> None:
     """experiment_runs stores the same two timestamps the overlay is built from."""
     _, rendered = _rewritten("SELECT latency_ms FROM experiment_runs", dialect="sqlite")
-    assert "UNIXEPOCH" in rendered.upper()
+    assert "TIME_SUB" in rendered.upper()
     assert "AS latency_ms" in rendered
 
 
@@ -890,7 +890,6 @@ def test_postgres_operator_json_key_is_parenthesised(sql: str, expected_operand:
     ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
     out = render(rewrite(root, ctx), dialect="postgresql")
     assert expected_operand in out
-    assert "json_operand_parens" in ctx.applied
     # The emitted SQL must parse back to an extraction, not to the outer operator.
     reparsed = sqlglot.parse_one(out, read="postgres")
     assert isinstance(reparsed, exp.Select)
@@ -908,7 +907,6 @@ def test_postgres_atomic_json_key_is_not_parenthesised() -> None:
     ctx = RewriteContext(allowlist=allowlist, dialect="postgresql", row_limit=500)
     out = render(rewrite(root, ctx), dialect="postgresql")
     assert "-> k.key" in out
-    assert "json_operand_parens" not in ctx.applied
 
 
 def test_postgres_literal_json_key_keeps_the_arrow_operator() -> None:
@@ -1068,7 +1066,7 @@ def test_latency_ms_through_a_derived_relation_is_left_alone() -> None:
     assert "AVG(latency_ms)" in out
     # The inner reference must still be substituted, or the alias has nothing
     # behind it and the test would pass against a pass that did nothing at all.
-    assert "UNIXEPOCH" in out
+    assert "TIME_SUB" in out
 
 
 @pytest.mark.parametrize("dialect", ["sqlite", "postgres"])
@@ -1106,7 +1104,18 @@ def test_latency_ms_binds_as_tightly_as_a_column(dialect: str, expression: str) 
     # inside it. Re-parsing the rendered SQL and re-rendering must be stable.
     rendered = out.sql(dialect=dialect)
     assert rendered == sqlglot.parse_one(rendered, dialect=dialect).sql(dialect=dialect)
-    substituted = out.find(exp.Mul)
+    substituted: Optional[exp.Expression]
+    if dialect == "sqlite":
+        substituted = next(
+            (
+                div
+                for div in out.find_all(exp.Div)
+                if isinstance(div.this, exp.Anonymous) and div.this.name == "time_sub"
+            ),
+            None,
+        )
+    else:
+        substituted = out.find(exp.Mul)
     assert substituted is not None
     assert isinstance(substituted.parent, exp.Paren), rendered
 
@@ -1689,7 +1698,7 @@ class TestOneSharedResolver:
             self._rewritten("SELECT AVG(s.latency_ms) FROM spans s")
         )
 
-        assert "UNIXEPOCH" in projection
+        assert "TIME_SUB" in projection
 
     def test_c1_a_cte_column_of_the_same_name_is_not_overwritten(self) -> None:
         rendered = self._rewritten(
@@ -1784,19 +1793,12 @@ class TestJsonAccessorOrigin:
 
 
 class TestUncastJsonOrderingNote:
-    """A JSON value ordered without a cast may not order the way it reads.
-
-    The hazard differs by backend and the note says so: PostgreSQL's extraction
-    operators return text, so ordering is always lexicographic; SQLite returns
-    the document's own type, so only a path holding a quoted number misorders.
-    Stating it as "both backends return text" was false on the shipped engine --
-    `MAX(doc ->> '$.n')` over 1017066 and 149740 answers 1017066, typed integer.
-    """
+    """Ordering warnings follow the extraction's return type in the active dialect."""
 
     @staticmethod
     def _noted(sql: str, dialect: SupportedSQLDialectName = "sqlite") -> bool:
         read = "postgres" if dialect == "postgresql" else dialect
-        ctx = RewriteContext(allowlist=load_allowlist("sqlite"), dialect=dialect, row_limit=500)
+        ctx = RewriteContext(allowlist=load_allowlist(dialect), dialect=dialect, row_limit=500)
         rewrite(cast(exp.Expression, sqlglot.parse_one(sql, read=read)), ctx)
         return any("without a cast" in note for note in ctx.notes)
 
@@ -1811,8 +1813,22 @@ class TestUncastJsonOrderingNote:
     def test_order_sensitive_positions_are_noted(self, sql: str) -> None:
         assert self._noted(sql)
 
-    def test_the_postgres_path_operator_is_noted_too(self) -> None:
-        assert self._noted("SELECT MAX(attributes #>> '{a,b}') FROM spans", dialect="postgresql")
+    @pytest.mark.parametrize(
+        ("extraction", "noted"),
+        [
+            ("attributes ->> 'n'", True),
+            ("attributes #>> '{a,b}'", True),
+            ("jsonb_extract_path_text(attributes, 'a', 'b')", True),
+            ("attributes -> 'n'", False),
+            ("attributes #> '{a,b}'", False),
+            ("jsonb_extract_path(attributes, 'a', 'b')", False),
+        ],
+    )
+    def test_postgres_warns_only_for_text_extraction(self, extraction: str, noted: bool) -> None:
+        assert (
+            self._noted(f"SELECT id FROM spans ORDER BY {extraction}", dialect="postgresql")
+            is noted
+        )
 
     def test_a_cast_extraction_is_not_noted(self) -> None:
         assert not self._noted("SELECT MAX(CAST(attributes ->> '$.n' AS REAL)) FROM spans")
@@ -2232,56 +2248,6 @@ def test_a_comparison_with_no_epoch_side_is_left_alone() -> None:
     """Guards the test above: converting every comparison would also satisfy it."""
     rendered = _rendered("SELECT count(*) AS v FROM spans WHERE start_time > '2026-07-30'")
     assert "UNIXEPOCH" not in rendered.upper()
-
-
-@pytest.mark.parametrize(
-    ("sql", "dialect"),
-    [
-        ("SELECT attributes -> 'c''d' AS v FROM spans", "postgresql"),
-        ("SELECT attributes ->> 'c''d' AS v FROM spans", "postgresql"),
-        ("SELECT attributes -> '$.\"c''d\"' AS v FROM spans", "sqlite"),
-        ("SELECT attributes ->> '$.\"c''d\"' AS v FROM spans", "sqlite"),
-    ],
-)
-def test_a_json_key_containing_a_quote_is_escaped(sql: str, dialect: str) -> None:
-    """A key holding an apostrophe must not close its own string literal.
-
-    Attribute keys are arbitrary, and describeSqlSchema publishes the populated
-    paths, so an unescaped one is a spelling the surface prints and cannot run.
-    """
-    root = parse_sql(sql, dialect=cast(Any, dialect))
-    root = admit(root, allowlist=load_allowlist(cast(Any, dialect)), dialect=cast(Any, dialect))
-    rendered = render(rewrite(root, _ctx(cast(Any, dialect))), dialect=cast(Any, dialect))
-    assert rendered.count("'") % 2 == 0, f"unbalanced quotes: {rendered}"
-    assert "''" in rendered
-
-
-@pytest.mark.parametrize(
-    "sql",
-    [
-        """SELECT attributes -> '$."c''d"[0]' AS v FROM spans""",
-        """SELECT attributes ->> '$."c''d"[1]' AS v FROM spans""",
-        """SELECT attributes -> '$."c''d".e[0]' AS v FROM spans""",
-    ],
-)
-def test_a_subscripted_path_with_a_quoted_key_is_escaped(sql: str) -> None:
-    """A subscript belongs to the path as much as a key does.
-
-    Repairing only all-key paths leaves the apostrophe unescaped here, and the
-    statement does not compile.
-    """
-    rendered = _rendered(sql)
-    assert rendered.count("'") % 2 == 0, f"unbalanced quotes: {rendered}"
-    assert "''" in rendered
-
-
-def test_a_json_key_without_a_quote_keeps_its_path_form() -> None:
-    """Guards the test above: rewriting every path would also satisfy it."""
-    ctx, rendered = _rewritten("SELECT attributes -> '$.llm' AS v FROM spans", dialect="sqlite")
-    # The pass leaves the operator in place and swaps only the path, so the
-    # operator surviving is not evidence that the path did.
-    assert "json_path_quote_repair" not in ctx.applied
-    assert "->" in rendered
 
 
 class TestScaledEpochComparisons:

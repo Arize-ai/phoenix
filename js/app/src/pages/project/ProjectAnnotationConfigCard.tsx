@@ -1,10 +1,5 @@
 import { css } from "@emotion/react";
-import type { CellContext, ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
   Suspense,
@@ -42,6 +37,11 @@ import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
+import type {
+  CellContext,
+  ColumnDef,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ProjectAnnotationConfigCardContent_project_annotations$key } from "./__generated__/ProjectAnnotationConfigCardContent_project_annotations.graphql";
@@ -161,7 +161,6 @@ interface ProjectAnnotationConfigCardContentProps {
 const ProjectAnnotationConfigCardContent = (
   props: ProjectAnnotationConfigCardContentProps
 ) => {
-  "use no memo";
   const { projectId } = props;
   // Keep track of the loading state for each annotation config
   const [loadingConfigs, setLoadingConfigs] = useState<Record<string, boolean>>(
@@ -205,6 +204,8 @@ const ProjectAnnotationConfigCardContent = (
       @refetchable(
         queryName: "ProjectAnnotationConfigCardContentProjectAnnotationsQuery"
       ) {
+        # Keeps annotation colors in the trace tree and tables current after config changes
+        ...ProjectAnnotationConfigsByNameFragment
         annotationConfigs {
           edges {
             node {
@@ -350,14 +351,14 @@ const ProjectAnnotationConfigCardContent = (
     removeAnnotationConfigFromProject,
   ]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: tableData,
     columns,
     state: {
       columnPinning: CHECKBOX_COLUMN_PINNING,
     },
-    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
   });
 
   if (allAnnotationConfigs.edges.length === 0) {

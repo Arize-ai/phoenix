@@ -8,7 +8,22 @@ from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 
 
 @pytest.mark.parametrize("k", [None, -1, 0, 1, 2, 1000])
-@pytest.mark.parametrize("scores", [[], [0], [1], [0, 0, 1], [np.nan, 1], [np.nan], [0, 2, np.nan]])
+@pytest.mark.parametrize(
+    "scores",
+    [
+        [],
+        [0],
+        [1],
+        [0, 0, 1],
+        [2, 0, 1],
+        [0.1, 0.4, 0.2],
+        [np.nan, 1],
+        [np.nan],
+        [0, 2, np.nan],
+        [np.inf],
+        [-np.inf],
+    ],
+)
 def test_ranking_metrics_ndcg(k: Optional[int], scores: list[float]) -> None:
     actual = RetrievalMetrics(scores).ndcg(k)
     if not np.all(np.isfinite(np.array(scores))):
@@ -24,6 +39,15 @@ def test_ranking_metrics_ndcg(k: Optional[int], scores: list[float]) -> None:
         y_true, y_score = [_scores], [list(reversed(range(len(_scores))))]
         desired = ndcg_score(y_true, y_score, k=k, ignore_ties=True)
     assert np.isclose(actual, desired, equal_nan=True)
+
+
+@pytest.mark.parametrize("scores", [[-1], [0, -1, 2], [1, -0.1]])
+@pytest.mark.parametrize("k", [None, 1, 1000])
+def test_ranking_metrics_ndcg_rejects_negative_scores(
+    scores: list[float], k: Optional[int]
+) -> None:
+    with pytest.raises(ValueError):
+        RetrievalMetrics(scores).ndcg(k)
 
 
 @pytest.mark.parametrize("k", [None, -1, 0, 1, 2, 1000])

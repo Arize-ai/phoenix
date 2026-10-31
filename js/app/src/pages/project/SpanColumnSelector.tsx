@@ -1,6 +1,7 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 import { graphql, useFragment } from "react-relay";
 
+import type { Column } from "@phoenix/components/table/tableFeatures";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SpanColumnSelector_annotations$key } from "./__generated__/SpanColumnSelector_annotations.graphql";
@@ -15,22 +16,21 @@ import { TracingColumnSelector } from "./TracingColumnSelector";
 
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
 
-type SpanColumnSelectorProps = {
+type SpanColumnSelectorProps<TData extends RowData> = {
   /**
    * All of the top-level columns of the span table, including visible dynamic
    * annotation columns.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: Column<any>[];
+  columns: Column<TData>[];
   query: SpanColumnSelector_annotations$key &
     SpanColumnSelector_traceAnnotations$key;
 };
 
 /** The column selector for the span and trace tables. */
-export function SpanColumnSelector({
+export function SpanColumnSelector<TData extends RowData>({
   columns,
   query,
-}: SpanColumnSelectorProps) {
+}: SpanColumnSelectorProps<TData>) {
   const annotationsData = useFragment<SpanColumnSelector_annotations$key>(
     graphql`
       fragment SpanColumnSelector_annotations on Project {
@@ -43,7 +43,7 @@ export function SpanColumnSelector({
     useFragment<SpanColumnSelector_traceAnnotations$key>(
       graphql`
         fragment SpanColumnSelector_traceAnnotations on Project {
-          traceAnnotationsNames
+          traceAnnotationNames
         }
       `,
       query
@@ -79,7 +79,7 @@ export function SpanColumnSelector({
         },
         {
           names: getNonNoteAnnotationNames(
-            traceAnnotationsData.traceAnnotationsNames
+            traceAnnotationsData.traceAnnotationNames
           ),
           visibility: traceAnnotationColumnVisibility,
           onVisibilityChange: setTraceAnnotationColumnVisibility,

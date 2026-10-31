@@ -4,8 +4,8 @@ from secrets import token_hex
 from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
 from uuid import UUID, uuid5
 
-import httpx
-from sqlalchemy import select
+import httpx2
+from sqlalchemy import Result, Row, Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
@@ -17,6 +17,21 @@ from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Span import Span
 
 _MESSAGE_ID_NAMESPACE = UUID("6f1a7f5e-3f4d-4a5b-8c9d-0e1f2a3b4c5d")
+
+
+def _selects_from(statement: Any, table: Type[models.Base]) -> bool:
+    """Whether a statement is a SELECT whose first column belongs to the table."""
+    if not isinstance(statement, Select):
+        return False
+    descriptions = statement.column_descriptions
+    return bool(descriptions) and descriptions[0].get("entity") is table
+
+
+def _peek_first_row(result: Result[Any]) -> tuple[Result[Any], Optional[Row[Any]]]:
+    """Read a result's first row and return a fresh result that still yields every row."""
+    frozen = result.freeze()
+    rows = frozen.data
+    return frozen(), (rows[0] if rows else None)
 
 
 def _message_uuid(label: str) -> str:
@@ -56,7 +71,7 @@ async def _node(
     field: str,
     type_name: str,
     id_: int,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> dict[str, Any]:
     query = "query($id:ID!){node(id:$id){... on " + type_name + "{" + field + "}}}"
     gid = str(GlobalID(type_name, str(id_)))

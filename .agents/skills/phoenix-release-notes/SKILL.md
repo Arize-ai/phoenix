@@ -23,8 +23,11 @@ without being verbose.
 - **Active voice, present tense**: "Phoenix now provides..." not "A new feature has been added..."
 - **Lead with what the user can do**, not what changed internally. The reader cares about
   capabilities, not implementation details.
-- **Concise**: 1-3 sentence intro, then bullet points for details. If a bullet can say it, don't
-  write a paragraph.
+- **Most interesting first.** Order everything — page sections, the title, the intro, aggregate
+  bullets, the year card, the Slack overview — by reader interest, never by date, package, or the
+  order you discovered the commits. See "Rank features before writing" below.
+- **Concise**: 1-2 sentence intro, then bullet points for details. If a bullet can say it, don't
+  write a paragraph. Stay inside the length budgets in Step 3.
 - **Code examples are mandatory** when a feature has a programmatic API. Show working,
   copy-pasteable snippets. Show both Python and TypeScript when both SDKs are affected.
 - **Version requirements in bold**: `**Available in arize-phoenix X.Y.Z+**`
@@ -117,6 +120,35 @@ Multiple commits often implement a single feature across server + client + UI. A
 commit, a Python client wrapper, and a TypeScript client wrapper should become one release note
 entry that mentions all relevant package versions — not three separate entries.
 
+### Rank features before writing
+
+Sort the included changes into tiers **before** drafting. The page runs top to bottom in this
+order, and the title, description, intro, aggregate bullets, year card, and Slack overview all lead
+with whatever landed in the highest tier.
+
+| Tier | What goes here | Examples |
+|------|----------------|----------|
+| 1 | New integrations, workflows, and evaluation capabilities that change how someone uses Phoenix | Harbor plugin, a new evaluator, PXI doing something new, a new UI surface |
+| 2 | New model or provider support | Z.ai / MiniMax / Meta built in, new frontier models |
+| 3 | SDK and CLI capabilities | new client methods or parameters, new `px` commands |
+| 4 | Protocol, auth, and infrastructure changes | MCP server upgrades, OAuth changes, config variables |
+| 5 | REST-only endpoints and administrative routes | `DELETE /v1/projects/{id}/traces`, retention policy CRUD |
+| 6 | Fixes and small polish | `# Additional Improvements` |
+
+Rules:
+
+- **REST API changes always sit at the bottom**, immediately above `# Additional Improvements`.
+  Endpoint reference docs already cover them; the release note only needs to say they exist.
+- **If a REST endpoint is also exposed through the SDKs, write it as an SDK feature.** Lead with
+  the client call, show SDK snippets, and mention the endpoint in one clause or a reference card.
+  Do not open the section with the HTTP verb and path.
+- **Within a tier, bigger change first.** A feature with its own snippets and docs outranks a
+  one-bullet feature in the same tier.
+- **Breaking changes are the exception**: a breaking change goes first regardless of tier.
+- **A thin section drops a tier.** If a feature has less than a short paragraph of substance, it is
+  a bullet in `# Additional Improvements` or merged into a sibling section (for example, two small
+  PXI changes become one `# PXI: ...` section), not its own heading.
+
 ## Step 3: Draft MDX Files
 
 ### Default to a single consolidated file
@@ -145,6 +177,22 @@ If you are **revising** an existing batch that was already split into several th
 consolidate them: create one combined file dated by the latest release, delete the superseded
 files (`git rm`), and collapse their entries down to a single `<ReleaseUpdate>` block and a single
 year-overview `<Card>` and a single `docs.json` page path.
+
+### Length budgets
+
+Release notes are skimmed. Cut until each piece fits:
+
+| Piece | Budget |
+|-------|--------|
+| Page intro | 1-2 sentences, leading with the tier-1 feature |
+| Feature section | 1 short paragraph, 2-4 bullets, at most one snippet per language, one `<CardGroup>` |
+| Bullet | 1-2 sentences. A bold lead plus one clause of detail |
+| `# Additional Improvements` bullet | 1 sentence, bold lead, no sub-bullets |
+| Whole page | Aim for under ~200 lines for a weekly bundle |
+
+Cut first: restated reference material (parameter tables that exist in the API docs), a second
+snippet that shows the same call with different values, `export FOO=...` blocks, and any sentence
+that explains what the previous sentence already said.
 
 ### File location
 
@@ -291,7 +339,9 @@ Rules:
 - `title` is the feature title (without date prefix — the component generates `label: title` as the heading)
 - `href` is the link to the individual MDX file
 - Link path has no `.mdx` extension
-- Keep each block to 5-10 lines
+- Keep each block to 5-10 lines: one version line, a 1-2 sentence summary, and **at most 6
+  bullets of one line each**, in the ranked order from "Rank features before writing" — the first
+  bullet is the headline feature, REST-only changes are last
 - For a consolidated multi-topic file, prefer a **single** `<ReleaseUpdate>` block labeled with the
   latest date, whose bullets summarize the bundled features — one block per file, not one per
   feature. Only split into multiple blocks when the bundled features fall on clearly distinct dates
@@ -335,6 +385,10 @@ Add a `<Card>` entry at the top of the `<CardGroup>`:
 ```mdx
 <Card href="/docs/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug-title" arrow="true" title="MM.DD.YYYY" icon="calendar" description="Brief description of the feature"/>
 ```
+
+The `description` is **one sentence, roughly 200 characters or fewer**, naming only the top two or
+three features in ranked order. It is a card, not a table of contents: no semicolon-separated
+inventory of every section, no fix list, and no version ranges (those live on the page).
 
 ## Step 6: Update Navigation
 
@@ -470,6 +524,8 @@ Slack does **not** render standard Markdown. Use its `mrkdwn` syntax or the mess
 ```
 
 Rules:
+- Bullets follow the same ranked order as the page — headline feature first, REST-only changes last
+  or omitted.
 - Carry the same **version lines** and **minimum-version requirements** through from the docs —
   if a feature requires a minimum server version, surface it here too (e.g. `requires server 17.12.0+`).
 - Include a link to the published release note page (extensionless path under
@@ -487,6 +543,9 @@ Rules:
 | Month nav group missing in docs.json? | Add new group object |
 | Feature spans multiple packages? | One entry, list all versions |
 | Not sure if user-facing? | Read the code — if a user can't see or call it, exclude it |
+| Where does a REST-only endpoint go? | Bottom of the page, just above `# Additional Improvements` |
+| Endpoint also in the SDKs? | Write it as an SDK feature; the endpoint gets one clause or a card |
+| Section is only a couple of sentences? | Merge it into a sibling or make it one bullet in `# Additional Improvements` |
 
 ## Pre-Submit Checklist
 
@@ -497,7 +556,7 @@ Before opening a PR or considering the work done, walk through every item below.
 - [ ] **Step 1**: Identified all undocumented releases
 - [ ] **Step 2**: Analyzed commits by reading the actual changed code, not just commit messages
 - [ ] **Step 3**: Drafted individual MDX files with correct frontmatter and file paths
-- [ ] **Step 4**: Updated the aggregate file (`release-notes.mdx`) with `<Update>` blocks
+- [ ] **Step 4**: Updated the aggregate file (`release-notes.mdx`) with `<ReleaseUpdate>` blocks
 - [ ] **Step 5**: Updated the year overview (`YYYY.mdx`) with `<Card>` entries
 - [ ] **Step 6**: Updated `docs.json` navigation with all new page paths
 - [ ] **Step 7**: (Only if requested) Updated GitHub release descriptions, preserving existing body
@@ -508,6 +567,10 @@ Before opening a PR or considering the work done, walk through every item below.
 
 Review every MDX file you created as an expert technical writer:
 
+- [ ] **Ranked, not chronological**: Sections run tier 1 → tier 6 per "Rank features before writing". REST-only endpoints sit directly above `# Additional Improvements`, never near the top
+- [ ] **Everything leads with the headline**: The title, slug, `description`, intro paragraph, first aggregate bullet, year card, and first Slack bullet all name the same tier-1 feature
+- [ ] **Inside the length budgets**: Intro ≤ 2 sentences; each section ≤ 4 bullets and one snippet per language; `# Additional Improvements` bullets are one sentence; year card description is one sentence
+- [ ] **No thin sections**: Any heading with less than a paragraph of substance was merged or moved into `# Additional Improvements`
 - [ ] **Lead with user value**: Every section opens with what the user can now do, not what changed internally
 - [ ] **Active voice, present tense**: No passive constructions like "has been added" or "was implemented"
 - [ ] **Concise**: No filler, no preamble. If a bullet can say it, don't write a paragraph

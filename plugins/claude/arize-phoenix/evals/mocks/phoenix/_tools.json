@@ -1,0 +1,240 @@
+{
+  "tools": [
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Search for available tools by query.\n\nReturns matching tools ranked by relevance.",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "description": "Search query to find available tools",
+            "type": "string"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "detail": {
+            "default": "brief",
+            "description": "'brief' for names and descriptions, 'detailed' for parameter schemas as markdown, 'full' for complete JSON schemas",
+            "enum": [
+              "brief",
+              "detailed",
+              "full"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "search",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      },
+      "title": "Search"
+    },
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Get parameter schemas for specific tools.\n\nUse after searching to get the detail needed to call a tool.",
+      "inputSchema": {
+        "properties": {
+          "tools": {
+            "description": "List of tool names to get schemas for",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "detail": {
+            "default": "detailed",
+            "description": "'brief' for names and descriptions, 'detailed' for parameter schemas as markdown, 'full' for complete JSON schemas",
+            "enum": [
+              "brief",
+              "detailed",
+              "full"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "tools"
+        ],
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "get_schema",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      },
+      "title": "Get Schema"
+    },
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List available tool tags.\n\nUse to browse available tools by tag before searching.",
+      "inputSchema": {
+        "properties": {
+          "detail": {
+            "default": "brief",
+            "description": "Level of detail: 'brief' for tag names and counts, 'full' for tools listed under each tag",
+            "enum": [
+              "brief",
+              "full"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "tags",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      },
+      "title": "Tags"
+    },
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "annotations": {
+        "destructiveHint": false,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "List all available tools.\n\nUse to see the full catalog before searching or calling tools.",
+      "inputSchema": {
+        "properties": {
+          "detail": {
+            "default": "brief",
+            "description": "'brief' for names and descriptions, 'detailed' for parameter schemas as markdown, 'full' for complete JSON schemas",
+            "enum": [
+              "brief",
+              "detailed",
+              "full"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "list_tools",
+      "outputSchema": {
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "type": "object",
+        "x-fastmcp-wrap-result": true
+      },
+      "title": "List Tools"
+    },
+    {
+      "_meta": {
+        "fastmcp": {
+          "tags": []
+        }
+      },
+      "description": "Chain `await call_tool(...)` calls in one Python block; prefer returning the final answer from a single block.\nUse `return` to produce output.\nOnly `call_tool(tool_name: str, params: dict) -> Any` is available in scope.",
+      "inputSchema": {
+        "properties": {
+          "code": {
+            "description": "Python async code to execute tool calls via call_tool(name, arguments)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "additionalProperties": false
+      },
+      "name": "execute",
+      "title": "Execute"
+    }
+  ]
+}

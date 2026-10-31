@@ -15,7 +15,7 @@ from tests.unit import conftest
 from tests.unit.conftest import (
     _DEPENDANT_LIST_FIELDS,
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -24,7 +24,7 @@ from tests.unit.conftest import (
 async def second_app(db: DbSessionFactory) -> AsyncIterator[FastAPI]:
     """A second app built the way the ``app`` fixture builds its own."""
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         yield create_app(
             db=db,

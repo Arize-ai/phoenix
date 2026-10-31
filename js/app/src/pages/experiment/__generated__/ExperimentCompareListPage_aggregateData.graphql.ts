@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5bd4d51e2d4f3c339ac530b0a4d61cf2>>
+ * @generated SignedSource<<a30f658cd7e4f0afd20f63e962d4a9a5>>
  * @lightSyntaxTransform
  */
 
@@ -17,15 +17,30 @@ export type ExperimentCompareListPage_aggregateData$data = {
         readonly node: {
           readonly name: string;
           readonly outputConfigs: ReadonlyArray<{
-            readonly lowerBound?: number | null;
-            readonly name?: string;
-            readonly optimizationDirection?: OptimizationDirection;
-            readonly threshold?: number | null;
-            readonly upperBound?: number | null;
-            readonly values?: ReadonlyArray<{
+            readonly __typename: "CategoricalAnnotationConfig";
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly values: ReadonlyArray<{
               readonly label: string;
               readonly score: number | null;
             }>;
+          } | {
+            readonly __typename: "ContinuousAnnotationConfig";
+            readonly lowerBound: number | null;
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly upperBound: number | null;
+          } | {
+            readonly __typename: "FreeformAnnotationConfig";
+            readonly lowerBound: number | null;
+            readonly name: string;
+            readonly optimizationDirection: OptimizationDirection;
+            readonly threshold: number | null;
+            readonly upperBound: number | null;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
           }>;
         };
       }>;
@@ -347,6 +362,13 @@ return {
                           "plural": true,
                           "selections": [
                             {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "__typename",
+                              "storageKey": null
+                            },
+                            {
                               "kind": "InlineFragment",
                               "selections": [
                                 (v3/*:: as any*/),
@@ -434,6 +456,6 @@ return {
 };
 })();
 
-(node as any).hash = "55fa0b830f6820a171d27356bcb89c63";
+(node as any).hash = "72d6f4996920dc99aa5ee715d73fe83f";
 
 export default node;

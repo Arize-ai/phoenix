@@ -67,23 +67,18 @@ export function GenerativeUISkeleton() {
   return (
     <div css={frameCSS} aria-label="Loading generative UI">
       <div css={titleCSS}>
-        <Skeleton width={120} height={12} animation="wave" />
+        <Skeleton width={120} height={12} />
       </div>
       <div css={chartAreaCSS}>
         {BAR_HEIGHTS.map((height, index) => (
           <div key={index} css={barWrapperCSS}>
-            <Skeleton
-              width="100%"
-              height={height}
-              borderRadius="S"
-              animation="wave"
-            />
+            <Skeleton width="100%" height={height} />
           </div>
         ))}
       </div>
       <div css={axisCSS}>
-        <Skeleton width={24} height={8} animation="wave" />
-        <Skeleton width={24} height={8} animation="wave" />
+        <Skeleton width={24} height={8} />
+        <Skeleton width={24} height={8} />
       </div>
     </div>
   );
