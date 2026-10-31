@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import json
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Any, AsyncIterator, Iterator, Optional, Union
+from typing import Any, AsyncIterator, Union
 
 import httpx2
 import pytest
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk as OpenAIChatCompletionChunk
-from pydantic_ai.exceptions import ModelAPIError
+from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -24,15 +22,12 @@ from starlette.types import ASGIApp
 from strawberry.relay import GlobalID
 
 import phoenix.server.api.routers.v1.chat_completions as chat_completions_module
-from phoenix.db import models
-from phoenix.db.types.model_provider import ModelProvider, OpenAICustomProviderConfig
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
     BuiltInProviderModelSelection,
     CustomProviderModelSelection,
 )
-from phoenix.server.encryption import EncryptionService
-from phoenix.server.types import DbSessionFactory
 
 _ANSWER = "span_kind == 'LLM'"
 _STREAM_DELTAS = ("span_kind ", "== ", "'LLM'")
@@ -327,6 +322,36 @@ class TestCreateChatCompletion:
         assert error["type"] == "api_error"
         assert "connection refused" in error["message"]
 
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_invalid_provider_response_returns_openai_502(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        stream: bool,
+    ) -> None:
+        # pydantic-ai raises UnexpectedModelBehavior, not ModelAPIError, when the provider
+        # answers 200 with a body that doesn't validate as a chat completion.
+        invalid_response = "Invalid response from openai chat completions endpoint"
+
+        async def build_misbehaving_model(*_: Any, **__: Any) -> FunctionModel:
+            def respond(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+                raise UnexpectedModelBehavior(invalid_response)
+
+            async def respond_stream(
+                messages: list[ModelMessage], _info: AgentInfo
+            ) -> AsyncIterator[Union[str, DeltaToolCalls]]:
+                raise UnexpectedModelBehavior(invalid_response)
+                yield ""
+
+            return FunctionModel(function=respond, stream_function=respond_stream)
+
+        monkeypatch.setattr(chat_completions_module, "build_model", build_misbehaving_model)
+        response = await httpx_client.post("v1/chat/completions", json=_request_body(stream=stream))
+        assert response.status_code == 502, response.text
+        error = response.json()["error"]
+        assert error["type"] == "api_error"
+        assert invalid_response in error["message"]
+
     async def test_malformed_custom_provider_id_returns_404(
         self,
         httpx_client: httpx2.AsyncClient,
@@ -381,127 +406,3 @@ class TestCreateChatCompletion:
         error = response.json()["error"]
         assert error["type"] == "invalid_request_error"
         assert "DEEPSEEK" in error["message"].upper()
-
-
-class _EmptyJsonProviderHandler(BaseHTTPRequestHandler):
-    """An OpenAI-compatible endpoint that answers every POST with ``200 {}``."""
-
-    def do_POST(self) -> None:
-        self.rfile.read(int(self.headers.get("Content-Length", 0)))
-        body = b"{}"
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, format: str, *args: Any) -> None:
-        pass
-
-
-@pytest.fixture
-def empty_json_provider_url() -> Iterator[str]:
-    server = HTTPServer(("127.0.0.1", 0), _EmptyJsonProviderHandler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_port}/v1"
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
-
-
-async def _add_openai_custom_provider(
-    db: DbSessionFactory,
-    *,
-    base_url: str,
-    api_key: str = "sk-test",
-    default_headers: Optional[dict[str, str]] = None,
-) -> str:
-    config = OpenAICustomProviderConfig(
-        openai_authentication_method={"type": "api_key", "api_key": api_key},
-        openai_client_kwargs={"base_url": base_url, "default_headers": default_headers},
-        openai_api_type="chat_completions",
-    )
-    async with db() as session:
-        provider = models.GenerativeModelCustomProvider(
-            name="custom-openai",
-            provider="openai",
-            sdk="openai",
-            config=EncryptionService().encrypt(config.model_dump_json().encode()),
-        )
-        session.add(provider)
-        await session.flush()
-        return str(GlobalID("GenerativeModelCustomProvider", str(provider.id)))
-
-
-class TestProviderFailuresThatAreNotModelAPIErrors:
-    """These run the real ``build_model`` and the real pydantic-ai OpenAI model against
-    a stored custom provider, so failures surface exactly as they do in production."""
-
-    @pytest.mark.parametrize("stream", [False, True])
-    async def test_provider_returning_invalid_completion_returns_502(
-        self,
-        db: DbSessionFactory,
-        httpx_client: httpx2.AsyncClient,
-        empty_json_provider_url: str,
-        stream: bool,
-    ) -> None:
-        provider_id = await _add_openai_custom_provider(db, base_url=empty_json_provider_url)
-        response = await httpx_client.post(
-            "v1/chat/completions",
-            json=_request_body(model=f"custom:{provider_id}:my-model", stream=stream),
-        )
-        assert response.status_code == 502, response.text
-        error = response.json()["error"]
-        assert error["type"] == "api_error"
-        assert error["message"] != "Internal server error."
-
-    @pytest.mark.parametrize("stream", [False, True])
-    @pytest.mark.parametrize(
-        "credentials",
-        [
-            pytest.param({"api_key": "sk-\ue000"}, id="api_key"),
-            pytest.param({"default_headers": {"X-Custom": "va\ue000lue"}}, id="custom_header"),
-        ],
-    )
-    async def test_non_ascii_credential_returns_4xx_with_explanation(
-        self,
-        db: DbSessionFactory,
-        httpx_client: httpx2.AsyncClient,
-        credentials: dict[str, Any],
-        stream: bool,
-    ) -> None:
-        provider_id = await _add_openai_custom_provider(
-            db, base_url="http://127.0.0.1:9/v1", **credentials
-        )
-        response = await httpx_client.post(
-            "v1/chat/completions",
-            json=_request_body(model=f"custom:{provider_id}:my-model", stream=stream),
-        )
-        assert 400 <= response.status_code < 500, response.text
-        message = response.json()["error"]["message"]
-        assert message != "Internal server error."
-        assert "ascii" in message.lower()
-        assert "\ue000" not in message
-
-    @pytest.mark.parametrize("stream", [False, True])
-    async def test_non_ascii_prompt_is_not_blamed_on_credentials(
-        self,
-        db: DbSessionFactory,
-        httpx_client: httpx2.AsyncClient,
-        stream: bool,
-    ) -> None:
-        provider_id = await _add_openai_custom_provider(db, base_url="http://127.0.0.1:9/v1")
-        body = _request_body(model=f"custom:{provider_id}:my-model", stream=stream)
-        body["messages"] = [{"role": "user", "content": "hi \ud800"}]
-        # json.dumps escapes the lone surrogate, so the caller's request itself is valid JSON.
-        response = await httpx_client.post(
-            "v1/chat/completions",
-            content=json.dumps(body),
-            headers={"Content-Type": "application/json"},
-        )
-        message = response.json()["error"]["message"]
-        assert "API key" not in message
-        assert "header" not in message

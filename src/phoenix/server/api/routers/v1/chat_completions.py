@@ -434,10 +434,6 @@ async def create_chat_completion(
         response = await model.request(messages, settings, ModelRequestParameters())
     except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
-    except UnicodeEncodeError as exc:
-        if not _is_non_ascii_header_error(exc):
-            raise
-        return _non_ascii_header_error_response()
     completion = ChatCompletion(
         id=_completion_id(response.provider_response_id),
         created=int(response.timestamp.timestamp()),
@@ -454,22 +450,6 @@ async def create_chat_completion(
 
 
 _HTTP_STATUS_CODE_LIMIT = 600
-
-
-def _is_non_ascii_header_error(exc: UnicodeEncodeError) -> bool:
-    # httpx encodes header values as ASCII before anything is sent; other encoding
-    # failures (e.g. a lone surrogate in the UTF-8 request body) are not credential problems.
-    return exc.encoding == "ascii"
-
-
-def _non_ascii_header_error_response() -> JSONResponse:
-    # The message deliberately omits the offending value, which may be a secret.
-    return _error_response(
-        "The provider's API key or a custom header contains non-ASCII characters, "
-        "so the request to the provider could not be built. HTTP headers must be ASCII; "
-        "re-enter the credential or header without hidden or special characters.",
-        status_code=HTTP_400_BAD_REQUEST,
-    )
 
 
 def _provider_error_response(exc: Union[ModelAPIError, UnexpectedModelBehavior]) -> JSONResponse:
@@ -576,10 +556,6 @@ async def _create_streaming_response(
         await provider_stream_opened
     except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
-    except UnicodeEncodeError as exc:
-        if not _is_non_ascii_header_error(exc):
-            raise
-        return _non_ascii_header_error_response()
     except BaseException:
         producer.cancel()
         raise
