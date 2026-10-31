@@ -5,10 +5,13 @@ import type {
   OpenAIFormData,
   TypeSafeFormData,
 } from "../CustomProviderForm";
+import { providerFormSchema } from "../customProviderFormSchema";
 import {
   buildClientConfig,
   createDefaultFormData,
   parseModelNames,
+  type ProviderNode,
+  transformConfigToFormValues,
   transformToPatchInput,
 } from "../customProviderFormUtils";
 
@@ -32,13 +35,13 @@ describe("decision models in the client config", () => {
       openai({
         decision_enabled: true,
         decision_sdk: "TYPESAFE",
-        decision_base_url: " https://api.typesafe.ai ",
+        decision_base_url: " https://system-one.example ",
         decision_model_names: "jev-latest, jev-1.14.0",
       })
     );
     expect(config.openai?.decisionModels).toEqual({
       decisionSdk: "TYPESAFE",
-      baseUrl: "https://api.typesafe.ai",
+      baseUrl: "https://system-one.example",
       modelNames: ["jev-latest", "jev-1.14.0"],
     });
   });
@@ -133,5 +136,91 @@ describe("parseModelNames", () => {
       "jev-1.14.0",
     ]);
     expect(parseModelNames(undefined)).toEqual([]);
+  });
+});
+
+describe("the decision base URL", () => {
+  it("doesn't store the pre-filled guess, so runs follow the chat base URL", () => {
+    const config = buildClientConfig(
+      openai({
+        openai_base_url: "https://proxy.example/v1/",
+        decision_enabled: true,
+        decision_sdk: "OPENAI",
+        decision_base_url: "https://proxy.example/v1",
+      })
+    );
+    expect(config.openai?.decisionModels).toEqual({ decisionSdk: "OPENAI" });
+  });
+
+  it("stores a base URL the user changed", () => {
+    const config = buildClientConfig(
+      openai({
+        openai_base_url: "https://proxy.example/v1",
+        decision_enabled: true,
+        decision_sdk: "OPENAI",
+        decision_base_url: "https://decisions.example/v1",
+      })
+    );
+    expect(config.openai?.decisionModels).toEqual({
+      decisionSdk: "OPENAI",
+      baseUrl: "https://decisions.example/v1",
+    });
+  });
+
+  it("stays unset when a provider saved without one is edited and saved", () => {
+    const node = {
+      __typename: "GenerativeModelCustomProvider",
+      id: "provider-id",
+      name: "proxy",
+      description: null,
+      sdk: "OPENAI",
+      provider: "openai",
+      config: {
+        __typename: "OpenAICustomProviderConfig",
+        openaiApiType: "RESPONSES",
+        modelNames: [],
+        decisionModels: {
+          decisionSdk: "OPENAI",
+          baseUrl: null,
+          modelNames: [],
+        },
+        openaiAuthenticationMethod: { apiKey: "sk-old" },
+        openaiClientKwargs: {
+          baseUrl: "https://proxy.example/v1",
+          organization: null,
+          project: null,
+          defaultHeaders: null,
+        },
+      },
+    } as unknown as ProviderNode;
+    const original = transformConfigToFormValues(node);
+    expect(original).toMatchObject({
+      decision_base_url: "https://proxy.example/v1",
+    });
+    const patch = transformToPatchInput(
+      { ...original, openai_api_key: "sk-new" } as OpenAIFormData,
+      "provider-id",
+      original
+    );
+    expect(patch.clientConfig?.openai?.decisionModels).toEqual({
+      decisionSdk: "OPENAI",
+    });
+  });
+});
+
+describe("decision base URL validation", () => {
+  it("ignores an invalid base URL while decision models are off", () => {
+    const result = providerFormSchema.safeParse(
+      openai({ decision_enabled: false, decision_base_url: "foo" })
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an invalid base URL while decision models are on", () => {
+    const result = providerFormSchema.safeParse(
+      openai({ decision_enabled: true, decision_base_url: "foo" })
+    );
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["decision_base_url"]);
   });
 });
