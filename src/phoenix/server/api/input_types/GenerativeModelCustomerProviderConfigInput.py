@@ -485,6 +485,14 @@ class GenerativeModelCustomerProviderConfigInput:
             if requested is not None:
                 raise BadRequest(f"A {sdk} provider cannot serve decision models.")
             return None
+        # Decision requests on Azure carry the provider's API key; there is no Entra ID
+        # path for them yet.
+        if (
+            requested is not None
+            and self.azure_openai
+            and not self.azure_openai.azure_openai_authentication_method.api_key
+        ):
+            raise BadRequest("Decision models on Azure OpenAI need API key authentication.")
         if (required := required_decision_sdk(sdk)) is not None:
             if requested is not None and requested != required:
                 raise BadRequest(f"A {sdk} provider runs decision models through {required}.")
