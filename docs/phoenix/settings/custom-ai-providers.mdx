@@ -13,9 +13,11 @@ To create a custom provider:
 
 1. Go to **Settings** → **AI Providers**.
 2. In **Custom Providers**, select **New Provider**.
-3. Enter a **Name** and a **Provider String**.
-4. Choose the **SDK** and fill in the required fields.
-5. Click **Test** to validate the credentials, then **Create Provider**.
+3. In the **Provider** section, enter a **Name** and a **Provider String**, and choose the **SDK**.
+4. In the **Connection** section, fill in the required fields for the SDK.
+5. Optional: in the **LLM models** section, enter suggested model names. See [Suggested LLM Models](#suggested-llm-models).
+6. Optional: in the **Decision models** section, turn on decision models. See [Decision Models](#decision-models).
+7. Click **Test credentials** in the **Connection** section to validate the credentials, then click **Create Provider**.
 
 ## Supported SDKs and Fields
 
@@ -43,6 +45,44 @@ To create a custom provider:
 **Google GenAI**
 *   **Required**: API key
 *   **Optional**: Base URL, Headers
+
+**TypeSafe**
+*   **Required**: API key
+*   **Optional**: Base URL (default `https://api.typesafe.ai`), Default headers
+*   A TypeSafe provider serves decision models only, through System One. Any System One-compatible endpoint works.
+
+Optional fields that you do not often change (for example, organization, project, and headers) are folded under a toggle. The toggle opens when one of these fields has a value.
+
+## Suggested LLM Models
+
+Custom providers for the OpenAI, Azure OpenAI, Anthropic, AWS Bedrock, and Google GenAI SDKs have an **LLM models** section.
+
+*   Enter model names in **Suggested model names**, separated by commas.
+*   When you enter names, the model menu shows only those names for the provider, instead of the built-in model list for the SDK.
+*   When you leave the field empty, the model menu shows the built-in model list for the SDK.
+*   You can use any model name that the endpoint accepts, also names that are not in the list.
+
+## Decision Models
+
+Custom providers for the OpenAI, Azure OpenAI, and TypeSafe SDKs can serve decision models. Decision models use the provider's API key and headers.
+
+To turn on decision models:
+
+1.  In the **Decision models** section, turn on the switch.
+2.  Choose a **Decision client**:
+    *   **OpenAI Decisions API**: sends `POST {base URL}/decisions`.
+    *   **System One**: sends `POST {base URL}/v1/systemone`. If the base URL ends in `/v1`, Phoenix removes it once, because System One adds `/v1`.
+3.  Examine the **Decision base URL**. Phoenix fills it in from the provider's base URL. Change it if the endpoint serves decisions at a different URL. The form shows the exact URL that a run sends to.
+4.  Optional: enter **Suggested model names** for decision models, separated by commas.
+5.  Click **Test decision endpoint**. The test sends a request for a model that does not exist to the exact URL. The test passes only when the endpoint rejects that model by name, which shows that the URL, the decision client, and the API key are correct. No model runs.
+
+<Note>
+If you do not change the decision base URL, Phoenix does not save it. Decision runs then follow the provider's base URL when you change it.
+</Note>
+
+*   A TypeSafe provider always serves decision models through System One, at its own base URL.
+*   Azure OpenAI providers need **API Key** authentication to serve decision models.
+*   Providers that existed before decision clients were added do not serve decision models until you turn them on, except TypeSafe providers.
 
 ## Example: Azure OpenAI Configuration
 
@@ -121,7 +161,8 @@ This method automatically discovers credentials from the environment in the foll
 
 Once configured, custom providers appear in model selection menus in the Playground as their own provider group.
 
-*   The model list mirrors the built-in model list for that SDK.
+*   The model list shows the provider's suggested LLM model names. If the provider has none, the model list shows the built-in model list for that SDK.
+*   Providers with decision models turned on also appear in the **Decision** tab of the model menu.
 *   Routing fields (base URL, Azure endpoint, AWS region) are pulled from the custom provider configuration.
 *   Prompt versions saved with a custom provider will use that provider's configuration.
 
