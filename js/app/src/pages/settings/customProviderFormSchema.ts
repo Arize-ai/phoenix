@@ -51,7 +51,9 @@ const urlFieldSchema = z
 const decisionModelsSchema = {
   decision_enabled: z.boolean(),
   decision_sdk: z.enum(["OPENAI", "TYPESAFE"]),
-  decision_base_url: urlFieldSchema,
+  // Checked below only while decision models are on, since the field is hidden
+  // when they are off.
+  decision_base_url: z.string().optional(),
   decision_model_names: z.string().optional(),
 };
 
@@ -178,6 +180,19 @@ export const providerFormSchema = baseProviderFormSchema
         code: z.ZodIssueCode.custom,
         message: "Decision models need API key authentication",
         path: ["decision_enabled"],
+      });
+    }
+  })
+  .superRefine((data, ctx) => {
+    // A TypeSafe provider ignores the decision base URL and uses its own.
+    if (!("decision_enabled" in data) || !data.decision_enabled) return;
+    if (data.sdk === "TYPESAFE") return;
+    const result = urlFieldSchema.safeParse(data.decision_base_url);
+    if (!result.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.error.issues[0]?.message ?? "Must be a valid URL",
+        path: ["decision_base_url"],
       });
     }
   })

@@ -47,10 +47,13 @@ function removeV1Suffix(url: string): string {
 }
 
 /** The exact URL a decision request posts to. */
-export function decisionEndpointUrl(
-  decisionSdk: DecisionSDK,
-  baseUrl: string
-): string {
+export function decisionEndpointUrl({
+  decisionSdk,
+  baseUrl,
+}: {
+  decisionSdk: DecisionSDK;
+  baseUrl: string;
+}): string {
   const trimmed = trimTrailingSlashes(baseUrl);
   const clientBaseUrl =
     decisionSdk === "TYPESAFE" ? removeV1Suffix(trimmed) : trimmed;
@@ -58,10 +61,13 @@ export function decisionEndpointUrl(
 }
 
 /** A best guess at the decision base URL from the chat base URL. */
-export function guessDecisionBaseUrl(
-  decisionSdk: DecisionSDK,
-  chatBaseUrl: string | null | undefined
-): string {
+export function guessDecisionBaseUrl({
+  decisionSdk,
+  chatBaseUrl,
+}: {
+  decisionSdk: DecisionSDK;
+  chatBaseUrl: string | null | undefined;
+}): string {
   const chat = trimTrailingSlashes(chatBaseUrl ?? "");
   if (!chat) {
     return DEFAULT_BASE_URLS[decisionSdk];

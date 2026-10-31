@@ -38,9 +38,12 @@ describe("decisionEndpointUrl", () => {
   it.each(endpointUrl)(
     "$decisionSdk at $baseUrl posts to $url",
     ({ decisionSdk, baseUrl, url }) => {
-      expect(decisionEndpointUrl(toDecisionSdk(decisionSdk), baseUrl)).toBe(
-        url
-      );
+      expect(
+        decisionEndpointUrl({
+          decisionSdk: toDecisionSdk(decisionSdk),
+          baseUrl,
+        })
+      ).toBe(url);
     }
   );
 });
@@ -50,7 +53,10 @@ describe("guessDecisionBaseUrl", () => {
     "$decisionSdk from $chatBaseUrl guesses $baseUrl",
     ({ decisionSdk, chatBaseUrl, baseUrl }) => {
       expect(
-        guessDecisionBaseUrl(toDecisionSdk(decisionSdk), chatBaseUrl)
+        guessDecisionBaseUrl({
+          decisionSdk: toDecisionSdk(decisionSdk),
+          chatBaseUrl,
+        })
       ).toBe(baseUrl);
     }
   );

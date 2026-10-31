@@ -14,13 +14,19 @@ import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
 
 import { type CustomProviderInfo, useModelMenuData } from "../useModelMenuData";
 
-function provider(
-  id: string,
-  sdk: string,
-  modelTypes: string[],
-  decisionSdk: string | null,
-  decisionModelNames: string[]
-) {
+function provider({
+  id,
+  sdk,
+  modelTypes,
+  decisionSdk,
+  decisionModelNames,
+}: {
+  id: string;
+  sdk: string;
+  modelTypes: string[];
+  decisionSdk: string | null;
+  decisionModelNames: string[];
+}) {
   return {
     node: {
       __typename: "GenerativeModelCustomProvider",
@@ -39,21 +45,27 @@ const RESPONSE = {
   data: {
     generativeModelCustomProviders: {
       edges: [
-        provider("chat-only", "OPENAI", ["LLM"], null, []),
-        provider(
-          "openai-on-system-one",
-          "OPENAI",
-          ["LLM", "DECISION"],
-          "TYPESAFE",
-          ["jev-latest"]
-        ),
-        provider(
-          "openai-decisions",
-          "AZURE_OPENAI",
-          ["LLM", "DECISION"],
-          "OPENAI",
-          ["gpt-6-luna"]
-        ),
+        provider({
+          id: "chat-only",
+          sdk: "OPENAI",
+          modelTypes: ["LLM"],
+          decisionSdk: null,
+          decisionModelNames: [],
+        }),
+        provider({
+          id: "openai-on-system-one",
+          sdk: "OPENAI",
+          modelTypes: ["LLM", "DECISION"],
+          decisionSdk: "TYPESAFE",
+          decisionModelNames: ["jev-latest"],
+        }),
+        provider({
+          id: "openai-decisions",
+          sdk: "AZURE_OPENAI",
+          modelTypes: ["LLM", "DECISION"],
+          decisionSdk: "OPENAI",
+          decisionModelNames: ["gpt-6-luna"],
+        }),
       ],
     },
     modelProviders: [],

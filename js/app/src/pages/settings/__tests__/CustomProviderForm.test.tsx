@@ -111,6 +111,25 @@ describe("CustomProviderForm decision models", () => {
     expect(preview()).toBe("POST https://proxy.example/v1/decisions");
   });
 
+  it("keeps an untouched decision base URL in step with the chat base URL", async () => {
+    const user = userEvent.setup();
+    render();
+    await act(() => user.click(decisionSwitch()));
+    expect(preview()).toBe("POST https://api.openai.com/v1/decisions");
+    await act(() =>
+      user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
+    );
+    expect(preview()).toBe("POST https://proxy.example/v1/decisions");
+  });
+
+  it("shows only the decision heading while decision models are off", () => {
+    render();
+    const section = [...container.querySelectorAll("section")].find(
+      (candidate) => candidate.textContent?.startsWith("Decision models")
+    );
+    expect(section?.querySelector(".provider-form-section__body")).toBeNull();
+  });
+
   it("previews System One's URL and sends the decision settings to the endpoint test", async () => {
     const user = userEvent.setup();
     render({

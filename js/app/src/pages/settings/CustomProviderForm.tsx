@@ -1585,10 +1585,7 @@ function useTestCredentials({
   }, [canTest, commitTestCredentials, getValues]);
 
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
-  const clear = useCallback(
-    () => dispatchTestConnectionState({ type: "clear" }),
-    []
-  );
+  const clear = () => dispatchTestConnectionState({ type: "clear" });
 
   return {
     canTest,

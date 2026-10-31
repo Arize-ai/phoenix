@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { Children, useState } from "react";
 import type { Control, FieldPath } from "react-hook-form";
 import { useFormState, useWatch } from "react-hook-form";
 
@@ -48,7 +48,8 @@ export function ProviderFormSection({
       <SectionHeading bordered={false} subtitle={subtitle} extra={extra}>
         {title}
       </SectionHeading>
-      {children ? (
+      {/* Children that all render nothing leave only the heading bar. */}
+      {Children.toArray(children).length > 0 ? (
         <div className="provider-form-section__body">{children}</div>
       ) : null}
     </section>
