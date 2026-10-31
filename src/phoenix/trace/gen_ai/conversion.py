@@ -163,21 +163,28 @@ def get_openinference_message_attributes(
     )
     if sys_parts:
         sys_msg = ChatMessage.model_construct(role=Role.system, parts=list(sys_parts))
-        oi_attributes.update(
-            _flatten_message(sys_msg, SpanAttributes.LLM_INPUT_MESSAGES, next_input_index)
+        msg_flat, count = _flatten_message(
+            sys_msg, SpanAttributes.LLM_INPUT_MESSAGES, next_input_index
         )
-        next_input_index += 1
+        oi_attributes.update(msg_flat)
+        next_input_index += count
 
     for in_msg in _validate_root_list(attributes.get(gen_ai.GEN_AI_INPUT_MESSAGES), InputMessages):
-        oi_attributes.update(
-            _flatten_message(in_msg, SpanAttributes.LLM_INPUT_MESSAGES, next_input_index)
+        msg_flat, count = _flatten_message(
+            in_msg, SpanAttributes.LLM_INPUT_MESSAGES, next_input_index
         )
-        next_input_index += 1
+        oi_attributes.update(msg_flat)
+        next_input_index += count
 
-    for index, out_msg in enumerate(
-        _validate_root_list(attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES), OutputMessages)
+    next_output_index = 0
+    for out_msg in _validate_root_list(
+        attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES), OutputMessages
     ):
-        oi_attributes.update(_flatten_message(out_msg, SpanAttributes.LLM_OUTPUT_MESSAGES, index))
+        msg_flat, count = _flatten_message(
+            out_msg, SpanAttributes.LLM_OUTPUT_MESSAGES, next_output_index
+        )
+        oi_attributes.update(msg_flat)
+        next_output_index += count
 
     return oi_attributes
 
@@ -446,11 +453,47 @@ def _build_invocation_parameters(
 def _flatten_message(
     message: ChatMessage | OutputMessage,
     prefix: str,
-    index: int,
-) -> dict[str, AttributeValue]:
+    start_index: int,
+) -> tuple[dict[str, AttributeValue], int]:
     flat: dict[str, AttributeValue] = {}
-    base = f"{prefix}.{index}"
 
+    text_parts: list[str] = []
+    content_parts: list[TextPart | UriPart | BlobPart | ReasoningPart] = []
+    tool_calls: list[ToolCallRequestPart] = []
+    tool_response_parts: list[ToolCallResponsePart] = []
+
+    for part in message.parts:
+        if isinstance(part, TextPart):
+            text_parts.append(part.content)
+            content_parts.append(part)
+        elif isinstance(part, (UriPart, BlobPart, ReasoningPart)):
+            content_parts.append(part)
+        elif isinstance(part, ToolCallRequestPart):
+            tool_calls.append(part)
+        elif isinstance(part, ToolCallResponsePart):
+            tool_response_parts.append(part)
+
+    if tool_response_parts:
+        finish_reason = None
+        if isinstance(message, OutputMessage):
+            finish_reason = _enum_value(message.finish_reason)
+
+        for offset, tool_response in enumerate(tool_response_parts):
+            base = f"{prefix}.{start_index + offset}"
+            flat[f"{base}.{MessageAttributes.MESSAGE_ROLE}"] = _enum_value(message.role)
+            if message.name:
+                flat[f"{base}.{MessageAttributes.MESSAGE_NAME}"] = message.name
+            if finish_reason:
+                flat[f"{base}.message.finish_reason"] = finish_reason
+            if tool_response.id:
+                flat[f"{base}.{MessageAttributes.MESSAGE_TOOL_CALL_ID}"] = tool_response.id
+            if tool_response.response is not None:
+                flat[f"{base}.{MessageAttributes.MESSAGE_CONTENT}"] = _as_string(
+                    tool_response.response
+                )
+        return flat, len(tool_response_parts)
+
+    base = f"{prefix}.{start_index}"
     flat[f"{base}.{MessageAttributes.MESSAGE_ROLE}"] = _enum_value(message.role)
 
     if message.name:
@@ -462,31 +505,6 @@ def _flatten_message(
         finish_reason = _enum_value(message.finish_reason)
         if finish_reason:
             flat[f"{base}.message.finish_reason"] = finish_reason
-
-    text_parts: list[str] = []
-    content_parts: list[TextPart | UriPart | BlobPart | ReasoningPart] = []
-    tool_calls: list[ToolCallRequestPart] = []
-    tool_response_part: Optional[ToolCallResponsePart] = None
-
-    for part in message.parts:
-        if isinstance(part, TextPart):
-            text_parts.append(part.content)
-            content_parts.append(part)
-        elif isinstance(part, (UriPart, BlobPart, ReasoningPart)):
-            content_parts.append(part)
-        elif isinstance(part, ToolCallRequestPart):
-            tool_calls.append(part)
-        elif isinstance(part, ToolCallResponsePart):
-            tool_response_part = part
-
-    if tool_response_part is not None:
-        if tool_response_part.id:
-            flat[f"{base}.{MessageAttributes.MESSAGE_TOOL_CALL_ID}"] = tool_response_part.id
-        if tool_response_part.response is not None:
-            flat[f"{base}.{MessageAttributes.MESSAGE_CONTENT}"] = _as_string(
-                tool_response_part.response
-            )
-        return flat
 
     has_non_text_content = any(not isinstance(part, TextPart) for part in content_parts)
 
@@ -526,7 +544,7 @@ def _flatten_message(
                 _as_string(tool_call.arguments)
             )
 
-    return flat
+    return flat, 1
 
 
 def _image_url_from_part(part: UriPart | BlobPart) -> Optional[str]:

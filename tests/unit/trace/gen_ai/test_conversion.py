@@ -587,6 +587,86 @@ def test_tool_call_response_part_overrides_content() -> None:
     assert not any(MessageAttributes.MESSAGE_TOOL_CALLS in k for k in out)
 
 
+def test_multiple_tool_call_response_parts_split_into_individual_messages() -> None:
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "type": "tool_call_response",
+                            "id": "call_a",
+                            "response": "Paris: 18C",
+                        },
+                        {
+                            "type": "tool_call_response",
+                            "id": "call_b",
+                            "response": "Berlin: 12C",
+                        },
+                    ],
+                }
+            ]
+        )
+    )
+    base0 = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    base1 = f"{SpanAttributes.LLM_INPUT_MESSAGES}.1"
+    assert out[f"{base0}.{MessageAttributes.MESSAGE_ROLE}"] == "user"
+    assert out[f"{base0}.{MessageAttributes.MESSAGE_TOOL_CALL_ID}"] == "call_a"
+    assert out[f"{base0}.{MessageAttributes.MESSAGE_CONTENT}"] == "Paris: 18C"
+
+    assert out[f"{base1}.{MessageAttributes.MESSAGE_ROLE}"] == "user"
+    assert out[f"{base1}.{MessageAttributes.MESSAGE_TOOL_CALL_ID}"] == "call_b"
+    assert out[f"{base1}.{MessageAttributes.MESSAGE_CONTENT}"] == "Berlin: 12C"
+
+
+def test_multiple_tool_call_response_parts_preserves_subsequent_message_indices() -> None:
+    out = get_openinference_message_attributes(
+        _input_messages(
+            [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"type": "text", "content": "Querying weather"},
+                    ],
+                },
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "type": "tool_call_response",
+                            "id": "call_a",
+                            "response": "Paris: 18C",
+                        },
+                        {
+                            "type": "tool_call_response",
+                            "id": "call_b",
+                            "response": "Berlin: 12C",
+                        },
+                    ],
+                },
+                {
+                    "role": "user",
+                    "parts": [
+                        {"type": "text", "content": "What about Tokyo?"},
+                    ],
+                },
+            ]
+        )
+    )
+    base0 = f"{SpanAttributes.LLM_INPUT_MESSAGES}.0"
+    base1 = f"{SpanAttributes.LLM_INPUT_MESSAGES}.1"
+    base2 = f"{SpanAttributes.LLM_INPUT_MESSAGES}.2"
+    base3 = f"{SpanAttributes.LLM_INPUT_MESSAGES}.3"
+
+    assert out[f"{base0}.{MessageAttributes.MESSAGE_CONTENT}"] == "Querying weather"
+    assert out[f"{base1}.{MessageAttributes.MESSAGE_TOOL_CALL_ID}"] == "call_a"
+    assert out[f"{base1}.{MessageAttributes.MESSAGE_CONTENT}"] == "Paris: 18C"
+    assert out[f"{base2}.{MessageAttributes.MESSAGE_TOOL_CALL_ID}"] == "call_b"
+    assert out[f"{base2}.{MessageAttributes.MESSAGE_CONTENT}"] == "Berlin: 12C"
+    assert out[f"{base3}.{MessageAttributes.MESSAGE_CONTENT}"] == "What about Tokyo?"
+
+
 def test_message_name_when_present() -> None:
     out = get_openinference_message_attributes(
         _input_messages(
