@@ -1194,6 +1194,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/cost_summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get token counts and costs for a project
+         * @description Return the project's prompt, completion, and total token counts and costs (in USD), the same totals the project page shows. Token counts sum the project's LLM spans that start within the time range; costs sum the span costs of traces that start within it.
+         */
+        get: operations["getProjectCostSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_identifier}/retention": {
         parameters: {
             query?: never;
@@ -3578,6 +3598,10 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetProjectCostSummaryResponseBody */
+        GetProjectCostSummaryResponseBody: {
+            data: components["schemas"]["ProjectCostSummary"];
+        };
         /** GetProjectResponseBody */
         GetProjectResponseBody: {
             data: components["schemas"]["Project"];
@@ -4524,6 +4548,39 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /** ProjectCostSummary */
+        ProjectCostSummary: {
+            /**
+             * Token Count Prompt
+             * @description Number of prompt tokens
+             */
+            token_count_prompt: number;
+            /**
+             * Token Count Completion
+             * @description Number of completion tokens
+             */
+            token_count_completion: number;
+            /**
+             * Token Count Total
+             * @description Total number of tokens
+             */
+            token_count_total: number;
+            /**
+             * Cost Usd Prompt
+             * @description Cost of the prompt tokens in USD
+             */
+            cost_usd_prompt: number;
+            /**
+             * Cost Usd Completion
+             * @description Cost of the completion tokens in USD
+             */
+            cost_usd_completion: number;
+            /**
+             * Cost Usd Total
+             * @description Total cost in USD
+             */
+            cost_usd_total: number;
         };
         /** ProjectRetentionPolicyData */
         ProjectRetentionPolicyData: {
@@ -11773,6 +11830,61 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getProjectCostSummary: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound on start time */
+                start_time?: string | null;
+                /** @description Exclusive upper bound on start time */
+                end_time?: string | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The project's token count and cost summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetProjectCostSummaryResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {
