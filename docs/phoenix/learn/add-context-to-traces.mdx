@@ -1,0 +1,209 @@
+---
+title: "Add an agent span"
+description: "Add a named agent span to your Wonder Toys trace so you can review the shopper's request, complete answer, and the calls behind it together."
+---
+
+In [Capture your first agent run](/docs/phoenix/learn/capture-first-run), you recorded the agent's model and tool calls. A model call might ask for a product search rather than give the shopper an answer. Looking at that call alone won't show you the complete reply.
+
+Let's add a **Wonder Toys** agent span to record the shopper's request and complete answer together. It will sit above LangGraph and its existing `agent` and `tools` steps. This is [manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#agents): we choose what the new span records.
+
+<Frame caption="Example LangGraph trees before and after adding the Wonder Toys span. Other framework spans and repeated calls are omitted.">
+  <div className="hidden sm:block">
+    <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/context-agent-spans-light-38295c439826.svg" alt="Before: LangGraph contains agent and tools steps with model and tool calls. After: a new Wonder Toys AGENT span holds the request and answer above that same tree." />
+    <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/context-agent-spans-dark-59e55c3fb91d.svg" alt="Before: LangGraph contains agent and tools steps with model and tool calls. After: a new Wonder Toys AGENT span holds the request and answer above that same tree." />
+  </div>
+  <div className="block sm:hidden">
+    <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/context-agent-spans-light-mobile-2292fbd1b841.svg" alt="Before: LangGraph contains agent and tools steps with model and tool calls. After: a new Wonder Toys AGENT span holds the request and answer above that same tree." />
+    <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/context-agent-spans-dark-mobile-ef331b440ce9.svg" alt="Before: LangGraph contains agent and tools steps with model and tool calls. After: a new Wonder Toys AGENT span holds the request and answer above that same tree." />
+  </div>
+</Frame>
+
+## Before you start
+
+Continue with your setup from the previous lesson:
+
+- Keep the same Phoenix instance running.
+- Work in the same `no-observability/langchain-py` folder.
+- Use the `_tracer_provider` you created in `backend/tracing.py`.
+
+## Step 1: Add the agent span
+
+For a function that returns an answer, Phoenix's [`@tracer.agent` decorator](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#agents) creates an **AGENT** span around the function call:
+
+```python title="Pattern for an agent that returns an answer" wrap
+tracer = _tracer_provider.get_tracer(__name__)
+
+@tracer.agent(name="My agent")
+def run_agent(request: str) -> str:
+    return existing_agent(request)
+```
+
+Here, `existing_agent(request)` represents your app's existing call that returns the answer. The decorator records:
+
+- **Input:** the function's argument, `request`.
+- **Output:** the answer the function returns.
+- **Child spans:** the instrumented model and tool calls made while the function runs.
+
+Wonder Toys streams its answer in pieces using an async generator. For this streaming function, we'll use a **context manager**, a `with` block that keeps the span open until the reply finishes. We'll record the request when it starts and the collected answer when it ends.
+
+Choose either approach below to make these edits in Wonder Toys:
+
+<Tabs>
+  <Tab title="Add the code yourself">
+    Now apply the pattern to Wonder Toys. We'll reuse its tracing setup, record the streamed reply, and make the new span easy to find in Phoenix. Complete all three sections below.
+
+    <AccordionGroup>
+      <Accordion title="1. Reuse the tracing provider">
+        The provider from the previous lesson already sends traces to Phoenix. We'll get a tracer from it to create our own span. Add these imports and the tracer below the imports in [`backend/agent.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/backend/agent.py):
+
+    ```python
+    from backend.tracing import _tracer_provider
+    from opentelemetry.trace import StatusCode
+
+    _tracer = _tracer_provider.get_tracer(__name__)
+    ```
+      </Accordion>
+      <Accordion title="2. Record the request and answer">
+        Wonder Toys sends its answer in pieces. The updated function records those pieces while still sending them to the chat:
+
+        - `question` holds the shopper's latest message, which becomes the span's **Input**.
+        - The `with` block stays open while the agent runs, so its model and tool calls belong to the new span.
+        - `response_parts` collects the text. Once the reply is complete, `set_output` records it as **Output**.
+
+        Review the highlighted tracing additions, then replace the existing `stream_agent` function with this version:
+
+    ```python title="stream_agent" highlight={15,16,17,18,44,48,54,55}
+    async def stream_agent(messages: list[dict], user_id: str) -> AsyncIterator[str]:
+        agent = get_agent()
+        lc_messages = _lc_messages(messages, user_id)
+
+        had_text_before = False
+        in_tool_call = False
+
+        question = next(
+            (message.get("content", "") for message in reversed(messages)
+             if message.get("role") == "user"),
+            "",
+        )
+        response_parts = []
+
+        with _tracer.start_as_current_span(
+            "Wonder Toys", openinference_span_kind="agent"
+        ) as root_span:
+            root_span.set_input(question)
+            async for event in agent.astream_events(
+                {"messages": lc_messages},
+                version="v2",
+                config={"recursion_limit": 25},
+            ):
+                kind = event["event"]
+
+                if kind == "on_chat_model_stream":
+                    chunk = event["data"]["chunk"]
+                    # Check for tool call chunks
+                    if hasattr(chunk, "tool_call_chunks") and chunk.tool_call_chunks:
+                        in_tool_call = True
+                        continue
+
+                    # Check for text content
+                    text = ""
+                    if isinstance(chunk.content, str):
+                        text = chunk.content
+                    elif isinstance(chunk.content, list):
+                        for block in chunk.content:
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                text += block.get("text", "")
+
+                    if text:
+                        if in_tool_call and had_text_before:
+                            response_parts.append("\n\n")
+                            yield f"data: {json.dumps({'text': chr(10) + chr(10)})}\n\n"
+                        in_tool_call = False
+                        had_text_before = True
+                        response_parts.append(text)
+                        yield f"data: {json.dumps({'text': text})}\n\n"
+
+                elif kind == "on_tool_start":
+                    in_tool_call = True
+
+            root_span.set_output("".join(response_parts))
+            root_span.set_status(StatusCode.OK)
+
+        yield "data: [DONE]\n\n"
+    ```
+      </Accordion>
+      <Accordion title="3. Show the agent span at the top level">
+        For this exercise, replace `app = FastAPI(...)` in [`backend/main.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/backend/main.py) with the code below. This turns off [FastAPI's HTTP tracing](https://fastapi.tiangolo.com/advanced/opentelemetry/) so **Wonder Toys** appears at the top of the trace.
+
+    ```python
+    app = FastAPI(
+        title="Wonder Toys LangChain Backend",
+        telemetry={"tracing": False},
+    )
+    ```
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+  <Tab title="Use a coding assistant">
+    If your assistant doesn't have the [Phoenix tracing skill](/docs/phoenix/integrations/developer-tools/skills), follow the [coding-agent setup guide](/docs/phoenix/integrations/developer-tools/coding-agents) to install it.
+
+    Open `no-observability/langchain-py` in your assistant and paste this prompt:
+
+    ```text wrap
+    Use the Phoenix tracing skill to extend the tracing in this Wonder Toys app.
+    First inspect backend/tracing.py, backend/agent.py, and backend/main.py, then propose the edits before changing code.
+
+    After I approve the plan:
+    - Reuse _tracer_provider from backend/tracing.py.
+    - Wrap the stream_agent event loop in a span named "Wonder Toys" with kind AGENT.
+    - Record the latest shopper message as input and collect the streamed answer as output.
+    - Keep the span open until the agent finishes streaming.
+    - Preserve the chat's streaming behavior, model, prompt, and tools.
+    - For this exercise, set telemetry={"tracing": False} on the existing FastAPI app so Wonder Toys is the top-level span.
+    - Show me the changes.
+    ```
+
+    Before continuing, check that:
+
+    - The assistant reused your existing tracing provider.
+    - The new span is named **Wonder Toys**, with kind **AGENT**.
+    - Its input records the shopper's message and its output collects the streamed answer.
+  </Tab>
+</Tabs>
+
+## Step 2: Send a request
+
+With the edits in place, let's run the app and record a new request.
+
+- **Restart the app.** Stop it in its terminal, then run this from `no-observability/langchain-py` to load your changes:
+
+  ```bash
+  UV_PYTHON=3.11 npm run dev
+  ```
+
+- **Send a request.** When the app is ready, you'll see its address next to **Local** in your terminal. Open that address in your browser and send:
+
+  ```text wrap
+  Find dinosaur toys for a 6-year-old under $25. Recommend at most 3 options.
+  ```
+
+Wait for the reply, then return to Phoenix to inspect this new request.
+
+## Step 3: Inspect the result
+
+Your new trace should now have a **Wonder Toys** span above **LangGraph**. In Phoenix:
+
+- Open **wonder-toys → Traces** and select the latest **Wonder Toys** request.
+- Select the **Wonder Toys** span and check that its kind is **AGENT**.
+- Under **Info**, compare **Input** with the shopper's message and **Output** with the answer in the chat.
+- Expand the tree to find the model and tool spans underneath it.
+
+<Frame caption="Select the Wonder Toys agent span to read the request and answer together under Info → Input and Output.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-first-trace.png" alt="Phoenix trace with the Wonder Toys agent span selected on the left and the shopper's request and answer visible under Input and Output on the right." />
+</Frame>
+
+You've completed this lesson when the **Wonder Toys** span shows the request and answer, with the recorded calls beneath it. Status **OK** means execution completed; it doesn't tell you whether the answer was correct.
+
+## Next: Understand how the agent reached its answer
+
+You can now read the request and answer together. In [Read model, retrieval, and tool steps](/docs/phoenix/learn/read-agent-run), we'll follow the calls underneath them to check how the agent used the information it retrieved.

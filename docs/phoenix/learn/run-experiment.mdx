@@ -1,0 +1,113 @@
+---
+title: "Run a Phoenix dataset experiment"
+description: "Run the original and revised agent on the same shopping requests and record their answers and evaluation results."
+---
+
+{/* video: TODO */}
+
+In [Playground](/docs/phoenix/learn/playground-evals), you tried a budget instruction on one model call. Now you'll check whether it helps the agent handle other requests too.
+
+An [experiment](/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments) lets you run a version of your application on saved requests and keep its answers and evaluation results together. You'll run one for each version of Wonder Toys:
+
+- The original [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone) agent.
+- The same agent with your added budget instruction.
+
+Both versions will answer the same requests, and the same budget judge will check their answers. You'll then have the results you need to see where your instruction helped and where it didn't.
+
+<Frame>
+  <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-experiment-light-f35793ccd940.svg" alt="Run the same shopping dataset through the baseline and candidate agents, then apply the same budget judge to their answers." />
+  <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-experiment-dark-5dcf0928db08.svg" alt="Run the same shopping dataset through the baseline and candidate agents, then apply the same budget judge to their answers." />
+</Frame>
+
+## Before you start
+
+Use your Wonder Toys checkout with Python 3.11 and `uv`. Before running the commands, have these ready:
+
+- Phoenix and Chroma from [Capture your first agent run](/docs/phoenix/learn/capture-first-run), both running. Chroma is the database Wonder Toys uses for product searches.
+- Your saved shopping requests in the `wonder-toys-shopping` dataset from [Turn failures into representative cases](/docs/phoenix/learn/build-test-cases).
+- The rubric from [Write and validate an LLM judge](/docs/phoenix/learn/llm-judge) and the instruction you saved in [Playground](/docs/phoenix/learn/playground-evals).
+
+The commands read the [Anthropic API key you configured earlier](/docs/phoenix/learn/capture-first-run#step-2-set-up-wonder-toys) from `phoenix/langchain-py/.env.local`. They make model API calls for both the agent and judge.
+
+Use product-search requests that make sense without earlier messages, because every run starts a new conversation. For this exercise, leave out requests to buy or cancel orders.
+
+## Step 1: Plan the comparison
+
+To test both agent versions on the same requests, the experiment uses:
+
+- **[Dataset](/docs/phoenix/datasets-and-experiments/concepts-datasets#datasets):** A collection of test cases. Here, each case contains a shopping request you'll send to both versions.
+- **[Task](/docs/phoenix/datasets-and-experiments/how-to-experiments/running-experiments#run-experiments-with-the-sdk):** The function that runs the application on one case. Here, it calls Wonder Toys, lets the agent use its tools, and returns the final answer.
+- **[Evaluator](/docs/phoenix/get-started/get-started-evaluations):** A check of the result. Here, your budget judge checks whether each recommendation respects the shopper's limit.
+
+<Frame caption="The input column holds the shopping requests both agent versions will answer. The saved output column describes expected behavior.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-experiment-inputs-de500960d9f7.png" alt="Phoenix dataset in light mode showing three saved shopping requests with budgets under 25, 1, and 35 dollars." />
+</Frame>
+
+The [`run_experiment.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/run_experiment.py) script already connects these parts. You'll run it twice:
+
+- **`baseline`:** The agent's original prompt.
+- **`budget-rule`:** The original prompt plus your instruction from [`budget-rule.txt`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/prompts/budget-rule.txt).
+
+Keep the model, tools, dataset version, and budget judge the same for both runs so you can assess the prompt change.
+
+## Step 2: Run the original version
+
+Start with the original agent. From the Wonder Toys repository root, run:
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  python -m academy.evaluations.run_experiment \
+  --variant baseline --repetitions 2 \
+  --env-file phoenix/langchain-py/.env.local \
+  --phoenix-url http://localhost:6006
+```
+
+Use the addresses from your setup:
+
+- Replace `http://localhost:6006` if Phoenix runs at a different address.
+- If Chroma isn't at `http://localhost:8000`, add `--chroma-url YOUR_CHROMA_URL`.
+
+The script checks that the product collection is available before starting.
+
+With 3 cases and `--repetitions 2`, you get 6 agent runs. If your dataset contains more cases, the count increases. Repeating a case helps you see whether the agent responds consistently.
+
+## Step 3: Run the revised version on the same cases
+
+Now run the agent with your added instruction:
+
+- In the first command's output, find the line starting with **Dataset version:**.
+- Copy the ID after that label and use it in place of `YOUR_DATASET_VERSION` below.
+- Run the command with the same Phoenix and Chroma addresses as before.
+
+```bash
+uv run --python 3.11 \
+  --with-requirements phoenix/langchain-py/backend/requirements.txt \
+  python -m academy.evaluations.run_experiment \
+  --variant budget-rule --repetitions 2 \
+  --dataset-version YOUR_DATASET_VERSION \
+  --env-file phoenix/langchain-py/.env.local \
+  --phoenix-url http://localhost:6006
+```
+
+The dataset version keeps both experiments on the same cases, even if someone edits the dataset between runs.
+
+## Step 4: Open the recorded experiments
+
+Once both commands finish, open their results in Phoenix:
+
+- Follow the experiment link printed by either command, or open **Datasets & Experiments → wonder-toys-shopping → Experiments**.
+- Find `wonder-toys-baseline` and `wonder-toys-budget-rule`.
+- Check that both have the expected number of runs and that the commands report `Task errors: 0; evaluation errors: 0`.
+
+<Frame caption="Both experiments use the same dataset version. Each contains the agent answers, budget judgments, and linked traces.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/academy-shopping-experiments-3e25d0ea12b0.png" alt="Phoenix listing the baseline and budget-rule experiments for the Wonder Toys shopping dataset." />
+</Frame>
+
+When checking results, distinguish these outcomes:
+
+- **Execution error:** An agent or evaluator call didn't complete normally.
+- **`fail`:** The judge decided that a completed answer didn't meet the budget requirement.
+- **`needs_review`:** The judge couldn't decide; the answer remains unscored.
+
+Once both versions have complete results for the same dataset version, you're ready to compare them. Continue to [Compare results and agent steps](/docs/phoenix/learn/compare-experiments) to inspect the answers and traces, then decide what improved and what still needs attention.
