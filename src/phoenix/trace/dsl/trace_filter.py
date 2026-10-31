@@ -7,7 +7,7 @@ from itertools import count
 from types import MappingProxyType
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, distinct, func, literal, not_, select
+from sqlalchemy import and_, case, distinct, func, literal, not_, null, select
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.sql.expression import Select
 from sqlalchemy.sql.selectable import ScalarSelect
@@ -241,16 +241,19 @@ def _span_cost_scalar(element: typing.Any, member: str) -> typing.Any:
     question, so both coalesce to 0 — matching the top-level cost names.
     """
     span_cost = aliased(models.SpanCost)
-    # Assumes at most one cost row per span, as the top-level cost names do; enforcing that
-    # is tracked separately.
+    # `span_costs.span_rowid` is not unique, so the rows are summed, as the top-level cost
+    # names do. A bare scalar subquery that matches two rows is an error on PostgreSQL.
     #
-    # The coalesce wraps the subquery rather than the column: a span with no cost row yields
-    # no rows at all, and a scalar subquery over an empty result is NULL, which a coalesce
-    # placed inside it would never see. Wrapping it turns both an absent row and a
-    # recorded-but-null column into 0.
+    # Auto-correlation only reaches the immediately enclosing SELECT. When `element` belongs
+    # to an outer comprehension (`span.total_cost` read inside `span.children`), the subquery
+    # would add that alias to its own FROM list and stop correlating, so correlate explicitly.
+    #
+    # The coalesce wraps the subquery rather than the column: SUM over no rows is NULL, and
+    # so is SUM over recorded-but-null columns. Wrapping it turns both into 0.
     return func.coalesce(
-        select(getattr(span_cost, member))
+        select(func.sum(getattr(span_cost, member)))
         .where(span_cost.span_rowid == element.id)
+        .correlate(element)
         .scalar_subquery(),
         0,
     )
@@ -457,6 +460,18 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.llm_token_count_total": (
             "Prompt plus completion tokens recorded on a span in the trace."
         ),
+        "spans.total_cost": (
+            "Total cost of a span in the trace; 0 when it has no cost row. The bare total_cost "
+            "is the whole trace's total."
+        ),
+        "spans.prompt_cost": (
+            "Prompt cost of a span in the trace; 0 when it has no cost row. The bare prompt_cost "
+            "is the whole trace's total."
+        ),
+        "spans.completion_cost": (
+            "Completion cost of a span in the trace; 0 when it has no cost row. The bare "
+            "completion_cost is the whole trace's total."
+        ),
         "spans.children": ("A span's children in the trace: spans whose parent edge points to it."),
         "spans.siblings": (
             "A span's siblings in the trace: other spans with the same non-null parent edge."
@@ -520,6 +535,18 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.parent_span.llm_token_count_total": (
             "Total tokens recorded on a span's direct parent in the trace; missing when no parent "
             "row is stored."
+        ),
+        "spans.parent_span.total_cost": (
+            "Total cost of a span's direct parent in the trace; 0 when the parent has no cost "
+            "row, missing when no parent row is stored."
+        ),
+        "spans.parent_span.prompt_cost": (
+            "Prompt cost of a span's direct parent in the trace; 0 when the parent has no cost "
+            "row, missing when no parent row is stored."
+        ),
+        "spans.parent_span.completion_cost": (
+            "Completion cost of a span's direct parent in the trace; 0 when the parent has no "
+            "cost row, missing when no parent row is stored."
         ),
         "trace_annotations.name": "A trace annotation's name.",
         "trace_annotations.label": "A trace annotation's label; null when absent.",
@@ -590,17 +617,19 @@ def _comprehension_bindings(
         ancestors: tuple[_Scope, ...],
     ) -> typing.Any:
         scope = current if reference.scope_depth == 0 else ancestors[-reference.scope_depth]
-        source = scope.element
-        if reference.path[0] == "parent_span":
-            assert scope.parent is not None
-            source = scope.parent
-            if len(reference.path) == 1:
-                return source.id
-        return _element_column(
-            source,
-            reference.path[-1],
-            _ITERABLE_SPECS[reference.source_iterable],
-        )
+        iterable = _ITERABLE_SPECS[reference.source_iterable]
+        if reference.path[0] != "parent_span":
+            return _element_column(scope.element, reference.path[-1], iterable)
+        parent = scope.parent
+        assert parent is not None
+        if len(reference.path) == 1:
+            return parent.id
+        column = _element_column(parent, reference.path[-1], iterable)
+        if iterable.fields[reference.path[-1]].from_span_cost:
+            # The parent is outer-joined. With no parent row, its cost is missing like its other
+            # fields, not the 0 that a span with no cost row reads.
+            return case((parent.id.is_(None), null()), else_=column)
+        return column
 
     def element_scope(
         spec: ComprehensionSpec,

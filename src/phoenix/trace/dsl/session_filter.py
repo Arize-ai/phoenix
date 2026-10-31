@@ -265,16 +265,19 @@ def _span_cost_scalar(element: typing.Any, member: str) -> typing.Any:
     question, so both coalesce to 0 — matching the top-level cost names.
     """
     span_cost = aliased(models.SpanCost)
-    # Assumes at most one cost row per span, as the top-level cost names do; enforcing that
-    # is tracked separately.
+    # `span_costs.span_rowid` is not unique, so the rows are summed, as the top-level cost
+    # names do. A bare scalar subquery that matches two rows is an error on PostgreSQL.
     #
-    # The coalesce wraps the subquery rather than the column: a span with no cost row yields
-    # no rows at all, and a scalar subquery over an empty result is NULL, which a coalesce
-    # placed inside it would never see. Wrapping it turns both an absent row and a
-    # recorded-but-null column into 0.
+    # Auto-correlation only reaches the immediately enclosing SELECT. When `element` belongs
+    # to an outer comprehension (`span.total_cost` read inside `span.children`), the subquery
+    # would add that alias to its own FROM list and stop correlating, so correlate explicitly.
+    #
+    # The coalesce wraps the subquery rather than the column: SUM over no rows is NULL, and
+    # so is SUM over recorded-but-null columns. Wrapping it turns both into 0.
     return func.coalesce(
-        select(getattr(span_cost, member))
+        select(func.sum(getattr(span_cost, member)))
         .where(span_cost.span_rowid == element.id)
+        .correlate(element)
         .scalar_subquery(),
         0,
     )
@@ -509,6 +512,18 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         ),
         "spans.llm_token_count_total": (
             "Prompt plus completion tokens recorded on this span; 0 when it records none."
+        ),
+        "spans.total_cost": (
+            "Total cost of this span; 0 when it has no cost row. The bare total_cost is the "
+            "whole session's total."
+        ),
+        "spans.prompt_cost": (
+            "Prompt cost of this span; 0 when it has no cost row. The bare prompt_cost is the "
+            "whole session's total."
+        ),
+        "spans.completion_cost": (
+            "Completion cost of this span; 0 when it has no cost row. The bare completion_cost "
+            "is the whole session's total."
         ),
         "traces.start_time": "Trace start timestamp. Compare against ISO 8601 strings.",
         "traces.end_time": "Trace end timestamp. Compare against ISO 8601 strings.",

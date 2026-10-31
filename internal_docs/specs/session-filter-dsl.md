@@ -190,7 +190,7 @@ Six callables accept a comprehension: `any`, `all` (quantifiers) and `len`, `max
 | `span_cost_details` | `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` |
 
 `span.total_cost`, `span.prompt_cost`, and `span.completion_cost` are that span's own cost
-scalars, read from its `span_costs` row:
+scalars, summed over its `span_costs` rows as the session-level names are:
 
 ```
 any(span.total_cost > 0.1 for span in spans)
