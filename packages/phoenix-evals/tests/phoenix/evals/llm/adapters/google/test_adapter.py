@@ -129,6 +129,31 @@ def test_auto_falls_back_to_tool_calling_on_bad_request() -> None:
     assert client.models.calls == ["structured_output", "tool_calling"]
 
 
+def test_auto_propagates_rate_limit_from_tool_calling_fallback() -> None:
+    """A 429 on the fallback leg must still reach the RateLimiter, not become a ValueError."""
+    models = _RecordingModels(
+        _api_error(400, "unsupported response schema"), _api_error(429, "quota exhausted")
+    )
+    adapter = GoogleGenAIAdapter(_SyncClient(models), model=MODEL)
+
+    with pytest.raises(GoogleGenAIRateLimitError):
+        adapter.generate_object("classify this", SCHEMA, method=ObjectGenerationMethod.AUTO)
+    assert models.calls == ["structured_output", "tool_calling"]
+
+
+@pytest.mark.parametrize("code", [401, 403, 404, 408, 409, 422, 499])
+def test_auto_propagates_non_capability_client_errors(code: int) -> None:
+    """Only 400 is a capability mismatch; auth, not-found and timeout errors propagate."""
+    models = _RecordingModels(
+        _api_error(code, "not a schema rejection"), _tool_call_response("good")
+    )
+    adapter = GoogleGenAIAdapter(_SyncClient(models), model=MODEL)
+
+    with pytest.raises(gerrors.APIError):
+        adapter.generate_object("classify this", SCHEMA, method=ObjectGenerationMethod.AUTO)
+    assert models.calls == ["structured_output"]
+
+
 def test_auto_propagates_rate_limit_error_uncaught() -> None:
     """A 429 must reach the ``RateLimiter`` instead of being retried as a tool call."""
     models = _RecordingModels(
@@ -171,6 +196,19 @@ async def test_async_auto_propagates_rate_limit_error_uncaught() -> None:
             "classify this", SCHEMA, method=ObjectGenerationMethod.AUTO
         )
     assert models.calls == ["structured_output"]
+
+
+async def test_async_auto_propagates_rate_limit_from_tool_calling_fallback() -> None:
+    models = _AsyncRecordingModels(
+        _api_error(400, "unsupported response schema"), _api_error(429, "quota exhausted")
+    )
+    adapter = GoogleGenAIAdapter(_AsyncClient(models), model=MODEL)
+
+    with pytest.raises(GoogleGenAIRateLimitError):
+        await adapter.async_generate_object(
+            "classify this", SCHEMA, method=ObjectGenerationMethod.AUTO
+        )
+    assert models.calls == ["structured_output", "tool_calling"]
 
 
 async def test_async_auto_falls_back_to_tool_calling_on_bad_request() -> None:

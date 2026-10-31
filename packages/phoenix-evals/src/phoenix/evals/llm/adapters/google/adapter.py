@@ -217,6 +217,8 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 )
                 try:
                     return self._generate_with_tool_calling(prompt, schema, **kwargs)
+                except GoogleGenAIRateLimitError:
+                    raise
                 except Exception as tool_error:
                     raise ValueError(
                         f"Google GenAI model {self.client.model} failed with both structured "
@@ -259,6 +261,8 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 )
                 try:
                     return await self._async_generate_with_tool_calling(prompt, schema, **kwargs)
+                except GoogleGenAIRateLimitError:
+                    raise
                 except Exception as tool_error:
                     raise ValueError(
                         f"Google GenAI model {self.client.model} failed with both structured "
@@ -564,11 +568,12 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
 def _is_capability_mismatch(error: Exception) -> bool:
     """Whether the GenAI API rejected the request itself, so ``AUTO`` may retry it.
 
-    A 4xx means the structured-output request was not accepted, which is the only
-    signal ``AUTO`` mode falls back on. Rate limits (429) and server-side
-    failures are transient and must propagate instead: re-sending the same
-    request as a tool call would bypass the server-side schema enforcement of
-    the structured-output path and defeat the outer ``RateLimiter``.
+    Google reports an unsupported schema or response MIME type as 400
+    ``INVALID_ARGUMENT``, and that is the only signal ``AUTO`` mode falls back on.
+    Auth, not-found, timeout and server-side failures must propagate instead:
+    re-sending the same request as a tool call would bypass the server-side
+    schema enforcement of the structured-output path and defeat the outer
+    ``RateLimiter``.
     """
     try:
         from google.genai.errors import APIError
@@ -584,4 +589,4 @@ def _is_capability_mismatch(error: Exception) -> bool:
         code = int(code)
     except (TypeError, ValueError):
         return False
-    return 400 <= code < 500 and code != 429
+    return code == 400
