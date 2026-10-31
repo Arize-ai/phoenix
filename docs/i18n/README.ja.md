@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ja.md" />
 </p>
 
-Arize Phoenix は、実験・評価・トラブルシューティングのために設計された、Arize が提供するオープンソースの AI オブザーバビリティプラットフォームです。本番環境向けのマネージドワークフローには、Arize が [Arize AX](https://arize.com/products/ax/) も提供しています。Phoenix は以下の機能を備えています。
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix は、実験・評価・トラブルシューティングのために設計された、Arize が提供するオープンソースの AI オブザーバビリティプラットフォームです。本番環境向けのマネージドワークフローには、Arize が [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ja) も提供しています。Phoenix は以下の機能を備えています。
 
 - [**_トレーシング_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry ベースの計装により、LLM アプリケーションの実行時の動作をトレースします。
 - [**_評価_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - LLM を活用し、応答および検索（リトリーバル）の評価によってアプリケーションのパフォーマンスをベンチマークします。
@@ -61,10 +73,10 @@ Arize Phoenix は、実験・評価・トラブルシューティングのため
 
 Phoenix は特定のベンダーや言語に依存せず、人気のフレームワーク（[OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk)、[Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk)、[LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain)、[Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk)、[Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)、[CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai)、[LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex)、[DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)）や LLM プロバイダー（[OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai)、[Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic)、[Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai)、[Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing)、[AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock)、[OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter)、[LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) など）をすぐに利用できます。自動計装の詳細については、[OpenInference](https://github.com/Arize-ai/openinference) プロジェクトをご覧ください。
 
-Phoenix はローカルマシン、コンテナ化されたデプロイ環境、クラウドなど、ほぼあらゆる環境で動作します。各オプションの手順については [環境](https://arize.com/docs/phoenix/environments) を参照するか、すぐに [トレーシングのクイックスタート](https://arize.com/docs/phoenix/get-started/get-started-tracing) に進んでください。
+Phoenix はローカルマシン、コンテナ化されたデプロイ環境、クラウドなど、ほぼあらゆる環境で動作します。各オプションの手順については [環境](https://arize.com/docs/phoenix/self-hosting) を参照するか、すぐに [トレーシングのクイックスタート](https://arize.com/docs/phoenix/get-started/get-started-tracing) に進んでください。
 
 > [!NOTE]
-> Phoenix はオープンソースのセルフホスト型プラットフォームです。マネージドプラットフォームとしては、Arize が [Arize AX](https://arize.com/products/ax/) を提供しており、同じ OpenTelemetry/OpenInference の計装をどちらでも利用できます。[詳細な比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) をご覧ください。
+> Phoenix はオープンソースのセルフホスト型プラットフォームです。マネージドプラットフォームとしては、Arize が [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ja) を提供しており、同じ OpenTelemetry/OpenInference の計装をどちらでも利用できます。[詳細な比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) をご覧ください。
 
 ## 目次
 
@@ -275,9 +287,9 @@ Phoenix は、人間と AI コーディングエージェントのどちらか�
 
 | スキル                                              | 説明                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI を使って LLM アプリケーションをデバッグ — トレースの取得、エラーの分析、実験のレビュー、GraphQL API のクエリ |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix を使って AI/LLM アプリケーション向けの評価器を構築・実行                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM アプリケーションをトレースするための OpenInference セマンティック規約と計装                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI を使って LLM アプリケーションをデバッグ — トレースの取得、エラーの分析、実験のレビュー、GraphQL API のクエリ |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix を使って AI/LLM アプリケーション向けの評価器を構築・実行                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM アプリケーションをトレースするための OpenInference セマンティック規約と計装                                        |
 
 ## セキュリティとプライバシー
 
@@ -314,3 +326,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 このコードの一部は、1 件以上の米国特許によって保護されています。[IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) を参照してください。
 
 このソフトウェアは Elastic License 2.0 (ELv2) の条件の下でライセンスされています。[LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) を参照してください。
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

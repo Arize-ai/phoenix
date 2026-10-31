@@ -169,6 +169,8 @@ class Sessions:
             raise ValueError("Only one of project_id or project_name can be provided.")
         project_identifier = project_name if project_name else project_id
         assert project_identifier
+        if limit is not None and limit <= 0:
+            return []
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
         all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
@@ -362,7 +364,7 @@ class Sessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -377,7 +379,7 @@ class Sessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -392,7 +394,7 @@ class Sessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -406,7 +408,7 @@ class Sessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -421,7 +423,7 @@ class Sessions:
         Args:
             session_id (str): The ID of the session to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
                 Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
@@ -571,7 +573,7 @@ class Sessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[True],
     ) -> List[InsertedSessionAnnotation]: ...
 
@@ -581,7 +583,7 @@ class Sessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -591,7 +593,7 @@ class Sessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool,
     ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
@@ -600,7 +602,7 @@ class Sessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool = False,
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame.
@@ -622,10 +624,10 @@ class Sessions:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.
@@ -667,7 +669,11 @@ class Sessions:
 
         self._guard.require(ANNOTATE_SESSIONS)
         # Validate DataFrame first
-        _validate_session_annotations_dataframe(dataframe=dataframe)
+        _validate_session_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: List[InsertedSessionAnnotation] = []
@@ -756,6 +762,8 @@ class AsyncSessions:
             raise ValueError("Only one of project_id or project_name can be provided.")
         project_identifier = project_name if project_name else project_id
         assert project_identifier
+        if limit is not None and limit <= 0:
+            return []
         url = f"v1/projects/{encode_path_param(project_identifier)}/sessions"
         all_sessions: List[v1.SessionData] = []
         next_cursor: Optional[str] = None
@@ -952,7 +960,7 @@ class AsyncSessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -967,7 +975,7 @@ class AsyncSessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -982,7 +990,7 @@ class AsyncSessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -996,7 +1004,7 @@ class AsyncSessions:
         *,
         session_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -1011,7 +1019,7 @@ class AsyncSessions:
         Args:
             session_id (str): The ID of the session to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
                 Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
@@ -1161,7 +1169,7 @@ class AsyncSessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[True],
     ) -> List[InsertedSessionAnnotation]: ...
 
@@ -1171,7 +1179,7 @@ class AsyncSessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -1181,7 +1189,7 @@ class AsyncSessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool,
     ) -> Optional[List[InsertedSessionAnnotation]]: ...
 
@@ -1190,7 +1198,7 @@ class AsyncSessions:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = None,
         sync: bool = False,
     ) -> Optional[List[InsertedSessionAnnotation]]:
         """Log multiple session annotations from a pandas DataFrame asynchronously.
@@ -1212,10 +1220,10 @@ class AsyncSessions:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.
@@ -1257,7 +1265,11 @@ class AsyncSessions:
 
         await self._guard.require(ANNOTATE_SESSIONS)
         # Validate DataFrame first
-        _validate_session_annotations_dataframe(dataframe=dataframe)
+        _validate_session_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: List[InsertedSessionAnnotation] = []

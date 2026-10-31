@@ -11,7 +11,6 @@ import contextlib
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-import httpx
 import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
@@ -20,7 +19,12 @@ from pydantic import SecretStr
 
 from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import INTERNAL_PRINCIPAL_SCOPE_KEY, PhoenixUser
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOT, SHARED_SKILLS_ROOT, load_skills
+from phoenix.server.mcp.skills import (
+    MCP_SKILLS_ROOT,
+    PXI_PUBLIC_SKILLS_ROOT,
+    PXI_SKILLS_ROOT,
+    load_skills,
+)
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     MountPathNormalizer,
@@ -110,7 +114,7 @@ async def test_mcp_server_advertises_the_phoenix_version(
         assert client.server_info.version == phoenix_version
 
 
-async def test_the_mount_serves_the_shared_skills_and_not_the_agents_own(
+async def test_the_mount_serves_the_mcp_skills_and_not_the_agents_own(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
@@ -138,7 +142,7 @@ async def test_the_mount_serves_the_shared_skills_and_not_the_agents_own(
         tool_names = {tool.name for tool in await client.list_tools()}
 
     assert instructions is not None
-    for skill in load_skills((SHARED_SKILLS_ROOT,)):
+    for skill in load_skills((MCP_SKILLS_ROOT,)):
         assert f"<name>{skill.name}</name>" in instructions
     for skill in load_skills((PXI_SKILLS_ROOT,)):
         assert f"<name>{skill.name}</name>" not in instructions
@@ -161,8 +165,12 @@ async def test_the_agents_own_server_adds_the_pxi_skills(
 
     instructions = app.state.pxi_mcp_server.instructions
     assert "<name>phoenix-graphql</name>" in instructions
-    for skill in load_skills((SHARED_SKILLS_ROOT,)):
-        assert f"<name>{skill.name}</name>" in instructions
+    public = {skill.name for skill in load_skills((PXI_PUBLIC_SKILLS_ROOT,))}
+    for name in public:
+        assert f"<name>{name}</name>" in instructions
+    for skill in load_skills((MCP_SKILLS_ROOT,)):
+        if skill.name not in public:
+            assert f"<name>{skill.name}</name>" not in instructions
 
 
 async def test_fixture_app_does_not_generate_the_openapi_document(app: FastAPI) -> None:
@@ -657,8 +665,8 @@ class TestMcpCors:
             yield manager.app
 
     async def test_preflight_allows_any_origin(self, app_with_auth: ASGIApp) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.options(
             MCP_MOUNT_PATH,
@@ -679,8 +687,8 @@ class TestMcpCors:
     async def test_unauthenticated_challenge_is_readable_cross_origin(
         self, app_with_auth: ASGIApp
     ) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.post(
             f"{MCP_MOUNT_PATH}/",

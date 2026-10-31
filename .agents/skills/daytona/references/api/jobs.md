@@ -10,10 +10,10 @@ Returns a paginated list of jobs for the runner, optionally filtered by status.
 
 | Name | In | Type | Required | Description |
 |------|-----|------|----------|-------------|
-| `page` | query | number | No | Page number of the results |
-| `limit` | query | number | No | Maximum number of jobs to return (default: 100, max: 500) |
+| `page` | query | integer | No | Page number of the results |
+| `limit` | query | integer | No | Maximum number of jobs to return (default: 100, max: 500) |
 | `status` | query | string | No | Filter jobs by status |
-| `offset` | query | number | No | Number of jobs to skip for pagination (default: 0) |
+| `offset` | query | integer | No | Number of jobs to skip for pagination (default: 0) |
 
 ### Responses
 
@@ -33,8 +33,8 @@ Long poll endpoint for runners to fetch pending jobs. Returns immediately if job
 
 | Name | In | Type | Required | Description |
 |------|-----|------|----------|-------------|
-| `timeout` | query | number | No | Timeout in seconds for long polling (default: 30, max: 60) |
-| `limit` | query | number | No | Maximum number of jobs to return (default: 10, max: 100) |
+| `timeout` | query | integer | No | Timeout in seconds for long polling (default: 30, max: 60) |
+| `limit` | query | integer | No | Maximum number of jobs to return (default: 10, max: 100) |
 
 ### Responses
 

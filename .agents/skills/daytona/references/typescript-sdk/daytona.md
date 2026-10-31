@@ -413,6 +413,7 @@ Base parameters for creating a new Sandbox.
 - `domainAllowList?` _string_ - Comma-separated list of allowed domains for the Sandbox
 - `envVars?` _Record\<string, string\>_ - Optional environment variables to set in the Sandbox
 - `ephemeral?` _boolean_ - Whether the Sandbox should be ephemeral. If true, autoDeleteInterval will be set to 0.
+- `kvm?` _boolean_ - Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
 - `labels?` _Record\<string, string\>_ - Sandbox labels
 - `language?` _string_ - Programming language for direct code execution. Defaults to "python" if not specified.
 - `linkedSandbox?` _string_ - ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox.
@@ -442,6 +443,7 @@ Parameters for creating a new Sandbox.
 - `ephemeral?` _boolean_
 - `image` _string \| Image_ - Custom Docker image to use for the Sandbox. If an Image object is provided,
     the image will be dynamically built.
+- `kvm?` _boolean_
 - `labels?` _Record\<string, string\>_
 - `language?` _string_
 - `linkedSandbox?` _string_
@@ -471,6 +473,7 @@ Parameters for creating a new Sandbox from a snapshot.
 - `domainAllowList?` _string_
 - `envVars?` _Record\<string, string\>_
 - `ephemeral?` _boolean_
+- `kvm?` _boolean_
 - `labels?` _Record\<string, string\>_
 - `language?` _string_
 - `linkedSandbox?` _string_

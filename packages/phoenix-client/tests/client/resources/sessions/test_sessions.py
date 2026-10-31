@@ -2,6 +2,7 @@ import httpx
 import pandas as pd
 import pytest
 
+from phoenix.client import AsyncClient, Client
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
@@ -120,6 +121,15 @@ class TestSessionsList:
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         result = Sessions(client, Spans(client)).list(project_id="proj-id-123")
+        assert result == []
+
+    @pytest.mark.parametrize("limit", [0, -1])
+    def test_list_non_positive_limit_returns_empty_without_request(self, limit: int) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            raise AssertionError("no request should be made for a non-positive limit")
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = Sessions(client, Spans(client)).list(project_name="proj", limit=limit)
         assert result == []
 
 
@@ -264,6 +274,18 @@ class TestAsyncSessionsList:
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
         result = await AsyncSessions(client, AsyncSpans(client)).list(project_name="proj")
         assert len(result) == 2
+
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("limit", [0, -1])
+    async def test_list_non_positive_limit_returns_empty_without_request(self, limit: int) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            raise AssertionError("no request should be made for a non-positive limit")
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = await AsyncSessions(client, AsyncSpans(client)).list(
+            project_name="proj", limit=limit
+        )
+        assert result == []
 
 
 class TestAsyncGetSessionsDataframe:
@@ -437,3 +459,57 @@ class TestAsyncGetSessionTurns:
         assert turns[0].get("input") == {"value": "hi", "mime_type": "text/plain"}
         assert turns[0].get("output") == {"value": "bye", "mime_type": "text/plain"}
         assert turns[0].get("root_span") == span
+
+
+@pytest.mark.parametrize(
+    ("columns", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            r"DataFrame must contain columns: \{'annotator_kind'\}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+def test_log_session_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"session_id": ["session1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    with httpx.Client(transport=transport, base_url="http://test") as http_client:
+        client = Client(http_client=http_client)
+        with pytest.raises(ValueError, match=expected_message):
+            client.sessions.log_session_annotations_dataframe(dataframe=dataframe)
+
+
+@pytest.mark.parametrize(
+    ("columns", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            r"DataFrame must contain columns: \{'annotator_kind'\}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+async def test_async_log_session_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"session_id": ["session1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http_client:
+        client = AsyncClient(http_client=http_client)
+        with pytest.raises(ValueError, match=expected_message):
+            await client.sessions.log_session_annotations_dataframe(dataframe=dataframe)

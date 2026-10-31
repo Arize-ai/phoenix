@@ -23,9 +23,13 @@ logger = logging.getLogger(__name__)
 
 _SERVER_DIR = Path(__file__).resolve().parents[2]
 
-SHARED_SKILLS_ROOT = Path(__file__).resolve().parent
+# The public skills in the repository's skills/ folder that target the MCP server and
+# PXI are copied here by `make skills`; edit them there, not here.
+MCP_SKILLS_ROOT = Path(__file__).resolve().parent
+PXI_PUBLIC_SKILLS_ROOT = _SERVER_DIR / "agents" / "prompts" / "public_skills"
+# PXI's own skills, which no other surface loads.
 PXI_SKILLS_ROOT = _SERVER_DIR / "agents" / "prompts" / "skills"
-PXI_SKILLS_ROOTS: tuple[Path, ...] = (SHARED_SKILLS_ROOT, PXI_SKILLS_ROOT)
+PXI_SKILLS_ROOTS: tuple[Path, ...] = (PXI_PUBLIC_SKILLS_ROOT, PXI_SKILLS_ROOT)
 
 SKILL_TOOLS_TAG = "phoenix-mcp-skills"
 LOAD_SKILL_TOOL_NAME = "load_skill"
@@ -210,7 +214,11 @@ def _load_external_root(root: Path) -> Iterator[Skill]:
 
 
 def load_external_skills() -> tuple[Skill, ...]:
-    builtin_skills = {skill.name for skill in load_skills(PXI_SKILLS_ROOTS)}
+    builtin_skills = {
+        skill.name
+        for roots in ((MCP_SKILLS_ROOT,), PXI_SKILLS_ROOTS)
+        for skill in load_skills(roots)
+    }
     skills: dict[str, Skill] = {}
     for root in get_env_skills_paths():
         for skill in _load_external_root(root):
@@ -329,7 +337,8 @@ def _set_parameter_enums(tool: Tool, **values: Sequence[str]) -> Tool:
 
 
 __all__ = [
-    "SHARED_SKILLS_ROOT",
+    "MCP_SKILLS_ROOT",
+    "PXI_PUBLIC_SKILLS_ROOT",
     "PXI_SKILLS_ROOT",
     "PXI_SKILLS_ROOTS",
     "SKILL_TOOLS_TAG",

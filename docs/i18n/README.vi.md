@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.vi.md" />
 </p>
 
-Arize Phoenix là nền tảng quan sát AI mã nguồn mở của Arize, được thiết kế cho thử nghiệm, đánh giá và khắc phục sự cố. Đối với các quy trình vận hành production được quản lý, Arize còn cung cấp [Arize AX](https://arize.com/products/ax/). Phoenix cung cấp:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix là nền tảng quan sát AI mã nguồn mở của Arize, được thiết kế cho thử nghiệm, đánh giá và khắc phục sự cố. Đối với các quy trình vận hành production được quản lý, Arize còn cung cấp [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-vi). Phoenix cung cấp:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Theo dõi (trace) quá trình chạy của ứng dụng LLM bằng instrumentation dựa trên OpenTelemetry.
 - [**_Đánh giá (Evaluation)_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Tận dụng LLM để đo lường hiệu năng ứng dụng của bạn bằng các evals về phản hồi và truy xuất.
@@ -61,10 +73,10 @@ Arize Phoenix là nền tảng quan sát AI mã nguồn mở của Arize, đư�
 
 Phoenix không phụ thuộc vào nhà cung cấp hay ngôn ngữ, hỗ trợ sẵn các framework phổ biến ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) và các nhà cung cấp LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm), và nhiều hơn nữa). Để biết chi tiết về auto-instrumentation, hãy xem dự án [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix có thể chạy gần như ở bất cứ đâu, bao gồm máy cục bộ của bạn, môi trường triển khai container hoặc trên cloud. Xem [Môi trường](https://arize.com/docs/phoenix/environments) để được hướng dẫn chi tiết từng lựa chọn, hoặc chuyển thẳng tới [Hướng dẫn nhanh về Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix có thể chạy gần như ở bất cứ đâu, bao gồm máy cục bộ của bạn, môi trường triển khai container hoặc trên cloud. Xem [Môi trường](https://arize.com/docs/phoenix/self-hosting) để được hướng dẫn chi tiết từng lựa chọn, hoặc chuyển thẳng tới [Hướng dẫn nhanh về Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix là mã nguồn mở và tự lưu trữ (self-hosted). Nếu cần một nền tảng được quản lý, Arize cung cấp [Arize AX](https://arize.com/products/ax/) — cùng một instrumentation OpenTelemetry/OpenInference hoạt động với cả hai. Xem [bảng so sánh đầy đủ](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix là mã nguồn mở và tự lưu trữ (self-hosted). Nếu cần một nền tảng được quản lý, Arize cung cấp [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-vi) — cùng một instrumentation OpenTelemetry/OpenInference hoạt động với cả hai. Xem [bảng so sánh đầy đủ](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Mục lục
 
@@ -275,9 +287,9 @@ Xem [tài liệu về coding agent](https://arize.com/docs/phoenix/integrations/
 
 | Kỹ năng                                              | Mô tả                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Gỡ lỗi ứng dụng LLM bằng Phoenix CLI — lấy trace, phân tích lỗi, xem lại thử nghiệm và truy vấn GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Xây dựng và chạy evaluator cho ứng dụng AI/LLM bằng Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Quy ước ngữ nghĩa OpenInference và instrumentation để trace ứng dụng LLM                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Gỡ lỗi ứng dụng LLM bằng Phoenix CLI — lấy trace, phân tích lỗi, xem lại thử nghiệm và truy vấn GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Xây dựng và chạy evaluator cho ứng dụng AI/LLM bằng Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Quy ước ngữ nghĩa OpenInference và instrumentation để trace ứng dụng LLM                                        |
 
 ## Bảo mật & Quyền riêng tư
 
@@ -314,3 +326,15 @@ Bản quyền 2025 Arize AI, Inc. Bảo lưu mọi quyền.
 Một số phần của mã nguồn này được bảo hộ bởi một hoặc nhiều Bằng sáng chế Hoa Kỳ. Xem [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Phần mềm này được cấp phép theo các điều khoản của Elastic License 2.0 (ELv2). Xem [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

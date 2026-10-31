@@ -2,7 +2,7 @@
 name = "arize-phoenix-client"
 description = "LLM Observability"
 readme = "README.md"
-requires-python = ">=3.11, <3.15"
+requires-python = ">=3.11, <3.16"
 license = {text="Apache-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -19,10 +19,12 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
 ]
-version = "3.5.0"
+version = "3.6.0"
 dependencies = [
   "httpx",
+  "certifi>=2026.10.18",
   "tqdm",
   "typing-extensions",
   "openinference-semantic-conventions",
@@ -44,7 +46,28 @@ evals = [
   "arize-phoenix-evals",
 ]
 harbor = [
-  "harbor>=0.21.0; python_version >= '3.12'",
+  "harbor>=0.21.0; python_version >= '3.12' and python_version < '3.15'",  # transitive dep fastuuid lacks cp315 wheels and fails to build on 3.15 (pyo3 0.26)
+]
+
+[dependency-groups]
+dev = [
+  "anthropic>=1,<2",
+  "deepdiff==8.6.2",
+  "google-genai>=2.17.0",
+  "harbor>=0.21.0; python_version >= '3.12' and python_version < '3.15'",
+  "mypy==2.4.0",
+  "nest-asyncio",
+  "openai>=1.62.0",
+  "pandas",
+  "pandas-stubs",
+  "pyright[nodejs]",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-randomly",
+  "pytest-rerunfailures",
+  "pytest-timeout",
+  "pytest-xdist",
+  "uvloop; platform_system != 'Windows'",
 ]
 
 [project.entry-points.pytest11]
@@ -98,7 +121,6 @@ strict = true
 exclude = [
   "dist/",
   "examples",
-  "tests/canary",
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
@@ -110,8 +132,8 @@ module = ["harbor.*"]
 follow_untyped_imports = true
 ignore_missing_imports = true
 
-# Harbor requires Python 3.12. On the client's 3.11 CI jobs its types resolve to Any;
-# supported Python jobs install Harbor and check the concrete types above.
+# Harbor requires Python >=3.12 and <3.15. On the client's 3.11 and 3.15 CI jobs its types resolve
+# to Any; supported Python jobs install Harbor and check the concrete types above.
 [[tool.mypy.overrides]]
 module = ["phoenix.client.harbor.*", "src.phoenix.client.harbor.*", "tests.client.harbor.*"]
 allow_subclassing_any = true
@@ -124,7 +146,6 @@ reportUnusedFunction = false
 exclude = [
   "dist/",
   "examples",
-  "tests/canary/",
   "scripts/",
   "src/phoenix/client/helpers/sdk/",
   "**/.venv",

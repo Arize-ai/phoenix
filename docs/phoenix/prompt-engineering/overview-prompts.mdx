@@ -4,28 +4,29 @@ sidebarTitle: "Overview"
 ---
 
 <Frame caption="Use the playground to engineer the optimal prompt for your task">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif" />
+  <video controls autoPlay muted loop playsInline preload="metadata" aria-label="Comparing prompt configurations and responses in the Phoenix playground" width="100%">
+    <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/playground_3.mp4" type="video/mp4" />
+    Comparing prompt configurations and responses in the Phoenix playground
+  </video>
 </Frame>
 
-Prompt management allows you to create, store, and modify prompts for interacting with LLMs. By managing prompts systematically, you can improve reuse, consistency, and experiment with variations across different models and inputs.
+Prompt engineering in Phoenix helps you create, store, and change the prompts that your application sends to LLMs. When you manage prompts systematically, you can reuse them, keep them consistent, and test variations across different models and inputs.
 
-Unlike traditional software, AI applications are non-deterministic and depend on natural language to provide context and guide model output. The pieces of natural language and associated model parameters embedded in your program are known as “prompts.”
+AI applications are different from traditional software. They are non-deterministic, and they use natural language to give context and guide model output. A **prompt** is the natural language and the model parameters that your program contains.
 
-Optimizing your prompts is typically the highest-leverage way to improve the behavior of your application, but “prompt engineering” comes with its own set of challenges. You want to be confident that changes to your prompts have the intended effect and don’t introduce regressions.
+A better prompt is often the change with the highest leverage on the behavior of your application. But prompt changes have a risk: you must be confident that each change has the intended effect and does not cause regressions. Phoenix features help you test prompt changes before you deploy them.
 
-To get started, jump to [Get Started: Prompts](/docs/phoenix/get-started/get-started-evaluations).
+To get started, see [Get Started: Prompts](/docs/phoenix/get-started/get-started-evaluations).
 
 ## Prompt Engineering Features
 
-Phoenix offers a comprehensive suite of features to streamline your prompt engineering workflow.
+* [Prompt Management](/docs/phoenix/prompt-engineering/overview-prompts/prompt-management): Create, store, change, and deploy the prompts that your application sends to LLMs.
 
-* [Prompt Management](/docs/phoenix/prompt-engineering/overview-prompts/prompt-management) - Create, store, modify, and deploy prompts for interacting with LLMs
+* [Prompt Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground): Try different prompts, models, and invocation parameters, and track your progress with traces and experiments.
 
-* [Prompt Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground) - Play with prompts, models, invocation parameters and track your progress via tracing and experiments
+* [Span Replay](/docs/phoenix/prompt-engineering/overview-prompts/span-replay): Replay an LLM invocation from your application, such as an LLM step in a workflow or a router query. See if a change to the invocation gives a better outcome.
 
-* [Span Replay](/docs/phoenix/prompt-engineering/overview-prompts/span-replay) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
-
-* [Prompts in Code](/docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code) - Phoenix offers client SDKs to keep your prompts in sync across different applications and environments.
+* [Prompts in Code](/docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code): Use the Phoenix client SDKs to keep your prompts in sync across different applications and environments.
 
 ## Learn More
 

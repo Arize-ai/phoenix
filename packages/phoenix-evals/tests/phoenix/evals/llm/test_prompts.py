@@ -579,6 +579,14 @@ class TestPromptTemplate:
         assert copied.template_format == TemplateFormat.F_STRING
         assert copied.template == original.template
 
+    def test_prompt_template_copying_renders_with_format_override(self) -> None:
+        """Test that an overridden template_format is used for variables and rendering."""
+        original = PromptTemplate(template="Hello {name}", template_format=TemplateFormat.F_STRING)
+        copied = PromptTemplate(template=original, template_format=TemplateFormat.MUSTACHE)  # type: ignore[arg-type]
+
+        assert copied.variables == []
+        assert copied.render({"name": "Alice"})[0]["content"] == "Hello {name}"
+
     @pytest.mark.parametrize(
         "template_str,format_type,variables,expected",
         [

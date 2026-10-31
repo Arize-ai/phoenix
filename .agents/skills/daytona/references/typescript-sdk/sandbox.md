@@ -42,6 +42,7 @@ Represents a Daytona Sandbox.
 - `gpu` _number_ - Number of GPUs allocated to the Sandbox
 - `gpuType?` _GpuType_ - The GPU type assigned to the Sandbox
 - `id` _string_ - Unique identifier for the Sandbox
+- `kvm?` _boolean_ - Whether the sandbox exposes KVM (/dev/kvm) to its guest.
 - `labels` _Record\<string, string\>_ - Custom labels attached to the Sandbox
 - `lastActivityAt?` _string_ - When the Sandbox last had activity
 - `linkedSandboxId?` _string_ - ID of the Sandbox this Sandbox is linked to. When set, the Sandbox is co-located on the same runner as the linked Sandbox.

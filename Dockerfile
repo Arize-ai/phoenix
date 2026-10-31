@@ -26,7 +26,7 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian13:nonroot
 # Two stages build on this image, so it is pinned once: they must resolve to
 # the same digest or the build pulls twice. Keep the uv version equal to the
 # lower bound of [tool.uv] required-version in pyproject.toml.
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.12.19-python3.13-trixie-slim
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.5-python3.13-trixie-slim
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
 FROM node:24-slim AS frontend-builder
@@ -160,6 +160,8 @@ ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 ENV PATH="/usr/local/bin:/usr/bin:/bin:/phoenix/.venv/bin"
 ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
+# Bind all IPv4 and IPv6 interfaces (dual-stack) for HTTP, gRPC, and Prometheus.
+ENV PHOENIX_HOST=::
 # Expose the Phoenix port.
 EXPOSE 6006
 # Expose the Phoenix gRPC port.

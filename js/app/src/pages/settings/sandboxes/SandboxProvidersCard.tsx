@@ -34,9 +34,15 @@ import {
 export function SandboxProvidersCard({
   providers,
   onRefresh,
+  canManage,
 }: {
   providers: ProviderRow[];
   onRefresh: () => void;
+  /**
+   * Whether the viewer can modify providers. Non-admin members get a
+   * read-only view.
+   */
+  canManage: boolean;
 }) {
   return (
     <Card
@@ -93,6 +99,7 @@ export function SandboxProvidersCard({
                     <ProviderEnabledSwitch
                       provider={provider}
                       canEnable={canEnable}
+                      isReadOnly={!canManage}
                     />
                   ) : (
                     <StatusText
@@ -103,12 +110,14 @@ export function SandboxProvidersCard({
                   )}
                 </td>
                 <td>
-                  <Flex justifyContent="end">
-                    <ConfigureCredentialsButton
-                      backend={backend}
-                      onRefresh={onRefresh}
-                    />
-                  </Flex>
+                  {canManage ? (
+                    <Flex justifyContent="end">
+                      <ConfigureCredentialsButton
+                        backend={backend}
+                        onRefresh={onRefresh}
+                      />
+                    </Flex>
+                  ) : null}
                 </td>
               </tr>
             );
@@ -156,9 +165,11 @@ function ConfigureCredentialsButton({
 function ProviderEnabledSwitch({
   provider,
   canEnable,
+  isReadOnly,
 }: {
   provider: SandboxProvider;
   canEnable: boolean;
+  isReadOnly: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [commitUpdate, isSubmitting] =
@@ -179,6 +190,7 @@ function ProviderEnabledSwitch({
       <Switch
         isSelected={provider.enabled}
         isDisabled={!canEnable || isSubmitting}
+        isReadOnly={isReadOnly}
         onChange={(enabled) => {
           setError(null);
           commitUpdate({

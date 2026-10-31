@@ -16,7 +16,7 @@ permissions:
 
 env:
   ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  MANIFEST_PATH: src/phoenix/server/cost_tracking/model_cost_manifest.json
+  MANIFEST_PATH: src/phoenix/server/cost_tracking/manifests/v1.json
   PLAYGROUND_CLIENTS_PATH: src/phoenix/server/api/helpers/playground_clients.py
   PLAYGROUND_CLIENTS_TEST_PATH: tests/unit/server/api/helpers/test_playground_clients.py
   MANIFEST_TEST_PATH: tests/unit/server/cost_tracking/test_model_cost_manifest.py
@@ -49,6 +49,11 @@ jobs:
       # passed to the action below (so no write-scoped App token is minted via
       # OIDC). Publishing happens in the separate publish-pr job with a PAT.
       contents: read
+      # id-token: write lets the action exchange the GitHub OIDC token for a
+      # Claude API token (workload identity federation). It is job-wide, so
+      # every step can request OIDC tokens; passing github_token to the action
+      # is what stops it from minting a write-scoped Claude App token.
+      id-token: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -141,7 +146,10 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: fdrl_01FaSPpJwwwTkYQNr3nndkCN
+          anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
+          anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
+          anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
 
           # Hand the action the read-only workflow token instead of letting it
           # mint a write-scoped Claude App token via OIDC. Claude never writes
@@ -368,6 +376,14 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       # Fresh checkout: nothing from the audit job's working tree, .git/ or
       # virtualenv reaches the job that holds the publishing token, and no
       # repository code is executed here.
@@ -376,7 +392,7 @@ jobs:
           persist-credentials: false
 
       - name: Download catalog patch
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: model-catalog-patch
           path: ${{ runner.temp }}/catalog
@@ -403,7 +419,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
-          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          token: ${{ steps.factory-token.outputs.token }}
           commit-message: ${{ needs.sync-model-pricing.outputs.title }}
           title: ${{ needs.sync-model-pricing.outputs.title }}
           body-path: ${{ runner.temp }}/catalog/pr-body.md
@@ -420,7 +436,7 @@ jobs:
       - name: Enable auto-merge
         if: steps.cpr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.factory-token.outputs.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         # Lets a reviewer merge with a single approval; a failure here should
         # not fail the run since the PR itself was opened successfully.
@@ -428,6 +444,12 @@ jobs:
         # truncate the command mid-string.
         run: |
           gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --auto --squash || echo "::warning::Could not enable auto-merge on #$PR_NUMBER"
+      - name: Approve pull request
+        if: steps.cpr.outputs.pull-request-number != ''
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ steps.cpr.outputs.pull-request-number }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}
 
   slack-notification:
     name: Slack Notification

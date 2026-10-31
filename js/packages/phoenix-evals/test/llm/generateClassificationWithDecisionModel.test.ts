@@ -83,7 +83,6 @@ describe("generateClassification with a decision model", () => {
     expect(call.questions).toEqual({
       label: {
         type: "choice",
-        instructions: expect.any(String),
         criteria: { correct: null, incorrect: null },
       },
     });

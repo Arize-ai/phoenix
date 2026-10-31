@@ -24,11 +24,12 @@ jobs:
     if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
-      e2e: ${{ steps.filter.outputs.e2e }}
+      e2e: ${{ steps.filter.outputs.e2e == 'true' && steps.bookkeeping.outputs.only != 'true' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
@@ -79,6 +80,25 @@ jobs:
               - "js/tsconfig.base.json"
               - "js/tsconfig.base.esm.json"
               - ".github/workflows/playwright.yaml"
+      # Skip suites only when every changed path is a changelog or release
+      # manifest.
+      - name: Detect a bookkeeping-only change
+        id: bookkeeping
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        run: |
+          python3 - <<'PYTHON'
+          import os, re, subprocess
+          files = subprocess.check_output([
+              "git", "diff", "--no-renames", "--name-only", "-z", "HEAD^1", "HEAD"
+          ]).split(b"\0")[:-1]
+          allowed = rb"(?:\.release-please-manifest\.json|CHANGELOG\.md|packages/[^/]+/CHANGELOG\.md)"
+          only = bool(files) and all(re.fullmatch(allowed, path) for path in files)
+          print(f"Release bookkeeping only: {only}")
+          if only:
+              with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                  output.write("only=true\n")
+          PYTHON
 
 
   e2e-test:
@@ -97,7 +117,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        py: [3.14]
+        py: [3.15]
         # large runners have more disk space, which we need for our in-runner phoenix db
         os: [oss-4-core-runner] # re-add macos-latest-large once billing is set
     steps:
@@ -112,7 +132,7 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           cache-dependency-path: ./js/pnpm-lock.yaml
-          node-version: 24
+          node-version-file: .nvmrc
           cache: pnpm
       - name: Install dependencies
         working-directory: ./js
@@ -157,7 +177,7 @@ jobs:
       # same versions and surface them via the same env-var contract that
       # ensure_wasm_binary() / DenoAdapter consume.
       - name: Install Deno (TypeScript sandbox provider)
-        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.1.4
       - name: Pre-download CPython WASM binary
