@@ -22,7 +22,7 @@ Let's add a **Wonder Toys** agent span to record the shopper's request and compl
 
 Continue with your setup from the previous lesson:
 
-- Keep Phoenix running at `http://localhost:6006`.
+- Keep the same Phoenix instance running.
 - Work in the same `no-observability/langchain-py` folder.
 - Use the `_tracer_provider` you created in `backend/tracing.py`.
 
@@ -181,7 +181,7 @@ With the edits in place, let's run the app and record a new request.
   UV_PYTHON=3.11 npm run dev
   ```
 
-- **Send a request.** Once the app is ready, open `http://localhost:3000` and send:
+- **Send a request.** When the app is ready, you'll see its address next to **Local** in your terminal. Open that address in your browser and send:
 
   ```text wrap
   Find dinosaur toys for a 6-year-old under $25. Recommend at most 3 options.

@@ -19,13 +19,13 @@ For this walkthrough, we'll use the [LangChain Python version of Wonder Toys](/d
 
 ## Step 1: Start Phoenix
 
-Start [Phoenix locally](/docs/phoenix/self-hosting/deployment-options/terminal) in the first terminal so it can receive traces from your app:
+If Phoenix is already running, use that instance. Otherwise, start [Phoenix locally](/docs/phoenix/self-hosting/deployment-options/terminal) in the first terminal:
 
 ```bash
 uvx --python 3.11 arize-phoenix serve
 ```
 
-Open `http://localhost:6006` in your browser and leave the terminal running. If Phoenix is already running there, use that instance.
+Open the **Web UI** address shown in the terminal. Phoenix uses `http://localhost:6006` by default. Leave Phoenix running for the following steps.
 
 <span id="step-2-set-up-wonder-toys" />
 
@@ -51,6 +51,8 @@ CHROMA_URL=http://localhost:8000
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 PHOENIX_PROJECT_NAME=wonder-toys
 ```
+
+If your Phoenix address differs from the example, use it for `PHOENIX_COLLECTOR_ENDPOINT`.
 
 LangChain will record the model calls in Step 3. The [Anthropic setting](https://platform.claude.com/docs/en/manage-claude/opentelemetry/sdk) prevents its SDK from recording a second copy.
 
@@ -123,6 +125,8 @@ With the app configured, let's enable [**auto instrumentation**](/docs/phoenix/i
       --language python
     ```
 
+    Use your Phoenix address for `--endpoint` if it differs from the example.
+
     - Choose your assistant and follow the prompts to add tracing. Setup checks that a trace arrives and may send a test request using your model API key.
     - Ask it to keep registration in `backend/tracing.py`, with the provider named `_tracer_provider`.
     - Review its changes: check those names, confirm tracing starts before the agent, and verify the project is **wonder-toys**.
@@ -141,11 +145,15 @@ UV_PYTHON=3.11 npm run dev
 
 This command runs the [startup script](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/scripts/start.sh), which installs the Python dependencies and starts the app. On its first run, it also downloads the product-search model.
 
-Once startup finishes, open `http://localhost:3000` and send:
+When the app is ready, you'll see its address next to **Local** in your terminal. Open that address in your browser and send this request:
 
 ```text wrap
 Find dinosaur toys for a 6-year-old under $25. Recommend at most 3 options.
 ```
+
+<Frame caption="Enter the request in the chat box, then select Send.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/wonder-toys-request-ready-6ad848e2a282.png" alt="Wonder Toys in light mode with the dinosaur toy request entered in the chat box and the purple Send button beside it." />
+</Frame>
 
 Wait for the reply, then return to Phoenix. Keep both terminals running.
 
