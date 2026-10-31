@@ -7,6 +7,17 @@ description: "Use Phoenix sessions to review a conversation's traces together an
 
 In this lesson, you'll learn to use **sessions** in Phoenix to review the traces from one conversation together. You'll practice with [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone), a shopping assistant agent, and check whether its follow-up answers match earlier messages.
 
+<Frame caption="A shared session.id groups the traces. Each card lists example spans from one request.">
+  <div className="hidden sm:block">
+    <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-light-bcd36f27290f.svg" alt="A session with a shared session ID contains three traces, one for an initial request and one for each follow-up. Each trace has its own agent and model spans, with tool spans when tools are called." />
+    <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-dark-766241440f71.svg" alt="A session with a shared session ID contains three traces, one for an initial request and one for each follow-up. Each trace has its own agent and model spans, with tool spans when tools are called." />
+  </div>
+  <div className="block sm:hidden">
+    <img className="block dark:hidden" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-light-mobile-33d4d8914660.svg" alt="Three stacked traces belong to the same conversation session. Each trace contains its own spans for the agent, model calls, and any tool calls." />
+    <img className="hidden dark:block" src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/session-trace-spans-dark-mobile-7371f427a9e9.svg" alt="Three stacked traces belong to the same conversation session. Each trace contains its own spans for the agent, model calls, and any tool calls." />
+  </div>
+</Frame>
+
 ## Before you start
 
 Continue the chat from [Capture your first agent run](/docs/phoenix/learn/capture-first-run). Wonder Toys already sends the same `session.id` with the traces from that chat, so Phoenix groups them into a session.
@@ -93,4 +104,4 @@ Use your own trace to explain whether the follow-up answer matched the earlier m
 
 ## Next
 
-Now that you can inspect individual requests and conversations, review traces and feedback to find problems that recur across runs.
+Now that you can inspect individual requests and conversations, [review traces and feedback](/docs/phoenix/learn/find-failures) to find problems that recur across runs.
