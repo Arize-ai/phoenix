@@ -153,24 +153,41 @@ def _are_sdks_compatible(
 _CREDENTIAL_CHECK_MODEL = "test-credential-check"
 
 
-def _names_model(body: Any, model: str) -> bool:
-    """Whether a JSON error body mentions ``model``, so it rejected that model by name."""
-    if isinstance(body, str):
-        return model in body
-    if isinstance(body, Mapping):
-        return any(_names_model(value, model) for value in body.values())
-    if isinstance(body, (list, tuple)):
-        return any(_names_model(value, model) for value in body)
-    return False
+def _rejects_model(decision_sdk: models.DecisionSDK, body: Any, model: str) -> bool:
+    """Whether a JSON error body is the client's own rejection of ``model``.
+
+    Only the client's error field counts, so a body that merely echoes the request (a
+    validation error, a router's "no route" message) doesn't pass:
+
+    - OpenAI Decisions: ``{"error": {"code": "model_not_found"}}``, or an
+      ``error.message`` that names the model.
+    - System One: a ``detail`` string, or ``detail.message``, that names the model.
+    """
+    if not isinstance(body, Mapping):
+        return False
+    if decision_sdk == "openai":
+        error = body.get("error")
+        if not isinstance(error, Mapping):
+            return False
+        message = error.get("message")
+        return error.get("code") == "model_not_found" or (
+            isinstance(message, str) and model in message
+        )
+    detail = body.get("detail")
+    if isinstance(detail, Mapping):
+        detail = detail.get("message")
+    return isinstance(detail, str) and model in detail
 
 
-def _describe_endpoint_rejection(url: str, status: int, body: Any) -> str | None:
+def _describe_endpoint_rejection(
+    *, decision_sdk: models.DecisionSDK, url: str, status: int, body: Any
+) -> str | None:
     """Why an error response fails the decision endpoint check; None if it passes.
 
-    Only a client error whose JSON body names the sentinel model shows that the request
-    reached a decision endpoint that authenticated it and then looked the model up. A
-    wrong path also answers 404 (or 405, or an HTML page), so a status alone proves
-    nothing.
+    Only a client error that the decision client itself raised about the sentinel model
+    shows that the request reached a decision endpoint that authenticated it and then
+    looked the model up. A wrong path also answers 404 (or 405, or an HTML page), and a
+    422 can echo the request before authenticating, so a status alone proves nothing.
     """
     if status in (401, 403):
         return f"POST {url} rejected the API key (HTTP {status})."
@@ -181,8 +198,8 @@ def _describe_endpoint_rejection(url: str, status: int, body: Any) -> str | None
         )
     if status in (408, 429) or status >= 500:
         return f"POST {url} failed with HTTP {status}, which says nothing about the setup. Retry."
-    if 400 <= status < 500 and isinstance(body, (Mapping, list)):
-        if _names_model(body, _CREDENTIAL_CHECK_MODEL):
+    if 400 <= status < 500 and status != 422:
+        if _rejects_model(decision_sdk, body, _CREDENTIAL_CHECK_MODEL):
             return None
     if isinstance(body, str) and body.lstrip().startswith("<"):
         what = "an HTML page"
@@ -263,7 +280,9 @@ async def _post_system_one_check(connection: DecisionConnection, url: str) -> st
             "response. Check the base URL and the decision client."
         )
     except TypeSafeAPIError as error:
-        return _describe_endpoint_rejection(url, error.status, error.body)
+        return _describe_endpoint_rejection(
+            decision_sdk="typesafe", url=url, status=error.status, body=error.body
+        )
     except TypeSafeAPIConnectionError as error:
         return f"Could not connect to {url}: {error}"
     return _accepted_unknown_model(url)
@@ -298,10 +317,15 @@ async def _post_openai_decisions_check(connection: DecisionConnection, url: str)
                 ],
             )
     except APIStatusError as error:
-        body: Any = error.body
-        if body is None:
+        # `error.body` has OpenAI's `error` object unwrapped; read the body as sent.
+        body: Any
+        try:
+            body = error.response.json()
+        except ValueError:
             body = error.response.text
-        return _describe_endpoint_rejection(url, error.status_code, body)
+        return _describe_endpoint_rejection(
+            decision_sdk="openai", url=url, status=error.status_code, body=body
+        )
     except APIConnectionError as error:
         return f"Could not connect to {url}: {error}"
     return _accepted_unknown_model(url)

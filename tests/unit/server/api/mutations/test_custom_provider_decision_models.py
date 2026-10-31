@@ -239,6 +239,44 @@ DECISIONS_URL = "https://proxy.example/v1/decisions"
         pytest.param(
             "OPENAI",
             DECISIONS_URL,
+            {
+                "status_code": 422,
+                "json": {"detail": [{"input": {"model": "test-credential-check"}}]},
+            },
+            False,
+            "HTTP 422",
+            id="openai-validation-echo-422",
+        ),
+        pytest.param(
+            "TYPESAFE",
+            SYSTEM_ONE_URL,
+            {
+                "status_code": 422,
+                "json": {"detail": "test-credential-check failed validation"},
+            },
+            False,
+            "HTTP 422",
+            id="system-one-validation-echo-422",
+        ),
+        pytest.param(
+            "OPENAI",
+            DECISIONS_URL,
+            {"status_code": 404, "json": {"message": "no route for model test-credential-check"}},
+            False,
+            "HTTP 404 with a response that is not a decision API's",
+            id="openai-router-echo-404",
+        ),
+        pytest.param(
+            "TYPESAFE",
+            SYSTEM_ONE_URL,
+            {"status_code": 404, "json": {"message": "no route for model test-credential-check"}},
+            False,
+            "HTTP 404 with a response that is not a decision API's",
+            id="system-one-router-echo-404",
+        ),
+        pytest.param(
+            "OPENAI",
+            DECISIONS_URL,
             {"status_code": 503, "json": {"error": "test-credential-check is warming up"}},
             False,
             "HTTP 503",
@@ -367,9 +405,60 @@ async def test_azure_decisions_need_an_api_key(gql_client: AsyncGraphQLClient) -
             "decisionModels": {"decisionSdk": "OPENAI"},
         }
     }
-    payload = await check(gql_client, config)
-    assert payload["url"] is None
-    assert "needs API key authentication" in payload["error"]
+    result = await gql_client.execute(TEST_ENDPOINT, variables={"input": config})
+    assert result.errors
+    assert "need API key authentication" in result.errors[0].message
+
+
+@pytest.mark.parametrize(
+    "auth",
+    [
+        pytest.param({"defaultCredentials": True}, id="default-credentials"),
+        pytest.param(
+            {
+                "azureAdTokenProvider": {
+                    "azureTenantId": "tenant",
+                    "azureClientId": "client",
+                    "azureClientSecret": "secret",
+                }
+            },
+            id="ad-token-provider",
+        ),
+    ],
+)
+async def test_azure_decisions_without_an_api_key_are_refused_on_save(
+    gql_client: AsyncGraphQLClient, auth: dict[str, Any]
+) -> None:
+    config = {
+        "azureOpenai": {
+            "azureOpenaiAuthenticationMethod": auth,
+            "azureOpenaiClientKwargs": {"azureEndpoint": "https://res.openai.azure.com"},
+            "decisionModels": {"decisionSdk": "OPENAI"},
+        }
+    }
+    result = await gql_client.execute(
+        CREATE, variables={"input": {"name": "azure", "provider": "azure", "clientConfig": config}}
+    )
+    assert result.errors and "need API key authentication" in result.errors[0].message
+
+    # Switching a decision provider from an API key to Entra ID is refused too.
+    provider_id = await create(
+        gql_client,
+        "azure with key",
+        {
+            "azureOpenai": {
+                **config["azureOpenai"],
+                "azureOpenaiAuthenticationMethod": {"apiKey": API_KEY},
+            }
+        },
+    )
+    result = await gql_client.execute(
+        """mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+          patchGenerativeModelCustomProvider(input: $input) { provider { id } }
+        }""",
+        variables={"input": {"id": provider_id, "clientConfig": config}},
+    )
+    assert result.errors and "need API key authentication" in result.errors[0].message
 
 
 async def test_the_decision_client_and_names_round_trip(
