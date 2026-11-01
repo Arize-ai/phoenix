@@ -3207,3 +3207,44 @@ class TestSearchResources:
         assert response.data and not response.errors
         names = [result["name"] for result in response.data["searchResources"]]
         assert names == ["100% coverage"]
+
+
+class TestSecretNode:
+    _QUERY = """
+      query($id: ID!) {
+        node(id: $id) {
+          __typename
+          ... on Secret { key updatedAt }
+        }
+      }
+    """
+
+    async def test_node_for_missing_secret_returns_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        secret_id = str(GlobalID("Secret", "no-such-secret"))
+        response = await gql_client.execute(query=self._QUERY, variables={"id": secret_id})
+        assert response.errors
+        assert len(response.errors) == 1
+        assert response.errors[0].message == f"Unknown node: {secret_id}"
+        # `node` is non-nullable, so a not-found error nulls the whole response.
+        assert response.data is None
+
+    async def test_node_for_existing_secret_resolves(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            session.add(
+                models.Secret(key="existing-secret", value=EncryptionService().encrypt(b"value"))
+            )
+        secret_id = str(GlobalID("Secret", "existing-secret"))
+        response = await gql_client.execute(query=self._QUERY, variables={"id": secret_id})
+        assert not response.errors
+        assert response.data
+        assert response.data["node"]["__typename"] == "Secret"
+        assert response.data["node"]["key"] == "existing-secret"
+        assert response.data["node"]["updatedAt"]
