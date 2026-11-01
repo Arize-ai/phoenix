@@ -600,13 +600,15 @@ function runTaskWithExamples({
         output: null,
         error: null,
       };
+      let taskFailed = false;
       try {
         const taskOutput = await promisifyResult(task(example));
         thisRun.output = taskOutput;
       } catch (error) {
+        taskFailed = true;
         thisRun.error =
           error instanceof Error ? error.message : "Unknown error";
-        span.setStatus({ code: SpanStatusCode.ERROR });
+        span.setStatus({ code: SpanStatusCode.ERROR, message: thisRun.error });
       }
       thisRun.endTime = new Date();
       if (!isDryRun) {
@@ -633,7 +635,9 @@ function runTaskWithExamples({
           typeof example.input === "string" ? MimeType.TEXT : MimeType.JSON;
         const outputMimeType =
           typeof thisRun.output === "string" ? MimeType.TEXT : MimeType.JSON;
-        span.setStatus({ code: SpanStatusCode.OK });
+        if (!taskFailed) {
+          span.setStatus({ code: SpanStatusCode.OK });
+        }
         span.setAttributes({
           [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
             OpenInferenceSpanKind.CHAIN,
