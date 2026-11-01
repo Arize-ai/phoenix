@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.6.0...arize-phoenix-client-v3.6.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **client:** validate required name and annotator_kind columns in annotation dataframes ([#17433](https://github.com/Arize-ai/phoenix/issues/17433)) ([3146086](https://github.com/Arize-ai/phoenix/commit/3146086b08e1a9e6596bd40ae54dee345bfa2d51))
+
 ## [3.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.5.0...arize-phoenix-client-v3.6.0) (2026-10-30)
 
 
