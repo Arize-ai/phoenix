@@ -305,3 +305,87 @@ def test_public_origin_falls_back_to_request_base_url(monkeypatch: pytest.Monkey
     )
 
     assert public_origin(request) == "http://localhost:6006/phoenix"
+
+
+def test_public_origin_honors_x_forwarded_proto(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "root_path": "/mcp",
+            "headers": [
+                (b"host", b"phoenix-devs.up.railway.app"),
+                (b"x-forwarded-proto", b"https"),
+            ],
+            "server": ("127.0.0.1", 6006),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix-devs.up.railway.app/mcp"
+
+
+def test_public_origin_honors_x_forwarded_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"internal-service:6006"),
+                (b"x-forwarded-host", b"public.example.com"),
+                (b"x-forwarded-proto", b"https, http"),
+            ],
+            "server": ("internal-service", 6006),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://public.example.com"
+
+
+def test_public_origin_honors_rfc7239_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"internal:6006"),
+                (b"forwarded", b"proto=https;host=public.example.com"),
+            ],
+            "server": ("internal", 6006),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://public.example.com"
+
+
+def test_public_origin_ignores_unsupported_forwarded_schemes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"localhost:6006"),
+                (b"x-forwarded-proto", b"ftp"),
+            ],
+            "server": ("localhost", 6006),
+            "scheme": "http",
+            "client": ("127.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "http://localhost:6006"
