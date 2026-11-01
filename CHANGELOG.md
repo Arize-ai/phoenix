@@ -1,5 +1,17 @@
 # Changelog
 
+## [21.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.0.0...arize-phoenix-v21.1.0) (2026-11-01)
+
+
+### Features
+
+* **factory:** label PRs with the factory review's verdict ([#17487](https://github.com/Arize-ai/phoenix/issues/17487)) ([9c6a251](https://github.com/Arize-ai/phoenix/commit/9c6a25116e61e552ebc0e420d011671c9063cf1e))
+
+
+### Bug Fixes
+
+* **deps:** update arize-phoenix-client to 3.6.0 ([#17437](https://github.com/Arize-ai/phoenix/issues/17437)) ([d260c4f](https://github.com/Arize-ai/phoenix/commit/d260c4fe0064b308676238f3baf55a403de82136))
+
 ## [21.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.27.0...arize-phoenix-v21.0.0) (2026-10-30)
 
 
