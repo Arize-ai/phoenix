@@ -1879,10 +1879,13 @@ class Query:
             raise BadRequest("Variables must be a dictionary or a string")
 
         if input_mapping:
-            input_schema = infer_input_schema_from_template(
-                template=template,
-                template_format=template_options.format,
-            )
+            try:
+                input_schema = infer_input_schema_from_template(
+                    template=template,
+                    template_format=template_options.format,
+                )
+            except TemplateFormatterError as error:
+                raise BadRequest(str(error))
 
             try:
                 variables = apply_input_mapping(
