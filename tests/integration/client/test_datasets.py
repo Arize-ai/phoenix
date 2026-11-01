@@ -6,12 +6,14 @@ from pathlib import Path
 from secrets import token_hex
 from typing import Any, Iterable, Mapping, Sequence
 
+import httpx
 import pandas as pd
 import pytest
 from phoenix.client import AsyncClient
 from phoenix.client import Client as SyncClient
 from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import Dataset
+from strawberry.relay import GlobalID
 
 from .._helpers import _AppInfo, _await_or_return, _ExistingSpan, _gql
 
@@ -2269,3 +2271,348 @@ What is NLP?,Natural Language Processing,
             )
         )
         assert len(versions) == 2
+
+
+class TestDatasetSplitWrites:
+    """Integration tests for create_split, update_split and delete_split."""
+
+    @staticmethod
+    async def _create_dataset(Client: Any, _app: _AppInfo, name: str) -> Dataset:
+        dataset: Dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_dataset(
+                name=name,
+                examples=[
+                    {"input": {"q": "A"}, "output": {"a": "1"}, "id": "ex-a"},
+                    {"input": {"q": "B"}, "output": {"a": "2"}, "id": "ex-b"},
+                    {"input": {"q": "C"}, "output": {"a": "3"}, "id": "ex-c"},
+                ],
+            )
+        )
+        return dataset
+
+    @staticmethod
+    async def _member_ids(Client: Any, _app: _AppInfo, dataset: str, split: str) -> set[str]:
+        members: Dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.get_dataset(
+                dataset=dataset, splits=[split]
+            )
+        )
+        return {example["id"] for example in members.examples}
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_split_with_optional_fields(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        name = f"test_split_create_{token_hex(4)}"
+        dataset = await self._create_dataset(Client, _app, name)
+        node_ids = {example["id"]: example["node_id"] for example in dataset.examples}
+        split_name = f"{name}_test"
+
+        # Membership accepts both server GlobalIDs and user-provided example IDs.
+        split = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=split_name,
+                description="Held-out examples",
+                metadata={"owner": "eval-team"},
+                example_ids=[node_ids["ex-a"], "ex-b"],
+            )
+        )
+
+        assert split["name"] == split_name
+        assert split["description"] == "Held-out examples"
+        assert split["metadata"] == {"owner": "eval-team"}
+        assert split["example_count"] == 2
+        assert split["id"]
+        assert await self._member_ids(Client, _app, name, split_name) == {"ex-a", "ex-b"}
+
+        # Only the name is required; the dataset can be passed as a Dataset object.
+        empty = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=dataset,
+                name=f"{name}_empty",
+            )
+        )
+        assert empty["description"] is None
+        assert empty["metadata"] == {}
+        assert empty["example_count"] == 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_update_split_partial_fields_and_idempotent_membership(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        name = f"test_split_update_{token_hex(4)}"
+        dataset = await self._create_dataset(Client, _app, name)
+        split_name = f"{name}_train"
+        split = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=split_name,
+                description="original",
+                metadata={"v": 1},
+                example_ids=["ex-a"],
+            )
+        )
+
+        # Only the provided field changes.
+        updated = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.update_split(
+                dataset=dataset.id,
+                split_id=split["id"],
+                description="reviewed",
+            )
+        )
+        assert updated["id"] == split["id"]
+        assert updated["name"] == split_name
+        assert updated["description"] == "reviewed"
+        assert updated["metadata"] == {"v": 1}
+        assert updated["color"] == split["color"]
+
+        # Adding an existing member and removing a non-member are no-ops.
+        noop = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.update_split(
+                dataset=name,
+                split_id=split["id"],
+                add_example_ids=["ex-a"],
+                remove_example_ids=["ex-c"],
+            )
+        )
+        assert noop["example_count"] == 1
+        assert await self._member_ids(Client, _app, name, split_name) == {"ex-a"}
+
+        # Add and remove in one call; an ID in both lists ends up removed.
+        moved = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.update_split(
+                dataset=name,
+                split_id=split["id"],
+                add_example_ids=["ex-b", "ex-c"],
+                remove_example_ids=["ex-a", "ex-c"],
+            )
+        )
+        assert moved["example_count"] == 1
+        assert await self._member_ids(Client, _app, name, split_name) == {"ex-b"}
+
+        # Rename, replace metadata and clear the description.
+        renamed = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.update_split(
+                dataset=name,
+                split_id=split["id"],
+                name=f"{split_name}_v2",
+                metadata={"v": 2},
+                description=None,
+            )
+        )
+        assert renamed["name"] == f"{split_name}_v2"
+        assert renamed["metadata"] == {"v": 2}
+        assert renamed["description"] is None
+        assert renamed["example_count"] == 1
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_delete_split_keeps_examples(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        name = f"test_split_delete_{token_hex(4)}"
+        dataset = await self._create_dataset(Client, _app, name)
+        split_name = f"{name}_doomed"
+        split = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=split_name,
+                example_ids=["ex-a", "ex-b"],
+            )
+        )
+
+        await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.delete_split(
+                dataset=name,
+                split_id=split["id"],
+            )
+        )
+
+        # The examples remain in the dataset and the split itself is gone.
+        after = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.get_dataset(
+                dataset=name
+            )
+        )
+        assert after.version_id == dataset.version_id
+        assert {example["id"] for example in after.examples} == {"ex-a", "ex-b", "ex-c"}
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(
+                Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.delete_split(
+                    dataset=name,
+                    split_id=split["id"],
+                )
+            )
+        assert exc_info.value.response.status_code == 404
+
+        # The name is free again once the split is deleted.
+        recreated = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=split_name,
+            )
+        )
+        # The old memberships went with the deleted split.
+        assert recreated["example_count"] == 0
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_split_duplicate_names(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        name = f"test_split_dupes_{token_hex(4)}"
+        await self._create_dataset(Client, _app, name)
+        first = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=f"{name}_one",
+            )
+        )
+        second = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=f"{name}_two",
+            )
+        )
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(
+                Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                    dataset=name,
+                    name=f"{name}_one",
+                )
+            )
+        assert exc_info.value.response.status_code == 409
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(
+                Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.update_split(
+                    dataset=name,
+                    split_id=second["id"],
+                    name=first["name"],
+                )
+            )
+        assert exc_info.value.response.status_code == 409
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_split_invalid_ids(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        name = f"test_split_invalid_{token_hex(4)}"
+        other = f"test_split_other_{token_hex(4)}"
+        await self._create_dataset(Client, _app, name)
+        other_dataset = await self._create_dataset(Client, _app, other)
+        split = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=f"{name}_split",
+            )
+        )
+
+        # An unknown example ID, or an example from another dataset, is a 404
+        # and creates nothing.
+        for example_id in ("missing-example", other_dataset.examples[0]["node_id"]):
+            with pytest.raises(httpx.HTTPStatusError) as exc_info:
+                await _await_or_return(
+                    Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                        dataset=name,
+                        name=f"{name}_bad",
+                        example_ids=[example_id],
+                    )
+                )
+            assert exc_info.value.response.status_code == 404
+            with pytest.raises(httpx.HTTPStatusError) as exc_info:
+                await _await_or_return(
+                    Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.update_split(
+                        dataset=name,
+                        split_id=split["id"],
+                        add_example_ids=[example_id],
+                    )
+                )
+            assert exc_info.value.response.status_code == 404
+
+        # A malformed split ID is a 422; a well-formed ID with no split is a 404.
+        missing_split_id = str(GlobalID("DatasetSplit", "999999999"))
+        for split_id, status_code in (("not-a-split-id", 422), (missing_split_id, 404)):
+            with pytest.raises(httpx.HTTPStatusError) as exc_info:
+                await _await_or_return(
+                    Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.update_split(
+                        dataset=name,
+                        split_id=split_id,
+                        description="x",
+                    )
+                )
+            assert exc_info.value.response.status_code == status_code
+            with pytest.raises(httpx.HTTPStatusError) as exc_info:
+                await _await_or_return(
+                    Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.delete_split(
+                        dataset=name,
+                        split_id=split_id,
+                    )
+                )
+            assert exc_info.value.response.status_code == status_code
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_split_missing_dataset(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+        name = f"test_split_missing_{token_hex(4)}"
+        await self._create_dataset(Client, _app, name)
+        split = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets.create_split(
+                dataset=name,
+                name=f"{name}_split",
+            )
+        )
+        datasets = Client(base_url=_app.base_url, api_key=_app.admin_secret).datasets
+
+        # A dataset name that does not exist is rejected before any write.
+        missing_name = f"missing_dataset_{token_hex(4)}"
+        with pytest.raises(ValueError, match="Dataset not found"):
+            await _await_or_return(datasets.create_split(dataset=missing_name, name="x"))
+        with pytest.raises(ValueError, match="Dataset not found"):
+            await _await_or_return(
+                datasets.update_split(dataset=missing_name, split_id=split["id"], name="x")
+            )
+        with pytest.raises(ValueError, match="Dataset not found"):
+            await _await_or_return(
+                datasets.delete_split(dataset=missing_name, split_id=split["id"])
+            )
+
+        # A dataset GlobalID that does not exist is a 404 from the server.
+        missing_id = str(GlobalID("Dataset", "999999999"))
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(datasets.create_split(dataset=missing_id, name="x"))
+        assert exc_info.value.response.status_code == 404
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(
+                datasets.update_split(dataset=missing_id, split_id=split["id"], name="x")
+            )
+        assert exc_info.value.response.status_code == 404
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(datasets.delete_split(dataset=missing_id, split_id=split["id"]))
+        assert exc_info.value.response.status_code == 404
+
+        # The split survived every failed call.
+        unchanged = await _await_or_return(
+            datasets.update_split(dataset=name, split_id=split["id"])
+        )
+        assert unchanged["name"] == f"{name}_split"
