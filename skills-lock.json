@@ -30,7 +30,7 @@
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
       "computedHash": "257163cff410f68fc23ab5ee64c7396aeb7a1fd72335af8805b832f310fa4a5a",
-      "wellKnownDigest": "sha256:fca8fc074c8261e79c6db407f128fd3f262c1011cb4635475416c24561ec8ee3"
+      "wellKnownDigest": "sha256:d4c2bd46a509cecbfaeb2b98556db14b17c55d2febdd28a9e1c6de25c5e20023"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
