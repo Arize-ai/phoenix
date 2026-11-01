@@ -3,6 +3,7 @@ from typing import Any, AsyncIterator
 
 import pytest
 import sqlalchemy as sa
+from fastapi import FastAPI
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from strawberry.relay.types import GlobalID
@@ -2984,12 +2985,13 @@ class TestDeleteDatasetEvaluators:
 
     async def test_delete_builtin_evaluator(
         self,
+        app: FastAPI,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
         synced_builtin_evaluators: None,
     ) -> None:
-        """Test deleting a built-in evaluator removes the DatasetEvaluators row and project."""
+        """Test deleting a built-in evaluator removes the DatasetEvaluators row immediately and project via background daemon."""
         # Get a valid builtin evaluator ID from the database
         async with db() as session:
             builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
@@ -3026,12 +3028,16 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the DatasetEvaluators row and associated project are deleted
-        # but the shared built-in evaluator definition is preserved.
+        # Verify the DatasetEvaluators row is deleted immediately
         async with db() as session:
             deleted_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert deleted_evaluator is None
 
+        # Drain the background daemon to finish project cleanup
+        await app.state.evaluator_sweeper.drain()
+
+        # Verify associated project is deleted and shared built-in evaluator definition is preserved.
+        async with db() as session:
             deleted_project = await session.get(models.Project, project_id)
             assert deleted_project is None
 
@@ -3119,6 +3125,7 @@ class TestDeleteDatasetEvaluators:
 
     async def test_delete_llm_evaluator(
         self,
+        app: FastAPI,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
@@ -3207,7 +3214,7 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the DatasetEvaluators, Evaluator, and Project rows are deleted
+        # Verify the DatasetEvaluators and Evaluator rows are deleted immediately
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -3217,11 +3224,17 @@ class TestDeleteDatasetEvaluators:
             deleted_evaluator = await session.get(models.Evaluator, evaluator_id)
             assert deleted_evaluator is None
 
+        # Drain background daemon to finish project cleanup
+        await app.state.evaluator_sweeper.drain()
+
+        # Verify Project row is deleted
+        async with db() as session:
             deleted_project = await session.get(models.Project, project_id)
             assert deleted_project is None
 
     async def test_delete_multiple_evaluators_mixed(
         self,
+        app: FastAPI,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
@@ -3333,15 +3346,11 @@ class TestDeleteDatasetEvaluators:
         assert builtin_de_gid in deleted_ids
         assert llm_de_gid in deleted_ids
 
-        # Verify all rows including projects are deleted
+        # Verify evaluator definitions are deleted immediately
         async with db() as session:
             # Builtin dataset evaluator should be deleted
             deleted_builtin_de = await session.get(models.DatasetEvaluators, builtin_de_id)
             assert deleted_builtin_de is None
-
-            # Builtin project should be deleted
-            deleted_builtin_project = await session.get(models.Project, builtin_project_id)
-            assert deleted_builtin_project is None
 
             # LLM dataset evaluator and its parent evaluator should be deleted
             deleted_llm_de = await session.get(models.DatasetEvaluators, llm_de_id)
@@ -3350,7 +3359,14 @@ class TestDeleteDatasetEvaluators:
             deleted_llm_evaluator = await session.get(models.Evaluator, llm_evaluator_id)
             assert deleted_llm_evaluator is None
 
-            # LLM project should be deleted
+        # Drain background daemon to finish project cleanup
+        await app.state.evaluator_sweeper.drain()
+
+        # Verify projects are deleted
+        async with db() as session:
+            deleted_builtin_project = await session.get(models.Project, builtin_project_id)
+            assert deleted_builtin_project is None
+
             deleted_llm_project = await session.get(models.Project, llm_project_id)
             assert deleted_llm_project is None
 
@@ -3406,6 +3422,7 @@ class TestDeleteDatasetEvaluators:
 
     async def test_delete_llm_evaluator_with_prompt_deletion(
         self,
+        app: FastAPI,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
@@ -3500,7 +3517,7 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator, prompt, and project are all deleted
+        # Verify the evaluator and prompt are deleted immediately
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -3513,11 +3530,17 @@ class TestDeleteDatasetEvaluators:
             deleted_prompt = await session.get(models.Prompt, prompt_id)
             assert deleted_prompt is None
 
+        # Drain background daemon to finish project cleanup
+        await app.state.evaluator_sweeper.drain()
+
+        # Verify project is deleted
+        async with db() as session:
             deleted_project = await session.get(models.Project, project_id)
             assert deleted_project is None
 
     async def test_delete_llm_evaluator_without_prompt_deletion(
         self,
+        app: FastAPI,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
@@ -3612,7 +3635,7 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator and project are deleted but prompt is preserved
+        # Verify the evaluator is deleted immediately and prompt is preserved
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -3622,13 +3645,17 @@ class TestDeleteDatasetEvaluators:
             deleted_evaluator = await session.get(models.Evaluator, evaluator_id)
             assert deleted_evaluator is None
 
-            # Project should be deleted
-            deleted_project = await session.get(models.Project, project_id)
-            assert deleted_project is None
-
             # Prompt should still exist
             kept_prompt = await session.get(models.Prompt, prompt_id)
             assert kept_prompt is not None
+
+        # Drain background daemon to finish project cleanup
+        await app.state.evaluator_sweeper.drain()
+
+        # Project should be deleted
+        async with db() as session:
+            deleted_project = await session.get(models.Project, project_id)
+            assert deleted_project is None
 
         # Clean up the prompt
         async with db() as session:
