@@ -1,3 +1,4 @@
+import { DATASETS_TABLE_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import { createTablePreferencesContext } from "@phoenix/contexts/createTablePreferencesContext";
 
 export const {
@@ -5,5 +6,5 @@ export const {
   useTablePreferences: useDatasetsTableContext,
 } = createTablePreferencesContext({
   name: "datasetsTableStore",
-  storageKey: "arize-phoenix-datasets-table",
+  storageKey: DATASETS_TABLE_STORAGE_KEY,
 });

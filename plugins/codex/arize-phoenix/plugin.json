@@ -1,0 +1,46 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "arize-phoenix",
+  "version": "0.1.0",
+  "description": "Connect to your Phoenix instance to debug, evaluate, and improve LLM applications.",
+  "author": {
+    "name": "Arize AI",
+    "email": "oss@arize.com",
+    "url": "https://arize.com"
+  },
+  "homepage": "https://arize.com/docs/phoenix",
+  "repository": "https://github.com/Arize-ai/phoenix",
+  "license": "Apache-2.0",
+  "keywords": [
+    "phoenix",
+    "arize",
+    "observability",
+    "tracing",
+    "evals",
+    "llm",
+    "mcp"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Arize Phoenix",
+        "shortDescription": "Debug and evaluate LLM apps with Phoenix.",
+        "longDescription": "Explore traces, spans, and sessions, inspect datasets and experiments, and review evaluations in your Phoenix instance. Connects to the Phoenix MCP server and signs in with your Phoenix account.",
+        "developerName": "Arize AI",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://arize.com/docs/phoenix",
+        "defaultPrompt": [
+          "List my Phoenix projects.",
+          "Show recent traces with errors and summarize what failed.",
+          "Compare the latest experiment runs on my dataset."
+        ],
+        "brandColor": "#00ADEE",
+        "logo": "./assets/logo.svg"
+      }
+    }
+  }
+}

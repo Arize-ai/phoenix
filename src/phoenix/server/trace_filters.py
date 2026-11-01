@@ -78,14 +78,14 @@ def get_filtered_trace_rowids_subquery(
 
 
 def apply_trace_filter_to_page(
-    stmt: Select[Any],
+    stmt: Select[*tuple[Any, ...]],
     trace_filter_condition: str,
     project_rowids: Sequence[int],
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     lowering: FilterLowering = "probe",
     orphan_span_as_root_span: bool = True,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     """Apply a trace filter to a statement selecting a page of ``Trace`` rows."""
     trace_filter = compile_trace_filter(trace_filter_condition)
     with trace_filter_errors():

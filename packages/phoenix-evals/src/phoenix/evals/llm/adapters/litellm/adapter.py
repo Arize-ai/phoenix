@@ -15,6 +15,7 @@ from ...prompts import (
 )
 from ...registries import register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ..tool_calling import TOOL_INSTRUCTION, TOOL_NAME
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -325,17 +326,21 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         """Generate object using tool calling."""
         tool_definition = self._schema_to_tool(schema)
-        messages = self._build_messages(prompt)
+        messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = self._litellm.completion(
             model=self.client.model_string,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            tool_choice=tool_choice,
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             return cast(Dict[str, Any], json.loads(arguments))
@@ -379,17 +384,21 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         """Async generate object using tool calling."""
         tool_definition = self._schema_to_tool(schema)
-        messages = self._build_messages(prompt)
+        messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = await self._litellm.acompletion(
             model=self.client.model_string,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            tool_choice=tool_choice,
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             return cast(Dict[str, Any], json.loads(arguments))
@@ -400,6 +409,28 @@ class LiteLLMAdapter(BaseLLMAdapter):
     def model_name(self) -> str:
         """Return the LiteLLM model name."""
         return cast(str, self.client.model_string)
+
+    def _tool_calling_messages_and_choice(
+        self, prompt: PromptLike
+    ) -> tuple[list[dict[str, Any]], Any]:
+        messages = self._build_messages(prompt)
+        if self.client.provider != "anthropic":
+            return messages, {"type": "function", "function": {"name": TOOL_NAME}}
+        # Some Claude models reject a forced tool_choice (see TOOL_INSTRUCTION), so ask for the
+        # call in the system prompt instead. LiteLLM only hoists the leading run of system
+        # messages (developer messages become system ones) into Anthropic's system prompt; a later
+        # one stays in the conversation, so the instruction goes at the end of that leading run.
+        system_roles = (MessageRole.SYSTEM.value, MessageRole.DEVELOPER.value)
+        system_count = next(
+            (
+                index
+                for index, message in enumerate(messages)
+                if message["role"] not in system_roles
+            ),
+            len(messages),
+        )
+        instruction = {"role": MessageRole.SYSTEM.value, "content": TOOL_INSTRUCTION}
+        return [*messages[:system_count], instruction, *messages[system_count:]], "auto"
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -420,7 +451,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         tool_definition = {
             "type": "function",
             "function": {
-                "name": "extract_structured_data",
+                "name": TOOL_NAME,
                 "description": description,
                 "parameters": schema,
             },
@@ -452,6 +483,12 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 openai_role = "user"
             elif role == MessageRole.SYSTEM:
                 openai_role = "system"
+            elif role == MessageRole.DEVELOPER:
+                # LiteLLM is a provider-routing layer that handles "developer"
+                # for reasoning models internally — pass it through verbatim
+                # rather than collapsing it to "system" (see the dict-path
+                # handling below, which this typed path must match).
+                openai_role = "developer"
             else:
                 # Fallback for any unexpected roles
                 openai_role = role.value if isinstance(role, MessageRole) else str(role)
@@ -489,9 +526,11 @@ class LiteLLMAdapter(BaseLLMAdapter):
                 return cast(list[dict[str, Any]], prompt)
             # OpenAI-style dict messages — validate and canonicalize aliases.
             # LiteLLM is a provider-routing layer that handles "developer" for
-            # reasoning models internally, so we preserve OpenAI-compatible
-            # SYSTEM role strings ("system" / "developer") verbatim rather than
-            # normalizing both to "system" via the MessageRole round-trip.
+            # reasoning models internally, so we keep "system" and "developer"
+            # distinct rather than folding both to "system". ``MessageRole``'s
+            # values are already the exact wire strings LiteLLM expects
+            # ("user"/"assistant"/"system"/"developer"), so the canonicalized
+            # role can be used directly.
             # Caller-supplied keys other than ``role``/``content`` (e.g. the
             # documented ``name`` field) are preserved so the validating dict
             # path matches the native pass-through's compatibility guarantee.
@@ -499,13 +538,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
             for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
                 validate_message_dict(msg, index=i)
                 canonical = normalize_role(msg["role"])
-                if canonical == MessageRole.SYSTEM:
-                    # Keep "developer" vs "system" so LiteLLM can route to the
-                    # correct provider-side representation for the target model.
-                    raw = msg["role"].strip().lower() if isinstance(msg["role"], str) else "system"
-                    role_str: str = raw if raw in ("system", "developer") else "system"
-                else:
-                    role_str = canonical.value  # "user" or "assistant"
+                role_str: str = canonical.value
                 content = msg["content"]
                 if isinstance(content, str):
                     body: dict[str, Any] = {"role": role_str, "content": content}

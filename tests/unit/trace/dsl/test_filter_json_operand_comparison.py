@@ -9,7 +9,8 @@ two backends produce different ones.
 PostgreSQL's `#>>` renders both sides as jsonb text. Object key order is
 canonical in jsonb, so reordered objects compare equal, while `1` and `1.0`
 render as distinct strings. SQLite's `json_extract` returns native SQL values,
-so `1 = 1.0` compares numerically and matches, and `true` arrives as `1`.
+which SQLAlchemy 2.1 then casts to text: `true` has already collapsed to `1`
+by the time it is rendered, while objects keep their stored key order.
 
 None of this is reachable when a key is compared against itself: both sides are
 the same expression over the same row, so they render identically whatever the
@@ -201,15 +202,18 @@ async def test_comparing_two_json_values_is_a_known_divergence(
 ) -> None:
     equal = await _matches(db, "attributes['p'] == attributes['q']")
     if dialect == "sqlite":
-        # Native values: 1 == 1.0 numerically, and `true` extracts as 1.
-        # Objects come back as text with their stored key order.
-        assert equal == {"numform", "numbool", "same"}
+        # `true` extracts as the native 1 before the cast to text, so it
+        # matches the number. Objects come back as text with their stored key
+        # order, so the reordered pair does not.
+        assert equal == {"numstr", "numbool", "same"}
     else:
-        # jsonb text: key order is canonical, but `1` and `1.0` are not the
-        # same string, and neither are `1` and `true`. `numstr` matches here and
-        # not on SQLite for the same reason -- comparing text, `1` and `"1"` are
-        # both `1`.
+        # jsonb text: key order is canonical, but `1` and `true` are not the
+        # same string.
         assert equal == {"keyorder", "numstr", "same"}
+    # Both sides compare as text, so `1` and `1.0` are distinct strings and the
+    # JSON string `"1"` matches the number `1` on either backend.
+    assert "numform" not in equal
+    assert "numstr" in equal
 
 
 async def test_equality_and_inequality_still_partition(
@@ -260,30 +264,25 @@ async def test_a_key_compared_against_itself_cannot_diverge(
     assert await _matches(db, "attributes['gone'] is None") == set(_SPANS)
 
 
-async def test_json_number_against_a_string_literal_is_a_known_divergence(
+async def test_json_number_against_a_string_literal_matches_on_every_backend(
     db: DbSessionFactory,
     json_operand_project: None,
-    dialect: str,
 ) -> None:
     """A stored JSON number compared to a quoted literal.
 
-    PostgreSQL extracts to text and compares text, so `1` matches `'1'`. SQLite
-    extracts a native number and compares it against a text literal, which its
-    type rules make false. A stored JSON *string* matches on both, so the
-    divergence is confined to values whose JSON type differs from the literal's.
+    Both backends extract to text and compare text, so `1` matches `'1'`. On
+    SQLite that is SQLAlchemy 2.1's doing: `json_extract` yields a native
+    number, and the accessor wraps it in `CAST(... AS VARCHAR)`.
 
     Not specific to `str()`: the cast is a no-op over an operand whose type is
     unknown, so `attributes['p'] == '1'` and `str(attributes['p']) == '1'`
-    behave identically. Substring search agrees on both backends, which is what
-    keeps `'x' in str(metadata['k'])` -- the one shape this cast is actually
-    used for -- portable.
+    behave identically. Substring search agrees as well, which is what keeps
+    `'x' in str(metadata['k'])` -- the one shape this cast is actually used
+    for -- portable.
     """
     numeric = await _matches(db, "attributes['p'] == '1'")
     assert await _matches(db, "str(attributes['p']) == '1'") == numeric
-    if dialect == "sqlite":
-        assert "numstr" not in numeric
-    else:
-        assert "numstr" in numeric
+    assert "numstr" in numeric
     # The JSON string spelling matches everywhere, and so does substring search.
     assert "numstr" in await _matches(db, "attributes['q'] == '1'")
     assert "numstr" in await _matches(db, "'1' in str(attributes['p'])")

@@ -120,7 +120,6 @@ import {
   getPatchExperimentToolPreview,
   PatchExperimentToolDetails,
 } from "./PatchExperimentToolDetails";
-import { getScrollableParent } from "./scrollAnchor";
 import {
   getSearchUIToolPreview,
   SearchUIToolDetails,
@@ -516,37 +515,6 @@ export function ToolPart({
 }
 
 /**
- * Reveals `element` at the top of its nearest scrollable ancestor with a
- * single instant write, scrolling only that container.
- *
- * Two deliberate constraints, both learned the hard way:
- * - Only the nearest scroll container moves. Native `Element.scrollIntoView`
- *   scrolls every ancestor, which previously shifted the floating panel's
- *   `overflow: hidden` frame and clipped its header/footer.
- * - The write is instant, not smooth. The transcript's policy is that
- *   programmatic scrolls are single synchronous assignments (see
- *   `useChatFollowScroll`): a multi-frame smooth animation here left a moving
- *   baseline for the expand/collapse scroll anchor to measure against and a
- *   second writer for user gestures to fight.
- *
- * Does nothing when no scrollable ancestor is found.
- *
- * @param element - The element to bring into view within its scroll container.
- */
-function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
-  const scrollParent = getScrollableParent(element);
-  if (!scrollParent) {
-    return;
-  }
-  const parentRect = scrollParent.getBoundingClientRect();
-  const elementRect = element.getBoundingClientRect();
-  // Land the element's top near the top of the viewport with a small margin
-  // for context.
-  const topMargin = 16;
-  scrollParent.scrollTop += elementRect.top - parentRect.top - topMargin;
-}
-
-/**
  * Renders the right-hand status for a single tool call. Completed / failed /
  * running map to the compact {@link ToolExecutionSummary} (icon only — a single
  * call has no meaningful count). `approval-requested` ("Awaiting approval") and
@@ -627,15 +595,9 @@ function ToolInvocationPartDetails({
     if (UIBehavior?.scrollIntoViewOnMount !== true) {
       return;
     }
-    // Release follow-bottom before scrolling the card into view; otherwise
-    // the next streaming resize would immediately pin the transcript back to
-    // the bottom and hide the approval again. Same policy as
-    // `useScrollAnchor.capture` for manual toggles.
     chatScrollContext?.stopScroll();
     requestAnimationFrame(() => {
-      if (detailsRef.current) {
-        scrollElementIntoViewWithinScrollParent(detailsRef.current);
-      }
+      chatScrollContext?.scrollElementToTop(detailsRef.current);
     });
   }, [
     shouldAutoOpen,
@@ -681,7 +643,7 @@ function ToolInvocationPartDetails({
                 className="tool-part__chevron"
               />
               <Icon
-                svgKey={getToolIconKey({ toolName, input: part.input })}
+                svgKey={getToolIconKey({ toolName })}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -1213,12 +1175,19 @@ const TOOL_PRESENTATION_BUILDERS: Partial<
       quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
     };
   },
-  [LOAD_SKILL_REFERENCE_TOOL_NAME]: (part, statusVariant) => ({
-    preview: getLoadSkillReferenceToolPreview(part),
-    stateLabel: formatToolState(part.state),
-    statusVariant,
-    details: <LoadSkillReferenceToolDetails part={part} />,
-  }),
+  [LOAD_SKILL_REFERENCE_TOOL_NAME]: (part, statusVariant) => {
+    const referenceName = getLoadSkillReferenceToolPreview(part);
+    return {
+      preview: referenceName,
+      stateLabel: formatToolState(part.state),
+      statusVariant,
+      details: <LoadSkillReferenceToolDetails part={part} />,
+      variant: part.state === "output-available" ? "quiet" : "default",
+      quietLabel: referenceName
+        ? `Loaded skill reference ${referenceName}`
+        : "Loaded skill reference",
+    };
+  },
   [NATIVE_WEB_SEARCH_TOOL_NAME]: (part, statusVariant, toolName) => ({
     preview: getNativeWebToolPreview(toolName, part),
     stateLabel: formatToolState(part.state),

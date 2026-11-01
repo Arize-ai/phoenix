@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbc48b4d85a7f3aaf4948350ad6398df>>
+ * @generated SignedSource<<9d2ef163a79712b1bf3e807d7c0e9a36>>
  * @lightSyntaxTransform
  */
 
@@ -8,15 +8,23 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "decision" | "embedding" | "evaluator" | "guardrail" | "llm" | "prompt" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type ConnectedTraceTree$data = {
   readonly id: string;
   readonly numSpans: number;
+  readonly project: {
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
+  };
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
+        readonly costSummary: {
+          readonly total: {
+            readonly cost: number | null;
+          };
+        } | null;
         readonly endTime: string | null;
         readonly id: string;
         readonly latencyMs: number | null;
@@ -24,15 +32,12 @@ export type ConnectedTraceTree$data = {
         readonly parentId: string | null;
         readonly spanAnnotationSummaries: ReadonlyArray<{
           readonly count: number;
-          readonly labelCount: number;
           readonly labelFractions: ReadonlyArray<{
             readonly fraction: number;
             readonly label: string;
           }>;
-          readonly labels: ReadonlyArray<string>;
           readonly meanScore: number | null;
           readonly name: string;
-          readonly scoreCount: number;
         }>;
         readonly spanId: string;
         readonly spanKind: SpanKind;
@@ -121,6 +126,22 @@ return {
       "storageKey": null
     },
     {
+      "alias": null,
+      "args": null,
+      "concreteType": "Project",
+      "kind": "LinkedField",
+      "name": "project",
+      "plural": false,
+      "selections": [
+        {
+          "args": null,
+          "kind": "FragmentSpread",
+          "name": "ProjectAnnotationConfigsByNameFragment"
+        }
+      ],
+      "storageKey": null
+    },
+    {
       "alias": "spans",
       "args": null,
       "concreteType": "SpanConnection",
@@ -205,18 +226,53 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "concreteType": "SpanCostSummary",
+                  "kind": "LinkedField",
+                  "name": "costSummary",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CostBreakdown",
+                      "kind": "LinkedField",
+                      "name": "total",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "cost",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": [
+                    {
+                      "kind": "Literal",
+                      "name": "filter",
+                      "value": {
+                        "exclude": {
+                          "names": [
+                            "note"
+                          ]
+                        }
+                      }
+                    }
+                  ],
                   "concreteType": "AnnotationSummary",
                   "kind": "LinkedField",
                   "name": "spanAnnotationSummaries",
                   "plural": true,
                   "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "labels",
-                      "storageKey": null
-                    },
+                    (v2/*:: as any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -228,7 +284,7 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "labelCount",
+                      "name": "meanScore",
                       "storageKey": null
                     },
                     {
@@ -255,24 +311,9 @@ return {
                         }
                       ],
                       "storageKey": null
-                    },
-                    (v2/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "scoreCount",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "meanScore",
-                      "storageKey": null
                     }
                   ],
-                  "storageKey": null
+                  "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                 }
               ],
               "storageKey": null
@@ -340,6 +381,6 @@ return {
 };
 })();
 
-(node as any).hash = "a795a35718b61f5ea864138d6b275046";
+(node as any).hash = "7f91cb9e2eae85cd9f94e7d82e5cedab";
 
 export default node;

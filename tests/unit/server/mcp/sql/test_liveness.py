@@ -1,20 +1,4 @@
-"""Every construct admission accepts must survive all the way to a result.
-
-Admission and the SQLite authorizer are separate gates applied at different
-stages, and they see different things. Admission inspects the statement the
-caller wrote, as parsed. The authorizer inspects the statement after rendering,
-which changes spelling: ``json_extract(x, path)`` is emitted as the ``->``
-operator, and functions the caller never named appear under their SQL names.
-
-When the two disagree, a caller writes something the surface documents as
-allowed and receives a sanitized failure that names nothing. That is worse than
-a refusal, because there is no way to tell a bug from a policy decision.
-
-These tests close the gap by executing rather than inspecting. Every construct
-listed as permitted runs against a real database and has to come back with rows.
-Add a case whenever the function or expression policy grows -- a construct that
-is allowed but has never been executed is only theoretically allowed.
-"""
+"""Permitted analytics SQL executes on real databases and returns the expected results."""
 
 from __future__ import annotations
 
@@ -34,9 +18,7 @@ from phoenix.server.mcp.sql.execute import (
 from phoenix.server.mcp.sql.teaching import describe_sql_schema
 from phoenix.server.types import DbSessionFactory
 
-# Statements are shaped so that a policy failure is the only plausible cause of an
-# error: each selects from an allowlisted table with a trivial predicate, so
-# nothing here can fail on data.
+# Permitted constructs evaluated against nonempty analytics tables.
 PERMITTED = [
     pytest.param("SELECT count(*) AS v FROM spans", id="count"),
     pytest.param("SELECT sum(cumulative_error_count) AS v FROM spans", id="sum"),
@@ -47,6 +29,14 @@ PERMITTED = [
     pytest.param("SELECT ceil(cumulative_error_count) AS v FROM spans", id="ceil"),
     pytest.param("SELECT floor(cumulative_error_count) AS v FROM spans", id="floor"),
     pytest.param("SELECT sign(cumulative_error_count) AS v FROM spans", id="sign"),
+    pytest.param("SELECT abs(cumulative_error_count) AS v FROM spans", id="abs"),
+    pytest.param("SELECT lower(name) AS v FROM spans", id="lower"),
+    pytest.param("SELECT upper(name) AS v FROM spans", id="upper"),
+    pytest.param("SELECT length(name) AS v FROM spans", id="length"),
+    pytest.param("SELECT substring(name, 1, 5) AS v FROM spans", id="substring"),
+    pytest.param("SELECT group_concat(name) AS v FROM spans", id="group_concat"),
+    pytest.param("SELECT current_timestamp AS v FROM spans", id="current_timestamp"),
+    pytest.param("SELECT current_date AS v FROM spans", id="current_date"),
     pytest.param("SELECT coalesce(parent_id, 'x') AS v FROM spans", id="coalesce"),
     pytest.param("SELECT nullif(span_kind, 'LLM') AS v FROM spans", id="nullif"),
     pytest.param("SELECT CAST(cumulative_error_count AS TEXT) AS v FROM spans", id="cast"),
@@ -115,6 +105,15 @@ PERMITTED = [
         "SELECT strftime('%Y-%m-%d %H', start_time) AS v FROM spans GROUP BY v",
         id="strftime-hour-bucket",
     ),
+    pytest.param(
+        "SELECT time_fmt_datetime(time_trunc(time_parse(start_time), 'hour')) AS v "
+        "FROM spans GROUP BY v",
+        id="time_trunc-hour-bucket",
+    ),
+    pytest.param(
+        "SELECT time_sub(time_parse(end_time), time_parse(start_time)) AS v FROM spans",
+        id="time_sub-elapsed-nanoseconds",
+    ),
     pytest.param("SELECT latency_ms AS v FROM spans", id="latency_ms-virtual-column"),
     pytest.param("SELECT row_number() OVER (ORDER BY id) AS v FROM spans", id="row_number"),
     pytest.param("SELECT rank() OVER (ORDER BY id) AS v FROM spans", id="rank"),
@@ -134,6 +133,8 @@ PERMITTED = [
         id="nth_value",
     ),
     pytest.param("SELECT ntile(4) OVER (ORDER BY id) AS v FROM spans", id="ntile"),
+    pytest.param("SELECT lag(id) OVER (ORDER BY id) AS v FROM spans", id="lag"),
+    pytest.param("SELECT lead(id) OVER (ORDER BY id) AS v FROM spans", id="lead"),
     # The JSON family, where admission and the authorizer see different things:
     # rendering turns json_extract into an operator, and json_each reads a
     # pseudo-table rather than calling a function.
@@ -189,55 +190,30 @@ PERMITTED = [
 async def test_permitted_statement_executes(
     analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
 ) -> None:
-    """Every permitted construct must produce a row, not merely avoid raising.
-
-    `assert "columns" in envelope` cannot fail: `_success_envelope` always sets
-    it, so the assertion held for any call that did not raise, and the fixture
-    had no spans -- so every statement here ran over an empty table. That
-    verifies the parser and the authorizer agree, and nothing about whether the
-    construct computes. A rewrite emitting valid SQL with the wrong semantics
-    passes an empty table without complaint.
-    """
+    """Permitted constructs return rows from seeded analytics data."""
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
     assert result.envelope.rows, "no values were returned to check"
 
 
-async def test_json_extract_survives_being_rendered_as_an_operator(
+async def test_json_extract_returns_attribute_values(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
-    """Named separately because the failure mode is invisible in the caller's SQL.
-
-    The caller writes an allowlisted function. The renderer emits an operator.
-    The authorizer gates on what it is shown, so unless it recognises the
-    operator as the same capability, a documented function becomes unusable and
-    the reported error mentions neither the function nor the operator.
-    """
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
         db,
-        ExecuteParams(sql="SELECT json_extract(attributes, '$.llm.model_name') AS m FROM spans"),
+        ExecuteParams(
+            sql="SELECT json_extract(attributes, '$.llm.model_name') AS m FROM spans ORDER BY id"
+        ),
         sqlite_db_path=db_path,
     )
-    assert result.envelope.columns == ["m"]
+    assert result.envelope.rows == [[None], ["gpt-4"], [None]]
 
 
-async def test_json_extract_returns_a_value_not_json_text(
+async def test_json_extract_preserves_numeric_ordering(
     analytics_sqlite_db: tuple[DbSessionFactory, str],
 ) -> None:
-    """Executing successfully is not the same as answering correctly.
-
-    SQLite's two JSON accessors differ in return type: one yields the underlying
-    value, the other yields JSON text. Aggregates hide the difference -- SUM
-    coerces either way -- but MIN, MAX and ORDER BY compare text
-    lexicographically, so a larger number can sort below a smaller one.
-
-    Nothing errors when this goes wrong, which is why liveness alone cannot
-    catch it: the query runs, returns a row, and the number is wrong. The
-    assertion is therefore on the value, using inputs whose lexicographic and
-    numeric orderings disagree.
-    """
+    """JSON numbers retain numeric ordering in MIN and MAX."""
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(
         db,
@@ -249,12 +225,7 @@ async def test_json_extract_returns_a_value_not_json_text(
         ),
         sqlite_db_path=db_path,
     )
-    lo, hi = result.envelope.rows[0]
-    assert isinstance(lo, (str, int, float))
-    assert isinstance(hi, (str, int, float))
-    assert (int(lo), int(hi)) == (149740, 1017066), (
-        f"got lo={lo!r} hi={hi!r}; lexicographic comparison would give lo=1017066"
-    )
+    assert result.envelope.rows == [[149740, 1017066]]
 
 
 async def test_json_type_reports_the_shape_of_a_value(
@@ -506,29 +477,23 @@ async def test_row_limit_is_clamped(
     assert result.envelope.notes == [f"row_limit clamped to {MAX_ROW_LIMIT}"]
 
 
-NEWLY_ALLOWED = [
-    pytest.param("SELECT abs(cumulative_error_count) AS v FROM spans", id="abs"),
-    pytest.param("SELECT lower(name) AS v FROM spans", id="lower"),
-    pytest.param("SELECT substring(name, 1, 5) AS v FROM spans", id="substring"),
-    pytest.param("SELECT lag(id) OVER (ORDER BY id) AS v FROM spans", id="lag"),
-    pytest.param("SELECT lead(id) OVER (ORDER BY id) AS v FROM spans", id="lead"),
-    pytest.param("SELECT group_concat(name) AS v FROM spans", id="group_concat"),
-]
-
-
-@pytest.mark.parametrize("sql", NEWLY_ALLOWED)
-async def test_newly_allowed_function_executes(
-    analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
+@pytest.mark.parametrize(
+    ("order", "expected"),
+    [("ASC", "llm call|root|tool call"), ("DESC", "tool call|root|llm call")],
+)
+async def test_sqlite_group_concat_preserves_requested_order(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], order: str, expected: str
 ) -> None:
-    """Admitting a function is not the same as being able to run it.
-
-    Widening the allowlist settles only the parser's view. The engine still has to accept the rendered
-    spelling, which is not always the one the caller wrote -- group_concat is
-    emitted as string_agg on PostgreSQL, from the same node class.
-    """
     db, db_path = analytics_sqlite_db
-    result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(
+            sql=f"SELECT group_concat(name, '|' ORDER BY name {order}) AS names FROM spans"
+        ),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.columns == ["names"]
+    assert result.envelope.rows == [[expected]]
 
 
 @pytest.mark.parametrize(
@@ -539,17 +504,9 @@ async def test_newly_allowed_function_executes(
         pytest.param("SELECT randomblob(100000000) AS v FROM spans", id="randomblob"),
     ],
 )
-async def test_amplifying_neighbours_stay_denied(
+async def test_sqlite_rejects_disallowed_functions(
     analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
 ) -> None:
-    """Widening a family must not widen its neighbours.
-
-    substring, lower and abs are safe because their output is bounded by their
-    input. These are their nearest neighbours and are not: each turns a short
-    statement into a large value, which is a different property from being a
-    string function. Admitting the first group is only defensible while this
-    group stays refused.
-    """
     from phoenix.server.mcp.sql.errors import AnalyticsSqlError, ErrorCode
 
     db, db_path = analytics_sqlite_db
@@ -916,14 +873,6 @@ async def test_envelope_carries_only_fields_that_can_vary(
     assert "-- area: telemetry" in schema, "the areas must survive the removal"
 
 
-NEWLY_ALLOWED_ON_BOTH = [
-    pytest.param("SELECT upper(name) AS v FROM spans", id="upper"),
-    pytest.param("SELECT length(name) AS v FROM spans", id="length"),
-    pytest.param("SELECT current_timestamp AS v FROM spans", id="current_timestamp"),
-    pytest.param("SELECT current_date AS v FROM spans", id="current_date"),
-]
-
-
 SQLITE_JSON_SURFACE = [
     pytest.param("SELECT json_array_length('[1,2]') AS v FROM spans", id="array_length"),
     pytest.param("SELECT json_valid(attributes) AS v FROM spans", id="valid"),
@@ -946,14 +895,7 @@ SQLITE_JSON_SURFACE = [
 async def test_sqlite_json_surface_executes(
     analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
 ) -> None:
-    """Every json1 operation admitted for SQLite must also pass the authorizer.
-
-    A function that parses to a node class rather than to a generic call does
-    not reach the authorizer set through `allowed_anon_functions`, so it has to
-    be named in `SQLITE_AUTHORIZER_FUNCTIONS` directly. `json_object`,
-    `json_group_array` and `json_group_object` are all of that kind, and a name
-    missing there is admitted by the parser policy and denied by the engine.
-    """
+    """Permitted SQLite JSON operations return rows."""
     db, db_path = analytics_sqlite_db
     result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
     assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
@@ -1013,9 +955,6 @@ POSTGRES_JSON_SURFACE = [
         "FROM spans",
         id="computed_key_nested_accessor",
     ),
-    # A key holding an apostrophe, and the root-only path. Both are emissions
-    # the generator gets wrong on its own, so both have to reach the engine.
-    pytest.param("SELECT '{\"c''d\":7}'::jsonb -> 'c''d' AS v FROM spans", id="quoted_key"),
     pytest.param("SELECT json_extract('{\"a\":1}'::jsonb, '$') AS v FROM spans", id="root_path"),
     # The array-constructor spelling of a `#>` path, which reaches the same
     # value as `#> '{a,b}'`.
@@ -1057,40 +996,53 @@ POSTGRES_JSON_SURFACE = [
 async def test_postgres_json_surface_executes(
     analytics_postgres_db: DbSessionFactory, sql: str
 ) -> None:
-    """Every JSONB operation admitted for PostgreSQL must survive the plan gate.
-
-    Admission settles only the parser's view. The rendered spelling still has to
-    be one PostgreSQL accepts, and a set-returning member has to pass the plan
-    gate as well, which recognises a `ProjectSet` by the function names in the
-    node's expression text: a name in the anon allowlist but absent from
-    `UNNEST_FUNCTIONS` is refused there. That two-layer disagreement is what
-    this suite exists to catch.
-
-    Rows are required, not just a clean run. The plan gate gets exercised either
-    way, since it runs at `EXPLAIN` before any row is produced -- but a construct
-    that executes over an empty table has only been shown to parse and render.
-    Where a function is fussy about its input type it is given a literal, so a
-    failure here is a policy failure rather than a data one.
-    """
+    """Permitted PostgreSQL JSON operations pass planning and return rows."""
     result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
     assert result.envelope.row_count > 0, "executed, but evaluated over nothing"
 
 
-@pytest.mark.parametrize("sql", NEWLY_ALLOWED_ON_BOTH)
-async def test_portable_function_classes_are_executable_on_sqlite(
-    analytics_sqlite_db: tuple[DbSessionFactory, str], sql: str
-) -> None:
-    """A class in the portable allowlist must also be in the authorizer's set.
+JSON_WITH_QUOTED_KEYS = """'{"c''d":7,"a''b":[11,13],"e''f":{"g":[17]}}'"""
 
-    A class the parser policy admits but the authorizer denies works on
-    PostgreSQL and is refused here -- the divergence the two policies exist to
-    prevent. The allowlist comment claims this suite makes that fail loudly,
-    which holds only for classes a case actually executes, so every portable
-    class carries one.
-    """
+
+@pytest.mark.parametrize(
+    ("accessor", "expected"),
+    [
+        pytest.param("""-> '$."c''d"'""", "7", id="json-value"),
+        pytest.param("""->> '$."c''d"'""", 7, id="scalar-value"),
+        pytest.param("""-> '$."a''b"[0]'""", "11", id="array-element"),
+        pytest.param("""->> '$."e''f".g[0]'""", 17, id="nested-array-element"),
+    ],
+)
+async def test_sqlite_json_accessors_extract_keys_with_apostrophes(
+    analytics_sqlite_db: tuple[DbSessionFactory, str], accessor: str, expected: str | int
+) -> None:
     db, db_path = analytics_sqlite_db
-    result = await execute_analytics_sql(db, ExecuteParams(sql=sql), sqlite_db_path=db_path)
-    assert result.envelope.row_count > 0
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql=f"SELECT {JSON_WITH_QUOTED_KEYS} {accessor} AS value"),
+        sqlite_db_path=db_path,
+    )
+    assert result.envelope.rows == [[expected]]
+
+
+@pytest.mark.parametrize("dialect", ["postgresql"])
+@pytest.mark.parametrize(
+    ("accessor", "expected"),
+    [
+        pytest.param("-> 'c''d'", 7, id="json-value"),
+        pytest.param("->> 'c''d'", "7", id="scalar-value"),
+        pytest.param("-> 'a''b' -> 1", 13, id="array-element"),
+        pytest.param("-> 'e''f' -> 'g' ->> 0", "17", id="nested-array-element"),
+    ],
+)
+async def test_postgres_json_accessors_extract_keys_with_apostrophes(
+    db: DbSessionFactory, accessor: str, expected: str | int
+) -> None:
+    result = await execute_analytics_sql(
+        db,
+        ExecuteParams(sql=f"SELECT {JSON_WITH_QUOTED_KEYS}::jsonb {accessor} AS value"),
+    )
+    assert result.envelope.rows == [[expected]]
 
 
 DISTINCT_ON_SHAPES = [
@@ -1115,6 +1067,21 @@ async def test_distinct_on_executes(analytics_postgres_db: DbSessionFactory, sql
     """
     result = await execute_analytics_sql(analytics_postgres_db, ExecuteParams(sql=sql))
     assert result.envelope.row_count > 0
+
+
+@pytest.mark.postgres_only
+async def test_quoted_char_cast_is_the_one_byte_type(
+    analytics_postgres_db: DbSessionFactory,
+) -> None:
+    """`"char"` must reach the engine quoted, so it is the 1-byte type, not bpchar.
+
+    Executed rather than rendered because the two types accept the same cast
+    and differ only in the answer: 65 is 'A' as `"char"` and '6' as `CHAR`.
+    """
+    result = await execute_analytics_sql(
+        analytics_postgres_db, ExecuteParams(sql='SELECT CAST(65 AS "char") AS v')
+    )
+    assert result.envelope.rows == [["A"]]
 
 
 @pytest.mark.postgres_only

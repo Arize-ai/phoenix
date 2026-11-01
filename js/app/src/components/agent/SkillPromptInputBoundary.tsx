@@ -4,7 +4,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import type { PromptCommand } from "@phoenix/agent/slashCommands/promptCommands";
 import { PromptInputTextarea } from "@phoenix/components/ai/prompt-input";
 
-import { SkillPromptInput } from "./SkillPromptInput";
+import { PROMPT_MAX_ROWS, SkillPromptInput } from "./SkillPromptInput";
 import {
   useAvailableAgentSkills,
   type AvailableAgentSkill,
@@ -18,6 +18,8 @@ type SkillPromptInputBoundaryProps = {
    * submit-time command parse.
    */
   commands: PromptCommand[];
+  /** Previously sent prompts, newest first, for up-arrow recall. */
+  promptHistory: string[];
   /**
    * Receives the available skills whenever the catalog resolves, so the parent
    * can parse requested skills from the submitted message text. Called with an
@@ -33,6 +35,7 @@ type SkillPromptInputBoundaryProps = {
 function SkillPromptInputLoader({
   placeholder,
   commands,
+  promptHistory,
   onSkillsChange,
   textareaRef,
   menuPortalTarget,
@@ -48,6 +51,7 @@ function SkillPromptInputLoader({
       placeholder={placeholder}
       skills={skills}
       commands={commands}
+      promptHistory={promptHistory}
       textareaRef={textareaRef}
       menuPortalTarget={menuPortalTarget}
     />
@@ -65,12 +69,17 @@ function SkillPromptInputLoader({
 export function SkillPromptInputBoundary({
   placeholder,
   commands,
+  promptHistory,
   onSkillsChange,
   textareaRef,
   menuPortalTarget,
 }: SkillPromptInputBoundaryProps) {
   const fallback = (
-    <PromptInputTextarea ref={textareaRef} placeholder={placeholder} />
+    <PromptInputTextarea
+      ref={textareaRef}
+      placeholder={placeholder}
+      maxRows={PROMPT_MAX_ROWS}
+    />
   );
   return (
     <ErrorBoundary fallback={fallback}>
@@ -78,6 +87,7 @@ export function SkillPromptInputBoundary({
         <SkillPromptInputLoader
           placeholder={placeholder}
           commands={commands}
+          promptHistory={promptHistory}
           onSkillsChange={onSkillsChange}
           textareaRef={textareaRef}
           menuPortalTarget={menuPortalTarget}

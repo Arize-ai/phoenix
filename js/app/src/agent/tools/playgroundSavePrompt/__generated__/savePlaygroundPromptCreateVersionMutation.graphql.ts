@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f790aa56f3601f55c0820a2c7524e3b6>>
+ * @generated SignedSource<<63c05be67d9278b5c60c4813e6615061>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type ChatPromptVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
   invocationParameters: PromptInvocationParametersInput;
+  metadata?: any | null;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   responseFormat?: PromptResponseFormatJSONSchemaInput | null;

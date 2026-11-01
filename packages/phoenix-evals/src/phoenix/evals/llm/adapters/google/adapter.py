@@ -344,7 +344,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 for candidate in response.candidates:
                     if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
                         for part in candidate.content.parts:
-                            if hasattr(part, "function_call"):
+                            if getattr(part, "function_call", None) is not None:
                                 return cast(Dict[str, Any], dict(part.function_call.args))
 
             raise ValueError("No function call in response")
@@ -381,7 +381,7 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                 for candidate in response.candidates:
                     if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
                         for part in candidate.content.parts:
-                            if hasattr(part, "function_call"):
+                            if getattr(part, "function_call", None) is not None:
                                 return cast(Dict[str, Any], dict(part.function_call.args))
 
             raise ValueError("No function call in response")
@@ -447,8 +447,10 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
             role = msg["role"]
             content = msg["content"]
 
-            # Skip system messages - they should be handled separately
-            if role == MessageRole.SYSTEM:
+            # Skip system messages - they should be handled separately.
+            # Google has no "developer" role, so DEVELOPER folds into the same
+            # system-extraction path as SYSTEM.
+            if role in (MessageRole.SYSTEM, MessageRole.DEVELOPER):
                 continue
 
             # Map MessageRole enum to Google role strings
@@ -497,8 +499,13 @@ class GoogleGenAIAdapter(BaseLLMAdapter):
                     role = normalize_role(msg["role"])
                     messages_typed.append(Message(role=role, content=msg["content"]))
 
-            # Extract system messages first
-            system_messages = [msg for msg in messages_typed if msg["role"] == MessageRole.SYSTEM]
+            # Extract system messages first (DEVELOPER folds into SYSTEM here —
+            # Google has no separate wire role for it).
+            system_messages = [
+                msg
+                for msg in messages_typed
+                if msg["role"] in (MessageRole.SYSTEM, MessageRole.DEVELOPER)
+            ]
             system_instruction = "\n".join(
                 self._extract_text_from_content(msg["content"]) for msg in system_messages
             )

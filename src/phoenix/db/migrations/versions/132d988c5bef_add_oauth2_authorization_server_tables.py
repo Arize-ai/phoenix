@@ -6,6 +6,8 @@ Create Date: 2026-07-09 00:41:15.427576
 
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
@@ -46,6 +48,34 @@ revision: str = "132d988c5bef"
 down_revision: Union[str, None] = "eaf1907ae453"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+
+@contextmanager
+def _preserve_sqlite_sequence(table_name: str) -> Iterator[None]:
+    """Keep the AUTOINCREMENT high-water mark across a SQLite table rebuild."""
+    connection = op.get_bind()
+    if connection.dialect.name != "sqlite":
+        yield
+        return
+    sequence = connection.execute(
+        sa.text("SELECT seq FROM sqlite_sequence WHERE name = :name"),
+        {"name": table_name},
+    ).scalar()
+    yield
+    if sequence is None:
+        return
+    parameters = {"name": table_name, "sequence": sequence}
+    result = connection.execute(
+        sa.text(
+            "UPDATE sqlite_sequence SET seq = MAX(COALESCE(seq, 0), :sequence) WHERE name = :name"
+        ),
+        parameters,
+    )
+    if not result.rowcount:
+        connection.execute(
+            sa.text("INSERT INTO sqlite_sequence (name, seq) VALUES (:name, :sequence)"),
+            parameters,
+        )
 
 
 def upgrade() -> None:
@@ -170,12 +200,13 @@ def upgrade() -> None:
     op.execute("DELETE FROM access_tokens WHERE user_id IS NULL OR refresh_token_id IS NULL")
     op.execute("DELETE FROM refresh_tokens WHERE user_id IS NULL")
 
-    # table_kwargs preserves AUTOINCREMENT on SQLite, whose batch mode rebuilds
-    # the table; without it, deleted primary keys could be reused.
-    with op.batch_alter_table(
-        "refresh_tokens",
-        table_kwargs={"sqlite_autoincrement": True},
-    ) as batch_op:
+    # Preserve both the AUTOINCREMENT declaration and its counter across SQLite rebuilds.
+    with (
+        _preserve_sqlite_sequence("refresh_tokens"),
+        op.batch_alter_table(
+            "refresh_tokens", table_kwargs={"sqlite_autoincrement": True}
+        ) as batch_op,
+    ):
         batch_op.add_column(
             sa.Column(
                 "oauth2_grant_id",
@@ -193,44 +224,50 @@ def upgrade() -> None:
         batch_op.alter_column("user_id", existing_type=_Integer, nullable=False)
         batch_op.create_index("ix_refresh_tokens_oauth2_grant_id", ["oauth2_grant_id"])
 
-    with op.batch_alter_table(
-        "access_tokens",
-        table_kwargs={"sqlite_autoincrement": True},
-    ) as batch_op:
+    with (
+        _preserve_sqlite_sequence("access_tokens"),
+        op.batch_alter_table(
+            "access_tokens", table_kwargs={"sqlite_autoincrement": True}
+        ) as batch_op,
+    ):
         batch_op.add_column(sa.Column("scopes", JSON_, nullable=True))
         batch_op.add_column(sa.Column("audience", JSON_, nullable=True))
         batch_op.alter_column("user_id", existing_type=_Integer, nullable=False)
         batch_op.alter_column("refresh_token_id", existing_type=_Integer, nullable=False)
 
-    with op.batch_alter_table(
-        "api_keys",
-        table_kwargs={"sqlite_autoincrement": True},
-    ) as batch_op:
+    with (
+        _preserve_sqlite_sequence("api_keys"),
+        op.batch_alter_table("api_keys", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         batch_op.add_column(sa.Column("scopes", JSON_, nullable=True))
         batch_op.add_column(sa.Column("audience", JSON_, nullable=True))
 
 
 def downgrade() -> None:
-    with op.batch_alter_table(
-        "api_keys",
-        table_kwargs={"sqlite_autoincrement": True},
-    ) as batch_op:
+    with (
+        _preserve_sqlite_sequence("api_keys"),
+        op.batch_alter_table("api_keys", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         batch_op.drop_column("audience")
         batch_op.drop_column("scopes")
 
-    with op.batch_alter_table(
-        "access_tokens",
-        table_kwargs={"sqlite_autoincrement": True},
-    ) as batch_op:
+    with (
+        _preserve_sqlite_sequence("access_tokens"),
+        op.batch_alter_table(
+            "access_tokens", table_kwargs={"sqlite_autoincrement": True}
+        ) as batch_op,
+    ):
         batch_op.alter_column("refresh_token_id", existing_type=_Integer, nullable=True)
         batch_op.alter_column("user_id", existing_type=_Integer, nullable=True)
         batch_op.drop_column("audience")
         batch_op.drop_column("scopes")
 
-    with op.batch_alter_table(
-        "refresh_tokens",
-        table_kwargs={"sqlite_autoincrement": True},
-    ) as batch_op:
+    with (
+        _preserve_sqlite_sequence("refresh_tokens"),
+        op.batch_alter_table(
+            "refresh_tokens", table_kwargs={"sqlite_autoincrement": True}
+        ) as batch_op,
+    ):
         batch_op.alter_column("user_id", existing_type=_Integer, nullable=True)
         batch_op.drop_index("ix_refresh_tokens_oauth2_grant_id")
         batch_op.drop_column("consumed_at")

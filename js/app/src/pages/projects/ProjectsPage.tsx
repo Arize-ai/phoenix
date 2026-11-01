@@ -1,14 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  ColumnDef,
-  OnChangeFn,
-  SortingState,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { formatDistance } from "date-fns";
 import {
   memo,
@@ -38,7 +30,6 @@ import {
   Icon,
   Icons,
   Link,
-  Loading,
   Skeleton,
   Text,
   View,
@@ -55,8 +46,11 @@ import {
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
+import { TableSkeleton } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
@@ -105,6 +99,19 @@ const useProjectSortQueryParams = () => {
 };
 
 export function ProjectsPage() {
+  return (
+    <>
+      <TopNavActions>
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <Suspense fallback={<ProjectsPageSkeleton />}>
+        <ProjectsPageQueryContent />
+      </Suspense>
+    </>
+  );
+}
+
+function ProjectsPageQueryContent() {
   const { timeRangeISOStrings } = useTimeRange();
   const _queryParams = useProjectSortQueryParams();
   // we only want to trigger the initial query when the component mounts
@@ -131,19 +138,63 @@ export function ProjectsPage() {
   );
 
   return (
-    <>
-      <TopNavActions>
-        <ConnectedTimeRangeSelector size="S" />
-      </TopNavActions>
-      <Suspense fallback={<Loading />}>
-        <ProjectsPageContent
-          timeRangeISOStrings={timeRangeISOStrings}
-          query={data}
-        />
-      </Suspense>
-    </>
+    <ProjectsPageContent
+      timeRangeISOStrings={timeRangeISOStrings}
+      query={data}
+    />
   );
 }
+
+/**
+ * A loading placeholder for the projects page: one toolbar bar above a first
+ * page of projects, as cards or table rows to match the preferred view mode.
+ */
+function ProjectsPageSkeleton() {
+  const { projectViewMode } = usePreferencesContext((state) => ({
+    projectViewMode: state.projectViewMode,
+  }));
+  return (
+    <div
+      role="status"
+      aria-label="loading"
+      css={css`
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        height: 100%;
+      `}
+    >
+      <View padding="size-200" width="100%" flex="none">
+        <Skeleton height="var(--global-input-height-m)" />
+      </View>
+      {projectViewMode === "grid" ? (
+        <View padding="size-200" width="100%">
+          <ul css={projectsGridCSS}>
+            {Array.from({ length: PAGE_SIZE }, (_, index) => (
+              <li key={index}>
+                <Skeleton
+                  height="var(--global-dimension-size-1800)"
+                  borderRadius="medium"
+                />
+              </li>
+            ))}
+          </ul>
+        </View>
+      ) : (
+        <TableSkeleton rowCount="fill" />
+      )}
+    </div>
+  );
+}
+
+const projectsGridCSS = css`
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--global-dimension-size-3600), 1fr)
+  );
+  gap: var(--global-dimension-size-200);
+`;
 
 export function ProjectsPageContent({
   timeRangeISOStrings,
@@ -152,7 +203,6 @@ export function ProjectsPageContent({
   timeRangeISOStrings: TimeRangeISOStrings;
   query: ProjectsPageProjectsFragment$key;
 }) {
-  "use no memo";
   const { projectViewMode } = usePreferencesContext((state) => ({
     projectViewMode: state.projectViewMode,
   }));
@@ -441,16 +491,7 @@ function ProjectsGrid({
   const timeRangeSearch = useTimeRangeSearch();
   return (
     <View padding="size-200" width="100%">
-      <ul
-        css={css`
-          display: grid;
-          grid-template-columns: repeat(
-            auto-fill,
-            minmax(var(--global-dimension-size-3600), 1fr)
-          );
-          gap: var(--global-dimension-size-200);
-        `}
-      >
+      <ul css={projectsGridCSS}>
         {projects?.map((project) => (
           <li
             key={project.id}
@@ -610,19 +651,19 @@ function ProjectMetricsLoadingSkeleton() {
         <Text elementType="h3" size="S" color="text-700">
           Traces
         </Text>
-        <Skeleton width={60} height={20} animation="wave" />
+        <Skeleton width={60} height={20} />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Sessions
         </Text>
-        <Skeleton width={60} height={20} animation="wave" />
+        <Skeleton width={60} height={20} />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Latency P50
         </Text>
-        <Skeleton width={60} height={20} animation="wave" />
+        <Skeleton width={60} height={20} />
       </Flex>
     </Flex>
   );
@@ -775,6 +816,9 @@ function ProjectsTable({
         header: "last updated at",
         accessorKey: "endTime",
         maxSize: 30,
+        // most recently updated first; TanStack's guess at a first direction
+        // depends on which rows come first
+        sortDescFirst: true,
         cell: TimestampCell,
       },
       {
@@ -868,11 +912,10 @@ function ProjectsTable({
     },
     [setProjectSortOrder, sortingRowModel, onSort]
   );
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     data: projects,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     // Key rows by entity ID rather than by index so that row-hosted overlays
     // (action menus) and row selection stay bound to the row they were opened
     // on when a refetch re-orders the list.
@@ -881,6 +924,7 @@ function ProjectsTable({
       sorting: sortingRowModel,
     },
     enableSortingRemoval: false,
+    manualSorting: true,
     onSortingChange,
   });
   const rows = table.getRowModel().rows;

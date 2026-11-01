@@ -90,6 +90,13 @@ tests/unit/server/api/
 
 ## Naming
 
+- **Name new mutations after the HTTP verb they are synonymous with**:
+  `createThing`, `patchThing`, `setThing`, `deleteThing` — not `applyThingChanges`
+  or `updateThing`. `patch` covers any partial write to existing resources,
+  including a collection-level write that also adds and removes members in one
+  transaction. The input type takes the same name (`PatchThingInput`). Existing
+  `update*` mutations and `addXToY` linking mutations are not covered by this.
+  See `references/graphql-patterns.md` → "Naming: use the HTTP verb".
 - **Avoid acronyms and single/double-letter abbreviations for local variables.**
   Prefer the full noun: `session` / `project_session` over `ps`, `trace` over `t`,
   `example` / `dataset_example` over `de`. The cost of a longer identifier is trivial; the
@@ -100,8 +107,10 @@ tests/unit/server/api/
 
 ## Docstrings
 
-The project rule of "default to no comments" is about **inline comments**, not
-docstrings. Public APIs should be documented.
+Default to no inline comments: keep one only where a competent reader of the final
+code, without it, would likely change the code wrongly, and never to explain the change
+itself (that belongs in the commit message or PR description). Docstrings are not inline
+comments. Public APIs should be documented.
 
 - **Document parameters and return values on public methods of reusable classes**
   (clients, services, factories, builders). Use Google-style `Args:` / `Returns:`

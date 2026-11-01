@@ -45,7 +45,7 @@ export const setSpansFilterOperation = defineUIOperation({
     "ingested trace can have several, so do not treat the row count as a " +
     "trace count. Do NOT restrict to root spans when narrowing to a " +
     "`span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, " +
-    "EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost " +
+    "EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL, DECISION) — those kinds are almost " +
     "always nested under a CHAIN/AGENT root, so combining them with a root " +
     "predicate yields zero results even when matching spans exist. The same " +
     "applies to anything that targets nested spans (specific tool names, " +
@@ -76,12 +76,27 @@ export const setSpansFilterOperation = defineUIOperation({
     "`annotations['Name'].score`.\n" +
     "  - Substring search: `'needle' in input.value` (any string field, " +
     "ignores case).\n" +
+    "  - Cost: `total_cost`, `prompt_cost`, `completion_cost`. These are " +
+    "bare names and read this span's own cost row. There is no token name " +
+    "here and no cost-per-token name -- for a rate, divide two reductions " +
+    "over `cost_details`, e.g. `sum(d.cost for d in cost_details) / " +
+    "sum(d.tokens for d in cost_details) > 0.0001`, which yields null " +
+    "rather than an error when tokens are zero. For a span's token counts " +
+    "use `cumulative_llm_token_count_total` (this span and its " +
+    "descendants) or `attributes['llm']['token_count']['total']` (this " +
+    "span alone). `attributes['total_cost']` is the separate, unrelated " +
+    "spelling for a span attribute of that name.\n" +
+    "  - Per-token-type cost rows: `cost_details`, iterated with " +
+    "`any`/`all`/`len`/`sum`/`max`/`min`, e.g. " +
+    "`any(cost_detail.token_type == 'cache_read' for cost_detail in " +
+    "cost_details)`. Element fields: `token_type`, `is_prompt`, `cost`, " +
+    "`tokens`, `cost_per_token`.\n" +
     "  - Combine clauses with `and`, `or`, `not`." +
     "\n\n" +
     "VALUE CONVENTIONS:\n" +
     "  - `span_kind` values are UPPERCASE string literals: 'LLM', " +
     "'TOOL', 'CHAIN', 'AGENT', 'RETRIEVER', 'EMBEDDING', 'RERANKER', " +
-    "'EVALUATOR', 'GUARDRAIL', 'UNKNOWN'. Lowercase ('llm') will not " +
+    "'EVALUATOR', 'GUARDRAIL', 'DECISION', 'UNKNOWN'. Lowercase ('llm') will not " +
     "match.\n" +
     "  - `status_code` values are UPPERCASE: 'OK', 'ERROR', 'UNSET'.\n" +
     "  - Always wrap string literals in single or double quotes." +
@@ -96,6 +111,12 @@ export const setSpansFilterOperation = defineUIOperation({
     "  - 'Include orphaned spans as roots' → `parent_span is None`\n" +
     "  - 'Hallucinations' → " +
     "`annotations['Hallucination'].label == 'hallucinated'`\n" +
+    "  - 'Expensive spans' → `total_cost > 0.1`\n" +
+    "  - 'Expensive LLM calls' → " +
+    "`span_kind == 'LLM' and total_cost > 0.1`\n" +
+    "  - 'Spans that hit the prompt cache' → " +
+    "`any(cost_detail.token_type == 'cache_read' for cost_detail in " +
+    "cost_details)`\n" +
     "  - 'Spans mentioning agent in input' → `'agent' in input.value`\n" +
     "  - 'Show everything' → `''`\n" +
     "  - 'Reset to default view' → `parent_id is None`.",

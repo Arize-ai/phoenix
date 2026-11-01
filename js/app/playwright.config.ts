@@ -8,8 +8,8 @@ import { defineConfig, devices } from "@playwright/test";
 // import dotenv from 'dotenv';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
-// Skip WebKit for CI because of recurring issues with caching binaries.
 const isCI = !!process.env.CI;
+const skipFirefox = process.env.CI_PLAYWRIGHT_SKIP_FIREFOX === "true";
 const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
 const basePort = Number(process.env.PHOENIX_PORT ?? "6006");
 const baseURL =
@@ -33,15 +33,24 @@ const appFramePort = basePort + 1;
 const appFrameGrpcPort = Number(process.env.PHOENIX_GRPC_PORT ?? "4317") + 1;
 const appFrameBaseURL = `http://localhost:${appFramePort}`;
 
+const browserProjects: { name: string; use: Project["use"] }[] = [
+  { name: "chromium", use: devices["Desktop Chrome"] },
+  ...(skipFirefox
+    ? []
+    : [{ name: "firefox", use: devices["Desktop Firefox"] }]),
+  ...(skipWebKit ? [] : [{ name: "webkit", use: devices["Desktop Safari"] }]),
+];
+const browserProjectNames = browserProjects.map((project) => project.name);
+
 const projects: Project[] = [
   {
     name: "setup",
     testMatch: "**/auth.setup.ts",
   },
-  {
-    name: "chromium",
+  ...browserProjects.map((project) => ({
+    ...project,
     use: {
-      ...devices["Desktop Chrome"],
+      ...project.use,
       storageState: "playwright/.auth/admin.json",
     },
     dependencies: ["setup"],
@@ -52,41 +61,8 @@ const projects: Project[] = [
       ...appFrameSpecs,
       ...pxiTestIgnore,
     ],
-  },
-  {
-    name: "firefox",
-    use: {
-      ...devices["Desktop Firefox"],
-      storageState: "playwright/.auth/admin.json",
-    },
-    dependencies: ["setup"],
-    // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: [
-      "**/*.rate-limit.spec.ts",
-      "**/*.setup.ts",
-      ...appFrameSpecs,
-      ...pxiTestIgnore,
-    ],
-  },
+  })),
 ];
-
-if (!skipWebKit) {
-  projects.push({
-    name: "webkit",
-    use: {
-      ...devices["Desktop Safari"],
-      storageState: "playwright/.auth/admin.json",
-    },
-    dependencies: ["setup"],
-    // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: [
-      "**/*.rate-limit.spec.ts",
-      "**/*.setup.ts",
-      ...appFrameSpecs,
-      ...pxiTestIgnore,
-    ],
-  });
-}
 
 if (!isPxiE2E) {
   // The app-frame server has a fresh database and its own signing secret, so
@@ -117,9 +93,7 @@ if (!isPxiE2E) {
 projects.push({
   name: "rate limit",
   use: { ...devices["Desktop Chrome"] },
-  dependencies: skipWebKit
-    ? ["chromium", "firefox"]
-    : ["chromium", "firefox", "webkit"],
+  dependencies: browserProjectNames,
   testMatch: "**/*.rate-limit.spec.ts",
 });
 

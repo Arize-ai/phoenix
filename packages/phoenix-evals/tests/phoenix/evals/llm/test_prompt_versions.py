@@ -83,7 +83,7 @@ def test_phoenix_prompt_to_prompt_template_normalizes_supported_roles() -> None:
     template = phoenix_prompt_to_prompt_template(payload)
 
     assert template.template == [
-        {"role": "system", "content": "Be strict."},
+        {"role": "developer", "content": "Be strict."},
         {"role": "assistant", "content": "Previous answer."},
         {"role": "assistant", "content": "Current answer."},
     ]

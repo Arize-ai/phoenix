@@ -310,7 +310,7 @@ class MontyRuntime:
             await probe.run(
                 "return 1",
                 consumer="mcp",
-                limits={"max_duration_secs": 10.0},
+                limits={"max_feed_duration_secs": 10.0},
                 total_timeout=STARTUP_CHECK_TIMEOUT,
             )
             healthy = True

@@ -286,52 +286,29 @@ CI=1 pnpm exec playwright test tests/example.spec.ts --project=chromium
 | Prompts              | `/prompts`                   | "New Prompt" button, prompts table                 |
 | Settings             | `/settings/general`          | "Add User" button, users table                     |
 
-## UI Exploration with agent-browser
+## UI Exploration
 
-When selectors are unclear, use agent-browser to explore the Phoenix UI. For detailed agent-browser usage, invoke the `/agent-browser` skill.
+When selectors are unclear, use the available browser tooling to explore the Phoenix UI at `http://localhost:6006/datasets`. Inspect accessible roles and names, interact with the target elements, and inspect the page again after navigation or DOM changes.
 
-### Quick Reference for Phoenix
+Use the observed roles and names to choose Playwright selectors:
 
-```bash
-# Open Phoenix page (dev server runs on port 6006)
-agent-browser open "http://localhost:6006/datasets"
-
-# Get interactive snapshot with element refs
-agent-browser snapshot -i
-
-# Click using refs from snapshot
-agent-browser click @e5
-
-# Fill form fields
-agent-browser fill @e2 "test value"
-
-# Get element text
-agent-browser get text @e1
-```
-
-### Discovering Selectors Workflow
-
-1. Open the page: `agent-browser open "http://localhost:6006/datasets"`
-2. Get snapshot: `agent-browser snapshot -i`
-3. Find element refs in output (e.g., `@e1 [button] "New Dataset"`)
-4. Interact: `agent-browser click @e1`
-5. Re-snapshot after navigation/DOM changes: `agent-browser snapshot -i`
-
-### Translating to Playwright
-
-| agent-browser output       | Playwright selector                              |
-| -------------------------- | ------------------------------------------------ |
-| `@e1 [button] "Save"`      | `page.getByRole("button", { name: "Save" })`     |
-| `@e2 [link] "Datasets"`    | `page.getByRole("link", { name: "Datasets" })`   |
-| `@e3 [textbox] "Name"`     | `page.getByRole("textbox", { name: "Name" })`    |
-| `@e4 [menuitem] "Edit"`    | `page.getByRole("menuitem", { name: "Edit" })`   |
-| `@e5 [tab] "Evaluators 0"` | `page.getByRole("tab", { name: /Evaluators/i })` |
+| UI element             | Playwright selector                           |
+| ---------------------- | --------------------------------------------- |
+| Button "Save"          | `page.getByRole("button", { name: "Save" })`    |
+| Link "Datasets"        | `page.getByRole("link", { name: "Datasets" })`  |
+| Textbox "Name"         | `page.getByRole("textbox", { name: "Name" })`   |
+| Menu item "Edit"       | `page.getByRole("menuitem", { name: "Edit" })`  |
+| Tab "Evaluators 0"     | `page.getByRole("tab", { name: /Evaluators/i })` |
 
 ## File Naming
 
 - Feature tests: `{feature-name}.spec.ts`
 - Access control: `{role}-access.spec.ts`
 - Rate limiting: `{feature}.rate-limit.spec.ts` (runs last)
+
+## Comments
+
+The test name carries the intent. Don't narrate steps (`// open the dialog`) or justify a locator (`// scoped to the card because the page has two`) — the reader sees the call. Keep a comment only where the next reader would otherwise change the test wrongly, such as a wait that looks redundant but guards a race.
 
 ## Common Gotchas
 

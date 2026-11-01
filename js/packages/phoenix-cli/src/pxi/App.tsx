@@ -11,10 +11,10 @@ import {
   isSessionModelStaleError,
 } from "./client";
 import {
-  getSlashCommandName,
-  matchingCommands,
+  getSlashCommandSuggestions,
   runSlashCommand,
   SLASH_COMMANDS,
+  type PxiCommand,
 } from "./commands";
 import { getCompactionSummary, isCompactionMessage } from "./compaction";
 import {
@@ -600,19 +600,17 @@ function InputPrompt({
   status,
   usageLine,
   modelLabel,
+  hints,
+  selectedHintIndex,
 }: {
   draft: DraftEditorState;
   status: PxiStatus;
   usageLine: string | null;
   modelLabel: string;
+  hints: PxiCommand[];
+  selectedHintIndex: number;
 }) {
   const draftValue = draft.value;
-  const cmdName = getSlashCommandName(draftValue);
-  // Show matching commands while the user is still typing the command token
-  // (no space yet means they haven't moved on to arguments).
-  const showHints =
-    cmdName !== null && !draftValue.includes(" ") && draftValue.length > 1;
-  const hints = showHints ? matchingCommands(cmdName) : [];
 
   return (
     <Box flexDirection="column" marginTop={1}>
@@ -640,18 +638,25 @@ function InputPrompt({
       <Box flexDirection="row" justifyContent="space-between">
         {hints.length > 0 ? (
           <Box flexDirection="column">
-            {hints.map((cmd) => (
-              <Text key={cmd.name}>
-                <Text color="yellow">{"  /"}</Text>
-                <Text color="yellow" bold>
-                  {cmd.name}
+            {hints.map((cmd, index) => {
+              const isSelected = index === selectedHintIndex;
+              return (
+                <Text key={cmd.name}>
+                  <Text color="cyan">{isSelected ? "› " : "  "}</Text>
+                  <Text color="yellow">/</Text>
+                  <Text color="yellow" bold>
+                    {cmd.name}
+                  </Text>
+                  <Text dimColor={!isSelected}>
+                    {"  "}
+                    {cmd.description}
+                  </Text>
                 </Text>
-                <Text dimColor>
-                  {"  "}
-                  {cmd.description}
-                </Text>
-              </Text>
-            ))}
+              );
+            })}
+            <Text dimColor>
+              ↑↓ navigate · tab complete · ↵ run · keep typing to filter
+            </Text>
           </Box>
         ) : (
           <Text dimColor>
@@ -1005,6 +1010,18 @@ export function PxiApp({
   const [activeModelSelection, setActiveModelSelection] =
     useState<ModelSelection>(options.modelSelection);
   const [isDraftTemporary, setIsDraftTemporary] = useState(false);
+  // The highlighted slash-command hint, keyed to the draft it was chosen for so
+  // any edit to the draft snaps the highlight back to the top match.
+  const [commandHintSelection, setCommandHintSelection] = useState({
+    draftValue: "",
+    index: 0,
+  });
+  const commandHints = getSlashCommandSuggestions(draft.value);
+  const selectedCommandHintIndex =
+    commandHintSelection.draftValue === draft.value
+      ? commandHintSelection.index
+      : 0;
+  const selectedCommandHint = commandHints[selectedCommandHintIndex];
   const [modelPicker, setModelPicker] = useState<ModelPickerState | null>(null);
   const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
     null
@@ -1553,7 +1570,11 @@ export function PxiApp({
   };
 
   const submitDraft = () => {
-    const text = draft.value.trim();
+    // While hints are showing, submitting runs the highlighted command, so a
+    // partial name like `/h` is enough to run `/help`.
+    const text = selectedCommandHint
+      ? `/${selectedCommandHint.name}`
+      : draft.value.trim();
     if (!text || status === "streaming") {
       return;
     }
@@ -1969,20 +1990,23 @@ export function PxiApp({
       return;
     }
     if (key.tab) {
-      const commandName = getSlashCommandName(draft.value);
-      const suggestion =
-        commandName !== null &&
-        draft.value.length > 1 &&
-        !draft.value.includes(" ")
-          ? matchingCommands(commandName)[0]
-          : undefined;
-      if (suggestion) {
-        const completedCommand = `/${suggestion.name}`;
+      if (selectedCommandHint) {
+        const completedCommand = `/${selectedCommandHint.name}`;
         setDraft({
           value: completedCommand,
           cursorIndex: completedCommand.length,
         });
       }
+      return;
+    }
+    if ((key.upArrow || key.downArrow) && commandHints.length > 0) {
+      const offset = key.upArrow ? -1 : 1;
+      setCommandHintSelection({
+        draftValue: draft.value,
+        index:
+          (selectedCommandHintIndex + offset + commandHints.length) %
+          commandHints.length,
+      });
       return;
     }
     if (key.ctrl && input === "a") {
@@ -2107,6 +2131,8 @@ export function PxiApp({
           status={status}
           usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
           modelLabel={activeModelSelection.modelName}
+          hints={commandHints}
+          selectedHintIndex={selectedCommandHintIndex}
         />
       )}
     </Box>

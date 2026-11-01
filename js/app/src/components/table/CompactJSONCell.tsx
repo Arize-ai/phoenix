@@ -1,6 +1,6 @@
-import type { CellContext } from "@tanstack/react-table";
-
 import { JSONText } from "@phoenix/components/code/JSONText";
+
+import type { CellContext } from "./tableFeatures";
 
 const MAX_LENGTH = 100;
 

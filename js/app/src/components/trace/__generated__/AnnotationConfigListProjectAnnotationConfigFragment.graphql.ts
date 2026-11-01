@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9bf662f8f22666b432a26e533fdb92c0>>
+ * @generated SignedSource<<27573397b3c42bfbcf45d645ca76881d>>
  * @lightSyntaxTransform
  */
 
@@ -30,6 +30,7 @@ export type AnnotationConfigListProjectAnnotationConfigFragment$data = {
       };
     }>;
   };
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   readonly " $fragmentType": "AnnotationConfigListProjectAnnotationConfigFragment";
 };
 export type AnnotationConfigListProjectAnnotationConfigFragment$key = {
@@ -58,6 +59,11 @@ return {
   "metadata": null,
   "name": "AnnotationConfigListProjectAnnotationConfigFragment",
   "selections": [
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "ProjectAnnotationConfigsByNameFragment"
+    },
     {
       "alias": null,
       "args": null,
@@ -203,6 +209,6 @@ return {
 };
 })();
 
-(node as any).hash = "aee2ac10c3f902342db0df0a3a2ac879";
+(node as any).hash = "9533f7753e41107c3e8095954bdd970c";
 
 export default node;

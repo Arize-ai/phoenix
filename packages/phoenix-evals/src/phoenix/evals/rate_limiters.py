@@ -1,7 +1,7 @@
 import asyncio
 import time
 from functools import wraps
-from math import exp
+from math import exp, isfinite
 from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from tqdm.auto import tqdm
@@ -39,12 +39,15 @@ class AdaptiveTokenBucket:
     if no further errors occur.
 
     Args:
-    initial_per_second_request_rate (float): The allowed request rate.
+    initial_per_second_request_rate (float): The allowed request rate. Must be finite and positive.
     maximum_per_second_request_rate (float): The maximum allowed request rate.
     enforcement_window_minutes (float): The time window over which the rate limit is enforced.
     rate_reduction_factor (float): Multiplier used to reduce the rate limit after an error.
     rate_increase_factor (float): Exponential factor increasing the rate limit over time.
     cooldown_seconds (float): The minimum time before allowing the rate limit to decrease again.
+
+    Raises:
+        ValueError: If the initial request rate is non-positive or non-finite.
     """
 
     def __init__(
@@ -57,6 +60,8 @@ class AdaptiveTokenBucket:
         rate_increase_factor: float = 0.01,
         cooldown_seconds: float = 5,
     ):
+        if not isfinite(initial_per_second_request_rate) or initial_per_second_request_rate <= 0:
+            raise ValueError("initial_per_second_request_rate must be finite and > 0")
         self._initial_rate = initial_per_second_request_rate
         self.rate_reduction_factor = rate_reduction_factor
         self.enforcement_window = enforcement_window_minutes * 60

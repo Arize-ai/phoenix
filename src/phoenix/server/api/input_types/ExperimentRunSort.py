@@ -64,12 +64,12 @@ def get_experiment_run_cursor(
 
 
 def add_order_by_and_page_start_to_query(
-    query: Select[Any],
+    query: Select[models.ExperimentRun, *tuple[Any, ...]],
     sort: Optional[ExperimentRunSort],
     experiment_rowid: int,
     after_experiment_run_rowid: Optional[int],
     after_sort_column_value: Optional[CursorSortColumnValue] = None,
-) -> Select[Any]:
+) -> Select[models.ExperimentRun, *tuple[Any, ...]]:
     mean_annotation_scores: Optional[NamedFromClause] = None
     if sort and sort.col.annotation_name:
         annotation_name = sort.col.annotation_name.value
@@ -134,12 +134,12 @@ def _get_order_by_columns(
 
 
 def _add_after_expression(
-    query: Select[Any],
+    query: Select[models.ExperimentRun, *tuple[Any, ...]],
     sort: Optional[ExperimentRunSort],
     experiment_run_rowid: int,
     after_sort_column_value: Optional[CursorSortColumnValue],
     mean_annotation_scores: Optional[NamedFromClause],
-) -> Select[Any]:
+) -> Select[models.ExperimentRun, *tuple[Any, ...]]:
     if not sort:
         # Ideally, this would return the runs sorted by (example_id, repetition_number),
         # but this would require making the cursor more complex or adding an additional query.
@@ -208,10 +208,10 @@ def _get_mean_annotation_scores_subquery(annotation_name: str) -> NamedFromClaus
 
 
 def _add_joins_and_selects_to_query(
-    query: Select[tuple[models.ExperimentRun]],
+    query: Select[models.ExperimentRun, *tuple[Any, ...]],
     sort: Optional[ExperimentRunSort],
     mean_annotation_scores: Optional[NamedFromClause],
-) -> Select[tuple[models.ExperimentRun]]:
+) -> Select[models.ExperimentRun, *tuple[Any, ...]]:
     if not sort:
         return query
     if sort.col.metric:
@@ -230,8 +230,6 @@ def _add_joins_and_selects_to_query(
             mean_annotation_scores.c.experiment_run_id == models.ExperimentRun.id,
             isouter=True,
         )
-        query = query.add_columns(
-            mean_annotation_scores.c.score.label("score")
-        )  # the score must be in the select so that the value can be included in the cursor
-        return query
+        # the score must be in the select so that the value can be included in the cursor
+        return query.add_columns(mean_annotation_scores.c.score.label("score"))
     raise NotImplementedError

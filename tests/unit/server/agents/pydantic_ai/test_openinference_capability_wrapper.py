@@ -16,7 +16,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import StatusCode
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
@@ -51,7 +51,7 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def tracer(tracer_provider: TracerProvider) -> Tracer:
+def tracer(tracer_provider: TracerProvider) -> OITracer:
     return OITracer(tracer_provider.get_tracer("test"), config=TraceConfig())
 
 
@@ -100,7 +100,7 @@ def make_ctx() -> Callable[..., RunContext[None]]:
 async def test_wrap_tool_execute_emits_tool_span(
     add_tool_def: ToolDefinition,
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -130,7 +130,7 @@ async def test_wrap_tool_execute_emits_tool_span(
     assert span.status.status_code == StatusCode.OK
     assert span.parent is None
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "add"
     assert attributes.pop(TOOL_DESCRIPTION) == "Add two integers."
@@ -163,7 +163,7 @@ async def test_wrap_tool_execute_emits_tool_span(
 async def test_wrap_tool_execute_records_exception_when_handler_raises(
     explode_tool_def: ToolDefinition,
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -191,14 +191,14 @@ async def test_wrap_tool_execute_records_exception_when_handler_raises(
     assert len(span.events) == 1
     (exception_event,) = span.events
     assert exception_event.name == "exception"
-    exception_attributes = dict(exception_event.attributes or {})
+    exception_attributes: dict[str, Any] = dict(exception_event.attributes or {})
     assert exception_attributes.pop("exception.type") == "RuntimeError"
     assert exception_attributes.pop("exception.message") == "boom: kaboom"
     assert isinstance(exception_attributes.pop("exception.stacktrace"), str)
     assert exception_attributes.pop("exception.escaped") == "False"
     assert not exception_attributes
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "explode"
     assert attributes.pop(TOOL_DESCRIPTION) == "Always raises with the given reason."
@@ -225,7 +225,7 @@ async def test_wrap_tool_execute_records_exception_when_handler_raises(
 
 async def test_after_model_request_emits_native_tool_span_for_call_and_return(
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -271,7 +271,7 @@ async def test_after_model_request_emits_native_tool_span_for_call_and_return(
     assert span.status.description is None
     assert span.events == ()
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "web_search"
     assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
@@ -289,7 +289,7 @@ async def test_after_model_request_emits_native_tool_span_for_call_and_return(
 
 async def test_after_model_request_emits_native_tool_span_without_return_part(
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -323,7 +323,7 @@ async def test_after_model_request_emits_native_tool_span_without_return_part(
     assert span.status.description is None
     assert span.events == ()
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "web_search"
     assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
@@ -340,7 +340,7 @@ async def test_after_model_request_emits_native_tool_span_without_return_part(
 
 async def test_after_model_request_records_error_for_failed_native_tool_return(
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -381,7 +381,7 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
     assert span.status.status_code == StatusCode.ERROR
     assert span.status.description is None
 
-    attributes = dict(span.attributes or {})
+    attributes: dict[str, Any] = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "web_search"
     assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
@@ -398,7 +398,7 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
 
     (exception_event,) = span.events
     assert exception_event.name == "exception"
-    exception_attributes = dict(exception_event.attributes or {})
+    exception_attributes: dict[str, Any] = dict(exception_event.attributes or {})
     assert exception_attributes.pop("exception.type") == "Exception"
     assert exception_attributes.pop("exception.message") == "rate limit exceeded"
     stacktrace = exception_attributes.pop("exception.stacktrace")
@@ -406,6 +406,40 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
     assert "Exception: rate limit exceeded" in stacktrace
     assert exception_attributes.pop("exception.escaped") == "False"
     assert not exception_attributes
+
+
+async def test_wrap_tool_execute_marks_span_error_when_classifier_reports_error(
+    add_tool_def: ToolDefinition,
+    in_memory_span_exporter: InMemorySpanExporter,
+    tracer: OITracer,
+    make_ctx: Callable[..., RunContext[None]],
+) -> None:
+    wrapper = OpenInferenceCapabilityWrapper[None](
+        wrapped=_NoOpCapability(),
+        tracer=tracer,
+        get_error_by_tool_name={"add": lambda result: "sum is odd" if result % 2 else None},
+    )
+
+    async def handler(args: dict[str, Any]) -> int:
+        a: int = args["a"]
+        b: int = args["b"]
+        return a + b
+
+    for tool_args in ({"a": 2, "b": 2}, {"a": 2, "b": 3}):
+        ctx = make_ctx(tool_call_id="call_42", tool_name="add")
+        call = ToolCallPart(tool_name="add", args=tool_args, tool_call_id="call_42")
+        result = await wrapper.wrap_tool_execute(
+            ctx, call=call, tool_def=add_tool_def, args=tool_args, handler=handler
+        )
+        assert result == tool_args["a"] + tool_args["b"]
+
+    even_span, odd_span = in_memory_span_exporter.get_finished_spans()
+    assert even_span.status.status_code == StatusCode.OK
+    # A classified error marks the span without raising, and keeps the output.
+    assert odd_span.status.status_code == StatusCode.ERROR
+    assert odd_span.status.description == "sum is odd"
+    assert dict(odd_span.attributes or {})[OUTPUT_VALUE] == "5"
+    assert not odd_span.events
 
 
 # OpenInference attribute keys

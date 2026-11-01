@@ -1,72 +1,98 @@
 ---
 title: "Using the Playground"
-description: General guidelines on how to use Phoenix's prompt playground
+description: Run, configure, and compare prompts in the Phoenix Prompt Playground, and run them over datasets as experiments.
 ---
+
+Use the Prompt Playground to run a prompt against an LLM, change its model settings, compare prompt variants, and run prompts over a dataset.
 
 ## Setup
 
-To first get started, you will first [Configure AI Providers](/docs/phoenix/prompt-engineering/how-to-prompts/configure-ai-providers). In the playground view, create a valid prompt for the LLM and click Run on the top right (or the `mod + enter`)
+1. [Configure AI Providers](/docs/phoenix/prompt-engineering/how-to-prompts/configure-ai-providers) and set the API key for your provider.
+2. In the playground view, write a valid prompt for the LLM.
+3. Click **Run** on the top right, or press `mod + enter`.
 
-If successful you should see the LLM output stream out in the **Output** section of the UI.
+If the run is successful, the LLM output streams into the **Output** section.
 
 <Frame caption="Pick an LLM and setup the API Key for that provider to get started">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a121f65d-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/a121f65d-image.jpeg" alt="Phoenix playground with a selected model and provider credentials" />
 </Frame>
 
 ## Prompt Editor
 
-The prompt editor (typically on the left side of the screen) is where you define the [Prompts Concepts](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt-templates). You select the template language (**mustache** or** f-string**) on the toolbar. Whenever you type a variable placeholder in the prompt (say \{**\{question}}** for mustache), the variable to fill will show up in the **inputs** section. Input variables must either be filled in by hand or can be filled in via a dataset (where each row has key / value pairs for the input).
+Define the prompt template in the prompt editor, on the left side of the screen. For the template model, see [Prompts Concepts](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt-templates).
+
+1. Select the template language on the toolbar: **mustache** or **f-string**.
+2. Type a variable placeholder in the prompt, for example `{{question}}` for mustache.
+3. Fill each variable in the **inputs** section, or fill the variables from a dataset.
+
+Each variable placeholder shows in the **inputs** section. In a dataset, each row supplies key/value pairs for the inputs.
 
 <Frame caption="Use the template language to create prompt template variables that can be applied during runtime">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/variable_substitution.gif" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/variable_substitution.gif" alt="Substituting template variables in the Phoenix prompt editor" />
 </Frame>
 
 ## Model Configuration
 
-Every prompt instance can be configured to use a specific LLM and set of invocation parameters. Click on the model configuration button at the top of the prompt editor and configure your LLM of choice. Click on the "save as default" option to make your configuration sticky across playground sessions.
+Each prompt instance has its own LLM and invocation parameters.
+
+1. Click the model configuration button at the top of the prompt editor.
+2. Select the LLM and set the invocation parameters.
+3. To keep this configuration across playground sessions, click **save as default**.
 
 <Frame caption="Switch models and modify invocation params">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/model_config.gif" />
+  <video controls autoPlay muted loop playsInline preload="metadata" aria-label="Changing model configuration in the Phoenix playground" width="100%">
+    <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/model_config.mp4" type="video/mp4" />
+    Changing model configuration in the Phoenix playground
+  </video>
 </Frame>
 
 <Info>
-For OpenAI and Azure OpenAI models, you can select the **OpenAI API type** in the model configuration panel. Choose **Chat Completions** (`chat.completions.create`) or **Responses** (`responses.create`) depending on the model and feature set you need.
+For OpenAI and Azure OpenAI models, select the **OpenAI API type** in the model configuration panel. Select **Chat Completions** (`chat.completions.create`) or **Responses** (`responses.create`) for the model and features that you need.
 </Info>
 
 ### Reasoning / extended thinking
 
-For models that support reasoning, the model configuration panel exposes controls for how much the model thinks before responding:
+For models that support reasoning, the model configuration panel shows controls for how much the model thinks before it responds:
 
-- **Anthropic** (Claude 3.7 Sonnet and later) — toggle extended thinking between **disabled**, **adaptive** (the default), and **enabled** with an explicit `budget_tokens` allocation and a visibility toggle. You can also set output **effort** (`high` / `medium` / `low`). Enabling extended thinking automatically raises `max_tokens` to at least `budget_tokens + 1`.
-- **Google** (Gemini 2.5 models) — set a `thinkingBudget` and/or `thinkingLevel` (`low` / `medium` / `high`).
+- **Anthropic** (Claude 3.7 Sonnet and later): set extended thinking to **disabled**, **adaptive** (the default), or **enabled**. With **enabled**, set an explicit `budget_tokens` value and a visibility toggle. You can also set the output **effort** (`high` / `medium` / `low`). When you enable extended thinking, Phoenix increases `max_tokens` to a minimum of `budget_tokens + 1`.
+- **Google** (Gemini 2.5 models): set `thinkingBudget`, `thinkingLevel` (`low` / `medium` / `high`), or both.
 
-Higher thinking budgets and effort levels can improve quality on hard tasks at the cost of latency and tokens; start with the defaults and raise them only when a task needs more reasoning.
+Higher thinking budgets and effort levels can improve quality on difficult tasks, but they increase latency and token use. Start with the defaults. Increase them only when a task needs more reasoning.
 
 ## Comparing Prompts
 
-The Prompt Playground offers the capability to compare multiple prompt variants directly within the playground. Simply click the **+ Compare** button at the top of the first prompt to create duplicate instances. Each prompt variant manages its own independent template, model, and parameters. This allows you to quickly compare prompts (labeled A, B, C, and D in the UI) and run experiments to determine which prompt and model configuration is optimal for the given task.
+Compare multiple prompt variants in the playground. The UI labels the variants A, B, C, and D.
+
+1. Click **+ Compare** at the top of the first prompt to add a duplicate instance.
+2. Change the template, model, or parameters of each variant. Each variant keeps its own settings.
+3. Click **Run** to compare the outputs, or run an experiment to find the best prompt and model configuration for the task.
 
 <Frame caption="Compare multiple different prompt variants at once">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/941ee277-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/941ee277-image.jpeg" alt="Phoenix playground comparing multiple prompt configurations" />
 </Frame>
 
 ## Using Datasets with Prompts
 
-Phoenix lets you run a prompt (or multiple prompts) on a dataset. Simply [load a dataset](/docs/phoenix/datasets-and-experiments/how-to-datasets) containing the input variables you want to use in your prompt template. When you click **Run**, Phoenix will apply each configured prompt to every example in the dataset, invoking the LLM for all possible prompt-example combinations. The result of your playground runs will be tracked as an experiment under the loaded dataset (see [Playground Traces](/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground#playground-traces))
+Run one or more prompts on each example in a dataset.
+
+1. [Load a dataset](/docs/phoenix/datasets-and-experiments/how-to-datasets) that contains the input variables of your prompt template.
+2. Click **Run**.
+
+Phoenix applies each configured prompt to each dataset example. It invokes the LLM for all prompt-example combinations. Phoenix records the results as an experiment on the loaded dataset. See [Playground Traces](/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground#playground-traces).
 
 <Frame caption="Each example's input is used to fill the prompt template">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6587d15c-image.jpeg" alt="Dataset inputs substituted into a prompt template in the Phoenix playground" />
 </Frame>
 
 ### Configuring Dataset Paths
 
-By default, the playground reads template variables from `input`, so `{question}` will resolve against `input.question` automatically. If your dataset examples store inputs under a different nested object, you can configure where the playground should read prompt variables from:
+By default, the playground reads template variables from `input`. Thus `{question}` resolves against `input.question`. If your dataset examples keep inputs in a different nested object, set the path:
 
-1. Load a dataset
-2. Click the **settings button** (gear icon) in the experiment toolbar next to the dataset selector
-3. Set the **Prompt variable path** to the dot-notation path that contains your template variables (e.g., `input` or `payload.inputs`)
+1. Load a dataset.
+2. Click the **settings button** (gear icon) in the experiment toolbar, next to the dataset selector.
+3. Set **Prompt variable path** to the dot-notation path that contains your template variables, for example `input` or `payload.inputs`.
 
-When set, Phoenix will resolve template variables against that object. For example, if your prompt uses `{question}` and your dataset example looks like:
+Phoenix then resolves template variables against that object. For example, your prompt uses `{question}` and your dataset example is:
 
 ```json
 {
@@ -76,9 +102,9 @@ When set, Phoenix will resolve template variables against that object. For examp
 }
 ```
 
-You can leave the default prompt variable path as `input`.
+For this example, keep the default prompt variable path, `input`.
 
-If you want to reference root-level fields directly (for example `{input.question}` and `{output.response}`), clear the prompt variable path so variables resolve from the root object. With this dataset example:
+To refer to root-level fields directly, for example `{input.question}` and `{output.response}`, clear the prompt variable path. Variables then resolve from the root object. For this dataset example:
 
 ```json
 {
@@ -91,7 +117,14 @@ If you want to reference root-level fields directly (for example `{input.questio
 }
 ```
 
-You can use template variables like `{input.question}` and `{output.response}` in your prompt.
+use template variables such as `{input.question}` and `{output.response}` in your prompt.
+
+### Naming the Experiment
+
+1. Click the **settings button** (gear icon) in the experiment toolbar.
+2. Optional: enter a **Name** and a **Description** for the next experiment that you run.
+
+If you leave **Name** empty, Phoenix uses the generated default name. To change the name or description after the run, open the experiment action menu in the dataset experiments table and select **Edit**.
 
 ## Appending Conversation History
 
@@ -99,25 +132,23 @@ You can use template variables like `{input.question}` and `{output.response}` i
   <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/append_messages_on_playground.mp4" type="video/mp4" />
 </video>
 
-When running experiments over datasets, you can append conversation messages from your dataset examples to the prompt. This is useful for:
+When you run experiments over datasets, you can append conversation messages from your dataset examples to the prompt. Use this to:
 
-- **A/B testing models**: Compare how different models respond to the same conversation history
-- **Testing system prompts**: Evaluate different system prompts against identical user conversations
-- **Multi-turn conversation experiments**: Run experiments using existing conversation threads
+- **A/B test models**: compare how different models respond to the same conversation history.
+- **Test system prompts**: evaluate different system prompts against the same user conversations.
+- **Run multi-turn conversation experiments**: run experiments on existing conversation threads.
 
 ### Setting the Appended Messages Path
 
-To use this feature:
+1. Load a dataset that contains conversation messages in OpenAI format.
+2. Click the **settings button** (gear icon) in the experiment toolbar, next to the dataset selector.
+3. Enter the **dot-notation path** to the messages array in your dataset examples, for example `messages` or `input.messages`.
 
-1. Load a dataset that contains conversation messages in OpenAI format
-2. Click the **settings button** (gear icon) in the experiment toolbar next to the dataset selector
-3. Enter the **dot-notation path** to the messages array in your dataset examples (e.g., `messages` or `input.messages`)
-
-When you run the experiment, messages at the specified path will be appended to the **end of your prompt template** after template variables are applied. This makes it easy to keep your system prompt and initial instructions in the template while replaying real conversation history from the dataset.
+When you run the experiment, Phoenix appends the messages at that path to the **end of your prompt template**. It does this after it applies the template variables. Thus you can keep your system prompt and initial instructions in the template and replay real conversation history from the dataset.
 
 ### Dataset Format
 
-Your dataset examples should contain messages in OpenAI's chat format:
+Your dataset examples must contain messages in the OpenAI chat format:
 
 ```json
 {
@@ -129,13 +160,16 @@ Your dataset examples should contain messages in OpenAI's chat format:
 }
 ```
 
-The supported message roles are:
-- `user` - User messages
-- `assistant` - Assistant/AI responses
-- `system` - System messages
-- `tool` - Tool response messages (with `tool_call_id`)
+Supported message roles:
 
-For nested structures, use dot-notation paths:
+| Role | Content |
+| --- | --- |
+| `user` | User messages |
+| `assistant` | Assistant/AI responses |
+| `system` | System messages |
+| `tool` | Tool response messages (with `tool_call_id`) |
+
+For nested structures, use a dot-notation path:
 
 ```json
 {
@@ -147,29 +181,29 @@ For nested structures, use dot-notation paths:
 }
 ```
 
-In this case, set the path to `input.messages`.
+For this example, set the path to `input.messages`.
 
 ### Example: A/B Testing System Prompts
 
-1. Create a dataset with conversation examples (user messages and expected context)
-2. In the playground, configure two prompt variants (A and B) with different system prompts
-3. Load your dataset and set the appended messages path to `messages`
-4. Run the experiment to compare how each system prompt handles the same conversations
+1. Create a dataset with conversation examples (user messages and expected context).
+2. In the playground, configure two prompt variants (A and B) with different system prompts.
+3. Load your dataset and set the appended messages path to `messages`.
+4. Run the experiment to compare how each system prompt handles the same conversations.
 
-This approach lets you systematically evaluate prompt changes across many real-world conversation scenarios.
+Use this procedure to evaluate prompt changes across many real conversations.
 
 ## Playground Traces
 
-All invocations of an LLM via the playground is recorded for analysis, annotations, evaluations, and dataset curation.
+Phoenix records all LLM invocations from the playground. Use these records for analysis, annotations, evaluations, and dataset curation.
 
-If you simply run an LLM in the playground using the free form inputs (e.g. not using a dataset), Your spans will be recorded in a project aptly titled "playground".
+If you run an LLM with free-form inputs (no dataset), Phoenix records the spans in a project named "playground".
 
 <Frame caption="All free form playground runs are recorded under the playground project">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/eecaa209-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/eecaa209-image.jpeg" alt="Phoenix project cards for playground traces" />
 </Frame>
 
-If however you run a prompt over dataset examples, the outputs and spans from your playground runs will be captured as an experiment. Each experiment will be named according to the prompt you ran the experiment over.
+If you run a prompt over dataset examples, Phoenix records the outputs and spans as an experiment. If you do not [name the experiment](#naming-the-experiment), its name is `playground-experiment`. If the playground has a saved prompt loaded, its name is `playground-experiment prompt:<prompt name>`.
 
 <Frame caption="If you run over a dataset, the output and traces is tracked as a dataset experiment">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/93a48c27-image.jpeg" alt="Phoenix playground result with a link to its dataset experiment" />
 </Frame>

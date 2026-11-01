@@ -1,58 +1,45 @@
 # Changelog
 
-## [3.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.5.0...arize-phoenix-client-v3.4.0) (2026-09-09)
+## [3.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.5.0...arize-phoenix-client-v3.6.0) (2026-10-30)
 
-
-### ⚠ BREAKING CHANGES
-
-* **server:** GET /v1/model_providers no longer returns custom providers or a `next_cursor`, and built-in entries expose `provider` rather than `kind` + `provider_key`. Custom providers move to GET /v1/custom_model_providers. The endpoint is unreleased, so no published client is affected.
-* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143))
-* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085))
 
 ### Features
 
-* add MiniMax provider integration ([#14310](https://github.com/Arize-ai/phoenix/issues/14310)) ([7e01ce7](https://github.com/Arize-ai/phoenix/commit/7e01ce703b3830447ebdf641ccbb95089778e810))
-* agent session persistence ([#14143](https://github.com/Arize-ai/phoenix/issues/14143)) ([986f6a6](https://github.com/Arize-ai/phoenix/commit/986f6a6fdaeda70d83e2d91f150f9b01d9b8406f))
-* **agents:** PXI tool to file GitHub issues with a user-supplied token ([#15780](https://github.com/Arize-ai/phoenix/issues/15780)) ([e3b3dd5](https://github.com/Arize-ai/phoenix/commit/e3b3dd55ae45db7e73329b8ad33331af7fc26389))
-* **api:** add REST endpoints for setting tags on experiments ([#15237](https://github.com/Arize-ai/phoenix/issues/15237)) ([c892873](https://github.com/Arize-ai/phoenix/commit/c8928738d8a9cd70875e01852306de7060febf5d))
-* **app:** add Z.ai as a built-in GLM model provider ([#15857](https://github.com/Arize-ai/phoenix/issues/15857)) ([58b7017](https://github.com/Arize-ai/phoenix/commit/58b7017284e2f7b4391397ce2080cb67a23e066c))
-* **client:** add ATIF tracing to Harbor plugin ([#15715](https://github.com/Arize-ai/phoenix/issues/15715)) ([30dccec](https://github.com/Arize-ai/phoenix/commit/30dccec0744d55612366aa3d444eb7dc12f7831b))
-* **client:** add error and latency filters to get_traces in python and typescript clients ([c839254](https://github.com/Arize-ai/phoenix/commit/c83925478204259eca8e6709fd8c1a3c20f2f7e1))
-* **client:** add prompt deletion ([#15736](https://github.com/Arize-ai/phoenix/issues/15736)) ([5610755](https://github.com/Arize-ai/phoenix/commit/5610755353a1c05a90868232de22995942653085))
-* **client:** record Harbor jobs in Phoenix ([#15547](https://github.com/Arize-ai/phoenix/issues/15547)) ([f7c6cb3](https://github.com/Arize-ai/phoenix/commit/f7c6cb3bee3b3d4447ac649aa54022ce2d157a70))
-* **client:** record Harbor rewards as Phoenix evaluations ([#15600](https://github.com/Arize-ai/phoenix/issues/15600)) ([822d7cb](https://github.com/Arize-ai/phoenix/commit/822d7cbb6ee605e4aaf663410f801f6949e15298))
-* **client:** replace google-generativeai formatter with google-genai ([#15085](https://github.com/Arize-ai/phoenix/issues/15085)) ([5cf9829](https://github.com/Arize-ai/phoenix/commit/5cf9829c4398d784c004c9c976cd7b6739f2aa99))
-* **client:** support updating prompt description and metadata ([#15191](https://github.com/Arize-ai/phoenix/issues/15191)) ([90729f3](https://github.com/Arize-ai/phoenix/commit/90729f3f51f25f50fbd920d2117d0eee4c85db8e))
-* **prompts:** add REST prompt version creation ([#13846](https://github.com/Arize-ai/phoenix/issues/13846)) ([dbf15e9](https://github.com/Arize-ai/phoenix/commit/dbf15e93922bb62c99cce56e6bfe94e8e5590701))
-* **pxi:** enable phoenix-gql mutations by default with approval in manual mode ([#15415](https://github.com/Arize-ai/phoenix/issues/15415)) ([391d0dd](https://github.com/Arize-ai/phoenix/commit/391d0ddaa6aa2ec9bdda152ec6dd16ea585abb87))
-* **server:** add GET /model_providers REST endpoint ([#15561](https://github.com/Arize-ai/phoenix/issues/15561)) ([59c247a](https://github.com/Arize-ai/phoenix/commit/59c247a19f868f157da511b1feca0338adef28e3))
-* **server:** add PATCH /projects/{project_identifier}/retention ([#15410](https://github.com/Arize-ai/phoenix/issues/15410)) ([8ffd938](https://github.com/Arize-ai/phoenix/commit/8ffd9389946a3a7a54f476f17fc3b20efa3260d3))
-* **server:** add POST /traces/transfer ([#15363](https://github.com/Arize-ai/phoenix/issues/15363)) ([5c38cc7](https://github.com/Arize-ai/phoenix/commit/5c38cc7ff2398569da3bbb23aa9a384ad73a0134))
+* **annotations:** add DECISION and AGENT kinds ([#17306](https://github.com/Arize-ai/phoenix/issues/17306)) ([9e7a797](https://github.com/Arize-ai/phoenix/commit/9e7a7976eb455d1047a5290b7f2ba2b3a3a677a9))
+* **api:** expose prompt version creation timestamps ([#17188](https://github.com/Arize-ai/phoenix/issues/17188)) ([87a9934](https://github.com/Arize-ai/phoenix/commit/87a9934710ad232b238ad27ceefe07a703197bd1))
+* **client:** expose trace and session filter expressions ([#16078](https://github.com/Arize-ai/phoenix/issues/16078)) ([dab09f1](https://github.com/Arize-ai/phoenix/commit/dab09f17b0ac80357e27888b083766559fe45f8b))
+* **client:** sort get_spans by start_time ([#16386](https://github.com/Arize-ai/phoenix/issues/16386)) ([9f44910](https://github.com/Arize-ai/phoenix/commit/9f44910e0447fa0cee0caf8b4904b4d6d497ed93))
+* **harbor:** prompt hill-climb task on a text-to-SQL dataset ([#16458](https://github.com/Arize-ai/phoenix/issues/16458)) ([bd78550](https://github.com/Arize-ai/phoenix/commit/bd78550e3ec698fc57b7640a195223114605b909))
+* load optional Harbor task reference outputs ([#16656](https://github.com/Arize-ai/phoenix/issues/16656)) ([7556cee](https://github.com/Arize-ai/phoenix/commit/7556cee07aa7ec4272ddb88ef9a6dc5a3105249d))
+* record Harbor agent responses as run output ([#16645](https://github.com/Arize-ai/phoenix/issues/16645)) ([c739243](https://github.com/Arize-ai/phoenix/commit/c739243e9676450ed0bc01536831918c9f93f852))
 
 
 ### Bug Fixes
 
-* **annotations:** validate all configured ID columns, not just the first ([#15877](https://github.com/Arize-ai/phoenix/issues/15877)) ([7654185](https://github.com/Arize-ai/phoenix/commit/76541854a8936bf95ffb3ed959085d4f6a92a53b))
-* **atif:** link system subagents to emitted parent spans ([#15585](https://github.com/Arize-ai/phoenix/issues/15585)) ([22ee343](https://github.com/Arize-ai/phoenix/commit/22ee34342f2264c1f9fa5053464dfdc36843d9e4))
-* **client:** narrow the env-file ownership check on sys.platform ([#15927](https://github.com/Arize-ai/phoenix/issues/15927)) ([96e8805](https://github.com/Arize-ai/phoenix/commit/96e88059c3aa2d936b56435440f5f5e99a346b70))
-* **playground:** preserve tool choice and strict setting for Anthropic and Bedrock ([#15683](https://github.com/Arize-ai/phoenix/issues/15683)) ([5464de4](https://github.com/Arize-ai/phoenix/commit/5464de456a5488f461e1f9316c90ec1a0f35a286))
-* upgrade to anthropic SDK v1 ([#15588](https://github.com/Arize-ai/phoenix/issues/15588)) ([b28cf94](https://github.com/Arize-ai/phoenix/commit/b28cf94fcd37afeacfd059b4a01e7ad38327e483))
-
-
-### Performance Improvements
-
-* **agents:** make the system prompt static and move UI state onto the turn ([#15541](https://github.com/Arize-ai/phoenix/issues/15541)) ([31fafc5](https://github.com/Arize-ai/phoenix/commit/31fafc5fee359b038fcd75c515584a40fcfa2ea8))
+* **client:** format string system messages in anthropic adapter ([#16316](https://github.com/Arize-ai/phoenix/issues/16316)) ([435de9b](https://github.com/Arize-ai/phoenix/commit/435de9b7eb38d552c2be6c812691ac4e059b63cf))
+* **client:** handle the between_tools thinking type in the anthropic helper ([#16725](https://github.com/Arize-ai/phoenix/issues/16725)) ([bcec2c5](https://github.com/Arize-ai/phoenix/commit/bcec2c5e0a16567557213a95a2af93c1a3f6bf3e))
+* **client:** keep a label of 0 when logging annotation dataframes ([#17208](https://github.com/Arize-ai/phoenix/issues/17208)) ([f74341f](https://github.com/Arize-ai/phoenix/commit/f74341ff0f7f806bc474b37e8ce9e684bab3a0f1))
+* **client:** keep tools when anthropic tool_choice is none ([#16535](https://github.com/Arize-ai/phoenix/issues/16535)) ([8ce05ec](https://github.com/Arize-ai/phoenix/commit/8ce05ecd5342a8665891eddd13b01f4d1afa68b0))
+* **client:** normalize IPv6 PHOENIX_HOST values into valid URLs ([0a2583f](https://github.com/Arize-ai/phoenix/commit/0a2583ffd96158caf6735442958f63bae5a2a6c2))
+* **client:** omit missing annotation dataframe cells ([#16593](https://github.com/Arize-ai/phoenix/issues/16593)) ([b438233](https://github.com/Arize-ai/phoenix/commit/b438233ce47db6fd94c77674ca37bbf51413eb8b))
+* **client:** preserve Anthropic prompt extra_body ([#17270](https://github.com/Arize-ai/phoenix/issues/17270)) ([deb0731](https://github.com/Arize-ai/phoenix/commit/deb0731a4606b77c786d86953301ecca39916829))
+* **client:** preserve JSON string span attribute filters ([#17295](https://github.com/Arize-ai/phoenix/issues/17295)) ([057de00](https://github.com/Arize-ai/phoenix/commit/057de0098aba65b95bc18a540bbc6b2e65a370ae))
+* **client:** reject anchored Harbor reference paths on Windows ([#16884](https://github.com/Arize-ai/phoenix/issues/16884)) ([34f73f9](https://github.com/Arize-ai/phoenix/commit/34f73f977e168d890fa20fb6d16f406a294c7d3d))
+* **client:** return empty list from Sessions.list when limit &lt;= 0 ([#17074](https://github.com/Arize-ai/phoenix/issues/17074)) ([e554217](https://github.com/Arize-ai/phoenix/commit/e554217fb39fbc05b6732462dc57371ca64b5e6e))
+* **client:** treat developer role as system for Anthropic and Google prompt formatting ([#17320](https://github.com/Arize-ai/phoenix/issues/17320)) ([4e93c4b](https://github.com/Arize-ai/phoenix/commit/4e93c4b5a1d48b8ea3e5b7d7760c89399d1a2bc4))
+* **deps:** require certifi 2026.10.18 to distrust the compromised emSign root ([#17093](https://github.com/Arize-ai/phoenix/issues/17093)) ([9056a4a](https://github.com/Arize-ai/phoenix/commit/9056a4a297476c646cfc6ed6851c1fcd96440674))
+* **evals:** retry RateLimitError in SyncExecutor instead of failing the whole run ([#16376](https://github.com/Arize-ai/phoenix/issues/16376)) ([56e9a89](https://github.com/Arize-ai/phoenix/commit/56e9a8994e9074eb9958dfe77e4552e7a8b6d38c))
+* **otel, client, config:** parse .env.phoenix the same way in Python and TypeScript ([#17075](https://github.com/Arize-ai/phoenix/issues/17075)) ([67cc379](https://github.com/Arize-ai/phoenix/commit/67cc379f25062fa42f0d7d7f845f1fe9719116ba)), closes [#17048](https://github.com/Arize-ai/phoenix/issues/17048)
+* stop dropping evaluator metadata nested under `result` ([#16902](https://github.com/Arize-ai/phoenix/issues/16902)) ([d927595](https://github.com/Arize-ai/phoenix/commit/d927595cb8ee91aacdb7af8fff3fca1d095cf2eb))
 
 
 ### Documentation
 
-* **phoenix-client:** create_dataset docstring documented dataset_name, param is name ([#15950](https://github.com/Arize-ai/phoenix/issues/15950)) ([397088a](https://github.com/Arize-ai/phoenix/commit/397088a263e0d999c3912cd85adc05166cbf69a2))
-
-
-### Miscellaneous Chores
-
-* release arize-phoenix-client 3.1.0 ([#15348](https://github.com/Arize-ai/phoenix/issues/15348)) ([85e0855](https://github.com/Arize-ai/phoenix/commit/85e0855c7120d2894653b802b42a74c073dc77cc))
-* release arize-phoenix-client 3.4.0 ([f8561dc](https://github.com/Arize-ai/phoenix/commit/f8561dc165fb83acd58abd33642d1e12e1b71ef2))
+* **client:** drop the phantom concurrency param from evaluate_experiment ([#16268](https://github.com/Arize-ai/phoenix/issues/16268)) ([6f03f90](https://github.com/Arize-ai/phoenix/commit/6f03f903b8d3eddffe11e6b695c1c24e244f946a))
+* close gaps from the 2026-09-23 docs gap audit ([#17193](https://github.com/Arize-ai/phoenix/issues/17193)) ([e62d1bb](https://github.com/Arize-ai/phoenix/commit/e62d1bb312655b8d4e2d14b3f1bb7c0087f24d4d))
+* fix dead Read the Docs links ([#16967](https://github.com/Arize-ai/phoenix/issues/16967)) ([0fed1f4](https://github.com/Arize-ai/phoenix/commit/0fed1f431c65cf24f52ca8153d5ffd63ce04a1b2))
+* index notebooks and remove unreferenced examples ([#16370](https://github.com/Arize-ai/phoenix/issues/16370)) ([04996d2](https://github.com/Arize-ai/phoenix/commit/04996d268630734d70a3a9e44e47dc3921eeed95))
+* remove contribute, environments, and non-competitive FAQ pages ([#17423](https://github.com/Arize-ai/phoenix/issues/17423)) ([843bfc7](https://github.com/Arize-ai/phoenix/commit/843bfc7c333e81907c6d96bf8f7ee9e786c84d6f))
 
 ## [3.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.4.0...arize-phoenix-client-v3.5.0) (2026-09-08)
 

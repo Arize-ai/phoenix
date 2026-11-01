@@ -12,6 +12,7 @@
               ".cursor",
               ".github",
               ".gitignore",
+              ".release-please-manifest.json",
               "api_reference",
               "docs",
               "docs.json",
@@ -24,8 +25,8 @@
               "requirements",
               "scripts",
               "tests",
-              "tox.ini",
-              "tutorials"
+              "tutorials",
+              "uv.lock"
             ]
         },
         "packages/phoenix-client": {

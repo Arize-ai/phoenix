@@ -66,6 +66,7 @@ def create_prompt_version_from_google_genai(
         Union[genai_types.GenerateContentConfig, genai_types.GenerateContentConfigDict]
     ] = None,
     description: Optional[str] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["GOOGLE"] = "GOOGLE",
 ) -> v1.PromptVersionData:
@@ -109,6 +110,8 @@ def create_prompt_version_from_google_genai(
         ans["response_format"] = response_format
     if description:
         ans["description"] = description
+    if metadata:
+        ans["metadata"] = dict(metadata)
     return ans
 
 
@@ -193,7 +196,7 @@ def to_chat_messages_and_kwargs(
     tool_call_names = _collect_tool_call_names(template)
     if template["type"] == "chat":
         for message in template["messages"]:
-            if message["role"] == "system":
+            if message["role"] in ("system", "developer"):
                 content = message["content"]
                 if isinstance(content, str):
                     if text := formatter.format(content, variables=variables):

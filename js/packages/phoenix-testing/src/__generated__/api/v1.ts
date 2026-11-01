@@ -430,7 +430,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List dataset splits */
+        get: operations["listDatasetSplits"];
         put?: never;
         /** Create a dataset split */
         post: operations["createDatasetSplit"];
@@ -1612,7 +1613,7 @@ export interface paths {
         };
         /**
          * Logout
-         * @description Log out user by revoking tokens and clearing cookies.
+         * @description Log out of every browser session by revoking its tokens, and clear the cookies.
          */
         get: operations["_logout_auth_logout_get"];
         put?: never;
@@ -2678,7 +2679,7 @@ export interface components {
             };
             /**
              * Example Ids
-             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             * @description Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
              */
             example_ids?: string[];
         };
@@ -3223,42 +3224,6 @@ export interface components {
             state?: "input-available";
             /** Input */
             input: unknown;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
-         * DynamicToolInputStreamingPart
-         * @description Dynamic tool part in input-streaming state.
-         */
-        DynamicToolInputStreamingPart: {
-            /**
-             * Type
-             * @default dynamic-tool
-             * @constant
-             */
-            type?: "dynamic-tool";
-            /** Toolname */
-            toolName: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-streaming
-             * @constant
-             */
-            state?: "input-streaming";
-            /** Input */
-            input?: unknown | null;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -3843,7 +3808,7 @@ export interface components {
             role: "system" | "user" | "assistant";
             metadata?: components["schemas"]["LegacyAssistantMessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["pydantic_ai__ui__vercel_ai__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * LegacyChatRegenerateMessage
@@ -3979,6 +3944,13 @@ export interface components {
         ListDatasetLabelsForDatasetResponseBody: {
             /** Data */
             data: components["schemas"]["DatasetLabel"][];
+        };
+        /** ListDatasetSplitsResponseBody */
+        ListDatasetSplitsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetSplit"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** ListDatasetVersionsResponseBody */
         ListDatasetVersionsResponseBody: {
@@ -4426,7 +4398,7 @@ export interface components {
             role: "system" | "user" | "assistant";
             metadata?: components["schemas"]["MessageMetadata"] | null;
             /** Parts */
-            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputAvailablePart"] | components["schemas"]["phoenix__db__types__data_stream_protocol__request_types__DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /**
          * PhoenixUserMessageMetadata
@@ -5296,6 +5268,13 @@ export interface components {
         PromptVersion: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5310,11 +5289,24 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description The creation timestamp of the prompt version.
+             */
+            created_at: string;
         };
         /** PromptVersionData */
         PromptVersionData: {
             /** Description */
             description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the prompt version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -5510,7 +5502,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5544,7 +5536,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5876,7 +5868,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5910,7 +5902,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5970,7 +5962,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6318,36 +6310,6 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
-         * ToolInputStreamingPart
-         * @description Tool part in input-streaming state.
-         */
-        ToolInputStreamingPart: {
-            /** Type */
-            type: string;
-            /** Toolcallid */
-            toolCallId: string;
-            /** Title */
-            title?: string | null;
-            /**
-             * State
-             * @default input-streaming
-             * @constant
-             */
-            state?: "input-streaming";
-            /** Input */
-            input?: unknown | null;
-            /** Providerexecuted */
-            providerExecuted?: boolean | null;
-            /** Callprovidermetadata */
-            callProviderMetadata?: {
-                [key: string]: {
-                    [key: string]: unknown;
-                };
-            } | null;
-            /** Approval */
-            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
-        };
-        /**
          * ToolOutputDeniedPart
          * @description Tool part in output-denied state (tool was denied, terminal state).
          */
@@ -6422,7 +6384,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6456,7 +6418,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6694,12 +6656,12 @@ export interface components {
             } | null;
             /**
              * Add Example Ids
-             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
              */
             add_example_ids?: string[];
             /**
              * Remove Example Ids
-             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             * @description Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split.
              */
             remove_example_ids?: string[];
         };
@@ -6777,7 +6739,7 @@ export interface components {
              * @description The kind of annotator used for the evaluation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /**
              * Start Time
              * Format: date-time
@@ -6884,6 +6846,44 @@ export interface components {
             enabled: boolean;
         };
         /**
+         * DynamicToolInputStreamingPart
+         * @description Dynamic tool part in input-streaming state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__DynamicToolInputStreamingPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: string | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
          * DynamicToolOutputAvailablePart
          * @description Dynamic tool part in output-available state.
          */
@@ -6974,6 +6974,38 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
+         * ToolInputStreamingPart
+         * @description Tool part in input-streaming state.
+         */
+        phoenix__db__types__data_stream_protocol__request_types__ToolInputStreamingPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: string | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
          * ToolOutputAvailablePart
          * @description Tool part in output-available state.
          */
@@ -7054,6 +7086,42 @@ export interface components {
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /**
+         * DynamicToolInputStreamingPart
+         * @description Dynamic tool part in input-streaming state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__DynamicToolInputStreamingPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
          * DynamicToolOutputAvailablePart
          * @description Dynamic tool part in output-available state.
          */
@@ -7120,6 +7188,36 @@ export interface components {
             input: unknown;
             /** Errortext */
             errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolInputStreamingPart
+         * @description Tool part in input-streaming state.
+         */
+        pydantic_ai__ui__vercel_ai__request_types__ToolInputStreamingPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /** Title */
+            title?: string | null;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
             /** Providerexecuted */
             providerExecuted?: boolean | null;
             /** Callprovidermetadata */
@@ -7850,7 +7948,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -7974,7 +8072,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8098,7 +8196,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8941,6 +9039,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDatasetSplits: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination */
+                cursor?: string | null;
+                /** @description The max number of dataset splits to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDatasetSplitsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -10098,12 +10251,23 @@ export interface operations {
                 include_spans?: boolean;
                 /** @description List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned. */
                 session_identifier?: string[] | null;
-                /** @description Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI. */
+                /**
+                 * @deprecated
+                 * @description Deprecated: use `filter=error_count > 0` or `filter=error_count == 0`. Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status.
+                 */
                 error?: boolean | null;
-                /** @description Inclusive lower bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive lower bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms >= N`.
+                 */
                 min_latency_ms?: number | null;
-                /** @description Inclusive upper bound on trace latency in milliseconds. */
+                /**
+                 * @deprecated
+                 * @description Inclusive upper bound on trace latency in milliseconds. Deprecated: use `filter=latency_ms <= N`.
+                 */
                 max_latency_ms?: number | null;
+                /** @description Trace filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Combined with other filters using AND. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -10121,6 +10285,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetTracesResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
@@ -10483,10 +10656,14 @@ export interface operations {
     getSpans: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Span Global ID) */
+                /** @description Pagination cursor: the next_cursor of a previous response with the same sort */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
+                /** @description Sort field. 'id' orders by insertion; 'start_time' orders by when the span started, breaking ties by id. */
+                sort?: "id" | "start_time";
+                /** @description Sort direction */
+                order?: "asc" | "desc";
                 /** @description Inclusive lower bound time */
                 start_time?: string | null;
                 /** @description Exclusive upper bound time */
@@ -10499,7 +10676,7 @@ export interface operations {
                 parent_id?: string | null;
                 /** @description Filter by span name(s) */
                 name?: string[] | null;
-                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN */
+                /** @description Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN */
                 span_kind?: string[] | null;
                 /** @description Filter by status code(s). Values: OK, ERROR, UNSET */
                 status_code?: string[] | null;
@@ -10612,6 +10789,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Span ingestion queue is at capacity */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -11890,6 +12076,8 @@ export interface operations {
                 limit?: number;
                 /** @description Sort order by ID: 'asc' (ascending) or 'desc' (descending). */
                 order?: "asc" | "desc";
+                /** @description Session filter expression, as documented at https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions. Empty expressions do not filter. Invalid expressions return 400. */
+                filter?: string | null;
             };
             header?: never;
             path: {
@@ -11907,6 +12095,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetSessionsResponseBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
             /** @description Forbidden */
@@ -12959,6 +13156,7 @@ export interface operations {
             };
             cookie: {
                 "phoenix-oauth2-state": string;
+                "phoenix-oauth2-login-context"?: string | null;
                 "phoenix-oauth2-nonce": string;
                 "phoenix-oauth2-code-verifier"?: string | null;
             };

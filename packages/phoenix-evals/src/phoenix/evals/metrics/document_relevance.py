@@ -1,10 +1,12 @@
-from typing import Any
+import warnings
+from typing import Any, Union
 
 from pydantic import BaseModel, Field
 
 from ..__generated__.classification_evaluator_configs import (
     DOCUMENT_RELEVANCE_CLASSIFICATION_EVALUATOR_CONFIG,
 )
+from ..decision import DecisionModel
 from ..evaluators import ClassificationEvaluator
 from ..llm import LLM
 from ..llm.prompts import PromptTemplate
@@ -14,6 +16,13 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
     """
     A specialized evaluator for determining document relevance to a given
     question.
+
+    .. deprecated:: 3.7.0
+        Use :class:`~phoenix.evals.metrics.RetrievalRelevanceEvaluator` instead.
+        Pass one document as ``context`` to preserve per-document evaluation.
+        The input field ``document_text`` becomes ``context``, and the negative
+        label ``unrelated`` becomes ``irrelevant``. This class will be removed
+        in the next major release.
 
     Args:
         llm (LLM): The LLM instance to use for the evaluation.
@@ -28,23 +37,17 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
           judge.
         - Requires an LLM that supports tool calling or structured output.
 
-    Examples::
+    Migration example::
 
-        from phoenix.evals.metrics.document_relevance import DocumentRelevanceEvaluator
         from phoenix.evals import LLM
+        from phoenix.evals.metrics import RetrievalRelevanceEvaluator
+
         llm = LLM(provider="openai", model="gpt-4o-mini")
-
-        # Default usage
-        relevance_eval = DocumentRelevanceEvaluator(llm=llm)
-
-        # With custom invocation parameters
-        relevance_eval = DocumentRelevanceEvaluator(llm=llm, temperature=0.0)
-
-        eval_input = {
+        relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
+        scores = relevance_eval.evaluate({
             "input": "What is the capital of France?",
-            "document_text": "Paris is the capital and largest city of France"
-            }
-        scores = relevance_eval.evaluate(eval_input)
+            "context": "Paris is the capital and largest city of France.",
+        })
         print(scores)
     """
 
@@ -63,9 +66,18 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
 
     def __init__(
         self,
-        llm: LLM,
+        llm: Union[LLM, DecisionModel],
         **kwargs: Any,
     ):
+        warnings.warn(
+            "DocumentRelevanceEvaluator is deprecated and will be removed in the "
+            "next major release. Use RetrievalRelevanceEvaluator instead. "
+            "Rename the 'document_text' input field to 'context', and update code that "
+            "checks for the 'unrelated' label to check for 'irrelevant'. Pass one "
+            "document as 'context' to preserve per-document evaluation.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(
             name=self.NAME,
             llm=llm,

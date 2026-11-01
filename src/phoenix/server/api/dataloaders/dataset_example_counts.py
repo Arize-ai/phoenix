@@ -62,7 +62,7 @@ def _count_statement(
     dataset_ids: set[DatasetId],
     version_id: VersionId,
     split_ids: SplitIds,
-) -> Select[tuple[int, int]]:
+) -> Select[int, int]:
     revision_ids = (
         select(func.max(models.DatasetExampleRevision.id))
         .join(models.DatasetExample)

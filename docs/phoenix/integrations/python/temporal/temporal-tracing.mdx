@@ -1,0 +1,144 @@
+---
+title: "Temporal Tracing"
+description: "Trace Temporal workflows, activities, and the LLM calls inside them in Phoenix using Temporal's OpenTelemetry plugin and OpenInference instrumentors."
+---
+
+[Temporal](https://temporal.io/) is a durable execution platform for long-running workflows. Temporal's Python SDK emits OpenTelemetry spans for client calls, workflows, and activities. Send those spans to Phoenix, then use an [OpenInference instrumentor](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation) inside your activities to capture LLM calls in the same trace.
+
+<Note>
+  This page uses Temporal's built-in OpenTelemetry support plus OpenInference LLM instrumentation. It isn't a Temporal-specific OpenInference instrumentor.
+</Note>
+
+## Install
+
+```bash
+pip install "temporalio[opentelemetry]" arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+You also need a Temporal service. For local development, install the [Temporal CLI](https://docs.temporal.io/cli) and start a dev server:
+
+```bash
+temporal server start-dev
+```
+
+## Setup
+
+Set your API keys as environment variables:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+export PHOENIX_API_KEY=[your_phoenix_api_key]
+```
+
+Create the tracer provider with Temporal's `create_tracer_provider()`, which is replay-safe: workflow spans get deterministic IDs and aren't exported again when Temporal replays workflow code. Export it to Phoenix and enable the OpenInference OpenAI instrumentor before any Temporal client or worker code runs:
+
+```python instrumentation.py
+from openinference.instrumentation.openai import OpenAIInstrumentor
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from phoenix.otel import PROJECT_NAME, BatchSpanProcessor, HTTPSpanExporter
+from temporalio.contrib.opentelemetry import create_tracer_provider
+
+tracer_provider = create_tracer_provider(
+    resource=Resource.create(
+        {
+            PROJECT_NAME: "temporal",
+            "service.name": "temporal-worker",
+        }
+    )
+)
+
+# HTTPSpanExporter reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
+tracer_provider.add_span_processor(BatchSpanProcessor(HTTPSpanExporter()))
+
+trace.set_tracer_provider(tracer_provider)
+OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+```
+
+## Run Temporal
+
+Register Temporal's `OpenTelemetryPlugin` when you create the client. With the plugin installed, Temporal creates spans for client calls, workflows, and activities, and propagates trace context across those boundaries. Temporal workflow code must stay deterministic, so put network I/O, including LLM calls, in activities:
+
+```python app.py expandable
+import asyncio
+from datetime import timedelta
+
+from temporalio import activity, workflow
+from temporalio.client import Client
+from temporalio.contrib.opentelemetry import OpenTelemetryPlugin
+from temporalio.worker import Worker
+
+with workflow.unsafe.imports_passed_through():
+    from instrumentation import tracer_provider
+    from openai import AsyncOpenAI
+
+
+@activity.defn
+async def draft_reply(ticket: str) -> str:
+    response = await AsyncOpenAI(max_retries=0).chat.completions.create(
+        model="gpt-5.4-mini",
+        messages=[
+            {"role": "system", "content": "Draft a concise support reply."},
+            {"role": "user", "content": ticket},
+        ],
+    )
+    return response.choices[0].message.content or ""
+
+
+@workflow.defn
+class SupportReplyWorkflow:
+    @workflow.run
+    async def run(self, ticket: str) -> str:
+        return await workflow.execute_activity(
+            draft_reply,
+            ticket,
+            start_to_close_timeout=timedelta(seconds=60),
+        )
+
+
+async def main() -> None:
+    client = await Client.connect(
+        "localhost:7233",
+        plugins=[OpenTelemetryPlugin(add_temporal_spans=True)],
+    )
+    async with Worker(
+        client,
+        task_queue="support-replies",
+        workflows=[SupportReplyWorkflow],
+        activities=[draft_reply],
+    ):
+        reply = await client.execute_workflow(
+            SupportReplyWorkflow.run,
+            "My order arrived damaged. Can I get a replacement?",
+            id="support-reply-1",
+            task_queue="support-replies",
+        )
+    print(reply)
+    tracer_provider.force_flush()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+In production you run the worker and the code that starts workflows as separate processes. Both import `instrumentation.py` and connect with the `OpenTelemetryPlugin`, so trace context flows from the client through the worker.
+
+## Observe
+
+Open the `temporal` project in Phoenix. Each workflow run is one trace:
+
+* Temporal client, workflow, and activity spans from the `OpenTelemetryPlugin`
+* An OpenInference LLM span for the OpenAI call, nested under the activity span, with the prompt, response, and token usage
+* Errors, retries, and latency for each step
+
+## Troubleshooting
+
+* **LLM spans aren't nested under activities.** Make sure the LLM call runs inside the activity, and that Temporal and the OpenInference instrumentor use the same tracer provider.
+* **Duplicate or unexpected workflow spans.** Temporal replays workflow code. Keep I/O and LLM calls in activities, not in workflow methods, and create the tracer provider with `create_tracer_provider()`.
+* **No traces in Phoenix.** Confirm `instrumentation.py` runs before the Temporal client and worker are created, and that `PHOENIX_COLLECTOR_ENDPOINT` is set in every process.
+
+## Resources
+
+* [Temporal Python observability](https://docs.temporal.io/develop/python/platform/observability)
+* [OpenInference OpenAI instrumentor](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai)

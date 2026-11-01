@@ -161,7 +161,7 @@ class _AnnotationDmlEventHandler(
     ABC,
 ):
     _table: _AnnotationTable
-    _base_stmt: Union[Select[tuple[int, str]], Select[tuple[int]]] = (
+    _base_stmt: Union[Select[int, str], Select[int]] = (
         select(Project.id).join_from(Project, Trace).distinct()
     )
 
@@ -171,7 +171,7 @@ class _AnnotationDmlEventHandler(
         if self._cache_for_dataloaders:
             self._stmt = self._stmt.add_columns(self._table.name)
 
-    def _get_stmt(self) -> Union[Select[tuple[int, str]], Select[tuple[int]]]:
+    def _get_stmt(self) -> Union[Select[int, str], Select[int]]:
         ids = set(chain.from_iterable(e.ids for e in self._batch))
         return self._stmt.where(self._table.id.in_(ids))
 

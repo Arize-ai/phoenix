@@ -6,6 +6,10 @@ import * as crypto from "node:crypto";
 import os from "os";
 import path from "path";
 import process from "process";
+import { fileURLToPath } from "url";
+
+// Run the repo's pinned uv so a relock from the test server matches CI.
+const uv = fileURLToPath(new URL("../../../../scripts/uv.sh", import.meta.url));
 
 const appPrefix = "phoenix";
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
@@ -14,10 +18,15 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 process.env["PHOENIX_WORKING_DIR"] = tmpDir;
 process.env["PHOENIX_ENABLE_AUTH"] = "True";
 process.env["PHOENIX_SECRET"] = crypto.randomBytes(32).toString("hex");
+// Exercise the default-password reset flow regardless of the parent environment.
+delete process.env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"];
 process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
 // Disable rate limiting for tests to avoid flakiness from parallel logins
 // The rate-limit.spec.ts test will re-enable it for its specific test
 process.env["PHOENIX_DISABLE_RATE_LIMIT"] = "True";
+// Keep the built-in model prices the bundled manifest's instead of fetching
+// newer ones from GitHub after startup.
+process.env["PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE"] = "True";
 
 // Enable Prometheus so the PrometheusMiddleware is mounted on every request
 // during the e2e suite. This produces metrics on :9090 and, crucially, gives
@@ -53,7 +62,7 @@ if (!fs.existsSync(wasmCachedBinary)) {
     "Pre-warming CPython WASM binary cache (one-time, ~30MB download)..."
   );
   execSync(
-    `uv run --extra container python -c "from phoenix.server.sandbox._download import ensure_wasm_binary; ensure_wasm_binary()"`,
+    `${uv} run --extra container python -c "from phoenix.server.sandbox._download import ensure_wasm_binary; ensure_wasm_binary()"`,
     { stdio: "inherit" }
   );
 }
@@ -80,7 +89,9 @@ console.log(
 );
 
 // Execute the server
-const childProcess = exec(`uv run --compile --extra container phoenix serve`);
+const childProcess = exec(
+  `${uv} run --compile --extra container phoenix serve`
+);
 
 childProcess.stdout?.pipe(process.stdout);
 childProcess.stderr?.pipe(process.stderr);

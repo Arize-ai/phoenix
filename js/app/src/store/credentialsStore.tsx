@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
+import { CREDENTIALS_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 /**
@@ -93,7 +94,7 @@ export const createCredentialsStore = (
   return create<CredentialsState>()(
     persist(devtools(credentialsStore), {
       version: 1,
-      name: "arize-phoenix-credentials",
+      name: CREDENTIALS_STORAGE_KEY,
       // Migrate from legacy credentials to new credentials
       migrate: (state: unknown) => {
         // Only provide a migration if the state is a valid legacy credentials object

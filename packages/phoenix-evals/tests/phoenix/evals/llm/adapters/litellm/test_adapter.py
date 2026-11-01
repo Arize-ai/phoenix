@@ -313,6 +313,22 @@ class TestExplicitMethodNoPrecheck:
 
         assert result == {"label": "yes"}
 
+    @pytest.mark.parametrize("tool_calls", [None, []])
+    def test_tool_calling_without_tool_calls_raises_a_clear_error(
+        self, monkeypatch: pytest.MonkeyPatch, tool_calls: list | None
+    ) -> None:
+        adapter, completion_mock, _ = _make_adapter(monkeypatch)
+        response = _make_tool_calling_response()
+        response.choices[0].message.tool_calls = tool_calls
+        completion_mock.return_value = response
+
+        with pytest.raises(ValueError, match="No tool calls in response"):
+            adapter.generate_object(
+                "test prompt",
+                SIMPLE_SCHEMA,
+                method=ObjectGenerationMethod.TOOL_CALLING,
+            )
+
     def test_explicit_method_propagates_api_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         adapter, completion_mock, _ = _make_adapter(monkeypatch)
         completion_mock.side_effect = _bad_request("bad schema")

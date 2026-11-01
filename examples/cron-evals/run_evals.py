@@ -14,8 +14,8 @@ from phoenix.evals import bind_evaluator, evaluate_dataframe
 from phoenix.evals.llm import LLM
 from phoenix.evals.metrics import (
     CorrectnessEvaluator,
-    DocumentRelevanceEvaluator,
     FaithfulnessEvaluator,
+    RetrievalRelevanceEvaluator,
 )
 
 phoenix_client = Client()
@@ -29,9 +29,9 @@ eval_model = LLM(provider="openai", model="gpt-4-turbo-preview")
 
 faithfulness_evaluator = FaithfulnessEvaluator(llm=eval_model)
 correctness_evaluator = CorrectnessEvaluator(llm=eval_model)
-document_relevance_evaluator = bind_evaluator(
-    evaluator=DocumentRelevanceEvaluator(llm=eval_model),
-    input_mapping={"document_text": "document"},
+retrieval_relevance_evaluator = bind_evaluator(
+    evaluator=RetrievalRelevanceEvaluator(llm=eval_model),
+    input_mapping={"context": "document"},
 )
 
 
@@ -69,10 +69,10 @@ if qa_df is not None:
 if retriever_spans_df is not None:
     relevance_results_df = evaluate_dataframe(
         dataframe=retriever_spans_df,
-        evaluators=[document_relevance_evaluator],
+        evaluators=[retrieval_relevance_evaluator],
     )
     phoenix_client.spans.log_document_annotations_dataframe(
-        dataframe=_score_dataframe(relevance_results_df, score_name="document_relevance"),
+        dataframe=_score_dataframe(relevance_results_df, score_name="retrieval_relevance"),
         annotation_name="Relevance",
         annotator_kind="LLM",
     )

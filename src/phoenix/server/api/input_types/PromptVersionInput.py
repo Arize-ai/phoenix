@@ -43,6 +43,7 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (
     PromptInvocationParametersInput,
 )
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -308,7 +309,7 @@ class PromptMessageInput:
 
 @strawberry.input
 class PromptChatTemplateInput:
-    messages: list[PromptMessageInput]
+    messages: Redacted[list[PromptMessageInput]]
 
     def to_orm(self) -> PromptChatTemplate:
         return PromptChatTemplate(
@@ -325,6 +326,7 @@ class PromptChatTemplateInput:
 @strawberry.input
 class ChatPromptVersionInput:
     description: Optional[str] = None
+    metadata: Optional[JSON] = UNSET
     template_format: PromptTemplateFormat
     template: PromptChatTemplateInput
     invocation_parameters: PromptInvocationParametersInput
@@ -374,8 +376,5 @@ class ChatPromptVersionInput:
             model_provider=self.model_provider.to_model_provider(),
             model_name=self.model_name,
             custom_provider_id=custom_provider_id,
-            # metadata_ will default to {} in the DB if not provided due to the NOT NULL constraint,
-            # so setting it here allows us to more accurately check prompt version equality
-            # between prompts that have been saved to the DB and those that haven't.
-            metadata_={},
+            metadata_=self.metadata or {},
         )
