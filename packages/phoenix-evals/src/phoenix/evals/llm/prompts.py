@@ -315,8 +315,8 @@ class MustacheFormatter(TemplateFormatter):
         Section variables (``{{#var}}`` / ``{{^var}}``) are typed as ``"section"``
         and should accept any Python value (list, dict, etc.) so pystache can
         iterate or conditionally render them. All other variables (``{{var}}``,
-        ``{{{var}}}``) are typed as ``"string"`` and will be JSON-serialized if
-        they are not already strings.
+        ``{{{var}}}``) are typed as ``"string"``. Dicts and lists supplied for
+        these variables are JSON-serialized.
 
         When the same variable name appears as both a section and a string node
         (uncommon but valid), ``"section"`` takes precedence.
@@ -395,6 +395,18 @@ class FStringFormatter(TemplateFormatter):
                 field_names.append(field_name)
 
         return field_names
+
+    def extract_variables_with_types(
+        self, template: str
+    ) -> Dict[str, Literal["string", "section"]]:
+        variables = super().extract_variables_with_types(template)
+        for _, field_name, format_spec, conversion in Formatter().parse(template):
+            if field_name is None:
+                continue
+            root = re.split(r"[.\[]", field_name, maxsplit=1)[0]
+            if field_name != root or format_spec or conversion:
+                variables[root] = "section"
+        return variables
 
 
 def detect_template_format(template: str) -> TemplateFormat:
@@ -647,14 +659,9 @@ def create_content_part_template(
         raise ValueError(f"Unsupported content type: {content_type}")
 
 
-def _json_serialize_variable(value: Any) -> str:
-    """Serialize a non-string template variable to JSON for prompt rendering.
-
-    Falls back to ``str(value)`` when the value is not JSON-serializable.
-    Mirrors the ``SmartString`` coercion the evaluator input schemas apply, so
-    direct ``PromptTemplate``/``Template`` renders produce the same prompt text.
-    """
-    if isinstance(value, str):
+def _json_serialize_variable(value: Any) -> Any:
+    """Render dicts and lists as JSON without changing scalar or callable values."""
+    if not isinstance(value, (dict, list)) or callable(value):
         return value
     try:
         return json.dumps(value, ensure_ascii=False)
@@ -723,6 +730,8 @@ class MessageTemplate:
         else:
             raise TypeError(f"Content must be str or list, got {type(content).__name__}")
 
+        self._variable_types = self.variable_types()
+
     @property
     def content(self) -> Union[str, List[Dict[str, Any]]]:
         """Get the original content in its input format.
@@ -771,15 +780,10 @@ class MessageTemplate:
             Content will be a string if the original input was a string,
             or a list of ContentPart if the original input was a list.
         """
-        # Honor the variable_types contract: variables classified as "string"
-        # are JSON-serialised when a non-string value is supplied, so the model
-        # sees valid JSON rather than a Python repr. "section" variables pass
-        # through unchanged so pystache can iterate or traverse them.
-        variable_types = self.variable_types()
         coerced = {
             key: (
                 _json_serialize_variable(value)
-                if variable_types.get(key) == "string"
+                if self._variable_types.get(key) == "string"
                 else value
             )
             for key, value in variables.items()
@@ -1015,8 +1019,9 @@ class PromptTemplate:
         Section variables (``{{#var}}``, ``{{^var}}``) are classified as
         ``"section"`` and accept any Python value (list, dict, bool, etc.) so
         pystache can iterate or conditionally render them.  All other variables
-        are classified as ``"string"`` and will be JSON-serialised when a
-        non-string value is supplied.
+        are classified as ``"string"``. Dicts and lists supplied for plain
+        string fields are JSON-serialised. Format specs, conversions, and
+        lookups retain their original values, as do scalars and callables.
 
         When the same variable appears in multiple messages or content parts,
         ``"section"`` takes precedence over ``"string"``.

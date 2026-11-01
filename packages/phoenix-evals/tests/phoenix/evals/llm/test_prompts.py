@@ -877,14 +877,6 @@ class TestClassifyMessageListKind:
 
 
 class TestStringVariableJsonSerialization:
-    """Non-string values for string-typed variables render as JSON, not Python repr.
-
-    The variable_types contract (PromptTemplate.variable_types) promises that
-    variables classified as "string" are JSON-serialised when a non-string value
-    is supplied, while "section" variables pass through unchanged so pystache can
-    iterate or traverse them.
-    """
-
     def test_mustache_dict_variable_renders_as_json(self) -> None:
         template = PromptTemplate(template="Context: {{doc}}")
         rendered = template.render({"doc": {"text": "hello", "n": 1}})
@@ -938,5 +930,59 @@ class TestStringVariableJsonSerialization:
         template = PromptTemplate(
             template=[{"role": "user", "content": "Context: {{doc}}"}],
         )
-        rendered = template.render({"doc": [1, 2]})
-        assert rendered[0]["content"] == 'Context: [1, 2]'
+        rendered = template.render({"doc": ["a"]})
+        assert rendered[0]["content"] == 'Context: ["a"]'
+
+    @pytest.mark.parametrize(
+        "text, variables, expected",
+        [
+            ("{score:.2f}", {"score": 3.14159}, "3.14"),
+            ("{n:d}", {"n": 7}, "7"),
+            ("{doc} / {doc[text]}", {"doc": {"text": "hi"}}, "{'text': 'hi'} / hi"),
+            ("{doc} / {doc!r}", {"doc": {"text": "hi"}}, "{'text': 'hi'} / {'text': 'hi'}"),
+            ("{doc} / {doc[0]}", {"doc": ["hi"]}, "['hi'] / hi"),
+            ("{score:{width}.2f}", {"score": 3.14159, "width": 6}, "3.14"),
+        ],
+    )
+    def test_fstring_operations_keep_original_values(
+        self, text: str, variables: Dict[str, Any], expected: str
+    ) -> None:
+        template = PromptTemplate(template=text, template_format=TemplateFormat.F_STRING)
+        assert template.render(variables)[0]["content"] == expected
+
+    def test_mustache_callable_is_invoked(self) -> None:
+        template = PromptTemplate(template="{{fn}}")
+        assert template.render({"fn": lambda: "called"})[0]["content"] == "called"
+
+    @pytest.mark.parametrize("value, expected", [(True, "True"), (False, "False"), (None, "None")])
+    def test_mustache_scalar_behavior_unchanged(self, value: Any, expected: str) -> None:
+        template = PromptTemplate(template="{{value}}")
+        assert template.render({"value": value})[0]["content"] == expected
+
+    def test_multiple_content_parts_preserve_lookup_root(self) -> None:
+        template = PromptTemplate(
+            template=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "{doc}"},
+                        {"type": "text", "text": "{doc[text]}"},
+                    ],
+                }
+            ],
+            template_format=TemplateFormat.F_STRING,
+        )
+        assert template.render({"doc": {"text": "hi"}})[0]["content"] == [
+            {"type": "text", "text": "{'text': 'hi'}"},
+            {"type": "text", "text": "hi"},
+        ]
+
+    def test_unserializable_dict_falls_back_to_str(self) -> None:
+        class Weird:
+            def __repr__(self) -> str:
+                return "weird!"
+
+        template = PromptTemplate(template="Obj: {{obj}}")
+        assert (
+            template.render({"obj": {"nested": Weird()}})[0]["content"] == "Obj: {'nested': weird!}"
+        )
