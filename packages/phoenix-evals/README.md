@@ -74,6 +74,7 @@ The `phoenix.evals.metrics` module provides ready-to-use evaluators for common t
 | Tool Selection | `ToolSelectionEvaluator` | Evaluates whether the right tool was selected for the task |
 | Tool Response Handling | `ToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
 | User Friction | `UserFrictionEvaluator` | Detects expressed corrections, retries, frustration, and challenges |
+| Language Detection | `LanguageDetectionEvaluator` | Identifies the primary language of a given source text |
 | PII Detection | `PiiDetectionEvaluator` | Screens a conversation record for personally identifiable information |
 | Exact Match | `exact_match` | Checks for exact string equality between output and expected |
 | Regex Match | `MatchesRegex` | Checks whether the output matches a regular expression |

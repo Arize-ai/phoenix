@@ -2,7 +2,7 @@ import type { LanguageModel } from "ai";
 
 import { getTemplateVariables } from "../template";
 import type {
-  ClassificationChoicesMap,
+  ClassificationChoices,
   CreateClassificationEvaluatorArgs,
   EvaluatorFn,
   PromptTemplate,
@@ -34,7 +34,7 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
   /**
    * The choices to classify the example into
    */
-  readonly choices: ClassificationChoicesMap;
+  readonly choices: ClassificationChoices;
 
   constructor(args: CreateClassificationEvaluatorArgs<RecordType>) {
     super(args);
