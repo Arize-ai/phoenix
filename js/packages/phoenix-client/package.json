@@ -128,7 +128,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.101",
+    "@ai-sdk/openai": "^4.0.105",
     "@ai-sdk/otel": "^1.0.152",
     "@anthropic-ai/sdk": "^0.111.0",
     "@arizeai/phoenix-evals": "workspace:*",
@@ -136,7 +136,7 @@
     "@opentelemetry/api": "^1.10.0",
     "@opentelemetry/sdk-trace-node": "^2.12.0",
     "@types/async": "^3.2.26",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "ai": "^7.0.152",
     "dotenv": "^17.4.2",
     "jest": "^30.5.2",
