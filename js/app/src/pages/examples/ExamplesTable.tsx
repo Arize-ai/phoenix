@@ -25,7 +25,9 @@ import {
   IconButton,
   Icons,
   Input,
+  OverflowRow,
   TextField,
+  Token,
   Tooltip,
   TooltipTrigger,
   Truncate,
@@ -33,7 +35,6 @@ import {
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Link } from "@phoenix/components/core/Link";
-import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
 import {
   CellWithControlsWrap,
   CompactJSONCell,
@@ -562,10 +563,28 @@ export function ExamplesTable({
       {
         header: "splits",
         accessorKey: "splits",
-        maxSize: 150,
-        size: 30,
+        // Wide enough for a split and the "+N" badge by default; resizable
+        // further for long split names.
+        maxSize: 300,
+        size: 150,
         minSize: 30,
-        cell: ({ row }) => <DatasetSplits labels={row.original.splits} />,
+        // Rows are one line tall, so splits that don't fit go behind the
+        // row's "+N" badge, and a split too long for the column is ellipsized
+        // rather than clipped mid-word.
+        cell: ({ row }) => (
+          <OverflowRow>
+            {row.original.splits.map((split) => (
+              <Token
+                key={split.id}
+                color={split.color}
+                maxWidth="100%"
+                title={split.name}
+              >
+                {split.name}
+              </Token>
+            ))}
+          </OverflowRow>
+        ),
       },
       ...(
         [
