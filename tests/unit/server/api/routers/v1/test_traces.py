@@ -1,3 +1,5 @@
+import gzip
+import zlib
 from asyncio import sleep
 from datetime import datetime
 from typing import Any
@@ -7,15 +9,16 @@ import httpx2
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from faker import Faker
+from google.protobuf import json_format
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
-from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
-from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
-from sqlalchemy import insert, select
+from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans, Status
+from sqlalchemy import delete, insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -610,6 +613,264 @@ async def test_post_traces_resource_attribute_used_when_no_header(
         )
 
     assert project is not None, "Project from resource attribute should be created"
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/traces with OTLP/JSON
+# ---------------------------------------------------------------------------
+
+# The body an OTLP/HTTP exporter sends with Content-Type application/json: camelCase keys,
+# hex IDs (one in upper case), enums as integers, 64-bit integers as strings or numbers, and a
+# field this server does not know, which it must ignore.
+_OTLP_JSON_BODY = """
+{"resourceSpans": [{
+  "resource": {"attributes": [
+    {"key": "openinference.project.name", "value": {"stringValue": "otlp-json"}}
+  ]},
+  "scopeSpans": [{"spans": [
+    {
+      "traceId": "5B8EFFF798038103D269B633813FC60C",
+      "spanId": "eee19b7ec3c1b174",
+      "name": "agent",
+      "kind": 1,
+      "startTimeUnixNano": "1700000000123456000",
+      "endTimeUnixNano": "1700000002000000000",
+      "attributes": [
+        {"key": "openinference.span.kind", "value": {"stringValue": "CHAIN"}},
+        {"key": "tag.tags", "value": {"arrayValue": {"values": [{"stringValue": "demo"}]}}}
+      ],
+      "status": {"code": 1}
+    },
+    {
+      "traceId": "5b8efff798038103d269b633813fc60c",
+      "spanId": "eee19b7ec3c1b175",
+      "parentSpanId": "eee19b7ec3c1b174",
+      "name": "ChatCompletion",
+      "kind": 3,
+      "startTimeUnixNano": "1700000000500000000",
+      "endTimeUnixNano": 1700000001500000000,
+      "attributes": [
+        {"key": "openinference.span.kind", "value": {"stringValue": "LLM"}},
+        {"key": "llm.token_count.prompt", "value": {"intValue": "12"}},
+        {"key": "llm.token_count.completion", "value": {"intValue": 7}},
+        {"key": "llm.invocation_parameters.temperature", "value": {"doubleValue": 0.5}}
+      ],
+      "events": [{
+        "timeUnixNano": "1700000001000000000",
+        "name": "exception",
+        "attributes": [
+          {"key": "exception.message", "value": {"stringValue": "upstream timed out"}}
+        ]
+      }],
+      "links": [{"traceId": "0af7651916cd43dd8448eb211c80319c", "spanId": "b7ad6b7169203331"}],
+      "status": {"code": 2, "message": "upstream timed out"},
+      "notAnOtlpField": true
+    }
+  ]}]
+}]}
+"""
+
+
+def _kv(key: str, **value: Any) -> KeyValue:
+    return KeyValue(key=key, value=AnyValue(**value))
+
+
+def _make_protobuf_equivalent_of_otlp_json_body() -> ExportTraceServiceRequest:
+    trace_id = bytes.fromhex("5b8efff798038103d269b633813fc60c")
+    agent_span = otlp.Span(
+        trace_id=trace_id,
+        span_id=bytes.fromhex("eee19b7ec3c1b174"),
+        name="agent",
+        kind=otlp.Span.SPAN_KIND_INTERNAL,
+        start_time_unix_nano=1700000000123456000,
+        end_time_unix_nano=1700000002000000000,
+        attributes=[
+            _kv("openinference.span.kind", string_value="CHAIN"),
+            _kv("tag.tags", array_value=ArrayValue(values=[AnyValue(string_value="demo")])),
+        ],
+        status=Status(code=Status.STATUS_CODE_OK),
+    )
+    llm_span = otlp.Span(
+        trace_id=trace_id,
+        span_id=bytes.fromhex("eee19b7ec3c1b175"),
+        parent_span_id=bytes.fromhex("eee19b7ec3c1b174"),
+        name="ChatCompletion",
+        kind=otlp.Span.SPAN_KIND_CLIENT,
+        start_time_unix_nano=1700000000500000000,
+        end_time_unix_nano=1700000001500000000,
+        attributes=[
+            _kv("openinference.span.kind", string_value="LLM"),
+            _kv("llm.token_count.prompt", int_value=12),
+            _kv("llm.token_count.completion", int_value=7),
+            _kv("llm.invocation_parameters.temperature", double_value=0.5),
+        ],
+        events=[
+            otlp.Span.Event(
+                time_unix_nano=1700000001000000000,
+                name="exception",
+                attributes=[_kv("exception.message", string_value="upstream timed out")],
+            )
+        ],
+        links=[
+            otlp.Span.Link(
+                trace_id=bytes.fromhex("0af7651916cd43dd8448eb211c80319c"),
+                span_id=bytes.fromhex("b7ad6b7169203331"),
+            )
+        ],
+        status=Status(code=Status.STATUS_CODE_ERROR, message="upstream timed out"),
+    )
+    resource = Resource(attributes=[_kv(ResourceAttributes.PROJECT_NAME, string_value="otlp-json")])
+    return ExportTraceServiceRequest(
+        resource_spans=[
+            ResourceSpans(resource=resource, scope_spans=[ScopeSpans(spans=[agent_span, llm_span])])
+        ]
+    )
+
+
+async def _read_stored_spans(db: DbSessionFactory) -> dict[str, dict[str, Any]]:
+    """Every stored span by span ID, with its trace and project, without row IDs."""
+    async with db() as session:
+        rows = (
+            await session.execute(
+                select(models.Span, models.Trace, models.Project.name)
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            )
+        ).all()
+    return {
+        span.span_id: {
+            "project_name": project_name,
+            "trace_id": trace.trace_id,
+            "trace_start_time": trace.start_time,
+            "trace_end_time": trace.end_time,
+            "parent_id": span.parent_id,
+            "name": span.name,
+            "span_kind": span.span_kind,
+            "start_time": span.start_time,
+            "end_time": span.end_time,
+            "attributes": span.attributes,
+            "events": span.events,
+            "status_code": span.status_code,
+            "status_message": span.status_message,
+            "llm_token_count_prompt": span.llm_token_count_prompt,
+            "llm_token_count_completion": span.llm_token_count_completion,
+            "cumulative_error_count": span.cumulative_error_count,
+        }
+        for span, trace, project_name in rows
+    }
+
+
+async def _delete_all_traces(db: DbSessionFactory) -> None:
+    async with db() as session:
+        await session.execute(delete(models.Trace))
+
+
+@pytest.mark.parametrize("content_encoding", [None, "gzip", "deflate"])
+async def test_post_traces_otlp_json_stores_the_same_spans_as_protobuf(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    content_encoding: str | None,
+) -> None:
+    response = await httpx_client.post(
+        "v1/traces",
+        content=_make_protobuf_equivalent_of_otlp_json_body().SerializeToString(),
+        headers={"Content-Type": "application/x-protobuf"},
+    )
+    assert response.status_code == 200
+    spans_from_protobuf = await _read_stored_spans(db)
+    await _delete_all_traces(db)
+    assert await _read_stored_spans(db) == {}
+
+    json_body = _OTLP_JSON_BODY.encode()
+    headers = {"Content-Type": "application/json"}
+    if content_encoding == "gzip":
+        json_body = gzip.compress(json_body)
+        headers["Content-Encoding"] = "gzip"
+    elif content_encoding == "deflate":
+        json_body = zlib.compress(json_body)
+        headers["Content-Encoding"] = "deflate"
+    response = await httpx_client.post("v1/traces", content=json_body, headers=headers)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    json_format.Parse(response.text, ExportTraceServiceResponse())
+
+    spans_from_json = await _read_stored_spans(db)
+    assert spans_from_json == spans_from_protobuf
+    llm_span = spans_from_json["eee19b7ec3c1b175"]
+    assert llm_span["project_name"] == "otlp-json"
+    assert llm_span["trace_id"] == "5b8efff798038103d269b633813fc60c"
+    assert llm_span["parent_id"] == "eee19b7ec3c1b174"
+    assert llm_span["span_kind"] == "LLM"
+    assert llm_span["llm_token_count_prompt"] == 12
+    assert llm_span["llm_token_count_completion"] == 7
+    assert llm_span["status_code"] == "ERROR"
+    assert llm_span["events"][0]["name"] == "exception"
+    assert spans_from_json["eee19b7ec3c1b174"]["attributes"]["tag"]["tags"] == ["demo"]
+
+
+async def test_post_traces_otlp_json_reimports_the_otlpv1_span_export(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    response = await httpx_client.post(
+        "v1/traces",
+        content=_make_protobuf_equivalent_of_otlp_json_body().SerializeToString(),
+        headers={"Content-Type": "application/x-protobuf"},
+    )
+    assert response.status_code == 200
+    spans_before_export = await _read_stored_spans(db)
+    assert len(spans_before_export) == 2
+
+    response = await httpx_client.get("v1/projects/otlp-json/spans/otlpv1")
+    assert response.status_code == 200
+    exported_spans = response.json()["data"]
+    assert len(exported_spans) == 2
+    await _delete_all_traces(db)
+
+    response = await httpx_client.post(
+        "v1/traces",
+        json={"resourceSpans": [{"scopeSpans": [{"spans": exported_spans}]}]},
+        headers={"x-project-name": "otlp-json"},
+    )
+    assert response.status_code == 200
+    assert await _read_stored_spans(db) == spans_before_export
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param(b"{", id="not-json"),
+        pytest.param(b"[]", id="not-an-object"),
+        pytest.param(b'{"resourceSpans": {}}', id="wrong-type"),
+        pytest.param(
+            b'{"resourceSpans": [{"scopeSpans": [{"spans": [{"traceId": "not-hex"}]}]}]}',
+            id="non-hex-trace-id",
+        ),
+    ],
+)
+async def test_post_traces_rejects_invalid_otlp_json(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    body: bytes,
+) -> None:
+    response = await httpx_client.post(
+        "v1/traces",
+        content=body,
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 422
+    assert await _read_stored_spans(db) == {}
+
+
+async def test_post_traces_rejects_other_content_types(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        "v1/traces",
+        content=_OTLP_JSON_BODY.encode(),
+        headers={"Content-Type": "text/plain"},
+    )
+    assert response.status_code == 415
 
 
 # ---------------------------------------------------------------------------

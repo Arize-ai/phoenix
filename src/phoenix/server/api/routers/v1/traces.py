@@ -1,11 +1,14 @@
+import base64
 import binascii
 import gzip
+import json
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, Optional, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
+from google.protobuf import json_format
 from google.protobuf.message import DecodeError
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
@@ -438,7 +441,8 @@ async def delete_project_traces(
             {
                 "status_code": 415,
                 "description": (
-                    "Unsupported content type (only `application/x-protobuf` is supported)"
+                    "Unsupported content type (only `application/x-protobuf` and "
+                    "`application/json` are supported)"
                 ),
             },
             {"status_code": 422, "description": "Invalid request body"},
@@ -452,7 +456,8 @@ async def delete_project_traces(
         "requestBody": {
             "required": True,
             "content": {
-                "application/x-protobuf": {"schema": {"type": "string", "format": "binary"}}
+                "application/x-protobuf": {"schema": {"type": "string", "format": "binary"}},
+                "application/json": {"schema": {"type": "object"}},
             },
         }
     },
@@ -465,7 +470,7 @@ async def post_traces(
     content_encoding: Optional[str] = Header(default=None),
     x_project_name: Optional[str] = Header(default=None),
 ) -> Response:
-    if content_type != "application/x-protobuf":
+    if content_type not in ("application/x-protobuf", "application/json"):
         raise HTTPException(
             detail=f"Unsupported content type: {content_type}",
             status_code=415,
@@ -480,10 +485,13 @@ async def post_traces(
         body = await run_in_threadpool(gzip.decompress, body)
     elif content_encoding == "deflate":
         body = await run_in_threadpool(zlib.decompress, body)
-    req = ExportTraceServiceRequest()
     try:
-        await run_in_threadpool(req.ParseFromString, body)
-    except DecodeError:
+        if content_type == "application/json":
+            req = await run_in_threadpool(_parse_otlp_json, body)
+        else:
+            req = ExportTraceServiceRequest()
+            await run_in_threadpool(req.ParseFromString, body)
+    except (DecodeError, json_format.ParseError, ValueError):
         raise HTTPException(
             detail="Request body is invalid ExportTraceServiceRequest",
             status_code=422,
@@ -492,10 +500,13 @@ async def post_traces(
 
     # "The server MUST use the same Content-Type in the response as it received in the request"
     response_message = ExportTraceServiceResponse()
-    response_bytes = response_message.SerializeToString()
+    if content_type == "application/json":
+        response_content = json_format.MessageToJson(response_message).encode()
+    else:
+        response_content = response_message.SerializeToString()
     return Response(
-        content=response_bytes,
-        media_type="application/x-protobuf",
+        content=response_content,
+        media_type=content_type,
         status_code=200,
     )
 
@@ -692,6 +703,49 @@ async def create_trace_note(
     return CreateTraceNoteResponseBody(
         data=InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(annotation_id))))
     )
+
+
+# OTLP/JSON writes these bytes fields as hex strings, where the protobuf JSON mapping expects
+# base64. ParseDict also accepts the proto field names, which Phoenix's otlpv1 export writes.
+_OTLP_JSON_HEX_ID_KEYS = (
+    "traceId",
+    "spanId",
+    "parentSpanId",
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+)
+
+
+def _parse_otlp_json(body: bytes) -> ExportTraceServiceRequest:
+    """Parse an OTLP/JSON request body.
+
+    OTLP/JSON is the protobuf JSON mapping, except that trace and span IDs are hex strings
+    instead of base64, and unknown fields must be ignored. See
+    https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding
+    """
+    payload = json.loads(body)
+    if not isinstance(payload, dict):
+        raise json_format.ParseError("OTLP/JSON request body must be a JSON object")
+    for resource_spans in _get_json_objects(payload, "resourceSpans", "resource_spans"):
+        for scope_spans in _get_json_objects(resource_spans, "scopeSpans", "scope_spans"):
+            for span in _get_json_objects(scope_spans, "spans"):
+                for span_or_link in (span, *_get_json_objects(span, "links")):
+                    for key in _OTLP_JSON_HEX_ID_KEYS:
+                        if isinstance(hex_id := span_or_link.get(key), str):
+                            span_or_link[key] = base64.b64encode(bytes.fromhex(hex_id)).decode()
+    return json_format.ParseDict(payload, ExportTraceServiceRequest(), ignore_unknown_fields=True)
+
+
+def _get_json_objects(json_object: dict[str, Any], *keys: str) -> list[dict[str, Any]]:
+    """Return the objects in the list stored under the first of `keys` that holds a list.
+
+    Anything else is left for ParseDict to reject.
+    """
+    for key in keys:
+        if isinstance(items := json_object.get(key), list):
+            return [item for item in items if isinstance(item, dict)]
+    return []
 
 
 async def _add_spans(
