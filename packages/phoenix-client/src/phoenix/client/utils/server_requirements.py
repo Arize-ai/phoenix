@@ -13,7 +13,7 @@ server is too old.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import Iterable, NamedTuple
 
 import httpx
 
@@ -86,6 +86,9 @@ class ServerVersionGuard:
     def require(self, requirement: CapabilityRequirement) -> None:
         _check_version(self._get(), requirement)
 
+    def supports(self, *requirements: CapabilityRequirement) -> bool:
+        return _supports(self._get(), requirements)
+
 
 class AsyncServerVersionGuard:
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -100,6 +103,9 @@ class AsyncServerVersionGuard:
 
     async def require(self, requirement: CapabilityRequirement) -> None:
         _check_version(await self._get(), requirement)
+
+    async def supports(self, *requirements: CapabilityRequirement) -> bool:
+        return _supports(await self._get(), requirements)
 
 
 def _parse_version(response: httpx.Response) -> Version:
@@ -126,3 +132,7 @@ def _check_version(
             f"but connected to server {version}. "
             "Please upgrade your Phoenix server."
         )
+
+
+def _supports(version: Version, requirements: Iterable[CapabilityRequirement]) -> bool:
+    return all(version >= requirement.min_server_version for requirement in requirements)
