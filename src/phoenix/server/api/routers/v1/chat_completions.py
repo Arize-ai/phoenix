@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import ConfigDict, Field
-from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     FinishReason,
     ModelMessage,
@@ -432,7 +432,7 @@ async def create_chat_completion(
         )
     try:
         response = await model.request(messages, settings, ModelRequestParameters())
-    except ModelAPIError as exc:
+    except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
     completion = ChatCompletion(
         id=_completion_id(response.provider_response_id),
@@ -452,7 +452,7 @@ async def create_chat_completion(
 _HTTP_STATUS_CODE_LIMIT = 600
 
 
-def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
+def _provider_error_response(exc: Union[ModelAPIError, UnexpectedModelBehavior]) -> JSONResponse:
     if isinstance(exc, ModelHTTPError):
         provider_status_code = exc.status_code
         provider_status_is_forwardable = (
@@ -462,7 +462,8 @@ def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
             provider_status_code if provider_status_is_forwardable else HTTP_502_BAD_GATEWAY
         )
     else:
-        # The provider never answered (DNS failure, refused connection, timeout).
+        # The provider never answered (DNS failure, refused connection, timeout),
+        # or answered with something that isn't a valid completion.
         response_status_code = HTTP_502_BAD_GATEWAY
     return _error_response(str(exc), status_code=response_status_code)
 
@@ -553,7 +554,7 @@ async def _create_streaming_response(
     producer = asyncio.create_task(produce())
     try:
         await provider_stream_opened
-    except ModelAPIError as exc:
+    except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
     except BaseException:
         producer.cancel()
