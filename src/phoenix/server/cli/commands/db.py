@@ -12,8 +12,11 @@ if TYPE_CHECKING:
 
 
 def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
-    db_parser = subparsers.add_parser("db", help=SUPPRESS)
-    db_subparsers = db_parser.add_subparsers(dest="db_command", required=True, help=SUPPRESS)
+    db_parser = subparsers.add_parser("db", help="Manage the Phoenix database.")
+    db_parser.set_defaults(func=lambda _: db_parser.print_help())
+    db_subparsers = db_parser.add_subparsers(
+        dest="db_command", title="commands", metavar="<command>"
+    )
     migrate_parser = db_subparsers.add_parser(
         "migrate",
         help="Run database migrations and exit.",
