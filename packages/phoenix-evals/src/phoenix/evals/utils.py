@@ -363,7 +363,13 @@ def _format_score_data(
 
     parsed_score_col = eval_df[score_column].apply(_safe_json_load)
 
-    eval_df[cols] = parsed_score_col.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
+    if parsed_score_col.empty:
+        expanded_score_col = pd.DataFrame(columns=cols, index=eval_df.index)
+    else:
+        expanded_score_col = parsed_score_col.apply(
+            lambda d: pd.Series([(d or {}).get(k) for k in cols])
+        )
+    eval_df[cols] = expanded_score_col
 
     eval_df["metadata"] = parsed_score_col.apply(
         lambda d: _merge_metadata_with_direction(d) if d else None
