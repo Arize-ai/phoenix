@@ -2508,17 +2508,10 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                         OUTPUT_VALUE, event.message.model_dump_json(exclude_none=True)
                     )
                     span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
-                    usage = event.message.usage
-                    output_token_counts: dict[str, Any] = {}
-                    if usage.output_tokens:
-                        output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
-                    if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
-                        if cache_read_tokens is not None:
-                            output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
-                                cache_read_tokens
-                            )
-                    if output_token_counts:
-                        span.set_attributes(output_token_counts)
+                    # The final snapshot has the usage that message_delta updated (for example
+                    # after server tools run), so it replaces the counts from message_start.
+                    if event.message.usage:
+                        self._anthropic_apply_usage_to_span(span, event.message.usage)
                 elif event.type == "content_block_stop" and event.content_block.type == "tool_use":
                     tool_call_chunk = ToolCallChunk(
                         id=event.content_block.id,
