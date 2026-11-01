@@ -2506,6 +2506,7 @@ enum GenerativeProviderKey {
   MINIMAX
   PERPLEXITY
   TOGETHER
+  MISTRAL
   ZAI
   META
 }
@@ -2662,6 +2663,7 @@ enum ModelProvider {
   MINIMAX
   PERPLEXITY
   TOGETHER
+  MISTRAL
   ZAI
   META
 }

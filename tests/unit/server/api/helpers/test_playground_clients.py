@@ -1351,6 +1351,131 @@ class TestMiniMaxProvider:
             assert str(sdk_client.base_url) == expected_base_url
 
 
+class TestMistralProvider:
+    @pytest.mark.parametrize(
+        (
+            "environment_url",
+            "connection_url",
+            "credential_source",
+            "expected_url",
+            "expected_key",
+            "error",
+        ),
+        [
+            (None, None, "environment", "https://api.mistral.ai/v1/", "sk-env", None),
+            (
+                "https://proxy.example/v1",
+                None,
+                "environment",
+                "https://proxy.example/v1/",
+                "sk-env",
+                None,
+            ),
+            (
+                "https://env.example/v1",
+                "https://request.example/v1",
+                "request",
+                "https://request.example/v1/",
+                "sk-request",
+                None,
+            ),
+            (None, None, "request", "https://api.mistral.ai/v1/", "sk-request", None),
+            (None, None, "secret", "https://api.mistral.ai/v1/", "sk-secret", None),
+            (
+                None,
+                "https://proxy.example/v1",
+                "secret",
+                "https://proxy.example/v1/",
+                "sk-secret",
+                None,
+            ),
+            (None, None, "none", None, None, "An API key is required for Mistral AI"),
+            (
+                None,
+                "https://proxy.example/v1",
+                "environment",
+                None,
+                None,
+                "A custom base URL cannot be used",
+            ),
+            (
+                "https://proxy.example/v1",
+                None,
+                "none",
+                "https://proxy.example/v1/",
+                "sk-placeholder",
+                None,
+            ),
+        ],
+    )
+    async def test_builtin_client_configuration(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        environment_url: str | None,
+        connection_url: str | None,
+        credential_source: str,
+        expected_url: str | None,
+        expected_key: str | None,
+        error: str | None,
+    ) -> None:
+        from phoenix.server.encryption import EncryptionService
+
+        monkeypatch.delenv("MISTRAL_BASE_URL", raising=False)
+        monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+        if environment_url:
+            monkeypatch.setenv("MISTRAL_BASE_URL", environment_url)
+        if credential_source != "none":
+            monkeypatch.setenv("MISTRAL_API_KEY", "sk-env")
+        encryption = EncryptionService()
+        credentials = None
+        if credential_source == "request":
+            credentials = [
+                GenerativeCredentialInput(
+                    env_var_name="MISTRAL_API_KEY", value=SecretStr("sk-request")
+                )
+            ]
+        connection = (
+            OpenAIConnectionConfig(
+                type="openai", base_url=connection_url, openai_api_type="chat_completions"
+            )
+            if connection_url
+            else None
+        )
+        async with db() as session:
+            if credential_source in ("request", "secret"):
+                session.add(
+                    models.Secret(key="MISTRAL_API_KEY", value=encryption.encrypt(b"sk-secret"))
+                )
+                await session.flush()
+            if error:
+                with pytest.raises(BadRequest, match=error):
+                    await _get_builtin_provider_client(
+                        ModelProvider.MISTRAL,
+                        "mistral-large-latest",
+                        connection,
+                        None,
+                        session,
+                        encryption.decrypt,
+                        credentials,
+                    )
+                return
+            client = await _get_builtin_provider_client(
+                ModelProvider.MISTRAL,
+                "mistral-large-latest",
+                connection,
+                None,
+                session,
+                encryption.decrypt,
+                credentials,
+            )
+        assert isinstance(client, OpenAIChatCompletionsClient)
+        assert client.provider == "mistralai"
+        async with client._client_factory() as sdk_client:
+            assert str(sdk_client.base_url) == expected_url
+            assert sdk_client.api_key == expected_key
+
+
 class TestResolveProviderApiKey:
     """The custom-base-URL guard in ``_resolve_provider_api_key``.
 
