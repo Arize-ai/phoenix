@@ -20,7 +20,11 @@ from sqlalchemy import func as sa_func
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
+from phoenix.config import (
+    DEFAULT_PLAYGROUND_TIMEOUT_SECONDS,
+    PLAYGROUND_PROJECT_NAME,
+    get_env_playground_timeout_seconds,
+)
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
@@ -258,7 +262,9 @@ class Subscription:
             while not_started or in_progress:
                 while not_started and len(in_progress) < max_in_progress:
                     rep_num, stream = not_started.popleft()
-                    task = _create_task_with_timeout(stream)
+                    task = _create_task_with_timeout(
+                        stream, timeout_in_seconds=get_env_playground_timeout_seconds()
+                    )
                     in_progress.append((rep_num, stream, task))
                 async_tasks_to_run = [task for _, _, task in in_progress]
                 completed_tasks, _ = await asyncio.wait(
@@ -285,7 +291,9 @@ class Subscription:
                         )
                         logger.exception(error)
                     else:
-                        task = _create_task_with_timeout(stream)
+                        task = _create_task_with_timeout(
+                            stream, timeout_in_seconds=get_env_playground_timeout_seconds()
+                        )
                         in_progress[idx] = (repetition_number, stream, task)
         finally:
             await _cleanup_chat_completion_resources(
@@ -474,7 +482,8 @@ class Subscription:
 
 
 def _create_task_with_timeout(
-    iterable: AsyncIterator[GenericType], timeout_in_seconds: int = 90
+    iterable: AsyncIterator[GenericType],
+    timeout_in_seconds: int = DEFAULT_PLAYGROUND_TIMEOUT_SECONDS,
 ) -> asyncio.Task[GenericType]:
     return asyncio.create_task(
         _wait_for(
