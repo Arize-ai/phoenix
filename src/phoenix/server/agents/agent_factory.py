@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
-from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
+from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai.capabilities import (
     AbstractCapability,
@@ -16,6 +16,7 @@ from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
+from phoenix.config import get_env_agents_mcp_code_mode
 from phoenix.db.types.data_stream_protocol import EditPermission
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
@@ -34,7 +35,11 @@ from phoenix.server.agents.capabilities.tools.internal import (
     CallSubAgentCapability,
     GetCurrentDatetimeCapability,
 )
-from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BASH_TOOL_NAME,
+    BashCapability,
+    get_bash_tool_error,
+)
 from phoenix.server.agents.capabilities.viewer_access import ViewerAccessCapability
 from phoenix.server.agents.github import GitHubMCPConfig
 from phoenix.server.agents.prompts import AgentPrompts
@@ -55,7 +60,7 @@ if TYPE_CHECKING:
     from phoenix.server.bearer_auth import PhoenixUser
 
 
-def build_agent_tracer(tracer_provider: TracerProvider | None) -> Tracer:
+def build_agent_tracer(tracer_provider: TracerProvider | None) -> OITracer:
     """The OpenInference tracer the PXI agent and its wrappers emit spans through."""
     provider = tracer_provider or NoOpTracerProvider()
     return OITracer(provider.get_tracer("phoenix.server.agents"), config=TraceConfig())
@@ -93,7 +98,7 @@ def build_agent(
     # Whether externally-visible writes are possible at all this run: either
     # they bypass approval, or someone is present to approve them.
     writes_permitted = edit_permission == "bypass" or can_approve_mutations
-    allow_mutations = graphql_mutations_enabled and writes_permitted
+    allow_mutations = graphql_mutations_enabled and writes_permitted and not read_only
     require_mutation_approval = can_approve_mutations and edit_permission == "manual"
     tracer = build_agent_tracer(tracer_provider)
     capabilities: list[AbstractCapability[AgentDependencies]] = [
@@ -138,7 +143,9 @@ def build_agent(
                     principal=principal,
                     id="phoenix_rest_api",
                 ),
-                instructions=resolved_prompts.phoenix_mcp_tools,
+                instructions=resolved_prompts.phoenix_mcp_tools.render(
+                    code_mode=get_env_agents_mcp_code_mode()
+                ),
                 initialize_instructions=phoenix_mcp_server.instructions,
             )
         )
@@ -147,13 +154,14 @@ def build_agent(
         # transport auth. Writes share `writes_permitted` with GraphQL
         # mutations: a headless run has nobody to answer an approval request,
         # so unless edit permission is "bypass" the write tools are filtered
-        # out entirely (subagents therefore get read/search only — duplicate
-        # checking is delegable, filing stays in the main thread).
+        # out entirely. Subagents get read/search only regardless of edit
+        # permission — duplicate checking is delegable, filing stays in the
+        # main thread — so a "bypass" run cannot file issues from a subagent.
         capabilities.append(
             build_github_mcp_capability(
                 github_mcp_config,
                 instructions=resolved_prompts.github_tools,
-                allow_writes=writes_permitted,
+                allow_writes=writes_permitted and not is_subagent,
                 require_write_approval=require_mutation_approval,
             )
         )
@@ -197,6 +205,7 @@ def build_agent(
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
+        get_error_by_tool_name={BASH_TOOL_NAME: get_bash_tool_error},
     )
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(

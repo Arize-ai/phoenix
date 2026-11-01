@@ -3,19 +3,19 @@ title: "OpenAI Node.js SDK"
 description: Instrument and observe OpenAI calls
 ---
 
-This module provides automatic instrumentation for the [OpenAI Node.js SDK](https://github.com/openai/openai-node). which may be used in conjunction with [@opentelemetry/sdk-trace-node](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-node).
+This module provides automatic instrumentation for the [OpenAI Node.js SDK](https://github.com/openai/openai-node), used with [@opentelemetry/sdk-trace-node](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-node).
 
 ## Install
 
 ```bash
 npm install --save @arizeai/openinference-instrumentation-openai openai
 
-npm install --save @opentelemetry/api @opentelemetry/sdk-trace-node \
-  @opentelemetry/sdk-trace-base \
-  @opentelemetry/resources \
+npm install --save @opentelemetry/api@~1.9.0 @opentelemetry/sdk-trace-node@2.12.0 \
+  @opentelemetry/sdk-trace-base@2.12.0 \
+  @opentelemetry/resources@2.12.0 \
   @opentelemetry/semantic-conventions \
-  @opentelemetry/instrumentation \
-  @opentelemetry/exporter-trace-otlp-proto \
+  @opentelemetry/instrumentation@0.212.0 \
+  @opentelemetry/exporter-trace-otlp-proto@0.212.0 \
   @arizeai/openinference-semantic-conventions
 ```
 
@@ -37,10 +37,12 @@ import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import OpenAI from "openai";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-const COLLECTOR_ENDPOINT = "your-phoenix-collector-endpoint";
-const SERVICE_NAME = "openai-app";
+const COLLECTOR_ENDPOINT = (
+  process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"
+).replace(/\/$/, "");
+const SERVICE_NAME = process.env.PHOENIX_PROJECT_NAME ?? "openai-app";
 
-const provider = new NodeTracerProvider({
+export const provider = new NodeTracerProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: SERVICE_NAME,
     [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
@@ -50,7 +52,9 @@ const provider = new NodeTracerProvider({
       new OTLPTraceExporter({
         url: `${COLLECTOR_ENDPOINT}/v1/traces`,
         // (optional) if connecting to Phoenix with Authentication enabled
-        headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
+        headers: process.env.PHOENIX_API_KEY
+          ? { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` }
+          : {},
       })
     ),
   ],
@@ -74,27 +78,69 @@ console.log("OpenAI instrumentation registered");
 Import the `instrumentation.js` file first, then use OpenAI as usual.
 
 ```javascript expandable
-import "./instrumentation.js";
+import { provider } from "./instrumentation.js";
 import OpenAI from "openai";
 
-// set OPENAI_API_KEY in environment, or pass it in arguments
-const openai = new OpenAI({
-    apiKey: 'your-openai-api-key'
+// The client reads OPENAI_API_KEY from the environment.
+const openai = new OpenAI();
+
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Write a haiku." }],
 });
 
-openai.chat.completions
-  .create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: "Write a haiku."}],
-  })
-  .then((response) => {
-    console.log(response.choices[0].message.content);
-  });
+console.log(response.choices[0].message.content);
+await provider.forceFlush();
+await provider.shutdown();
 ```
 
 ## Observe
 
-After setting up instrumentation and running your OpenAI application, traces will appear in the Phoenix UI for visualization and analysis.
+After setting up instrumentation and running your OpenAI application, traces will appear in the Phoenix UI for visualization and analysis. Chat completions, completions, the Responses API, embeddings, and decisions are instrumented.
+
+## Decisions API
+
+The [OpenAI Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`openai.decisions.create`) asks a decision model a fixed set of typed questions about text or images. It returns one typed, probabilistic answer per question instead of generated text, which makes it a good fit for routing, classification, and scoring inside your application.
+
+Requires `openai >= 7.30.0` and `@arizeai/openinference-instrumentation-openai >= 4.4.0`. Calls are traced with the setup above, with no extra configuration:
+
+```javascript expandable
+import "./instrumentation.js";
+import OpenAI from "openai";
+
+const openai = new OpenAI();
+
+const decision = await openai.decisions.create({
+  model: "gpt-6-luna",
+  input: "I was charged twice for my order.",
+  questions: [
+    {
+      type: "choice",
+      name: "department",
+      instructions: "Which department should handle this complaint?",
+      choices: [
+        { value: "billing", description: "Payments, invoices, and refunds." },
+        { value: "technical", description: "Problems using the product." },
+        { value: "shipping", description: "Delivery and tracking." },
+      ],
+    },
+  ],
+});
+
+console.log(decision.answers);
+```
+
+Each call shows up in Phoenix as a **[DECISION span](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision)** named `OpenAI Decisions`, rather than an LLM span, containing:
+
+- `input.value`: the request body (`model`, `input`, `questions`) as JSON
+- `output.value`: the response body (`answers`, `model`, `usage`) as JSON
+- `decision.system` and `decision.provider`: both `openai`
+- `decision.request.model_name`, `decision.response.model_name`, and `decision.model_name`
+- `decision.token_count.input` and `decision.token_count.output`, from the response's `usage`
+
+Phoenix names the decision model in the span's input card. The model and its usage are recorded under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting.
+
+The questions and answers live only in `input.value` and `output.value`, so the `hideInputs` and `hideOutputs` trace config options redact them completely.
 
 ## Custom Tracer Provider
 

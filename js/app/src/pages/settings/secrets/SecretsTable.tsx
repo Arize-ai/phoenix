@@ -1,11 +1,5 @@
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { Focusable } from "react-aria";
 
@@ -25,6 +19,8 @@ import {
 } from "@phoenix/components/core/tooltip";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 
@@ -143,8 +139,8 @@ export function SecretsTable({
     return cols;
   }, [authenticationEnabled, connectionId]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<SecretRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data,
     state: {
@@ -160,9 +156,6 @@ export function SecretsTable({
         (value) => value.toLowerCase().includes(query)
       );
     },
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
   });
 

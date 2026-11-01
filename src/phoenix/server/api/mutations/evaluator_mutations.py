@@ -827,7 +827,7 @@ class EvaluatorMutationMixin:
         deleted_gids: list[GlobalID] = []
 
         async with info.context.db() as session:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
 
             # Gather link metadata (id, evaluator_id, project_id, kind,
             # prompt_id). On Postgres we fold the link DELETE into this step

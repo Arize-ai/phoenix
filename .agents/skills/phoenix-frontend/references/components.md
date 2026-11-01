@@ -15,7 +15,7 @@ Existing flex and view layout primitives SHOULD be used for consistent spacing a
 
 ## Storybook
 
-New core components MUST include minimal Storybook stories showing primary variants and states. Explore `js/app/stories/` for the existing convention.
+New core components MUST include Storybook stories. Load the `phoenix-storybook` skill before writing or changing any story; it defines placement, tags, and how to show a component's options and states.
 
 ## File convention
 

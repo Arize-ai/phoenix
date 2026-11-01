@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import pytest
-from pydantic import SecretStr
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
@@ -30,10 +29,6 @@ from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
-
-# The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off SecretStr("").
-_REDACTOR = Redactor(secret=SecretStr(""))
 
 
 async def test_projects_omits_experiment_projects(
@@ -574,6 +569,43 @@ async def test_agents_config_web_access_respects_env_flags(
     assert not response.errors
     assert (data := response.data) is not None
     assert data["agentsConfig"] == {"webAccessEnabled": expected}
+
+
+_MODEL_COST_MANIFEST_QUERY = """
+  query {
+    modelCostManifest {
+      generatedAt
+    }
+  }
+"""
+
+
+async def test_model_cost_manifest_is_null_without_a_marker(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {"modelCostManifest": None}
+
+
+async def test_model_cost_manifest_returns_the_marker(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        session.add(
+            models.SystemState(
+                key="cost_tracking.model_cost_manifest",
+                value={"generated_at": "2099-01-01T00:00:00+00:00"},
+            )
+        )
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {
+        "modelCostManifest": {
+            "generatedAt": "2099-01-01T00:00:00+00:00",
+        }
+    }
 
 
 @pytest.fixture
@@ -1213,9 +1245,171 @@ async def experiment_run_metric_comparison_experiments(
         return base_experiment, (compare_experiment_1, compare_experiment_2)
 
 
+@pytest.mark.parametrize("repetitions", [1, 2])
+async def test_experiment_run_metric_comparisons_identical_multi_span_experiments_are_equal(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    repetitions: int,
+) -> None:
+    """
+    Two experiments whose runs are identical must compare as equal on every metric.
+
+    Each run's trace has two LLM spans with 100 total tokens each, so every run costs
+    200 tokens in both experiments. With repetitions, the first repetition of each example takes
+    30 seconds and the second 10, in both experiments.
+    """
+    async with db() as session:
+        dataset = models.Dataset(name="identical-experiments-dataset", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(dataset_version)
+        await session.flush()
+        examples = [models.DatasetExample(dataset_id=dataset.id) for _ in range(3)]
+        session.add_all(examples)
+        await session.flush()
+        for i, example in enumerate(examples):
+            session.add(
+                models.DatasetExampleRevision(
+                    dataset_example_id=example.id,
+                    dataset_version_id=dataset_version.id,
+                    input={"i": i},
+                    output={},
+                    metadata_={},
+                    revision_kind="CREATE",
+                )
+            )
+        project = models.Project(name="identical-experiments-project")
+        session.add(project)
+        experiments = [
+            models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=name,
+                repetitions=repetitions,
+                metadata_={},
+                project_name=project.name,
+            )
+            for name in ("base", "compare")
+        ]
+        session.add_all(experiments)
+        await session.flush()
+
+        base_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        for experiment in experiments:
+            for i, example in enumerate(examples):
+                for repetition_number in range(1, repetitions + 1):
+                    # Repetitions run at different times, as they do in practice.
+                    start_time = base_time + timedelta(minutes=10 * i + repetition_number)
+                    end_time = start_time + timedelta(seconds=30 if repetition_number == 1 else 10)
+                    trace = models.Trace(
+                        project_rowid=project.id,
+                        trace_id=str(uuid.uuid4()),
+                        start_time=start_time,
+                        end_time=end_time,
+                    )
+                    session.add(trace)
+                    await session.flush()
+                    for j in range(2):
+                        span = models.Span(
+                            trace_rowid=trace.id,
+                            span_id=str(uuid.uuid4()),
+                            name=f"llm-{j}",
+                            span_kind="LLM",
+                            start_time=start_time,
+                            end_time=end_time,
+                            attributes={},
+                            events=[],
+                            status_code="OK",
+                            status_message="",
+                            cumulative_error_count=0,
+                            cumulative_llm_token_count_prompt=60,
+                            cumulative_llm_token_count_completion=40,
+                        )
+                        session.add(span)
+                        await session.flush()
+                        session.add(
+                            models.SpanCost(
+                                span_rowid=span.id,
+                                trace_rowid=trace.id,
+                                span_start_time=start_time,
+                                total_tokens=100,
+                                prompt_tokens=60,
+                                completion_tokens=40,
+                                total_cost=1.0,
+                                prompt_cost=0.6,
+                                completion_cost=0.4,
+                            )
+                        )
+                    session.add(
+                        models.ExperimentRun(
+                            experiment_id=experiment.id,
+                            dataset_example_id=example.id,
+                            repetition_number=repetition_number,
+                            output={},
+                            start_time=start_time,
+                            end_time=end_time,
+                            trace_id=trace.trace_id,
+                        )
+                    )
+        await session.commit()
+        base_experiment, compare_experiment = experiments
+
+    query = """
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!) {
+        experimentRunMetricComparisons(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          latency { ...counts }
+          totalTokenCount { ...counts }
+          promptTokenCount { ...counts }
+          completionTokenCount { ...counts }
+          totalCost { ...counts }
+          promptCost { ...counts }
+          completionCost { ...counts }
+        }
+      }
+      fragment counts on ExperimentRunMetricComparison {
+        numRunsImproved
+        numRunsRegressed
+        numRunsEqual
+        numRunsWithoutComparison
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "baseExperimentId": str(GlobalID("Experiment", str(base_experiment.id))),
+            "compareExperimentIds": [str(GlobalID("Experiment", str(compare_experiment.id)))],
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    all_equal = {
+        "numRunsImproved": 0,
+        "numRunsRegressed": 0,
+        "numRunsEqual": 3,
+        "numRunsWithoutComparison": 0,
+    }
+    assert response.data["experimentRunMetricComparisons"] == {
+        metric: all_equal
+        for metric in (
+            "latency",
+            "totalTokenCount",
+            "promptTokenCount",
+            "completionTokenCount",
+            "totalCost",
+            "promptCost",
+            "completionCost",
+        )
+    }
+
+
 async def test_secrets_pagination(
     gql_client: AsyncGraphQLClient,
     secrets_for_pagination: Any,
+    redactor: Redactor,
 ) -> None:
     """Test that secrets query supports pagination and keys filter correctly."""
     query = """
@@ -1254,7 +1448,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     first_page = response.data["secrets"]
     first_page_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in first_page["edges"]
     ]
     assert first_page_secrets == [("secret-a", "value-a"), ("secret-b", "value-b")]
@@ -1271,7 +1465,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     second_page = response.data["secrets"]
     second_page_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in second_page["edges"]
     ]
     assert second_page_secrets == [("secret-c", "value-c"), ("secret-d", "value-d")]
@@ -1288,7 +1482,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     third_page = response.data["secrets"]
     third_page_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in third_page["edges"]
     ]
     assert third_page_secrets == [("secret-e", "value-e"), ("secret-f", "value-f")]
@@ -1305,7 +1499,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     filtered_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert filtered_secrets == [
@@ -1331,7 +1525,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     mixed_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert mixed_secrets == [("secret-b", "value-b")]

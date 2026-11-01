@@ -1,5 +1,6 @@
 import type { LanguageModel } from "ai";
 
+import type { DecisionModel } from "../utils/isDecisionModel";
 import type { ObjectMapping } from "./data";
 import type { WithTelemetry } from "./otel";
 import type { PromptTemplate } from "./templating";
@@ -15,7 +16,14 @@ export interface ExampleRecord<OutputType, InputType> {
 }
 
 export interface WithLLM {
-  model: LanguageModel;
+  /**
+   * Either a regular AI SDK {@link LanguageModel}, or an AI SDK
+   * {@link DecisionModel} (e.g. `openai.decisionModel("gpt-6-luna")`) which
+   * classifies without generating text and therefore cannot produce an
+   * explanation. With a decision model, label probabilities are returned in
+   * the result's `metadata.probabilities`.
+   */
+  model: LanguageModel | DecisionModel;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -40,6 +48,11 @@ export interface EvaluationResult {
    * @example "The model correctly identified the sentiment of the text."
    */
   explanation?: string;
+  /**
+   * Additional information about how the result was produced, e.g. the
+   * label probabilities reported by a decision model.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -48,6 +61,7 @@ export interface EvaluationResult {
 export interface ClassificationResult {
   label: string;
   explanation?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -68,9 +82,9 @@ export type ClassificationChoicesMap = Record<string, number>;
  */
 export interface CreateClassifierArgs extends WithTelemetry {
   /*
-   * The LLM to use for classification / evaluation
+   * The model to use for classification / evaluation
    */
-  model: LanguageModel;
+  model: LanguageModel | DecisionModel;
   /**
    * The choices to classify the example into.
    * e.g. { "correct": 1, "incorrect": 0 }

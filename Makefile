@@ -5,9 +5,9 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # Tools
-TOX := tox
 PNPM := pnpm
-UV := uv
+UV := $(CURDIR)/scripts/uv.sh
+UV_BIN := uv
 NODE := node
 
 # Directories
@@ -32,12 +32,13 @@ NC := \033[0m # No Color
 .PHONY: help check-tools \
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
-	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app \
+	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples gen-otel-models \
+	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	test-integration-docs \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
@@ -57,7 +58,9 @@ help: ## Show this help message
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
-	@echo -e "  mcp-skills             - Compile the MCP server's shared skills from .agents/skills"
+	@echo -e "  codegen-harbor-graphql - Compile the Harbor verifiers' GraphQL queries into typed Python models"
+	@echo -e "  skills                 - Build every shipped copy of the public skills in skills/"
+	@echo -e "  skills-check           - Ensure the skill copies are current and npx offers only skills/"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -79,6 +82,7 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
 	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
+	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
 	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
 	@echo -e "  typecheck-python       - Type check Python only"
@@ -100,16 +104,19 @@ help: ## Show this help message
 	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
 	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
 	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
+	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
+	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
+	@echo -e "  test-sync-models       - Test the model cost manifest sync script"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
 	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Harbor Evals:$(NC)"
-	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
 	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
 	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
 	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
@@ -133,14 +140,13 @@ help: ## Show this help message
 
 check-tools: ## Verify required tools are installed
 	@echo -e "$(CYAN)Checking required tools...$(NC)"
-	@command -v $(UV) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
+	@command -v $(UV_BIN) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) uv found: $$($(UV) --version)"
 	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) pnpm found: $$($(PNPM) --version)"
-	@command -v $(TOX) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: tox is not installed. Run: pip install tox$(NC)"; exit 1; }
-	@echo -e "$(GREEN)✓$(NC) tox found: $$($(TOX) --version)"
 	@command -v $(NODE) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: node is not installed. Install from https://nodejs.org$(NC)"; exit 1; }
 	@echo -e "$(GREEN)✓$(NC) node found: $$($(NODE) --version)"
+	@command -v dekit >/dev/null 2>&1 && echo -e "$(GREEN)✓$(NC) dekit found: $$(dekit --version)" || echo -e "$(YELLOW)WARNING: dekit is not installed (needed by make dev). Run: curl -fsSL https://dekit.run/install.sh | sh$(NC)"
 	@echo -e "$(GREEN)All required tools are installed!$(NC)"
 
 #=============================================================================
@@ -149,7 +155,7 @@ check-tools: ## Verify required tools are installed
 
 install-python: ## Install Python dependencies
 	@echo -e "$(CYAN)Installing Python dependencies...$(NC)"
-	@$(UV) sync --python 3.10
+	@$(UV) sync --python 3.11
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 install-node: ## Install Node.js dependencies
@@ -175,16 +181,16 @@ setup-remote-export: ## Configure PXI remote trace export
 # Schema Generation
 #=============================================================================
 
-mcp-skills: ## Compile the MCP server's shared skills from .agents/skills
-	@echo -e "$(CYAN)Compiling MCP skills from src/phoenix/server/mcp/skills-lock.json...$(NC)"
-	@# The skills CLI can only install into <cwd>/.agents/skills, so alias that to skills/ for the compile.
-	@cd src/phoenix/server/mcp \
-		&& mkdir -p .agents && ln -sfn ../skills .agents/skills \
-		&& trap 'rm -rf .agents' EXIT \
-		&& for source in $$(python3 -c 'import json; print(" ".join(e["source"] for e in json.load(open("skills-lock.json"))["skills"].values()))'); do \
-			npx --yes skills add "$$source" --project --agent universal --yes || exit 1; \
-		done
-	@echo -e "$(GREEN)✓ src/phoenix/server/mcp/skills$(NC)"
+skills: ## Build every shipped copy of the public skills in skills/
+	@echo -e "$(CYAN)Building skill copies from skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_skills.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+skills-check: ## Ensure the skill copies are current and npx offers only skills/
+	@echo -e "$(CYAN)Checking skill copies against skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/test_sync_skills.py
+	@python3 $(CURDIR)/scripts/sync_skills.py --check --npx
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
@@ -204,6 +210,13 @@ schema-openapi: ## Generate OpenAPI schema from Python
 	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
 	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
 
+# The generator requires graphql-core<3.3; keep it separate from the server.
+codegen-harbor-graphql: ## Compile evals/harbor/verifiers/harbor_verifiers/graphql/operations/*.graphql into evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
+	@echo -e "$(CYAN)Compiling Harbor GraphQL queries against js/app/schema.graphql...$(NC)"
+	@rm -rf $(CURDIR)/evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
+	@$(UV) tool run --from ariadne-codegen==0.19.0 ariadne-codegen
+	@echo -e "$(GREEN)✓ evals/harbor/verifiers/harbor_verifiers/graphql/__generated__$(NC)"
+
 codegen-python-client: ## Generate Python client types from OpenAPI
 	@echo -e "$(CYAN)Generating Python client types...$(NC)"
 	@rm -f $(PHOENIX_CLIENT_GENERATED)/v1/__init__.py
@@ -214,7 +227,7 @@ codegen-python-client: ## Generate Python client types from OpenAPI
 		--output-model-type dataclasses.dataclass \
 		--collapse-root-models \
 		--enum-field-as-literal all \
-		--target-python-version 3.10 \
+		--target-python-version 3.11 \
 		--use-default-kwarg \
 		--use-double-quotes \
 		--use-generic-container-types \
@@ -275,11 +288,14 @@ dev-frontend: ## Frontend only (React dev server)
 # Testing
 #=============================================================================
 
+test-integration-docs: ## Run configured integration docs against a running Phoenix server
+	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
+
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
-	@$(TOX) run -q -e unit_tests -- -n auto
+	@$(UV) run --all-packages pytest -q -n auto tests/unit
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
-	@$(TOX) run -q -e integration_tests
+	@$(UV) run pytest -q tests/integration
 
 # Run doctests across all modules under src/ by default; override on the command
 # line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
@@ -411,7 +427,12 @@ codegen-prompts: ## Generate prompts code from YAML files
 
 sync-models: ## Sync model cost manifest from remote sources
 	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
-	@$(UV) run python .github/.scripts/sync_models.py
+	@$(UV) run python scripts/cost_tracking/sync_models.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+test-sync-models: ## Test the model cost manifest sync script
+	@echo -e "$(CYAN)Testing the model cost manifest sync script...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/cost_tracking
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 # ARGS=--external points the PostgreSQL extractor at a foreign database, which
@@ -460,6 +481,17 @@ check-skill-filter-examples: ## Ensure span/trace/session filter conditions in s
 	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_filter_dsl_examples.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
+# These two call python3 directly: the script is stdlib-only and its CI job has no uv.
+sync-docs-snippets: ## Copy examples/quickstarts code into the docs' fenced code blocks
+	@echo -e "$(CYAN)Syncing docs code blocks from examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-docs-snippets: ## Ensure docs' fenced code blocks match examples/quickstarts
+	@echo -e "$(CYAN)Checking docs code blocks against examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py --check
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
 	@echo -e "$(CYAN)Generating OTel GenAI semconv Pydantic models...$(NC)"
 	@$(UV) run --script scripts/generate_otel_gen_ai_models.py
@@ -498,48 +530,45 @@ gh-comment-watch: ## Start the GitHub comment watcher
 # Harbor Evals
 #=============================================================================
 
-# A Harbor job file defines a run: its tasks, agents, environment, attempts, retries, and
-# network policy. The default is the full benchmark CI runs. Point HARBOR_JOB at another
-# file for a subset, and pass anything else `harbor run` accepts through HARBOR_ARGS,
-# e.g. `-e docker`, `-k 1`, or `-a oracle` (which keeps the file's tasks and environment
-# but replaces its agents).
-HARBOR_JOB ?= evals/harbor/jobs/benchmark.yaml
+# HARBOR_JOB selects the benchmark configuration. HARBOR_ARGS passes options to
+# `harbor run`. The `-a` option preserves the tasks and environment but replaces the
+# configured agents.
+HARBOR_JOB ?= evals/harbor/jobs/regression.yaml
 HARBOR_ARGS ?=
-# harbor-stage also builds the px CLI archive that the claude-code-cli agent installs, a
-# pnpm build plus a Docker step. Set HARBOR_CLI=0 to skip it when no run needs that agent.
+# harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
+# HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
 HARBOR_CLI ?= 1
-# Every run records its tasks, trials, scores, and traces in Phoenix through the
-# arize-phoenix plugin, which reads PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY from the
-# environment. Runs from any job file share one dataset so their experiments compare.
-# Set HARBOR_PLUGIN= to run without recording.
-HARBOR_DATASET ?= pxi-benchmark
-HARBOR_PLUGIN ?= --plugin arize-phoenix --plugin-kwarg dataset=$(HARBOR_DATASET)
+# The arize-phoenix plugin records tasks, trials, scores, and traces under a dataset
+# named after the job's task directory. HARBOR_DATASET overrides the name. Set
+# HARBOR_PLUGIN to an empty value to disable recording.
+HARBOR_DATASET ?=
+HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
 HARBOR_VERSION ?= 0.21.0
-# Phoenix client that provides the arize-phoenix Harbor plugin.
-HARBOR_CLIENT_VERSION ?= 3.5.0
+# The client package provides the arize-phoenix Harbor plugin. harbor-stage builds it from
+# this checkout so a job records with the plugin in the tree. Set HARBOR_CLIENT_VERSION to
+# a released version to use that release instead.
+HARBOR_CLIENT_VERSION ?=
+HARBOR_CLIENT_WHEEL_DIR := dist/phoenix-client
+HARBOR_CLIENT = $(if $(HARBOR_CLIENT_VERSION),arize-phoenix-client==$(HARBOR_CLIENT_VERSION),$(firstword $(wildcard $(CURDIR)/$(HARBOR_CLIENT_WHEEL_DIR)/arize_phoenix_client-*.whl)))
 HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
 HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
-# harbor needs Python >=3.12; pin explicitly so uvx doesn't inherit the
-# repo's .python-version (3.10).
+# Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.11.
 HARBOR_PYTHON ?= 3.13
 UVX := uvx
-HARBOR := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)' \
-	--with 'arize-phoenix-client==$(HARBOR_CLIENT_VERSION)' harbor
+HARBOR_UVX := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)'
+HARBOR = $(HARBOR_UVX) --with '$(HARBOR_CLIENT)' harbor
 
-# The px CLI archive is only required when the job file's agents are in effect, i.e. `-a`
-# does not replace them.
+# Require the px archive only when HARBOR_ARGS does not replace the configured agents, and
+# the client wheel only when no released client version is selected.
 define check-harbor-staged
-	@for task in evals/harbor/tasks/*/; do \
-		test -d "$$task/environment/container_assets" -a -f "$$task/environment/data/phoenix.db" || \
-			{ echo -e "$(RED)Missing staged assets in $$task/environment/ — run 'make harbor-stage' first$(NC)"; exit 1; }; \
-	done
-	@$(if $(filter -a,$(HARBOR_ARGS)),true,! grep -q ClaudeCodeCliAgent $(HARBOR_JOB)) || test -f dist/phoenix-cli/phoenix-cli.tar.gz || \
-		{ echo -e "$(RED)Missing px CLI archive in dist/phoenix-cli/ — run 'make harbor-stage' first$(NC)"; exit 1; }
+	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,) $(if $(HARBOR_CLIENT_VERSION),,--client-wheel-dir $(HARBOR_CLIENT_WHEEL_DIR))
 endef
 
-harbor-stage: ## Build the Phoenix wheel, stage each task environment, and build the px CLI archive (HARBOR_CLI=0 to skip, HARBOR_CLI_PLATFORM=...)
+harbor-stage: ## Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=..., HARBOR_CLIENT_VERSION=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
 	./evals/harbor/scripts/stage_harbor_environments.sh
+	$(if $(HARBOR_CLIENT_VERSION),@echo -e "$(YELLOW)Skipping the client wheel (HARBOR_CLIENT_VERSION=$(HARBOR_CLIENT_VERSION))$(NC)",\
+	rm -rf $(HARBOR_CLIENT_WHEEL_DIR) && $(UV) build --wheel packages/phoenix-client --out-dir $(HARBOR_CLIENT_WHEEL_DIR))
 	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
 	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
 	@echo -e "$(GREEN)✓ Done$(NC)"
@@ -549,13 +578,13 @@ harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
 		HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
 		uv run python tests/integration/harbor/run_plugin_e2e.py
 
-harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)
+harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=..., HARBOR_CLIENT_VERSION=...)
 	$(check-harbor-staged)
 	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
 	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
 
 harbor-view: ## Browse Harbor job results in a local web viewer
-	$(HARBOR) view jobs
+	$(HARBOR_UVX) harbor view jobs
 
 #=============================================================================
 # Cleanup

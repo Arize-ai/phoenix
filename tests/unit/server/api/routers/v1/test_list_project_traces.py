@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any, Optional
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
@@ -131,7 +131,7 @@ async def _insert_project_with_traces(
 class TestListProjectTraces:
     async def test_list_traces_basic(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
@@ -144,7 +144,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_by_project_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=2)
@@ -158,7 +158,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_response_fields(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=1)
@@ -184,7 +184,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_default_order_is_desc(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
@@ -201,7 +201,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_order_asc(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
@@ -217,7 +217,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_sort_by_latency(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=3)
@@ -233,7 +233,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_pagination(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=5)
@@ -267,7 +267,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_time_range_filter(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, _ = await _insert_project_with_traces(db, num_traces=5)
@@ -287,7 +287,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_empty(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -306,7 +306,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_invalid_cursor(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -324,14 +324,14 @@ class TestListProjectTraces:
 
     async def test_list_traces_project_not_found(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.get(f"v1/projects/{token_hex(16)}/traces")
         assert response.status_code == 404
 
     async def test_list_traces_only_returns_traces_for_given_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project_a, _, _, _ = await _insert_project_with_traces(db, num_traces=2)
@@ -347,7 +347,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_spans_excluded_by_default(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _, _, _ = await _insert_project_with_traces(
@@ -362,7 +362,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_include_spans(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _, _, _ = await _insert_project_with_traces(
@@ -383,7 +383,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_include_spans_fields(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _, _, _ = await _insert_project_with_traces(
@@ -413,7 +413,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_filter_by_session_id_string(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         # 4 traces, 2 sessions: traces 0,2 -> sess-a, traces 1,3 -> sess-b
@@ -434,7 +434,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_filter_by_session_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, traces, _, sessions = await _insert_project_with_traces(
@@ -456,7 +456,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_filter_by_multiple_session_identifier(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         # 6 traces, 3 sessions: traces round-robin across sess-x, sess-y, sess-z
@@ -485,7 +485,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_filter_by_nonexistent_session_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _, _, _ = await _insert_project_with_traces(
@@ -503,7 +503,7 @@ class TestListProjectTraces:
 
     async def test_list_traces_session_filter_combined_with_time_range(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         # 4 traces with sess-a: traces at hours 0,2 and sess-b: traces at hours 1,3
@@ -528,7 +528,7 @@ class TestListProjectTraces:
 
     async def test_token_counts_llm_active(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
@@ -580,10 +580,9 @@ class TestListProjectTraces:
         assert trace_data["token_count_total"] == 150
 
 
-#: Trace durations in microseconds, one per inserted trace. Sub-millisecond parts
-#: differ from the rounded `latency_ms` the database emits, and the last two agree
-#: once rounded so the row id has to break the tie.
-_DURATIONS_US = (60_234_567, 120_245_678, 180_267_900, 240_279_011, 300_279_040, 300_279_010)
+#: Trace durations in microseconds, one per inserted trace. The last two are
+#: equal so the row id has to break the tie.
+_DURATIONS_US = (60_234_567, 120_245_678, 180_267_900, 240_279_011, 300_279_040, 300_279_040)
 
 
 async def _insert_traces_out_of_order(db: DbSessionFactory) -> models.Project:
@@ -615,7 +614,7 @@ async def _insert_traces_out_of_order(db: DbSessionFactory) -> models.Project:
 
 class TestListProjectTracesKeysetPagination:
     async def _page_all(
-        self, client: httpx.AsyncClient, project: models.Project, **params: str | int
+        self, client: httpx2.AsyncClient, project: models.Project, **params: str | int
     ) -> list[str]:
         seen: list[str] = []
         cursor: Optional[str] = None
@@ -633,7 +632,7 @@ class TestListProjectTracesKeysetPagination:
         raise AssertionError("pagination did not terminate")
 
     async def test_paged_order_matches_unpaged_order(
-        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+        self, httpx_client: httpx2.AsyncClient, db: DbSessionFactory
     ) -> None:
         project = await _insert_traces_out_of_order(db)
         for sort in ("start_time", "latency_ms"):
@@ -650,7 +649,7 @@ class TestListProjectTracesKeysetPagination:
                 )
 
     async def test_cursor_from_another_sort_field_is_rejected(
-        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+        self, httpx_client: httpx2.AsyncClient, db: DbSessionFactory
     ) -> None:
         project = await _insert_traces_out_of_order(db)
         response = await httpx_client.get(
@@ -666,7 +665,7 @@ class TestListProjectTracesKeysetPagination:
         assert response.status_code == 422
 
     async def test_cursor_without_a_sort_value_is_rejected(
-        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
+        self, httpx_client: httpx2.AsyncClient, db: DbSessionFactory
     ) -> None:
         project = await _insert_traces_out_of_order(db)
         # A rowid-only cursor cannot place a row in the sort order.
@@ -728,7 +727,7 @@ async def _insert_trace(
 class TestListProjectTracesErrorAndLatencyFilters:
     async def test_filter_error_true_returns_only_errored_traces(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -761,7 +760,7 @@ class TestListProjectTracesErrorAndLatencyFilters:
 
     async def test_filter_error_false_returns_only_clean_traces(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -794,7 +793,7 @@ class TestListProjectTracesErrorAndLatencyFilters:
 
     async def test_no_error_filter_returns_all_traces(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -823,7 +822,7 @@ class TestListProjectTracesErrorAndLatencyFilters:
 
     async def test_filter_min_latency(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -855,7 +854,7 @@ class TestListProjectTracesErrorAndLatencyFilters:
 
     async def test_filter_max_latency(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -887,7 +886,7 @@ class TestListProjectTracesErrorAndLatencyFilters:
 
     async def test_filter_latency_range(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -927,7 +926,7 @@ class TestListProjectTracesErrorAndLatencyFilters:
 
     async def test_filter_error_and_latency_compose(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -970,7 +969,7 @@ class TestListProjectTracesErrorAndLatencyFilters:
 
     async def test_negative_latency_rejected(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _, _, _ = await _insert_project_with_traces(db, num_traces=1)
@@ -1056,7 +1055,7 @@ async def _insert_project_with_annotated_traces(db: DbSessionFactory) -> _Annota
 
 
 async def _paginate_trace_ids(
-    httpx_client: httpx.AsyncClient, project_name: str, **params: Any
+    httpx_client: httpx2.AsyncClient, project_name: str, **params: Any
 ) -> list[str]:
     trace_ids: list[str] = []
     for _ in range(10):
@@ -1081,7 +1080,7 @@ class TestListProjectTracesFilterExpressions:
     )
     async def test_filters_before_pagination_without_duplicates(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         order: str,
         condition: str,
@@ -1103,7 +1102,7 @@ class TestListProjectTracesFilterExpressions:
     )
     async def test_filter_semantics(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         condition: str,
         indices: list[int],
@@ -1120,7 +1119,7 @@ class TestListProjectTracesFilterExpressions:
     @pytest.mark.parametrize("has_error", [True, False])
     async def test_filter_composes_with_legacy_filters(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         has_error: bool,
     ) -> None:
@@ -1162,7 +1161,7 @@ class TestListProjectTracesFilterExpressions:
     @pytest.mark.parametrize("condition", ["(", "unknown_field > 0", "latency_ms.lower() == 'x'"])
     async def test_invalid_filters_return_client_errors(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         condition: str,
     ) -> None:

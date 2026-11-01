@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import KW_ONLY, dataclass
+from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
 from openinference.instrumentation import (
+    OITracer,
     get_input_attributes,
     get_output_attributes,
     get_span_kind_attributes,
@@ -14,7 +16,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.trace import Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode
 from pydantic_ai import RunContext
 from pydantic_ai.capabilities import (
     ValidatedToolArgs,
@@ -38,7 +40,8 @@ class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixi
     """Pydantic-ai ``Capability`` wrapper that emits OpenInference ``TOOL`` spans."""
 
     _: KW_ONLY
-    tracer: Tracer
+    tracer: OITracer
+    get_error_by_tool_name: Mapping[str, Callable[[Any], str | None]] = field(default_factory=dict)
 
     async def wrap_tool_execute(
         self,
@@ -53,6 +56,7 @@ class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixi
             tool_def=tool_def,
             tool_args=args,
             tool_call_id=call.tool_call_id,
+            get_error=self.get_error_by_tool_name.get(tool_def.name),
         ) as set_output:
             result = await super().wrap_tool_execute(
                 ctx, call=call, tool_def=tool_def, args=args, handler=handler

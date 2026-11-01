@@ -1,5 +1,74 @@
 # @arizeai/phoenix-cli
 
+## 1.19.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+### Patch Changes
+
+- Updated dependencies [9e7a797]
+  - @arizeai/phoenix-client@7.17.0
+
+## 1.18.10
+
+### Patch Changes
+
+- Updated dependencies [86ab99c]
+  - @arizeai/phoenix-client@7.16.3
+
+## 1.18.9
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-client@7.16.2
+
+## 1.18.8
+
+### Patch Changes
+
+- Updated dependencies [7b9f900]
+  - @arizeai/phoenix-client@7.16.1
+
+## 1.18.7
+
+### Patch Changes
+
+- Updated dependencies [f8ae2fc]
+  - @arizeai/phoenix-client@7.16.0
+
+## 1.18.6
+
+### Patch Changes
+
+- c72f77b: PXI slash-command hints now have a highlighted row: arrow keys move it (wrapping at either end), Tab completes it, and Enter runs it, so `/he` runs `/help`. A bare `/` lists every command, and `/help` is listed first so `/` + Enter is harmless.
+- Updated dependencies [5b37f12]
+  - @arizeai/phoenix-client@7.15.0
+
+## 1.18.5
+
+### Patch Changes
+
+- Updated dependencies [aab229f]
+  - @arizeai/phoenix-client@7.14.0
+
+## 1.18.4
+
+### Patch Changes
+
+- Updated dependencies [c282563]
+  - @arizeai/phoenix-client@7.13.0
+
+## 1.18.3
+
+### Patch Changes
+
+- Updated dependencies [dab09f1]
+  - @arizeai/phoenix-client@7.12.0
+
 ## 1.18.2
 
 ### Patch Changes

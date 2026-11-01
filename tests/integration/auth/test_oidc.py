@@ -14,13 +14,14 @@ from secrets import token_hex
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
-import httpx
+import httpx2
 import pytest
 
 from phoenix.auth import sanitize_email
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from .._helpers import (
+    _admin_auth,
     _AppInfo,
     _create_user,
     _delete_users,
@@ -40,7 +41,7 @@ from .._helpers import (
 
 def _get_user_by_email(app: _AppInfo, email: str) -> Optional[_User]:
     """Get user by email from the user list."""
-    users = {u.profile.email: u for u in _list_users(app, app.admin_secret)}
+    users = {u.profile.email: u for u in _list_users(app, _admin_auth(app))}
     return users.get(email)
 
 
@@ -125,8 +126,10 @@ def _verify_access_denied(
 
 
 def _verify_sensitive_cookies_cleaned(set_cookie_headers: list[str]) -> None:
-    """Verify sensitive cookies (state, nonce) are cleaned up."""
     assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
+    assert any(
+        "phoenix-oauth2-login-context=" in h and "Max-Age=0" in h for h in set_cookie_headers
+    )
     assert any("phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers)
 
 
@@ -144,14 +147,14 @@ async def _verify_user_exists_with_role(
     cleanup: bool = True,
 ) -> None:
     """Verify user exists and has expected role, optionally cleaning up after."""
-    users = {u.profile.email: u for u in _list_users(app, app.admin_secret)}
+    users = {u.profile.email: u for u in _list_users(app, _admin_auth(app))}
     assert email in users, f"User {email} should exist but was not found"
     assert users[email].role is expected_role, (
         f"Expected role {expected_role}, got {users[email].role}"
     )
 
     if cleanup:
-        _delete_users(app, app.admin_secret, users=[users[email]])
+        _delete_users(app, _admin_auth(app), users=[users[email]])
 
 
 async def _verify_user_does_not_exist(
@@ -159,7 +162,7 @@ async def _verify_user_does_not_exist(
     email: str,
 ) -> None:
     """Verify user does not exist."""
-    users = {u.profile.email: u for u in _list_users(app, app.admin_secret)}
+    users = {u.profile.email: u for u in _list_users(app, _admin_auth(app))}
     assert email not in users, f"User {email} should not exist but was found"
 
 
@@ -235,7 +238,7 @@ class TestBasicFlow:
             expected_role: UserRoleInput = choice(list(UserRoleInput))
             _create_user(
                 _app,
-                _app.admin_secret,
+                _admin_auth(_app),
                 role=expected_role,
                 profile=_Profile(case_insensitive_email, "", token_hex(8)),
                 local=False,
@@ -279,7 +282,7 @@ class TestBasicFlow:
         # Create user with password
         _create_user(
             _app,
-            _app.admin_secret,
+            _admin_auth(_app),
             role=UserRoleInput.VIEWER,
             profile=_Profile(email, token_hex(8), token_hex(8)),
             local=True,
@@ -321,7 +324,7 @@ class TestBasicFlow:
         # Admin manually changes user's role to MEMBER
         user = _get_user_by_email(_app, email1)
         assert user is not None
-        _patch_user_gid(_app, user.gid, _app.admin_secret, new_role=UserRoleInput.MEMBER)
+        _patch_user_gid(_app, user.gid, _admin_auth(_app), new_role=UserRoleInput.MEMBER)
 
         # Verify role changed to MEMBER
         user = _get_user_by_email(_app, email1)
@@ -437,6 +440,32 @@ class TestBasicFlow:
         # Should redirect to a safe default (e.g., root path)
         assert redirect_location.startswith("/"), "Redirect should be to a relative path"
 
+    async def test_server_owned_return_url_serves_html_navigation_with_cookies(
+        self,
+        _oidc_server: _OIDCServer,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that server-owned returnUrl returns a 200 HTML navigation with session cookies."""
+        return_url = "/oauth2/authorize?client_id=mcp-gateway&state=xyz"
+        client = _httpx_client(_app)
+        login_res = client.post(
+            f"oauth2/{_oidc_server}/login",
+            params={"returnUrl": return_url},
+        )
+        assert login_res.status_code == 302
+        callback_url = await _get_callback_url(_app, login_res.headers["location"])
+        assert _oidc_server.user_email is not None
+        email = sanitize_email(_oidc_server.user_email)
+
+        response = _httpx_client(_app, cookies=dict(login_res.cookies)).get(callback_url)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        assert response.cookies.get("phoenix-access-token") is not None
+        assert response.cookies.get("phoenix-refresh-token") is not None
+        _verify_sensitive_cookies_cleaned(response.headers.get_list("set-cookie"))
+        assert f'window.location.replace("{return_url}");' in response.text
+        await _verify_user_exists_with_role(_app, email, UserRoleInput.VIEWER, cleanup=True)
+
     async def test_unknown_idp_is_rejected(self, _app: _AppInfo) -> None:
         """Test that unknown IDP names are rejected."""
         client = _httpx_client(_app)
@@ -461,6 +490,13 @@ class TestBasicFlow:
         assert "HttpOnly" in state_cookie
         assert "SameSite=lax" in state_cookie or "SameSite=Lax" in state_cookie
         assert "Path=/" in state_cookie
+
+        login_context_cookie = [
+            h for h in set_cookie_headers if "phoenix-oauth2-login-context=" in h
+        ][0]
+        assert "HttpOnly" in login_context_cookie
+        assert "SameSite=lax" in login_context_cookie or "SameSite=Lax" in login_context_cookie
+        assert "Path=/" in login_context_cookie
 
         # Verify security attributes on nonce cookie
         nonce_cookie = [h for h in set_cookie_headers if "phoenix-oauth2-nonce=" in h][0]
@@ -513,6 +549,7 @@ class TestPKCE:
 
         # Verify PKCE cookies set
         assert "phoenix-oauth2-state" in cookies
+        assert "phoenix-oauth2-login-context" in cookies
         assert "phoenix-oauth2-nonce" in cookies
         assert "phoenix-oauth2-code-verifier" in cookies
 
@@ -813,7 +850,7 @@ class TestMockOIDCServer:
         from base64 import urlsafe_b64encode
         from hashlib import sha256
 
-        client = httpx.Client(verify=False)
+        client = httpx2.Client(verify=False)
 
         # Start auth request with code_challenge
         code_verifier = "test_verifier_1234567890_abcdefghijklmnopqrstuvwxyz"
@@ -867,7 +904,7 @@ class TestMockOIDCServer:
         for standard OAuth flow. This ensures our mock can simulate both PKCE and
         non-PKCE IDPs appropriately.
         """
-        client = httpx.Client(verify=False)
+        client = httpx2.Client(verify=False)
 
         # Get authorization code from server (standard flow, no code_challenge)
         auth_response = client.get(

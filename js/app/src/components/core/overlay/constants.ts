@@ -2,11 +2,13 @@ import type { SizeValue } from "./sizing";
 
 /**
  * Default initial size for resizable drawers when no persisted size or
- * caller-provided `defaultSize` is available. Callers may override via
- * the `defaultSize` prop on `<Drawer>`. Expressed as a percentage of the
- * application viewport width.
+ * caller-provided `defaultSize` is available. Detail drawers (traces,
+ * sessions, users) are dense, so they open wide and leave a sliver of the
+ * page visible for context. Callers may override via the `defaultSize`
+ * prop on `<Drawer>`. Expressed as a percentage of the application
+ * viewport width, and still capped by the max size / visible gutter.
  */
-export const DRAWER_DEFAULT_SIZE: SizeValue = "35%";
+export const DRAWER_DEFAULT_SIZE: SizeValue = "75%";
 
 /**
  * Default minimum size for resizable drawers (e.g. trace, session,

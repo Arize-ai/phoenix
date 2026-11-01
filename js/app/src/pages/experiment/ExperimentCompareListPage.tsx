@@ -2,17 +2,15 @@ import { css } from "@emotion/react";
 import type {
   AccessorFnColumnDef,
   AccessorKeyColumnDef,
-  HeaderContext,
+  RowData,
   SortingState,
-  Table,
 } from "@tanstack/react-table";
 import {
   createColumnHelper,
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
+import type { VirtualItem } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   memo,
@@ -48,8 +46,11 @@ import {
 import {
   AnnotationColorSwatch,
   type AnnotationConfig,
-  getPositiveOptimizationFromConfig,
+  AnnotationScoreText,
+  getAnnotationScoreColorProps,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import {
   RichTooltip,
@@ -62,6 +63,13 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import type {
+  AppTableFeatures,
+  HeaderContext,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
@@ -134,6 +142,17 @@ export function ExperimentCompareListPage({
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const clearSelectedSpanSearchParam = useCallback(() => {
+    // Clear the URL search params for the span selection
+    setSearchParams(
+      (prev) => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return newParams;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
   const experimentIds = useMemo(
     () => searchParams.getAll("experimentId"),
     [searchParams]
@@ -203,6 +222,7 @@ export function ExperimentCompareListPage({
                   node {
                     name
                     outputConfigs {
+                      __typename
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection
@@ -497,7 +517,10 @@ export function ExperimentCompareListPage({
   }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
 
   type TableRow = (typeof tableData)[number];
-  const columnHelper = useMemo(() => createColumnHelper<TableRow>(), []);
+  const columnHelper = useMemo(
+    () => createColumnHelper<AppTableFeatures, TableRow>(),
+    []
+  );
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -518,7 +541,11 @@ export function ExperimentCompareListPage({
 
   const columns = useMemo(() => {
     // getting the column types right here is challenging, so we type hint each column individually and allow typescript to infer the list type
-    const exampleColumn: AccessorKeyColumnDef<TableRow, TableRow["example"]> = {
+    const exampleColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["example"]
+    > = {
       header: "example",
       accessorKey: "example",
       size: 110,
@@ -553,6 +580,7 @@ export function ExperimentCompareListPage({
       },
     };
     const repetitionNumberColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
       TableRow,
       TableRow["repetitionNumber"]
     > = {
@@ -568,7 +596,11 @@ export function ExperimentCompareListPage({
         );
       },
     };
-    const inputColumn: AccessorKeyColumnDef<TableRow, TableRow["input"]> = {
+    const inputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["input"]
+    > = {
       header: "input",
       accessorKey: "input",
       cell: ({ getValue }) => {
@@ -583,6 +615,7 @@ export function ExperimentCompareListPage({
       },
     };
     const referenceOutputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
       TableRow,
       TableRow["referenceOutput"]
     > = {
@@ -599,7 +632,11 @@ export function ExperimentCompareListPage({
         );
       },
     };
-    const outputColumn: AccessorKeyColumnDef<TableRow, TableRow["outputs"]> = {
+    const outputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["outputs"]
+    > = {
       header: "output",
       accessorKey: "outputs",
       cell: ({ getValue }) => {
@@ -667,7 +704,11 @@ export function ExperimentCompareListPage({
         );
       },
     };
-    const tokensColumn: AccessorKeyColumnDef<TableRow, TableRow["tokens"]> = {
+    const tokensColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["tokens"]
+    > = {
       header: () => (
         <Flex direction="column" gap="size-100">
           <Text size="S" weight="heavy">
@@ -740,6 +781,7 @@ export function ExperimentCompareListPage({
       },
     };
     const latencyMsColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
       TableRow,
       TableRow["latencyMs"]
     > = columnHelper.accessor("latencyMs", {
@@ -832,7 +874,11 @@ export function ExperimentCompareListPage({
         );
       },
     });
-    const costColumn: AccessorKeyColumnDef<TableRow, TableRow["cost"]> = {
+    const costColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["cost"]
+    > = {
       header: () => (
         <Flex direction="column" gap="size-100">
           <Text size="S" weight="heavy">
@@ -912,6 +958,7 @@ export function ExperimentCompareListPage({
       )[];
     };
     const annotationColumns: AccessorFnColumnDef<
+      AppTableFeatures,
       TableRow,
       AnnotationColumnGetValueReturnType
     >[] =
@@ -1057,18 +1104,6 @@ export function ExperimentCompareListPage({
               } = getValue();
               const annotationConfig =
                 annotationConfigsByName[annotationSummary.annotationName];
-              const baseExperimentRunAnnotationValue = getAnnotationValue(
-                baseExperimentRunAnnotation
-              );
-              const baseExperimentRunAnnotationValueFormatted =
-                typeof baseExperimentRunAnnotationValue === "number"
-                  ? numberFormatter(baseExperimentRunAnnotationValue)
-                  : baseExperimentRunAnnotationValue;
-              const basePositiveOptimization =
-                getPositiveOptimizationFromConfig({
-                  config: annotationConfig,
-                  score: baseExperimentRunAnnotation?.score,
-                });
 
               return (
                 <ul
@@ -1079,9 +1114,8 @@ export function ExperimentCompareListPage({
                   `}
                 >
                   <AnnotationValueItem
-                    value={baseExperimentRunAnnotationValueFormatted}
-                    numericValue={baseExperimentRunAnnotationValue}
-                    positiveOptimization={basePositiveOptimization}
+                    annotation={baseExperimentRunAnnotation}
+                    annotationConfig={annotationConfig}
                     barColor={baseExperimentColor}
                     minScore={annotationSummary.minScore}
                     maxScore={annotationSummary.maxScore}
@@ -1092,25 +1126,12 @@ export function ExperimentCompareListPage({
                       annotation: CompareExperimentRunAnnotation | undefined,
                       index: number
                     ) => {
-                      const compareAnnotationValue =
-                        getAnnotationValue(annotation);
-                      const compareAnnotationValueFormatted =
-                        typeof compareAnnotationValue === "number"
-                          ? numberFormatter(compareAnnotationValue)
-                          : compareAnnotationValue;
-                      const color = getExperimentColor(index);
-                      const positiveOptimization =
-                        getPositiveOptimizationFromConfig({
-                          config: annotationConfig,
-                          score: annotation?.score,
-                        });
                       return (
                         <AnnotationValueItem
                           key={index}
-                          value={compareAnnotationValueFormatted}
-                          numericValue={compareAnnotationValue}
-                          positiveOptimization={positiveOptimization}
-                          barColor={color}
+                          annotation={annotation}
+                          annotationConfig={annotationConfig}
+                          barColor={getExperimentColor(index)}
                           minScore={annotationSummary.minScore}
                           maxScore={annotationSummary.maxScore}
                           annotationName={annotationSummary.annotationName}
@@ -1124,7 +1145,7 @@ export function ExperimentCompareListPage({
           }
         )
       ) ?? [];
-    const columns = [
+    const columns = columnHelper.columns([
       exampleColumn,
       repetitionNumberColumn,
       inputColumn,
@@ -1134,7 +1155,7 @@ export function ExperimentCompareListPage({
       latencyMsColumn,
       costColumn,
       ...annotationColumns,
-    ];
+    ]);
     return columns;
   }, [
     annotationConfigsByName,
@@ -1145,18 +1166,22 @@ export function ExperimentCompareListPage({
     getExperimentColor,
   ]);
 
-  const table = useReactTable({
+  // This component isn't compiled (it calls `useVirtualizer`), so memoize by
+  // hand: TanStack v9 compares state slices by reference, and a new object on
+  // every render makes each render a real table update
+  const columnVisibility = useMemo(
+    () => ({ repetitionNumber: baseExperiment.repetitions > 1 }),
+    [baseExperiment.repetitions]
+  );
+  const table = useTable({
+    features: appTableFeatures,
     data: tableData,
     columns,
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     columnResizeMode: "onChange",
     state: {
       sorting,
-      columnVisibility: {
-        repetitionNumber: baseExperiment.repetitions > 1 ? true : false,
-      },
+      columnVisibility,
     },
     manualSorting: true,
   });
@@ -1193,6 +1218,7 @@ export function ExperimentCompareListPage({
   }, [sorting, refetch]);
 
   const rows = table.getRowModel().rows;
+  // eslint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
@@ -1209,28 +1235,16 @@ export function ExperimentCompareListPage({
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
    */
-  const tableState = table.getState();
-  const columnSizeVars = useMemo(() => {
-    const headers = table.getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return colSizes;
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    tableState.columnSizingInfo,
-    tableState.columnSizing,
-    tableState.columnVisibility,
-  ]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
 
   const exampleIds = useMemo(() => {
     return rows.map((row) => row.original.example);
@@ -1291,11 +1305,19 @@ export function ExperimentCompareListPage({
                 </tr>
               ))}
             </thead>
-            {table.getState().columnSizingInfo.isResizingColumn ? (
+            {table.state.columnResizing.isResizingColumn ? (
               /* When resizing any column we will render this special memoized version of our table body */
-              <MemoizedTableBody table={table} virtualizer={virtualizer} />
+              <MemoizedTableBody
+                table={table}
+                virtualRows={virtualizer.getVirtualItems()}
+                totalHeight={virtualizer.getTotalSize()}
+              />
             ) : (
-              <TableBody table={table} virtualizer={virtualizer} />
+              <TableBody
+                table={table}
+                virtualRows={virtualizer.getVirtualItems()}
+                totalHeight={virtualizer.getTotalSize()}
+              />
             )}
           </table>
         </div>
@@ -1341,6 +1363,10 @@ export function ExperimentCompareListPage({
                   }
                 }}
                 openTraceDialog={(traceId, projectId, title) => {
+                  // A span selection left in the URL by another view (e.g.
+                  // the grid view's trace drawer) belongs to a different
+                  // trace, so drop it before this trace renders.
+                  clearSelectedSpanSearchParam();
                   setSelectedTraceDetails({
                     traceId,
                     projectId,
@@ -1355,15 +1381,7 @@ export function ExperimentCompareListPage({
         isOpen={selectedTraceDetails !== null}
         onOpenChange={(isOpen) => {
           if (!isOpen) {
-            // Clear the URL search params for the span selection
-            setSearchParams(
-              (prev) => {
-                const newParams = new URLSearchParams(prev);
-                newParams.delete("selectedSpanNodeId");
-                return newParams;
-              },
-              { replace: true }
-            );
+            clearSelectedSpanSearchParam();
             setSelectedTraceDetails(null);
           }
         }}
@@ -1383,59 +1401,65 @@ export function ExperimentCompareListPage({
 }
 
 /**
- * A single annotation value item with optimization direction coloring
+ * One experiment's annotation value in a compare list cell: the score (or
+ * label) colored by the annotation config's optimization direction, on a
+ * full-width tint, over a bar in the score's color. Without a direction the
+ * bar takes the experiment's color.
  */
-function AnnotationValueItem({
-  value,
-  numericValue,
-  positiveOptimization,
+export function AnnotationValueItem({
+  annotation,
+  annotationConfig,
   barColor,
   minScore,
   maxScore,
   annotationName,
 }: {
-  value: string | number;
-  numericValue: string | number;
-  positiveOptimization: boolean | null;
+  annotation: Annotation | undefined;
+  annotationConfig: AnnotationOptimizationConfig | undefined;
   barColor: string;
   minScore: number | null;
   maxScore: number | null;
   annotationName: string;
 }) {
-  const bgColor =
-    positiveOptimization === true
-      ? "var(--global-color-success-100)"
-      : positiveOptimization === false
-        ? "var(--global-color-danger-100)"
-        : undefined;
-  const textColor =
-    positiveOptimization === true
-      ? "success"
-      : positiveOptimization === false
-        ? "danger"
-        : undefined;
-  const optimizedBarColor =
-    positiveOptimization === true
-      ? "var(--global-color-success-500)"
-      : positiveOptimization === false
-        ? "var(--global-color-danger-500)"
-        : barColor;
-
+  const numericValue = getAnnotationValue(annotation);
+  const value =
+    typeof numericValue === "number"
+      ? numberFormatter(numericValue)
+      : numericValue;
+  const optimizationValue = getOptimizationValueFromConfig({
+    config: annotationConfig,
+    score: annotation?.score,
+  });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
   return (
     <li
-      css={css`
-        --mod-barloader-fill-color: ${optimizedBarColor};
-        ${bgColor ? `background-color: ${bgColor};` : ""}
-        padding: var(--global-dimension-size-25) var(--global-dimension-size-50);
-        border-radius: var(--global-rounding-small);
-        margin: calc(-1 * var(--global-dimension-size-25))
-          calc(-1 * var(--global-dimension-size-50));
-      `}
+      data-direction={direction}
+      css={css(
+        scoreColorCSS,
+        css`
+          --mod-barloader-fill-color: var(
+            --annotation-score-color,
+            ${barColor}
+          );
+          background-color: var(--annotation-score-background-color);
+          padding: var(--global-dimension-size-25)
+            var(--global-dimension-size-50);
+          border-radius: var(--global-rounding-small);
+          margin: calc(-1 * var(--global-dimension-size-25))
+            calc(-1 * var(--global-dimension-size-50));
+        `
+      )}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
-        <Text size="S" fontFamily="mono" color={textColor}>
+        <AnnotationScoreText
+          size="S"
+          fontFamily="mono"
+          optimizationValue={optimizationValue}
+          hasBackground={false}
+        >
           {value}
-        </Text>
+        </AnnotationScoreText>
       </Flex>
       {typeof numericValue === "number" ? (
         <ProgressBar
@@ -1456,17 +1480,20 @@ function AnnotationValueItem({
 }
 
 //un-memoized normal table body component - see memoized version below
-function TableBody<T>({
+function TableBody<T extends RowData>({
   table,
-  virtualizer,
+  virtualRows,
+  totalHeight,
 }: {
   table: Table<T>;
-  virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
+  /**
+   * Read from the virtualizer by the caller: the virtualizer is a stable
+   * object, so a compiled body reading it directly would never see new rows.
+   */
+  virtualRows: VirtualItem[];
+  totalHeight: number;
 }) {
-  "use no memo";
   const rows = table.getRowModel().rows;
-  const virtualRows = virtualizer.getVirtualItems();
-  const totalHeight = virtualizer.getTotalSize();
   const spacerRowHeight = useMemo(() => {
     return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
   }, [totalHeight, virtualRows]);

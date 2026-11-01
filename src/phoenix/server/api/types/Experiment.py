@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 
 import strawberry
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from strawberry import UNSET, Private
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.scalars import JSON
@@ -244,7 +244,7 @@ class Experiment(Node):
         if first is not None and first <= 0:
             raise BadRequest("first must be a positive integer if set")
         page_size = first or _DEFAULT_EXPERIMENT_RUNS_PAGE_SIZE
-        experiment_runs_query = (
+        experiment_runs_query: Select[models.ExperimentRun, *tuple[Any, ...]] = (
             select(models.ExperimentRun)
             .where(models.ExperimentRun.experiment_id == self.id)
             .limit(page_size + 1)

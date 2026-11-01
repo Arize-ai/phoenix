@@ -39,7 +39,7 @@ from phoenix.server.types import (
 )
 from tests.unit.conftest import (
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -405,7 +405,7 @@ def test_the_instructions_name_the_tools_the_surface_actually_exposes() -> None:
     discover, so they are pinned against the code-mode tool names."""
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_tools
+    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=True)
 
     for tool in ("execute", "call_tool", "search", "get_schema", "tags"):
         assert tool in rendered
@@ -430,7 +430,7 @@ async def test_the_instructions_account_for_every_directly_named_catalog_tool() 
     """
     from phoenix.server.agents.prompts import AgentPrompts
 
-    rendered = AgentPrompts().phoenix_mcp_tools
+    rendered = AgentPrompts().phoenix_mcp_tools.render(code_mode=True)
     runtime = MontyRuntime()
     mcp, _ = build_phoenix_mcp_server(
         _rest_app([]),
@@ -473,7 +473,7 @@ class TestBoundPrincipalAgainstRealV1Auth:
     ) -> AsyncIterator[FastAPI]:
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_dml_event_handler())
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
                 db=db,
@@ -567,7 +567,7 @@ class TestLifespanStateReachesV1:
             )
 
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_dml_event_handler())
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
                 db=db,

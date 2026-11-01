@@ -9,6 +9,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { PLAYGROUND_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 import {
   getDefaultInvocationConfig,
@@ -969,6 +970,48 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setMaxConcurrency" }
       );
     },
+    setExperimentName: ({
+      experimentName,
+      datasetId,
+    }: {
+      experimentName: string | null;
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              experimentName,
+            },
+          },
+        },
+        false,
+        { type: "setExperimentName" }
+      );
+    },
+    setExperimentDescription: ({
+      experimentDescription,
+      datasetId,
+    }: {
+      experimentDescription: string | null;
+      datasetId: string;
+    }) => {
+      set(
+        {
+          stateByDatasetId: {
+            ...get().stateByDatasetId,
+            [datasetId]: {
+              ...get().stateByDatasetId[datasetId],
+              experimentDescription,
+            },
+          },
+        },
+        false,
+        { type: "setExperimentDescription" }
+      );
+    },
     setAppendedMessagesPath: ({
       path,
       datasetId,
@@ -1549,7 +1592,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
   return create(
     persist(devtools(playgroundStore, { name: "playgroundStore" }), {
-      name: "arize-phoenix-playground",
+      name: PLAYGROUND_STORAGE_KEY,
       partialize: (state) => {
         // Exclude availablePaths from persistence - it's computed at runtime
         const filteredState: typeof state.stateByDatasetId = {};

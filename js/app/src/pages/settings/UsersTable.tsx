@@ -1,11 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ConnectionHandler, graphql, usePaginationFragment } from "react-relay";
@@ -28,6 +22,8 @@ import {
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import type { UserRole } from "@phoenix/constants";
@@ -81,7 +77,6 @@ const isDefaultAdminUser = (user: { email: string | null; username: string }) =>
   user.email === "admin@localhost" || user.username === "admin";
 
 export function UsersTable({ query }: { query: UsersTable_users$key }) {
-  "use no memo";
   const [dialog, setDialog] = useState<ReactNode>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
@@ -283,21 +278,20 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
     ];
   }, [viewer]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
       columnPinning: {
-        right: ["actions"],
+        start: [],
+        end: ["actions"],
       },
     },
-    getCoreRowModel: getCoreRowModel(),
     // Key rows by entity ID rather than by index so that row-hosted overlays
     // (action menus) and row selection stay bound to the row they were opened
     // on when a refetch re-orders the list.
     getRowId: (row) => row.id,
-    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = table.getRowModel().rows.length === 0;

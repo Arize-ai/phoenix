@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import os
 import re
+import socket
 import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from importlib.metadata import version
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -52,6 +53,18 @@ ENV_OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT"
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
+"""
+Bind address for HTTP, gRPC, and Prometheus. Defaults to 127.0.0.1.
+Non-loopback addresses enable authentication unless PHOENIX_ENABLE_AUTH is set.
+"""
+ENV_PHOENIX_SKILLS_PATHS = "PHOENIX_SKILLS_PATHS"
+"""
+Comma-separated skill directories or directories containing skills, loaded at startup.
+For example: "./.agents/skills,/opt/skills/team-analysis". Paths are on the Phoenix
+server. A relative path resolves against the directory the server was started from,
+not PHOENIX_WORKING_DIR, so deployments should use absolute paths. Unset means no
+external skills.
+"""
 ENV_PHOENIX_HOST_ROOT_PATH = "PHOENIX_HOST_ROOT_PATH"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
@@ -98,6 +111,14 @@ ENV_PHOENIX_AGENTS_GITHUB_MCP_URL = "PHOENIX_AGENTS_GITHUB_MCP_URL"
 Base URL of the GitHub MCP server the PXI GitHub tools connect to. Defaults to
 GitHub's hosted endpoint; point it at a self-hosted github-mcp-server instance
 for GitHub Enterprise Server or air-gapped deployments.
+"""
+ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE = "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE"
+"""
+Whether Phoenix MCP connection uses code-mode. Defaults to True. Under code mode,
+the assistant sees discovery tools (search, get_schema, tags, list_tools) plus a
+sandboxed `execute` tool; set to False to give it one tool per read-only REST
+endpoint instead. PHOENIX_ENABLE_MCP_CODE_MODE is the same switch for the MCP
+server mounted at /mcp, which external clients use.
 """
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
@@ -148,8 +169,15 @@ individual environment variable settings. Defaults to True.
 """
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
-Allows calls to external resources, like Google Fonts in the web interface
-Defaults to True. Set to False in air-gapped environments to prevent external requests.
+When False, Phoenix makes no public-internet requests on its own initiative, such as web fonts,
+telemetry, or the WASM sandbox binary download. Services the operator configures, such as LLM
+providers and hosted sandboxes, are unaffected. Defaults to True.
+"""
+ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE = "PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE"
+"""
+Whether to disable automatic updates of the built-in model prices at runtime. Phoenix otherwise
+fetches the latest prices from GitHub, unless PHOENIX_ALLOW_EXTERNAL_RESOURCES is False. The
+bundled prices still change when Phoenix is upgraded. Defaults to False.
 """
 ENV_PHOENIX_SQL_DATABASE_URL = "PHOENIX_SQL_DATABASE_URL"
 """
@@ -160,7 +188,7 @@ Phoenix supports two types of database URLs:
 - SQLite: 'sqlite:///path/to/database.db'
 - PostgreSQL: 'postgresql://@host/dbname?user=user&password=password' or 'postgresql://user:password@host/dbname'
 
-Note that if you plan on using SQLite, it's advised to to use a persistent volume
+Note that if you plan on using SQLite, it's advised to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
 ENV_PHOENIX_SQL_DATABASE_READ_REPLICA_URL = "PHOENIX_SQL_DATABASE_READ_REPLICA_URL"
@@ -371,6 +399,12 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT"
 )
+ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT = (
+    "PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT"
+)
+ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT = (
+    "PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT"
+)
 
 ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS = "PHOENIX_MASK_INTERNAL_SERVER_ERRORS"
 """
@@ -379,6 +413,10 @@ Whether to mask internal server errors from the GraphQL and REST APIs. Defaults 
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+"""
+Require authentication. When unset, enabled for non-loopback PHOENIX_HOST values
+and disabled for loopback. Explicit TRUE or FALSE overrides the host default.
+"""
 ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 """
 Forbid login via password and disable the creation of local users, which log in via passwords.
@@ -402,8 +440,11 @@ ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS = (
 )
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
-The secret key used for signing JWTs. It must be at least 32 characters long and include at least
-one digit and one lowercase letter.
+Optional JWT signing and credential encryption secret. Requires at least 32 characters,
+including one digit and one lowercase letter.
+
+When unset, JWTs use a deployment-seed key and require stored issuance hashes.
+Saved credentials use a publicly known encryption key and are readable by database readers.
 """
 ENV_PHOENIX_ADMIN_SECRET = "PHOENIX_ADMIN_SECRET"
 """
@@ -420,10 +461,9 @@ and one special character. Defaults to false.
 """
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-The initial password for the default admin account, which defaults to 'admin' if not
-explicitly set. Note that changing this value will have no effect if the default admin
-record already exists in the database. In such cases, the default admin password must
-be updated manually in the application.
+Initial password for the default admin account; applied when creating the account or while it
+still holds the unchanged default password 'admin'. Defaults to 'admin', which requires a
+password reset before opening a session.
 """
 ENV_PHOENIX_USE_SECURE_COOKIES = "PHOENIX_USE_SECURE_COOKIES"
 ENV_PHOENIX_COOKIES_PATH = "PHOENIX_COOKIES_PATH"
@@ -860,7 +900,7 @@ The timeout in seconds for individual playground task runs.
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
 A comma-separated list of sandbox providers to allow.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY. Case-insensitive.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL, MONTY, DOCKER. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
@@ -868,8 +908,8 @@ ENV_PHOENIX_WASM_BINARY_PATH = "PHOENIX_WASM_BINARY_PATH"
 """
 Override path to a pre-downloaded CPython WASM binary used by the WASM sandbox
 provider. When set, the binary at this path is used as-is (no SHA verification,
-no download). When unset, the binary is downloaded on first use under
-PHOENIX_WORKING_DIR/wasm. Primarily used in CI to point at a cached binary.
+no download). When unset, the binary is downloaded under PHOENIX_WORKING_DIR/wasm
+unless PHOENIX_ALLOW_EXTERNAL_RESOURCES is False.
 """
 
 
@@ -1135,6 +1175,12 @@ def server_instrumentation_is_enabled() -> bool:
     ) or bool(getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT))
 
 
+def server_log_export_is_enabled() -> bool:
+    return bool(
+        getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT)
+    ) or bool(getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT))
+
+
 def _get_temp_path() -> Path:
     """Get path to  directory in which to store temp phoenix server files."""
     return Path(tempfile.gettempdir()) / ".arize-phoenix"
@@ -1248,11 +1294,11 @@ def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     return value.strip()
 
 
-def get_env_enable_auth() -> bool:
-    """
-    Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
-    """
-    return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
+def auth_enabled_for_host(host: Optional[str]) -> bool:
+    """Use PHOENIX_ENABLE_AUTH if set; otherwise require auth for non-loopback hosts."""
+    if (explicit := _bool_val(ENV_PHOENIX_ENABLE_AUTH)) is not None:
+        return explicit
+    return not is_loopback_host(host)
 
 
 def get_env_disable_basic_auth() -> bool:
@@ -1483,17 +1529,11 @@ class AuthSettings(NamedTuple):
     ldap_config: Optional[LDAPConfig]
 
 
-def get_env_auth_settings() -> AuthSettings:
-    """
-    Gets auth settings and performs validation.
-    """
-    enable_auth = get_env_enable_auth()
+def get_env_auth_settings(host: Optional[str] = None) -> AuthSettings:
+    """Auth settings validated for ``host``, or for ``PHOENIX_HOST`` when ``host`` is omitted."""
+    bind_host = get_env_host() if host is None else canonicalize_host(host)
+    enable_auth = auth_enabled_for_host(bind_host)
     phoenix_secret = get_env_phoenix_secret()
-    if enable_auth and not phoenix_secret:
-        raise ValueError(
-            f"`{ENV_PHOENIX_SECRET}` must be set when "
-            f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
-        )
     phoenix_admin_secret = get_env_phoenix_admin_secret()
     disable_basic_auth = get_env_disable_basic_auth()
     from phoenix.server.oauth2 import OAuth2Clients
@@ -3079,6 +3119,29 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
 
 
+class AppAuthKwargs(TypedDict):
+    secret: SecretStr
+    password_reset_token_expiry: timedelta
+    access_token_expiry: timedelta
+    refresh_token_expiry: timedelta
+    oauth2_client_configs: list[OAuth2ClientConfig]
+    ldap_config: Optional[LDAPConfig]
+    basic_auth_disabled: bool
+
+
+def app_auth_kwargs(settings: AuthSettings) -> AppAuthKwargs:
+    """Build ``create_app`` auth arguments, preserving PHOENIX_SECRET for encryption."""
+    return {
+        "secret": settings.phoenix_secret,
+        "password_reset_token_expiry": get_env_password_reset_token_expiry(),
+        "access_token_expiry": get_env_access_token_expiry(),
+        "refresh_token_expiry": get_env_refresh_token_expiry(),
+        "oauth2_client_configs": get_env_oauth2_settings(),
+        "ldap_config": settings.ldap_config,
+        "basic_auth_disabled": settings.disable_basic_auth,
+    }
+
+
 def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
     """Retrieves the allow_sign_up setting for a specific OAuth2 identity provider.
 
@@ -3123,7 +3186,7 @@ def get_env_oauth2_auto_login(idp_name: str) -> bool:
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
-HOST = "0.0.0.0"
+HOST = "127.0.0.1"
 """The host the server will run on after launch_app is called."""
 PORT = 6006
 """The port the server will run on after launch_app is called."""
@@ -3214,7 +3277,7 @@ def _no_local_storage() -> bool:
     return get_env_postgres_connection_str() is not None and getenv(ENV_PHOENIX_WORKING_DIR) is None
 
 
-class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
+class RestrictedPath(wrapt.ObjectProxy[Path]):
     """
     This wraps pathlib.Path and will raise a DirectoryError if no local storage is configured.
 
@@ -3284,7 +3347,7 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
     def __len__(self) -> int:
         return len(self.__wrapped__.parts)
 
-    def __contains__(self, item: str) -> bool:
+    def __contains__(self, item: object) -> bool:
         return item in self.__wrapped__.parts
 
 
@@ -3356,8 +3419,73 @@ def get_env_grpc_port() -> int:
     )
 
 
+def canonicalize_host(host: str) -> str:
+    """Strip whitespace and brackets from IP literals, compress IPv6, unwrap
+    IPv4-mapped IPv6 addresses to IPv4, and expand IPv4 abbreviations accepted by
+    ``inet_aton``.
+
+    Preserve hostnames. Listeners compare against and bind the result directly, so
+    every spelling of an address must canonicalize to one string, such as ``::``.
+    """
+    host = host.strip()
+    try:
+        address = ipaddress.ip_address(host.strip("[]"))
+        if (
+            isinstance(address, ipaddress.IPv6Address)
+            and (mapped := address.ipv4_mapped) is not None
+        ):
+            return str(mapped)
+        return str(address)
+    except ValueError:
+        pass
+    try:
+        packed = socket.inet_aton(host)
+    except OSError:
+        return host
+    return socket.inet_ntoa(packed)
+
+
 def get_env_host() -> str:
-    return getenv(ENV_PHOENIX_HOST) or HOST
+    """Return the canonicalized PHOENIX_HOST, defaulting to 127.0.0.1."""
+    return canonicalize_host(getenv(ENV_PHOENIX_HOST) or HOST)
+
+
+def is_loopback_host(host: Optional[str]) -> bool:
+    """Recognize localhost and loopback IPs, including IPv4-mapped IPv6.
+
+    Treat missing hosts, unspecified addresses, and other hostnames as non-loopback.
+    Hostnames are not resolved; DNS cannot determine the authentication default.
+    """
+    if not host:
+        return False
+    candidate = host.strip().strip("[]")
+    if candidate.lower() == "localhost":
+        return True
+    try:
+        address = ipaddress.ip_address(candidate)
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and (mapped := address.ipv4_mapped) is not None:
+        return mapped.is_loopback
+    return address.is_loopback
+
+
+def is_unspecified_host(host: str) -> bool:
+    """Whether a host from ``canonicalize_host`` is 0.0.0.0 or ::."""
+    return host in ("0.0.0.0", "::")
+
+
+def url_host(host: str) -> str:
+    """Format a host from ``canonicalize_host`` for a URL, bracketing IPv6 literals."""
+    return f"[{host}]" if ":" in host else host
+
+
+def local_url_host(host: str) -> str:
+    """Format a bind host from ``canonicalize_host`` for local connections.
+
+    Map 0.0.0.0 to 127.0.0.1 and :: to [::1].
+    """
+    return {"0.0.0.0": "127.0.0.1", "::": "[::1]"}.get(host) or url_host(host)
 
 
 def get_env_host_root_path() -> str:
@@ -3498,18 +3626,14 @@ def get_env_root_url() -> URL:
                 f"The environment variable `{ENV_PHOENIX_ROOT_URL}` must be a valid URL."
             )
         return URL(root_url)
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
+    host = local_url_host(get_env_host())
     scheme = "https" if get_env_tls_enabled_for_http() else "http"
     return URL(urljoin(f"{scheme}://{host}:{get_env_port()}", get_env_host_root_path()))
 
 
 def get_base_url() -> str:
     """Deprecated: Use get_env_root_url() instead, but note the difference in behavior."""
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
+    host = local_url_host(get_env_host())
     scheme = "https" if get_env_tls_enabled_for_http() else "http"
     base_url = get_env_collector_endpoint() or f"{scheme}://{host}:{get_env_port()}"
     return base_url if base_url.endswith("/") else base_url + "/"
@@ -3675,6 +3799,10 @@ def get_env_mcp_code_mode() -> bool:
     return _bool_val(ENV_PHOENIX_ENABLE_MCP_CODE_MODE, True)
 
 
+def get_env_agents_mcp_code_mode() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, True)
+
+
 def get_env_mask_internal_server_errors() -> bool:
     return _bool_val(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, True)
 
@@ -3797,7 +3925,6 @@ def verify_server_environment_variables() -> None:
         )
 
 
-SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
 PLAYGROUND_PROJECT_NAME = "playground"
 
 EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS = 24
@@ -3861,10 +3988,24 @@ def _validate_file_exists_and_is_readable(
 
 def get_env_allow_external_resources() -> bool:
     """
-    Gets the value of the PHOENIX_ALLOW_EXTERNAL_RESOURCES environment variable.
-    Defaults to True if not set.
+    Whether Phoenix may fetch public-internet resources on its own initiative. Services the
+    operator configures, such as LLM providers and hosted sandboxes, are unaffected by this flag.
     """
     return _bool_val(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, True)
+
+
+def get_env_model_cost_manifest_url() -> Optional[str]:
+    """
+    The URL to fetch the latest built-in model prices from, or None if they shouldn't be fetched,
+    either because automatic updates are disabled or because external resources aren't allowed.
+    """
+    if _bool_val(ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE, False):
+        return None
+    if not get_env_allow_external_resources():
+        return None
+    from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
+
+    return DEFAULT_MANIFEST_URL
 
 
 def get_env_postgres_use_aws_iam_auth() -> bool:
@@ -3896,4 +4037,11 @@ def get_env_postgres_azure_scope() -> str:
     """
     return getenv(ENV_PHOENIX_POSTGRES_AZURE_SCOPE) or (
         "https://ossrdbms-aad.database.windows.net/.default"
+    )
+
+
+def get_env_skills_paths() -> tuple[Path, ...]:
+    value = getenv(ENV_PHOENIX_SKILLS_PATHS, "")
+    return tuple(
+        Path(path.strip()).expanduser().resolve() for path in value.split(",") if path.strip()
     )

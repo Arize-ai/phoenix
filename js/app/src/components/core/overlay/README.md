@@ -7,7 +7,7 @@ application imports it only through `index.ts`. Treat it like a vendored
 package.
 
 An interactive companion to this document lives in Storybook
-(`stories/OverlayStacking.mdx` — "Overlay stacking and modality").
+(`stories/design-system/overlays/Stacking.mdx` — "Overlay stacking and modality").
 
 ## The model
 

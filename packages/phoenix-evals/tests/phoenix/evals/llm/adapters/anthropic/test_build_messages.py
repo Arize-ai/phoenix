@@ -64,6 +64,21 @@ def test_typed_message_list_extracts_system() -> None:
     ]
 
 
+def test_typed_message_list_extracts_developer_as_system() -> None:
+    """A typed ``MessageRole.DEVELOPER`` message must fold into the system
+    string exactly like ``MessageRole.SYSTEM`` — Anthropic has no separate
+    wire role for it, and this is also the path ``PromptTemplate.render()``
+    produces for a "developer" role in a message-list template."""
+    adapter = _make_adapter()
+    prompt = [
+        Message(role=MessageRole.DEVELOPER, content="be strict"),
+        Message(role=MessageRole.USER, content="q"),
+    ]
+    messages, system = adapter._build_messages(prompt)
+    assert system == "be strict"
+    assert messages == [{"role": "user", "content": "q"}]
+
+
 def test_multiple_system_messages_concatenated_with_newline() -> None:
     adapter = _make_adapter()
     prompt = [

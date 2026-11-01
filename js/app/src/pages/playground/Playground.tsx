@@ -91,13 +91,13 @@ import {
   Flex,
   Icon,
   Icons,
-  Loading,
   PageHeader,
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { useModelMenuData } from "@phoenix/components/generative";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
+import { TableSkeleton } from "@phoenix/components/table";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
@@ -138,6 +138,10 @@ import {
 import { PlaygroundDatasetSelect } from "./PlaygroundDatasetSelect";
 import { PlaygroundInput } from "./PlaygroundInput";
 import { PlaygroundOutput } from "./PlaygroundOutput";
+import {
+  getPlaygroundPanelIds,
+  PLAYGROUND_PANEL_LAYOUT_ID,
+} from "./playgroundPanelLayout";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
@@ -731,19 +735,12 @@ function PlaygroundContent() {
     return undefined;
   }, [isRunning]);
 
-  // The mounted panel set varies by mode; passing panelIds keys each mode's
-  // saved layout separately so switching modes doesn't clobber the other's
   const panelIds = useMemo(
-    () =>
-      isDatasetMode
-        ? ["prompts", "io"]
-        : templateFormat !== TemplateFormats.NONE
-          ? ["prompts", "input", "output"]
-          : ["prompts", "output"],
+    () => getPlaygroundPanelIds({ isDatasetMode, templateFormat }),
     [isDatasetMode, templateFormat]
   );
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "playground-panels-v2",
+    id: PLAYGROUND_PANEL_LAYOUT_ID,
     panelIds,
     storage: localStorage,
   });
@@ -826,7 +823,7 @@ function PlaygroundContent() {
                 title="Experiment"
                 panelProps={IO_PANEL_PROPS}
               >
-                <Loading />
+                <TableSkeleton rowCount="fill" />
               </TitledPanel>
             }
           >

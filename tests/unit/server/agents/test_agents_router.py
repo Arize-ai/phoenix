@@ -14,7 +14,7 @@ from typing import Any, Literal
 from unittest.mock import MagicMock
 from uuid import UUID
 
-import httpx
+import httpx2
 import pytest
 from bashkit import Bash
 from fastapi import FastAPI
@@ -22,6 +22,7 @@ from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.sdk.trace import TracerProvider
 from pydantic import ValidationError
+from pydantic_ai import RunContext, Tool
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -32,6 +33,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
@@ -464,7 +466,7 @@ def _mock_turn_models(monkeypatch: pytest.MonkeyPatch, *turn_models: FunctionMod
 
 async def test_compact_agent_session_persists_durable_points_and_loads_latest_history(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     summary_messages: list[ModelMessage] = []
@@ -684,7 +686,7 @@ async def test_compact_agent_session_persists_durable_points_and_loads_latest_hi
 
 async def test_compact_agent_session_without_a_completed_turn_is_rejected_as_already_compact(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def _unexpected_build_model(*args: object, **kwargs: object) -> FunctionModel:
@@ -709,7 +711,7 @@ async def test_compact_agent_session_without_a_completed_turn_is_rejected_as_alr
 
 async def test_compact_is_rejected_while_a_turn_holds_the_session_lock(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Compaction contends for the same turn lock as a chat send: a live
@@ -754,7 +756,7 @@ async def test_compact_is_rejected_while_a_turn_holds_the_session_lock(
 
 async def test_compact_takes_over_a_stale_session_lock(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A heartbeat older than the staleness window belongs to an abandoned
@@ -804,7 +806,7 @@ async def test_compact_takes_over_a_stale_session_lock(
 
 async def test_chat_send_during_compaction_is_rejected_as_busy(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Compaction holds the session's turn lock while summarizing, so a
@@ -868,7 +870,7 @@ async def test_chat_send_during_compaction_is_rejected_as_busy(
 
 async def test_compact_is_rejected_as_already_compact_when_a_concurrent_checkpoint_lands(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """If another request's checkpoint is persisted while this one is
@@ -950,7 +952,7 @@ async def test_compact_is_rejected_as_already_compact_when_a_concurrent_checkpoi
 
 async def test_compact_route_is_not_gated_by_bash_disablement(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Compaction is agent-agnostic: it summarizes the transcript with the
@@ -997,7 +999,7 @@ async def test_compact_route_is_not_gated_by_bash_disablement(
 
 async def test_chat_turn_persists_session_transcript(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A full chat turn against a pre-created session writes its transcript:
@@ -1124,7 +1126,7 @@ async def test_chat_turn_persists_session_transcript(
 
 async def test_failed_chat_turn_does_not_persist_partial_transcript(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def failing_run_stream(
@@ -1174,7 +1176,7 @@ async def test_failed_chat_turn_does_not_persist_partial_transcript(
 
 async def test_client_tool_continuation_extends_the_persisted_assistant_message(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session_id = "45454545-4545-4454-8454-454545454545"
@@ -1259,7 +1261,7 @@ async def test_client_tool_continuation_extends_the_persisted_assistant_message(
 
 async def test_submitted_tool_outputs_persist_partially_without_running_the_model(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session_id = "49494949-4949-4449-8449-494949494949"
@@ -1398,7 +1400,7 @@ def _pending_client_tool_output(**overrides: Any) -> dict[str, Any]:
 
 async def test_submitted_tool_outputs_ignore_identical_resends_for_resolved_calls(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1436,7 +1438,7 @@ async def test_submitted_tool_outputs_ignore_identical_resends_for_resolved_call
 
 async def test_submitted_tool_outputs_reject_divergent_resends_for_resolved_calls(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1476,7 +1478,7 @@ async def test_submitted_tool_outputs_reject_divergent_resends_for_resolved_call
 
 async def test_chat_continuation_rejects_divergent_outputs_for_resolved_calls(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     session_id = "25252525-2525-4525-8525-252525252525"
     agent_session_id = await _create_agent_session_row(
@@ -1516,7 +1518,7 @@ async def test_chat_continuation_rejects_divergent_outputs_for_resolved_calls(
 
 async def test_submitted_tool_outputs_reject_unknown_tool_call_ids(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1548,7 +1550,7 @@ async def test_submitted_tool_outputs_reject_unknown_tool_call_ids(
 
 async def test_submitted_tool_outputs_reject_a_stale_last_message_id(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1575,7 +1577,7 @@ async def test_submitted_tool_outputs_reject_a_stale_last_message_id(
 
 async def test_submitted_tool_outputs_reject_a_busy_session(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1610,7 +1612,7 @@ async def test_submitted_tool_outputs_reject_a_busy_session(
 
 async def test_submitted_tool_outputs_take_over_a_stale_turn_lock(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1643,7 +1645,7 @@ async def test_submitted_tool_outputs_take_over_a_stale_turn_lock(
 
 async def test_submitted_tool_outputs_reject_a_non_assistant_tail(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -1704,7 +1706,7 @@ async def _load_pending_tool_part(
 
 async def test_user_turn_persists_interrupted_repair_for_dangling_client_tool(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
@@ -1749,7 +1751,7 @@ async def test_user_turn_persists_interrupted_repair_for_dangling_client_tool(
 
 async def test_user_turn_applies_submitted_tool_output_error_resolutions(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
@@ -2288,7 +2290,7 @@ def _build_backend_trace(
 
 async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A client-tool continuation resumes the turn identity persisted on the
@@ -2365,7 +2367,7 @@ async def test_chat_stream_metadata_reuses_the_persisted_turn_trace_context(
 
 async def test_chat_turn_without_a_message_is_rejected(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """A submit request must carry the turn's new message."""
     session_id = "22222222-2222-4222-8222-222222222222"
@@ -2383,7 +2385,7 @@ async def test_chat_turn_without_a_message_is_rejected(
 
 async def test_chat_turn_with_stale_last_message_id_is_rejected(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """``lastMessageId`` is the send's optimistic-concurrency check: it must
     be omitted while the transcript is empty and must match the transcript's
@@ -2438,7 +2440,7 @@ async def test_chat_turn_with_stale_last_message_id_is_rejected(
 
 async def test_chat_turn_on_an_empty_session_rejects_a_last_message_id(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Providing ``lastMessageId`` against an empty transcript is stale too:
     the client believes messages exist that the server does not have."""
@@ -2459,7 +2461,7 @@ async def test_chat_turn_on_an_empty_session_rejects_a_last_message_id(
 
 async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A compaction checkpoint is a regular transcript message: when it is the
@@ -2522,7 +2524,7 @@ async def test_follow_up_send_from_a_compaction_message_passes_the_stale_check(
 
 
 async def test_chat_turn_with_unknown_agent_session_id_returns_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     session_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 
@@ -3092,7 +3094,7 @@ def test_chat_request_body_rejects_duplicate_tool_approval_ids() -> None:
 
 
 async def test_chat_endpoint_rejects_assistant_message_submissions(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     session_id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
     response = await httpx_client.post(
@@ -3110,7 +3112,7 @@ async def test_chat_endpoint_rejects_assistant_message_submissions(
 
 
 async def test_chat_endpoint_rejects_compaction_message_submissions(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Compaction checkpoints are minted by the compact route; a submitted one
     would silently hide all prior history from subsequent turns."""
@@ -3138,7 +3140,7 @@ async def test_chat_endpoint_rejects_compaction_message_submissions(
 
 
 async def test_chat_endpoint_rejects_phoenix_namespace_in_tool_output_result_metadata(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     session_id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
     response = await httpx_client.post(
@@ -3155,7 +3157,7 @@ async def test_chat_endpoint_rejects_phoenix_namespace_in_tool_output_result_met
 
 
 async def test_chat_endpoint_requires_a_message_or_tool_outputs(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     session_id = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
     response = await httpx_client.post(
@@ -3167,7 +3169,7 @@ async def test_chat_endpoint_requires_a_message_or_tool_outputs(
 
 async def test_chat_endpoint_rejects_regenerate_requests(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     session_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
     agent_session_id = await _create_agent_session_row(
@@ -3198,7 +3200,7 @@ async def test_chat_endpoint_rejects_regenerate_requests(
 @pytest.mark.real_agent_mcp_server
 async def test_chat_turn_hands_the_agent_the_phoenix_mcp_server(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The route passes the server ``create_app`` wires to the agent, which the
@@ -3236,7 +3238,7 @@ async def test_chat_turn_hands_the_agent_the_phoenix_mcp_server(
 
 async def test_generated_session_title_is_limited(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     session_id = "33333333-3333-4333-8333-333333333333"
@@ -3263,7 +3265,7 @@ async def test_generated_session_title_is_limited(
 
 async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A failed first-turn summarization still persists the transcript but
@@ -3320,7 +3322,7 @@ async def test_failed_summary_leaves_session_untitled_until_a_later_turn(
 
 async def test_bash_shell_state_persists_across_chat_turns(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Shell state written by a bash command in one turn survives to later
@@ -3404,7 +3406,7 @@ async def test_bash_shell_state_persists_across_chat_turns(
 
 async def test_headless_chat_turn_persists_session_transcript(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
@@ -3456,7 +3458,7 @@ async def test_headless_chat_turn_persists_session_transcript(
 
 async def test_headless_bash_shell_state_persists_across_chat_turns(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Mirror of ``test_bash_shell_state_persists_across_chat_turns`` for
@@ -3517,7 +3519,7 @@ def _bash_stderr(response_text: str) -> str:
 
 async def test_headless_chat_in_manual_mode_cannot_run_a_mutation(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A headless run has no client that could answer an approval request, so
@@ -3542,7 +3544,7 @@ async def test_headless_chat_in_manual_mode_cannot_run_a_mutation(
 
 async def test_headless_chat_in_bypass_mode_runs_a_mutation_without_approval(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The other half of the gate: an explicit bypass still grants mutation
@@ -3576,7 +3578,7 @@ async def test_headless_chat_in_bypass_mode_runs_a_mutation_without_approval(
 
 async def test_headless_chat_is_forbidden_when_bash_is_disabled(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """``PHOENIX_AGENTS_DISABLE_BASH`` turns off the headless user agent on
@@ -3611,7 +3613,7 @@ async def test_headless_chat_is_forbidden_when_bash_is_disabled(
 
 async def test_create_session_route_creates_a_temporary_session(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
         "/v1/agent_sessions",
@@ -3635,7 +3637,7 @@ async def test_create_session_route_creates_a_temporary_session(
 
 async def test_create_session_route_defaults_to_a_persistent_untitled_session(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
         "/v1/agent_sessions",
@@ -3652,7 +3654,7 @@ async def test_create_session_route_defaults_to_a_persistent_untitled_session(
 
 
 async def test_create_session_route_requires_a_model(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     response = await httpx_client.post("/v1/agent_sessions", json={})
 
@@ -3660,7 +3662,7 @@ async def test_create_session_route_requires_a_model(
 
 
 async def test_create_session_route_rejects_long_title(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     response = await httpx_client.post(
         "/v1/agent_sessions",
@@ -3671,7 +3673,7 @@ async def test_create_session_route_rejects_long_title(
 
 
 async def test_create_session_route_yields_a_chattable_session(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The returned id is directly usable as the chat route's session id."""
@@ -3696,7 +3698,7 @@ async def test_create_session_route_yields_a_chattable_session(
 
 async def test_chat_runs_on_the_sessions_persisted_model_without_rewriting_it(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A turn whose asserted model matches the session runs on the persisted
@@ -3737,7 +3739,7 @@ async def test_chat_runs_on_the_sessions_persisted_model_without_rewriting_it(
 
 async def test_patch_session_route_moves_the_session_to_the_new_model(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The update route is the only way to change an existing session's model,
@@ -3782,7 +3784,7 @@ async def test_patch_session_route_moves_the_session_to_the_new_model(
 
 async def test_patch_session_route_rejects_a_deleted_custom_provider(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(db)
     deleted_provider_gid = str(GlobalID(models.GenerativeModelCustomProvider.__name__, "999"))
@@ -3809,7 +3811,7 @@ async def test_patch_session_route_rejects_a_deleted_custom_provider(
 
 async def test_patch_session_route_model_change_is_rejected_while_a_turn_holds_the_session_lock(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """A streaming turn runs on the model it read under the turn lock, so the
     update route must not flip the session's model out from under it — and must
@@ -3842,7 +3844,7 @@ async def test_patch_session_route_model_change_is_rejected_while_a_turn_holds_t
 
 async def test_patch_session_route_ignores_a_stale_session_lock(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """A heartbeat older than the staleness window belongs to an abandoned
     turn, so it must not wedge the session on its old model."""
@@ -3872,7 +3874,7 @@ async def test_patch_session_route_ignores_a_stale_session_lock(
 
 async def test_patch_session_route_updates_the_title(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(db)
 
@@ -3896,7 +3898,7 @@ async def test_patch_session_route_updates_the_title(
 
 async def test_patch_session_route_rejects_an_empty_update(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(db)
     response = await httpx_client.patch(_patch_session_url(agent_session_id), json={})
@@ -3906,7 +3908,7 @@ async def test_patch_session_route_rejects_an_empty_update(
 
 async def test_patch_session_route_rejects_explicit_null_fields(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Both fields are non-nullable: an explicit JSON null must 422 rather
     than be silently dropped like an omitted field."""
@@ -3933,7 +3935,7 @@ async def test_patch_session_route_rejects_explicit_null_fields(
 
 async def test_compact_rejects_a_request_asserting_a_model_the_session_is_not_on(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Compaction asserts the session's model the same way a turn does, so a
@@ -3971,7 +3973,7 @@ async def test_compact_rejects_a_request_asserting_a_model_the_session_is_not_on
 
 async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A turn states the model it expects rather than setting one. When that
@@ -4019,7 +4021,7 @@ async def test_chat_rejects_a_turn_asserting_a_model_the_session_is_not_on(
 
 async def test_chat_rejects_non_boolean_headless(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(db)
     response = await httpx_client.post(
@@ -4035,7 +4037,7 @@ async def test_chat_rejects_non_boolean_headless(
 
 async def test_create_session_route_is_forbidden_when_agents_are_disabled(
     app: FastAPI,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     await app.state.system_settings.update_agent_assistant_enabled(
         AgentAssistantEnabledSetting(enabled=False)
@@ -4050,7 +4052,7 @@ async def test_create_session_route_is_forbidden_when_agents_are_disabled(
 
 
 async def test_create_session_route_is_not_gated_by_bash_disablement(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Sessions are agent-agnostic: only the chat route's headless user agent
@@ -4067,7 +4069,7 @@ async def test_create_session_route_is_not_gated_by_bash_disablement(
 async def test_agents_router_is_forbidden_in_read_only_mode(
     app: FastAPI,
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Read-only mode turns off the whole agents router, chat included."""
     session_id = "77777777-7777-4777-8777-777777777777"
@@ -4173,12 +4175,12 @@ def _assistant_tail_with_prior_turn_context(session_id: str) -> dict[str, Any]:
 
 
 async def _post_traced_continuation_turn(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     session_id: str,
     agent_session_id: str,
     *,
     last_message_id: str,
-) -> httpx.Response:
+) -> httpx2.Response:
     return await httpx_client.post(
         _chat_url(agent_session_id),
         json=_chat_body(
@@ -4218,7 +4220,7 @@ async def _post_traced_continuation_turn(
 async def test_chat_turn_trace_ingestion_merges_backend_spans_into_prior_turn_trace(
     db: DbSessionFactory,
     app: FastAPI,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """With trace ingestion enabled, a client-tool continuation resumes the
@@ -4286,7 +4288,7 @@ async def test_chat_turn_trace_ingestion_merges_backend_spans_into_prior_turn_tr
 async def test_new_user_message_closes_superseded_turn_trace(
     db: DbSessionFactory,
     app: FastAPI,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A turn that ends awaiting client tool outputs defers its root span to
@@ -4338,7 +4340,7 @@ async def test_new_user_message_closes_superseded_turn_trace(
 async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warnings(
     db: DbSessionFactory,
     app: FastAPI,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Merging backend spans into the turn's existing trace groups the trace
@@ -4388,7 +4390,7 @@ async def test_chat_turn_trace_ingestion_links_project_session_without_orm_warni
 async def test_resumed_chat_turn_keeps_original_trace_project(
     db: DbSessionFactory,
     app: FastAPI,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A session's persisted project remains authoritative after configuration changes."""
@@ -4460,7 +4462,7 @@ async def test_resumed_chat_turn_keeps_original_trace_project(
 
 async def test_chat_is_rejected_with_storage_guidance_when_writes_are_already_locked(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """A locked database rejects the turn before it starts, with the reason."""
     session_id = "79797979-7979-4979-8979-797979797979"
@@ -4501,7 +4503,7 @@ async def test_persisting_a_turn_for_a_deleted_session_fails(
 
 async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A write that fails after the turn ran must not leak the driver's error.
@@ -4550,7 +4552,7 @@ async def test_transcript_write_failure_is_reported_as_an_unsaved_turn(
 async def test_turn_trace_context_is_streamed_before_the_response(
     db: DbSessionFactory,
     app: FastAPI,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A client that stops a turn never receives the completion metadata, so
@@ -4722,7 +4724,7 @@ async def _load_approval_tool_part(db: DbSessionFactory) -> dict[str, Any]:
 
 async def test_submitted_tool_approvals_are_persisted_without_running_the_call(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """The point of the route: an answer survives a transcript resync.
 
@@ -4755,7 +4757,7 @@ async def test_submitted_tool_approvals_are_persisted_without_running_the_call(
 
 async def test_submitted_tool_approvals_preserve_the_persisted_tool_input(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """The client submits a decision, never a part: it cannot approve one
     command and persist another."""
@@ -4783,7 +4785,7 @@ async def test_submitted_tool_approvals_preserve_the_persisted_tool_input(
 
 async def test_submitted_tool_approvals_ignore_identical_resends(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """The flush re-sends every answer it holds each time one is added."""
     agent_session_id = await _create_agent_session_row(
@@ -4808,7 +4810,7 @@ async def test_submitted_tool_approvals_ignore_identical_resends(
 
 async def test_submitted_tool_approvals_reject_a_reversal(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -4841,7 +4843,7 @@ async def test_submitted_tool_approvals_reject_a_reversal(
 
 async def test_submitted_tool_approvals_reject_a_call_not_awaiting_approval(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -4863,7 +4865,7 @@ async def test_submitted_tool_approvals_reject_a_call_not_awaiting_approval(
 
 async def test_submitted_tool_approvals_reject_a_stale_last_message_id(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -4885,7 +4887,7 @@ async def test_submitted_tool_approvals_reject_a_stale_last_message_id(
 
 async def test_submitted_tool_approvals_reject_a_non_boolean_answer(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """``approved`` is the gate on approval-required tools, so it is strict."""
     agent_session_id = await _create_agent_session_row(
@@ -4909,7 +4911,7 @@ async def test_submitted_tool_approvals_reject_a_non_boolean_answer(
 
 async def test_submitted_tool_approvals_reject_duplicate_tool_call_ids(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     agent_session_id = await _create_agent_session_row(
         db,
@@ -5187,7 +5189,7 @@ def _user_prompt_contents(messages: list[ModelMessage]) -> list[list[str]]:
 
 async def test_chat_turn_carries_ui_state_on_the_message_not_the_system_prompt(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """End to end: the block rides on the user's turn and keeps saying the same
@@ -5245,7 +5247,7 @@ async def test_chat_turn_carries_ui_state_on_the_message_not_the_system_prompt(
 
 async def test_the_persisted_user_message_records_the_turns_ui_state(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The snapshot is stored on the message, not re-derived per request, which
@@ -5273,3 +5275,79 @@ async def test_the_persisted_user_message_records_the_turns_ui_state(
     phoenix_metadata = user_message["metadata"]["phoenix"]
     assert phoenix_metadata["uiContexts"]["project"]["projectNodeId"] == "UHJvamVjdDox"
     assert phoenix_metadata["editPermission"] == "bypass"
+
+
+def _mock_datetime_tool_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Serve a traced model whose chat turn calls ``get_current_datetime``."""
+
+    async def stream_function(
+        messages: list[ModelMessage],
+        agent_info: AgentInfo,
+    ) -> AsyncIterator[str | DeltaToolCalls]:
+        yield {1: DeltaToolCall(name="get_current_datetime", json_args="{}")}
+
+    def function(messages: list[ModelMessage], agent_info: AgentInfo) -> ModelResponse:
+        return ModelResponse(parts=[])
+
+    async def _fake_build_model(
+        *args: object,
+        tracer_provider: TracerProvider | None = None,
+        **kwargs: object,
+    ) -> OpenInferenceModelWrapper:
+        provider = tracer_provider if tracer_provider is not None else TracerProvider()
+        tracer = OITracer(provider.get_tracer(__name__), config=TraceConfig())
+        return OpenInferenceModelWrapper(
+            FunctionModel(function=function, stream_function=stream_function), tracer=tracer
+        )
+
+    monkeypatch.setattr(_BUILD_MODEL_PATCH_TARGET, _fake_build_model)
+
+
+async def test_failed_server_tool_call_records_an_error_tool_span(
+    db: DbSessionFactory,
+    app: FastAPI,
+    httpx_client: httpx2.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A server tool that raises ends the turn, so the trace still gets its
+    ``pxi.turn`` root and the failed TOOL span is not left orphaned."""
+    from phoenix.server.agents.capabilities.tools.internal import current_datetime
+
+    async def broken_tool(ctx: RunContext[Any]) -> Any:
+        raise RuntimeError("INTENTIONAL_PXI_RCA_PLANT: get_current_datetime is broken")
+
+    def patched_init(self: Any) -> None:
+        FunctionToolset.__init__(
+            self, tools=[Tool(broken_tool, name="get_current_datetime", takes_ctx=True)]
+        )
+
+    monkeypatch.setattr(current_datetime.GetCurrentDatetimeToolset, "__init__", patched_init)
+    await _enable_local_trace_recording(app)
+    _mock_datetime_tool_model(monkeypatch)
+    session_id = "78787878-7878-4878-8878-787878787878"
+    agent_session_id = await _create_agent_session_row(db, title="Already titled", messages=[])
+
+    response = await httpx_client.post(
+        _chat_url(agent_session_id),
+        json=_chat_body(session_id, _user_message("what time is it"), recordLocalTraces=True),
+    )
+    assert response.status_code == 200
+    error_chunk = next(chunk for chunk in _stream_chunks(response.text) if chunk["type"] == "error")
+    assert "INTENTIONAL_PXI_RCA_PLANT" in error_chunk["errorText"]
+
+    async with db() as session:
+        spans = (await session.scalars(select(models.Span))).all()
+
+    root = next(span for span in spans if span.parent_id is None)
+    assert root.name == "pxi.turn"
+    assert root.status_code == "ERROR"
+    assert "INTENTIONAL_PXI_RCA_PLANT" in (root.status_message or "")
+    tool_spans = [span for span in spans if span.span_kind == "TOOL"]
+    assert len(tool_spans) == 1
+    (tool_span,) = tool_spans
+    assert tool_span.name == "get_current_datetime"
+    assert tool_span.status_code == "ERROR"
+    assert tool_span.parent_id == root.span_id
+    (exception_event,) = tool_span.events
+    assert exception_event["name"] == "exception"
+    assert exception_event["attributes"]["exception.type"] == "RuntimeError"

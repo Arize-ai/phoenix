@@ -11,11 +11,13 @@ export * from "./LoadMoreRow";
 export * from "./TableColumnHeader";
 export * from "./TableEmpty";
 export * from "./TableEmptyWrap";
+export * from "./TableSkeleton";
 export * from "./CellTop";
 export * from "./LargeTextWrap";
 export * from "./JSONCell";
 export * from "./PaddedCell";
 export * from "./RowExpandToggleButton";
+export * from "./TableViewSettingsButton";
 export * from "./useTableRowsExpanded";
 export * from "./IndeterminateCheckboxCell";
 

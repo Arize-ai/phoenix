@@ -6,6 +6,8 @@ from typing import Any
 
 from phoenix.evals import create_evaluator
 
+from evals.pxi.evaluators.filters import filter_matches
+
 
 def _as_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
@@ -254,29 +256,47 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
 
 
 def evaluate_tool_call_count(output: Any, expected: Any) -> dict[str, Any]:
-    """Evaluate the number of tool calls against ``expected.budgets.max_tool_calls``.
+    """Apply optional limits to total calls or repeated name/argument pairs.
 
-    Missing budget expectations pass so the evaluator can be enabled for a
-    whole dataset while only scoring examples that opt into a budget.
+    Repeat limits suit next-action, read-only examples where distinct setup
+    steps are valid but repeating the same request supplies no new information.
+    They do not measure overall efficiency or successful tool execution.
     """
-    max_tool_calls = _expected_budgets(expected).get("max_tool_calls")
-    if max_tool_calls is None:
-        return _success()
-    if not isinstance(max_tool_calls, int) or max_tool_calls < 0:
+    budgets = _expected_budgets(expected)
+    max_tool_calls = budgets.get("max_tool_calls")
+    max_repeated = budgets.get("max_repeated_tool_calls")
+    for key, value in (
+        ("max_tool_calls", max_tool_calls),
+        ("max_repeated_tool_calls", max_repeated),
+    ):
+        if value is not None and (type(value) is not int or value < 0):
+            return _failure(
+                f"Expected budgets.{key} must be a non-negative integer",
+                metadata={key: value},
+            )
+    calls = [call for call in tool_calls_from_output(output) if _tool_name(call) is not None]
+    observed_names = [_tool_name(call) for call in calls]
+    if max_tool_calls is not None and len(calls) > max_tool_calls:
         return _failure(
-            "Expected budgets.max_tool_calls must be a non-negative integer",
-            metadata={"max_tool_calls": max_tool_calls},
+            f"Expected at most {max_tool_calls} tool calls, observed {len(calls)}",
+            metadata={"observed_tools": observed_names, "max_tool_calls": max_tool_calls},
         )
-
-    observed_names = [
-        name for call in tool_calls_from_output(output) if (name := _tool_name(call)) is not None
-    ]
-    if len(observed_names) <= max_tool_calls:
-        return _success()
-    return _failure(
-        f"Expected at most {max_tool_calls} tool calls, observed {len(observed_names)}",
-        metadata={"observed_tools": observed_names, "max_tool_calls": max_tool_calls},
-    )
+    if max_repeated is not None:
+        seen: set[tuple[str, str]] = set()
+        repeated: list[str] = []
+        for call in calls:
+            name = _tool_name(call)
+            assert name is not None
+            call_key = (name, json.dumps(_tool_args(call), sort_keys=True))
+            if call_key in seen:
+                repeated.append(name)
+            seen.add(call_key)
+        if len(repeated) > max_repeated:
+            return _failure(
+                f"Expected at most {max_repeated} repeated tool calls, observed {len(repeated)}",
+                metadata={"repeated_tools": repeated, "max_repeated_tool_calls": max_repeated},
+            )
+    return _success()
 
 
 @create_evaluator(name="correct_tools_called", kind="code")
@@ -410,6 +430,8 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 #   passing an empty value are semantically equivalent, e.g. ``tags`` (the save
 #   tool treats an omitted ``tags`` and ``tags: []`` identically), so the agent
 #   may legitimately produce either form.
+# - ``filter_equals: <DSL>`` -- UI condition only: decode a static spansFilter.set
+#   script and compare predicate ASTs, allowing clause order and membership lists.
 # - ``has_keys: [<key>, ...]`` -- observed must be a dict containing every
 #   listed key (presence only -- values are not checked, and nesting below the
 #   top level is not inspected). For object-valued args where the agent fills
@@ -419,6 +441,7 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 _MATCHER_KEYS: frozenset[str] = frozenset(
     {
         "equals",
+        "filter_equals",
         "contains_all",
         "contains_any",
         "not_contains",
@@ -452,6 +475,9 @@ def _string_list_or_none(value: Any) -> list[str] | None:
 
 def _matcher_value_error(matcher: dict[str, Any]) -> str | None:
     """Validate a matcher dict; return an error string if malformed."""
+    if "filter_equals" in matcher:
+        if not isinstance(matcher["filter_equals"], str) or len(matcher) != 1:
+            return "matcher 'filter_equals' must be a string and used alone"
     if "any" in matcher and matcher["any"] is not True:
         return "matcher 'any' must be true"
     if "non_empty" in matcher and matcher["non_empty"] is not True:
@@ -479,6 +505,8 @@ def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
     ``observed`` is the literal value pulled from the call's args, or the
     ``_MISSING`` sentinel if the key wasn't present at all.
     """
+    if "filter_equals" in matcher:
+        return False  # Only supported for static spansFilter.set UI scripts.
     if "any" in matcher:
         if observed is _MISSING:
             return False
@@ -625,6 +653,8 @@ def _source_pair_passes(source: str, key: str, expected_value: Any, script: str 
     (``{ key }``) the value is a hoisted variable whose text lives elsewhere
     in the script, so value checks fall back to the whole ``script``.
     """
+    if isinstance(expected_value, dict) and "filter_equals" in expected_value:
+        return key == "condition" and filter_matches(script, expected_value["filter_equals"])
     has_key = _source_has_key(source, key)
     # Where the value's text lives: the argument source for longhand, the
     # whole script for shorthand (hoisted `const key = ...`).

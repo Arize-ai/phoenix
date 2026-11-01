@@ -1,0 +1,1 @@
+Annotators flagged agent mistakes in research-assistant with trail_error span annotations. Each annotation's score is its impact: 1.0 for high, 0.6 for medium, and 0.3 for low. How many traces have at least one high-impact mistake?

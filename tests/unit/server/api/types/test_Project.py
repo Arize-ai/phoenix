@@ -7,7 +7,7 @@ from random import random
 from secrets import token_hex
 from typing import Any, Literal, Optional, cast
 
-import httpx
+import httpx2
 import pandas as pd
 import pytest
 from faker import Faker
@@ -1364,7 +1364,7 @@ async def test_project_spans_require_first(
     assert len(response.errors) == 1
     assert (
         response.errors[0].message
-        == "Field 'spans' argument 'first' of type 'Int!' is required, but it was not provided."
+        == "Argument 'Project.spans(first:)' of type 'Int!' is required, but it was not provided."
     )
 
 
@@ -2065,14 +2065,14 @@ class TestProject:
     async def _node(
         field: str,
         project: models.Project,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> Any:
         return await _node(field, Project.__name__, project.id, httpx_client)
 
     async def test_annotation_name_counts(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """Span/trace/session annotation name counts reflect the number of annotations per name."""
         async with db() as session:
@@ -2138,7 +2138,7 @@ class TestProject:
     async def test_annotation_name_counts_empty(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """Projects without annotations return empty lists for each level."""
         async with db() as session:
@@ -2154,7 +2154,7 @@ class TestProject:
     async def test_annotation_configs_filter_by_name_and_project(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         async with db() as session:
             project = await _add_project(session, name="annotation-config-filter-test")
@@ -2346,7 +2346,7 @@ class TestProject:
     async def test_unsorted_sessions_pagination_advances(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project = _data.projects[0]
         unpaged = await self._node("sessions(first:50){edges{node{id}}}", project, httpx_client)
@@ -2368,7 +2368,7 @@ class TestProject:
     async def test_sessions_sort_token_count_total(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         column = "tokenCountTotal"
         project = _data.projects[0]
@@ -2416,7 +2416,7 @@ class TestProject:
     async def test_sessions_sort_token_count_total_plus_session_filter_condition(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         column = "tokenCountTotal"
         project = _data.projects[0]
@@ -2466,7 +2466,7 @@ class TestProject:
     async def test_sessions_sort_num_traces(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         column = "numTraces"
         project = _data.projects[0]
@@ -2514,7 +2514,7 @@ class TestProject:
     async def test_sessions_sort_num_traces_plus_session_filter_condition(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         column = "numTraces"
         project = _data.projects[0]
@@ -2564,7 +2564,7 @@ class TestProject:
     async def test_sessions_sort_start_time(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """Test sorting project sessions by start time."""
         async with db() as session:
@@ -2621,7 +2621,7 @@ class TestProject:
     async def test_sessions_sort_cost_total(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """Test sorting project sessions by total cost."""
         async with db() as session:
@@ -2684,7 +2684,7 @@ class TestProject:
     async def test_sessions_sort_by_annotation_score(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """Test sorting project sessions by annotation score with pagination and multiple NULLs."""
         async with db() as session:
@@ -2779,7 +2779,7 @@ class TestProject:
     async def test_sessions_sort_by_annotation_label(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """Test sorting project sessions by annotation label with pagination and multiple NULLs."""
         async with db() as session:
@@ -2921,7 +2921,7 @@ class TestProject:
     async def test_session_dsl_containment_ignores_case(
         self,
         _case_insensitive_data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """The DSL reaches every session the retired text search did: casing, non-ASCII, and
         SQL wildcard characters carried literally."""
@@ -2952,7 +2952,7 @@ class TestProject:
     async def test_root_span_clause_paginates_by_start_time(
         self,
         _orphan_spans: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """``parent_span is None`` lists every root candidate (no parent, or a parent that was
         never received), newest first, and pages by cursor alongside a trace filter."""
@@ -2987,7 +2987,7 @@ class TestProject:
     async def test_parent_span_is_none_matches_orphan_aware_roots(
         self,
         _orphan_spans: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """``parent_span is None`` selects every orphan-aware root candidate: a span with no
         parent, or one whose parent id references no span in the table.
@@ -3020,7 +3020,7 @@ class TestProject:
     async def test_analyze_span_filter_condition_tracks_actual_query_scope(
         self,
         _orphan_spans: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """``analyzeSpanFilterCondition`` tells a client whether a filtered view is
         root-scoped, which is what decides between cumulative and per-span metric
@@ -3141,9 +3141,9 @@ class TestProject:
         offset_tz = timezone(timedelta(minutes=utc_offset_minutes))
         t = df.loc[:, "timestamp"].dt.tz_convert(offset_tz)
         if field == "minute":
-            t = t.dt.floor("T")
+            t = t.dt.floor("min")
         elif field == "hour":
-            t = t.dt.floor("H")
+            t = t.dt.floor("h")
         elif field == "day":
             t = t.dt.floor("D")
         elif field == "week":
@@ -4294,7 +4294,7 @@ class TestProject:
     async def test_session_count_shares_dsl_path_with_sessions_and_record_count(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project = _data.projects[0]
         condition = "num_traces >= 2"
@@ -4403,7 +4403,7 @@ class TestProject:
     async def test_sessions_lookup_by_exact_session_id_via_dsl(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """`session_id == '...'` is how the DSL expresses a single-session lookup."""
         project = _data.projects[0]
@@ -4423,7 +4423,7 @@ class TestProject:
     async def test_sessions_filtered_by_annotation_return_each_session_once(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """A session carrying several annotations under one name is one row on a filtered page.
 
@@ -4461,7 +4461,7 @@ class TestProject:
     async def test_sessions_sorted_page_and_count_agree_over_comprehension_condition(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         sort_column: str,
     ) -> None:
         """The page and the count select the same sessions, though they compile differently."""
@@ -5729,6 +5729,74 @@ async def test_trace_count_returns_expected_count(
     assert not response.errors
     assert response.data is not None
     assert response.data["project"]["traceCount"] == 1
+
+
+async def test_trace_count_by_status_time_series_is_scoped_to_project_and_time_range(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    day1 = datetime(2024, 1, 2, 12, tzinfo=timezone.utc)
+    day2 = datetime(2024, 1, 3, 12, tzinfo=timezone.utc)
+    outside = datetime(2024, 1, 10, 12, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        other = await _add_project(session)
+        # in range, error root span
+        t = await _add_trace(session, project, start_time=day1)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=1)
+        # in range, ok root span
+        t = await _add_trace(session, project, start_time=day1)
+        await _add_span(session, t, start_time=day1)
+        # in range, two root spans (one error): must be counted once
+        t = await _add_trace(session, project, start_time=day1)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=2)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=1)
+        # in range, trace without spans counts as non-error
+        await _add_trace(session, project, start_time=day2)
+        # in range, error only in a child span's trace-level root is ok
+        t = await _add_trace(session, project, start_time=day2)
+        root = await _add_span(session, t, start_time=day2)
+        await _add_span(session, parent_span=root, start_time=day2, cumulative_error_count=1)
+        # out of range, error
+        t = await _add_trace(session, project, start_time=outside)
+        await _add_span(session, t, start_time=outside, cumulative_error_count=1)
+        # other project, in range, error
+        t = await _add_trace(session, other, start_time=day1)
+        await _add_span(session, t, start_time=day1, cumulative_error_count=1)
+
+    query = """
+      query ($projectId: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+        project: node(id: $projectId) {
+          ... on Project {
+            traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {
+              data { timestamp totalCount errorCount okCount }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": str(GlobalID("Project", str(project.id))),
+            "timeRange": {
+                "start": datetime(2024, 1, 2, tzinfo=timezone.utc).isoformat(),
+                "end": datetime(2024, 1, 4, tzinfo=timezone.utc).isoformat(),
+            },
+            "timeBinConfig": {"scale": "DAY", "utcOffsetMinutes": 0},
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    points = response.data["project"]["traceCountByStatusTimeSeries"]["data"]
+    counts = {
+        datetime.fromisoformat(p["timestamp"]): (p["totalCount"], p["errorCount"], p["okCount"])
+        for p in points
+    }
+    assert counts == {
+        datetime(2024, 1, 2, tzinfo=timezone.utc): (3, 2, 1),
+        datetime(2024, 1, 3, tzinfo=timezone.utc): (2, 0, 2),
+    }
 
 
 async def test_session_count_returns_expected_count(

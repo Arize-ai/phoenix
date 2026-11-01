@@ -29,13 +29,13 @@ Top-level `Query` entrypoints get you to a starting entity; per-entity schema de
 
 Per-entity field references and examples are split into reference files. Load **only** the one(s) you need with `load_skill_reference`, after loading this skill:
 
-- `references/project-spans-traces.md` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
-- `references/sessions.md` — ProjectSession: multi-turn session metrics, token/cost, session traces.
-- `references/datasets.md` — Dataset and DatasetExample: examples, versions, splits, labels.
-- `references/experiments.md` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
-- `references/prompts.md` — Prompt and PromptVersion: versions, templates, tags.
-- `references/annotations.md` — Span/Trace/Session/ExperimentRun annotation fields, how to read them, and the mutations that write notes, labels, and annotation configs.
-- `references/filter-expressions.md` — the span, trace, and session filter languages (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`): exhaustive vocabulary, operators, root-span scoping, and compiled examples. Load it before writing any condition beyond the one-liners below.
+- [Projects, spans, and traces](references/project-spans-traces.md): Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
+- [Sessions](references/sessions.md): ProjectSession multi-turn session metrics, token/cost, and session traces.
+- [Datasets](references/datasets.md): Dataset and DatasetExample examples, versions, splits, and labels.
+- [Experiments](references/experiments.md): Experiment and ExperimentRun runs, aggregate metrics, and comparison.
+- [Prompts](references/prompts.md): Prompt and PromptVersion versions, templates, and tags.
+- [Annotations](references/annotations.md): Span, trace, session, and experiment-run annotation fields; how to read them; and the mutations that write notes, labels, and annotation configs.
+- [Filter expressions](references/filter-expressions.md): The span, trace, and session filter languages (`filterCondition`, `traceFilterCondition`, `sessionFilterCondition`), including vocabulary, operators, root-span scoping, and compiled examples. Load it before writing any condition beyond the one-liners below.
 
 ### Conventions
 
@@ -52,7 +52,7 @@ These apply to every entity:
 - **Do not run full schema introspection.** Read the relevant `Schema map` resource instead; it covers the fields and arguments for that entity. Only when a resource does not cover a field you need, introspect a single type: `{ __type(name: "Project") { fields { name args { name type { name kind } } } } }`.
 - **Batch independent lookups with aliases** in one query instead of multiple round trips, e.g. `p50: latencyMsQuantile(probability: 0.5) p99: latencyMsQuantile(probability: 0.99)`.
 - Select only the fields you need; keep page sizes small (10–50) and paginate only when necessary.
-- Pass values via query variables, never string interpolation.
+- Pass values via query variables, never string interpolation. A document may be at most 2 KiB of UTF-8, and variable values do not count toward it.
 - Span `input`/`output` payloads can be huge — request `input { truncatedValue }` (first 100 chars) when surveying; fetch `input { value }` (full payload) only for spans you intend to read closely.
 
 ### Patterns

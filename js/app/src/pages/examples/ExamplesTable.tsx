@@ -1,10 +1,10 @@
 import { css } from "@emotion/react";
-import type { CellContext, ColumnDef, Updater } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
+import type {
+  RowData,
+  RowSelectionState,
+  Updater,
 } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   startTransition,
@@ -16,7 +16,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useResolvedPath } from "react-router";
 import { useStore } from "zustand";
 
 import {
@@ -54,6 +54,11 @@ import {
   TABLE_DATA_CELL_CLASS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type {
+  CellContext,
+  ColumnDef,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
@@ -95,7 +100,7 @@ const rowHeightStyle: Record<string, string> = {
 
 const defaultColumnSettings = {
   minSize: 100,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 /**
  * The row actions column holds one small icon button. Its width is the button
@@ -179,7 +184,7 @@ function ExampleJSONCell({
 }
 
 /** Selection is held as a list of example IDs; the table wants a lookup. */
-const toRowSelection = (exampleIds: string[]): Record<string, boolean> =>
+const toRowSelection = (exampleIds: string[]): RowSelectionState =>
   Object.fromEntries(exampleIds.map((exampleId) => [exampleId, true]));
 
 /**
@@ -287,7 +292,6 @@ export function ExamplesTable({
   dataset: examplesLoaderQuery$data["dataset"];
   editStore: EditableTableStore<DatasetExampleTableRow>;
 }) {
-  "use no memo";
   const {
     filter,
     selectedExampleIds,
@@ -297,8 +301,14 @@ export function ExamplesTable({
     setExamplesCache,
   } = useExamplesFilterContext();
   const navigate = useNavigate();
+  const basePath = useResolvedPath(".").pathname;
   const { exampleId: selectedExampleId } = useParams();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
+  // Bumped by the dataset store when rows must be re-read without a version
+  // change (a PXI script deleted a split the rows were tagged with).
+  const examplesRefreshToken = useDatasetContext(
+    (state) => state.examplesRefreshToken
+  );
   const tableContainerRef = useRef<HTMLDivElement>(null);
   // The virtualizer reads its scroll element during render, so the ref is
   // attached through state to force a re-render once the element exists. The
@@ -367,7 +377,7 @@ export function ExamplesTable({
   // rendered yet.
   const isAwaitingSavedRows = useRef(false);
 
-  // Refetch when the dataset version or the filter changes.
+  // Refetch when the dataset version, the filter, or the refresh token changes.
   useEffect(() => {
     const dataBeforeRefetch = renderedData.current;
     startTransition(() => {
@@ -396,7 +406,14 @@ export function ExamplesTable({
         }
       );
     });
-  }, [editStore, latestVersion, filter, refetch, selectedSplitIds]);
+  }, [
+    editStore,
+    latestVersion,
+    filter,
+    refetch,
+    selectedSplitIds,
+    examplesRefreshToken,
+  ]);
   // Ends the session in the same frame the saved rows render.
   useLayoutEffect(() => {
     if (!isAwaitingSavedRows.current) {
@@ -429,7 +446,7 @@ export function ExamplesTable({
     [selectedExampleIds]
   );
   const setRowSelection = useCallback(
-    (rowSelection: Updater<Record<string, boolean>>) => {
+    (rowSelection: Updater<RowSelectionState>) => {
       setSelectedExampleIds((prevSelection) => {
         const nextSelection =
           typeof rowSelection === "function"
@@ -531,7 +548,7 @@ export function ExamplesTable({
               controls={<CopyToClipboardButton text={displayId} />}
             >
               <Link
-                to={`${exampleId}`}
+                to={`${basePath}/${exampleId}`}
                 css={css`
                   width: 100%;
                 `}
@@ -587,9 +604,10 @@ export function ExamplesTable({
       });
     }
     return cols;
-  }, [editStore, isEditing, selectRow]);
+  }, [basePath, editStore, isEditing, selectRow]);
 
-  const table = useReactTable<DatasetExampleTableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
@@ -601,9 +619,9 @@ export function ExamplesTable({
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
+    manualSorting: true,
     onRowSelectionChange: setRowSelection,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
     // ensure row IDs are the example IDs and not the index
     getRowId: (row) => row.id,
     meta: {
@@ -611,28 +629,17 @@ export function ExamplesTable({
     },
   });
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-
   /**
    * Calculate all column sizes at once as CSS variables for performance
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, columns]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
   const rows = table.getRowModel().rows;
   // Stable while the row model is unchanged, so the virtualizer keeps its
   // measurements between renders.
@@ -640,6 +647,7 @@ export function ExamplesTable({
     (index: number) => rows[index]?.id ?? index,
     [rows]
   );
+  // eslint-disable-next-line react/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
@@ -781,7 +789,9 @@ export function ExamplesTable({
                     }px)`,
                   }}
                   onClick={
-                    isEditing ? undefined : () => navigate(`${row.original.id}`)
+                    isEditing
+                      ? undefined
+                      : () => navigate(`${basePath}/${row.original.id}`)
                   }
                 >
                   {row.getVisibleCells().map((cell) => {

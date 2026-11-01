@@ -72,6 +72,7 @@ import {
   examplesLoader,
   ExamplesPage,
   ChatPage,
+  CompareTracesPage,
   ExperimentComparePage,
   ExperimentDetailPage,
   ExperimentsPage,
@@ -171,6 +172,32 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
   return currentParams.projectId !== nextParams.projectId;
 };
 
+// :promptId's loader always revalidates so versions saved elsewhere show up,
+// except when opening or switching versions of the same prompt: its query
+// holds only the first page of the paginated versions list, so re-running it
+// would drop the pages already scrolled in, including the version just clicked.
+const revalidatePromptUnlessOpeningVersion: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+}) => {
+  if (currentUrl.href === nextUrl.href) return true;
+  const isOpeningVersion =
+    currentParams.promptId === nextParams.promptId &&
+    nextParams.versionId != null;
+  return !isOpeningVersion;
+};
+
+// Shared by the traces and spans tabs, which both host the compare drawer
+const compareTracesRouteHandle = {
+  agentRoute: {
+    label: "Compare Traces",
+    description:
+      "Compare two traces side by side, each with its own span tree and span details, to diff their trajectories. The compared traces are the repeated traceId search param (the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id) in left-to-right order; each one's selected span is the repeated selectedSpanNodeId search param at the same position.",
+  },
+};
+
 export const appRouteObjects = createRoutesFromElements(
   <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
     {/*
@@ -219,7 +246,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Profile",
               description:
-                "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
+                "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and local storage.",
             },
           }}
           element={<ProfilePage />}
@@ -289,12 +316,13 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Profile Preferences",
                 description:
-                  "Choose your theme, timezone, code language, and package manager defaults.",
+                  "Choose your theme, timezone, code language, and package manager defaults, and see or clear what Phoenix keeps in this browser's local storage.",
               },
               navigation: {
                 section: "Profile",
                 label: "Preferences",
-                description: "Theme, timezone, and code defaults",
+                description:
+                  "Theme, timezone, code defaults, and local storage",
                 icon: "Options",
               },
             }}
@@ -397,6 +425,11 @@ export const appRouteObjects = createRoutesFromElements(
                 }}
               >
                 <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
+                <Route
                   path=":traceId"
                   element={<TracePage />}
                   handle={{
@@ -419,6 +452,11 @@ export const appRouteObjects = createRoutesFromElements(
                   },
                 }}
               >
+                <Route
+                  path="compare"
+                  element={<CompareTracesPage />}
+                  handle={compareTracesRouteHandle}
+                />
                 <Route
                   path=":traceId"
                   element={<TracePage />}
@@ -823,9 +861,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":promptId"
             loader={promptLoader}
-            // force this route to always revalidate, preventing stale versions from being
-            // displayed when navigating back to the prompt page after gql mutation
-            shouldRevalidate={() => true}
+            shouldRevalidate={revalidatePromptUnlessOpeningVersion}
             handle={{
               crumb: (data: PromptLoaderData) => {
                 if (data?.prompt?.__typename === "Prompt") {
@@ -1025,7 +1061,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Secrets",
                 description:
-                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools.",
+                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools, and review saved credential encryption status.",
               },
             }}
           />

@@ -38,10 +38,13 @@ from phoenix.client.harbor._recorder import (
     ExperimentHandle,
     PhoenixRecorder,
     RunKey,
-    trial_output,
 )
 from phoenix.client.harbor._scores import extract_evaluations
-from phoenix.client.harbor._traces import build_harbor_trace, harbor_trace_id
+from phoenix.client.harbor._traces import (
+    build_harbor_trace,
+    extract_harbor_run_output,
+    harbor_trace_id,
+)
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 logger = logging.getLogger(__name__)
@@ -203,6 +206,16 @@ class PhoenixJobPlugin(BaseJobPlugin):
             snapshot.example_ids[slot.task_id],
             slot.repetition,
         )
+        try:
+            run_output = await asyncio.to_thread(extract_harbor_run_output, trial_result)
+        except Exception as error:
+            logger.warning(
+                "Could not read the final Harbor agent response for job %s, trial %s: %s",
+                plan.job_id,
+                trial_result.trial_name,
+                error,
+            )
+            run_output = None
         existing_experiment_run = self._runs.get(run_key)
         reusable_experiment_run = (
             existing_experiment_run
@@ -210,6 +223,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
             and PhoenixRecorder.can_reuse_run(
                 existing_experiment_run,
                 trial_result=trial_result,
+                expected_output=run_output,
                 expected_trace_id=harbor_trace_id(plan, trial_result),
             )
             else None
@@ -232,7 +246,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
                         slot=slot,
                         task=task,
                         trial_result=trial_result,
-                        run_output=trial_output(trial_result),
+                        run_output=run_output or {},
                     )
                     if trace is not None:
                         trace_id = await phoenix_recorder.confirm_trace(
@@ -255,6 +269,7 @@ class PhoenixJobPlugin(BaseJobPlugin):
                 snapshot=snapshot,
                 experiments=self.experiments,
                 trial_result=trial_result,
+                run_output=run_output,
                 trace_id=trace_id,
             )
             await phoenix_recorder.record_evaluations(str(run["id"]), evaluations)

@@ -46,28 +46,20 @@ agent = Agent(
 ## Run the agent using LangGraph
 
 ```python
+# The agent definition lives in the preceding example.
+from agent import agent
+
 # Transform the Agent Spec agent into a LangGraph's executable component
 from pyagentspec.adapters.langgraph import AgentSpecLoader
 
 langgraph_agent = AgentSpecLoader().load_component(agent)
 
-# Instrument the agent's execution
-from openinference.instrumentation.agentspec import AgentSpecInstrumentor
-from phoenix.otel import register
-
-tracer_provider = register(batch=True, project_name="hello-world-app")
-AgentSpecInstrumentor().instrument(tracer_provider=tracer_provider)
-
-# Run the agent's execution loop
-while True:
-    user_input = input("USER  >>> ")
-    if user_input.lower() in ["exit", "quit"]:
-        break
-    response = langgraph_agent.invoke(
-        input={"messages": [{"role": "user", "content": user_input}]},
-        config={"configurable": {"thread_id": "1"}},
-    )
-    print("AGENT >>>", response['messages'][-1].content.strip())
+# Run one request so the example works in scripts and automated checks.
+response = langgraph_agent.invoke(
+    input={"messages": [{"role": "user", "content": "What is one benefit of tracing AI agents?"}]},
+    config={"configurable": {"thread_id": "1"}},
+)
+print("AGENT >>>", response["messages"][-1].content.strip())
 ```
 
 ## Observe

@@ -21,6 +21,7 @@ from phoenix.otel.otel import (
     TracerProvider,
     _construct_http_endpoint,
     _construct_phoenix_cloud_endpoint,
+    _exporter_headers,
     register,
 )
 from phoenix.otel.settings import clear_env_file_cache
@@ -126,6 +127,20 @@ class TestRegister:
         exporter = _get_exporter_from_processor(processors[0])
 
         assert "authorization" in [h[0].lower() for h in exporter._headers]
+
+    def test_register_with_http_endpoint_masks_headers_in_tracing_details(self) -> None:
+        tracer_provider = register(
+            endpoint="http://localhost:6006/v1/traces",
+            headers={"Authorization": "Bearer token123"},
+            verbose=False,
+            set_global_tracer_provider=False,
+        )
+
+        details = tracer_provider._tracing_details()
+
+        assert "Transport: HTTP + protobuf" in details
+        assert "Transport Headers: {'authorization': '****'}" in details
+        assert "token123" not in details
 
     def test_register_with_http_protocol(self) -> None:
         tracer_provider = register(
@@ -474,7 +489,7 @@ class TestSpanExporters:
         mock_auth_header.assert_called_once()
 
         # Check headers were set
-        headers_dict = {h.lower(): v for h, v in exporter._headers.items()}
+        headers_dict = {h.lower(): v for h, v in _exporter_headers(exporter).items()}
         assert headers_dict.get("x-custom") == "value"
         assert headers_dict.get("authorization") == "Bearer token"
 
@@ -501,7 +516,7 @@ class TestSpanExporters:
         headers = {"Custom-Header": "custom-value"}
         exporter = HTTPSpanExporter(headers=headers)
 
-        headers_dict = {h.lower(): v for h, v in exporter._headers.items()}
+        headers_dict = {h.lower(): v for h, v in _exporter_headers(exporter).items()}
         assert headers_dict.get("custom-header") == "custom-value"
 
     def test_grpc_span_exporter_with_explicit_headers(self) -> None:

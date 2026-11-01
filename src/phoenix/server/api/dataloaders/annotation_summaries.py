@@ -144,7 +144,7 @@ class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
 def _get_stmt(
     segment: Segment,
     *annotation_names: Param,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     (
         kind,
         project_rowid,
@@ -227,7 +227,7 @@ def _get_stmt(
         else None
     )
 
-    def scoped(stmt: Select[Any]) -> Select[Any]:
+    def scoped(stmt: Select[*tuple[Any, ...]]) -> Select[*tuple[Any, ...]]:
         stmt = stmt.join(entity_model)
         if entity_join_model is not None:
             stmt = stmt.join_from(entity_model, entity_join_model)

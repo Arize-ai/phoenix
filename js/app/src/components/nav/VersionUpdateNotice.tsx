@@ -8,6 +8,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { VERSION } from "@phoenix/config";
+import { DISMISSED_UPDATE_VERSION_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import { useViewerCanSeeVersionUpdates } from "@phoenix/contexts";
 import { useLatestPhoenixVersion, usePersistedState } from "@phoenix/hooks";
 import {
@@ -15,9 +16,6 @@ import {
   isVersionNewer,
   isVersionNewerBy,
 } from "@phoenix/utils/versionUtils";
-
-const LOCAL_STORAGE_DISMISSED_UPDATE_VERSION_KEY =
-  "arize-phoenix-dismissed-update-version";
 
 /**
  * How many minor versions behind the latest release the running server must
@@ -194,7 +192,7 @@ export function VersionUpdateNotice({ isExpanded }: { isExpanded: boolean }) {
   const latestVersion = useLatestPhoenixVersion();
   const [dismissedVersion, setDismissedVersion] = usePersistedState<
     string | null
-  >(LOCAL_STORAGE_DISMISSED_UPDATE_VERSION_KEY, null);
+  >(DISMISSED_UPDATE_VERSION_STORAGE_KEY, null);
 
   const hasSignificantUpdate =
     latestVersion != null &&

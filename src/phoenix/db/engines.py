@@ -5,7 +5,8 @@ import logging
 from enum import Enum
 from sqlite3 import Connection
 from threading import Thread
-from typing import Any, Callable, Literal, Optional
+from typing import Any, Callable, Literal, Mapping, Optional
+from urllib.parse import urlencode
 
 import aiosqlite
 import numpy as np
@@ -22,7 +23,7 @@ from phoenix.db.migrate import migrate_in_thread
 from phoenix.db.models import init_models
 from phoenix.db.pg_config import get_pg_config
 
-SQLEAN_EXTENSIONS = ("text", "stats", "crypto")
+SQLEAN_EXTENSIONS = ("text", "stats", "time", "crypto")
 
 sqlean.extensions.enable(*SQLEAN_EXTENSIONS)
 
@@ -133,6 +134,16 @@ def get_async_db_url(connection_str: str) -> URL:
 SQLiteAccessMode = Literal["ro", "rw", "rwc", "memory"]
 
 
+def _sqlite_target(database: Optional[str], query: Mapping[str, Any]) -> str:
+    """The name SQLite opens, with the URL's query string reattached.
+
+    Assembled from the URL's parts rather than its rendered form, which
+    SQLAlchemy 2.1 percent-encodes: `:memory:` renders as `%3Amemory%3A`.
+    """
+    name = (database or ":memory:").removeprefix("file:")
+    return f"{name}?{urlencode(query, doseq=True)}" if query else name
+
+
 def sqlite_connection_factory(
     database: str,
     *,
@@ -195,17 +206,19 @@ def _disable_implicit_transactions(connection: Connection, _: Any) -> None:
     connection.isolation_level = None
 
 
-def _begin_read_transaction(connection: SAConnection) -> None:
-    """Open the transaction a read session already reads as having.
+def _begin_sqlite_transaction(connection: SAConnection) -> None:
+    """Keep reads and savepoints in a real outer transaction.
 
-    The WAL read mark is taken at the first statement and held until the
-    session closes, so every statement in it sees one snapshot rather than
-    re-snapshotting and reporting states that were never true together.
-
-    Deferred rather than `IMMEDIATE`, which takes a write lock a `mode=ro`
-    connection cannot acquire.
+    Deferred BEGIN also works on read-only connections. Readers retain their
+    WAL snapshot, and releasing a savepoint cannot commit the outer transaction.
     """
     connection.exec_driver_sql("BEGIN")
+
+
+def configure_sqlite_transactions(engine: AsyncEngine) -> None:
+    """Make SQLAlchemy start SQLite transactions explicitly."""
+    event.listen(engine.sync_engine, "connect", _disable_implicit_transactions)
+    event.listen(engine.sync_engine, "begin", _begin_sqlite_transaction)
 
 
 def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[AsyncEngine]:
@@ -221,9 +234,9 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
     None for in-memory databases: a second connection to `:memory:` opens a
     different, empty database.
     """
-    if (url.database or ":memory:").startswith(":memory:"):
+    database = _sqlite_target(url.database, url.query)
+    if database.startswith(":memory:"):
         return None
-    database = url.render_as_string().partition("///")[-1]
 
     # Persistent connections, not one per checkout: each open spawns an
     # aiosqlite worker thread, whose cost dominates a short read.
@@ -238,6 +251,7 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
         url=url,
         echo=log_to_stdout,
         json_serializer=_dumps,
+        hide_parameters=True,
         async_creator=sqlite_connection_factory(database, mode="ro"),
         pool_size=_READ_POOL_SIZE,
         max_overflow=_READ_MAX_OVERFLOW,
@@ -245,8 +259,7 @@ def aio_sqlite_read_engine(url: URL, log_to_stdout: bool = False) -> Optional[As
         pool_pre_ping=False,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_read_pragma)
-    event.listen(engine.sync_engine, "connect", _disable_implicit_transactions)
-    event.listen(engine.sync_engine, "begin", _begin_read_transaction)
+    configure_sqlite_transactions(engine)
     return engine
 
 
@@ -289,17 +302,15 @@ def aio_sqlite_engine(
     log_to_stdout: bool = False,
     log_migrations: bool = True,
 ) -> AsyncEngine:
-    database = url.database or ":memory:"
-    if database.startswith("file:"):
-        database = database[5:]
+    database = _sqlite_target(url.database, url.query)
     if database.startswith(":memory:") and shared_cache:
-        url = url.set(query={**url.query, "cache": "shared"}, database=":memory:")
-    database = url.render_as_string().partition("///")[-1]
+        database = _sqlite_target(":memory:", {**url.query, "cache": "shared"})
 
     engine = create_async_engine(
         url=url,
         echo=log_to_stdout,
         json_serializer=_dumps,
+        hide_parameters=True,
         # rwc, not rw. Connections are lazy, so this engine can open before the
         # migration engine has created the file, and `rw` against a database
         # that does not exist yet fails.
@@ -320,21 +331,32 @@ def aio_sqlite_engine(
         pool_timeout=None,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    configure_sqlite_transactions(engine)
     if not migrate:
         return engine
     if database.startswith(":memory:"):
         _init_memory_models(engine)
     else:
-        migration_engine = create_async_engine(
-            url=url,
-            json_serializer=_dumps,
-            # rwc: the migration engine is the only one that creates the file.
-            async_creator=sqlite_connection_factory(database, mode="rwc"),
-            poolclass=NullPool,
-            echo=log_migrations,
-        )
-        event.listen(migration_engine.sync_engine, "connect", set_sqlite_migration_pragma)
+        migration_engine = sqlite_migration_engine(url, echo=log_migrations)
         migrate_in_thread(migration_engine, log_migrations=log_migrations)
+    return engine
+
+
+def sqlite_migration_engine(url: URL, echo: bool = False) -> AsyncEngine:
+    if url.get_driver_name() != "aiosqlite":
+        url = url.set(drivername="sqlite+aiosqlite")
+    engine = create_async_engine(
+        url=url,
+        json_serializer=_dumps,
+        hide_parameters=True,
+        # rwc: the migration engine is the only one that creates the file.
+        async_creator=sqlite_connection_factory(
+            _sqlite_target(url.database, url.query), mode="rwc"
+        ),
+        poolclass=NullPool,
+        echo=echo,
+    )
+    event.listen(engine.sync_engine, "connect", set_sqlite_migration_pragma)
     return engine
 
 
@@ -421,6 +443,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -433,6 +456,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -442,6 +466,7 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_to_stdout,
             json_serializer=_dumps,
+            hide_parameters=True,
             pool_pre_ping=True,
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
@@ -464,6 +489,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
+            hide_parameters=True,
             poolclass=NullPool,
         )
     elif use_aws:
@@ -474,6 +500,7 @@ def aio_postgresql_engine(
             asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
+            hide_parameters=True,
             poolclass=NullPool,
         )
     else:
@@ -482,6 +509,7 @@ def aio_postgresql_engine(
             connect_args=asyncpg_args,
             echo=log_migrations,
             json_serializer=_dumps,
+            hide_parameters=True,
             poolclass=NullPool,
         )
     migrate_in_thread(migration_engine, log_migrations=log_migrations)

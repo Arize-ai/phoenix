@@ -2,7 +2,10 @@ import invariant from "tiny-invariant";
 
 import type { components } from "../__generated__/api/v1";
 import { createClient } from "../client";
-import { LIST_PROJECT_SESSIONS } from "../constants/serverRequirements";
+import {
+  LIST_PROJECT_SESSIONS,
+  LIST_SESSIONS_FILTER_EXPRESSION,
+} from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
@@ -10,7 +13,15 @@ import type { Session } from "../types/sessions";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 import { toSession } from "./sessionUtils";
 
-export type ListSessionsParams = ClientFn & ProjectIdentifier;
+export type ListSessionsParams = ClientFn &
+  ProjectIdentifier & {
+    /**
+     * Session filter expression.
+     * @see https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions
+     * @requires Phoenix server >= 20.12.0
+     */
+    filter?: string | null;
+  };
 
 type SessionsResponse = components["schemas"]["GetSessionsResponseBody"];
 
@@ -20,6 +31,8 @@ const DEFAULT_PAGE_SIZE = 100;
  * List all sessions for a project with automatic pagination handling.
  *
  * @requires Phoenix server >= 13.5.0
+ * @param params - Project and filtering options.
+ * @param params.filter - Session filter expression, passed unchanged on every page.
  *
  * @example
  * ```ts
@@ -39,6 +52,12 @@ export async function listSessions(
 ): Promise<Session[]> {
   const client = params.client || createClient();
   await ensureServerCapability({ client, requirement: LIST_PROJECT_SESSIONS });
+  if (params.filter) {
+    await ensureServerCapability({
+      client,
+      requirement: LIST_SESSIONS_FILTER_EXPRESSION,
+    });
+  }
   const projectIdentifier = resolveProjectIdentifier(params);
 
   const sessions: Session[] = [];
@@ -54,6 +73,7 @@ export async function listSessions(
           query: {
             cursor,
             limit: DEFAULT_PAGE_SIZE,
+            filter: params.filter || undefined,
           },
         },
       });

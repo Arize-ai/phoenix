@@ -11,7 +11,6 @@ import contextlib
 from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-import httpx
 import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
@@ -20,7 +19,12 @@ from pydantic import SecretStr
 
 from phoenix.server.app import create_app
 from phoenix.server.bearer_auth import INTERNAL_PRINCIPAL_SCOPE_KEY, PhoenixUser
-from phoenix.server.mcp.skills import PXI_SKILLS_ROOT, SHARED_SKILLS_ROOT, load_skills
+from phoenix.server.mcp.skills import (
+    MCP_SKILLS_ROOT,
+    PXI_PUBLIC_SKILLS_ROOT,
+    PXI_SKILLS_ROOT,
+    load_skills,
+)
 from phoenix.server.mcp_server import (
     MCP_MOUNT_PATH,
     MountPathNormalizer,
@@ -37,7 +41,7 @@ from phoenix.server.types import (
 from phoenix.version import __version__ as phoenix_version
 from tests.unit.conftest import (
     TestBulkInserter,
-    patch_batched_caller,
+    patch_dml_event_handler,
     patch_grpc_server,
 )
 
@@ -110,7 +114,7 @@ async def test_mcp_server_advertises_the_phoenix_version(
         assert client.server_info.version == phoenix_version
 
 
-async def test_the_mount_serves_the_shared_skills_and_not_the_agents_own(
+async def test_the_mount_serves_the_mcp_skills_and_not_the_agents_own(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
@@ -138,7 +142,7 @@ async def test_the_mount_serves_the_shared_skills_and_not_the_agents_own(
         tool_names = {tool.name for tool in await client.list_tools()}
 
     assert instructions is not None
-    for skill in load_skills((SHARED_SKILLS_ROOT,)):
+    for skill in load_skills((MCP_SKILLS_ROOT,)):
         assert f"<name>{skill.name}</name>" in instructions
     for skill in load_skills((PXI_SKILLS_ROOT,)):
         assert f"<name>{skill.name}</name>" not in instructions
@@ -150,7 +154,7 @@ async def test_the_agents_own_server_adds_the_pxi_skills(
     db: DbSessionFactory,
 ) -> None:
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -161,8 +165,12 @@ async def test_the_agents_own_server_adds_the_pxi_skills(
 
     instructions = app.state.pxi_mcp_server.instructions
     assert "<name>phoenix-graphql</name>" in instructions
-    for skill in load_skills((SHARED_SKILLS_ROOT,)):
-        assert f"<name>{skill.name}</name>" in instructions
+    public = {skill.name for skill in load_skills((PXI_PUBLIC_SKILLS_ROOT,))}
+    for name in public:
+        assert f"<name>{name}</name>" in instructions
+    for skill in load_skills((MCP_SKILLS_ROOT,)):
+        if skill.name not in public:
+            assert f"<name>{skill.name}</name>" not in instructions
 
 
 async def test_fixture_app_does_not_generate_the_openapi_document(app: FastAPI) -> None:
@@ -195,7 +203,7 @@ async def test_shared_monty_runtime_is_torn_down_after_the_mcp_server_drains(
     order: list[str] = []
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -247,7 +255,7 @@ async def test_app_starts_up_when_monty_runtime_probe_raises(
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -277,7 +285,7 @@ async def test_monty_runtime_is_probed_for_evaluators_when_code_mode_is_disabled
     )
 
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -306,7 +314,7 @@ async def test_mcp_server_not_mounted_by_default(
     """Without the env flag, no MCP app is built or mounted."""
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -326,7 +334,7 @@ class TestAgentMCPServerIsIndependentOfTheMount:
     @staticmethod
     async def _create_app(db: DbSessionFactory) -> FastAPI:
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_dml_event_handler())
             await stack.enter_async_context(patch_grpc_server())
             return create_app(
                 db=db,
@@ -356,6 +364,22 @@ class TestAgentMCPServerIsIndependentOfTheMount:
         app = await self._create_app(db)
 
         assert app.state.pxi_mcp_server is None
+
+    @pytest.mark.parametrize("agent_code_mode", [True, False])
+    async def test_code_mode_follows_its_own_setting(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, agent_code_mode: bool
+    ) -> None:
+        """PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE decides; the mount's setting does not."""
+        monkeypatch.setenv(
+            "PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE", "true" if agent_code_mode else "false"
+        )
+        monkeypatch.setenv("PHOENIX_ENABLE_MCP_CODE_MODE", "false" if agent_code_mode else "true")
+        monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: False)
+
+        app = await self._create_app(db)
+
+        assert app.state.pxi_mcp_server is not None
+        assert (app.state.pxi_mcp_sandbox is not None) is agent_code_mode
 
     async def test_surface_is_read_only_except_note_creation(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
@@ -398,7 +422,7 @@ async def test_mcp_code_mode_replaces_tool_surface(
     monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: True)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -494,7 +518,7 @@ async def test_mcp_server_mounts_and_lifespan_starts(
     # so the generated tools are the ones under test.
     monkeypatch.setattr("phoenix.server.mcp_server.get_env_mcp_code_mode", lambda: False)
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = create_app(
             db=db,
@@ -628,7 +652,7 @@ class TestMcpCors:
     ) -> AsyncIterator[ASGIApp]:
         monkeypatch.setattr("phoenix.server.app.get_env_enable_mcp_server", lambda: True)
         async with AsyncExitStack() as stack:
-            await stack.enter_async_context(patch_batched_caller())
+            await stack.enter_async_context(patch_dml_event_handler())
             await stack.enter_async_context(patch_grpc_server())
             app = create_app(
                 db=db,
@@ -641,8 +665,8 @@ class TestMcpCors:
             yield manager.app
 
     async def test_preflight_allows_any_origin(self, app_with_auth: ASGIApp) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.options(
             MCP_MOUNT_PATH,
@@ -663,8 +687,8 @@ class TestMcpCors:
     async def test_unauthenticated_challenge_is_readable_cross_origin(
         self, app_with_auth: ASGIApp
     ) -> None:
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_auth), base_url="http://test"
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_auth), base_url="http://test"
         )
         resp = await client.post(
             f"{MCP_MOUNT_PATH}/",

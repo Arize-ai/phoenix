@@ -494,7 +494,7 @@ async def annotate_sessions(
 
     async with request.app.state.db() as session:
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_sessions[p.session_id]).row))
             session_annotation_id = await session.scalar(
@@ -577,7 +577,7 @@ async def create_session_note(
         }
 
         if note_data.identifier:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             result = await session.execute(
                 insert_on_conflict(
                     values,

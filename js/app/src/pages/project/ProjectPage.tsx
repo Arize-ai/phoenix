@@ -18,7 +18,15 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
+import {
+  EdgeFade,
+  LazyTabPanel,
+  Skeleton,
+  Tab,
+  TabList,
+  Tabs,
+} from "@phoenix/components";
+import { CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS } from "@phoenix/components/chart";
 import {
   ConnectedTimeRangeSelector,
   type TimeRangeISOStrings,
@@ -31,10 +39,14 @@ import {
   TRACE_FILTER_CONDITION_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useNotify } from "@phoenix/contexts/NotificationContext";
-import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
+import {
+  StreamStateProvider,
+  useStreamState,
+} from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
+import type { ProjectOnboardingOverlay_project$key } from "./__generated__/ProjectOnboardingOverlay_project.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
@@ -44,6 +56,7 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
+import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
@@ -83,6 +96,43 @@ const mainCSS = css`
   }
 `;
 
+const projectPageSkeletonCSS = css`
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
+    var(--global-dimension-size-200);
+  .project-page-skeleton__strip {
+    flex: none;
+    box-sizing: border-box;
+    height: ${CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}px;
+    padding-bottom: var(--global-dimension-size-200);
+  }
+  .project-page-skeleton__body {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+`;
+
+/**
+ * A loading placeholder for the project page: a block where the metric charts
+ * strip stands on the table tabs, and one filling the rest of the page, which
+ * stands in for a tab's table or the metrics page's charts alike.
+ */
+function ProjectPageSkeleton() {
+  return (
+    <div css={projectPageSkeletonCSS} className="project-page-skeleton">
+      <div className="project-page-skeleton__strip">
+        <Skeleton height="100%" borderRadius="medium" />
+      </div>
+      <EdgeFade edge="bottom" className="project-page-skeleton__body">
+        <Skeleton height="100%" borderRadius="medium" />
+      </EdgeFade>
+    </div>
+  );
+}
+
 export function ProjectPage() {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
@@ -92,7 +142,7 @@ export function ProjectPage() {
       <TopNavActions>
         <ConnectedTimeRangeSelector size="S" />
       </TopNavActions>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<ProjectPageSkeleton />}>
         <ProjectPageContent
           key={projectId}
           projectId={projectId as string}
@@ -192,6 +242,26 @@ function settledConditionFromUrl(param: string): string | null {
   return condition === "" ? "" : null;
 }
 
+/**
+ * A streaming tab's panel: its route content under the onboarding guide. See
+ * `ProjectOnboardingOverlay` for why the guide lives inside the panel.
+ */
+function StreamingTabPanel({
+  id,
+  project,
+}: {
+  id: "spans" | "traces" | "sessions";
+  project: ProjectOnboardingOverlay_project$key;
+}) {
+  return (
+    <LazyTabPanel padded={false} id={id}>
+      <ProjectOnboardingOverlay project={project}>
+        <Outlet />
+      </ProjectOnboardingOverlay>
+    </LazyTabPanel>
+  );
+}
+
 export function LegacyTraceFilterParamNotice({
   isActive,
 }: {
@@ -234,6 +304,7 @@ function ProjectPageContentBody({
           ... on Project {
             ...ProjectStats_project
             ...ProjectTimeRangeControls_data
+            ...ProjectOnboardingOverlay_project
           }
         }
       }
@@ -290,6 +361,53 @@ function ProjectPageContentBody({
   useEffect(() => {
     timeRangeRef.current = timeRangeISOStrings;
   }, [timeRangeISOStrings]);
+  const spansQueryVariables = (
+    id: string,
+    seed: SettledSpanFilterSeed
+  ): ProjectPageSpansQueryType["variables"] => ({
+    id,
+    timeRange: timeRangeRef.current,
+    filterCondition: seed.condition || null,
+    rootSpansOnly: seed.rootSpansOnly,
+  });
+  const tracesQueryVariables = (
+    id: string,
+    condition: string
+  ): ProjectPageTracesQueryType["variables"] => ({
+    id,
+    timeRange: timeRangeRef.current,
+    traceFilterCondition: condition || null,
+  });
+  const sessionsQueryVariables = (
+    id: string,
+    condition: string
+  ): ProjectPageSessionsQueryType["variables"] => ({
+    id,
+    timeRange: timeRangeRef.current,
+    sessionFilterCondition: condition || null,
+  });
+
+  // A preload answers for the data that existed when it was loaded. The active
+  // tab's table refetches itself when the stream advances; an inactive tab's
+  // preload cannot, so it is marked stale and refreshed in the background on
+  // return. The retained rows render at once and the fresh ones replace them,
+  // with no loading fallback and no re-validation of the filter.
+  const stalePreloadsRef = useRef({
+    spans: false,
+    traces: false,
+    sessions: false,
+  });
+  const { fetchKey } = useStreamState();
+  const markInactivePreloadsStale = useEffectEvent(() => {
+    stalePreloadsRef.current = {
+      spans: tabIndex !== TAB_INDEX_MAP.spans,
+      traces: tabIndex !== TAB_INDEX_MAP.traces,
+      sessions: tabIndex !== TAB_INDEX_MAP.sessions,
+    };
+  });
+  useEffect(() => {
+    markInactivePreloadsStale();
+  }, [fetchKey]);
 
   /**
    * Load the spans table from a condition whose validity and root scope are
@@ -322,12 +440,8 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadSpansQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          filterCondition: seed.condition || null,
-          rootSpansOnly: seed.rootSpansOnly,
-        });
+        stalePreloadsRef.current.spans = false;
+        loadSpansQuery(spansQueryVariables(projectId, seed));
       });
     },
     [projectId, loadSpansQuery]
@@ -355,11 +469,8 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadTracesQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          traceFilterCondition: condition || null,
-        });
+        stalePreloadsRef.current.traces = false;
+        loadTracesQuery(tracesQueryVariables(projectId, condition));
       });
     },
     [projectId, loadTracesQuery]
@@ -387,11 +498,8 @@ function ProjectPageContentBody({
             { replace: true }
           );
         }
-        loadSessionsQuery({
-          id: projectId,
-          timeRange: timeRangeRef.current,
-          sessionFilterCondition: condition || null,
-        });
+        stalePreloadsRef.current.sessions = false;
+        loadSessionsQuery(sessionsQueryVariables(projectId, condition));
       });
     },
     [projectId, loadSessionsQuery]
@@ -418,8 +526,18 @@ function ProjectPageContentBody({
         // rebuild it for the same result.
         if (
           spansQueryReference &&
-          spansFilterSeed?.condition === seed.condition
+          spansFilterSeed &&
+          spansFilterSeed.condition === seed.condition
         ) {
+          if (stalePreloadsRef.current.spans) {
+            stalePreloadsRef.current.spans = false;
+            loadSpansQuery(
+              spansQueryVariables(currentProjectId, spansFilterSeed),
+              {
+                fetchPolicy: "store-and-network",
+              }
+            );
+          }
           return;
         }
         if (seed.requiresServerValidation) {
@@ -437,6 +555,12 @@ function ProjectPageContentBody({
           TRACE_FILTER_CONDITION_PARAM
         );
         if (tracesQueryReference && tracesFilterSeed === condition) {
+          if (stalePreloadsRef.current.traces) {
+            stalePreloadsRef.current.traces = false;
+            loadTracesQuery(tracesQueryVariables(currentProjectId, condition), {
+              fetchPolicy: "store-and-network",
+            });
+          }
           return;
         }
         if (condition === "") {
@@ -450,6 +574,13 @@ function ProjectPageContentBody({
           SESSION_FILTER_CONDITION_PARAM
         );
         if (sessionsQueryReference && sessionsFilterSeed === condition) {
+          if (stalePreloadsRef.current.sessions) {
+            stalePreloadsRef.current.sessions = false;
+            loadSessionsQuery(
+              sessionsQueryVariables(currentProjectId, condition),
+              { fetchPolicy: "store-and-network" }
+            );
+          }
           return;
         }
         if (condition === "") {
@@ -522,15 +653,9 @@ function ProjectPageContentBody({
             <Tab id="metrics">Metrics</Tab>
             <Tab id="config">Config</Tab>
           </TabList>
-          <LazyTabPanel padded={false} id="spans">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="traces">
-            <Outlet />
-          </LazyTabPanel>
-          <LazyTabPanel padded={false} id="sessions">
-            <Outlet />
-          </LazyTabPanel>
+          <StreamingTabPanel id="spans" project={data.project} />
+          <StreamingTabPanel id="traces" project={data.project} />
+          <StreamingTabPanel id="sessions" project={data.project} />
           <LazyTabPanel padded={false} id="metrics">
             <Outlet />
           </LazyTabPanel>

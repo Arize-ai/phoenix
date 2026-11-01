@@ -1,10 +1,5 @@
 import { css } from "@emotion/react";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
@@ -12,6 +7,7 @@ import { Icon, Icons } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 
 import type { DatasetHistoryTable_versions$key } from "./__generated__/DatasetHistoryTable_versions.graphql";
@@ -23,7 +19,6 @@ type DatasetHistoryTableProps = {
 };
 
 export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
-  "use no memo";
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment(
@@ -68,8 +63,8 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns: [
       {
         header: "version ID",
@@ -86,8 +81,6 @@ export function DatasetHistoryTable(props: DatasetHistoryTableProps) {
       },
     ],
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
