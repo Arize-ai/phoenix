@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 import re
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
@@ -56,7 +57,21 @@ _SECRET_SUBSTRINGS = (
     "token",
 )
 # Short words that would match too much as substrings.
-_SECRET_SEGMENTS = frozenset({"dsn", "env", "environ", "environment", "pwd", "sig", "sigs"})
+_SECRET_SEGMENTS = frozenset(
+    {
+        "cred",
+        "creds",
+        "dsn",
+        "env",
+        "environ",
+        "environment",
+        "pass",
+        "pw",
+        "pwd",
+        "sig",
+        "sigs",
+    }
+)
 # A ``tokens`` segment next to one of these words counts tokens, as in
 # ``max_tokens`` or ``thinking_budget_tokens``, rather than holding them.
 _TOKEN_COUNT_SEGMENTS = frozenset({"budget", "count", "limit", "max", "min", "n", "num"})
@@ -65,10 +80,14 @@ _TOKEN_COUNT_SEGMENTS = frozenset({"budget", "count", "limit", "max", "min", "n"
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 _SEGMENT_SEPARATOR = re.compile(r"[^a-z0-9]+")
 # Userinfo runs to the last ``@`` before the path, query, or fragment. A
-# password may also contain ``/``, so after a ``user:`` prefix it runs to the
-# last ``@`` before the query or fragment.
-_URL_USERINFO = re.compile(r"(?<=://)(?:[^\s/?#:@]*:[^\s?#]*|[^\s/?#]*)@")
-_QUERY_PARAM = re.compile(r"(?<=[?&])([^=&#\s]+)=[^&#\s]*")
+# password may also contain ``/``, so after a ``user:`` prefix that isn't a
+# ``host:port`` it runs to the last ``@`` before the query or fragment. The
+# length bound keeps matching linear on long strings without whitespace.
+_URL_USERINFO = re.compile(
+    r"(?<=://)(?:[^\s/?#:@]{0,256}:(?!\d+(?:[/?#\s]|$))[^\s?#]{0,256}|[^\s/?#]{0,256})@"
+)
+# Parameters follow ``?``, ``&``, or ``;`` in a query, or ``#`` in an OAuth fragment.
+_QUERY_PARAM = re.compile(r"(?<=[?&;#])([^=&;#\s]+)=[^&;#\s]*")
 _REDACTED = "REDACTED"
 
 
@@ -104,19 +123,24 @@ def redacted_key_paths(value: Any) -> list[str]:
 
 
 def _redact(value: Any, *, path: str, dropped: list[str]) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        # Phoenix rejects NaN and infinity in JSON, which would fail the job.
+        return str(value)
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
-        return _QUERY_PARAM.sub(_redact_query_param, _URL_USERINFO.sub("", value))
+        return _redact_string(value)
     if isinstance(value, Mapping):
         mapping: Mapping[Any, Any] = value
         redacted: dict[str, Any] = {}
-        for key, item in mapping.items():
-            item_path = f"{path}.{key}" if path else str(key)
-            if is_secret_key(str(key)):
+        for raw_key, item in mapping.items():
+            # Keys such as endpoint URLs can carry credentials too.
+            key = _redact_string(str(raw_key))
+            item_path = f"{path}.{key}" if path else key
+            if is_secret_key(str(raw_key)):
                 dropped.append(item_path)
             else:
-                redacted[str(key)] = _redact(item, path=item_path, dropped=dropped)
+                redacted[key] = _redact(item, path=item_path, dropped=dropped)
         return redacted
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
         sequence: Sequence[Any] = value
@@ -143,6 +167,10 @@ def _to_plain(value: Any) -> Any:
     if callable(model_dump) and not isinstance(value, type):
         return model_dump()
     return type(value).__name__
+
+
+def _redact_string(value: str) -> str:
+    return _QUERY_PARAM.sub(_redact_query_param, _URL_USERINFO.sub("", value))
 
 
 def _redact_query_param(match: re.Match[str]) -> str:

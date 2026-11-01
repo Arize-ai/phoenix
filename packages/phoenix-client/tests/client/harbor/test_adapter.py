@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -32,9 +34,17 @@ from phoenix.client.harbor._adapter import (
     _resolve_dataset_identity,  # pyright: ignore[reportPrivateUsage]
     _validate_job_shape,  # pyright: ignore[reportPrivateUsage]
 )
-from phoenix.client.harbor._agent_metadata import redact_secrets
+from phoenix.client.harbor._agent_metadata import (
+    model_params,
+    redact_secrets,
+    redacted_key_paths,
+)
 from phoenix.client.harbor._errors import HarborPluginError
 from phoenix.client.harbor._model import TaskRecord
+
+
+class Parser(Enum):
+    XML = "xml"
 
 
 def agent(**overrides: Any) -> AgentConfig:
@@ -164,6 +174,9 @@ class TestSlices:
                         "llm_kwargs": {"max_tokens": 4096, "temperature": 0.9, "seed": 7},
                         "llm_call_kwargs": {"seed": 8, "top_p": 0.5},
                         "model_info": {"path": Path("/models/info.json")},
+                        "tags": {"b", "a"},
+                        "parser": Parser.XML,
+                        "started_at": datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
                     },
                     env={"OPENAI_BASE_URL": "http://proxy"},
                     max_timeout_sec=600.0,
@@ -185,6 +198,9 @@ class TestSlices:
         assert described["kwargs"]["llm_kwargs"]["max_tokens"] == 4096
         assert described["redacted_kwargs"] == []
         assert described["kwargs"]["model_info"] == {"path": "/models/info.json"}
+        assert described["kwargs"]["tags"] == ["a", "b"]
+        assert described["kwargs"]["parser"] == "xml"
+        assert described["kwargs"]["started_at"] == "2026-01-02T03:04:05+00:00"
         assert described["env_keys"] == ["OPENAI_BASE_URL"]
         assert described["max_timeout_sec"] == 600.0
         assert described["override_timeout_sec"] is None
@@ -282,6 +298,46 @@ class TestSlices:
             "tools.0.auth_token",
         } <= set(described["redacted_kwargs"])
 
+    def test_credentials_in_mapping_keys_are_redacted(self) -> None:
+        kwargs = {
+            "endpoints": {
+                "https://h/?api_key=ZZQ123": 2,
+                "https://u:ZZQ123@h/v1": {"timeout": 3},
+            }
+        }
+        assert redact_secrets(kwargs) == {"endpoints": {"https://h/v1": {"timeout": 3}}}
+        assert redacted_key_paths(kwargs) == ["endpoints.https://h/?api_key=REDACTED"]
+
+    @pytest.mark.parametrize("key", ["pass", "pw", "cred", "creds"])
+    def test_short_secret_names_are_dropped(self, key: str) -> None:
+        assert redacted_key_paths({key: "ZZQ123"}) == [key]
+
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("https://h/cb#access_token=ZZQ123", "https://h/cb#access_token=REDACTED"),
+            ("https://h/x?a=1;token=ZZQ123", "https://h/x?a=1;token=REDACTED"),
+        ],
+    )
+    def test_fragment_and_semicolon_params_are_redacted(self, url: str, expected: str) -> None:
+        assert redact_secrets(url) == expected
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://host:8080/users/@me",
+            "http://localhost:8080/v1/@scope/pkg",
+            "https://github.com/org/skills@v1",
+        ],
+    )
+    def test_urls_without_userinfo_are_unchanged(self, url: str) -> None:
+        assert redact_secrets(url) == url
+
+    def test_non_finite_floats_become_strings(self) -> None:
+        kwargs = {"temperature": float("nan"), "limit": float("inf")}
+        assert redact_secrets(kwargs) == {"temperature": "nan", "limit": "inf"}
+        assert model_params(kwargs) == {"temperature": "nan"}
+
     def test_unknown_objects_are_recorded_by_type_name(self) -> None:
         class Opaque:
             def __repr__(self) -> str:
@@ -291,7 +347,16 @@ class TestSlices:
 
     @pytest.mark.parametrize(
         "key",
-        ["max_tokens", "max_thinking_tokens", "thinking_budget_tokens", "top_k", "max_turns"],
+        [
+            "max_tokens",
+            "max_thinking_tokens",
+            "thinking_budget_tokens",
+            "maxTokens",
+            "thinkingBudgetTokens",
+            "top_k",
+            "max_turns",
+            "bypass_cache",
+        ],
     )
     def test_count_and_sampling_keys_are_not_secrets(self, key: str) -> None:
         (experiment_slice,) = _build_slices([agent(kwargs={key: 1})])
