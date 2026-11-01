@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -68,27 +69,47 @@ class PhoenixRecorder:
         )
 
     async def sync_dataset(self, plan: JobPlan) -> DatasetSnapshot:
-        """Create the dataset or replace its contents with a new version."""
-        examples = [task.to_example() for task in plan.tasks]
+        """Create the dataset, or publish a version that keeps tasks outside this job."""
+        job_examples = [task.to_example() for task in plan.tasks]
         try:
-            # Update creates the dataset or a new version from this complete snapshot.
-            dataset = await self._client.datasets.create_dataset(
-                name=plan.dataset.name,
-                dataset_description=f"Harbor dataset {plan.dataset.name!r} ({plan.dataset.kind}).",
-                examples=examples,
-            )
+            current = await self._current_dataset(plan.dataset.name)
         except Exception as error:
             raise HarborPluginError(
-                f"Failed to upload Harbor tasks to Phoenix dataset {plan.dataset.name!r}: {error}"
+                f"Failed to read Phoenix dataset {plan.dataset.name!r}: {error}"
             ) from error
 
-        version_id = dataset.version_id
+        existing = [] if current is None else list(current.examples)
+        examples = _merge_task_examples(existing, job_examples)
+        if current is not None and _same_task_examples(existing, examples):
+            dataset_id = current.id
+            version_id = current.version_id
+            stored_examples = existing
+        else:
+            try:
+                # A version is the dataset's full contents. Carry examples for
+                # tasks this job does not run, and replace the ones it does.
+                dataset = await self._client.datasets.create_dataset(
+                    name=plan.dataset.name,
+                    dataset_description=(
+                        f"Harbor dataset {plan.dataset.name!r} ({plan.dataset.kind})."
+                    ),
+                    examples=examples,
+                )
+            except Exception as error:
+                raise HarborPluginError(
+                    f"Failed to upload Harbor tasks to Phoenix dataset {plan.dataset.name!r}: "
+                    f"{error}"
+                ) from error
+            dataset_id = dataset.id
+            version_id = dataset.version_id
+            stored_examples = dataset.examples
+
         if not version_id:
             raise HarborPluginError(
                 f"Phoenix returned no version for dataset {plan.dataset.name!r}."
             )
 
-        example_ids = _example_ids_by_task(dataset.examples)
+        example_ids = _example_ids_by_task(stored_examples)
         missing = [task.task_id for task in plan.tasks if task.task_id not in example_ids]
         if missing:
             raise HarborPluginError(
@@ -102,10 +123,19 @@ class PhoenixRecorder:
             version_id,
         )
         return DatasetSnapshot(
-            dataset_id=dataset.id,
+            dataset_id=dataset_id,
             version_id=version_id,
             example_ids=example_ids,
         )
+
+    async def _current_dataset(self, name: str) -> Any | None:
+        """Return the latest dataset, or None when this name is not on the server."""
+        try:
+            return await self._client.datasets.get_dataset(dataset=name)
+        except ValueError as error:
+            if str(error).startswith("Dataset not found:"):
+                return None
+            raise
 
     async def resolve_experiments(
         self,
@@ -560,6 +590,57 @@ def _require_consistent(
             f"{stored_repetitions} repetition(s); this job plans {plan.repetitions}. "
             "Use a new Harbor job name."
         )
+
+
+def _uploadable_example(example: Mapping[str, Any]) -> dict[str, Any]:
+    """Fields create_dataset keeps. Drops server-only keys such as node_id."""
+    payload: dict[str, Any] = {
+        "id": example.get("id"),
+        "input": dict(example.get("input") or {}),
+        "output": dict(example.get("output") or {}),
+        "metadata": dict(example.get("metadata") or {}),
+    }
+    if example.get("splits") is not None:
+        payload["splits"] = example.get("splits")
+    if example.get("span_id") is not None:
+        payload["span_id"] = example.get("span_id")
+    return payload
+
+
+def _merge_task_examples(
+    existing: Sequence[Mapping[str, Any]],
+    job_examples: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Keep examples this job does not run, and replace the ones it does."""
+    merged: list[dict[str, Any]] = []
+    index_by_id: dict[str, int] = {}
+    for example in existing:
+        payload = _uploadable_example(example)
+        example_id = payload.get("id")
+        if not example_id:
+            continue
+        index_by_id[str(example_id)] = len(merged)
+        merged.append(payload)
+    for example in job_examples:
+        example_id = str(example["id"])
+        if example_id in index_by_id:
+            merged[index_by_id[example_id]] = dict(example)
+        else:
+            index_by_id[example_id] = len(merged)
+            merged.append(dict(example))
+    return merged
+
+
+def _same_task_examples(
+    existing: Sequence[Mapping[str, Any]],
+    merged: Sequence[Mapping[str, Any]],
+) -> bool:
+    def key(example: Mapping[str, Any]) -> str:
+        return json.dumps(_uploadable_example(example), sort_keys=True, default=str)
+
+    return sorted(key(example) for example in existing) == sorted(
+        key(example) for example in merged
+    )
 
 
 def _example_ids_by_task(examples: Sequence[v1.DatasetExample]) -> dict[str, str]:
