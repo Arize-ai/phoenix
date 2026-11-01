@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
 import {
@@ -111,6 +111,12 @@ import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateText } from "./ErrorRateText";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
+import { ExperimentMetadataFilterButton } from "./ExperimentMetadataFilterButton";
+import type { ExperimentMetadataFilter } from "./experimentMetadataFilters";
+import {
+  formatMetadataFilter,
+  writeMetadataFiltersToSearchParams,
+} from "./experimentMetadataFilters";
 import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
@@ -228,12 +234,22 @@ export const MemoizedTableBody = memo(
 
 export function ExperimentsTable({
   dataset,
+  initialMetadataFilters,
 }: {
   dataset: ExperimentsTableFragment$key;
+  /**
+   * The metadata filters the page query fetched the dataset's experiments
+   * with. The table owns the filters from then on, so the tokens it shows
+   * always match the rows it last fetched.
+   */
+  initialMetadataFilters: ExperimentMetadataFilter[];
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const [, setSearchText] = useState("");
+  const [, setSearchParams] = useSearchParams();
+  const [metadataFilters, setMetadataFilters] = useState(
+    initialMetadataFilters
+  );
   const {
     isExpanded: areRowsExpanded,
     setIsExpanded: setAreRowsExpanded,
@@ -249,6 +265,11 @@ export function ExperimentsTable({
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
+          filterCondition: { type: "String", defaultValue: null }
+          metadataFilters: {
+            type: "[ExperimentMetadataFilter!]"
+            defaultValue: null
+          }
         ) {
           id
           experimentAnnotationSummaries {
@@ -303,8 +324,12 @@ export function ExperimentsTable({
               }
             }
           }
-          experiments(first: $first, after: $after)
-            @connection(key: "ExperimentsTable_experiments") {
+          experiments(
+            first: $first
+            after: $after
+            filterCondition: $filterCondition
+            metadataFilters: $metadataFilters
+          ) @connection(key: "ExperimentsTable_experiments") {
             edges {
               experiment: node {
                 id
@@ -411,6 +436,29 @@ export function ExperimentsTable({
       }),
     [data.experiments.edges]
   );
+
+  const onSearchTextChange = (searchText: string) => {
+    startTransition(() => {
+      refetch(
+        { filterCondition: searchText || null },
+        { fetchPolicy: "network-only" }
+      );
+    });
+  };
+
+  const onMetadataFiltersChange = (filters: ExperimentMetadataFilter[]) => {
+    setMetadataFilters(filters);
+    setSearchParams(
+      (prev) => writeMetadataFiltersToSearchParams(prev, filters),
+      { replace: true }
+    );
+    startTransition(() => {
+      refetch(
+        { metadataFilters: filters.length ? filters : null },
+        { fetchPolicy: "network-only" }
+      );
+    });
+  };
 
   const hasRunningExperiments = useMemo(
     () => tableData.some((row) => row.job?.status === "RUNNING"),
@@ -959,9 +1007,14 @@ export function ExperimentsTable({
             <DebouncedSearch
               placeholder="Search experiments"
               aria-label="Search experiments"
-              onChange={setSearchText}
+              onChange={onSearchTextChange}
             />
           </View>
+          <ExperimentMetadataFilterButton
+            onAddFilter={(filter) =>
+              onMetadataFiltersChange([...metadataFilters, filter])
+            }
+          />
           <ExperimentsMetricsChartSelector />
           <ExperimentColumnSelector
             columns={selectorColumns}
@@ -982,6 +1035,36 @@ export function ExperimentsTable({
             }
           />
         </Flex>
+        {metadataFilters.length ? (
+          <View paddingTop="size-100">
+            <Flex
+              direction="row"
+              gap="size-50"
+              wrap="wrap"
+              alignItems="center"
+              data-testid="experiment-metadata-filters"
+            >
+              {metadataFilters.map((filter, index) => {
+                const label = formatMetadataFilter(filter);
+                return (
+                  <Token
+                    key={`${index}-${label}`}
+                    maxWidth="var(--global-dimension-size-4600)"
+                    onRemove={() =>
+                      onMetadataFiltersChange(
+                        metadataFilters.filter(
+                          (_, filterIndex) => filterIndex !== index
+                        )
+                      )
+                    }
+                  >
+                    {label}
+                  </Token>
+                );
+              })}
+            </Flex>
+          </View>
+        ) : null}
       </View>
       <div
         css={css`
@@ -1101,6 +1184,8 @@ function ExperimentJobStatusIcon({
   experimentId: string;
   datasetId: string;
 }) {
+  // Keep the table's filters in the URL for when the dialog closes.
+  const { search } = useLocation();
   if (status === "RUNNING") {
     return (
       <TooltipTrigger>
@@ -1128,7 +1213,12 @@ function ExperimentJobStatusIcon({
             This experiment encountered an error during execution.
           </RichTooltipDescription>
           <RichTooltipActions>
-            <Link to={`/datasets/${datasetId}/experiments/${experimentId}`}>
+            <Link
+              to={{
+                pathname: `/datasets/${datasetId}/experiments/${experimentId}`,
+                search,
+              }}
+            >
               View details
             </Link>
           </RichTooltipActions>

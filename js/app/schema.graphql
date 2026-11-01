@@ -1165,6 +1165,11 @@ type Dataset implements Node {
     """
     sequenceNumbers: [Int!]
     sort: ExperimentSort
+
+    """
+    When provided, return only the experiments whose metadata matches every filter.
+    """
+    metadataFilters: [ExperimentMetadataFilter!]
   ): ExperimentConnection!
 
   """The experiment tagged as this dataset's baseline, if one is set."""
@@ -2108,6 +2113,21 @@ enum ExperimentLogLevel {
 }
 
 union ExperimentLogWorkItemId = TaskWorkItemId | EvalWorkItemId
+
+"""
+Matches experiments whose metadata holds a value at a key path. For example, path ['model', 'name'] and value 'gpt-5' match metadata {"model": {"name": "gpt-5"}}.
+"""
+input ExperimentMetadataFilter {
+  """
+  The keys to follow from the top of the metadata object, outermost first. Each key names an object key. On PostgreSQL, an integer key such as '0' also indexes into an array; on SQLite, it doesn't.
+  """
+  path: [String!]!
+
+  """
+  The value to match: a string, number, or boolean. Strings match only strings, so 1 and '1' are different values.
+  """
+  value: JSON!
+}
 
 type ExperimentMutationPayload {
   experiments: [Experiment!]!
