@@ -193,6 +193,29 @@ class TestAnnotationDataFrameValidation:
         with pytest.raises(ValueError, match="DataFrame must have ALL required ID columns"):
             _validate_document_annotations_dataframe(dataframe=df_incomplete_index)
 
+    def test_non_string_id_column_reports_type_error_not_attribute_error(self) -> None:
+        """A str-typed ID column holding non-string values reports the designed
+        ValueError instead of an AttributeError from the .str accessor."""
+        # All values non-string
+        df = pd.DataFrame({"span_id": [12345], "label": ["positive"]})
+        with pytest.raises(ValueError, match="span_id values must be strings"):
+            _validate_span_annotations_dataframe(dataframe=df)
+
+        # Mixed string and non-string values, plus an empty string: only this
+        # combination depends on the check order. Before the fix the .str accessor
+        # runs first and the empty string is what gets reported, so the case fails
+        # without the reorder; a mixed column without an empty string does not.
+        df = pd.DataFrame({"span_id": ["", 1], "label": ["positive", "negative"]})
+        with pytest.raises(ValueError, match="span_id values must be strings"):
+            _validate_span_annotations_dataframe(dataframe=df)
+
+    def test_non_string_id_index_level_reports_type_error_not_attribute_error(self) -> None:
+        """A str-typed ID index level holding non-string values reports the designed
+        ValueError instead of an AttributeError from the .str accessor."""
+        df = pd.DataFrame({"label": ["positive"]}, index=pd.Index([999], name="span_id"))
+        with pytest.raises(ValueError, match="Index level 'span_id' values must be strings"):
+            _validate_span_annotations_dataframe(dataframe=df)
+
 
 class TestAnnotationDataFrameChunking:
     """Test suite for annotation DataFrame chunking across different ID configurations."""
