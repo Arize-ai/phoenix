@@ -10,7 +10,7 @@ LLM Evaluators require an LLM in order to score an evaluation input. Phoenix eva
 The Phoenix evals Python package uses an adapter pattern to wrap underlying client SDKs and provide a unified interface. Each adapter forwards parameters directly to the underlying client, so you can use the same configuration options as the native SDK.
 
 - **Client configuration parameters** (e.g., `api_key`, `base_url`, `api_version`) are passed as `**kwargs` when creating the `LLM` instance. These configure the client itself.
-- **Model invocation parameters** (e.g., `temperature`, `max_tokens`, `top_p`) are passed as `**kwargs` when creating an evaluator. These control how the model generates responses.
+- **Model invocation parameters** (e.g., `temperature`, `max_tokens`, `top_p`) are passed as `**kwargs` when creating an evaluator. These control how the model generates responses. Pass only the parameters that the SDK of your adapter accepts. For example, `anthropic` 1.0 and later do not accept `temperature` or `top_p`.
 
 Detailed information and examples for each adapter can be found in the sections below.
 
@@ -173,7 +173,7 @@ evaluator = ClassificationEvaluator(
 **Client**: `anthropic.Anthropic()` or `anthropic.AsyncAnthropic()`  
 **Invocation**: `client.messages.create()`  
 **Docs**: [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python#usage)  
-**Note**: `max_tokens` is required and defaults to 4096 if not specified when creating the evaluator.
+**Note**: `max_tokens` is required and defaults to 4096 if not specified when creating the evaluator. `anthropic` 1.0 and later do not accept `temperature`, `top_p`, or `top_k`. If you pass one of them, the evaluator raises a `TypeError`.
 
 ```python
 from phoenix.evals.llm import LLM
@@ -191,7 +191,6 @@ evaluator = ClassificationEvaluator(
     prompt_template="Classify: {input}",
     choices={"positive": 1, "negative": 0},
     llm=llm,
-    temperature=0.0,
     max_tokens=1024,
 )
 ```
