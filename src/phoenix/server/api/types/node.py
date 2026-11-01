@@ -8,7 +8,15 @@ from pydantic import AfterValidator
 from strawberry.relay import GlobalID
 from strawberry.relay.types import GlobalIDValueError
 
-_COMPOSITE_GLOBAL_ID_PATTERN = re.compile(r"[^:]+:[^:]+(:[^:]+)+")
+# The only composite id this schema emits belongs to ExperimentRepeatedRunGroup,
+# e.g. "ExperimentRepeatedRunGroup:experiment_id=1:dataset_example_id=2". Its
+# payload carries two or more segments, each an integer or a "key=value" pair.
+# Anything under another type name is a regular GlobalID node id, even if it
+# contains colons (e.g. a Secret whose key contains a colon), and must not be
+# mistaken for a composite id. See #10460.
+_COMPOSITE_GLOBAL_ID_PATTERN = re.compile(
+    r"ExperimentRepeatedRunGroup(?::(?:-?\d+|[^:=]+=[^:]*)){2,}"
+)
 
 if TYPE_CHECKING:
     from phoenix.db.models import SandboxBackendType
