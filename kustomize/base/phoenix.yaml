@@ -1,3 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: phoenix
+  name: phoenix
+spec:
+  ports:
+  - name: phoenix-app
+    port: 6006
+    protocol: TCP
+    targetPort: 6006
+  - name: phoenix-grpc
+    port: 4317
+    protocol: TCP
+    targetPort: 4317
+  - name: phoenix-metrics
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: phoenix
+  type: ClusterIP
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -7,6 +31,7 @@ spec:
     selector:
         matchLabels:
             app: phoenix
+    serviceName: phoenix
     template:
         metadata:
             annotations:
@@ -24,8 +49,6 @@ spec:
                   command:
                       - python
                   env:
-                      - name: PHOENIX_WORKING_DIR
-                        value: /mnt/data
                       - name: PHOENIX_PORT
                         value: "6006"
                       - name: PHOENIX_SQL_DATABASE_URL
