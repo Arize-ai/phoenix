@@ -2,27 +2,19 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
-import type * as Contexts from "@phoenix/contexts";
+import type { NotificationQueue } from "@phoenix/contexts";
+import {
+  createToastQueue,
+  PreferencesProvider,
+  ThemeProvider,
+  ToastQueueProvider,
+} from "@phoenix/contexts";
 
 import { SpanNoteBar } from "../SpanNoteBar";
-
-const { notifySuccess, notifyError } = vi.hoisted(() => ({
-  notifySuccess: vi.fn(),
-  notifyError: vi.fn(),
-}));
-
-// The toasts render in a region the app mounts elsewhere, so assert on the
-// calls rather than the DOM
-vi.mock("@phoenix/contexts", async (importOriginal) => ({
-  ...(await importOriginal<typeof Contexts>()),
-  useNotifySuccess: () => notifySuccess,
-  useNotifyError: () => notifyError,
-}));
 
 installTestMatchMedia();
 installTestStorage();
@@ -43,19 +35,21 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
-  vi.clearAllMocks();
 });
 
 function renderSpanNoteBar() {
   const environment = createMockEnvironment();
+  const queue = createToastQueue();
   act(() => {
     root.render(
       <RelayEnvironmentProvider environment={environment}>
-        <ThemeProvider themeMode="dark">
-          <PreferencesProvider isTakingSpanNotes>
-            <SpanNoteBar spanNodeId={SPAN_NODE_ID} />
-          </PreferencesProvider>
-        </ThemeProvider>
+        <ToastQueueProvider queue={queue}>
+          <ThemeProvider themeMode="dark">
+            <PreferencesProvider isTakingSpanNotes>
+              <SpanNoteBar spanNodeId={SPAN_NODE_ID} />
+            </PreferencesProvider>
+          </ThemeProvider>
+        </ToastQueueProvider>
       </RelayEnvironmentProvider>
     );
   });
@@ -63,10 +57,20 @@ function renderSpanNoteBar() {
   if (!textarea) {
     throw new Error("Expected the note bar to render a textarea");
   }
-  return { environment, textarea };
+  return { environment, queue, textarea };
 }
 
-function submitNote(textarea: HTMLTextAreaElement, value: string): void {
+function getToasts(queue: NotificationQueue) {
+  return queue.visibleToasts.map((toast) => toast.content);
+}
+
+function submitNote({
+  textarea,
+  value,
+}: {
+  textarea: HTMLTextAreaElement;
+  value: string;
+}): void {
   const valueSetter = Object.getOwnPropertyDescriptor(
     HTMLTextAreaElement.prototype,
     "value"
@@ -88,9 +92,9 @@ function submitNote(textarea: HTMLTextAreaElement, value: string): void {
 
 describe("SpanNoteBar", () => {
   it("confirms a note once it is added", async () => {
-    const { environment, textarea } = renderSpanNoteBar();
-    submitNote(textarea, "looks off");
-    expect(notifySuccess).not.toHaveBeenCalled();
+    const { environment, queue, textarea } = renderSpanNoteBar();
+    submitNote({ textarea, value: "looks off" });
+    expect(getToasts(queue)).toEqual([]);
 
     await act(async () => {
       environment.mock.resolveMostRecentOperation((operation) =>
@@ -100,23 +104,26 @@ describe("SpanNoteBar", () => {
       );
     });
 
-    expect(notifySuccess).toHaveBeenCalledWith({ title: "Note added" });
-    expect(notifyError).not.toHaveBeenCalled();
+    expect(getToasts(queue)).toEqual([
+      { title: "Note added", variant: "success" },
+    ]);
     expect(textarea.value).toBe("");
   });
 
   it("reports a failed note without confirming it", async () => {
-    const { environment, textarea } = renderSpanNoteBar();
-    submitNote(textarea, "looks off");
+    const { environment, queue, textarea } = renderSpanNoteBar();
+    submitNote({ textarea, value: "looks off" });
 
     await act(async () => {
       environment.mock.rejectMostRecentOperation(new Error("Failed to fetch"));
     });
 
-    expect(notifyError).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Failed to add note" })
-    );
-    expect(notifySuccess).not.toHaveBeenCalled();
+    expect(getToasts(queue)).toEqual([
+      expect.objectContaining({
+        title: "Failed to add note",
+        variant: "error",
+      }),
+    ]);
     expect(textarea.value).toBe("looks off");
   });
 });
