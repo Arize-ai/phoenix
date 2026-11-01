@@ -19,10 +19,13 @@ from phoenix.trace.dsl.filter import (
     Projector,
     RootSpanScope,
     SpanFilter,
+    SpanFilterError,
     _apply_eval_aliasing,
     _get_attribute_keys_list,
     root_span_scope,
 )
+from phoenix.trace.dsl.session_filter import SessionFilter
+from phoenix.trace.dsl.trace_filter import TraceFilter
 
 
 @pytest.mark.parametrize(
@@ -1266,6 +1269,42 @@ class TestFilterDslDefects:
         # also be an acceptable outcome, but the condition here is valid.
         span_filter = SpanFilter(condition)
         assert span_filter.condition
+
+    @pytest.mark.parametrize(
+        "filter_class,expected_error",
+        [
+            pytest.param(SpanFilter, SpanFilterError, id="span"),
+            pytest.param(SessionFilter, SyntaxError, id="session"),
+            pytest.param(TraceFilter, SyntaxError, id="trace"),
+        ],
+    )
+    def test_index_error_in_shared_compile_is_a_validation_error_for_every_grain(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        filter_class: Any,
+        expected_error: type[SyntaxError],
+    ) -> None:
+        # The lone-CR fix above removed the only known source of IndexError,
+        # but the defensive conversion behind it has to cover every grain:
+        # all three compile through the same `_compile_condition`, so an
+        # IndexError from any future change there must read as a malformed
+        # condition rather than escape raw. A failing semantic check stands in
+        # for that future change.
+        def raise_index_error(*args: Any, **kwargs: Any) -> None:
+            raise IndexError("list index out of range")
+
+        monkeypatch.setattr("phoenix.trace.dsl.filter._validate_semantics", raise_index_error)
+        with pytest.raises(expected_error) as exc_info:
+            filter_class("name == 'x'")
+        assert str(exc_info.value) == "invalid filter condition"
+        # The original IndexError stays reachable on the cause chain for
+        # debugging, however many conversions sit in between.
+        causes = []
+        cause: typing.Optional[BaseException] = exc_info.value
+        while cause is not None:
+            causes.append(cause)
+            cause = cause.__cause__
+        assert any(isinstance(cause, IndexError) for cause in causes)
 
     def test_lone_cr_aliases_at_the_correct_byte_offset(self) -> None:
         # Beyond not crashing, the alias must land in the right place. A

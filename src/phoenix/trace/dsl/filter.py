@@ -1106,6 +1106,14 @@ def _compile_condition(
         # a malformed filter like any other rather than escaping as a crash
         # from whichever stage happened to run out first.
         raise SyntaxError("filter condition is nested too deeply") from None
+    except IndexError as error:
+        # Belt-and-suspenders alongside the line-offset table's own
+        # universal-newline handling: a lineno/col_offset the table doesn't
+        # have an entry for is a malformed-filter condition to the caller, not
+        # a crash. Converted here rather than at a grain's boundary so every
+        # grain compiling through this function gets it -- `SessionFilter`
+        # and `TraceFilter` raise out of this function directly.
+        raise SyntaxError("invalid filter condition") from error
     aliased_annotation_attributes = {
         alias: attribute
         for aliased_annotation in aliased_annotation_relations
@@ -1298,12 +1306,6 @@ class SpanFilter:
             raise SpanFilterError("filter condition is nested too deeply") from None
         except SyntaxError as error:
             raise SpanFilterError(_format_syntax_error(error)) from error
-        except IndexError as error:
-            # Belt-and-suspenders alongside the line-offset table's own
-            # universal-newline handling: a lineno/col_offset the table
-            # doesn't have an entry for is a malformed-filter condition to
-            # the caller, not a 500.
-            raise SpanFilterError("invalid filter condition") from error
 
     def _initialize(self) -> None:
         object.__setattr__(self, "root_scope", None)
