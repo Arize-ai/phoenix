@@ -4,6 +4,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 from strawberry.relay import GlobalID
 
+from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import CodeEvaluator, DatasetEvaluator, LLMEvaluator
@@ -63,6 +64,34 @@ def test_is_composite_global_id_returns_false_for_simple_global_id() -> None:
 def test_is_composite_global_id_returns_true_for_composite_global_id() -> None:
     node_id = str(GlobalID(type_name="ExperimentRepeatedRunGroup", node_id="1:2"))
     assert is_composite_global_id(node_id) is True
+
+
+def test_is_composite_global_id_returns_true_for_key_value_composite_global_id() -> None:
+    node_id = str(
+        GlobalID(
+            type_name="ExperimentRepeatedRunGroup",
+            node_id="experiment_id=1:dataset_example_id=2",
+        )
+    )
+    assert is_composite_global_id(node_id) is True
+
+
+def test_is_composite_global_id_returns_false_for_global_id_with_colon_in_node_id() -> None:
+    # e.g. a Secret whose key contains a colon: the id is a regular GlobalID
+    # whose node id happens to contain colons, not a composite id. See #10460.
+    node_id = str(GlobalID(type_name="Secret", node_id="AWS:SECRET_KEY"))
+    assert is_composite_global_id(node_id) is False
+
+
+async def test_node_query_resolves_secret_global_id_with_colon_in_key() -> None:
+    schema = build_graphql_schema()
+    secret_id = str(GlobalID(type_name="Secret", node_id="AWS:SECRET_KEY"))
+    result = await schema.execute(
+        "query Node($id: ID!) { node(id: $id) { __typename } }",
+        variable_values={"id": secret_id},
+    )
+    assert result.errors is None
+    assert result.data == {"node": {"__typename": "Secret"}}
 
 
 NODE_ID_TYPES: list[tuple[Any, type]] = [
