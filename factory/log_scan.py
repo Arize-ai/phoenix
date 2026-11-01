@@ -263,6 +263,28 @@ def list_source_issues(
     return [issue for issue in issues if parse_timestamp(issue["updatedAt"]) >= since]
 
 
+def escape_slack(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def post_filed_issues_to_slack(
+    *, webhook_url: str, source: TriageSource, issues: list[dict[str, Any]]
+) -> None:
+    noun = "issue" if len(issues) == 1 else "issues"
+    lines = [f"*{source.heading}* filed {len(issues)} {noun}:"]
+    lines.extend(
+        f"• <{issue['url']}|#{issue['number']}> {escape_slack(issue['title'])}" for issue in issues
+    )
+    request = urllib.request.Request(
+        webhook_url,
+        data=json.dumps({"text": "\n".join(lines)}).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30):
+        pass
+
+
 def write_step_summary(lines: list[str]) -> None:
     if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary_path, "a") as summary:
@@ -361,8 +383,11 @@ def main() -> None:
     touched_issues = list_source_issues(
         repo=args.repo, label=source.label, token=app_token.refresh(), since=session_start
     )
+    new_issues: list[dict[str, Any]] = []
     for issue in sorted(touched_issues, key=lambda issue: issue["createdAt"]):
         is_new = parse_timestamp(issue["createdAt"]) >= session_start
+        if is_new:
+            new_issues.append(issue)
         dispatch = is_new and not args.no_dispatch
         if dispatch:
             run_gh(
@@ -382,6 +407,8 @@ def main() -> None:
     if not touched_issues:
         summary.append("No issues filed or updated.\n")
     write_step_summary(summary)
+    if new_issues and (webhook_url := os.environ.get("SLACK_WEBHOOK_URL")):
+        post_filed_issues_to_slack(webhook_url=webhook_url, source=source, issues=new_issues)
     if stop_reason != "end_turn":
         raise SystemExit(f"The session stopped with {stop_reason}; see the Claude Console.")
 
