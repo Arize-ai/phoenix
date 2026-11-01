@@ -26,6 +26,7 @@ import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeCombo
 import {
   DEFAULT_TOKEN_COMPLETION_OPTIONS,
   DEFAULT_TOKEN_PROMPT_OPTIONS,
+  normalizeTokenType,
 } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,
@@ -96,6 +97,30 @@ const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
     },
   ];
 
+function findProviderOption(provider: string) {
+  const lowered = provider.trim().toLowerCase();
+  return PROVIDER_OPTIONS.find(
+    (option) =>
+      option.value === lowered || option.label.toLowerCase() === lowered
+  );
+}
+
+// Normalized on submit rather than on input so that spaces can be typed mid-value
+function normalizeModelFormParams(params: ModelFormParams): ModelFormParams {
+  const provider = params.provider?.trim();
+  const normalizeTokenTypes = (costs: TokenPrice[]) =>
+    costs.map((cost) => ({
+      ...cost,
+      tokenType: normalizeTokenType(cost.tokenType),
+    }));
+  return {
+    ...params,
+    provider: provider && (findProviderOption(provider)?.value ?? provider),
+    promptCosts: normalizeTokenTypes(params.promptCosts),
+    completionCosts: normalizeTokenTypes(params.completionCosts),
+  };
+}
+
 function ModelProviderComboBox({
   value,
   onChange,
@@ -114,9 +139,7 @@ function ModelProviderComboBox({
     <ComboBox
       label="Provider"
       placeholder="Choose or enter a provider"
-      selectedKey={
-        PROVIDER_OPTIONS.find((option) => option.value === value)?.key || ""
-      }
+      selectedKey={findProviderOption(value)?.key || ""}
       inputValue={value}
       onSelectionChange={(key) => {
         const provider = PROVIDER_OPTIONS.find((option) => option.key === key);
@@ -124,9 +147,7 @@ function ModelProviderComboBox({
           onChange(provider.value);
         }
       }}
-      onInputChange={(value) => {
-        onChange(value?.toLowerCase());
-      }}
+      onInputChange={onChange}
       onBlur={onBlur}
       isInvalid={invalid}
       size="M"
@@ -196,6 +217,8 @@ export function ModelForm({
   const {
     control,
     handleSubmit,
+    getFieldState,
+    trigger,
     formState: { isDirty },
   } = useForm<ModelFormParams>({
     defaultValues: {
@@ -227,7 +250,11 @@ export function ModelForm({
   });
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
+    <Form
+      onSubmit={handleSubmit((params) =>
+        onSubmit(normalizeModelFormParams(params))
+      )}
+    >
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           <Controller
@@ -339,6 +366,8 @@ export function ModelForm({
             namePrefix="promptCosts"
             fields={promptCostFields}
             control={control}
+            getFieldState={getFieldState}
+            trigger={trigger}
             tokenTypeOptions={DEFAULT_TOKEN_PROMPT_OPTIONS}
             onAppend={appendPromptCost}
             onRemove={removePromptCost}
@@ -350,6 +379,8 @@ export function ModelForm({
             namePrefix="completionCosts"
             fields={completionCostFields}
             control={control}
+            getFieldState={getFieldState}
+            trigger={trigger}
             tokenTypeOptions={DEFAULT_TOKEN_COMPLETION_OPTIONS}
             onAppend={appendCompletionCost}
             onRemove={removeCompletionCost}

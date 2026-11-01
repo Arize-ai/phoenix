@@ -1,5 +1,10 @@
 import { css } from "@emotion/react";
-import type { Control } from "react-hook-form";
+import { useEffect, useRef } from "react";
+import type {
+  Control,
+  UseFormGetFieldState,
+  UseFormTrigger,
+} from "react-hook-form";
 import { Controller } from "react-hook-form";
 
 import {
@@ -14,13 +19,20 @@ import {
 } from "@phoenix/components";
 import type { ModelFormParams } from "@phoenix/pages/settings/ModelForm";
 import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
-import { ModelTokenTypeComboBox } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
+import {
+  ModelTokenTypeComboBox,
+  normalizeTokenType,
+} from "@phoenix/pages/settings/ModelTokenTypeComboBox";
+
+const DUPLICATE_TOKEN_TYPE_ERROR = "Duplicate token type";
 
 export function ModelTokenCostControlTable({
   title,
   namePrefix,
   fields,
   control,
+  getFieldState,
+  trigger,
   tokenTypeOptions,
   onAppend,
   onRemove,
@@ -30,6 +42,8 @@ export function ModelTokenCostControlTable({
   namePrefix: "promptCosts" | "completionCosts";
   fields: { id: string }[];
   control: Control<ModelFormParams>;
+  getFieldState: UseFormGetFieldState<ModelFormParams>;
+  trigger: UseFormTrigger<ModelFormParams>;
   tokenTypeOptions: { tokenType: string; kind: ModelTokenKind }[];
   onAppend: (obj: {
     kind: ModelTokenKind;
@@ -39,6 +53,34 @@ export function ModelTokenCostControlTable({
   onRemove: (index: number) => void;
   appendKind: ModelTokenKind;
 }) {
+  // Editing or removing a row can resolve another row's duplicate error, but
+  // react-hook-form only re-validates the field that changed. Only rows already
+  // flagged are re-validated, so untouched empty rows do not start showing
+  // "required" errors.
+  const revalidateDuplicateRows = () => {
+    const flaggedRows = fields
+      .map((_, index) => `${namePrefix}.${index}.tokenType` as const)
+      .filter(
+        (name) =>
+          getFieldState(name).error?.message === DUPLICATE_TOKEN_TYPE_ERROR
+      );
+    if (flaggedRows.length > 0) {
+      void trigger(flaggedRows);
+    }
+  };
+
+  // Removing a row shifts errors onto rows that did not change, and those
+  // fields only re-register under their new names after the next render, so
+  // re-validation is deferred to an effect. The ref gate keeps the effect from
+  // re-triggering on every render while an error persists.
+  const revalidateAfterRenderRef = useRef(false);
+  useEffect(() => {
+    if (!revalidateAfterRenderRef.current) {
+      return;
+    }
+    revalidateAfterRenderRef.current = false;
+    revalidateDuplicateRows();
+  });
   return (
     <>
       <Heading level={3} weight="heavy">
@@ -85,7 +127,21 @@ export function ModelTokenCostControlTable({
                   name={`${namePrefix}.${index}.tokenType`}
                   control={control}
                   rules={{
-                    required: "Token type is required",
+                    validate: (value, formValues) => {
+                      const tokenType = normalizeTokenType(value ?? "");
+                      if (!tokenType) {
+                        return "Token type is required";
+                      }
+                      const isDuplicate = formValues[namePrefix]
+                        .slice(0, index)
+                        .some(
+                          (cost) =>
+                            normalizeTokenType(
+                              cost.tokenType ?? ""
+                            ).toLowerCase() === tokenType.toLowerCase()
+                        );
+                      return !isDuplicate || DUPLICATE_TOKEN_TYPE_ERROR;
+                    },
                   }}
                   render={({
                     fieldState: { invalid, error },
@@ -94,6 +150,10 @@ export function ModelTokenCostControlTable({
                     <ModelTokenTypeComboBox
                       options={tokenTypeOptions}
                       {...controllerField}
+                      onChange={(tokenType) => {
+                        controllerField.onChange(tokenType);
+                        revalidateDuplicateRows();
+                      }}
                       invalid={invalid}
                       error={error?.message}
                     />
@@ -134,6 +194,7 @@ export function ModelTokenCostControlTable({
                   leadingVisual={<Icon svg={<Icons.Trash />} />}
                   onPress={() => {
                     onRemove(index);
+                    revalidateAfterRenderRef.current = true;
                   }}
                   size="S"
                   isDisabled={index === 0}
