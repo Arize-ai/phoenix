@@ -85,10 +85,15 @@ describe("model-provider list", () => {
     expect(output).toBe(expected);
   });
 
-  it("exits FAILURE with an error message on a server error", async () => {
+  it("exits FAILURE with a readable message on a JSON server error", async () => {
     mock.server.use(
       http.get("/v1/model_providers", ({ response }) =>
-        response.untyped(HttpResponse.json({}, { status: 500 }))
+        response.untyped(
+          HttpResponse.json(
+            { detail: "provider registry unavailable" },
+            { status: 500 }
+          )
+        )
       )
     );
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -104,6 +109,12 @@ describe("model-provider list", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining("Error fetching model providers")
+    );
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining("500 Internal Server Error")
+    );
+    expect(stderrSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("[object Object]")
     );
   });
 

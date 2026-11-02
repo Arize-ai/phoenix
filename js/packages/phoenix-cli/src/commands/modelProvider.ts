@@ -8,6 +8,7 @@ import {
 } from "../config";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
+import { getResponseErrorMessage } from "./annotationMutations";
 import {
   formatModelProvidersOutput,
   type OutputFormat,
@@ -43,7 +44,9 @@ async function modelProviderListHandler(
     const response = await client.GET("/v1/model_providers");
 
     if (response.error || !response.data) {
-      throw new Error(`Failed to fetch model providers: ${response.error}`);
+      throw new Error(
+        `Failed to fetch model providers: ${getResponseErrorMessage(response.error)}`
+      );
     }
 
     writeOutput({
