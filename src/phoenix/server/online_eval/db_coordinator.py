@@ -26,6 +26,7 @@ from typing_extensions import assert_never
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import (
+    COMPLETED_EVAL_WORK_STATUSES,
     MAX_ATTEMPTS,
     live_eval_work_index_predicate,
     terminal_eval_session_work_index_predicate,
@@ -44,7 +45,7 @@ from phoenix.server.online_eval.coordinator import (
     RetiredWorkStatus,
 )
 from phoenix.server.online_eval.leases import current_database_time
-from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS
+from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS, ONLINE_EVAL_LAG_SECONDS
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
@@ -54,9 +55,13 @@ _WorkUnitModel = (
 )
 _TargetModel = type[models.Span] | type[models.ProjectSession] | type[models.Trace]
 _DATABASE_NOW = object()
+# A unit's ``created_at`` and ``updated_at`` as the transition that ended it left them.
+_EndedWork = tuple[datetime, datetime]
 
 # The statuses a unit leaves the queue with that the completed-work counter reports. Cleared
-# is DROPPED by either path: a clear, or hydration after the evaluator was disabled.
+# is DROPPED by either path: a clear, or hydration after the evaluator was disabled. The lag
+# histogram observes the completed ones, as the evaluators pages' lag does; cleared work had
+# no result.
 _COMPLETED_OUTCOMES = {
     "DONE": "evaluated",
     "FAILED": "failed",
@@ -78,10 +83,10 @@ async def reap_lapsed_leases(
     *,
     now: datetime,
     max_attempts: int,
-) -> int:
-    """Fail RUNNING work whose lease lapsed with no attempts left, returning how many units:
-    a consumer killed mid-evaluation leaves such a row, and no consumer may reclaim it
-    without exceeding the retry budget."""
+) -> Sequence[_EndedWork]:
+    """Fail RUNNING work whose lease lapsed with no attempts left, returning each failed
+    unit's ``created_at`` and ``updated_at``: a consumer killed mid-evaluation leaves such a
+    row, and no consumer may reclaim it without exceeding the retry budget."""
     result = await session.execute(
         update(work_unit_model)
         .where(
@@ -96,8 +101,9 @@ async def reap_lapsed_leases(
             attempts=max_attempts,
             error=func.coalesce(work_unit_model.error, LEASE_ATTEMPTS_EXHAUSTED_ERROR),
         )
+        .returning(work_unit_model.created_at, work_unit_model.updated_at)
     )
-    return int(result.rowcount)  # type: ignore[attr-defined]
+    return [(created_at, updated_at) for created_at, updated_at in result]
 
 
 async def drop_queued_work(
@@ -170,10 +176,12 @@ class DbEvalWorkCoordinator:
         self._evaluation_target: models.EvaluationTarget = evaluation_target
         self._max_attempts = max_attempts
         self._publish_metrics = get_env_enable_prometheus()
-        for outcome in _COMPLETED_OUTCOMES.values():
+        for status, outcome in _COMPLETED_OUTCOMES.items():
             ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(
                 evaluation_target=evaluation_target, outcome=outcome
             )
+            if status in COMPLETED_EVAL_WORK_STATUSES:
+                ONLINE_EVAL_LAG_SECONDS.labels(evaluation_target=evaluation_target, outcome=outcome)
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
@@ -218,7 +226,7 @@ class DbEvalWorkCoordinator:
     ) -> Sequence[ClaimedWorkUnit]:
         work_unit_model = self._work_unit_model
         async with self._db() as session:
-            reaped_count = await reap_lapsed_leases(
+            reaped = await reap_lapsed_leases(
                 session,
                 work_unit_model,
                 now=await current_database_time(session, self._db.dialect),
@@ -282,7 +290,7 @@ class DbEvalWorkCoordinator:
                 else []
             )
             await session.commit()
-        self._count_completed("FAILED", reaped_count)
+        self._count_completed("FAILED", reaped)
         lease_expires_at = now + timedelta(seconds=LEASE_TTL_SECONDS)
         return [
             ClaimedWorkUnit(
@@ -355,12 +363,14 @@ class DbEvalWorkCoordinator:
                     f"work unit {work_unit_id} project evaluator is disabled or missing"
                 )
             await write(session)
-            await session.execute(
+            ended = await session.execute(
                 update(work_unit_model)
                 .where(work_unit_model.id == work_unit_id)
                 .values(status="DONE")
+                .returning(work_unit_model.created_at, work_unit_model.updated_at)
             )
-        self._count_completed("DONE")
+            done = [(created_at, updated_at) for created_at, updated_at in ended]
+        self._count_completed("DONE", done)
 
     async def fail(
         self,
@@ -434,17 +444,23 @@ class DbEvalWorkCoordinator:
         async with self._db() as session:
             if values.get("claimed_at") is _DATABASE_NOW:
                 values["claimed_at"] = await current_database_time(session, self._db.dialect)
-            new_status = await session.scalar(
-                update(work_unit_model)
-                .where(
-                    work_unit_model.id == work_unit_id,
-                    work_unit_model.claimed_by == claim_owner,
-                    work_unit_model.status == "RUNNING",
+            row = (
+                await session.execute(
+                    update(work_unit_model)
+                    .where(
+                        work_unit_model.id == work_unit_id,
+                        work_unit_model.claimed_by == claim_owner,
+                        work_unit_model.status == "RUNNING",
+                    )
+                    .values(**values)
+                    .returning(
+                        work_unit_model.status,
+                        work_unit_model.created_at,
+                        work_unit_model.updated_at,
+                    )
                 )
-                .values(**values)
-                .returning(work_unit_model.status)
-            )
-            transitioned = new_status is not None
+            ).first()
+            transitioned = row is not None
             if not transitioned:
                 status = await session.scalar(
                     select(work_unit_model.status).where(
@@ -454,19 +470,23 @@ class DbEvalWorkCoordinator:
                 )
                 transitioned = status == "DONE"
             await session.commit()
-        if new_status is not None:
-            self._count_completed(new_status)
+        if row is not None:
+            self._count_completed(row.status, [(row.created_at, row.updated_at)])
         return transitioned
 
-    def _count_completed(self, status: str, count: int = 1) -> None:
-        """Count units that left the queue, once the transaction that ended them has
-        committed."""
-        if not self._publish_metrics or not count:
+    def _count_completed(self, status: str, ended: Sequence[_EndedWork]) -> None:
+        """Count units that left the queue, and observe the lag of completed ones, once the
+        transaction that ended them has committed."""
+        if not self._publish_metrics or not ended:
             return
-        if (outcome := _COMPLETED_OUTCOMES.get(status)) is not None:
-            ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(
-                evaluation_target=self._evaluation_target, outcome=outcome
-            ).inc(count)
+        if (outcome := _COMPLETED_OUTCOMES.get(status)) is None:
+            return
+        labels = {"evaluation_target": self._evaluation_target, "outcome": outcome}
+        ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(**labels).inc(len(ended))
+        if status in COMPLETED_EVAL_WORK_STATUSES:
+            lag = ONLINE_EVAL_LAG_SECONDS.labels(**labels)
+            for created_at, updated_at in ended:
+                lag.observe((updated_at - created_at).total_seconds())
 
     async def ended_work_counts(self) -> EndedWorkCounts:
         now = datetime.now(timezone.utc)

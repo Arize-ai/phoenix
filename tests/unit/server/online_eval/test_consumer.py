@@ -1,10 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
 from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
-from unittest.mock import ANY, AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, call, patch
 
 import httpx
 import pytest
@@ -2681,6 +2682,52 @@ async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> Non
 
     assert exc_info.value.__cause__ is original_error
     assert await _annotations(db) == []
+
+
+class _RaisingEvaluator:
+    async def evaluate(self, **_: Any) -> Never:
+        raise RuntimeError("evaluator crashed")
+
+
+async def test_evaluator_run_time_is_observed_whatever_its_result(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    duration = Mock()
+    monkeypatch.setattr(executor_module, "get_env_enable_prometheus", lambda: True)
+    monkeypatch.setattr(executor_module, "ONLINE_EVAL_EVALUATION_DURATION_SECONDS", duration)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    succeeding = _hydrated_stub(
+        results=[
+            _evaluation_result("criterion.quality"),
+            _evaluation_result("criterion.relevance"),
+        ],
+        evaluator_kind="CODE",
+        output_configs=[_output_config("quality"), _output_config("relevance")],
+    )
+    raising = replace(succeeding, evaluator=cast(Any, _RaisingEvaluator()))
+    executor = _executor(db)
+    duration.labels.reset_mock()  # construction creates every evaluator kind's series
+
+    await executor.evaluate_and_annotate(
+        await _claim_materialized_unit(db, project_id=project.id, span_rowid=span.id),
+        succeeding,
+    )
+    with pytest.raises(RuntimeError, match="evaluator crashed"):
+        await executor.evaluate_and_annotate(
+            await _claim_materialized_unit(db, project_id=project.id, span_rowid=span.id),
+            raising,
+        )
+
+    assert duration.labels.call_args_list == [
+        call(evaluation_target="SPAN", evaluator_kind="CODE"),
+        call(evaluation_target="SPAN", evaluator_kind="CODE"),
+    ]
+    observed = [args[0] for args, _ in duration.labels.return_value.observe.call_args_list]
+    assert len(observed) == 2
+    assert all(seconds >= 0 for seconds in observed)
 
 
 async def test_complete_result_set_is_written_atomically(db: DbSessionFactory) -> None:

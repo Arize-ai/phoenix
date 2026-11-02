@@ -289,6 +289,33 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     f"was disabled when its turn came). {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
+ONLINE_EVAL_LAG_SECONDS = Histogram(
+    namespace="phoenix",
+    name="online_eval_lag_seconds",
+    documentation="Seconds from when an online evaluation was queued to its result, by outcome: "
+    "evaluated (DONE), failed (FAILED, out of retries), or expired (EXPIRED). This is the lag "
+    "the evaluators pages show; an evaluation queued again for newer spans starts a new lag. "
+    f"{_SUMS_ACROSS_REPLICAS}",
+    labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
+    buckets=(1, 5, 15, 30, 60, 120, 300, 600, 1_200, 1_800, 3_600, 7_200, 21_600, 86_400),
+)
+ONLINE_EVAL_EVALUATION_DURATION_SECONDS = Histogram(
+    namespace="phoenix",
+    name="online_eval_evaluation_duration_seconds",
+    documentation="Seconds an online evaluation's evaluator ran, whatever its result, including "
+    "runs cut off at the execution deadline. The rate of the sum is the average number of "
+    f"evaluators running at once. {_SUMS_ACROSS_REPLICAS}",
+    labelnames=[*_EVALUATION_TARGET_LABELS, "evaluator_kind"],
+    buckets=(0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 300),
+)
+ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT = Gauge(
+    namespace="phoenix",
+    name="online_eval_evaluator_concurrency_limit",
+    documentation="How many online evaluations this replica runs at once, shared by span, trace, "
+    "and session work (PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY). Divide the rate of "
+    "phoenix_online_eval_evaluation_duration_seconds_sum by this for how busy evaluators are. "
+    f"{_SUMS_ACROSS_REPLICAS}",
+)
 
 
 def _join_paths(prefix: str, path: str) -> str:

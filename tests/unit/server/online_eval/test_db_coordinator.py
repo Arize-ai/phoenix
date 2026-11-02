@@ -568,16 +568,33 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     increments: Counter[str] = Counter()
+    lags: dict[str, list[float]] = {}
 
-    def labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
+    def counter_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
         assert evaluation_target == "SPAN"
         return SimpleNamespace(inc=lambda count=1: increments.update({outcome: count}))
 
+    def lag_labels(*, evaluation_target: str, outcome: str) -> SimpleNamespace:
+        assert evaluation_target == "SPAN"
+        return SimpleNamespace(observe=lambda seconds: lags.setdefault(outcome, []).append(seconds))
+
     monkeypatch.setattr(db_coordinator_module, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(
-        db_coordinator_module, "ONLINE_EVAL_COMPLETED_WORK_UNITS", SimpleNamespace(labels=labels)
+        db_coordinator_module,
+        "ONLINE_EVAL_COMPLETED_WORK_UNITS",
+        SimpleNamespace(labels=counter_labels),
+    )
+    monkeypatch.setattr(
+        db_coordinator_module, "ONLINE_EVAL_LAG_SECONDS", SimpleNamespace(labels=lag_labels)
     )
     unit_ids = await _seed_work_units(db, 5)
+    queued_seconds_ago = 600
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit).values(
+                created_at=datetime.now(timezone.utc) - timedelta(seconds=queued_seconds_ago)
+            )
+        )
     coordinator = DbEvalWorkCoordinator(db, max_attempts=1)
     await coordinator.claim(claimed_by="dead-consumer", limit=1)
     async with db() as session:
@@ -605,6 +622,17 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
     # The lapsed claim, out of attempts, fails when the next claim reaps it.
     assert (await _get_unit(db, unit_ids[0])).status == "FAILED"
     assert increments == {"evaluated": 1, "failed": 2, "expired": 1, "cleared": 1}
+    # Cleared work had no result, so it has no lag.
+    assert {outcome: len(seconds) for outcome, seconds in lags.items()} == {
+        "evaluated": 1,
+        "failed": 2,
+        "expired": 1,
+    }
+    assert all(
+        queued_seconds_ago - 5 <= lag <= queued_seconds_ago + 60
+        for outcome_lags in lags.values()
+        for lag in outcome_lags
+    )
 
 
 async def test_ended_work_counts(

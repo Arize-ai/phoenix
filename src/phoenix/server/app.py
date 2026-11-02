@@ -176,7 +176,10 @@ from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
-from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.server.prometheus import (
+    ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT,
+    SPAN_QUEUE_REJECTIONS,
+)
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
@@ -1159,7 +1162,10 @@ def create_app(
         tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
         get_env_online_eval_max_llm_message_bytes()
         get_env_online_eval_max_sandbox_payload_bytes()
-        evaluator_semaphore = asyncio.Semaphore(get_env_online_eval_max_evaluator_concurrency())
+        max_evaluator_concurrency = get_env_online_eval_max_evaluator_concurrency()
+        if enable_prometheus:
+            ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT.set(max_evaluator_concurrency)
+        evaluator_semaphore = asyncio.Semaphore(max_evaluator_concurrency)
         db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
