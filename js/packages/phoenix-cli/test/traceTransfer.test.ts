@@ -223,6 +223,42 @@ describe("trace transfer", () => {
     expect(captured.traceIdentifiers).toEqual([TRACE_ID_A, TRACE_ID_B]);
   });
 
+  it("exits INVALID_ARGUMENT for --file - without --yes, before reading stdin", async () => {
+    const captured = captureTransfer();
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+    let stdinRead = false;
+    Object.defineProperty(process, "stdin", {
+      value: new Readable({
+        read() {
+          stdinRead = true;
+          this.push(`${TRACE_ID_A}\n`);
+          this.push(null);
+        },
+      }),
+      configurable: true,
+    });
+
+    await expect(
+      runTransfer([
+        "transfer",
+        "--file",
+        "-",
+        "--to",
+        DESTINATION,
+        ...BASE_ARGS,
+      ])
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(io.stderr).toHaveBeenCalledWith(
+      "Error transferring traces: --file - reads IDs from stdin, so it needs --yes"
+    );
+    expect(stdinRead).toBe(false);
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(captured.calls).toBe(0);
+  });
+
   it("exits INVALID_ARGUMENT before any request when the --file path does not exist", async () => {
     const captured = captureTransfer();
     const io = captureCliOutput();
@@ -359,10 +395,13 @@ describe("trace transfer", () => {
     );
   });
 
-  it("exits NETWORK_ERROR when the connection fails", async () => {
+  it("exits NETWORK_ERROR when the server cannot be reached", async () => {
+    // Fail the first request the CLI makes, the server version check, the
+    // way an unreachable server would.
     mock.server.use(
-      http.post("/v1/traces/transfer", () => HttpResponse.error())
+      http.get("/arize_phoenix_version", () => HttpResponse.error())
     );
+    const captured = captureTransfer();
     const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
@@ -372,6 +411,12 @@ describe("trace transfer", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
     expect(io.stdout).not.toHaveBeenCalled();
+    expect(io.stderr).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Error transferring traces: Could not reach the Phoenix server"
+      )
+    );
+    expect(captured.calls).toBe(0);
   });
 
   it("exits FAILURE without calling the route when the server is too old", async () => {

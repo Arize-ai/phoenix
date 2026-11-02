@@ -20,6 +20,7 @@ import {
   ExitCode,
   getExitCodeForError,
   InvalidArgumentError,
+  NetworkError,
 } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
@@ -1200,6 +1201,25 @@ async function toTraceTransferError(error: unknown): Promise<unknown> {
 }
 
 /**
+ * Check the server version before calling `transferTraces`. The helper runs
+ * the same check, but the client reports any failure there, including a
+ * server that can't be reached, as a plain `Error`, which would exit
+ * `FAILURE`. Raising it as a `NetworkError` here makes it exit
+ * `NETWORK_ERROR`. The client caches the version, so the helper doesn't fetch
+ * it again.
+ */
+async function ensureServerReachable(client: PhoenixClient): Promise<void> {
+  try {
+    await client.getServerVersion();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NetworkError(
+      `Could not reach the Phoenix server at ${client.config.baseUrl}. ${detail}`
+    );
+  }
+}
+
+/**
  * Handler for `trace transfer`
  */
 async function traceTransferHandler(
@@ -1207,6 +1227,14 @@ async function traceTransferHandler(
   options: TraceTransferOptions
 ): Promise<void> {
   try {
+    // Reading stdin to EOF leaves nothing for the confirmation prompt, so
+    // `--file -` can only run with --yes. Reject it before reading anything.
+    if (options.file === "-" && !options.yes) {
+      throw new InvalidArgumentError(
+        "--file - reads IDs from stdin, so it needs --yes"
+      );
+    }
+
     const config = resolveConfig({
       cliOptions: {
         endpoint: options.endpoint,
@@ -1243,6 +1271,7 @@ async function traceTransferHandler(
           : `Transfer ${count} traces to project ${destination}? They will no longer appear in their current project.`,
       yes: options.yes,
     });
+    await ensureServerReachable(client);
 
     writeProgress({
       message: `Transferring ${count} trace${count === 1 ? "" : "s"} to project ${destination}...`,
@@ -1288,7 +1317,7 @@ export function createTraceTransferCommand(): Command {
     )
     .option(
       "--file <path>",
-      "Read trace IDs from a file, one per line (use - for stdin)"
+      "Read trace IDs from a file, one per line (use - for stdin, with --yes)"
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")

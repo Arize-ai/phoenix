@@ -431,7 +431,7 @@ px trace list --format raw --no-progress | jq -r '.[].traceId' | px trace transf
 |--------|-------------|---------|
 | `[trace-id...]` | Trace IDs to move (OpenTelemetry trace IDs or GlobalIDs) | — |
 | `--to <project>` | Destination project name or GlobalID | Required |
-| `--file <path>` | Read more trace IDs from a file, one per line; `-` reads stdin | — |
+| `--file <path>` | Read more trace IDs from a file, one per line; `-` reads stdin and needs `--yes` | — |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `-y, --yes` | Skip the confirmation prompt (required when stdin is not a TTY) | — |

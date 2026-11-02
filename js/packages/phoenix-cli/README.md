@@ -329,7 +329,7 @@ px trace add-note abc123def456 --text "agent triage complete" --format raw --no-
 
 ### `px trace transfer [trace-id...] --to <project>`
 
-Move traces into another project. The traces are re-parented, not copied, so they no longer appear in their source project, and every trace must currently belong to the same source project. Trace IDs (OpenTelemetry trace IDs or GlobalIDs) come from arguments, `--file <path>` (one per line), or stdin with `--file -`; the destination is a project name or GlobalID. Asks for confirmation unless `--yes` is passed. Requires Phoenix server >= 20.4.0.
+Move traces into another project. The traces are re-parented, not copied, so they no longer appear in their source project, and every trace must currently belong to the same source project. Trace IDs (OpenTelemetry trace IDs or GlobalIDs) come from arguments, `--file <path>` (one per line), or stdin with `--file -` (which needs `--yes`, since stdin can't also answer the prompt); the destination is a project name or GlobalID. Asks for confirmation unless `--yes` is passed. Requires Phoenix server >= 20.4.0.
 
 ```bash
 px trace transfer abc123def456 0123456789abcdef --to production
