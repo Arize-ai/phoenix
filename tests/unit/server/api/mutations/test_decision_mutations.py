@@ -16,10 +16,12 @@ from phoenix.db.types.decisions import PredicateCriteria, PredicateQuestion
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import (
     DECISION_CLIENTS,
+    AzureOpenAIDecisionClient,
     DecisionConnection,
     DecisionRateLimitError,
     DecisionRequest,
     DecisionTransientError,
+    FireworksDecisionClient,
     OllamaDecisionClient,
     OpenAIDecisionClient,
     TypeSafeDecisionClient,
@@ -507,9 +509,11 @@ async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLCl
     assert result.data and not result.errors
     assert all(model["modelType"] == "LLM" for model in result.data["llm"])
     assert all(model["modelType"] == "DECISION" for model in result.data["decision"])
+    # Azure suggests no decision models: they are named by the user's deployment.
     assert {model["providerKey"] for model in result.data["decision"]} == {
         "OPENAI",
         "TYPESAFE",
+        "FIREWORKS",
         "OLLAMA",
     }
     # ``providerKey`` is optional, so omitting it and passing null both work.
@@ -710,6 +714,8 @@ def test_decision_clients_declare_capability_credentials_and_endpoints() -> None
     assert DECISION_CLIENTS == {
         GenerativeProviderKey.TYPESAFE: TypeSafeDecisionClient,
         GenerativeProviderKey.OPENAI: OpenAIDecisionClient,
+        GenerativeProviderKey.AZURE_OPENAI: AzureOpenAIDecisionClient,
+        GenerativeProviderKey.FIREWORKS: FireworksDecisionClient,
         GenerativeProviderKey.OLLAMA: OllamaDecisionClient,
     }
     assert TypeSafeDecisionClient.model_names == (
