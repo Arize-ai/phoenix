@@ -9,7 +9,7 @@ import {
 } from "@phoenix/components/core/overlay";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import {
-  DEFAULT_STORE_VALUES,
+  DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
 
@@ -61,13 +61,7 @@ const CreateDecisionEvaluatorDialog = (
   const initialState = useMemo(
     () =>
       ({
-        ...DEFAULT_STORE_VALUES,
-        evaluator: {
-          ...DEFAULT_STORE_VALUES.evaluator,
-          kind: "DECISION",
-          isBuiltin: false,
-        },
-        outputConfigs: [],
+        ...DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
         dataset: {
           readonly: true,
           id: datasetId,
