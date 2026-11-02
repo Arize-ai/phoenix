@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Generator, Optional
+from typing import Any, Generator, Literal, Optional, Type, Union
 from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import urlparse
 
@@ -625,6 +625,101 @@ class TestEndpointNormalization:
         result = _construct_http_endpoint(parsed)
 
         assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+
+class TestProtocolInference:
+    @pytest.mark.parametrize(
+        "env_endpoint, protocol, exporter_cls, expected_endpoint",
+        [
+            ("http://localhost:6006", None, GRPCSpanExporter, "localhost:4317"),
+            ("http://localhost:6006/", None, GRPCSpanExporter, "localhost:4317"),
+            (
+                "http://localhost:6006/v1/traces",
+                None,
+                HTTPSpanExporter,
+                "http://localhost:6006/v1/traces",
+            ),
+            (
+                "http://example.com/phoenix",
+                None,
+                HTTPSpanExporter,
+                "http://example.com/phoenix/v1/traces",
+            ),
+            (
+                "http://example.com/phoenix/v1/traces",
+                None,
+                HTTPSpanExporter,
+                "http://example.com/phoenix/v1/traces",
+            ),
+            ("http://localhost:6006/v1/traces", "grpc", GRPCSpanExporter, "localhost:4317"),
+            (
+                "http://localhost:6006",
+                "http/protobuf",
+                HTTPSpanExporter,
+                "http://localhost:6006/v1/traces",
+            ),
+            ("http://localhost:4317", None, GRPCSpanExporter, "localhost:4317"),
+            (
+                "https://app.phoenix.arize.com/s/myspace",
+                None,
+                HTTPSpanExporter,
+                "https://app.phoenix.arize.com/s/myspace/v1/traces",
+            ),
+        ],
+    )
+    def test_register_with_env_endpoint(
+        self,
+        env_endpoint: str,
+        protocol: Optional[Literal["http/protobuf", "grpc"]],
+        exporter_cls: Type[Union[HTTPSpanExporter, GRPCSpanExporter]],
+        expected_endpoint: str,
+        monkeypatch: pytest.MonkeyPatch,
+        recwarn: pytest.WarningsRecorder,
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", env_endpoint)
+
+        tracer_provider = register(
+            protocol=protocol, verbose=False, set_global_tracer_provider=False
+        )
+
+        (processor,) = tracer_provider._active_span_processor._span_processors
+        exporter = _get_exporter_from_processor(processor)
+        assert isinstance(exporter, exporter_cls)
+        assert exporter._endpoint == expected_endpoint
+        assert not recwarn.list
+
+    @pytest.mark.parametrize(
+        "endpoint, exporter_cls, expected_endpoint",
+        [
+            (
+                "http://example.com/phoenix/v1/traces",
+                HTTPSpanExporter,
+                "http://example.com/phoenix/v1/traces",
+            ),
+            (
+                "https://app.phoenix.arize.com/s/myspace/v1/traces",
+                HTTPSpanExporter,
+                "https://app.phoenix.arize.com/s/myspace/v1/traces",
+            ),
+            ("http://localhost:4317", GRPCSpanExporter, "localhost:4317"),
+            ("http://localhost:9999", GRPCSpanExporter, "localhost:9999"),
+        ],
+    )
+    def test_explicit_endpoint(
+        self,
+        endpoint: str,
+        exporter_cls: Type[Union[HTTPSpanExporter, GRPCSpanExporter]],
+        expected_endpoint: str,
+    ) -> None:
+        tracer_provider = TracerProvider(endpoint=endpoint, verbose=False)
+        (processor,) = tracer_provider._active_span_processor._span_processors
+
+        for exporter in (
+            _get_exporter_from_processor(processor),
+            SimpleSpanProcessor(endpoint=endpoint).span_exporter,
+        ):
+            assert isinstance(exporter, exporter_cls)
+            assert exporter._endpoint == expected_endpoint
 
 
 class TestPhoenixCloudEndpoint:
