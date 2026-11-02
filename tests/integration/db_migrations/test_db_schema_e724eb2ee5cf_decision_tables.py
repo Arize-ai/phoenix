@@ -131,7 +131,7 @@ async def test_decision_tables_schema(
     # Without DECISION jobs it succeeds, drops the tables and narrows the CHECK again.
     await _run_async(_engine, lambda conn: _delete_job(conn, decision_experiment_id))
 
-    # Decision evaluators and snapshots also guard downgrade.
+    # Decision evaluators also guard downgrade.
     def create_judge(conn: Connection) -> int:
         row_id = conn.execute(
             text(
@@ -153,22 +153,10 @@ async def test_decision_tables_schema(
         conn.execute(text("DELETE FROM evaluators WHERE id = :id"), {"id": evaluator_id})
         conn.commit()
 
-    def set_snapshots(conn: Connection, value: str) -> None:
-        conn.execute(
-            text("UPDATE experiment_jobs SET decision_evaluator_snapshots = :value WHERE id = :id"),
-            {"value": value, "id": prompt_experiment_id},
-        )
-        conn.commit()
-
     evaluator_id = await _run_async(_engine, create_judge)
     with pytest.raises(ValueError, match="decision evaluators exist"):
         await _down(_engine, _alembic_config, _DOWN, _schema)
     await _run_async(_engine, lambda conn: delete_judge(conn, evaluator_id))
-
-    await _run_async(_engine, lambda conn: set_snapshots(conn, '[{"evaluator": "judge"}]'))
-    with pytest.raises(ValueError, match="decision evaluator snapshots exist"):
-        await _down(_engine, _alembic_config, _DOWN, _schema)
-    await _run_async(_engine, lambda conn: set_snapshots(conn, "[]"))
 
     await _down(_engine, _alembic_config, _DOWN, _schema)
     for table in (

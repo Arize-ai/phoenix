@@ -82,10 +82,7 @@ from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.evaluators.resolution import build_evaluator_from_definition
 from phoenix.server.evaluators.runtime.base import BaseEvaluator
-from phoenix.server.evaluators.snapshots import (
-    capture_dataset_decision_evaluators,
-    pin_evaluator_definition,
-)
+from phoenix.server.evaluators.snapshots import pin_evaluator_definition
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
@@ -542,7 +539,6 @@ async def _stream_experiments_over_dataset(
                         output_configs=list(resolved_evaluator_task.evaluator.output_configs),
                     )
                 )
-            await capture_dataset_decision_evaluators(session, experiment.id)
             experiments.append(experiment)
 
     experiment_ids = [
