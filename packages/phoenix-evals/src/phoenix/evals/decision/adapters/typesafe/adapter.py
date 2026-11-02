@@ -5,6 +5,8 @@ from ...registries import register_provider
 from ...types import BaseDecisionAdapter
 from .factories import create_typesafe_client, get_typesafe_rate_limit_errors
 
+_QUESTION_NAME = "label"
+
 
 @register_provider(
     provider="typesafe",
@@ -25,12 +27,16 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         return "typesafe"
 
     def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> Dict[str, Any]:
+        """
+        Returns a dictionary with a single key "_QUESTION_NAME" whose value is a Choice object.
+        e.g. {"label": Choice(criteria={"helpful": None, "not helpful": None})}
+        """
         from typesafe_sdk import Choice
 
         criteria: Dict[str, Optional[str]] = (
             dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
         )
-        return {"label": Choice(criteria=criteria)}
+        return {_QUESTION_NAME: Choice(criteria=criteria)}
 
     @staticmethod
     def _to_result(response: Any) -> Dict[str, Any]:
