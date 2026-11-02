@@ -306,6 +306,10 @@ Use the observed roles and names to choose Playwright selectors:
 - Access control: `{role}-access.spec.ts`
 - Rate limiting: `{feature}.rate-limit.spec.ts` (runs last)
 
+## Comments
+
+The test name carries the intent. Don't narrate steps (`// open the dialog`) or justify a locator (`// scoped to the card because the page has two`) — the reader sees the call. Keep a comment only where the next reader would otherwise change the test wrongly, such as a wait that looks redundant but guards a race.
+
 ## Common Gotchas
 
 1. **Dialog not closing**: Wait for a deterministic post-action signal (e.g., dialog hidden + success row visible)

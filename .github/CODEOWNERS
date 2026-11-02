@@ -4,3 +4,4 @@
 /packages @arize-ai/oss-python
 /examples @arize-ai/dev-rel @arize-ai/oss-eng
 /tutorials @arize-ai/dev-rel @arize-ai/oss-eng
+/.github @arize-ai/oss-eng

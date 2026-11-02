@@ -9,12 +9,9 @@ import {
   type PanelImperativeHandle,
   Separator,
 } from "react-resizable-panels";
-import { useNavigate } from "react-router";
 
 import {
-  Button,
   Counter,
-  DialogTrigger,
   EdgeFade,
   ErrorBoundary,
   Flex,
@@ -28,15 +25,13 @@ import {
   TabList,
   Tabs,
   View,
-  ViewportModal,
-  ViewportModalOverlay,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import {
   EDIT_ANNOTATION_HOTKEY,
   NOTE_HOTKEY,
 } from "@phoenix/constants/annotationConstants";
-import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions, useScopedHotkeys } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
@@ -44,6 +39,7 @@ import type {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
+import { AddSpanToDatasetButton } from "./AddSpanToDatasetButton";
 import { SpanAttributesCard, SpanInfo } from "./span";
 import { SpanAside } from "./SpanAside";
 import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
@@ -52,7 +48,6 @@ import { SpanEventsList } from "./SpanEventsList";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
 import { SpanNoteBar } from "./SpanNoteBar";
 import { SpanNoteBarProvider, useOpenSpanNoteBar } from "./SpanNoteBarContext";
-import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
 
@@ -238,8 +233,8 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                     {isCondensedView ? null : "Playground"}
                   </LinkButton>
                   <AddSpanToDatasetButton
-                    span={span}
-                    buttonText={isCondensedView ? null : "Add to Dataset"}
+                    spanId={span.id}
+                    isCondensed={isCondensedView}
                   />
                   <SpanDownloadMenu
                     projectId={span.project.id}
@@ -346,49 +341,6 @@ function SpanInfoWrap({ children }: PropsWithChildren) {
     <div css={spanInfoWrapCSS} data-testid="span-info-wrap">
       {children}
     </div>
-  );
-}
-
-function AddSpanToDatasetButton({
-  span,
-  buttonText,
-}: {
-  span: Span;
-  buttonText: string | null;
-}) {
-  const notifySuccess = useNotifySuccess();
-  const navigate = useNavigate();
-  return (
-    <DialogTrigger>
-      <Button
-        variant="default"
-        size="S"
-        leadingVisual={<Icon svg={<Icons.Database />} />}
-      >
-        {buttonText}
-      </Button>
-      <ViewportModalOverlay>
-        <ViewportModal size="L">
-          <Suspense fallback={<Loading />}>
-            <SpanToDatasetExampleDialog
-              spanId={span.id}
-              onCompleted={(datasetId) => {
-                notifySuccess({
-                  title: "Span Added to Dataset",
-                  message: "Successfully added span to dataset",
-                  action: {
-                    text: "View Dataset",
-                    onClick: () => {
-                      navigate(`/datasets/${datasetId}/examples`);
-                    },
-                  },
-                });
-              }}
-            />
-          </Suspense>
-        </ViewportModal>
-      </ViewportModalOverlay>
-    </DialogTrigger>
   );
 }
 

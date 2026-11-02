@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-evals",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "A library for running evaluations for AI use cases",
   "keywords": [
     "arize",
@@ -79,19 +79,19 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/otel": "1.0.137",
-    "@arizeai/openinference-core": "^2.8.0",
-    "@opentelemetry/api": "^1.9.1",
-    "ai": "7.0.137",
+    "@ai-sdk/otel": "1.0.152",
+    "@arizeai/openinference-core": "^2.8.1",
+    "@opentelemetry/api": "^1.10.0",
+    "ai": "7.0.152",
     "jsonpath-plus": "^10.4.0",
     "mustache": "^4.2.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@ai-sdk/google": "^4.0.99",
-    "@ai-sdk/openai": "^4.0.96",
-    "@ai-sdk/typesafe-ai": "^3.0.21",
-    "@arizeai/openinference-instrumentation-openai": "^4.4.1",
+    "@ai-sdk/google": "^4.0.104",
+    "@ai-sdk/openai": "^4.0.101",
+    "@ai-sdk/typesafe-ai": "^3.0.26",
+    "@arizeai/openinference-instrumentation-openai": "^4.4.2",
     "@opentelemetry/sdk-trace-node": "^2.12.0",
     "@types/mustache": "^4.2.6",
     "@types/node": "^26.6.5",

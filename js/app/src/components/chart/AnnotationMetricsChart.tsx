@@ -44,6 +44,8 @@ import {
   defaultTooltipProps,
 } from "./defaults";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
+import type { RoundedLinearAxis } from "./roundedLinearAxis";
+import { getRoundedLinearAxis } from "./roundedLinearAxis";
 import type { TimeSeriesChartType } from "./types";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
@@ -164,10 +166,10 @@ function getAnnotationChartState({
   const scoreValues = [...data, reference].flatMap((point) =>
     point?.meanScore == null ? [] : [point.meanScore]
   );
-  const domain =
+  const yAxis: Partial<RoundedLinearAxis> =
     !isScoreView || scoreValues.every((score) => score >= 0 && score <= 1)
-      ? ([0, 1] as [number, number])
-      : undefined;
+      ? { domain: [0, 1] }
+      : (getRoundedLinearAxis({ values: scoreValues }) ?? {});
   const isReferencePrepended =
     !isScoreView &&
     reference != null &&
@@ -183,7 +185,7 @@ function getAnnotationChartState({
       }));
   return {
     chartData,
-    domain,
+    yAxis,
     hasOtherValues: chartData.some(
       (point) => "otherFraction" in point && point.otherFraction != null
     ),
@@ -214,7 +216,7 @@ function AnnotationMetricsChartContent({
   const visibleLabels = series.labels;
   const {
     chartData,
-    domain,
+    yAxis,
     hasOtherValues,
     isReferencePrepended,
     isScoreView,
@@ -241,7 +243,8 @@ function AnnotationMetricsChartContent({
           <XAxis {...xAxisProps} />
           <YAxis
             {...yAxisProps}
-            domain={domain}
+            domain={yAxis.domain}
+            ticks={yAxis.ticks}
             tickFormatter={
               isScoreView ? floatFormatter : formatAnnotationFraction
             }

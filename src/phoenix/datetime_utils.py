@@ -5,9 +5,9 @@ import pandas as pd
 from pandas import Timestamp, to_datetime
 from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
-    is_datetime64tz_dtype,
     is_numeric_dtype,
     is_object_dtype,
+    is_string_dtype,
 )
 from typing_extensions import assert_never
 
@@ -44,15 +44,18 @@ def normalize_timestamps(
     """
     if is_numeric_dtype(timestamps):
         return to_datetime(timestamps, unit="s", utc=True)
-    if is_datetime64tz_dtype(timestamps):
-        return timestamps.dt.tz_convert(timezone.utc)
+    if isinstance(timestamps.dtype, pd.DatetimeTZDtype):
+        return cast("pd.Series[Timestamp]", timestamps.dt.tz_convert(timezone.utc))
     if is_datetime64_any_dtype(timestamps):
-        return timestamps.dt.tz_localize(
-            datetime.now().astimezone().tzinfo,
-        ).dt.tz_convert(
-            timezone.utc,
+        return cast(
+            "pd.Series[Timestamp]",
+            timestamps.dt.tz_localize(
+                datetime.now().astimezone().tzinfo,
+            ).dt.tz_convert(
+                timezone.utc,
+            ),
         )
-    if is_object_dtype(timestamps):
+    if is_object_dtype(timestamps) or is_string_dtype(timestamps):
         timestamps = to_datetime(timestamps)
         if timestamps.dt.tz is None:
             timestamps = timestamps.dt.tz_localize(

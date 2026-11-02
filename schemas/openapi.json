@@ -860,7 +860,9 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -1209,7 +1211,9 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -1558,7 +1562,9 @@
                   "enum": [
                     "LLM",
                     "CODE",
-                    "HUMAN"
+                    "HUMAN",
+                    "DECISION",
+                    "AGENT"
                   ],
                   "type": "string"
                 },
@@ -8925,7 +8931,7 @@
     "/auth/logout": {
       "get": {
         "summary": " Logout",
-        "description": "Log out user by revoking tokens and clearing cookies.",
+        "description": "Log out of every browser session by revoking its tokens, and clear the cookies.",
         "operationId": "_logout_auth_logout_get",
         "responses": {
           "200": {
@@ -9195,6 +9201,22 @@
             "schema": {
               "type": "string",
               "title": "Phoenix-Oauth2-State"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-login-context",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phoenix-Oauth2-Login-Context"
             }
           },
           {
@@ -18621,6 +18643,12 @@
           "id": {
             "type": "string",
             "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The creation timestamp of the prompt version."
           }
         },
         "type": "object",
@@ -18631,7 +18659,8 @@
           "template_type",
           "template_format",
           "invocation_parameters",
-          "id"
+          "id",
+          "created_at"
         ],
         "title": "PromptVersion"
       },
@@ -19200,7 +19229,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19266,7 +19297,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19907,7 +19940,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -19973,7 +20008,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -20088,7 +20125,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21047,7 +21086,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21113,7 +21154,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
@@ -21878,7 +21921,9 @@
             "enum": [
               "LLM",
               "CODE",
-              "HUMAN"
+              "HUMAN",
+              "DECISION",
+              "AGENT"
             ],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the evaluation"
