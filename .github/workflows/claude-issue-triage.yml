@@ -1,42 +1,36 @@
 name: Claude Issue Triage
 
 on:
-  schedule:
-    - cron: "0 8 */2 * *" # this means "at 08:00 UTC every 2 days"
-  workflow_dispatch:
+  workflow_call:
     inputs:
+      issue:
+        description: 'One issue number, or 0 for none. Triage it alone; created, limit and sort then do not apply'
+        type: number
+        default: 0
       created:
-        description: 'Sweep a creation window, e.g. 2025-01-01..2025-12-31 or <2026-01-01 (blank = whole backlog, the scheduled default)'
-        required: false
+        description: 'Creation window, e.g. 2025-01-01..2025-12-31 or <2026-01-01 (blank = whole backlog)'
+        type: string
         default: ''
       limit:
-        description: 'Issues to fetch in Pass A. Raise for a sweep; keep each slice under the 1000-result search cap.'
-        required: false
+        description: 'Issues to fetch in Pass A'
+        type: string
         default: '25'
       stages:
         description: 'Triage stages to run, e.g. 1-7 (all), 1-4 (labels only), 3-4'
-        required: false
+        type: string
         default: '1-7'
       regression:
-        description: 'Re-triage issues already carrying the gate label'
-        type: choice
-        options: ['on', 'off']
-        required: false
+        description: 'Re-triage issues already carrying the gate label: on or off'
+        type: string
         default: 'on'
-
-concurrency:
-  group: claude-issue-triage
-  # Do not cancel in progress: a manual backlog sweep can run for the better part of
-  # an hour, and the every-2-days schedule would otherwise kill it partway through.
-  cancel-in-progress: false
+      timeout-minutes:
+        type: number
+        default: 60
 
 jobs:
   triage:
     runs-on: ubuntu-latest
-    # Stage 5 reads the checked-out codebase and stages 5-6 write comments and bodies,
-    # so a full 50-issue run is far slower than the old label-only job. Raise this
-    # alongside `limit` for a backlog sweep.
-    timeout-minutes: 60
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       issues: write # Add/remove labels, edit titles and bodies, post triage comments
       contents: read # Read repo contents, and the codebase for stage 5 investigation
@@ -50,7 +44,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 1 
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Install subprocess isolation deps
@@ -73,6 +67,12 @@ jobs:
           anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
 
           github_token: ${{ github.token }}
+          # The action rejects actors without write access, which is whoever opened the issue
+          # on an on-open run. The tool allowlist below is the boundary instead.
+          allowed_non_write_users: ${{ inputs.issue && '*' || '' }}
+          # Apps open issues too, the factory's log scans among them; the prompt is fixed here,
+          # so a bot controls no more of the run than a person does.
+          allowed_bots: ${{ inputs.issue && '*' || '' }}
 
           show_full_output: 'true'
           prompt: |
@@ -88,11 +88,12 @@ jobs:
             Those are the only gate policies in effect.
 
             Run scope:
+              issue:      ${{ inputs.issue || '(none - a slice of the backlog)' }}
               created:    ${{ inputs.created || '(none - whole backlog)' }}
-              limit:      ${{ inputs.limit || '25' }}
+              limit:      ${{ inputs.limit }}
               sort:       ${{ inputs.created && 'created-asc' || 'updated-asc' }}
-              stages:     ${{ inputs.stages || '1-7' }}
-              regression: ${{ inputs.regression || 'on' }}
+              stages:     ${{ inputs.stages }}
+              regression: ${{ inputs.regression }}
 
             Stages 5 and 6 write to public issues. Before each such write, re-read that
             issue's current title and body, and keep the reporter's words verbatim as
