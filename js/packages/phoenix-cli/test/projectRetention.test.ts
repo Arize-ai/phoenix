@@ -360,6 +360,32 @@ describe("project retention errors", () => {
     expect(() => JSON.parse(stderr)).toThrow();
   });
 
+  it("sets a policy end-to-end against the schema-generated handlers", async () => {
+    // No mock.server.use: the generated OpenAPI handler answers the PATCH.
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await createProjectCommand().parseAsync(
+      [
+        "retention",
+        "set",
+        "support-bot",
+        POLICY_ID,
+        "--yes",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(exitSpy).not.toHaveBeenCalled();
+    const parsed = JSON.parse(stdoutText(io));
+    expect(parsed).toEqual(expect.any(Object));
+    expect(Object.keys(parsed).sort()).toEqual(["policy_id", "project_id"]);
+    expect(typeof parsed.project_id).toBe("string");
+  });
+
   it("maps a network failure to NETWORK_ERROR", async () => {
     mock.server.use(
       http.patch("/v1/projects/{project_identifier}/retention", () =>
