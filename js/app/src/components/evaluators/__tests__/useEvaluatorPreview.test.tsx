@@ -47,12 +47,12 @@ describe("useEvaluatorPreview", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
-    function Harness({
-      onRender,
+    function CapturePreview({
+      onCapture,
     }: {
-      onRender: (current: EvaluatorPreview) => void;
+      onCapture: (current: EvaluatorPreview) => void;
     }) {
-      onRender(useEvaluatorPreview());
+      onCapture(useEvaluatorPreview());
       return null;
     }
     await act(async () =>
@@ -63,7 +63,7 @@ describe("useEvaluatorPreview", () => {
             evaluatorMappingSource: { recordKind: "dataset", source: SOURCE },
           }}
         >
-          <Harness onRender={(current) => (preview = current)} />
+          <CapturePreview onCapture={(current) => (preview = current)} />
         </EvaluatorStoreProvider>
       )
     );
