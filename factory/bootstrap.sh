@@ -117,8 +117,14 @@ else
 fi
 if [ "$pg_status" = ok ]; then
   echo "postgresql: running at $pg_url (data $pg_dir/data, log $pg_dir/server.log)"
-  echo "pytest on PostgreSQL: run as $pg_user, since the fixtures start their own PostgreSQL:"
-  echo "  su $pg_user -s /bin/bash -c 'cd $repo_dir && PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -o cache_dir=/tmp/factory-pytest-cache --db all --postgresql-exec $pg_ctl_path <tests>'"
+  pytest_pg="cd $repo_dir && PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -o cache_dir=/tmp/factory-pytest-cache --db all --postgresql-exec $pg_ctl_path <tests>"
+  if [ "$(id -u)" -eq 0 ]; then
+    echo "pytest on PostgreSQL: run as $pg_user, since the fixtures start their own PostgreSQL:"
+    echo "  su $pg_user -s /bin/bash -c '$pytest_pg'"
+  else
+    echo "pytest on PostgreSQL, since the fixtures start their own PostgreSQL:"
+    echo "  $pytest_pg"
+  fi
 else
   echo "postgresql: $pg_status; rely on CI for --db postgresql"
 fi
@@ -128,6 +134,11 @@ if [ "$pg_status" = ok ]; then
   echo "  PostgreSQL: PHOENIX_SQL_DATABASE_URL=$pg_url PHOENIX_PORT=6006 PHOENIX_GRPC_PORT=4317 uv run --no-sync phoenix serve &"
 fi
 echo "  wait for: curl -sf http://127.0.0.1:6006/healthz; OTLP at http://127.0.0.1:6006/v1/traces and grpc 127.0.0.1:4317; UI at http://127.0.0.1:6006"
+echo "fresh storage for the after probe, with the server stopped:"
+echo "  SQLite:     rm -rf /tmp/factory-phoenix"
+if [ "$pg_status" = ok ]; then
+  echo "  PostgreSQL: $pg_bin/dropdb -h 127.0.0.1 -p $pg_port -U phoenix phoenix && $pg_bin/createdb -h 127.0.0.1 -p $pg_port -U phoenix phoenix"
+fi
 if [ "$browser_status" = ok ]; then
   echo "browser: ok ($(agent-browser --version 2>/dev/null), Chromium $chromium_path)"
   echo "  a UI probe script starts with these two lines, then uses agent-browser as 'agent-browser skills get core' describes:"

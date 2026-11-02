@@ -4,7 +4,7 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 
 ## State A: draft PR opened
 
-1. Either the transcript shows a test added in this PR failing for the reason the issue reports before the fix and passing after it, or the reproducer reported `NEEDS_BROWSER` with file:line evidence of the cause and the PR body's Not verified line lists the steps that would show the bug.
+1. Either the transcript shows a test added in this PR failing for the reason the issue reports before the fix and passing after it, or the reproducer reported `NEEDS_BROWSER` with file:line evidence of the cause and criterion 2's probe shows the symptom before the fix and not after it, or, when that probe could not run, the PR body's Not verified line lists the steps that would show the bug.
 2. The transcript shows one end-to-end probe, driving the entry point the issue describes (an OTLP export, a REST or GraphQL request, a `px` command, a client call, or an `agent-browser` run) against a Phoenix server the session started, run once on unmodified `main` with the issue's symptom in its output and once on the fixed tree without it; and the PR body's End to end section quotes both outputs. Or the PR body's Not verified line says what stopped the server or the probe from running in the sandbox.
 3. Every test added in this PR exercises real code at the lowest layer that shows the behavior, and would fail if the fix were reverted. None hand-writes a fake GraphQL or REST server, fakes layout or scroll metrics, mocks the module under test, or silences warnings so fake payloads pass.
 4. The diff is confined to the bug's path; no unrelated refactors, formatting churn, or comments that narrate the change.
