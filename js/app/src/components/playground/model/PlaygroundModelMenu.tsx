@@ -1,4 +1,7 @@
-import type { ModelMenuValue } from "@phoenix/components/generative";
+import type {
+  ModelCredentialSource,
+  ModelMenuValue,
+} from "@phoenix/components/generative";
 import { ModelMenu } from "@phoenix/components/generative";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import {
@@ -22,6 +25,9 @@ export type PlaygroundModelMenuProps = {
   supportsDecisionModels?: boolean;
   /** Shown above the Decision tab's providers; see {@link ModelMenu}. */
   decisionTabNotice?: string;
+  /** Restrict the menu to one model type; see {@link ModelMenu}. */
+  fixedModelType?: ModelType;
+  credentialSource?: ModelCredentialSource;
 };
 
 /**
@@ -32,6 +38,8 @@ export function PlaygroundModelMenu({
   playgroundInstanceId,
   supportsDecisionModels = false,
   decisionTabNotice,
+  fixedModelType,
+  credentialSource,
 }: PlaygroundModelMenuProps) {
   const store = usePlaygroundStore();
   const instance = usePlaygroundContext((state) =>
@@ -172,6 +180,8 @@ export function PlaygroundModelMenu({
       // A decision task with no model picked yet opens on the Decision tab.
       defaultModelType={isDecisionInstance(instance) ? "DECISION" : "LLM"}
       decisionTabNotice={decisionTabNotice}
+      fixedModelType={fixedModelType}
+      credentialSource={credentialSource}
       isDisabled={instance.activeRunId != null}
     />
   );

@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { DECISION_EVALUATOR_DRAFT_INSTANCE_ID } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
-import {
-  type DecisionEvaluatorData,
-  getMutationErrorMessage,
-} from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import {
   type DecisionQuestionDefinition,
   type DecisionScoringPolicyValue,
@@ -22,6 +19,7 @@ import { extractDecisionVariables } from "@phoenix/pages/playground/decisionUtil
 import { fetchPlaygroundDecisionAsInstance } from "@phoenix/pages/playground/fetchPlaygroundDecision";
 import { toDecisionVersionInput } from "@phoenix/pages/playground/savedDecisionUtils";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type DecisionVersionInput = ReturnType<typeof toDecisionVersionInput>;
 
@@ -159,6 +157,12 @@ export function useDecisionEvaluatorDraft({
     return { name, decisionVersion: current, scoringPolicy: policy };
   };
 
+  /** The unsaved definition a test runs, without the name a binding gives it. */
+  const getTestDefinition = () => {
+    const { decisionVersion, scoringPolicy } = getDefinition("", "test");
+    return { decisionVersion, scoringPolicy };
+  };
+
   const getCreateDecisionSource = () =>
     hasDecisionChanges
       ? { decisionVersion: version, decisionId: selectedDecisionId }
@@ -202,6 +206,7 @@ export function useDecisionEvaluatorDraft({
     },
     selectTag: setSelectedTagName,
     getDefinition,
+    getTestDefinition,
     getCreateDecisionSource,
     getUpdateDecisionSource,
   };

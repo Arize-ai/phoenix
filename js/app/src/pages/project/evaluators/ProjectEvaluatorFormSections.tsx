@@ -16,7 +16,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
-import { DecisionEvaluatorDefinitionFields } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDefinitionFields";
+import { DecisionEvaluatorForm } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
 import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
@@ -290,10 +290,11 @@ export const ProjectDecisionEvaluatorFormSections = (
       <EvaluatorNameAndDescriptionFields isNameRequired />
       <ProjectEvaluatorScopeSection {...scopeProps} />
       <Flex direction="column" gap="size-200">
-        <DecisionEvaluatorDefinitionFields
+        <DecisionEvaluatorForm
           draft={draft}
           isDisabled={isDisabled}
           scoringDescription="Turn each answer into the score this evaluator records."
+          showInputMapping={false}
         />
       </Flex>
     </>
