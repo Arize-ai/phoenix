@@ -692,6 +692,7 @@ const preview: Preview = {
             ["Overview"],
             "Datasets",
             "Evaluators",
+            ["Overview"],
             "Annotations",
             ["Overview"],
             "Playground",

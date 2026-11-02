@@ -93,7 +93,7 @@ def get_serializable_spans_dataframe(dataframe: DataFrame) -> DataFrame:
     dataframe = dataframe.copy(deep=False)  # copy, don't mutate
     # Check if the dataframe has any document columns
     is_documents_column = dataframe.columns.isin(DOCUMENT_COLUMNS)
-    for name, column in dataframe.loc[:, is_documents_column].items():  # type: ignore
+    for name, column in dataframe.loc[:, is_documents_column].items():
         dataframe[name] = column.apply(_delete_empty_document_metadata)
     return dataframe
 
@@ -176,7 +176,7 @@ class TraceDataset:
         """
         return cls(
             pd.json_normalize(
-                (json.loads(span_to_json(span)) for span in spans),  # type: ignore
+                [json.loads(span_to_json(span)) for span in spans],
                 max_level=1,
             )
         )
@@ -277,7 +277,7 @@ class TraceDataset:
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
-        table = Table.from_pandas(self.dataframe)
+        table = Table.from_pandas(dataframe)
         table = table.replace_schema_metadata(
             {
                 **(table.schema.metadata or {}),

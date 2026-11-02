@@ -63,6 +63,30 @@ describe("toOpenAI type compatibility", () => {
     assertType<ChatCompletionCreateParams>(result);
   });
 
+  it.each([true, false, undefined])(
+    "preserves response format strict=%s",
+    (strict) => {
+      const jsonSchema = {
+        ...BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT.response_format.json_schema,
+        strict,
+      };
+      const prompt = {
+        ...BASE_MOCK_PROMPT_VERSION,
+        response_format: {
+          type: "json_schema",
+          json_schema: jsonSchema,
+        },
+      } satisfies PromptVersion;
+
+      const result = toSDK({ sdk: "openai", prompt });
+
+      expect(result?.response_format).toEqual({
+        type: "json_schema",
+        json_schema: jsonSchema,
+      });
+    }
+  );
+
   it("should handle typed variables", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,

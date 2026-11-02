@@ -62,16 +62,16 @@ function RetentionPolicyDetailsFallback() {
       <DialogHeader>
         <Flex direction="row" gap="size-200" alignItems="center">
           <DialogCloseButton slot="close" />
-          <Skeleton width={200} height={24} animation="wave" />
+          <Skeleton width={200} height={24} />
         </Flex>
       </DialogHeader>
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           <Flex direction="row" gap="size-100">
-            <Skeleton height={60} animation="wave" />
-            <Skeleton height={60} animation="wave" />
+            <Skeleton height={60} />
+            <Skeleton height={60} />
           </Flex>
-          <Skeleton height={200} animation="wave" />
+          <Skeleton height={200} />
         </Flex>
       </View>
     </DialogContent>

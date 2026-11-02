@@ -8,6 +8,7 @@ from typing import Any, Callable, Literal, overload
 
 import pydantic
 from openinference.instrumentation import (
+    OITracer,
     get_input_attributes,
     get_metadata_attributes,
     get_output_attributes,
@@ -15,7 +16,7 @@ from openinference.instrumentation import (
     safe_json_dumps,
 )
 from openinference.semconv.trace import OpenInferenceMimeTypeValues
-from opentelemetry.trace import Status, StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.agent.wrapper import WrapperAgent
 from pydantic_ai.messages import (
@@ -26,6 +27,8 @@ from pydantic_ai.messages import (
     DocumentUrl,
     FilePart,
     ImageUrl,
+    InstructionBaselinePart,
+    InstructionDeltaPart,
     ModelMessage,
     ModelRequest,
     ModelRequestPart,
@@ -33,6 +36,7 @@ from pydantic_ai.messages import (
     ModelResponsePart,
     NativeToolCallPart,
     NativeToolReturnPart,
+    RetryFeedbackPart,
     RetryPromptPart,
     SpeechPart,
     SystemPromptPart,
@@ -76,14 +80,14 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
     ``span_name`` overrides the default ``{agent name}.iter`` span name.
     """
 
-    tracer: Tracer
+    tracer: OITracer
     span_name: str | None
 
     def __init__(
         self,
         wrapped: AbstractAgent[AgentDepsT, OutputDataT],
         *,
-        tracer: Tracer,
+        tracer: OITracer,
         span_name: str | None = None,
     ) -> None:
         super().__init__(wrapped)
@@ -246,7 +250,10 @@ def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePar
             UserPromptPart,
             ToolReturnPart,
             RetryPromptPart,
+            RetryFeedbackPart,
             ToolAvailabilityDeltaPart,
+            InstructionDeltaPart,
+            InstructionBaselinePart,
         ),
     ):
         return _get_text_content_from_model_request_part(part)
@@ -282,7 +289,18 @@ def _get_text_content_from_model_request_part(part: ModelRequestPart) -> str | N
                 return None
             texts.append(text)
         return "\n".join(texts)
-    if isinstance(part, (ToolReturnPart, RetryPromptPart, ToolAvailabilityDeltaPart, SpeechPart)):
+    if isinstance(
+        part,
+        (
+            ToolReturnPart,
+            RetryPromptPart,
+            RetryFeedbackPart,
+            ToolAvailabilityDeltaPart,
+            InstructionDeltaPart,
+            InstructionBaselinePart,
+            SpeechPart,
+        ),
+    ):
         return None
     assert_never(part)
 

@@ -2337,7 +2337,7 @@ class TestClientGetSpansAttributeFilters:
         end-to-end. Parity check: both routers return the same span (both invoke
         ``_parse_attribute`` — spans.py:731-732 and spans.py:925-926).
         """
-        import httpx
+        import httpx2
         from opentelemetry.sdk.trace.export import SpanExportResult
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
@@ -2367,7 +2367,7 @@ class TestClientGetSpansAttributeFilters:
 
         filter_value = f'session.id:"{session_id_value}"'
 
-        async with httpx.AsyncClient(base_url=_app.base_url, headers=headers) as client:
+        async with httpx2.AsyncClient(base_url=_app.base_url, headers=headers) as client:
             resp_rest = await client.get(
                 f"v1/projects/{project_name}/spans",
                 params={"attribute": filter_value},
@@ -2404,7 +2404,7 @@ class TestClientGetSpansAttributeFilters:
         This pins the contract end-to-end: OTLP gRPC export of a JSON-string
         `metadata` attribute → ingestion → REST attribute filter by nested key.
         """
-        import httpx
+        import httpx2
         from opentelemetry.sdk.trace.export import SpanExportResult
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
@@ -2431,7 +2431,7 @@ class TestClientGetSpansAttributeFilters:
         )
         await _until_spans_exist(_app, [span_id])
 
-        async with httpx.AsyncClient(base_url=_app.base_url, headers=headers) as client:
+        async with httpx2.AsyncClient(base_url=_app.base_url, headers=headers) as client:
             # String-valued nested key — the common case.
             resp = await client.get(
                 f"v1/projects/{project_name}/spans",
