@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
-import { Suspense, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
+import { fetchQuery, useRelayEnvironment } from "react-relay";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
-import { Outlet, useLoaderData } from "react-router";
+import { Outlet, useLoaderData, useLocation } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
@@ -281,6 +282,27 @@ function SideNavWithCounts({
     query: layoutLoaderGql,
     queryRef,
   });
+  const environment = useRelayEnvironment();
+  const { pathname } = useLocation();
+  const countedPathnameRef = useRef(pathname);
+
+  // The layout loader only runs on a full page load, so refetch the counts on
+  // navigation to pick up entities created or deleted since then.
+  useEffect(() => {
+    if (countedPathnameRef.current === pathname) {
+      return undefined;
+    }
+    countedPathnameRef.current = pathname;
+    const subscription = fetchQuery<layoutLoaderQuery>(
+      environment,
+      layoutLoaderGql,
+      {}
+    ).subscribe({
+      // A failed refresh keeps the previous counts rather than breaking the nav
+      error: () => {},
+    });
+    return () => subscription.unsubscribe();
+  }, [environment, pathname]);
 
   return <SideNavContent isExpanded={isExpanded} counts={counts} />;
 }
