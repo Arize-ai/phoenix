@@ -1,9 +1,5 @@
 name: Claude Issue Triage
 
-# The triage job, shared by the two workflows that trigger it. Claude Issue Triage on Open
-# calls it for one issue the moment the issue is opened; Claude Issue Triage Sweep calls it
-# every 2 days, or on a maintainer's dispatch, for a slice of the backlog. The callers own
-# the triggers, inputs and concurrency groups; this file owns the job.
 on:
   workflow_call:
     inputs:
@@ -28,7 +24,6 @@ on:
         type: string
         default: 'on'
       timeout-minutes:
-        description: 'Cap on the job'
         type: number
         default: 60
 

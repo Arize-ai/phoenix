@@ -1,8 +1,5 @@
 name: Claude Issue Triage Sweep
 
-# Walks a slice of the backlog, oldest-updated first, every 2 days or on a maintainer's
-# dispatch. New issues do not wait for this: Claude Issue Triage on Open handles each one
-# as it is opened.
 on:
   schedule:
     - cron: "0 8 */2 * *" # this means "at 08:00 UTC every 2 days"
@@ -39,10 +36,11 @@ concurrency:
 jobs:
   sweep:
     uses: ./.github/workflows/claude-issue-triage.yml
+    # GitHub requires the caller to grant everything the called job declares.
     permissions:
-      issues: write # the triage job labels, retitles, rewrites and comments on issues
-      contents: read # and reads the codebase for stage 5
-      id-token: write # and exchanges the OIDC token for a Claude API token
+      issues: write
+      contents: read
+      id-token: write
     with:
       created: ${{ inputs.created }}
       limit: ${{ inputs.limit || '25' }}
