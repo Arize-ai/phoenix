@@ -67,6 +67,9 @@ jobs:
           anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
 
           github_token: ${{ github.token }}
+          # The action rejects actors without write access, which is whoever opened the issue
+          # on an on-open run. The tool allowlist below is the boundary instead.
+          allowed_non_write_users: ${{ inputs.issue && '*' || '' }}
 
           show_full_output: 'true'
           prompt: |

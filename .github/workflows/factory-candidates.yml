@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write # gh workflow run
-      issues: read
+      issues: write # mark a dispatched candidate with the factory label
     env:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
@@ -48,6 +48,9 @@ jobs:
               echo "#$ISSUE: skipped, $AUTHOR has $PERMISSION access; a maintainer can add the factory label"
               continue
             fi
+            # A label added with GITHUB_TOKEN starts no workflow; it only keeps the next run of
+            # this loop from dispatching the issue again before dispatch.py has commented on it.
+            gh issue edit "$ISSUE" --add-label factory
             gh workflow run factory-dispatch.yml -f issue="$ISSUE"
             echo "#$ISSUE: dispatched, written by $AUTHOR"
             DISPATCHED=$((DISPATCHED + 1))
