@@ -53,6 +53,7 @@ import {
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 import {
+  DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
   defaultEvaluatorMappingSourceState,
   type EvaluatorStoreInstance,
@@ -320,16 +321,14 @@ function EditDecisionProjectEvaluator({
   const [initialState] = useState(
     () =>
       ({
-        ...DEFAULT_LLM_EVALUATOR_STORE_VALUES,
+        ...DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
         evaluator: {
-          ...DEFAULT_LLM_EVALUATOR_STORE_VALUES.evaluator,
+          ...DEFAULT_DECISION_EVALUATOR_STORE_VALUES.evaluator,
           id: evaluator.evaluator.id,
           globalName: evaluator.name,
           description: evaluator.evaluator.description ?? "",
-          kind: "DECISION" as const,
           inputMapping: evaluator.inputMapping as EvaluatorInputMapping,
         },
-        outputConfigs: [],
         evaluatorMappingSource: defaultEvaluatorMappingSourceState(
           toEvaluatorRecordKind(evaluator.evaluationTarget)
         ),
