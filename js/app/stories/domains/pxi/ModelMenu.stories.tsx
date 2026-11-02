@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useMemo, useState } from "react";
-import { Autocomplete, useFilter } from "react-aria-components";
+import { useState } from "react";
+import { Autocomplete } from "react-aria-components";
 
 import {
   Button,
@@ -16,7 +16,7 @@ import {
 import { SearchIcon } from "@phoenix/components/core/field";
 import {
   type ModelMenuLeadingItem,
-  ModelsByProviderMenu,
+  ModelSearchResultsMenu,
   ProviderMenu,
 } from "@phoenix/components/generative/ModelMenu";
 import type {
@@ -28,8 +28,8 @@ import type {
  * Stories for the model picker menu states: the flagship-provider fallback
  * shown before any provider is provisioned (with "Needs credentials" hints),
  * the provisioned view, disabled providers with missing dependencies, and
- * the empty state. Type in the search field to see the search states,
- * including "No results".
+ * the empty state. Type in the search field to see the search states: the
+ * matches under their provider, then a "Use `x` as a custom model" row.
  */
 const meta: Meta<typeof ProviderMenu> = {
   title: "Domains/PXI/Model Menu",
@@ -66,6 +66,14 @@ const MODELS_BY_PROVIDER = new Map<string, string[]>([
     ["gemini-3.7-flash", "gemini-3.1-pro-preview", "gemini-3.5-flash"],
   ],
 ]);
+
+/** {@link MODELS_BY_PROVIDER} as the flat list `useModelMenuData` returns. */
+const CATALOG_MODELS = [...MODELS_BY_PROVIDER].flatMap(([providerKey, names]) =>
+  names.map((name) => ({
+    name,
+    providerKey: providerKey as ModelProviderInfo["key"],
+  }))
+);
 
 const provider = ({
   key,
@@ -135,53 +143,8 @@ function ModelMenuDemo({
   customProviders?: CustomProviderInfo[];
   leadingItems?: ModelMenuLeadingItem[];
 }) {
-  const { contains } = useFilter({ sensitivity: "base" });
   const [searchValue, setSearchValue] = useState("");
   const isSearching = searchValue.trim().length > 0;
-
-  const providerInfoMap = useMemo(
-    () =>
-      new Map(
-        providers.map(({ key, name, dependenciesInstalled }) => [
-          key as string,
-          { name, dependenciesInstalled },
-        ])
-      ),
-    [providers]
-  );
-
-  const filteredModelsByProvider = useMemo(() => {
-    const filtered = new Map<string, string[]>();
-    if (!isSearching) {
-      return filtered;
-    }
-    for (const [providerKey, models] of MODELS_BY_PROVIDER) {
-      if (!providerInfoMap.get(providerKey)?.dependenciesInstalled) {
-        continue;
-      }
-      const matchingModels = models.filter((model) =>
-        contains(model, searchValue)
-      );
-      if (matchingModels.length > 0) {
-        filtered.set(providerKey, matchingModels);
-      }
-    }
-    return filtered;
-  }, [isSearching, searchValue, providerInfoMap, contains]);
-
-  const filteredCustomProviders = useMemo(() => {
-    if (!isSearching) {
-      return [];
-    }
-    return customProviders
-      .map((customProvider) => ({
-        ...customProvider,
-        modelNames: customProvider.modelNames.filter((model) =>
-          contains(model, searchValue)
-        ),
-      }))
-      .filter((customProvider) => customProvider.modelNames.length > 0);
-  }, [isSearching, searchValue, customProviders, contains]);
 
   return (
     <MenuTrigger defaultOpen>
@@ -202,10 +165,11 @@ function ModelMenuDemo({
             </SearchField>
           </MenuHeader>
           {isSearching ? (
-            <ModelsByProviderMenu
-              modelsByProvider={filteredModelsByProvider}
-              providerInfoMap={providerInfoMap}
-              customProviders={filteredCustomProviders}
+            <ModelSearchResultsMenu
+              query={searchValue}
+              catalogModels={CATALOG_MODELS}
+              providers={providers}
+              customProviders={customProviders}
               leadingItems={leadingItems}
             />
           ) : (
