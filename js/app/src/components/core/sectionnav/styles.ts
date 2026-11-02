@@ -198,9 +198,14 @@ export const sectionNavCSS = css`
 `;
 
 export const sectionNavSectionCSS = css`
-  // Land anchor jumps below the sticky bar. SectionNav sets the variable on
-  // the scroll container to the bar's height.
-  scroll-margin-top: var(--section-nav-height, 0px);
+  // Land link clicks and anchor jumps below the sticky bar with a gap like the
+  // pane's own padding, rather than flush against the top. SectionNav sets
+  // --section-nav-height on the scroll container to the height of a bar
+  // inside it; the inset is the consumer's to match their padding.
+  scroll-margin-top: calc(
+    var(--section-nav-height, 0px) +
+      var(--section-nav-scroll-inset, var(--global-dimension-size-200))
+  );
 
   &:focus {
     outline: none;

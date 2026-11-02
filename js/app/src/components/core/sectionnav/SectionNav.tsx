@@ -61,12 +61,21 @@ export interface SectionNavProps extends StylableProps {
    */
   orientation?: SectionNavOrientation;
   /**
-   * The section marked active until the user scrolls, e.g. one restored from
-   * the URL hash. Does not scroll the pane. Defaults to the first section.
+   * The section marked active on mount, e.g. one restored from the URL hash.
+   * The pane scrolls to it on mount, animated as `isScrollAnimated` says, and
+   * it stays active until the user scrolls. Defaults to the first section,
+   * which neither scrolls the pane nor holds it.
    */
   defaultActiveId?: string;
   /** Called with the new section id when the active section changes */
   onChange?: (activeId: string) => void;
+  /**
+   * Whether clicking a link (or mounting with `defaultActiveId`) smoothly
+   * scrolls to its section rather than jumping there. Ignored, and the scroll
+   * jumps, when the user prefers reduced motion.
+   * @default true
+   */
+  isScrollAnimated?: boolean;
   className?: string;
   ref?: Ref<HTMLElement>;
 }
@@ -85,9 +94,13 @@ function isDocumentScroller(element: Element) {
  * Unlike `Tabs`, every section stays mounted and scrollable, so this is a
  * `<nav>` of in-page links (marked with `aria-current`), not a tablist.
  *
- * Render the nav as the first child of the scroll container (or, for a rail,
- * beside the sections inside it) so sticky positioning applies. Section ids
- * must be unique within the document.
+ * Render the nav above (or, for a rail, beside) the element that scrolls the
+ * sections and pass that element as `scrollContainerRef`, so the scrollbar
+ * spans only the sections. A nav inside the scroll container also works: it
+ * sticks to the container's top and sections land below it. Sections land a
+ * padding-sized gap below the top; set `--section-nav-scroll-inset` on the
+ * container to match its padding. Section ids must be unique within the
+ * document.
  */
 export function SectionNav({
   "aria-label": ariaLabel,
@@ -96,6 +109,7 @@ export function SectionNav({
   orientation = "horizontal",
   defaultActiveId,
   onChange,
+  isScrollAnimated = true,
   css: _css,
   className,
   ref,
@@ -105,17 +119,20 @@ export function SectionNav({
   );
   const navRef = useRef<HTMLElement | null>(null);
   const trackingRef = useRef(createScrollTracking());
-  // Hold `defaultActiveId` until the user scrolls, across effect re-runs
-  // (e.g. Strict Mode's or a changed section set) that happen before then
-  const isHoldingDefaultRef = useRef(defaultActiveId != null);
-  // Pauses tracking until the scroll settles; set up by the effect, which owns
-  // the settle timer
-  const pauseTrackingRef = useRef<(reason: ScrollTrackingPauseReason) => void>(
-    () => {}
-  );
+  // The `defaultActiveId` still held, until the user scrolls, across effect
+  // re-runs (e.g. Strict Mode's or a changed section set) before then
+  const heldDefaultIdRef = useRef(defaultActiveId ?? null);
+  // Scrolls a section to just below the bar within the scroll container
+  // alone, holding its link current meanwhile; set up by the effect, which
+  // resolves the container and owns the settle timer
+  const scrollToSectionRef = useRef<(section: HTMLElement) => void>(() => {});
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)"
   );
+  // "instant" rather than "auto", which would defer to a `scroll-behavior:
+  // smooth` on the container and animate regardless
+  const scrollBehavior: ScrollBehavior =
+    isScrollAnimated && !prefersReducedMotion ? "smooth" : "instant";
   const {
     ref: listRef,
     hasOverflowAtStart,
@@ -130,6 +147,7 @@ export function SectionNav({
     onChange?.(id);
   };
   const onScrollPositionResolved = useEffectEvent(changeActiveId);
+  const getScrollBehavior = useEffectEvent(() => scrollBehavior);
 
   // Re-subscribe when the set of sections changes, not when the parent passes
   // a new but equal `sections` array.
@@ -173,6 +191,12 @@ export function SectionNav({
         : container.getBoundingClientRect().top + container.clientTop;
     const getViewportHeight = () =>
       isDocument ? win.innerHeight : container.clientHeight;
+    // How far below the top of the container's viewport a section lands: its
+    // `scroll-margin-top`, the bar's height plus a padding-sized gap by
+    // default. Clicks and `#id` jumps land a section there, and a section
+    // counts as reached once its top scrolls up to it.
+    const getScrollMarginTop = (element: Element) =>
+      Number.parseFloat(win.getComputedStyle(element).scrollMarginTop) || 0;
 
     const resolve = () => {
       if (tracking.isPaused) {
@@ -182,9 +206,10 @@ export function SectionNav({
       const activeSectionId = resolveActiveSectionId({
         sections: getSectionElements().map((element) => ({
           id: element.id,
-          top: element.getBoundingClientRect().top,
+          top:
+            element.getBoundingClientRect().top - getScrollMarginTop(element),
         })),
-        lineTop: getViewportTop() + getBarHeight(),
+        lineTop: getViewportTop(),
         // A pane that does not scroll at all shows its first section as
         // active, not its last.
         isScrolledToEnd:
@@ -195,25 +220,30 @@ export function SectionNav({
       }
     };
 
-    // The observer watches a one pixel band along the bar's bottom edge, so it
-    // reports exactly when a section's top or bottom crosses that line — the
-    // only moments the active section can change mid-scroll.
+    // The observer watches a one pixel band along the line where sections
+    // land, so it reports exactly when a section's top or bottom crosses it —
+    // the only moments the active section can change mid-scroll.
     let observer: IntersectionObserver | null = null;
     const observeSections = () => {
       observer?.disconnect();
-      const bandTop = getBarHeight();
+      const sectionElements = getSectionElements();
+      if (sectionElements.length === 0) {
+        return;
+      }
+      // A negative margin would make an invalid `--Npx` root margin
+      const bandTop = Math.max(0, getScrollMarginTop(sectionElements[0]));
       const bandBottom = Math.max(0, getViewportHeight() - bandTop - 1);
       observer = new IntersectionObserver(resolve, {
         root: isDocument ? null : container,
         rootMargin: `-${bandTop}px 0px -${bandBottom}px 0px`,
       });
-      for (const element of getSectionElements()) {
+      for (const element of sectionElements) {
         observer.observe(element);
       }
     };
 
-    // Sections land below the bar when scrolled into view (a link click, or
-    // the browser following a `#id` URL).
+    // Sections land below the bar: their default `scroll-margin-top` reads
+    // this.
     const updateBarHeight = () => {
       container.style.setProperty(
         "--section-nav-height",
@@ -228,7 +258,14 @@ export function SectionNav({
       clearTimeout(settleTimeout);
       const shouldResolve = tracking.settle();
       if (!tracking.isPaused) {
-        isHoldingDefaultRef.current = false;
+        if (!shouldResolve && heldDefaultIdRef.current != null) {
+          // The scroll to the held default settled without the user
+          // scrolling; keep holding it, since the scroll position may resolve
+          // to another section (e.g. one the pane cannot scroll to the top)
+          tracking.pause("defaultActiveId");
+          return;
+        }
+        heldDefaultIdRef.current = null;
       }
       if (shouldResolve) {
         resolve();
@@ -248,10 +285,22 @@ export function SectionNav({
         tracking.noteUserScrollInput();
       }
     };
-    pauseTrackingRef.current = (reason) => {
+    const pauseUntilSettled = (reason: ScrollTrackingPauseReason) => {
       tracking.pause(reason);
       scheduleSettle();
     };
+    // Unlike `scrollIntoView`, which also scrolls every scrollable ancestor
+    // (e.g. the page around the pane), this moves only the container
+    const scrollToSection = (section: HTMLElement) => {
+      pauseUntilSettled("scrollToSection");
+      const top =
+        container.scrollTop +
+        section.getBoundingClientRect().top -
+        getViewportTop() -
+        getScrollMarginTop(section);
+      scrollEventTarget.scrollTo({ top, behavior: getScrollBehavior() });
+    };
+    scrollToSectionRef.current = scrollToSection;
 
     const handleResize = () => {
       updateBarHeight();
@@ -281,15 +330,25 @@ export function SectionNav({
     });
 
     updateBarHeight();
-    if (isHoldingDefaultRef.current) {
-      pauseTrackingRef.current("defaultActiveId");
+    const heldDefaultId = heldDefaultIdRef.current;
+    if (heldDefaultId != null) {
+      // Only one of the nav's sections, not any element sharing the id
+      const defaultSection = sectionIds.includes(heldDefaultId)
+        ? doc.getElementById(heldDefaultId)
+        : null;
+      // Re-runs before the user scrolls land it in the same place again
+      if (defaultSection == null) {
+        pauseUntilSettled("defaultActiveId");
+      } else {
+        scrollToSection(defaultSection);
+      }
     }
     observeSections();
 
     return () => {
       clearTimeout(settleTimeout);
       tracking.settle();
-      pauseTrackingRef.current = () => {};
+      scrollToSectionRef.current = () => {};
       observer?.disconnect();
       resizeObserver.disconnect();
       win.removeEventListener("resize", handleResize);
@@ -327,12 +386,11 @@ export function SectionNav({
     // Scroll the pane ourselves rather than following the link, which would
     // write the hash into the app's URL; `onChange` is there to opt into that.
     event.preventDefault();
-    pauseTrackingRef.current("click");
+    // The click replaces the held default, so neither its settle nor an
+    // effect re-run scrolls back to it
+    heldDefaultIdRef.current = null;
+    scrollToSectionRef.current(section);
     changeActiveId(id);
-    section.scrollIntoView({
-      block: "start",
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-    });
     // Land keyboard and screen reader users in the section, without a second,
     // instant scroll cutting the smooth one short
     section.focus({ preventScroll: true });

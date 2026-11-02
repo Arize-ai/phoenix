@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, createRef, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,7 +66,7 @@ describe("createScrollTracking", () => {
 
   it("holds a clicked link through the click's own scroll", () => {
     const tracking = createScrollTracking();
-    tracking.pause("click");
+    tracking.pause("scrollToSection");
     tracking.noteScroll();
     tracking.noteScroll();
     expect(tracking.isPaused).toBe(true);
@@ -79,7 +79,7 @@ describe("createScrollTracking", () => {
 
   it("follows the user who scrolls elsewhere during a click's scroll", () => {
     const tracking = createScrollTracking();
-    tracking.pause("click");
+    tracking.pause("scrollToSection");
     tracking.noteScroll();
     tracking.noteUserScrollInput();
     expect(tracking.settle()).toBe(true);
@@ -99,7 +99,7 @@ describe("createScrollTracking", () => {
   it("lets a click replace the held default section", () => {
     const tracking = createScrollTracking();
     tracking.pause("defaultActiveId");
-    tracking.pause("click");
+    tracking.pause("scrollToSection");
     tracking.noteScroll();
     expect(tracking.settle()).toBe(false);
     expect(tracking.isPaused).toBe(false);
@@ -115,7 +115,7 @@ describe("createScrollTracking", () => {
   it("forgets user input from before a pause", () => {
     const tracking = createScrollTracking();
     tracking.noteUserScrollInput();
-    tracking.pause("click");
+    tracking.pause("scrollToSection");
     expect(tracking.settle()).toBe(false);
   });
 });
@@ -129,15 +129,23 @@ const SECTIONS = [
 let container: HTMLDivElement;
 let root: Root;
 let prefersReducedMotion: boolean;
-const scrollIntoView = vi.fn();
-const originalScrollIntoView = Element.prototype.scrollIntoView;
+const elementScrollTo = vi.fn();
+const windowScrollTo = vi.fn();
+const originalElementScrollTo = Element.prototype.scrollTo;
 
 // Async so the selection indicator's enter transition, which react-aria
-// schedules in a microtask, settles inside act
+// schedules in a microtask, settles inside act. A given scrollContainerRef
+// points at the element wrapping the nav and its sections.
 async function render(props: Partial<SectionNavProps> = {}) {
   await act(async () => {
     root.render(
-      <div>
+      <div
+        ref={
+          props.scrollContainerRef as
+            | RefObject<HTMLDivElement | null>
+            | undefined
+        }
+      >
         <SectionNav aria-label="Run details" sections={SECTIONS} {...props} />
         {SECTIONS.map((section) => (
           <SectionNavSection
@@ -208,8 +216,11 @@ beforeEach(() => {
     }
   );
   // jsdom does not implement scrolling
-  Element.prototype.scrollIntoView = scrollIntoView;
-  scrollIntoView.mockClear();
+  Element.prototype.scrollTo =
+    elementScrollTo as typeof Element.prototype.scrollTo;
+  vi.stubGlobal("scrollTo", windowScrollTo);
+  elementScrollTo.mockClear();
+  windowScrollTo.mockClear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -220,7 +231,8 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
-  Element.prototype.scrollIntoView = originalScrollIntoView;
+  Element.prototype.scrollTo = originalElementScrollTo;
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -257,6 +269,26 @@ describe("SectionNav", () => {
     expect(currentLinks()).toEqual(["Output:true"]);
   });
 
+  it("holds the default active section after scrolling to it, until the user scrolls", async () => {
+    await render({ defaultActiveId: "input" });
+    // jsdom has no layout, so a resolve would mark the last section current
+    await act(async () => {
+      vi.advanceTimersByTime(150);
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(currentLinks()).toEqual(["Input:true"]);
+    await act(async () => {
+      window.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(150);
+    });
+    expect(currentLinks()).toEqual(["Output:true"]);
+  });
+
+  it("leaves the pane where it is without a default active section", async () => {
+    await render();
+    expect(windowScrollTo).not.toHaveBeenCalled();
+  });
+
   it("moves aria-current to a clicked link immediately and reports the change", async () => {
     const onChange = vi.fn();
     await render({ onChange });
@@ -279,24 +311,103 @@ describe("SectionNav", () => {
     const section = container.querySelector("section#output");
     // The link is followed by scrolling, not by navigating to the hash
     expect(event.defaultPrevented).toBe(true);
-    expect(scrollIntoView).toHaveBeenCalledOnce();
-    expect(scrollIntoView.mock.contexts[0]).toBe(section);
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      block: "start",
+    expect(windowScrollTo).toHaveBeenCalledExactlyOnceWith({
+      top: 0,
       behavior: "smooth",
     });
     expect(document.activeElement).toBe(section);
   });
 
-  it("jumps without smooth scrolling when the user prefers reduced motion", async () => {
-    prefersReducedMotion = true;
-    await render();
+  it("scrolls only the scroll container, landing the section its scroll margin below the top", async () => {
+    const scrollContainerRef = createRef<HTMLDivElement>();
+    await render({ orientation: "vertical", scrollContainerRef });
+    const pane = scrollContainerRef.current;
+    const section = container.querySelector<HTMLElement>("section#output");
+    if (pane == null || section == null) {
+      throw new Error("pane or section not rendered");
+    }
+    pane.scrollTop = 40;
+    vi.spyOn(pane, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 100, 480, 280)
+    );
+    vi.spyOn(section, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 600, 480, 120)
+    );
+    // jsdom does not resolve the section's scroll-margin-top calc
+    const getComputedStyle = window.getComputedStyle.bind(window);
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
+      element === section
+        ? ({ scrollMarginTop: "16px" } as CSSStyleDeclaration)
+        : getComputedStyle(element)
+    );
     await click(link("Output"));
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      block: "start",
-      behavior: "auto",
+    expect(elementScrollTo).toHaveBeenCalledOnce();
+    expect(elementScrollTo.mock.contexts[0]).toBe(pane);
+    // the section's offset from the pane's top, plus what is already
+    // scrolled, less the gap its scroll-margin-top leaves above it
+    expect(elementScrollTo).toHaveBeenCalledWith({
+      top: 524,
+      behavior: "smooth",
     });
+    expect(windowScrollTo).not.toHaveBeenCalled();
   });
+
+  it.each([
+    {
+      name: "smoothly on mount",
+      scrollOn: "mount",
+      props: { defaultActiveId: "output" },
+      isReducedMotion: false,
+      behavior: "smooth",
+    },
+    {
+      name: "instantly on mount when scroll animation is turned off",
+      scrollOn: "mount",
+      props: { defaultActiveId: "output", isScrollAnimated: false },
+      isReducedMotion: false,
+      behavior: "instant",
+    },
+    {
+      name: "instantly on mount when the user prefers reduced motion",
+      scrollOn: "mount",
+      props: { defaultActiveId: "output" },
+      isReducedMotion: true,
+      behavior: "instant",
+    },
+    {
+      name: "instantly on click when scroll animation is turned off",
+      scrollOn: "click",
+      props: { isScrollAnimated: false },
+      isReducedMotion: false,
+      behavior: "instant",
+    },
+    {
+      name: "instantly on click when the user prefers reduced motion",
+      scrollOn: "click",
+      props: {},
+      isReducedMotion: true,
+      behavior: "instant",
+    },
+  ] satisfies {
+    name: string;
+    scrollOn: "mount" | "click";
+    props: Partial<SectionNavProps>;
+    isReducedMotion: boolean;
+    behavior: ScrollBehavior;
+  }[])(
+    "scrolls to the section $name",
+    async ({ scrollOn, props, isReducedMotion, behavior }) => {
+      prefersReducedMotion = isReducedMotion;
+      await render(props);
+      if (scrollOn === "click") {
+        await click(link("Output"));
+      }
+      expect(windowScrollTo).toHaveBeenCalledExactlyOnceWith({
+        top: 0,
+        behavior,
+      });
+    }
+  );
 
   it("leaves modified clicks to the browser", async () => {
     await render();

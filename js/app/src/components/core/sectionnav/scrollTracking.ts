@@ -1,11 +1,13 @@
 /**
  * Why tracking the scroll position is paused:
- * - `click`: a link was clicked and its section is being scrolled into view;
- *   the clicked link stays current while other sections slide past the bar.
+ * - `scrollToSection`: the nav is scrolling a section into view, for a link
+ *   click or the mount scroll to `defaultActiveId`; that section's link stays
+ *   current while other sections slide past the bar.
  * - `defaultActiveId`: the nav just mounted with a given current section,
- *   which stays current until the user scrolls.
+ *   which stays current until the user scrolls: from mount when the nav could
+ *   not scroll to it, or once its scroll to it settles.
  */
-export type ScrollTrackingPauseReason = "click" | "defaultActiveId";
+export type ScrollTrackingPauseReason = "scrollToSection" | "defaultActiveId";
 
 export type ScrollTracking = {
   readonly isPaused: boolean;
@@ -15,9 +17,9 @@ export type ScrollTracking = {
   /** The user acted to scroll (wheel, touch, scroll keys, scrollbar press) */
   noteUserScrollInput: () => void;
   /**
-   * Scrolling has settled. Ends a click's pause, or a held default once the
-   * user has scrolled, and returns whether the current section should be
-   * resolved from the scroll position.
+   * Scrolling has settled. Ends a section scroll's pause, or a held default
+   * once the user has scrolled, and returns whether the current section should
+   * be resolved from the scroll position.
    */
   settle: () => boolean;
 };
@@ -26,8 +28,8 @@ export type ScrollTracking = {
  * Decides when a section nav follows the scroll position and when it holds
  * the current section it was given. A pause ends when scrolling settles; the
  * scroll position is then resolved only if the user scrolled during the pause,
- * so a click's own scroll never swaps the clicked link for another section
- * (as the scrolled-to-end rule would when the clicked section is near the
+ * so the nav's own scroll never swaps the scrolled-to link for another section
+ * (as the scrolled-to-end rule would when that section is near the
  * end), but a user who scrolls elsewhere mid-pause is followed.
  */
 export function createScrollTracking(): ScrollTracking {
@@ -43,7 +45,7 @@ export function createScrollTracking(): ScrollTracking {
     },
     noteScroll() {
       // Nothing but the user scrolls the pane while a default is held; while
-      // a click is held, the scroll is the click's own
+      // a section scroll is held, the scroll is the nav's own
       if (pauseReason === "defaultActiveId") {
         hasUserScrolled = true;
       }

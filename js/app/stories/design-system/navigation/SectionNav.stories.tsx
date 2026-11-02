@@ -1,11 +1,12 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
-import { useId } from "react";
+import { useId, useRef } from "react";
 
 import {
   Dialog,
   Drawer,
   DrawerPlane,
+  Flex,
   OverlayFrameProvider,
   SectionNav,
   SectionNavSection,
@@ -30,8 +31,9 @@ import {
  * but is a `<nav>` of in-page links marked with `aria-current`, not a tablist.
  *
  * Scroll the panes below or click a link to see the current link follow.
- * Smooth scrolling and the indicator's slide follow the operating system's
- * reduced-motion setting, so they are not toggled here. Each nav shows the
+ * Smooth scrolling (`isScrollAnimated`, on by default) and the indicator's
+ * slide both turn off when the operating system asks for reduced motion, so
+ * they are not toggled here. Each nav shows the
  * current link beside links that are not current; hover and keyboard focus
  * are drawn only while the pointer or focus is on a link.
  */
@@ -110,21 +112,35 @@ const MANY_SECTIONS: RunSection[] = [
   },
 ];
 
+// The bar (or rail) sits beside the scrolling body rather than inside it, so
+// the scrollbar spans only the sections
 const paneCSS = css`
-  overflow-y: auto;
+  display: flex;
   box-sizing: border-box;
+  overflow: hidden;
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   background-color: var(--global-background-color-default);
+  &[data-orientation="horizontal"] {
+    flex-direction: column;
+  }
+  &[data-orientation="vertical"] {
+    flex-direction: row;
+  }
 `;
 
-const railRowCSS = css`
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: var(--global-dimension-size-100);
+const paneBodyCSS = css`
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+`;
+
+// Lines the rail's first link up with the first section's heading
+const railCSS = css`
   padding-block: var(--global-dimension-size-100);
+  padding-inline-start: var(--global-dimension-size-100);
 `;
 
 const sectionsCSS = css`
@@ -149,12 +165,6 @@ const drawerFrameCSS = css`
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
-`;
-
-const drawerBodyCSS = css`
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
 `;
 
 /**
@@ -193,34 +203,36 @@ function RunDetailsPane({
   width = "480px",
   height = "280px",
   sections = RUN_SECTIONS,
+  defaultActiveId,
+  isScrollAnimated,
 }: {
   orientation?: SectionNavOrientation;
   width?: string;
   height?: string;
   sections?: RunSection[];
+  /** Unprefixed id of the section the pane opens on */
+  defaultActiveId?: string;
+  isScrollAnimated?: boolean;
 }) {
   const idPrefix = useId();
   const prefixedSections = withIdPrefix(idPrefix, sections);
-  const nav = (
-    <SectionNav
-      aria-label="Run details"
-      orientation={orientation}
-      sections={prefixedSections}
-    />
-  );
+  const bodyRef = useRef<HTMLDivElement>(null);
   return (
-    <div css={paneCSS} style={{ width, height }}>
-      {orientation === "horizontal" ? (
-        <>
-          {nav}
-          <Sections sections={prefixedSections} />
-        </>
-      ) : (
-        <div css={railRowCSS}>
-          {nav}
-          <Sections sections={prefixedSections} />
-        </div>
-      )}
+    <div css={paneCSS} data-orientation={orientation} style={{ width, height }}>
+      <SectionNav
+        aria-label="Run details"
+        orientation={orientation}
+        sections={prefixedSections}
+        scrollContainerRef={bodyRef}
+        defaultActiveId={
+          defaultActiveId == null ? undefined : `${idPrefix}-${defaultActiveId}`
+        }
+        isScrollAnimated={isScrollAnimated}
+        css={orientation === "vertical" ? railCSS : undefined}
+      />
+      <div ref={bodyRef} css={paneBodyCSS}>
+        <Sections sections={prefixedSections} />
+      </div>
     </div>
   );
 }
@@ -233,6 +245,25 @@ export const Rail: StoryFn = () => (
 );
 Rail.tags = ["!dev"];
 Rail.parameters = { themeLayout: "column" };
+
+/**
+ * Opening on a section other than the first, as when restoring one from the
+ * URL hash: the pane starts scrolled to it, with the scroll animation turned
+ * off so it opens there without motion.
+ */
+export const DefaultActiveSection: StoryFn = () => (
+  <Flex direction="row" gap="size-300" wrap>
+    <RunDetailsPane defaultActiveId="output" isScrollAnimated={false} />
+    <RunDetailsPane
+      orientation="vertical"
+      width="560px"
+      defaultActiveId="reference-output"
+      isScrollAnimated={false}
+    />
+  </Flex>
+);
+DefaultActiveSection.tags = ["!dev"];
+DefaultActiveSection.parameters = { themeLayout: "column" };
 
 /**
  * In a narrow pane the bar scrolls sideways, fading the edge with links
@@ -252,6 +283,7 @@ Overflow.parameters = { themeLayout: "row" };
 export const InDrawer: StoryFn = () => {
   const idPrefix = useId();
   const sections = withIdPrefix(idPrefix, MANY_SECTIONS);
+  const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <OverlayFrameProvider>
       <div css={drawerFrameCSS}>
@@ -262,8 +294,12 @@ export const InDrawer: StoryFn = () => {
               <DialogHeader>
                 <DialogTitle>Run 3 of 12</DialogTitle>
               </DialogHeader>
-              <div css={drawerBodyCSS}>
-                <SectionNav aria-label="Run details" sections={sections} />
+              <SectionNav
+                aria-label="Run details"
+                sections={sections}
+                scrollContainerRef={bodyRef}
+              />
+              <div ref={bodyRef} css={paneBodyCSS}>
                 <Sections sections={sections} />
               </div>
             </DialogContent>
