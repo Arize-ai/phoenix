@@ -26,7 +26,7 @@ from dispatch import (
 )
 
 LOKI_QUERY_LIMIT = 5000
-DEFAULT_DATADOG_SITE = "datadoghq.com"
+DATADOG_QUERY = "service:arize-phoenix-server env:prod status:error"
 TRIAGE_OUTCOME = (
     "Every Phoenix server error in the window that a maintainer should fix has exactly one "
     "open issue in {repo}: a comment on the existing issue when one covers it, otherwise a "
@@ -146,13 +146,12 @@ class DatadogErrors:
     source = CLOUD
 
     def __init__(self) -> None:
-        self.site = os.environ.get("FACTORY_DATADOG_SITE") or DEFAULT_DATADOG_SITE
         self.token = os.environ["FACTORY_DATADOG_TOKEN"]
-        self.query = os.environ["FACTORY_DATADOG_QUERY"]
+        self.query = DATADOG_QUERY
 
     def count_errors(self, *, start: datetime, end: datetime) -> int:
         request = urllib.request.Request(
-            f"https://api.{self.site}/api/v2/logs/analytics/aggregate",
+            "https://api.datadoghq.com/api/v2/logs/analytics/aggregate",
             data=json.dumps(
                 {
                     "compute": [{"aggregation": "count"}],
@@ -180,8 +179,8 @@ class DatadogErrors:
     def kickoff_text(self, *, repo: str, start: datetime, end: datetime, line_count: int) -> str:
         return (
             f"Triage the Phoenix Cloud server errors logged between {format_timestamp(start)} "
-            f"and {format_timestamp(end)} into issues in {repo}. The Datadog site is "
-            f"{self.site}. The log search that selects server errors is:\n\n{self.query}\n\n"
+            f"and {format_timestamp(end)} into issues in {repo}. The log search that selects "
+            f"server errors is:\n\n{self.query}\n\n"
             f"It matched {line_count} logs in the window."
         )
 

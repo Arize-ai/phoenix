@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix er Arizes plattform med åpen kildekode for AI-observability, utvi
 
 Phoenix er leverandør- og språkuavhengig med innebygd støtte for populære rammeverk ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) og LLM-leverandører ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) med flere). Se [OpenInference](https://github.com/Arize-ai/openinference)-prosjektet for detaljer om automatisk instrumentering.
 
-Phoenix kjører praktisk talt overalt, inkludert på din lokale maskin, i en containerbasert utrulling eller i skyen. Se [Miljøer](https://arize.com/docs/phoenix/environments) for en gjennomgang av hvert alternativ, eller gå rett til [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix kjører praktisk talt overalt, inkludert på din lokale maskin, i en containerbasert utrulling eller i skyen. Se [Miljøer](https://arize.com/docs/phoenix/self-hosting) for en gjennomgang av hvert alternativ, eller gå rett til [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > Phoenix har åpen kildekode og er selvhostet. Som administrert plattform tilbyr Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-no) — den samme OpenTelemetry/OpenInference-instrumenteringen fungerer med begge. Se den [fullstendige sammenligningen](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
@@ -291,9 +287,9 @@ Se [dokumentasjonen om kodeagenter](https://arize.com/docs/phoenix/integrations/
 
 | Skill                                              | Beskrivelse                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Feilsøk LLM-applikasjoner med Phoenix CLI — hent traces, analyser feil, gå gjennom eksperimenter og spør mot GraphQL-API-et |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Bygg og kjør evaluatorer for AI/LLM-applikasjoner med Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Semantiske konvensjoner og instrumentering fra OpenInference for tracing av LLM-applikasjoner                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Feilsøk LLM-applikasjoner med Phoenix CLI — hent traces, analyser feil, gå gjennom eksperimenter og spør mot GraphQL-API-et |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Bygg og kjør evaluatorer for AI/LLM-applikasjoner med Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Semantiske konvensjoner og instrumentering fra OpenInference for tracing av LLM-applikasjoner                                        |
 
 ## Sikkerhet og personvern
 

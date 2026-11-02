@@ -18,13 +18,6 @@ import { promptToDecisionState } from "./decisionPrompt";
 const QUESTION_ID = "label";
 
 /**
- * The question's instructions. The rendered prompt, rubric included, is sent
- * as the state.
- */
-const INSTRUCTIONS =
-  "Read the prompt in the state and answer it by selecting exactly one of the choices.";
-
-/**
  * Classify with an AI SDK decision model by asking one choice question whose
  * options are the labels. Decision models don't generate text, so the
  * result has no explanation. Label probabilities, the provider's confidence
@@ -46,7 +39,6 @@ export async function decideClassification(args: {
     questions: {
       [QUESTION_ID]: {
         type: "choice",
-        instructions: INSTRUCTIONS,
         criteria: Object.fromEntries(labels.map((label) => [label, null])),
       },
     },

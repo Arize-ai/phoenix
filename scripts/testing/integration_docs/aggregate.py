@@ -15,7 +15,7 @@ def main() -> int:
         "--reports", type=Path, required=True, help="Directory containing shard artifacts"
     )
     parser.add_argument("--output-dir", type=Path, default=Path("ci-results/integration-docs"))
-    parser.add_argument("--run-mode", choices=("all", "changed", "none"), required=True)
+    parser.add_argument("--run-mode", choices=("all", "changed"), required=True)
     parser.add_argument("--reason", required=True)
     parser.add_argument("--shard-result", required=True)
     args = parser.parse_args()
@@ -36,8 +36,6 @@ def main() -> int:
         status = "skipped"
     else:
         status = "pass"
-    if args.run_mode == "none":
-        status = "no-op"
     counts = {
         name: sum(item.get("status") == name for item in integrations)
         for name in ("pass", "fail", "skipped")

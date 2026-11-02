@@ -21,11 +21,15 @@ import {
   Text,
   TextArea,
   TextField,
+  transformInputValue,
   View,
 } from "@phoenix/components";
 import { movePromptVersionTag } from "@phoenix/components/prompt/movePromptVersionTag";
 
-import { validateIdentifier } from "../../utils/identifierUtils";
+import {
+  replaceWhitespaceWithDashes,
+  validateIdentifier,
+} from "../../utils/identifierUtils";
 import type { NewPromptVersionTagDialogMutation } from "./__generated__/NewPromptVersionTagDialogMutation.graphql";
 
 type PromptVersionTagFormParams = {
@@ -137,7 +141,14 @@ export function NewPromptVersionDialog({
                   }) => (
                     <TextField
                       isInvalid={invalid}
-                      onChange={onChange}
+                      onChange={(value) =>
+                        onChange(
+                          transformInputValue({
+                            value,
+                            transform: replaceWhitespaceWithDashes,
+                          })
+                        )
+                      }
                       onBlur={onBlur}
                       name={name}
                       value={value}

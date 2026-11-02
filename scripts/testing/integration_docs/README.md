@@ -57,7 +57,9 @@ the component's project name should be replaced with the run's unique project
 name. The verifier polls Phoenix's versioned spans endpoint and checks the
 configured span kind and required attributes.
 
-The GitHub workflow classifies changes against the configured documents and
-their shared snippets. Changes to the runner, routing config, workflow, skill
-scripts, or Makefile run the full enabled set; the weekly schedule also runs
-all enabled documents.
+The GitHub workflow starts only for pull requests that touch integration docs,
+the routed shared snippet, or the harness, then classifies changes against the
+configured documents. Changes to the runner, routing config, workflow, or skill
+scripts run the full enabled set; Markdown-only harness edits run nothing. The
+weekly schedule also runs all enabled documents. A pull request gets one report
+comment, edited in place, only when docs actually ran.

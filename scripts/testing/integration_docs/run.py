@@ -31,7 +31,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = Path(__file__).with_name("integrations.json")
 SKIP_CONFIG_PATH = REPO_ROOT / ".agents/skills/test-integration/scripts/skip_config.json"
 DEFAULT_ENDPOINT = "http://127.0.0.1:6006"
-PYTHON_BASE_PACKAGES = ("arize-phoenix-otel",)
+# Current OpenTelemetry instrumentation still imports ``pkg_resources``.
+# Setuptools removed that module in 82.0.0, so keep the disposable harness
+# environments on the last compatible release line until OTel drops the import.
+PYTHON_BASE_PACKAGES = ("arize-phoenix-otel", "setuptools<82")
 FENCE = re.compile(r"^```(?P<language>[\w+-]+)[^\n]*\n(?P<body>[\s\S]*?)^```", re.MULTILINE)
 IMPORT = re.compile(
     r'^import\s+(?P<name>[A-Za-z_]\w*)\s+from\s+["\'](?P<path>[^"\']+)["\'];?',
@@ -640,7 +643,25 @@ def run_example(
             main_class = spec.setup.get("main_class")
             if not main_class:
                 raise HarnessError(f"Java integration {spec.id} must configure main_class")
+            java_agent_dependency = spec.setup.get("java_agent_dependency")
+            if java_agent_dependency:
+                packages = [package for package in packages if package != java_agent_dependency]
             dependencies = "\n".join(f'    implementation("{package}")' for package in packages)
+            agent_configuration = (
+                "configurations { javaAgent { transitive = false } }"
+                if java_agent_dependency
+                else ""
+            )
+            agent_dependency = (
+                f'    javaAgent("{java_agent_dependency}")' if java_agent_dependency else ""
+            )
+            agent_task = (
+                'tasks.named("run", JavaExec) {\n'
+                '    doFirst { jvmArgs "-javaagent:${configurations.javaAgent.singleFile}" }\n'
+                "}\n"
+                if java_agent_dependency
+                else ""
+            )
             build_file = f"""plugins {{
     id "application"
 }}
@@ -649,8 +670,11 @@ repositories {{
     mavenCentral()
 }}
 
+{agent_configuration}
+
 dependencies {{
 {dependencies}
+{agent_dependency}
 }}
 
 tasks.withType(JavaCompile).configureEach {{
@@ -660,6 +684,8 @@ tasks.withType(JavaCompile).configureEach {{
 application {{
     mainClass = "{main_class}"
 }}
+
+{agent_task}
 """
             (temp / "build.gradle").write_text(build_file)
             (temp / "settings.gradle").write_text('rootProject.name = "integration-docs-test"\n')

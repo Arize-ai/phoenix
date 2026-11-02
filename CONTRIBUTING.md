@@ -69,8 +69,8 @@ Before submitting a pull request, please make sure the following is done:
 - Fork the repository and create your branch from `main`.
 - Follow the [development guide](./DEVELOPMENT.md) to setup your local environment.
 - If you've fixed a bug or added code that should be tested, add tests!
-- Ensure test suite passes (`tox run -e unit_tests` and `npm run test` for app changes)
-- Make sure your code is formatted with `tox run -e ruff` and `pnpm --dir js/app run fmt` for app changes.
+- Ensure test suite passes (`make test-python` and `npm run test` for app changes)
+- Make sure your code is formatted with `make format-python` and `pnpm --dir js/app run fmt` for app changes.
 - Make sure your code lints with `pnpm lint` for app changes.
 - Run type checking with `make typecheck-python` and `npm run typecheck` for app changes.
 

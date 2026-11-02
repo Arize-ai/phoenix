@@ -36,6 +36,10 @@ def send_message_multi_turn() -> tuple[str, str]:
     response2 = chat.send_message("Why is the sky blue?")
 
     return response1.text or "", response2.text or ""
+
+if __name__ == "__main__":
+    print(*send_message_multi_turn(), sep="\n")
+    tracer_provider.force_flush(timeout_millis=10000)
 ```
 
 <Info>

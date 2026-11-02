@@ -1,9 +1,0 @@
--r ../ci.txt
-arize-phoenix-evals
-harbor>=0.21.0; python_version >= "3.12" and python_version < "3.15"
-pandas
-pandas-stubs
-google-genai>=2.17.0
-openai>=1.62.0
-anthropic>=1,<2
-nest-asyncio

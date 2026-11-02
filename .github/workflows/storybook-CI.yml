@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-storybook-${{ github.head_ref }}
+  group: test-storybook-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
