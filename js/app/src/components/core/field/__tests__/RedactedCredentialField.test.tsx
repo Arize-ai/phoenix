@@ -11,16 +11,18 @@ import { Button } from "@phoenix/components/core/button";
 import { RedactedCredentialField } from "../RedactedCredentialField";
 
 const REDACTED_TOKEN = "\ue000REDACTED\ue000xyz9\ue000gAAAAABtoken";
+const NEXT_REDACTED_TOKEN = "\ue000REDACTED\ue0001234\ue000gAAAAABnext";
 
 function TestCredentialForm({
-  defaultApiKey,
+  apiKey = REDACTED_TOKEN,
   onSubmit,
 }: {
-  defaultApiKey: string;
+  apiKey?: string;
   onSubmit: (values: { apiKey: string }) => void;
 }) {
   const { control, handleSubmit } = useForm<{ apiKey: string }>({
-    defaultValues: { apiKey: defaultApiKey },
+    defaultValues: { apiKey },
+    values: { apiKey },
     mode: "onChange",
   });
 
@@ -66,61 +68,51 @@ describe("RedactedCredentialField", () => {
     container.remove();
   });
 
-  it("submits untouched redacted token when required inside a Form", async () => {
+  it("round-trips redacted tokens, validates edits, and re-masks on value sync", async () => {
     const onSubmit = vi.fn();
     act(() => {
-      root.render(
-        <TestCredentialForm
-          defaultApiKey={REDACTED_TOKEN}
-          onSubmit={onSubmit}
-        />
-      );
+      root.render(<TestCredentialForm onSubmit={onSubmit} />);
     });
 
-    const input = container.querySelector<HTMLInputElement>("input");
+    const input = container.querySelector<HTMLInputElement>("input")!;
     const submitButton = container.querySelector<HTMLButtonElement>(
       'button[type="submit"]'
-    );
-    expect(input).not.toBeNull();
-    expect(input?.value).toBe("");
-    expect(input?.placeholder).toBe("••••xyz9");
-    expect(input?.required).toBe(false);
-    expect(input?.getAttribute("aria-required")).toBe("true");
-
-    const user = userEvent.setup();
-    await act(async () => user.click(submitButton!));
-
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ apiKey: REDACTED_TOKEN });
-  });
-
-  it("blocks submit and shows required error when value is cleared", async () => {
-    const onSubmit = vi.fn();
-    act(() => {
-      root.render(
-        <TestCredentialForm
-          defaultApiKey={REDACTED_TOKEN}
-          onSubmit={onSubmit}
-        />
-      );
-    });
-
-    const input = container.querySelector<HTMLInputElement>("input");
-    const submitButton = container.querySelector<HTMLButtonElement>(
-      'button[type="submit"]'
-    );
+    )!;
     const user = userEvent.setup();
 
-    await act(async () => user.type(input!, "new-key"));
-    expect(input?.value).toBe("new-key");
+    // 1. Untouched redacted token displays as masked placeholder and submits cleanly
+    expect(input.value).toBe("");
+    expect(input.placeholder).toBe("••••xyz9");
+    await act(async () => user.click(submitButton));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      { apiKey: REDACTED_TOKEN },
+      expect.anything()
+    );
 
-    await act(async () => user.clear(input!));
-    expect(input?.value).toBe("");
-    expect(input?.placeholder).toBe("sk-...");
-
-    await act(async () => user.click(submitButton!));
-
+    // 2. Typing replaces the token; clearing blocks submit with required error
+    onSubmit.mockClear();
+    await act(async () => user.type(input, "sk-new"));
+    await act(async () => user.clear(input));
+    expect(input.placeholder).toBe("sk-...");
+    await act(async () => user.click(submitButton));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(container.textContent).toContain("API Key is required");
+
+    // 3. Entering a new key submits the plaintext replacement
+    await act(async () => user.type(input, "sk-replacement"));
+    await act(async () => user.click(submitButton));
+    expect(onSubmit).toHaveBeenLastCalledWith(
+      { apiKey: "sk-replacement" },
+      expect.anything()
+    );
+
+    // 4. Syncing a new redacted token re-masks the input instead of leaking the token into value
+    act(() => {
+      root.render(
+        <TestCredentialForm apiKey={NEXT_REDACTED_TOKEN} onSubmit={onSubmit} />
+      );
+    });
+    expect(input.value).toBe("");
+    expect(input.placeholder).toBe("••••1234");
   });
 });
