@@ -262,7 +262,10 @@ class TracerProvider(_TracerProvider):
 
         validated_protocol = OTLPTransportProtocol(protocol)
         use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-        parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
+        infer_http = validated_protocol == OTLPTransportProtocol.INFER
+        parsed_url, endpoint = _normalized_endpoint(
+            endpoint, use_http=use_http, infer_http=infer_http
+        )
         self._default_processor: Optional[SpanProcessor] = None
 
         if (
@@ -435,7 +438,10 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         if span_exporter is None:
             validated_protocol = OTLPTransportProtocol(protocol)
             use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
+            infer_http = validated_protocol == OTLPTransportProtocol.INFER
+            parsed_url, endpoint = _normalized_endpoint(
+                endpoint, use_http=use_http, infer_http=infer_http
+            )
             if (
                 _maybe_http_endpoint(parsed_url)
                 or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
@@ -522,7 +528,10 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         if span_exporter is None:
             validated_protocol = OTLPTransportProtocol(protocol)
             use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
+            infer_http = validated_protocol == OTLPTransportProtocol.INFER
+            parsed_url, endpoint = _normalized_endpoint(
+                endpoint, use_http=use_http, infer_http=infer_http
+            )
             if (
                 _maybe_http_endpoint(parsed_url)
                 or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
@@ -705,9 +714,7 @@ class GRPCSpanExporter(_GRPCSpanExporter):
 
 
 def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
-    if parsed_endpoint.path == "/v1/traces":
-        return True
-    return False
+    return parsed_endpoint.path.rstrip("/").endswith("/v1/traces")
 
 
 def _maybe_grpc_endpoint(parsed_endpoint: ParseResult) -> bool:
@@ -801,14 +808,19 @@ def _has_scheme(s: str) -> bool:
 
 
 def _normalized_endpoint(
-    endpoint: Optional[str], use_http: bool = False
+    endpoint: Optional[str], use_http: bool = False, infer_http: bool = False
 ) -> Tuple[ParseResult, str]:
+    """Resolve an endpoint and normalize it for the selected transport.
+
+    When the protocol is not specified (``infer_http=True``), an endpoint with a
+    path is treated as an HTTP collector and an endpoint without a path as gRPC.
+    """
     if endpoint is None:
         base_endpoint = get_env_collector_endpoint() or "http://localhost:6006"
         parsed = urlparse(base_endpoint)
         if parsed.hostname in _KNOWN_PROVIDERS:
             parsed = _KNOWN_PROVIDERS[parsed.hostname](parsed)
-        elif use_http:
+        elif use_http or (infer_http and parsed.path):
             parsed = _construct_http_endpoint(parsed)
         else:
             parsed = _construct_grpc_endpoint(parsed)
@@ -819,6 +831,8 @@ def _normalized_endpoint(
             # However, return the original endpoint to avoid overspecifying the URL scheme
             return urlparse(f"//{endpoint}"), endpoint
         parsed = urlparse(endpoint)
+        if use_http or (infer_http and parsed.path):
+            parsed = _construct_http_endpoint(parsed)
     return parsed, parsed.geturl()
 
 

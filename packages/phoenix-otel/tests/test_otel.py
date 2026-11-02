@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 from typing import Any, Generator, Optional
 from unittest.mock import MagicMock, Mock, patch
@@ -103,6 +104,23 @@ class TestRegister:
         exporter = _get_exporter_from_processor(processors[0])
         assert isinstance(exporter, HTTPSpanExporter)
         assert exporter._endpoint == endpoint
+
+    def test_register_infers_http_from_env_endpoint_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "http://example.com/phoenix")
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            tracer_provider = register(verbose=False, set_global_tracer_provider=False)
+
+        processors = tracer_provider._active_span_processor._span_processors
+        exporter = _get_exporter_from_processor(processors[0])
+        assert isinstance(exporter, HTTPSpanExporter)
+        assert exporter._endpoint == "http://example.com/phoenix/v1/traces"
+        assert not any(
+            "Could not infer collector endpoint protocol" in str(w.message) for w in caught
+        )
 
     def test_register_with_grpc_endpoint(self) -> None:
         endpoint = "grpc://custom-endpoint:4317"
@@ -354,6 +372,17 @@ class TestTracerProvider:
 
     def test_tracer_provider_with_http_endpoint(self) -> None:
         endpoint = "http://localhost:4318/v1/traces"
+        tracer_provider = TracerProvider(endpoint=endpoint, verbose=False)
+
+        processors = tracer_provider._active_span_processor._span_processors
+        assert len(processors) == 1
+
+        exporter = _get_exporter_from_processor(processors[0])
+        assert isinstance(exporter, HTTPSpanExporter)
+        assert exporter._endpoint == endpoint
+
+    def test_tracer_provider_with_prefixed_http_endpoint(self) -> None:
+        endpoint = "http://example.com/phoenix/v1/traces"
         tracer_provider = TracerProvider(endpoint=endpoint, verbose=False)
 
         processors = tracer_provider._active_span_processor._span_processors
@@ -625,6 +654,49 @@ class TestEndpointNormalization:
         result = _construct_http_endpoint(parsed)
 
         assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+    def test_normalized_endpoint_infers_http_for_env_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.otel.otel import _normalized_endpoint
+
+        monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces")
+        _, endpoint = _normalized_endpoint(None, infer_http=True)
+
+        assert endpoint == "http://localhost:6006/v1/traces"
+
+    def test_normalized_endpoint_infers_http_and_appends_traces_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.otel.otel import _normalized_endpoint
+
+        monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "http://example.com/phoenix")
+        _, endpoint = _normalized_endpoint(None, infer_http=True)
+
+        assert endpoint == "http://example.com/phoenix/v1/traces"
+
+    def test_normalized_endpoint_infers_grpc_without_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.otel.otel import _normalized_endpoint
+
+        monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006")
+        _, endpoint = _normalized_endpoint(None, infer_http=True)
+
+        assert endpoint == "http://localhost:4317"
+
+    def test_normalized_endpoint_normalizes_explicit_http_path(self) -> None:
+        from phoenix.otel.otel import _normalized_endpoint
+
+        _, endpoint = _normalized_endpoint("http://example.com/phoenix", infer_http=True)
+
+        assert endpoint == "http://example.com/phoenix/v1/traces"
+
+    def test_maybe_http_endpoint_accepts_prefixed_traces_path(self) -> None:
+        from phoenix.otel.otel import _maybe_http_endpoint
+
+        assert _maybe_http_endpoint(urlparse("http://example.com/phoenix/v1/traces"))
+        assert not _maybe_http_endpoint(urlparse("http://example.com/phoenix"))
 
 
 class TestPhoenixCloudEndpoint:
