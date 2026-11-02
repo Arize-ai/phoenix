@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ru.md" />
 </p>
 
-Arize Phoenix — это open-source платформа наблюдаемости (observability) для ИИ от Arize, предназначенная для экспериментов, оценки и устранения неполадок. Для управляемых production-процессов Arize также предлагает [Arize AX](https://arize.com/products/ax/). Phoenix предоставляет:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix — это open-source платформа наблюдаемости (observability) для ИИ от Arize, предназначенная для экспериментов, оценки и устранения неполадок. Для управляемых production-процессов Arize также предлагает [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ru). Phoenix предоставляет:
 
 - [**_Трассировка_**](https://arize.com/docs/phoenix/tracing/llm-traces) — трассируйте выполнение Вашего LLM-приложения с помощью инструментирования на основе OpenTelemetry.
 - [**_Оценка_**](https://arize.com/docs/phoenix/evaluation/llm-evals) — используйте LLM для бенчмаркинга производительности приложения с помощью оценок (evals) ответов и извлечения.
@@ -61,10 +73,10 @@ Arize Phoenix — это open-source платформа наблюдаемост
 
 Phoenix не зависит от поставщика и языка и из коробки поддерживает популярные фреймворки ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) и LLM-провайдеров ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) и других). Подробнее об автоматическом инструментировании см. проект [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix работает практически где угодно: на Вашем локальном компьютере, в контейнерном развёртывании или в облаке. Описание каждого варианта см. в разделе [Окружения](https://arize.com/docs/phoenix/environments) или сразу переходите к [краткому руководству по трассировке](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix работает практически где угодно: на Вашем локальном компьютере, в контейнерном развёртывании или в облаке. Описание каждого варианта см. в разделе [Окружения](https://arize.com/docs/phoenix/self-hosting) или сразу переходите к [краткому руководству по трассировке](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix — это open-source решение с самостоятельным размещением. В качестве управляемой платформы Arize предлагает [Arize AX](https://arize.com/products/ax/) — одно и то же инструментирование OpenTelemetry/OpenInference работает с обоими. См. [полное сравнение](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix — это open-source решение с самостоятельным размещением. В качестве управляемой платформы Arize предлагает [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ru) — одно и то же инструментирование OpenTelemetry/OpenInference работает с обоими. См. [полное сравнение](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Содержание
 
@@ -275,9 +287,9 @@ Phoenix создан для работы как с людьми, так и с И
 
 | Навык                                              | Описание                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Отладка LLM-приложений с помощью Phoenix CLI — получение трейсов, анализ ошибок, просмотр экспериментов и запросы к GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Создание и запуск оценщиков для AI/LLM-приложений с помощью Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Семантические соглашения OpenInference и инструментирование для трассировки LLM-приложений                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Отладка LLM-приложений с помощью Phoenix CLI — получение трейсов, анализ ошибок, просмотр экспериментов и запросы к GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Создание и запуск оценщиков для AI/LLM-приложений с помощью Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Семантические соглашения OpenInference и инструментирование для трассировки LLM-приложений                                        |
 
 ## Безопасность и конфиденциальность
 
@@ -314,3 +326,15 @@ Copyright 2025 Arize AI, Inc. Все права защищены.
 Части этого кода защищены одним или несколькими патентами США. См. [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Это программное обеспечение распространяется на условиях Elastic License 2.0 (ELv2). См. [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

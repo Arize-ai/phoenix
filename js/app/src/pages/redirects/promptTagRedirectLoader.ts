@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 import invariant from "tiny-invariant";
 
-import { isConnectionTimeoutError } from "@phoenix/components/exception/isConnectionTimeoutError";
+import { ServerResponseError } from "@phoenix/components/exception/serverConnectionError";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import type { promptTagRedirectLoaderQuery } from "./__generated__/promptTagRedirectLoaderQuery.graphql";
@@ -42,11 +42,12 @@ export async function promptTagRedirectLoader(args: LoaderFunctionArgs) {
   )
     .toPromise()
     .catch((error: unknown) => {
-      // Let real network failures surface as errors; treat everything else as
-      // a missing prompt/tag and fall through to the 404 below.
+      // A tagged response means Phoenix's GraphQL endpoint did not answer, so
+      // it cannot establish whether the prompt or tag exists.
       if (
         error instanceof Error &&
-        (error.message === "Failed to fetch" || isConnectionTimeoutError(error))
+        (error.message === "Failed to fetch" ||
+          error instanceof ServerResponseError)
       ) {
         throw error;
       }

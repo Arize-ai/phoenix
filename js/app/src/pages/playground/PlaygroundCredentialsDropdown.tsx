@@ -131,18 +131,18 @@ export function PlaygroundCredentialsDropdown() {
 function ServerCredentialsSkeleton() {
   return (
     <View paddingY="size-100">
-      <Skeleton width="100%" height={20} animation="wave" />
+      <Skeleton width="100%" height={20} />
       <View paddingTop="size-100">
         <Flex direction="column" gap="size-100">
           <View paddingY="size-50">
             <Flex direction="row" gap="size-100" alignItems="center">
-              <Skeleton width={24} height={24} borderRadius="circle" />
-              <Skeleton width={120} height={20} animation="wave" />
+              <Skeleton width={24} height={24} borderRadius="full" />
+              <Skeleton width={120} height={20} />
             </Flex>
             <View paddingTop="size-100">
               <Flex direction="column" gap="size-50">
-                <Skeleton width="80%" height={16} animation="wave" />
-                <Skeleton width="70%" height={16} animation="wave" />
+                <Skeleton width="80%" height={16} />
+                <Skeleton width="70%" height={16} />
               </Flex>
             </View>
           </View>

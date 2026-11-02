@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import wrapt
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _AzureCredentialEngineProxy(wrapt.ObjectProxy):  # type: ignore[misc]
+class _AzureCredentialEngineProxy(wrapt.ObjectProxy[AsyncEngine]):
     """Transparent proxy around an `AsyncEngine` whose `dispose()` also
     closes the associated Azure credential.
 
@@ -115,4 +115,4 @@ def create_azure_engine(
     # Wrap the engine so `dispose()` also closes the credential on the loop
     # that awaited it. The proxy forwards all other attribute access to the
     # wrapped engine and satisfies `isinstance(_, AsyncEngine)`.
-    return _AzureCredentialEngineProxy(engine, credential)
+    return cast(AsyncEngine, _AzureCredentialEngineProxy(engine, credential))

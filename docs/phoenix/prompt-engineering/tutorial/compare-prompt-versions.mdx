@@ -1,9 +1,9 @@
 ---
 title: "Compare Prompt Versions"
-description: Build New Prompt Versions and Compare
+description: Create two new prompt versions, run each one on the dataset, and compare their accuracy.
 ---
 
-Our earlier experiment revealed the limits of our current prompt and settings. Now we’ll iterate systematically: adjusting instructions, model choice, and generation hyperparameters, to test how each change impacts accuracy.
+In this part, you create two new versions of the `support-classifier` prompt. Version 3 adds a new instruction. Version 4 also changes the model and its parameters. At the end, you know how much each change improves accuracy.
 
 <Info>
 **Follow along with code**: This guide has a companion notebook with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/prompts/phoenix_prompt_tutorial.ipynb), and go to Part 3: Compare Prompt Versions.
@@ -11,17 +11,17 @@ Our earlier experiment revealed the limits of our current prompt and settings. N
 
 ## Build Two New Prompt Versions
 
-In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), our experiment gave us some insights into why our prompt was underperforming - only achieving 53% accuracy. In this section, we'll build our new version of the prompt based on this analysis.
+In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), the prompt had 53% accuracy. Use the results of that analysis to create the new versions.
 
 ### Edit Prompt Template (Version 3)
 
-The prompt template refers to the specific text passed to your LLM. In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), we saw that 30/71 errors came from the broad\_vs\_specific error type, so we built a custom instruction from this observation.&#x20;
+The prompt template is the text that goes to the LLM. In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), 30 of 71 errors had the `broad_vs_specific` error type. This is the instruction that you wrote to fix these errors:
 
 ```text
 When classifying user queries, always prefer the most specific applicable category over a broader one. If a query mentions a clear, concrete action or object (e.g., subscription downgrade, invoice, profile name), classify it under that specific intent rather than a general one (e.g., Billing Inquiry, General Feedback).
 ```
 
-Let's upload a new prompt version with this instruction added in.
+Add the instruction to the prompt and save it as a new version.
 
 <Tabs>
   <Tab title="UI">
@@ -107,23 +107,15 @@ const newVersion = await createPrompt({
 
 ### Edit Prompt Parameters (Version 4)
 
-In Phoenix, Prompt Objects are more than just the Prompt Template - they include other parameters that can have huge impacts on the success of your prompt. In this section, we'll upload another Prompt Version, this one with adjusted model parameters, so we can later test it out.&#x20;
+A Phoenix prompt also stores the model and its invocation parameters. For more about what a prompt contains, see [Prompts Concepts](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts).
 
-Here are common prompt parameters:
-
-* **Model Choice** (GPT-4.1, Claude Sonnet 4.5, Gemini 3, etc.) – Different models vary in reasoning depth, instruction-following ability, speed, and cost; selecting the right one can dramatically affect accuracy, latency, and overall cost.
-* **Temperature** – Lower values make responses more consistent and deterministic; higher values increase variety and creativity.
-* **Top-p / Top-k** – Control how many token options the model considers when generating text; useful for balancing precision and diversity.
-* **Frequency / Presence Penalties** – Help reduce repetition or encourage mentioning new concepts.
-* **Tool Descriptions** – Clearly defined tools (like web search or dataset retrieval) help the model ground its outputs and choose the right action during generation.
-
-Let's edit our parameters.
+Create Version 4 with these changes to the model and parameters:
 
 | Parameter | Current | New | Description |
 |-----------|---------|-----|-------------|
-| **Model** | `gpt-4o-mini` | `gpt-4.1-mini` | Slightly higher cost but improved reasoning and classification accuracy; better suited for nuanced intent detection. |
-| **Temperature** | `1.0` | `0.3` | Lowering temperature makes outputs more consistent and less random—ideal for deterministic tasks like classification. |
-| **Top-p** | `1.0` | `0.8` | Reduces the sampling range, encouraging the model to choose higher-probability tokens for more stable predictions. |
+| **Model** | `gpt-4o-mini` | `gpt-4.1-mini` | Costs more, but gives better reasoning and classification accuracy. |
+| **Temperature** | `1.0` | `0.3` | Makes the outputs more consistent. This is good for classification. |
+| **Top-p** | `1.0` | `0.8` | Makes the model select tokens that have a higher probability. The predictions become more stable. |
 
 <Tabs>
   <Tab title="UI">
@@ -197,11 +189,11 @@ console.log(`New version ID: ${updatedParamsPrompt.id}`);
 
 ## Compare Prompt Versions
 
-Now that we've created 2 new versions of our prompt, we need to test them on our dataset to see if our accuracy improved. This will help us figure out if our prompts improved, and what changes lead to the most improvements.&#x20;
+Run an experiment with each new version on the dataset. Then compare the accuracy of the versions.
 
 <Tabs>
   <Tab title="Python" icon="python">
-First, head to your support-classifier prompt in the Phoenix UI and copy the corresponding version IDs for Version 3 and Version 4.
+In the Phoenix UI, open the `support-classifier` prompt. Copy the version IDs of Version 3 and Version 4.
 
 ```python
 from phoenix.client import Client
@@ -296,26 +288,23 @@ const newVersion = await createPrompt({
   </Tab>
 </Tabs>
 
-Let's take a look at our results in the Experiments tab of our support query dataset.&#x20;
+Open the support query dataset and click the **Experiments** tab to see the results.
 
 <Frame>
   <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/Screenshot%202025-12-04%20at%201.51.02%E2%80%AFPM.png" alt="Experiment results comparison" />
 </Frame>
 
-**Awesome!** Our new instruction improved accuracy to **61%**, and combining it with updated hyperparameters and an upgraded model (**gpt-4.1-mini**) pushed accuracy even higher, up to **74%**.
+With the new instruction, accuracy is **61%**. With the new instruction, new parameters, and the **gpt-4.1-mini** model, accuracy is **74%**.
 
 ## Summary
 
-In this section, we translated our analysis into measurable improvement.\
-We built two new prompt versions, ran them through experiments, and quantified the gains:
+**You created two prompt versions and measured each one.**
 
-* **Custom instruction only:** Accuracy improved from **53% → 61%**
-* **Instruction + tuned parameters + upgraded model:** Accuracy climbed further to **74%**
+* **New instruction only:** Accuracy increased from **53%** to **61%**.
+* **New instruction, new parameters, and new model:** Accuracy increased to **74%**.
 
-By refining our prompt and adjusting key model settings, we saw clear, data-backed progress. We now have a stronger prompt, a better-performing model, and a workflow for iterating with confidence inside Phoenix.
+To compare prompt variations side by side in the Playground, see [Test a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/test-a-prompt).
 
 ## Next Steps
 
-**We're not done yet. There's still a lot of room for improvement!**
-
-In the next section, [Optimize Prompts Automatically](/docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically), we'll use Prompt Learning, an automated prompt optimization algorithm (developed by Arize), to improve our prompt even more.
+In [Optimize Prompts Automatically](/docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically), you use Prompt Learning to improve the prompt more. Prompt Learning is an automated prompt optimization algorithm from Arize.

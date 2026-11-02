@@ -22,7 +22,6 @@ from typing import (
     cast,
 )
 
-import httpx
 import openinference.instrumentation as oi
 import sqlalchemy as sa
 import wrapt
@@ -3050,28 +3049,30 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
 LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
 
 
-class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
-    """Records the outgoing request URL on the span without altering the request.
+if TYPE_CHECKING:
 
-    Provider SDKs disagree on their HTTP library: the openai SDK is built on httpx2, the
-    others on httpx. Both are accepted because only ``request.url`` is read.
-    """
+    class _HttpxClientBase(wrapt.ObjectProxy[httpx2.AsyncClient], httpx2.AsyncClient):  # type: ignore[misc]
+        pass
+
+else:
+    _HttpxClientBase = wrapt.ObjectProxy
+
+
+class _HttpxClient(_HttpxClientBase):
+    """Records the outgoing request URL on the span without altering the request."""
 
     def __init__(
         self,
-        wrapped: httpx.AsyncClient | httpx2.AsyncClient,
+        wrapped: httpx2.AsyncClient,
         span: OTelSpan,
     ):
         super().__init__(wrapped)
         self._self_span = span
 
-    async def send(
-        self, request: httpx.Request | httpx2.Request, **kwargs: Any
-    ) -> httpx.Response | httpx2.Response:
+    async def send(self, request: httpx2.Request, **kwargs: Any) -> httpx2.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
         self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
-        response = await self.__wrapped__.send(request, **kwargs)
-        return cast("httpx.Response | httpx2.Response", response)
+        return await self.__wrapped__.send(request, **kwargs)
 
 
 CustomProviderId: TypeAlias = int

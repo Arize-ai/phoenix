@@ -555,8 +555,8 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
                 # Role value doesn't match any mapping
                 if self._role_attribute_strict:
                     raise PermissionError(
-                        f"Access denied: Role '{role_value}' is not mapped to a Phoenix role. "
-                        f"Role mapping is configured with strict mode enabled."
+                        "Access denied: Role claim value is not mapped to a Phoenix role. "
+                        "Role mapping is configured with strict mode enabled."
                     )
                 return "VIEWER"  # Non-strict: default to least privilege
             return mapped_role
@@ -571,8 +571,8 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         # Role value is not a valid Phoenix role
         if self._role_attribute_strict:
             raise PermissionError(
-                f"Access denied: Role '{role_value}' is not a valid Phoenix role "
-                f"(expected ADMIN, MEMBER, or VIEWER). Strict mode is enabled."
+                "Access denied: Role claim value is not a valid Phoenix role "
+                "(expected ADMIN, MEMBER, or VIEWER). Strict mode is enabled."
             )
         return "VIEWER"  # Non-strict: default to least privilege
 
