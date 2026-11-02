@@ -34,7 +34,7 @@ async function assistant(params: {
           // Calls within this block will generate spans with the session ID set
           const chatCompletion = await client.chat.completions.create({
             messages: params.messages,
-            model: "gpt-3.5-turbo",
+            model: "gpt-5.6-terra",
           });
           const response = chatCompletion.choices[0].message;
           span.setAttribute(SemanticConventions.OUTPUT_VALUE, response.content);

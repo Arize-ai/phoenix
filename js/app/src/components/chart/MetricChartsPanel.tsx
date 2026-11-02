@@ -4,7 +4,8 @@ import { Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 
-const CHARTS_PANEL_DEFAULT_SIZE_PIXELS = 230;
+import { CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS } from "./ChartPanelStrip";
+
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
 const CHARTS_PANEL_MAX_SIZE = "60%";
 
@@ -70,7 +71,7 @@ export function MetricChartsPanel({ children }: { children: ReactNode }) {
     <>
       <Panel
         id={METRIC_CHARTS_PANEL_ID}
-        defaultSize={CHARTS_PANEL_DEFAULT_SIZE_PIXELS}
+        defaultSize={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
         minSize={CHARTS_PANEL_MIN_SIZE_PIXELS}
         maxSize={CHARTS_PANEL_MAX_SIZE}
         groupResizeBehavior="preserve-pixel-size"

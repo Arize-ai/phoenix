@@ -24,7 +24,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .coverage
-.tox/
 dist/
 build/
 *.egg-info/

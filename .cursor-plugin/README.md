@@ -1,6 +1,6 @@
 # Arize Phoenix for Cursor
 
-This directory makes the Phoenix repository a [Cursor plugin](https://cursor.com/docs/plugins). Installing it gives Cursor the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp), the [docs MCP](https://arize.com/docs/phoenix/integrations/docs-mcp), and the three public coding-agent skills, so Cursor can debug traces, look up current docs, run evals, and instrument apps against your Phoenix instance.
+This directory makes the Phoenix repository a [Cursor plugin](https://cursor.com/docs/plugins). Installing it gives Cursor the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp), the [docs MCP](https://arize.com/docs/phoenix/integrations/docs-mcp), and the public Phoenix skills, so Cursor can debug traces, look up current docs, run evals, and instrument apps against your Phoenix instance.
 
 ## What you get
 
@@ -12,7 +12,7 @@ This directory makes the Phoenix repository a [Cursor plugin](https://cursor.com
 | `phoenix-evals` skill | Build and run evaluators. |
 | `phoenix-tracing` skill | Instrument apps with OpenInference. |
 
-The skills are the public skills in [`.agents/skills/`](../.agents/skills/), referenced directly from the manifest. Nothing is copied or symlinked.
+The skills are the public skills in [`skills/`](../skills/), referenced directly from the manifest. `make skills` writes the `skills` list in `plugin.json`; do not edit it by hand.
 
 ## Requirements
 
@@ -43,12 +43,12 @@ Cursor does not load symlinked local plugins ([cursor/plugins#35](https://github
 
 ```bash
 dest=~/.cursor/plugins/local/arize-phoenix
-rm -rf "$dest" && mkdir -p "$dest/.agents/skills"
+rm -rf "$dest" && mkdir -p "$dest"
 cp -R .cursor-plugin "$dest/"
-for s in phoenix-cli phoenix-evals phoenix-tracing; do cp -R ".agents/skills/$s" "$dest/.agents/skills/"; done
+cp -RL skills "$dest/"
 ```
 
-Then run **Developer: Reload Window** and confirm **Arize Phoenix** appears under Customize with both MCP servers and all three skills. Re-run the copy after editing the manifest or a skill.
+Then run **Developer: Reload Window** and confirm **Arize Phoenix** appears under Customize with both MCP servers and every skill listed in `plugin.json`. Re-run the copy after editing the manifest or a skill.
 
 ## Publishing
 
@@ -58,4 +58,4 @@ The repository root is the plugin (single-plugin layout, no `marketplace.json`).
 
 - The docs MCP URL is also hardcoded in `js/packages/phoenix-cli/src/setup/agents/registry.ts`, `src/phoenix/server/agents/capabilities/docs_mcp.py`, and `docs/phoenix/integrations/docs-mcp.mdx`. Change them together.
 - The `phoenix` and `phoenix-docs` server names mirror `PHOENIX_MCP_SERVER_NAME` and `DOCS_MCP_SERVER_NAME` in the CLI. Keep them in sync so a plugin install and a `px setup` install never diverge.
-- Renaming or moving a skill under `.agents/skills/` must be mirrored in the `skills` array of `plugin.json`.
+- Run `make skills` after adding, renaming or retargeting a skill in `skills/`; it rewrites the `skills` array of `plugin.json`.

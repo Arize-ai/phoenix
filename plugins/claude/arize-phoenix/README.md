@@ -11,7 +11,7 @@ A [Claude Code plugin](https://code.claude.com/docs/en/plugins) that connects Cl
 | `phoenix-evals` skill | Build and run evaluators. |
 | `phoenix-tracing` skill | Instrument apps with OpenInference. |
 
-The skills are symlinks to the public skills in [`.agents/skills/`](../../../.agents/skills/). Claude Code copies the resolved files when it installs the plugin, so nothing is duplicated in the repository.
+The skills are symlinks to the public skills in [`skills/`](../../../skills/), written by `make skills`. Claude Code copies the resolved files when it installs the plugin, so nothing is duplicated in the repository.
 
 ## Configure
 
@@ -46,7 +46,7 @@ Run `/mcp` inside Claude Code to confirm the `phoenix` server is connected and c
 
 For local development, add the marketplace from a checkout instead: `claude plugin marketplace add ./` from the repository root. The trailing slash matters — a bare `.` is rejected as an invalid source.
 
-Check changes with `claude plugin validate plugins/claude/arize-phoenix`. It warns that the three `skills/` entries are symlinks it did not follow; that warning is expected, since `validate` reads components without following symlinks while a session loading the plugin does follow them. `claude plugin details arize-phoenix@arize-phoenix` on an installed copy confirms the resolved inventory — three skills and one MCP server.
+Check changes with `claude plugin validate plugins/claude/arize-phoenix`. It warns that the `skills/` entries are symlinks it did not follow; that warning is expected, since `validate` reads components without following symlinks while a session loading the plugin does follow them. `claude plugin details arize-phoenix@arize-phoenix` on an installed copy confirms the resolved inventory: every skill in `skills/` and one MCP server.
 
 ## Evals
 

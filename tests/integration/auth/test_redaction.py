@@ -1,17 +1,11 @@
-"""End-to-end test of RedactedString on a live Phoenix server.
-
-Complements the in-process unit test at
-`tests/unit/server/api/mutations/test_generative_model_custom_provider_mutations.py`
-by exercising the full HTTP stack (subprocess server, real middleware ordering,
-real network) against a server with auth enabled and a random PHOENIX_SECRET.
-"""
+"""Exercise RedactedString over HTTP with authentication enabled."""
 
 from __future__ import annotations
 
 from secrets import token_hex
 
 from phoenix.server.redaction import Redactor
-from tests.integration._helpers import _AppInfo, _gql
+from tests.integration._helpers import _admin_auth, _AppInfo, _gql
 
 _REDACTED_PREFIX = "\ue000REDACTED\ue000"
 
@@ -62,7 +56,7 @@ def test_redacted_apikey_round_trips_through_live_server(
     # Create with a client-redacted apiKey — server must un-redact on input.
     created, _ = _gql(
         _app,
-        _app.admin_secret,
+        _admin_auth(_app),
         query=_CREATE_MUTATION,
         variables={
             "input": {
@@ -81,7 +75,7 @@ def test_redacted_apikey_round_trips_through_live_server(
 
     try:
         # Read back — apiKey must be redacted and un-redact to `secret`.
-        first, _ = _gql(_app, _app.admin_secret, query=_READ_QUERY, variables={"id": provider_id})
+        first, _ = _gql(_app, _admin_auth(_app), query=_READ_QUERY, variables={"id": provider_id})
         first_token = first["data"]["node"]["config"]["openaiAuthenticationMethod"]["apiKey"]
         assert first_token.startswith(_REDACTED_PREFIX)
         assert _redactor.unredact(first_token) == secret
@@ -90,7 +84,7 @@ def test_redacted_apikey_round_trips_through_live_server(
         # an unrelated field. Server must still un-redact on input.
         _gql(
             _app,
-            _app.admin_secret,
+            _admin_auth(_app),
             query=_PATCH_MUTATION,
             variables={
                 "input": {
@@ -105,7 +99,7 @@ def test_redacted_apikey_round_trips_through_live_server(
             },
         )
 
-        second, _ = _gql(_app, _app.admin_secret, query=_READ_QUERY, variables={"id": provider_id})
+        second, _ = _gql(_app, _admin_auth(_app), query=_READ_QUERY, variables={"id": provider_id})
         second_config = second["data"]["node"]["config"]
         assert second_config["openaiClientKwargs"]["baseUrl"] == "https://after.example.com"
         second_token = second_config["openaiAuthenticationMethod"]["apiKey"]
@@ -118,7 +112,7 @@ def test_redacted_apikey_round_trips_through_live_server(
     finally:
         _gql(
             _app,
-            _app.admin_secret,
+            _admin_auth(_app),
             query=_DELETE_MUTATION,
             variables={"input": {"id": provider_id}},
         )

@@ -6,7 +6,7 @@ from secrets import token_hex
 from typing import Any
 from urllib.parse import quote
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
@@ -42,7 +42,7 @@ class TestProjects:
 
     async def test_get_projects(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -92,7 +92,7 @@ class TestProjects:
 
     async def test_get_project_by_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -118,7 +118,7 @@ class TestProjects:
     @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_get_project_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         project_name: str,
         project_description: str,
@@ -154,7 +154,7 @@ class TestProjects:
     @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_create_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         project_name: str,
         project_description: str,
@@ -197,7 +197,7 @@ class TestProjects:
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
     async def test_update_project_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         special_chars_name: str,
         description: str,
@@ -243,7 +243,7 @@ class TestProjects:
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
     async def test_delete_project_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         special_chars_name: str,
         description: str,
@@ -280,7 +280,7 @@ class TestProjects:
 
     async def test_cannot_delete_default_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -344,7 +344,7 @@ class TestProjects:
 
     async def test_get_nonexistent_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """
         Test retrieving a project that doesn't exist.
@@ -371,7 +371,7 @@ class TestProjects:
 
     async def test_update_nonexistent_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """
         Test updating a project that doesn't exist.
@@ -404,7 +404,7 @@ class TestProjects:
 
     async def test_delete_nonexistent_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """
         Test deleting a project that doesn't exist.
@@ -430,7 +430,7 @@ class TestProjects:
 
     async def test_list_projects_with_cursor(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -540,7 +540,7 @@ class TestProjects:
 
     async def test_list_projects_empty(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -591,7 +591,7 @@ class TestProjects:
 
     async def test_list_projects_limit_larger_than_available(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -641,7 +641,7 @@ class TestProjects:
 
     async def test_list_projects_name_contains_filter(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -735,7 +735,7 @@ class TestProjects:
 
     async def test_include_experiment_projects_parameter(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -868,7 +868,7 @@ class TestProjects:
 
     async def test_include_dataset_evaluator_projects_parameter(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         seed_languages: None,
     ) -> None:
@@ -1068,7 +1068,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_assigns_policy_to_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         policy = await self._policy(db)
@@ -1087,7 +1087,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_accepts_project_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         policy = await self._policy(db)
@@ -1103,7 +1103,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_null_policy_id_resets_to_default(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         policy = await self._policy(db)
@@ -1121,7 +1121,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_default_policy_global_id_resets_to_default(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         policy = await self._policy(db)
@@ -1144,7 +1144,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_reassigns_between_policies(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         first, second = await self._policy(db), await self._policy(db)
@@ -1159,7 +1159,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_does_not_mutate_the_policy_itself(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """Policies are shared entities; assignment must not edit or delete them."""
@@ -1177,7 +1177,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_unknown_policy_returns_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project = await self._project(db)
@@ -1191,7 +1191,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_unknown_project_returns_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         policy = await self._policy(db)
@@ -1203,7 +1203,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_malformed_policy_id_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project = await self._project(db)
@@ -1215,7 +1215,7 @@ class TestSetProjectRetentionPolicy:
 
     async def test_missing_policy_id_field_returns_422(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """policy_id is required-but-nullable, so omitting it is not a silent reset."""
@@ -1266,7 +1266,7 @@ class TestDeleteProjectTraces:
 
     async def test_delete_traces_in_interval_but_keep_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _ = await self._project_with_traces(db, 3)
@@ -1282,7 +1282,7 @@ class TestDeleteProjectTraces:
 
     async def test_delete_project_traces_accepts_project_global_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         project, _ = await self._project_with_traces(db, 2)
@@ -1296,7 +1296,7 @@ class TestDeleteProjectTraces:
 
     async def test_delete_project_traces_respects_inclusive_exclusive_interval(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """The interval includes start_time and excludes end_time."""
@@ -1324,7 +1324,7 @@ class TestDeleteProjectTraces:
 
     async def test_delete_project_traces_leaves_other_projects_untouched(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         target, _ = await self._project_with_traces(db, 2)
@@ -1339,7 +1339,7 @@ class TestDeleteProjectTraces:
 
     async def test_delete_project_traces_deletes_orphaned_project_sessions(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -1376,7 +1376,7 @@ class TestDeleteProjectTraces:
 
     async def test_bounded_delete_preserves_session_with_newer_trace(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -1426,7 +1426,7 @@ class TestDeleteProjectTraces:
 
     async def test_delete_project_traces_from_empty_project_is_a_noop(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
@@ -1441,7 +1441,7 @@ class TestDeleteProjectTraces:
 
     async def test_delete_project_traces_from_unknown_project_returns_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         response = await httpx_client.delete(
             f"v1/projects/{token_hex(16)}/traces",
@@ -1459,7 +1459,7 @@ class TestDeleteProjectTraces:
     )
     async def test_delete_project_traces_requires_both_bounds(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         params: dict[str, str],
     ) -> None:
@@ -1486,7 +1486,7 @@ class TestDeleteProjectTraces:
     )
     async def test_delete_project_traces_rejects_malformed_bounds(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         params: dict[str, str],
     ) -> None:
@@ -1515,7 +1515,7 @@ class TestDeleteProjectTraces:
     )
     async def test_delete_project_traces_rejects_non_increasing_bounds(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         start_time: str,
         end_time: str,

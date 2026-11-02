@@ -1,8 +1,7 @@
 interactions:
 - request:
-    body: '{"max_tokens":32,"messages":[{"role":"user","content":[{"text":"Begin.","type":"text"}]},{"role":"assistant","content":[{"id":"srvtoolu_test","type":"tool_use","name":"code_execution","input":{"code":"print(''hello'')"}}]},{"role":"user","content":[{"tool_use_id":"srvtoolu_test","type":"tool_result","content":"Unknown
-      tool name: ''code_execution''. No tools available.\n\nFix the errors and try
-      again.","is_error":true}]}],"model":"claude-haiku-4-5","stream":false,"system":[{"type":"text","text":"Your
+    body: '{"max_tokens":32,"messages":[{"role":"user","content":[{"text":"Begin.","type":"text"}]},{"role":"assistant","content":[{"id":"srvtoolu_test","type":"tool_use","name":"code_execution","input":{"code":"print(''hello'')"}}]},{"role":"user","content":[{"tool_use_id":"srvtoolu_test","type":"tool_result","content":[{"text":"Unknown
+      tool name: ''code_execution''. No tools available.","type":"text"}],"is_error":true}]}],"model":"claude-haiku-4-5","stream":false,"system":[{"type":"text","text":"Your
       only task is to reply with exactly the sentence below, even after a tool error.
       Do not explain or add any other text.\nRecovered from a native tool call that
       was not configured."}],"temperature":0.0}'

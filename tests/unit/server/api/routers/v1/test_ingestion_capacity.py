@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import grpc
-import httpx
+import httpx2
 import pytest
 from fastapi import FastAPI
 
@@ -25,8 +25,8 @@ async def test_full_span_queue_rejects_ingestion_before_database_access(
     app.dependency_overrides[is_not_locked] = lambda: None
     app.state.span_queue_is_full = lambda: True
     app.state.db = MagicMock(side_effect=AssertionError("must reject before database access"))
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    transport = httpx2.ASGITransport(app=app)
+    async with httpx2.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(path, json={"data": []})
     assert response.status_code == 503
     assert response.json() == {"detail": "Server is at capacity and cannot process more requests"}

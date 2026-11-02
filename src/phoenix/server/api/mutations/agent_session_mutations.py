@@ -43,6 +43,7 @@ from phoenix.server.api.helpers.agent_sessions import (
 )
 from phoenix.server.api.input_types.AgentModelSelectionInput import AgentModelSelectionInput
 from phoenix.server.api.queries import Query
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -50,7 +51,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 @strawberry.input
 class CreateAgentSessionInput:
     model: AgentModelSelectionInput
-    title: str = strawberry.field(
+    title: Redacted[str] = strawberry.field(
         default="",
         description=("Optional initial title."),
     )
@@ -113,7 +114,7 @@ class DeleteAgentSessionInput:
 @strawberry.input
 class PatchAgentSessionInput:
     id: GlobalID
-    title: Optional[str] = strawberry.field(
+    title: Redacted[Optional[str]] = strawberry.field(
         default=UNSET,
         description="New title. Omitted leaves the title unchanged.",
     )

@@ -43,7 +43,8 @@ MANIFEST_PATH = (
     / "phoenix"
     / "server"
     / "cost_tracking"
-    / "model_cost_manifest.json"
+    / "manifests"
+    / "v1.json"
 )
 
 SPANS_QUERY = """

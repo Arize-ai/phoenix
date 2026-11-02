@@ -15,7 +15,7 @@ from typing import Any, cast
 
 import pytest
 
-pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12 and <3.15")
 
 from phoenix.client.harbor._adapter import build_job_plan, existing_trial_results
 from phoenix.client.harbor._errors import HarborPluginError

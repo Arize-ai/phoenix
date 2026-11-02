@@ -32,7 +32,7 @@ from phoenix.server.api.input_types.PromptVersionInput import (
     validate_invocation_parameters_match_provider,
 )
 from phoenix.server.api.mutations.prompt_version_tag_mutations import upsert_prompt_version_tag
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -96,6 +96,7 @@ class PromptVersionData(V1RoutesBaseModel):
 
 class PromptVersion(PromptVersionData):
     id: str
+    created_at: IsoDatetime = Field(description="The creation timestamp of the prompt version.")
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
@@ -1010,6 +1011,7 @@ def _prompt_version_from_orm_version(
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     return PromptVersion(
         id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
+        created_at=prompt_version.created_at,
         description=prompt_version.description or "",
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,

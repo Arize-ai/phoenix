@@ -41,11 +41,17 @@ function formatShare(fraction: number) {
 export function AnnotationLabelConsensusText({
   summary,
   size = "S",
+  color,
   className,
   fallback = null,
 }: {
   summary: Pick<AnnotationSummary, "labelFractions">;
   size?: TextProps["size"];
+  /**
+   * Color of the agreed label. Pass "inherit" to take a tint painted around
+   * it, as `AnnotationSummaryValue` does. The share and "mixed" stay muted.
+   */
+  color?: TextProps["color"];
   className?: string;
   /** Rendered when the summary has no labels. */
   fallback?: ReactNode;
@@ -77,6 +83,7 @@ export function AnnotationLabelConsensusText({
   return (
     <Text
       size={size}
+      color={color}
       className={className}
       title={
         share != null
