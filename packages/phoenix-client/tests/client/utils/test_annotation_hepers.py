@@ -3,6 +3,7 @@
 import pandas as pd
 import pytest
 
+from phoenix.client.__generated__ import v1
 from phoenix.client.utils.annotation_helpers import (
     _DOCUMENT_ID_CONFIG,
     _SPAN_ID_CONFIG,
@@ -254,6 +255,80 @@ class TestAnnotationDataFrameChunking:
         annotation = chunks[0][0]
         assert annotation["name"] == "sentiment"
         assert annotation["annotator_kind"] == "HUMAN"
+
+    def test_falsy_label_value_is_preserved(self) -> None:
+        """A label of 0 is a value, not a missing label.
+
+        Integer labels are common in labelled eval data, and the contract for this
+        column is "stringify whatever is there" (a label of 1 is already reported as
+        "1"), so a falsy-but-present label must not be dropped.
+        """
+
+        def results(frame: pd.DataFrame) -> list[v1.AnnotationResult | None]:
+            chunks = list(
+                _chunk_annotations_dataframe(
+                    dataframe=frame,
+                    id_config=_SPAN_ID_CONFIG,
+                    annotation_factory=_create_span_annotation,
+                )
+            )
+            return [annotation.get("result") for chunk in chunks for annotation in chunk]
+
+        labels = pd.DataFrame(
+            {
+                "name": ["sentiment", "sentiment"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "span_id": ["id1", "id2"],
+                "label": [0, 1],
+            }
+        )
+        assert results(labels) == [{"label": "0"}, {"label": "1"}]
+
+        # Choosing a float label column is sticky: one missing value makes the whole
+        # column float, so the labels that are present stringify as floats and the
+        # missing row keeps only its score.
+        float_labels = pd.DataFrame(
+            {
+                "name": ["sentiment"] * 3,
+                "annotator_kind": ["HUMAN"] * 3,
+                "span_id": ["id1", "id2", "id3"],
+                "label": [0, 1, float("nan")],
+                "score": [0.1, 0.2, 0.3],
+            }
+        )
+        assert results(float_labels) == [
+            {"label": "0.0", "score": 0.1},
+            {"label": "1.0", "score": 0.2},
+            {"score": 0.3},
+        ]
+
+        other_falsy = pd.DataFrame(
+            {
+                "name": ["sentiment"] * 3,
+                "annotator_kind": ["HUMAN"] * 3,
+                "span_id": ["id1", "id2", "id3"],
+                "label": [False, "0", ""],
+                "score": [0.5, 0.5, 0.5],
+            }
+        )
+        assert results(other_falsy) == [
+            {"label": "False", "score": 0.5},
+            {"label": "0", "score": 0.5},
+            {"score": 0.5},
+        ]
+
+        # Whitespace-only labels are as good as missing, so a row whose only result
+        # column is a blank label must still fail.
+        blank_only = pd.DataFrame(
+            {
+                "name": ["sentiment"],
+                "annotator_kind": ["HUMAN"],
+                "span_id": ["id1"],
+                "label": ["   "],
+            }
+        )
+        with pytest.raises(ValueError, match="At least one of label, score, or explanation"):
+            results(blank_only)
 
     def test_multi_id_extraction(self) -> None:
         """Test extraction of multiple ID parameters (span_id + document_position)."""

@@ -5,20 +5,20 @@
 
 # The download URL embeds both, so a mismatch 404s at fetch time.
 SQLITE_RELEASE_YEAR := 2026
-SQLITE_VERSION := 3540000
+SQLITE_VERSION := 3540100
 # Recorded by confirming the download against the SHA3-256 in sqlite.org's
 # PRODUCT line, then re-hashing (shasum cannot do SHA3). Release files there
 # are immutable, so a mismatch means different bytes.
-SQLITE_SHA256 := 68e913b0fe8ec6b4e5f391c594a28872884e80d6cd042a1e50c957be46b5aa4d
+SQLITE_SHA256 := 0a9c8e34352dad46006aa82836d5383bff9dc6bc9ce5a60553c05aa30e6ad1f9
 SQLEAN_REPO := https://github.com/nalgeon/sqlean.git
 # The release SQLEAN_COMMIT corresponds to, +<short sha> when the commit sits
 # ahead of it. check-sqlean-pin enforces that, and that setup.py's copy agrees
 # -- setup.py's is the one compiled in as what sqlean_version() reports.
-SQLEAN_VERSION := 0.28.4+71e7625
+SQLEAN_VERSION := 0.28.5
 # Pinned by commit, not tag: a tag can be moved to different content, a commit
 # cannot, and git verifies every object it receives. Why a given pin was
 # chosen belongs in the commit that moved it.
-SQLEAN_COMMIT := 71e76250c7c5d2431283d687a04a1433a9f5efe3
+SQLEAN_COMMIT := c873e81cbe5ac951410ed11e2746d723ede5ec26
 # sqlean's crypto extension includes crypto/xxhash.impl.h but does not ship it.
 # XXHASH_TAG is the tag sqlean's own Makefile fetches; download-sqlean asserts
 # they still agree, so an upstream move stops the build.

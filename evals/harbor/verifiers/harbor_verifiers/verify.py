@@ -15,6 +15,9 @@ letter case. Use ``{"reference": "117 traces", "notes": "..."}`` to ask the LLM 
 in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer.
 State verifiers can call :func:`write_reward` to record their own reward and include the
 trajectory measurements.
+
+Add ``skills_expected`` or ``skills_unexpected`` to ``expected.json`` to also score which
+skills the agent loaded. See :func:`harbor_verifiers.skills.skill_scores`.
 """
 
 from __future__ import annotations
@@ -175,7 +178,14 @@ def main(argv: list[str] | None = None) -> None:
     expected = json.loads(args.expected.read_text())
     reply, source = read_reply(args.trajectory, args.answer)
     reward, reason = check(reply, expected)
-    scores = write_reward(reward, trajectory_path=args.trajectory, reward_path=args.reward_file)
+    from harbor_verifiers import skills
+
+    loaded = skills.loaded_skills(read_trajectory(args.trajectory))
+    components: dict[str, Any] = {"loaded_skills": loaded}
+    components.update(skills.skill_scores(loaded, expected))
+    scores = write_reward(
+        reward, trajectory_path=args.trajectory, reward_path=args.reward_file, **components
+    )
     print(
         json.dumps(
             {
@@ -183,6 +193,7 @@ def main(argv: list[str] | None = None) -> None:
                 "reply_source": source,
                 "expected": expected,
                 "reason": reason,
+                "loaded_skills": loaded,
                 "scores": scores,
             }
         )

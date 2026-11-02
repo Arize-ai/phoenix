@@ -3,14 +3,11 @@ import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
 import { useTimeRange } from "@phoenix/components/datetime";
+import { useRefetchOnStreamAdvance } from "@phoenix/hooks/useRefetchOnStreamAdvance";
 
 import type { TraceAnnotationSummaryQuery } from "./__generated__/TraceAnnotationSummaryQuery.graphql";
 import type { TraceAnnotationSummaryValueFragment$key } from "./__generated__/TraceAnnotationSummaryValueFragment.graphql";
-import {
-  AnnotationSummaryValueView,
-  Summary,
-  useRefetchOnStreamAdvance,
-} from "./AnnotationSummary";
+import { AnnotationSummaryValueView, Summary } from "./AnnotationSummary";
 
 type TraceAnnotationSummaryProps = {
   annotationName: string;

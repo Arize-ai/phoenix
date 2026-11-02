@@ -74,16 +74,44 @@ class TestCleanupAbandonedDcrClients:
         user_id: int,
         revoked_at: Optional[datetime] = None,
         expires_at: Optional[datetime] = None,
-    ) -> None:
+    ) -> int:
         async with db() as session:
-            session.add(
-                models.OAuth2Grant(
-                    user_id=user_id,
-                    oauth2_client_id=client_pk,
-                    revoked_at=revoked_at,
-                    expires_at=expires_at,
-                )
+            grant = models.OAuth2Grant(
+                user_id=user_id,
+                oauth2_client_id=client_pk,
+                revoked_at=revoked_at,
+                expires_at=expires_at,
             )
+            session.add(grant)
+            await session.flush()
+            return grant.id
+
+    async def _add_tokens(
+        self,
+        db: DbSessionFactory,
+        *,
+        user_id: int,
+        grant_id: Optional[int],
+        expires_at: datetime,
+    ) -> tuple[int, int]:
+        async with db() as session:
+            refresh_token = models.RefreshToken(
+                user_id=user_id,
+                oauth2_grant_id=grant_id,
+                scopes=None if grant_id is None else ["read"],
+                expires_at=expires_at,
+            )
+            session.add(refresh_token)
+            await session.flush()
+            access_token = models.AccessToken(
+                user_id=user_id,
+                refresh_token_id=refresh_token.id,
+                scopes=refresh_token.scopes,
+                expires_at=expires_at,
+            )
+            session.add(access_token)
+            await session.flush()
+            return refresh_token.id, access_token.id
 
     async def test_sweep_deletes_only_abandoned_clients(
         self,
@@ -145,3 +173,36 @@ class TestCleanupAbandonedDcrClients:
         assert long_dead not in surviving
         assert long_expired not in surviving
         assert {fresh_unused, live, just_dead, mixed, seeded} <= surviving
+
+    async def test_sweep_deletes_the_tokens_of_a_deleted_clients_grants(
+        self,
+        asgi_app: ASGIApp,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        long_ago = now - timedelta(days=100)
+        user_id = await self._user_id(db)
+        dead = await self._add_client(db, client_id="px_dcr_dead", created_at=long_ago)
+        grant_id = await self._add_grant(
+            db, client_pk=dead, user_id=user_id, revoked_at=now - timedelta(days=60)
+        )
+        grant_tokens = await self._add_tokens(
+            db, user_id=user_id, grant_id=grant_id, expires_at=now + timedelta(days=1)
+        )
+        # A web-session token belongs to no grant, so the sweep has no claim on it.
+        session_tokens = await self._add_tokens(
+            db, user_id=user_id, grant_id=None, expires_at=now + timedelta(days=1)
+        )
+
+        async with db() as session:
+            await _cleanup_abandoned_dcr_clients(session, now=now)
+
+        async with db() as session:
+            assert await session.get(models.OAuth2Client, dead) is None
+            assert await session.get(models.OAuth2Grant, grant_id) is None
+            refresh_token_ids = set(await session.scalars(select(models.RefreshToken.id)))
+            access_token_ids = set(await session.scalars(select(models.AccessToken.id)))
+        assert grant_tokens[0] not in refresh_token_ids
+        assert grant_tokens[1] not in access_token_ids
+        assert session_tokens[0] in refresh_token_ids
+        assert session_tokens[1] in access_token_ids

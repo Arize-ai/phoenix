@@ -29,7 +29,7 @@ const isErrorWithMessage = (error: unknown): error is { message: string } => {
  * Matches the string after the first occurrence of "message": " and before the next occurrence of " with double quotes.
  * @example
  * ```
- * "Error fetching GraphQL query 'MutationName' with variables '{'input':{'var1': 'test'}': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
+ * "Error fetching GraphQL query 'MutationName': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
  * ```*
  */
 const mutationErrorRegex = /["]message["]:\s*["]([^""]+)["]/g;
@@ -38,7 +38,7 @@ const mutationErrorRegex = /["]message["]:\s*["]([^""]+)["]/g;
  * A relay mutation error contains a message property which is a large string with various information.
  * @example
  * ```
- * "Error fetching GraphQL query 'MutationName' with variables '{'input':{'var1': 'test'}': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
+ * "Error fetching GraphQL query 'MutationName': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
  * ```
  * This function extracts the actual error messages from the message block.
  * @param error

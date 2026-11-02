@@ -21,6 +21,7 @@ export * from "./colors";
 export * from "./confusionMatrix";
 export * from "./binning";
 export * from "./timeTicks";
+export * from "./roundedLinearAxis";
 export * from "./useTimeAxisTicks";
 export * from "./breakdown";
 export * from "./MetricChartsPanel";

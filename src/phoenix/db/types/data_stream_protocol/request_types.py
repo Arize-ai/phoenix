@@ -1,5 +1,5 @@
-# Vendored from pydantic-ai v2.34.0:
-# https://github.com/pydantic/pydantic-ai/tree/v2.34.0/pydantic_ai_slim/pydantic_ai/ui/vercel_ai
+# Vendored from pydantic-ai v2.57.0:
+# https://github.com/pydantic/pydantic-ai/tree/v2.57.0/pydantic_ai_slim/pydantic_ai/ui/vercel_ai
 # Copyright (c) Pydantic Services Inc. 2024 to present
 # SPDX-License-Identifier: MIT
 #
@@ -20,7 +20,14 @@ Tool approval types (`ToolApprovalRequested`, `ToolApprovalResponded`) require A
 from abc import ABC
 from typing import Annotated, Any, Literal
 
-from pydantic import Discriminator, Field, StrictBool
+from pydantic import (
+    Discriminator,
+    Field,
+    SerializationInfo,
+    SerializerFunctionWrapHandler,
+    StrictBool,
+    model_serializer,
+)
 
 from ._models import CamelBaseModel
 
@@ -32,6 +39,21 @@ ProviderMetadata = dict[str, dict[str, JSONValue]]
 
 class BaseUIPart(CamelBaseModel, ABC):
     """Abstract base class for all UI parts."""
+
+    # Match upstream: a return annotation would replace the serialization schema
+    # with a bare object instead of preserving the part's fields.
+    @model_serializer(mode="wrap")
+    def _omit_unset_optional_fields(  # type: ignore[no-untyped-def]
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ):
+        data = handler(self)
+        if not info.mode_is_json():
+            return data
+        return {
+            key: value
+            for key, value in data.items()
+            if value is not None or key in ("input", "output", "data")
+        }
 
 
 class TextUIPart(BaseUIPart):
@@ -155,6 +177,15 @@ class ToolApprovalResponded(CamelBaseModel):
 
     reason: str | None = None
     """Optional reason for the approval or denial."""
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_reason(  # type: ignore[no-untyped-def]
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ):
+        data = handler(self)
+        if info.mode_is_json() and self.reason is None:
+            data.pop("reason", None)
+        return data
 
 
 ToolApproval = ToolApprovalRequested | ToolApprovalResponded
@@ -423,6 +454,19 @@ class UIMessage(CamelBaseModel):
     User messages can have text parts and file parts.
     Assistant messages can have text, reasoning, tool invocation, and file parts.
     """
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_metadata(  # type: ignore[no-untyped-def]
+        self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
+    ):
+        data = handler(self)
+        if (
+            info.mode_is_json()
+            and self.metadata is None
+            and "metadata" not in self.model_fields_set
+        ):
+            data.pop("metadata", None)
+        return data
 
 
 class SubmitMessage(CamelBaseModel, extra="allow"):

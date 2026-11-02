@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ko.md" />
 </p>
 
-Arize Phoenix는 실험, 평가, 문제 해결을 위해 설계된 Arize의 오픈소스 AI 관측성(observability) 플랫폼입니다. 관리형 프로덕션 워크플로가 필요하다면 Arize는 [Arize AX](https://arize.com/products/ax/)도 제공합니다. Phoenix가 제공하는 기능은 다음과 같습니다:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix는 실험, 평가, 문제 해결을 위해 설계된 Arize의 오픈소스 AI 관측성(observability) 플랫폼입니다. 관리형 프로덕션 워크플로가 필요하다면 Arize는 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ko)도 제공합니다. Phoenix가 제공하는 기능은 다음과 같습니다:
 
 - [**_트레이싱_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry 기반 계측을 사용하여 LLM 애플리케이션의 런타임을 트레이싱합니다.
 - [**_평가_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - 응답 및 검색(retrieval) 평가를 통해 LLM을 활용하여 애플리케이션의 성능을 벤치마킹합니다.
@@ -61,10 +73,10 @@ Arize Phoenix는 실험, 평가, 문제 해결을 위해 설계된 Arize의 오�
 
 Phoenix는 벤더와 언어에 구애받지 않으며, 인기 있는 프레임워크([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy))와 LLM 제공업체([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) 등)를 기본적으로 지원합니다. 자동 계측에 대한 자세한 내용은 [OpenInference](https://github.com/Arize-ai/openinference) 프로젝트를 참고하세요.
 
-Phoenix는 로컬 머신, 컨테이너 기반 배포, 클라우드 등 사실상 어디서나 실행됩니다. 각 옵션에 대한 안내는 [환경](https://arize.com/docs/phoenix/environments)을 참고하시거나, 바로 [트레이싱 빠른 시작](https://arize.com/docs/phoenix/get-started/get-started-tracing)으로 이동하세요.
+Phoenix는 로컬 머신, 컨테이너 기반 배포, 클라우드 등 사실상 어디서나 실행됩니다. 각 옵션에 대한 안내는 [환경](https://arize.com/docs/phoenix/self-hosting)을 참고하시거나, 바로 [트레이싱 빠른 시작](https://arize.com/docs/phoenix/get-started/get-started-tracing)으로 이동하세요.
 
 > [!NOTE]
-> Phoenix는 오픈소스이며 자체 호스팅 방식입니다. 관리형 플랫폼이 필요하다면 Arize의 [Arize AX](https://arize.com/products/ax/)를 이용할 수 있으며, 동일한 OpenTelemetry/OpenInference 계측이 두 플랫폼 모두에서 작동합니다. [전체 비교](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)를 참고하세요.
+> Phoenix는 오픈소스이며 자체 호스팅 방식입니다. 관리형 플랫폼이 필요하다면 Arize의 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ko)를 이용할 수 있으며, 동일한 OpenTelemetry/OpenInference 계측이 두 플랫폼 모두에서 작동합니다. [전체 비교](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)를 참고하세요.
 
 ## 목차
 
@@ -275,9 +287,9 @@ Phoenix는 사람과 AI 코딩 에이전트 모두가 똑같이 활용할 수 �
 
 | 스킬 | 설명 |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI를 사용하여 LLM 애플리케이션을 디버깅합니다 — 트레이스 가져오기, 오류 분석, 실험 검토, GraphQL API 조회 |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix를 사용하여 AI/LLM 애플리케이션용 평가기를 구축하고 실행합니다 |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM 애플리케이션 트레이싱을 위한 OpenInference 시맨틱 컨벤션 및 계측 |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI를 사용하여 LLM 애플리케이션을 디버깅합니다 — 트레이스 가져오기, 오류 분석, 실험 검토, GraphQL API 조회 |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix를 사용하여 AI/LLM 애플리케이션용 평가기를 구축하고 실행합니다 |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM 애플리케이션 트레이싱을 위한 OpenInference 시맨틱 컨벤션 및 계측 |
 
 ## 보안 및 개인정보 보호
 
@@ -314,3 +326,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 이 코드의 일부는 하나 이상의 미국 특허로 보호됩니다. [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE)를 참고하세요.
 
 이 소프트웨어는 Elastic License 2.0 (ELv2) 조건에 따라 라이선스가 부여됩니다. [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE)를 참고하세요.
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

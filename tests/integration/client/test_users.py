@@ -4,7 +4,7 @@ from __future__ import annotations
 from secrets import token_hex
 from typing import Iterator, Literal, Optional, Union, cast
 
-import httpx
+import httpx2
 import pytest
 import smtpdfix
 from phoenix.client.__generated__ import v1
@@ -30,7 +30,7 @@ class _UsersApi:
     - Deleting users
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(self, client: httpx2.Client) -> None:
         self._client = client
 
     def list(self) -> list[Union[v1.LocalUser, v1.OAuth2User, v1.LDAPUser]]:
