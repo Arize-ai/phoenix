@@ -110,6 +110,24 @@ const MANY_SECTIONS: RunSection[] = [
   },
 ];
 
+const SHORT_SECTIONS: RunSection[] = [
+  {
+    id: "input",
+    label: "Input",
+    paragraphs: ["What is the refund window for annual plans?"],
+  },
+  {
+    id: "output",
+    label: "Output",
+    paragraphs: ["Annual plans can be refunded within 30 days of purchase."],
+  },
+  {
+    id: "metadata",
+    label: "Metadata",
+    paragraphs: ["model: gpt-4o-mini · latency: 0.92s · tokens: 312"],
+  },
+];
+
 // The bar (or rail) sits beside the scrolling body rather than inside it, so
 // the scrollbar spans only the sections
 const paneCSS = css`
@@ -158,7 +176,6 @@ const sectionsCSS = css`
 const drawerFrameCSS = css`
   position: relative;
   width: 720px;
-  height: 360px;
   overflow: hidden;
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
@@ -273,17 +290,19 @@ export const Overflow: StoryFn = () => (
 Overflow.tags = ["!dev"];
 Overflow.parameters = { themeLayout: "row" };
 
-/**
- * In a detail drawer, the nav sits under the drawer's header and only the
- * body below it scrolls.
- */
-export const InDrawer: StoryFn = () => {
+function RunDetailsDrawer({
+  sections,
+  height = "360px",
+}: {
+  sections: RunSection[];
+  height?: string;
+}) {
   const idPrefix = useId();
-  const sections = withIdPrefix(idPrefix, MANY_SECTIONS);
+  const prefixedSections = withIdPrefix(idPrefix, sections);
   const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <OverlayFrameProvider>
-      <div css={drawerFrameCSS}>
+      <div css={drawerFrameCSS} style={{ height }}>
         <DrawerPlane style={{ inset: 0, position: "absolute" }} />
         <Drawer isOpen onClose={() => {}} defaultSize="80%">
           <Dialog>
@@ -293,11 +312,11 @@ export const InDrawer: StoryFn = () => {
               </DialogHeader>
               <SectionNav
                 aria-label="Run details"
-                sections={sections}
+                sections={prefixedSections}
                 scrollContainerRef={bodyRef}
               />
               <div ref={bodyRef} css={paneBodyCSS}>
-                <Sections sections={sections} />
+                <Sections sections={prefixedSections} />
               </div>
             </DialogContent>
           </Dialog>
@@ -305,7 +324,27 @@ export const InDrawer: StoryFn = () => {
       </div>
     </OverlayFrameProvider>
   );
-};
+}
+
+/**
+ * In a detail drawer, the nav sits under the drawer's header and only the
+ * body below it scrolls.
+ */
+export const InDrawer: StoryFn = () => (
+  <RunDetailsDrawer sections={MANY_SECTIONS} />
+);
 // Off the Docs page: the drawer's dialog takes focus when it mounts
 InDrawer.tags = ["!autodocs"];
 InDrawer.parameters = { themeLayout: "column" };
+
+/**
+ * When the drawer is taller than its content, clicking a link still brings
+ * its section to the top: the nav adds space below the last section so the
+ * body can scroll.
+ */
+export const ShortContentInDrawer: StoryFn = () => (
+  <RunDetailsDrawer sections={SHORT_SECTIONS} height="480px" />
+);
+// Off the Docs page: the drawer's dialog takes focus when it mounts
+ShortContentInDrawer.tags = ["!autodocs"];
+ShortContentInDrawer.parameters = { themeLayout: "column" };

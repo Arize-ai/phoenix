@@ -77,8 +77,8 @@ export interface SectionNavProps extends StylableProps {
   /**
    * The section that is current on mount, e.g. one restored from the URL
    * hash. The pane scrolls to it on mount, and it stays current until the
-   * user scrolls, even when the pane cannot bring it to the top. Without it,
-   * the first section is current and the pane does not scroll.
+   * user scrolls. Without it, the first section is current and the pane does
+   * not scroll.
    */
   defaultActiveId?: string;
   /**
@@ -126,6 +126,10 @@ function isDocumentScroller(element: Element) {
  *   `--section-nav-scroll-inset` on the scroll container to match its
  *   padding.
  * - Section ids must be unique within the document.
+ * - Every link can bring its section to the top, even the last one or a pane
+ *   taller than its content: when the content after the last section is
+ *   shorter than the pane, the nav adds space below that section, as a
+ *   bottom margin, so the pane can scroll it up to the landing line.
  *
  * @example
  * const bodyRef = useRef<HTMLDivElement>(null);
@@ -291,6 +295,74 @@ export function SectionNav({
       );
     };
 
+    // The space added below the last section so the pane can scroll it up to
+    // the line where sections land: without it, a short last section, or a
+    // pane taller than its content, cannot reach that line. The section's
+    // own margin is kept underneath; the runout is the part added on top.
+    let runoutSection: HTMLElement | null = null;
+    let runoutMargin = 0;
+    let runout = 0;
+    const clearRunout = () => {
+      runoutSection?.style.removeProperty("margin-block-end");
+      runoutSection = null;
+      runout = 0;
+    };
+    const setRunout = (section: HTMLElement, nextRunout: number) => {
+      if (nextRunout <= 0) {
+        clearRunout();
+        return;
+      }
+      section.style.setProperty(
+        "margin-block-end",
+        `${runoutMargin + nextRunout}px`
+      );
+      runoutSection = section;
+      runout = nextRunout;
+    };
+    const updateRunout = () => {
+      const lastSection = getSectionElements().at(-1) ?? null;
+      if (lastSection !== runoutSection) {
+        clearRunout();
+      }
+      if (lastSection == null) {
+        return;
+      }
+      if (runoutSection == null) {
+        runoutMargin =
+          Number.parseFloat(win.getComputedStyle(lastSection).marginBlockEnd) ||
+          0;
+      }
+      const viewportTop = getViewportTop();
+      const lastSectionRect = lastSection.getBoundingClientRect();
+      // The scroll height that lets the pane land the last section on the line
+      const requiredScrollHeight =
+        container.scrollTop +
+        lastSectionRect.top -
+        viewportTop -
+        getScrollMarginTop(lastSection) +
+        container.clientHeight;
+      // A pane taller than its content reports its own height as its scroll
+      // height, which hides what follows the last section (e.g. the padding
+      // it sits in). Overshoot first, assuming nothing follows it, so the
+      // content outgrows the pane and the next measurement is exact.
+      if (container.scrollHeight <= container.clientHeight) {
+        const lastSectionBottom =
+          container.scrollTop + lastSectionRect.bottom - viewportTop;
+        setRunout(
+          lastSection,
+          Math.ceil(requiredScrollHeight - lastSectionBottom - runoutMargin)
+        );
+      }
+      const scrollHeightWithoutRunout = container.scrollHeight - runout;
+      const nextRunout = Math.max(
+        0,
+        Math.ceil(requiredScrollHeight - scrollHeightWithoutRunout)
+      );
+      if (nextRunout !== runout) {
+        setRunout(lastSection, nextRunout);
+      }
+    };
+
     // Settling covers what the observer cannot see: a short last section that
     // becomes active at the end of the scroll without reaching the line.
     let settleTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -301,7 +373,8 @@ export function SectionNav({
         if (!shouldResolve && heldDefaultIdRef.current != null) {
           // The scroll to the held default settled without the user
           // scrolling; keep holding it, since the scroll position may resolve
-          // to another section (e.g. one the pane cannot scroll to the top)
+          // to another section (e.g. after landing a fraction of a pixel short
+          // of the line)
           tracking.pause("holdingDefaultSection");
           return;
         }
@@ -360,6 +433,7 @@ export function SectionNav({
 
     const handleResize = () => {
       updateBarHeight();
+      updateRunout();
       observeSections();
       resolve();
     };
@@ -367,6 +441,10 @@ export function SectionNav({
     resizeObserver.observe(nav);
     if (!isDocument) {
       resizeObserver.observe(container);
+    }
+    // A section that grows or shrinks changes the runout the last one needs
+    for (const element of getSectionElements()) {
+      resizeObserver.observe(element);
     }
     win.addEventListener("resize", handleResize);
     scrollEventTarget.addEventListener("scroll", handleScroll, {
@@ -385,6 +463,7 @@ export function SectionNav({
     });
 
     updateBarHeight();
+    updateRunout();
     const heldDefaultId = heldDefaultIdRef.current;
     if (heldDefaultId != null) {
       // Only one of the nav's sections, not any element sharing the id
@@ -414,6 +493,7 @@ export function SectionNav({
       scrollEventTarget.removeEventListener("keydown", handleKeyDown);
       scrollEventTarget.removeEventListener("pointerdown", handlePointerDown);
       container.style.removeProperty("--section-nav-height");
+      clearRunout();
     };
   }, [sectionIdsKey, scrollContainerRef, orientation]);
 
