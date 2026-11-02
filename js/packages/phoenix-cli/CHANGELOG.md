@@ -1,5 +1,45 @@
 # @arizeai/phoenix-cli
 
+## 1.19.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+### Patch Changes
+
+- Updated dependencies [9e7a797]
+  - @arizeai/phoenix-client@7.17.0
+
+## 1.18.10
+
+### Patch Changes
+
+- Updated dependencies [86ab99c]
+  - @arizeai/phoenix-client@7.16.3
+
+## 1.18.9
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-client@7.16.2
+
+## 1.18.8
+
+### Patch Changes
+
+- Updated dependencies [7b9f900]
+  - @arizeai/phoenix-client@7.16.1
+
+## 1.18.7
+
+### Patch Changes
+
+- Updated dependencies [f8ae2fc]
+  - @arizeai/phoenix-client@7.16.0
+
 ## 1.18.6
 
 ### Patch Changes

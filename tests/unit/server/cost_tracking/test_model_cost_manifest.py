@@ -1,14 +1,17 @@
 """
-Regression tests for src/phoenix/server/cost_tracking/model_cost_manifest.json.
+Regression tests for src/phoenix/server/cost_tracking/manifests/v1.json.
 
 Guards that LiteLLM whole-prompt tier rates (``*_above_NNNk_tokens``) survive the
-sync from LiteLLM through ``.github/.scripts/sync_models.py`` and land in the
+sync from LiteLLM through ``scripts/cost_tracking/sync_models.py`` and land in the
 manifest as ``threshold_based`` customizations. See Arize-ai/phoenix#14314.
 
 Also guards that the current flagship lineup stays priced and, just as importantly,
 stays distinguishable: several model IDs are prefixes of newer ones (``claude-opus-5``
 of ``claude-opus-5-5``), so a span must bill against its own entry rather than the
 older, pricier one it happens to be a prefix of.
+
+And guards that the models never change without ``generated_at``: servers apply the manifest
+only if it is newer than the one they have.
 """
 
 import json
@@ -19,8 +22,16 @@ from typing import Any
 
 import pytest
 
+import phoenix
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
+from phoenix.server.cost_tracking.manifest import (
+    BUNDLED_MANIFEST_PATH,
+    DEFAULT_MANIFEST_URL,
+    SUPPORTED_SCHEMA_VERSION,
+    compute_models_sha256,
+    parse_manifest,
+)
 
 MANIFEST_PATH = (
     Path(__file__).resolve().parents[4]
@@ -28,7 +39,8 @@ MANIFEST_PATH = (
     / "phoenix"
     / "server"
     / "cost_tracking"
-    / "model_cost_manifest.json"
+    / "manifests"
+    / "v1.json"
 )
 
 
@@ -166,6 +178,76 @@ def test_flat_rate_models_carry_every_token_rate(
         )
 
 
+@pytest.mark.parametrize(
+    "model_name, provider, input_rate, output_rate, cache_read_rate",
+    [
+        # Direct Mistral AI API prices from LiteLLM ``mistral/*`` IDs. OpenInference uses
+        # ``llm.provider = "mistralai"`` (not LiteLLM's ``mistral`` string).
+        ("mistral/mistral-large-latest", "mistralai", 5e-7, 1.5e-6, 5e-8),
+        ("mistral/mistral-small-latest", "mistralai", 1.5e-7, 6e-7, 1.5e-8),
+        ("mistral/codestral-latest", "mistralai", 3e-7, 9e-7, 3e-8),
+        ("mistral/pixtral-large-latest", "mistralai", 2e-6, 6e-6, 2e-7),
+    ],
+)
+def test_direct_mistral_models_carry_openinference_provider_and_rates(
+    models_by_name: dict[str, dict[str, Any]],
+    model_name: str,
+    provider: str,
+    input_rate: float,
+    output_rate: float,
+    cache_read_rate: float,
+) -> None:
+    assert model_name in models_by_name, f"missing model entry: {model_name}"
+    model = models_by_name[model_name]
+    assert model.get("provider") == provider
+    assert model["name_pattern"] == model_name.removeprefix("mistral/")
+    prices = {price["token_type"]: price for price in model["token_prices"]}
+    assert prices["input"]["base_rate"] == pytest.approx(input_rate, rel=1e-9)
+    assert prices["output"]["base_rate"] == pytest.approx(output_rate, rel=1e-9)
+    assert prices["cache_read"]["base_rate"] == pytest.approx(cache_read_rate, rel=1e-9)
+    assert "cache_write" not in prices
+
+
+@pytest.mark.parametrize(
+    "span_model_name, span_provider, expected_entry",
+    [
+        ("mistral-large-latest", "mistralai", "mistral/mistral-large-latest"),
+        ("mistral-small-latest", "mistralai", "mistral/mistral-small-latest"),
+        ("codestral-latest", "mistralai", "mistral/codestral-latest"),
+        # Provider-less spans still match by name_pattern alone.
+        ("mistral-large-latest", None, "mistral/mistral-large-latest"),
+        # Together-hosted Mistral stays on the together provider entry.
+        (
+            "mistralai/Mistral-7B-Instruct-v0.1",
+            "together",
+            "together_ai/mistralai/Mistral-7B-Instruct-v0.1",
+        ),
+        # Unknown model name does not resolve.
+        ("totally-unknown-mistral-model", "mistralai", None),
+    ],
+)
+def test_mistral_span_model_names_resolve_to_manifest_entries(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    span_provider: str | None,
+    expected_entry: str | None,
+) -> None:
+    attributes: dict[str, Any] = {"llm": {"model_name": span_model_name}}
+    if span_provider is not None:
+        attributes["llm"]["provider"] = span_provider
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes=attributes,
+    )
+    if expected_entry is None:
+        assert model is None
+    else:
+        assert model is not None, f"no built-in model priced {span_model_name}"
+        assert model.name == expected_entry
+        if span_provider is not None:
+            assert model.provider == span_provider
+
+
 @pytest.fixture(scope="module")
 def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
     """A lookup over every built-in model, mirroring how the facilitator seeds them."""
@@ -202,10 +284,14 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         ("gpt-6-astra", "gpt-6-astra"),
         ("gpt-6-sol", "gpt-6-sol"),
         ("gpt-6-luna", "gpt-6-luna"),
-        ("us.openai.gpt-6-luna", "gpt-6-luna"),
+        # LiteLLM lists this regional ID with its own prices.
+        ("us.openai.gpt-6-luna", "us.openai.gpt-6-luna"),
         ("gpt-5.6-sol", "gpt-5.6-sol"),
         ("gpt-5.6-terra", "gpt-5.6-terra"),
         ("gpt-5.6-luna", "gpt-5.6-luna"),
+        # LiteLLM lists Argon only under gemini/ and vertex_ai/, so its entry is manual.
+        ("gemini-4-argon", "gemini-4-argon"),
+        ("muse-wonder-1.0", "meta/muse-wonder-1.0"),
     ],
 )
 def test_current_lineup_resolves_to_its_own_manifest_entry(
@@ -219,3 +305,32 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     )
     assert model is not None, f"no built-in model priced {span_model_name}"
     assert model.name == expected_entry
+
+
+def test_checked_in_manifest_parses_without_skipping_entries(
+    manifest: dict[str, Any],
+) -> None:
+    # Servers fetch this file from GitHub, so anything parse_manifest rejects or skips here
+    # would be rejected or skipped by every running server too.
+    parsed = parse_manifest(MANIFEST_PATH.read_bytes())
+    assert parsed.schema_version == SUPPORTED_SCHEMA_VERSION
+    assert [model.name for model in parsed.models] == [
+        model["name"] for model in manifest["models"]
+    ]
+
+
+def test_bundled_manifest_is_the_one_servers_fetch() -> None:
+    # Servers fetch the bundled file from GitHub, and the sync script writes it, so the URL
+    # must point at it. Compared within the package, since CI tests an installed copy of it.
+    package_path = BUNDLED_MANIFEST_PATH.relative_to(Path(phoenix.__file__).parent)
+    assert package_path == MANIFEST_PATH.relative_to(MANIFEST_PATH.parents[3])
+    repo_root = MANIFEST_PATH.parents[5]
+    assert DEFAULT_MANIFEST_URL.endswith("/main/" + MANIFEST_PATH.relative_to(repo_root).as_posix())
+
+
+def test_models_are_not_changed_without_bumping_generated_at(manifest: dict[str, Any]) -> None:
+    assert manifest.get("models_sha256") == compute_models_sha256(manifest["models"]), (
+        "The manifest's models changed without generated_at. Servers would skip the change, "
+        "since they apply only a newer manifest. Run "
+        "`uv run python scripts/cost_tracking/sync_models.py --bump-generated-at`."
+    )

@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """The most frequent trail_error annotation label."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 from collections import Counter
 
-from evals.harbor.verifiers.phoenix_api import annotation_labels, write_answer
+from harbor_verifiers.phoenix_api import annotation_labels, write_answer
 
 labels = Counter(annotation_labels("research-assistant", "trail_error"))
 top = max(labels.values())

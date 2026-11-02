@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from argparse import SUPPRESS, Namespace
 from dataclasses import dataclass
@@ -33,7 +34,7 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
         help=SUPPRESS,
         description=(
             "Internal Phoenix development tool. Not a supported feature: "
-            "these flags, the default project name, and the corpus format "
+            "these flags, the project names, and the corpus format "
             "may change or be removed in any release, and such changes are "
             "not recorded in MIGRATION.md."
         ),
@@ -53,7 +54,10 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
     )
     parser.add_argument(
         "--project",
-        help=("Destination project; defaults to phoenix-datagen (env: PHOENIX_PROJECT_NAME)."),
+        help=(
+            "Send every application to this one project "
+            "(default: one project per recorded application)."
+        ),
     )
     parser.add_argument(
         "--rate",
@@ -81,6 +85,10 @@ def run(args: Namespace) -> None:
     replayer = Replayer(
         corpus,
         project_name=config.project,
+    )
+    print(
+        f"Replaying into projects: {', '.join(replayer.project_names)}",
+        file=sys.stderr,
     )
 
     try:
@@ -130,7 +138,8 @@ def _resolve_config(args: Namespace, environ: Mapping[str, str]) -> _Config:
         api_key=args.api_key or environ.get("PHOENIX_API_KEY"),
         headers=_parse_env_headers(environ.get("PHOENIX_CLIENT_HEADERS")),
         corpus=args.corpus,
-        project=args.project or environ.get("PHOENIX_PROJECT_NAME"),
+        # Not PHOENIX_PROJECT_NAME: other Phoenix tooling exports it, and pnpm dev sources .env.
+        project=args.project,
         rate=args.rate if args.rate is not None else _DEFAULT_RATE,
         burstiness=args.burstiness if args.burstiness is not None else _DEFAULT_BURSTINESS,
     )

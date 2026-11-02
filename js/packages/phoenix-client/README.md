@@ -239,6 +239,38 @@ const { datasetId } = await createDataset({
 // You can now use datasetId to run experiments or add more examples
 ```
 
+### Managing Splits
+
+Use `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` to create, edit, and delete splits (for example train and test subsets) on an existing dataset and to add or remove examples. These helpers require Phoenix server >= 19.20.0.
+
+```ts
+import {
+  createDatasetSplit,
+  deleteDatasetSplit,
+  updateDatasetSplit,
+} from "@arizeai/phoenix-client/datasets";
+
+const dataset = { datasetName: "questions" };
+
+const testSplit = await createDatasetSplit({
+  dataset,
+  name: "test",
+  exampleIds: ["example-1"], // example ids or nodeIds from getDatasetExamples
+});
+
+await updateDatasetSplit({
+  dataset,
+  splitId: testSplit.id,
+  addExampleIds: ["example-2"],
+  removeExampleIds: ["example-1"],
+});
+
+// Removes the split and its memberships, not the examples
+await deleteDatasetSplit({ dataset, splitId: testSplit.id });
+```
+
+See the [datasets reference](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets#manage-splits-on-an-existing-dataset) for all parameters and server version notes.
+
 ## Experiments
 
 The `@arizeai/phoenix-client` package provides an experiments API for running and evaluating tasks on datasets. This is useful for benchmarking models, evaluating outputs, and tracking experiment results in Phoenix.
@@ -750,7 +782,7 @@ await addSessionNote({
 
 ## Projects
 
-The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy assignments.
+The `@arizeai/phoenix-client` package provides a `projects` export for listing projects and managing their retention-policy and annotation-config assignments.
 
 ### Fetching Projects
 
@@ -796,6 +828,52 @@ await setProjectRetentionPolicy({
 ```
 
 This helper only changes a project's assignment to an existing policy. Creating, reading, updating, and deleting retention policies is outside the scope of the TypeScript projects helper.
+
+### Assigning Annotation Configs
+
+Use `assignProjectAnnotationConfig` and `unassignProjectAnnotationConfig` to add or remove a single annotation config. Select the project and the config by name or GlobalID. Both calls are idempotent. These helpers require Phoenix server `17.16.0` or newer.
+
+```ts
+import {
+  assignProjectAnnotationConfig,
+  listProjectAnnotationConfigs,
+  setProjectAnnotationConfigs,
+  unassignProjectAnnotationConfig,
+} from "@arizeai/phoenix-client/projects";
+
+await assignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+
+await unassignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+```
+
+Use `setProjectAnnotationConfigs` to replace the whole set by config GlobalID. Pass an empty list to clear every assignment:
+
+```ts
+const configs = await listProjectAnnotationConfigs({
+  projectName: "support-bot",
+});
+
+// Keep only the categorical configs
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: configs
+    .filter((config) => config.type === "CATEGORICAL")
+    .map((config) => config.id),
+});
+
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: [],
+});
+```
+
+If a config name contains `/`, select it by `configId` instead. The server can't route a `/` in the URL path.
 
 ## Secrets
 

@@ -665,6 +665,47 @@ class TestExperimentsIntegration:
         assert len(result["evaluation_runs"]) > 0
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_run_experiment_persists_evaluator_metadata(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+        Client = AsyncClient if is_async else SyncClient
+
+        dataset = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
+                name=f"test_experiment_eval_metadata_{token_hex(4)}",
+                inputs=[{"text": "Hello world"}],
+                outputs=[{"expected": "greeting"}],
+            )
+        )
+
+        def metadata_evaluator(output: str) -> Dict[str, Any]:
+            return {"score": 1.0, "label": "ok", "metadata": {"model": "judge-v1"}}
+
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).experiments.run_experiment(
+                dataset=dataset,
+                task=lambda input: "greeting",
+                evaluators={"with_metadata": metadata_evaluator},
+                experiment_name=f"test_eval_metadata_{token_hex(4)}",
+                print_summary=False,
+            )
+        )
+
+        response = _httpx_client(_app, api_key).get(
+            f"v1/experiments/{result['experiment_id']}/json"
+        )
+        response.raise_for_status()
+        (run,) = response.json()
+        (annotation,) = run["annotations"]
+        assert annotation["name"] == "with_metadata"
+        assert annotation["score"] == 1.0
+        assert annotation["label"] == "ok"
+        assert annotation["metadata"] == {"model": "judge-v1"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_run_experiment_with_different_task_signatures(
         self,
         is_async: bool,

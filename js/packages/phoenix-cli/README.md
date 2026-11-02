@@ -357,23 +357,23 @@ px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kind
 px span list --since 2026-07-01T00:00:00Z --until 2026-07-02T00:00:00Z # time range
 ```
 
-| Option                      | Description                                                                                                                      | Default  |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `[file]`                    | Save spans as JSON to file                                                                                                       | stdout   |
-| `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                           | `100`    |
-| `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                               | —        |
-| `--since <timestamp>`       | Spans since ISO timestamp                                                                                                        | —        |
-| `--until <timestamp>`       | Spans started before ISO timestamp (exclusive)                                                                                   | —        |
-| `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | —        |
-| `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                   | —        |
-| `--name <names...>`         | Filter by span name(s)                                                                                                           | —        |
-| `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
-| `--span-id <ids...>`        | Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0.                                                           | —        |
-| `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
-| `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
-| `--include-notes`           | Include span notes in the output                                                                                                 | —        |
-| `--format <format>`         | `pretty`, `json`, or `raw`                                                                                                       | `pretty` |
-| `--no-progress`             | Suppress progress output                                                                                                         | —        |
+| Option                      | Description                                                                                                                                  | Default  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `[file]`                    | Save spans as JSON to file                                                                                                                   | stdout   |
+| `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                                       | `100`    |
+| `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                                           | —        |
+| `--since <timestamp>`       | Spans since ISO timestamp                                                                                                                    | —        |
+| `--until <timestamp>`       | Spans started before ISO timestamp (exclusive)                                                                                               | —        |
+| `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `DECISION`, `UNKNOWN`) | —        |
+| `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                               | —        |
+| `--name <names...>`         | Filter by span name(s)                                                                                                                       | —        |
+| `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                                        | —        |
+| `--span-id <ids...>`        | Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0.                                                                       | —        |
+| `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                                  | —        |
+| `--include-annotations`     | Include span annotations in the output                                                                                                       | —        |
+| `--include-notes`           | Include span notes in the output                                                                                                             | —        |
+| `--format <format>`         | `pretty`, `json`, or `raw`                                                                                                                   | `pretty` |
+| `--no-progress`             | Suppress progress output                                                                                                                     | —        |
 
 ```bash
 # Find all ERROR spans

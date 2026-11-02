@@ -426,6 +426,7 @@ type GpuType = apiclient.GpuType
 ```go
 const (
     GpuTypeH100       GpuType = apiclient.GPUTYPE_H100
+    GpuTypeB300       GpuType = apiclient.GPUTYPE_B300
     GpuTypeRtxPro6000 GpuType = apiclient.GPUTYPE_RTX_PRO_6000
     GpuTypeMI355X     GpuType = apiclient.GPUTYPE_MI355X
 )
@@ -630,8 +631,11 @@ type SandboxBaseParams struct {
     // sandbox holding the secret's opaque placeholder, which is resolved to the
     // real value only when the sandbox connects to one of the secret's allowed
     // hosts. The referenced secrets must already exist (see [Client.Secret]).
-    Secrets          map[string]string
-    NetworkBlockAll  bool
+    Secrets         map[string]string
+    NetworkBlockAll bool
+    // Kvm exposes KVM (/dev/kvm) inside the sandbox via nested virtualization.
+    // linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
+    Kvm              bool
     NetworkAllowList *string
     DomainAllowList  *string
     // OutboundProxyUrl is the outbound proxy URL the sandbox HTTP(S) traffic is

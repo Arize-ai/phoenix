@@ -19,7 +19,7 @@ describe("profile route information", () => {
         path: "/profile",
         label: "Profile",
         description:
-          "Open personal account settings, API keys, connected applications, display preferences, and accessibility options.",
+          "Open personal account settings, API keys, connected applications, display preferences, accessibility options, and local storage.",
       },
       {
         path: "/profile/account",
@@ -43,7 +43,7 @@ describe("profile route information", () => {
         path: "/profile/preferences",
         label: "Profile Preferences",
         description:
-          "Choose your theme, timezone, code language, and package manager defaults.",
+          "Choose your theme, timezone, code language, and package manager defaults, and see or clear what Phoenix keeps in this browser's local storage.",
       },
       {
         path: "/profile/accessibility",
@@ -67,6 +67,7 @@ describe("profile route information", () => {
     ["change my timezone", "/profile/preferences"],
     ["use native scrollbars", "/profile/accessibility"],
     ["enable AI query", "/profile/generative-ai"],
+    ["clear local storage", "/profile/preferences"],
   ])("finds %s at %s", (query, expectedPath) => {
     const result = getRouteInfoFromCatalog({
       catalog,

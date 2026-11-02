@@ -4,6 +4,7 @@ import { devtools, persist } from "zustand/middleware";
 
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
+import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -470,7 +471,7 @@ export const createPreferencesStore = (
   });
   return create<PreferencesState>()(
     persist(devtools(preferencesStore, { name: "preferencesStore" }), {
-      name: "arize-phoenix-preferences",
+      name: PREFERENCES_STORAGE_KEY,
     })
   );
 };

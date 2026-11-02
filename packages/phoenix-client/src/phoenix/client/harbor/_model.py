@@ -67,6 +67,7 @@ class TaskRecord:
     steps: tuple[StepRecord, ...] = ()
     multi_step_reward_strategy: Literal["mean", "final"] | None = None
     config: Mapping[str, Any] = field(default_factory=dict)
+    reference_output: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def task_id(self) -> str:
@@ -99,8 +100,7 @@ class TaskRecord:
         return {
             "id": self.task_id,
             "input": example_input,
-            # Harbor verifies environment state, not a reference response.
-            "output": {},
+            "output": dict(self.reference_output),
             "metadata": {
                 "task_digest": self.lock.digest,
                 "task_source": self.lock.source,

@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from threading import Lock
-from typing import Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 import wrapt
 from openinference.semconv.resource import ResourceAttributes
@@ -28,6 +28,7 @@ from opentelemetry.sdk.trace.export import (
 )
 from opentelemetry.sdk.util.instrumentation import InstrumentationScope
 from opentelemetry.trace import (
+    Span,
     SpanContext,
     Status,
     TraceFlags,
@@ -37,6 +38,10 @@ from opentelemetry.trace import (
 from opentelemetry.trace import (
     SpanKind as OtelSpanKind,
 )
+from opentelemetry.trace import (
+    Tracer as OtelTracer,
+)
+from opentelemetry.util._decorator import _agnosticcontextmanager
 
 from phoenix.config import (
     get_env_phoenix_agents_collector_api_key,
@@ -44,8 +49,8 @@ from phoenix.config import (
 )
 from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
-from phoenix.server.telemetry import normalize_http_collector_endpoint
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
+from phoenix.server.telemetry import normalize_http_trace_collector_endpoint
 from phoenix.trace.attributes import (
     AttributeValue,
     get_attribute_value,
@@ -108,12 +113,24 @@ def _build_remote_http_span_exporter(endpoint: str) -> SpanExporter:
         headers["Authorization"] = f"Bearer {api_key}"
 
     return OTLPSpanExporter(
-        endpoint=normalize_http_collector_endpoint(endpoint) + "/v1/traces",
+        endpoint=normalize_http_trace_collector_endpoint(endpoint),
         headers=headers,
     )
 
 
-class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
+if TYPE_CHECKING:
+
+    class _TracerBase(wrapt.ObjectProxy[OtelTracer], OtelTracer):
+        def start_span(self, *args: Any, **kwargs: Any) -> Span: ...
+
+        @_agnosticcontextmanager
+        def start_as_current_span(self, *args: Any, **kwargs: Any) -> Iterator[Span]: ...
+
+else:
+    _TracerBase = wrapt.ObjectProxy
+
+
+class Tracer(_TracerBase):
     """
     An in-memory tracer that captures spans and builds database models.
 

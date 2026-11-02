@@ -1246,6 +1246,73 @@ class TestProjectorValidationGap:
         )
 
 
+class TestFilterDslDefects:
+    """
+    Regression pins for three defects reported in a security review of
+    ``phoenix/trace/dsl/filter.py`` (the review's conclusion was that the
+    sandbox around ``eval()`` is sound; these are ordinary bugs found along
+    the way, none exploitable).
+    """
+
+    def test_lone_cr_in_condition_does_not_raise_index_error(self) -> None:
+        # A bare "\r" (no matching "\n") is a line terminator to the
+        # tokenizer that produced the AST's lineno/col_offset, but was not to
+        # `_AnnotationExpressionAliaser`'s old `source.split("\n")` line-offset
+        # table. Two lone CRs put a node on a line beyond the table's range
+        # and raised an unhandled IndexError -- a 500 instead of a validation
+        # error. This condition previously reproduced that crash.
+        condition = "(1 > 0\ror 1 > 0\ror evals['x'].score > 1)"
+        # Must not raise IndexError; a malformed-filter SpanFilterError would
+        # also be an acceptable outcome, but the condition here is valid.
+        span_filter = SpanFilter(condition)
+        assert span_filter.condition
+
+    def test_lone_cr_aliases_at_the_correct_byte_offset(self) -> None:
+        # Beyond not crashing, the alias must land in the right place. A
+        # single lone "\r" desyncs the old table without going out of range,
+        # producing a confusing SyntaxError instead of a correct splice.
+        # Wrapped in parens, as a lone "\r" is a line break to the parser: an
+        # un-parenthesized boolean expression split across it is a
+        # SyntaxError unrelated to the bug under test.
+        condition = "(evals['x'].score > 1\rand True)"
+        aliased_source, relations = _apply_eval_aliasing(condition)
+        assert len(relations) == 1
+        # The unaliased `evals[...]` reference must not survive translation --
+        # if it did, `_validate_expression` would reject it downstream, but
+        # this checks the aliasing step directly rather than only its net
+        # effect.
+        assert "evals[" not in aliased_source
+        assert relations[0].attribute_alias("score") in aliased_source
+        # And the rest of the expression, on the far side of the lone CR,
+        # must be untouched.
+        assert aliased_source.endswith("\rand True)")
+
+    def test_single_character_projection_name_is_not_treated_as_reserved(self) -> None:
+        # `Projector` passed its own source string where `_ProjectionTranslator`
+        # expects an iterable of reserved keywords. `frozenset(chain("n", ...))`
+        # turned the string into a set of its individual characters, so a
+        # single-character projection name like "n" was (mis)treated as a
+        # reserved binding and emitted as a bare global reference -- which
+        # raised NameError inside eval() rather than resolving to
+        # `attributes['n']` like any other unbound name.
+        projector = Projector("n")
+        translated = unparse(projector.translated)
+        assert translated == "attributes[['n']]"
+
+    def test_translator_rejects_unknown_node_types(self) -> None:
+        # `_ProjectionTranslator.visit_generic` was never called: the
+        # `ast.NodeVisitor`/`NodeTransformer` hook is named `generic_visit`,
+        # so this "reject unknown node type" backstop was dead code -- any
+        # node type without an explicit `visit_*` method passed through
+        # unchanged into `compile()` instead of being rejected. `ast.Starred`
+        # is one such type; it is already rejected upstream by the structural
+        # allowlist, so this exercises the translator's own backstop by
+        # invoking it directly on a tree the allowlist never sees.
+        root = ast.parse("[*a]", mode="eval")
+        with pytest.raises(SyntaxError, match="invalid expression"):
+            phoenix.trace.dsl.filter._ProjectionTranslator().visit(root)
+
+
 _PARENT_PREDICATE_TS = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
 
 

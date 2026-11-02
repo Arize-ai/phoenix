@@ -6,6 +6,10 @@ Declarative image builder used to define Sandbox runtime environments.
 Use factory methods such as `#base(String)` or `#debianSlim(String)` and chain
 mutating methods to append Dockerfile instructions.
 
+Local files and directories added with `#addLocalFile(String, String)` and
+`#addLocalDir(String, String)` are uploaded to Daytona object storage as build contexts
+when the image is used to create a snapshot or a Sandbox.
+
 ### Methods
 
 #### base()
@@ -128,6 +132,65 @@ Sets the default container command.
 
 - `Image` - this `Image` for method chaining
 
+#### addLocalFile()
+```java
+public Image addLocalFile(String localPath, String remotePath)
+```
+
+Adds a local file to the image.
+
+The file is uploaded to Daytona object storage as part of the build context when the image
+is used to create a snapshot or a Sandbox, and copied to `remotePath` with a
+`COPY` instruction. If `remotePath` ends with `/`, the local file name is
+appended to it. Symlinks in `localPath` are resolved before the file is recorded.
+```java
+Image image = Image.debianSlim("3.12")
+.addLocalFile("requirements.txt", "/home/daytona/requirements.txt");
+```
+
+**Parameters**:
+
+- `localPath` _String_ - path to the local file; a leading `~` is expanded to the user home
+- `remotePath` _String_ - destination path inside the image
+
+**Returns**:
+
+- `Image` - this `Image` for method chaining
+
+**Throws**:
+
+- `DaytonaNotFoundException` - if `localPath` does not exist
+- `IllegalArgumentException` - if `localPath` exists but is not a regular file
+
+#### addLocalDir()
+```java
+public Image addLocalDir(String localPath, String remotePath)
+```
+
+Adds a local directory to the image.
+
+The directory is uploaded to Daytona object storage as part of the build context when the
+image is used to create a snapshot or a Sandbox, and copied to `remotePath` with a
+`COPY` instruction. Symlinks in `localPath` itself are resolved; symlinks inside
+the directory are preserved as symlinks in the build context.
+```java
+Image image = Image.debianSlim("3.12").addLocalDir("src", "/home/daytona/src");
+```
+
+**Parameters**:
+
+- `localPath` _String_ - path to the local directory; a leading `~` is expanded to the user home
+- `remotePath` _String_ - destination path inside the image
+
+**Returns**:
+
+- `Image` - this `Image` for method chaining
+
+**Throws**:
+
+- `DaytonaNotFoundException` - if `localPath` does not exist
+- `IllegalArgumentException` - if `localPath` exists but is not a directory, or is a filesystem root
+
 #### getDockerfile()
 ```java
 public String getDockerfile()
@@ -138,6 +201,18 @@ Returns generated Dockerfile content.
 **Returns**:
 
 - `String` - Dockerfile text assembled by this builder
+
+#### getContexts()
+```java
+public List<Context> getContexts()
+```
+
+Returns the local build contexts registered with `#addLocalFile(String, String)` and
+`#addLocalDir(String, String)`, in insertion order.
+
+**Returns**:
+
+- `List\<Context\>` - unmodifiable list of build contexts
 
 ## See Also
 - [TypeScript SDK - image](../typescript-sdk/image.md)

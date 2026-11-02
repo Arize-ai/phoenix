@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build Phoenix and stage the build context for every Harbor task.
+# Build Phoenix and the verifiers wheel, then stage the build context for every Harbor task.
 #
 # The script builds the shared files once under evals/harbor/.cache/environment and each
 # fixture once under evals/harbor/.cache/fixtures. Set RESEED=1 to rebuild fixtures. Exit
@@ -19,12 +19,10 @@ rm -f "$ROOT"/dist/arize_phoenix-*.whl
 (cd "$ROOT" && uv build --wheel)
 
 rm -rf "$CONTEXT"
-mkdir -p "$CONTEXT/wheels" "$CONTEXT/verifier/evals/harbor"
+mkdir -p "$CONTEXT/wheels"
 cp "$ENVIRONMENTS/Dockerfile" "$CONTEXT/Dockerfile"
 cp "$ROOT"/dist/arize_phoenix-*.whl "$CONTEXT/wheels/"
-cp "$ROOT/evals/__init__.py" "$CONTEXT/verifier/evals/"
-cp "$HERE/__init__.py" "$CONTEXT/verifier/evals/harbor/"
-rsync -a --exclude __pycache__ "$HERE/verifiers/" "$CONTEXT/verifier/evals/harbor/verifiers/"
+(cd "$ROOT" && uv build --wheel --out-dir "$CONTEXT/wheels" "$HERE/verifiers")
 rsync -a --exclude __pycache__ "$ENVIRONMENTS/container_assets/" "$CONTEXT/container_assets/"
 
 if [ "${RESEED:-0}" = 1 ]; then

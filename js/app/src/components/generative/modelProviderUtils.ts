@@ -1,5 +1,6 @@
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import type { CredentialsProps } from "@phoenix/store/credentialsStore";
+import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type {
@@ -44,19 +45,37 @@ export type ProviderCredentialStatus = {
  * Bedrock, or DefaultAzureCredential (Managed Identity / AD token) for Azure
  * OpenAI. The server cannot detect these, so absence of explicit credentials
  * does not mean the provider is unusable.
+ *
+ * Each maps to a description of where its ambient credentials come from, so
+ * a provider can't be added here without one.
  */
-const PROVIDERS_WITH_DEFAULT_CREDENTIAL_CHAIN: ReadonlySet<ModelProvider> =
-  new Set(["AWS", "AZURE_OPENAI"]);
+const DEFAULT_CREDENTIAL_CHAIN_SOURCES: Partial<Record<ModelProvider, string>> =
+  {
+    AWS: "the AWS credential chain, such as an IAM role",
+    AZURE_OPENAI: "an Azure managed identity",
+  };
+
+/**
+ * Where a provider's ambient default credentials come from, or null if it
+ * has no default credential chain.
+ */
+export function getDefaultCredentialChainSource({
+  providerKey,
+}: {
+  providerKey: string;
+}): string | null {
+  if (!isModelProvider(providerKey)) {
+    return null;
+  }
+  return DEFAULT_CREDENTIAL_CHAIN_SOURCES[providerKey] ?? null;
+}
 
 export function providerSupportsDefaultCredentialChain({
   providerKey,
 }: {
   providerKey: string;
 }): boolean {
-  return (
-    isModelProvider(providerKey) &&
-    PROVIDERS_WITH_DEFAULT_CREDENTIAL_CHAIN.has(providerKey)
-  );
+  return getDefaultCredentialChainSource({ providerKey }) !== null;
 }
 
 /**
@@ -183,6 +202,37 @@ export function isProviderProvisioned({
   );
 }
 
+/**
+ * Region prefixes of AWS Bedrock cross-region inference profiles, as in
+ * `us.anthropic.claude-*` or `global.anthropic.claude-*`: the prefixes the
+ * Bedrock preference can apply.
+ */
+export const BEDROCK_REGION_PREFIXES: readonly string[] =
+  awsBedrockModelPrefixes.filter((prefix) => prefix !== "");
+
+/**
+ * The known region prefix a Bedrock model id starts with (`us-gov` for
+ * `us-gov.anthropic.x`, never `us`), or null.
+ */
+export function getBedrockRegionPrefix(modelName: string): string | null {
+  return (
+    BEDROCK_REGION_PREFIXES.find((prefix) =>
+      modelName.startsWith(`${prefix}.`)
+    ) ?? null
+  );
+}
+
+/** A Bedrock model id without its known region prefix, if it has one. */
+export function stripBedrockRegionPrefix(modelName: string): string {
+  const regionPrefix = getBedrockRegionPrefix(modelName);
+  return regionPrefix ? modelName.slice(regionPrefix.length + 1) : modelName;
+}
+
+/**
+ * Prefixes a Bedrock model id with the preferred region. An id that already
+ * names a known region keeps it: the explicit region wins over the
+ * preference. An empty prefix leaves the id as is.
+ */
 export function applyBedrockModelPrefix({
   modelName,
   prefix,
@@ -190,8 +240,6 @@ export function applyBedrockModelPrefix({
   modelName: string;
   prefix: string;
 }): string {
-  const prefixDot = `${prefix}.`;
-  return modelName.startsWith(prefixDot)
-    ? modelName
-    : `${prefixDot}${modelName}`;
+  const hasRegionPrefix = getBedrockRegionPrefix(modelName) != null;
+  return !prefix || hasRegionPrefix ? modelName : `${prefix}.${modelName}`;
 }

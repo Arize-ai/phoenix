@@ -200,7 +200,7 @@ Iterates over Sandboxes matching the given query.
 
 The returned `Iterable` lazily fetches pages from the API as iteration proceeds.
 Sandboxes are hydrated from the list endpoint, so fields marked "Not returned by
-`Daytona.list`" on `Sandbox` (env, networkBlockAll, networkAllowList, volumes,
+`Daytona.list`" on `Sandbox` (env, networkBlockAll, kvm, networkAllowList, volumes,
 buildInfo, backupCreatedAt) remain `null` until `Sandbox#refreshData()` is called.
 For a `Stream` variant see `#listStream(ListSandboxesQuery)`.
 ```java

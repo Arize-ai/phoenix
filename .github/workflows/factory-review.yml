@@ -1,0 +1,87 @@
+name: Factory Review
+
+# Reviews a pull request labeled `factory-review`, or dispatched by number, in the factory
+# sandbox. It covers fork PRs, which Claude Code Review skips because `pull_request` gets no
+# secrets for a fork.
+on:
+  # zizmor: ignore[dangerous-triggers] The job checks out only the base branch and runs
+  # review.py from it. The PR's code runs in the Managed Agents sandbox, which holds no repo
+  # secret, and a ruleset keeps the app's token off every branch but factory/**.
+  pull_request_target:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to review
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    # Triage access is enough to label a PR, so review.py also checks for write access.
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'factory-review'
+    # A second trigger for the same PR waits for this one. Set on the job, not the workflow,
+    # so runs for other labels skip the group.
+    concurrency:
+      group: factory-review-${{ github.event.pull_request.number || inputs.pr }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      pull-requests: write # report a failed start; the app posts every other comment
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      # pull_request_target checks out the base branch by default; keep it that way.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the Anthropic SDK and PyJWT
+        run: pip install --quiet "anthropic==1.12.1" "PyJWT[crypto]==2.15.1"
+
+      # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
+      - name: Pull claude-lock.json
+        run: |
+          git fetch --quiet --depth=1 origin factory-state
+          git show FETCH_HEAD:claude-lock.json > factory/claude-lock.json
+
+      - name: Start session
+        id: start
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          # Used to mint the session's GitHub token.
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+          REQUESTED_BY: ${{ github.event.sender.login }}
+        run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
+
+      - name: Watch session
+        if: steps.start.outputs.started == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          # Re-mints the session's token before it expires.
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+          SESSION_ID: ${{ steps.start.outputs.session_id }}
+          STARTED_AT: ${{ steps.start.outputs.started_at }}
+        run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT"
+
+      # The watch step reports its own failures. This uses GITHUB_TOKEN, so it lands even when
+      # the app's credentials are what failed.
+      - name: Report a failed start
+        if: failure() && steps.start.outcome != 'success'
+        run: |
+          gh pr comment "$PR_NUMBER" --body "The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."

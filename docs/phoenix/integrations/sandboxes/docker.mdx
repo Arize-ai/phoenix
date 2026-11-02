@@ -1,0 +1,30 @@
+---
+title: "Docker Sandboxes"
+description: "Run Phoenix code evaluators in Docker Cloud Sandboxes."
+---
+
+[**Docker Sandboxes**](https://docs.docker.com/ai/sandboxes-api/) runs code in isolated cloud sandboxes hosted by Docker. Phoenix uses it as a hosted backend for both Python and TypeScript [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators). Python runs on the `python:3.13-slim` image and TypeScript on `node:24-slim`.
+
+<Note>
+Docker marks the Sandboxes API as experimental. Its interfaces and behavior may change.
+</Note>
+
+## Requirements
+
+- An active [Docker Agentic Platform subscription](https://docs.docker.com/agentic-platform/signup/).
+- A [personal access token](https://docs.docker.com/security/access-tokens/personal-access-tokens/) with the `sandbox:use` permission. Registry permissions alone don't grant sandbox access.
+
+## Configure
+
+1. Create a personal access token with the `sandbox:use` permission in your Docker account settings.
+2. Add your Docker ID as `DOCKER_ID` and the token as `DOCKER_PAT` from **Settings → Sandboxes**, or set them as environment variables on the Phoenix server.
+3. In **Sandbox Configurations**, click **New Sandbox**, pick **Docker Sandboxes**, and choose Python or TypeScript.
+
+## Behavior
+
+- **Internet access:** **Deny** blocks all outbound traffic. Phoenix creates a network policy named `phoenix-deny-all-egress` on your Docker account the first time it's needed, and it applies only to the sandboxes Phoenix attaches it to. **Allow** adds no policy, so your Docker account's default network policy applies.
+- **Dependencies** install with `pip` or `npm` when the sandbox is created, and need internet access.
+- **Environment variables** are passed to each run, not set on the sandbox when it's created.
+- Phoenix deletes each sandbox when it's done with it. Every sandbox also expires after 10 minutes.
+
+See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for self-hosting setup.

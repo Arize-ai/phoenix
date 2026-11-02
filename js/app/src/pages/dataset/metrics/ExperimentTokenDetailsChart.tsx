@@ -31,7 +31,12 @@ import {
   ExperimentBaselineValueLine,
   getExperimentBaselineLegendItems,
 } from "./ExperimentBaselineReference";
+import type { ExperimentMetricsTooltipDatum } from "./ExperimentMetricsTooltipContent";
 import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import {
+  type ExperimentChartDatum,
+  useExperimentChartDatum,
+} from "./experimentSelection";
 import {
   experimentMetricsYAxisProps,
   getExperimentXAxisProps,
@@ -43,20 +48,15 @@ import { useExperimentMetricsData } from "./useExperimentMetricsData";
 
 const TOKEN_DETAIL_DATA_KEY_PREFIX = "tokenDetail:";
 
-type ExperimentTokenDetailsChartDatum = {
-  sequenceNumber: number;
-  experimentName: string;
-  isBaseline: boolean;
+type ExperimentTokenDetailsChartDatum = ExperimentChartDatum & {
   total: number | null;
-} & Record<string, boolean | number | string | null>;
+} & Record<string, boolean | number | string | null | undefined>;
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload || payload.length === 0) {
     return null;
   }
-  const datum = payload[0]?.payload as {
-    experimentName?: string;
-    isBaseline?: boolean;
+  const datum = payload[0]?.payload as ExperimentMetricsTooltipDatum & {
     total?: number | null;
   };
   return (
@@ -65,6 +65,8 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
         sequenceNumber={Number(label)}
         name={datum?.experimentName}
         isBaseline={datum?.isBaseline}
+        color={datum?.experimentColor}
+        referenceLabel={datum?.referenceLabel}
       />
       {payload.map((entry) => {
         const name = String(entry.name ?? entry.dataKey ?? "unknown");
@@ -192,10 +194,15 @@ function getBaselineTokenDetailsTotal({
 
 function ExperimentTokenDetailsChart({
   datasetId,
+  experimentSelection,
   tokenKind,
 }: ExperimentMetricViewProps & { tokenKind: TokenKind }) {
-  const { experiments, baselineExperiment } =
-    useExperimentMetricsData(datasetId);
+  const { experiments, baselineExperiment } = useExperimentMetricsData({
+    datasetId,
+    experimentSelection,
+  });
+  const { referenceLabel, toExperimentChartDatum } =
+    useExperimentChartDatum(experimentSelection);
   const tokenTypes = getTokenTypes({
     baselineExperiment,
     experiments,
@@ -204,18 +211,19 @@ function ExperimentTokenDetailsChart({
   const chartData: ExperimentTokenDetailsChartDatum[] = experiments.map(
     (experiment) => {
       const chartDatum: ExperimentTokenDetailsChartDatum = {
-        sequenceNumber: experiment.sequenceNumber,
-        experimentName: experiment.name,
-        isBaseline: experiment.isBaseline,
+        ...toExperimentChartDatum(experiment),
         total: getTokenTotal({ experiment, tokenKind }),
       };
       const tokenDetails = getExperimentTokenDetailValues({
         experiment,
         tokenKind,
       });
+      // An experiment without token data has no breakdown to zero-fill
+      const hasTokenData = chartDatum.total != null;
       tokenTypes.forEach((tokenType) => {
-        chartDatum[getTokenDetailDataKey(tokenType)] =
-          tokenDetails[tokenType] ?? 0;
+        chartDatum[getTokenDetailDataKey(tokenType)] = hasTokenData
+          ? (tokenDetails[tokenType] ?? 0)
+          : null;
       });
       return chartDatum;
     }
@@ -247,7 +255,10 @@ function ExperimentTokenDetailsChart({
         >
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis
-            {...getExperimentXAxisProps(baselineExperiment?.sequenceNumber)}
+            {...getExperimentXAxisProps({
+              baselineSequenceNumber: baselineExperiment?.sequenceNumber,
+              experiments: chartData,
+            })}
           />
           <YAxis
             {...experimentMetricsYAxisProps}
@@ -278,9 +289,10 @@ function ExperimentTokenDetailsChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
-            additionalLegendItems={getExperimentBaselineLegendItems(
-              baselineTokens
-            )}
+            additionalLegendItems={getExperimentBaselineLegendItems({
+              value: baselineTokens,
+              label: referenceLabel,
+            })}
           />
         </BarChart>
       </ChartResponsiveContainer>

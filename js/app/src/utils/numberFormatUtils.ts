@@ -191,6 +191,10 @@ export const floatShortFormatter = createNumberFormatter(formatFloatShort);
 export const floatFormatter = createNumberFormatter(formatFloat);
 export const numberFormatter = createNumberFormatter(formatNumber);
 export const percentFormatter = createNumberFormatter(formatPercent);
+/** Formats a rate given as a fraction, e.g. `0.125` → `12.50%`. */
+export const errorRateFormatter = createNumberFormatter((rate) =>
+  formatPercent(rate * 100)
+);
 export const costFormatter = createNumberFormatter(formatCost);
 export const costPreciseFormatter = createNumberFormatter(formatCostPrecise);
 export const latencyMsFormatter = createNumberFormatter(formatLatencyMs);

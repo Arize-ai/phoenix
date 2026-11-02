@@ -27,6 +27,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.secrets import normalize_secret_key
 from phoenix.server.api.queries import Query
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.bearer_auth import PhoenixUser
 
@@ -51,7 +52,7 @@ class SecretKeyValueInput:
     """
 
     key: str
-    value: str | None = field(
+    value: Redacted[str | None] = field(
         description="The value of the secret. If null, the secret will be deleted."
     )
 

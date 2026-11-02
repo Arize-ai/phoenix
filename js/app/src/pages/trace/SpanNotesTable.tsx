@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -10,6 +9,7 @@ import {
   ResizableTable,
 } from "@phoenix/components/table";
 import { TABLE_DATA_CELL_CLASS } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanAnnotationDeleteButton } from "@phoenix/components/trace/SpanAnnotationDeleteButton";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";

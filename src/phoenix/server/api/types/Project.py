@@ -1787,14 +1787,21 @@ class Project(Node):
             elif time_bin_config.scale is TimeBinScale.YEAR:
                 field = "year"
         bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
-        trace_error_status_counts = (
+        error_traces_stmt = (
             select(
                 models.Span.trace_rowid,
             )
+            .join_from(models.Span, models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(models.Span.parent_id.is_(None))
+            .where(models.Trace.project_rowid == self.id)
             .group_by(models.Span.trace_rowid)
             .having(func.max(models.Span.cumulative_error_count) > 0)
-        ).subquery()
+        )
+        if time_range.start:
+            error_traces_stmt = error_traces_stmt.where(time_range.start <= models.Trace.start_time)
+        if time_range.end:
+            error_traces_stmt = error_traces_stmt.where(models.Trace.start_time < time_range.end)
+        trace_error_status_counts = error_traces_stmt.subquery()
         stmt = (
             select(
                 bucket,

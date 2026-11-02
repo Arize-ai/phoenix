@@ -28,7 +28,6 @@ __all__ = [
     "DatasetSnapshot",
     "ExperimentHandle",
     "PhoenixRecorder",
-    "trial_output",
 ]
 
 _INTEGRATION = "harbor"
@@ -171,16 +170,23 @@ class PhoenixRecorder:
         run: v1.ExperimentRun,
         *,
         trial_result: TrialResult,
+        expected_output: Mapping[str, Any] | None,
         expected_trace_id: str | None = None,
     ) -> bool:
         """Validate an immutable successful run or allow a failed run to be replaced."""
         if run.get("error"):
             return False
 
-        expected_output = trial_output(trial_result)
         expected_error = _trial_error(trial_result)
         mismatches: list[str] = []
-        if run.get("output") != expected_output:
+        stored_output = run.get("output")
+        legacy_output = _legacy_trial_output(trial_result)
+        output_matches = (
+            stored_output in (expected_output, legacy_output)
+            if expected_output is not None
+            else stored_output in ({}, legacy_output) or _is_agent_message_output(stored_output)
+        )
+        if not output_matches:
             mismatches.append("output")
         if expected_error is not None:
             mismatches.append("error")
@@ -205,6 +211,7 @@ class PhoenixRecorder:
         repetition: int,
         expected_trace_id: str,
         trial_result: TrialResult,
+        run_output: Mapping[str, Any] | None,
     ) -> v1.ExperimentRun:
         matches = [
             run
@@ -221,6 +228,7 @@ class PhoenixRecorder:
         if not self.can_reuse_run(
             run,
             trial_result=trial_result,
+            expected_output=run_output,
             expected_trace_id=expected_trace_id,
         ):
             raise HarborPluginError(
@@ -236,6 +244,7 @@ class PhoenixRecorder:
         snapshot: DatasetSnapshot,
         experiments: Mapping[str, ExperimentHandle],
         trial_result: TrialResult,
+        run_output: Mapping[str, Any] | None,
         trace_id: str | None = None,
     ) -> v1.ExperimentRun:
         """Record one terminal Harbor trial as a Phoenix experiment run."""
@@ -259,7 +268,7 @@ class PhoenixRecorder:
             return await self._client.experiments.log_run(
                 experiment_id=experiment.experiment_id,
                 dataset_example_id=example_id,
-                output=trial_output(trial_result),
+                output=dict(run_output or {}),
                 start_time=start_time,
                 end_time=end_time,
                 repetition_number=slot.repetition,
@@ -274,6 +283,7 @@ class PhoenixRecorder:
                     repetition=slot.repetition,
                     expected_trace_id=harbor_trace_id(plan, trial_result),
                     trial_result=trial_result,
+                    run_output=run_output,
                 )
             raise HarborPluginError(
                 f"Could not record Harbor trial {trial_name!r} in Phoenix experiment "
@@ -567,7 +577,8 @@ def _run_key(identity: str, run: v1.ExperimentRun) -> RunKey:
     )
 
 
-def trial_output(trial_result: TrialResult) -> dict[str, Any]:
+def _legacy_trial_output(trial_result: TrialResult) -> dict[str, Any]:
+    """Reconstruct outputs written before Harbor agent responses were recorded."""
     n_input, n_cache, n_output, cost = trial_result.compute_token_cost_totals()
     output: dict[str, Any] = {
         "harbor_trial_id": str(trial_result.id),
@@ -585,6 +596,21 @@ def trial_output(trial_result: TrialResult) -> dict[str, Any]:
     if cost is not None:
         output["cost_usd"] = cost
     return output
+
+
+def _is_agent_message_output(output: Any) -> bool:
+    if not isinstance(output, Mapping) or set(output) != {"messages"}:
+        return False
+    messages = output["messages"]
+    if not isinstance(messages, Sequence) or isinstance(messages, (str, bytes)):
+        return False
+    if len(messages) != 1 or not isinstance((message := messages[0]), Mapping):
+        return False
+    return (
+        set(message) == {"role", "content"}
+        and message["role"] == "assistant"
+        and isinstance(message["content"], str)
+    )
 
 
 def _trial_error(trial_result: TrialResult) -> str | None:

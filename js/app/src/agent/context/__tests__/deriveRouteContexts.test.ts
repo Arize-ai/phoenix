@@ -2,6 +2,7 @@ import type { UIMatch } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import {
+  COMPARE_TRACE_ID_PARAM,
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
 } from "@phoenix/constants/searchParams";
@@ -16,6 +17,22 @@ function match(params: Record<string, string>): UIMatch {
 }
 
 describe("deriveRouteContexts", () => {
+  it("derives a trace and span context for each compared trace", () => {
+    const contexts = deriveRouteContexts(
+      [match({ projectId: "P1" })],
+      new URLSearchParams(
+        `${COMPARE_TRACE_ID_PARAM}=T1&${COMPARE_TRACE_ID_PARAM}=T2&${SELECTED_SPAN_NODE_ID_PARAM}=&${SELECTED_SPAN_NODE_ID_PARAM}=S2`
+      )
+    );
+
+    expect(contexts).toEqual([
+      { type: "project", projectNodeId: "P1" },
+      { type: "trace", projectNodeId: "P1", otelTraceId: "T1" },
+      { type: "trace", projectNodeId: "P1", otelTraceId: "T2" },
+      { type: "span", projectNodeId: "P1", spanNodeId: "S2" },
+    ]);
+  });
+
   it("derives project, trace, and selected span contexts in order", () => {
     const contexts = deriveRouteContexts(
       [match({ projectId: "P1" }), match({ traceId: "T1" })],

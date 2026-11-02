@@ -8,6 +8,9 @@ description = "Compare span error rates between short and long traces"
 [metadata]
 fixture = "trail"
 
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
 [environment]
 os = "linux"
 cpus = 2

@@ -2,9 +2,31 @@ import math
 from typing import cast
 
 import pandas as pd
+import strawberry
 
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.EvaluationSummary import EvaluationSummary
 from phoenix.server.api.types.LabelFraction import LabelFraction
+
+
+def test_summary_counts_serialize_as_graphql_integers() -> None:
+    @strawberry.type
+    class Query:
+        annotation: AnnotationSummary
+        evaluation: EvaluationSummary
+
+    dataframe = pd.DataFrame({"record_count": [2, 3], "score_count": [1, 2], "label_count": [2, 2]})
+    schema = strawberry.Schema(query=Query)
+    result = schema.execute_sync(
+        "{ annotation { count scoreCount labelCount } evaluation { count scoreCount labelCount } }",
+        root_value=Query(
+            annotation=AnnotationSummary(name="overall", df=dataframe),
+            evaluation=EvaluationSummary(dataframe),
+        ),
+    )
+    assert not result.errors
+    expected = {"count": 5, "scoreCount": 3, "labelCount": 4}
+    assert result.data == {"annotation": expected, "evaluation": expected}
 
 
 def test_label_fractions_ignore_nan_label() -> None:

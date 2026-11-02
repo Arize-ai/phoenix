@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-config",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "central configuration for Phoenix",
   "keywords": [
     "arize",
@@ -42,8 +42,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "vitest": "^5.0.2"
+    "@types/node": "^26.6.5",
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": ">=18"

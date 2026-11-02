@@ -88,7 +88,7 @@ This table is exhaustive. Every identifier not in it is read as an attribute pat
 | --- | --- | --- |
 | `span_id`, `trace_id`, `parent_id` | string | OpenTelemetry hex ids |
 | `name` | string | span name |
-| `span_kind` | enum | `'CHAIN'`, `'LLM'`, `'RETRIEVER'`, `'EMBEDDING'`, `'TOOL'`, `'AGENT'`, `'RERANKER'`, `'GUARDRAIL'`, `'EVALUATOR'`, `'PROMPT'`, `'UNKNOWN'`; literals are uppercased for you |
+| `span_kind` | enum | `'CHAIN'`, `'LLM'`, `'RETRIEVER'`, `'EMBEDDING'`, `'TOOL'`, `'AGENT'`, `'RERANKER'`, `'GUARDRAIL'`, `'EVALUATOR'`, `'PROMPT'`, `'DECISION'`, `'UNKNOWN'`; literals are uppercased for you |
 | `status_code` | enum | `'OK'`, `'ERROR'`, `'UNSET'`; literals are uppercased for you |
 | `status_message` | string | error text |
 | `latency_ms` | number | |

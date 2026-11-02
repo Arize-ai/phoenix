@@ -38,8 +38,12 @@ class AverageExperimentRepeatedRunGroupLatencyDataLoader(DataLoader[Key, Result]
             .group_by(models.ExperimentRun.experiment_id, models.ExperimentRun.dataset_example_id)
         )
         async with self._db.read() as session:
+            # PostgreSQL returns the average as NUMERIC (Decimal), which GraphQL's
+            # Float scalar rejects, so coerce it to float.
             average_run_latencies_ms = {
-                (experiment_id, example_id): average_run_latency_ms
+                (experiment_id, example_id): (
+                    float(average_run_latency_ms) if average_run_latency_ms is not None else None
+                )
                 async for experiment_id, example_id, average_run_latency_ms in await session.stream(
                     average_latency_query
                 )

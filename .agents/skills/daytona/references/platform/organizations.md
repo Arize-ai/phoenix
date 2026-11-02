@@ -137,7 +137,7 @@ The list of available role assignments includes:
 | Assignment                 | Description                                                                                        |
 | -------------------------- | -------------------------------------------------------------------------------------------------- |
 | **`Viewer (required)`**    | Grants read access to sandboxes, snapshots, and registries in the organization                     |
-| **`Developer`**            | Grants the ability to create sandboxes and keys in the organization                                |
+| **`Developer`**            | Grants the ability to create sandboxes in the organization                                         |
 | **`Sandboxes Admin`**      | Grants admin access to sandboxes in the organization                                               |
 | **`Snapshots Admin`**      | Grants admin access to snapshots in the organization                                               |
 | **`Registries Admin`**     | Grants admin access to registries in the organization                                              |

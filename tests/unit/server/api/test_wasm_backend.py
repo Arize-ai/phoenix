@@ -548,6 +548,23 @@ class TestWASMAdapterProbeBinary:
         assert probe.detail == "WASM binary not present locally; will download on first use."
         mock_urlopen.assert_not_called()
 
+    def test_probe_returns_external_resources_disallowed_detail(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+        with patch(
+            "phoenix.server.sandbox._download.resolve_wasm_binary_if_present",
+            return_value=None,
+        ):
+            probe = WASMAdapter.probe_binary()
+        assert probe.available is False
+        assert probe.path is None
+        assert probe.detail == (
+            "PHOENIX_ALLOW_EXTERNAL_RESOURCES=false: "
+            "set PHOENIX_WASM_BINARY_PATH to a local copy to enable WASM."
+        )
+
     def test_probe_returns_no_local_storage_detail(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         with patch(

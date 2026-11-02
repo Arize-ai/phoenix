@@ -1,6 +1,7 @@
 import ReactDom from "react-dom/client";
 
 import { App } from "./App";
+import { registerGlobalClientErrorReporting } from "./utils/reportClientError";
 
 /**
  * This is needed to support modulepreload in Vite when using a non HTML custom entrypoint (i.e., this file).
@@ -9,6 +10,8 @@ import { App } from "./App";
  */
 import "vite/modulepreload-polyfill";
 import "./styles/cascade-layers.css";
+
+registerGlobalClientErrorReporting();
 
 const rootEl = document.getElementById("root");
 

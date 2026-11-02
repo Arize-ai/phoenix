@@ -1,10 +1,10 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Optional, cast
+from numbers import Integral
+from typing import Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import ndcg_score
 
 
 @dataclass(frozen=True)
@@ -28,8 +28,8 @@ class RetrievalMetrics:
         object.__setattr__(self, "length", len(_eval_scores))
         object.__setattr__(self, "has_nan", not np.all(np.isfinite(_eval_scores)))
         if self.length < 2:
-            # len < 2 won't work for sklearn.metrics.ndcg_score, so we pad it
-            # with zeros (but still keep track of the original length)
+            # Preserve the padded score representation for short inputs.
+            # The original length determines the default metric cutoff.
             _scores = _eval_scores
             _eval_scores = np.zeros(2)
             _eval_scores[: len(_scores)] = _scores
@@ -57,12 +57,16 @@ class RetrievalMetrics:
             k = self.length
         if k < 1:
             return 0.0
-        y_true = [self.eval_scores]
-        y_score = [self.eval_scores.index]
-        # Note that ndcg_score calculates differently depending on whether ties
-        # are involved, but this is not an issue for us because our setup has no
-        # ties in y_score, so we can set ignore_ties=True.
-        return cast(float, ndcg_score(y_true=y_true, y_score=y_score, k=k, ignore_ties=True))
+        if not isinstance(k, Integral):
+            raise ValueError("k must be an integer or None")
+        scores = self.eval_scores.to_numpy()
+        if np.any(scores < 0):
+            raise ValueError("ndcg_score should not be used on negative y_true values.")
+        cutoff = min(k, len(scores))
+        discounts = 1.0 / np.log2(np.arange(2, cutoff + 2))
+        gain = np.dot(scores[:cutoff], discounts)
+        ideal_gain = np.dot(np.sort(scores)[::-1][:cutoff], discounts)
+        return 0.0 if ideal_gain == 0 else float(gain / ideal_gain)
 
     def precision(self, k: Optional[int] = None) -> float:
         """

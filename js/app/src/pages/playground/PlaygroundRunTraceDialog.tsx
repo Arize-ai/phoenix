@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { Dialog, LinkButton, Loading } from "@phoenix/components";
+import { Dialog, LinkButton } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { TraceDetails } from "@phoenix/pages/trace";
+import { TraceDetails, TraceDetailsSkeleton } from "@phoenix/pages/trace";
 
 export function PlaygroundRunTraceDetailsDialog({
   traceId,
@@ -35,7 +35,7 @@ export function PlaygroundRunTraceDetailsDialog({
               <DialogCloseButton close={close} />
             </DialogTitleExtra>
           </DialogHeader>
-          <Suspense fallback={<Loading />}>
+          <Suspense fallback={<TraceDetailsSkeleton />}>
             <TraceDetails traceId={traceId} projectId={projectId} />
           </Suspense>
         </DialogContent>

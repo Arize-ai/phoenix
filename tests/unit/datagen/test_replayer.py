@@ -74,8 +74,32 @@ def test_replayer_emits_varied_coherent_sessions(tmp_path: Path) -> None:
         first_recorded, _COMPLETION_TOKENS
     )
     assert request.SerializeToString() == recorded
+    assert replayer.project_names == ("configured-project",)
     assert replayer.interarrival_seconds(rate=12, burstiness=0) == 5
     assert replayer.interarrival_seconds(rate=12, burstiness=0.5) > 0
+
+
+def test_replayer_sends_each_application_to_its_own_project(tmp_path: Path) -> None:
+    corpus = _load_fixture_corpus(tmp_path, "fragment_bank")
+    chat, rag = corpus.fragments
+    assert (chat.archetype, rag.archetype) == ("plain_chat", "rag")
+    corpus = replace(corpus, fragments=(replace(chat, domain="customer_support"), rag))
+    replayer = Replayer(corpus, _random=np.random.default_rng(11))
+
+    projects_by_domain: dict[str, set[str]] = {}
+    for index in range(40):
+        emission = replayer.emit(now_ns=_NOW_NS + index * 1_000_000_000)
+        session_id = str(_attribute(next(_iter_spans(emission)), "session.id"))
+        projects_by_domain.setdefault(session_id.rsplit("-", 1)[0], set()).update(
+            _resource_attribute(resource_spans, ResourceAttributes.PROJECT_NAME)
+            for resource_spans in emission.resource_spans
+        )
+
+    assert replayer.project_names == ("support-chatbot", "support-rag")
+    assert projects_by_domain == {
+        "customer_support": {"support-chatbot"},
+        "support": {"support-rag"},
+    }
 
 
 def _load_fixture_corpus(tmp_path: Path, name: str) -> Corpus:
