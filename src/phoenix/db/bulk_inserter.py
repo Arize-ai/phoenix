@@ -347,9 +347,10 @@ class BulkInserter:
                     if result.project_session_rowid is not None:
                         project_session_rowids.add(result.project_session_rowid)
                     inserted_spans.append(_InsertedSpan(span, result, cost))
-                phase = "advance_liveness"
+                phase = "begin_savepoint"
                 savepoint = await session.begin_nested()
                 try:
+                    phase = "advance_liveness"
                     await advance_project_session_liveness(session, project_session_rowids)
                     await advance_trace_liveness(session, trace_rowids)
                 except Exception as error:
@@ -357,12 +358,14 @@ class BulkInserter:
                     # receiving spans as quiet, so replay the batch rather than commit without it.
                     if _must_replay_span_batch(error):
                         raise
+                    phase = "rollback_savepoint"
                     await savepoint.rollback()
                     if not session.is_active:
                         raise
                     BULK_LOADER_EXCEPTIONS.inc()
                     logger.exception(str(error))
                 else:
+                    phase = "release_savepoint"
                     await savepoint.commit()
                 # Costs commit with their spans, so a replayed batch replays its costs.
                 phase = "insert_costs"
