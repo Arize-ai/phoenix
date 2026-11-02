@@ -314,23 +314,6 @@ describe("dataset split create", () => {
       });
     }
   );
-
-  it("exits NETWORK_ERROR when the connection fails", async () => {
-    mock.server.use(
-      http.post("/v1/datasets/{dataset_identifier}/splits", () =>
-        HttpResponse.error()
-      )
-    );
-    const io = captureCliOutput();
-    const exitSpy = mockProcessExit();
-
-    await expect(run(CREATE_ARGS)).rejects.toThrow(
-      `process.exit:${ExitCode.NETWORK_ERROR}`
-    );
-
-    expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
-    expect(io.stdout).not.toHaveBeenCalled();
-  });
 });
 
 describe("dataset split update", () => {
@@ -564,6 +547,38 @@ describe("dataset split delete", () => {
       expect(io.stdout).not.toHaveBeenCalled();
       expect(io.stderr).toHaveBeenCalledWith(
         expect.stringContaining(`Error deleting dataset split: ${message}`)
+      );
+    }
+  );
+});
+
+describe("dataset split network errors", () => {
+  it.each([
+    ["create", "creating", CREATE_ARGS],
+    ["update", "updating", [...UPDATE_ARGS, "--name", "eval"]],
+    ["delete", "deleting", DELETE_ARGS],
+  ])(
+    "%s exits NETWORK_ERROR when the server cannot be reached",
+    async (_command, action, args) => {
+      // Fail the first request the CLI makes, the server version check, the
+      // way an unreachable server would.
+      mock.server.use(
+        http.get("/arize_phoenix_version", () => HttpResponse.error())
+      );
+      // Unhandled requests fail the test, so no split route can be reached.
+      const io = captureCliOutput();
+      const exitSpy = mockProcessExit();
+
+      await expect(run(args)).rejects.toThrow(
+        `process.exit:${ExitCode.NETWORK_ERROR}`
+      );
+
+      expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+      expect(io.stdout).not.toHaveBeenCalled();
+      expect(io.stderr).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Error ${action} dataset split: Could not reach the Phoenix server`
+        )
       );
     }
   );

@@ -18,7 +18,7 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import { ExitCode, getExitCodeForError, NetworkError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { collectString } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
@@ -605,6 +605,24 @@ function createDatasetSplitClient(options: CommonOptions<OutputFormat>) {
 }
 
 /**
+ * Check the server version before calling a split helper. The helpers run the
+ * same check, but the client reports any failure there, including a server
+ * that can't be reached, as a plain `Error`, which would exit `FAILURE`.
+ * Raising it as a `NetworkError` here makes it exit `NETWORK_ERROR`. The
+ * client caches the version, so the helper doesn't fetch it again.
+ */
+async function ensureServerReachable(client: PhoenixClient): Promise<void> {
+  try {
+    await client.getServerVersion();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NetworkError(
+      `Could not reach the Phoenix server at ${client.config.baseUrl}. ${detail}`
+    );
+  }
+}
+
+/**
  * Report a failed split request and exit with the matching code.
  */
 async function exitOnDatasetSplitError({
@@ -651,6 +669,7 @@ async function datasetSplitCreateHandler(
 
   try {
     const client = createDatasetSplitClient(options);
+    await ensureServerReachable(client);
 
     writeProgress({
       message: `Creating split ${options.name} on dataset ${datasetIdentifier}...`,
@@ -714,6 +733,7 @@ async function datasetSplitUpdateHandler(
 
   try {
     const client = createDatasetSplitClient(options);
+    await ensureServerReachable(client);
 
     writeProgress({
       message: `Updating split ${splitId} on dataset ${datasetIdentifier}...`,
@@ -761,6 +781,7 @@ async function datasetSplitDeleteHandler(
       message: `Delete dataset split ${splitId}? The split is removed from every dataset that uses it; its examples are not deleted. This cannot be undone.`,
       yes: options.yes,
     });
+    await ensureServerReachable(client);
 
     writeProgress({
       message: `Deleting split ${splitId} on dataset ${datasetIdentifier}...`,
