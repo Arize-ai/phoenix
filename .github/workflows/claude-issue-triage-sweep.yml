@@ -1,0 +1,54 @@
+name: Claude Issue Triage Sweep
+
+# Walks a slice of the backlog, oldest-updated first, every 2 days or on a maintainer's
+# dispatch. New issues do not wait for this: Claude Issue Triage on Open handles each one
+# as it is opened.
+on:
+  schedule:
+    - cron: "0 8 */2 * *" # this means "at 08:00 UTC every 2 days"
+  workflow_dispatch:
+    inputs:
+      created:
+        description: 'Sweep a creation window, e.g. 2025-01-01..2025-12-31 or <2026-01-01 (blank = whole backlog, the scheduled default)'
+        required: false
+        default: ''
+      limit:
+        description: 'Issues to fetch in Pass A. Raise for a sweep; keep each slice under the 1000-result search cap.'
+        required: false
+        default: '25'
+      stages:
+        description: 'Triage stages to run, e.g. 1-7 (all), 1-4 (labels only), 3-4'
+        required: false
+        default: '1-7'
+      regression:
+        description: 'Re-triage issues already carrying the gate label'
+        type: choice
+        options: ['on', 'off']
+        required: false
+        default: 'on'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-issue-triage-sweep
+  # Do not cancel in progress: a manual backlog sweep can run for the better part of
+  # an hour, and the every-2-days schedule would otherwise kill it partway through.
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    uses: ./.github/workflows/claude-issue-triage.yml
+    permissions:
+      issues: write # the triage job labels, retitles, rewrites and comments on issues
+      contents: read # and reads the codebase for stage 5
+      id-token: write # and exchanges the OIDC token for a Claude API token
+    with:
+      created: ${{ inputs.created }}
+      limit: ${{ inputs.limit || '25' }}
+      stages: ${{ inputs.stages || '1-7' }}
+      regression: ${{ inputs.regression || 'on' }}
+      # Stage 5 reads the checked-out codebase and stages 5-6 write comments and bodies,
+      # so a full 50-issue run is far slower than a label-only one. Raise this alongside
+      # `limit` for a backlog sweep.
+      timeout-minutes: 60

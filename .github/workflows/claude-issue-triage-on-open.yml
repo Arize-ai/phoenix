@@ -1,0 +1,31 @@
+name: Claude Issue Triage on Open
+
+# Triages each issue the moment it is opened, so a factory candidate a maintainer writes
+# reaches Factory Candidates within minutes. The sweep sorts oldest-updated first and so
+# would reach a new issue last.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+concurrency:
+  # One group per issue, so a burst of new issues triages in parallel instead of
+  # collapsing into one pending run.
+  group: claude-issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    uses: ./.github/workflows/claude-issue-triage.yml
+    permissions:
+      issues: write # the triage job labels, retitles, rewrites and comments on issues
+      contents: read # and reads the codebase for stage 5
+      id-token: write # and exchanges the OIDC token for a Claude API token
+    with:
+      issue: ${{ github.event.issue.number }}
+      # The regression pass re-judges the whole gated pool; one new issue is no reason to.
+      regression: 'off'
+      # One issue needs far less than a sweep, and anyone can open one.
+      timeout-minutes: 15
