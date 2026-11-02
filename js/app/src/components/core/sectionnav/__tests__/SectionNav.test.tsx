@@ -177,6 +177,107 @@ function currentLinks(): string[] {
   );
 }
 
+const intersectionObservers = new Set<ControlledIntersectionObserver>();
+
+class ControlledIntersectionObserver {
+  readonly targets = new Set<Element>();
+  readonly #callback: IntersectionObserverCallback;
+  constructor(callback: IntersectionObserverCallback) {
+    this.#callback = callback;
+    intersectionObservers.add(this);
+  }
+  observe(target: Element) {
+    this.targets.add(target);
+  }
+  unobserve(target: Element) {
+    this.targets.delete(target);
+  }
+  disconnect() {
+    this.targets.clear();
+  }
+  takeRecords() {
+    return [];
+  }
+  /** Reports that an observed section crossed the line where sections land */
+  report() {
+    if (this.targets.size > 0) {
+      this.#callback([], this as unknown as IntersectionObserver);
+    }
+  }
+}
+
+// A pane 280px tall scrolling 1000px of sections. The last section is short:
+// at the scroll end its top stays 40px below the line.
+const PANE_HEIGHT = 280;
+const PANE_SCROLL_HEIGHT = 1000;
+const SECTION_OFFSETS: Record<string, number> = {
+  annotations: 0,
+  input: 300,
+  output: 760,
+};
+
+/** Renders the nav inside a pane with stubbed layout, and returns the pane */
+async function renderPane(
+  props: Partial<SectionNavProps> = {}
+): Promise<HTMLDivElement> {
+  const scrollContainerRef = createRef<HTMLDivElement>();
+  await render({ ...props, scrollContainerRef });
+  const pane = scrollContainerRef.current;
+  if (pane == null) {
+    throw new Error("pane not rendered");
+  }
+  vi.spyOn(pane, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(0, 0, 480, PANE_HEIGHT)
+  );
+  Object.defineProperty(pane, "clientHeight", { value: PANE_HEIGHT });
+  Object.defineProperty(pane, "scrollHeight", { value: PANE_SCROLL_HEIGHT });
+  for (const [id, offset] of Object.entries(SECTION_OFFSETS)) {
+    const section = pane.querySelector(`section#${id}`);
+    if (section == null) {
+      throw new Error(`section ${id} not rendered`);
+    }
+    vi.spyOn(section, "getBoundingClientRect").mockImplementation(
+      () => new DOMRect(0, offset - pane.scrollTop, 480, 300)
+    );
+  }
+  return pane;
+}
+
+/**
+ * Scrolls the pane, by the user (a wheel turn) unless the scroll is the nav's
+ * own, and reports a section crossing the line unless `crossesLine` is false
+ */
+async function scrollPane({
+  pane,
+  scrollTop,
+  isUserScroll = true,
+  crossesLine = true,
+}: {
+  pane: HTMLElement;
+  scrollTop: number;
+  isUserScroll?: boolean;
+  crossesLine?: boolean;
+}) {
+  await act(async () => {
+    if (isUserScroll) {
+      pane.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    }
+    pane.scrollTop = scrollTop;
+    pane.dispatchEvent(new Event("scroll"));
+    if (crossesLine) {
+      for (const observer of intersectionObservers) {
+        observer.report();
+      }
+    }
+  });
+}
+
+async function settleScroll() {
+  await act(async () => {
+    vi.advanceTimersByTime(150);
+  });
+}
+
 async function click(element: Element) {
   await act(async () => {
     element.dispatchEvent(
@@ -201,20 +302,10 @@ beforeEach(() => {
   );
   // jsdom has no layout, so every section would resolve as scrolled past.
   // The shared setup's observer reports on observe, which would resolve those
-  // meaningless positions on mount; keep the observer silent so these tests
-  // see only the nav's own state. Following real scrolling needs layout, so
-  // it is not covered here.
-  vi.stubGlobal(
-    "IntersectionObserver",
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-      takeRecords() {
-        return [];
-      }
-    }
-  );
+  // meaningless positions on mount; this one reports only when a test says a
+  // section crossed the line.
+  intersectionObservers.clear();
+  vi.stubGlobal("IntersectionObserver", ControlledIntersectionObserver);
   // jsdom does not implement scrolling
   Element.prototype.scrollTo =
     elementScrollTo as typeof Element.prototype.scrollTo;
@@ -422,5 +513,111 @@ describe("SectionNav", () => {
     });
     expect(event.defaultPrevented).toBe(false);
     expect(currentLinks()).toEqual(["Annotations:true"]);
+  });
+});
+
+describe("SectionNav scroll tracking", () => {
+  it("moves the current link as each section crosses the line", async () => {
+    const pane = await renderPane();
+    // within a pixel of the line counts as reached
+    await scrollPane({ pane, scrollTop: 298 });
+    expect(currentLinks()).toEqual(["Annotations:true"]);
+    await scrollPane({ pane, scrollTop: 300 });
+    expect(currentLinks()).toEqual(["Input:true"]);
+    await scrollPane({ pane, scrollTop: 120 });
+    expect(currentLinks()).toEqual(["Annotations:true"]);
+  });
+
+  it("marks a short last section current once scrolling settles at the end", async () => {
+    const pane = await renderPane();
+    await scrollPane({ pane, scrollTop: 300 });
+    // the short last section never crosses the line
+    await scrollPane({
+      pane,
+      scrollTop: PANE_SCROLL_HEIGHT - PANE_HEIGHT,
+      crossesLine: false,
+    });
+    expect(currentLinks()).toEqual(["Input:true"]);
+    await settleScroll();
+    expect(currentLinks()).toEqual(["Output:true"]);
+  });
+
+  it("keeps a clicked link current through its own scroll", async () => {
+    const pane = await renderPane();
+    await click(link("Output"));
+    // the click's scroll passes Input, then stops short of the short last
+    // section, which the scroll position alone would never mark current
+    await scrollPane({ pane, scrollTop: 300, isUserScroll: false });
+    expect(currentLinks()).toEqual(["Output:true"]);
+    await settleScroll();
+    expect(currentLinks()).toEqual(["Output:true"]);
+    // tracking resumes once the click's scroll settles
+    await scrollPane({ pane, scrollTop: 0 });
+    expect(currentLinks()).toEqual(["Annotations:true"]);
+  });
+
+  it("follows the user who scrolls elsewhere during a click's scroll", async () => {
+    const pane = await renderPane();
+    await click(link("Output"));
+    await scrollPane({ pane, scrollTop: 300 });
+    expect(currentLinks()).toEqual(["Output:true"]);
+    await settleScroll();
+    expect(currentLinks()).toEqual(["Input:true"]);
+  });
+
+  it("does not count presses and keys on the pane's content as the user scrolling", async () => {
+    const pane = await renderPane();
+    const field = document.createElement("input");
+    pane.querySelector("section#input")?.append(field);
+    await click(link("Output"));
+    await scrollPane({ pane, scrollTop: 300, isUserScroll: false });
+    await act(async () => {
+      field.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      field.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true })
+      );
+    });
+    await settleScroll();
+    expect(currentLinks()).toEqual(["Output:true"]);
+  });
+
+  it("counts a press on the pane's own scrollbar as the user scrolling", async () => {
+    const pane = await renderPane();
+    await click(link("Output"));
+    await scrollPane({ pane, scrollTop: 300, isUserScroll: false });
+    await act(async () => {
+      pane.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+    await settleScroll();
+    expect(currentLinks()).toEqual(["Input:true"]);
+  });
+
+  it("holds the default active section through observer reports until the user scrolls", async () => {
+    const pane = await renderPane({ defaultActiveId: "input" });
+    // the mount scroll to the default stops short of it
+    await scrollPane({ pane, scrollTop: 120, isUserScroll: false });
+    await settleScroll();
+    await scrollPane({ pane, scrollTop: 120, isUserScroll: false });
+    expect(currentLinks()).toEqual(["Input:true"]);
+    await scrollPane({ pane, scrollTop: 0 });
+    await settleScroll();
+    expect(currentLinks()).toEqual(["Annotations:true"]);
+  });
+
+  it("sets the bar's height on the scroll container for sections to land below", async () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(48);
+    const pane = await renderPane();
+    expect(pane.style.getPropertyValue("--section-nav-height")).toBe("48px");
+    act(() => {
+      root.unmount();
+    });
+    expect(pane.style.getPropertyValue("--section-nav-height")).toBe("");
+    root = createRoot(container);
+  });
+
+  it("leaves a rail's height out, since it sits beside the sections", async () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(48);
+    const pane = await renderPane({ orientation: "vertical" });
+    expect(pane.style.getPropertyValue("--section-nav-height")).toBe("0px");
   });
 });

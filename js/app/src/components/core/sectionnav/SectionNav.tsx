@@ -37,6 +37,10 @@ const SCROLL_KEYS = new Set([
   " ",
 ]);
 
+/** Elements whose scroll keys edit text rather than scroll the container */
+const EDITABLE_SELECTOR =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+
 export type SectionNavItem = {
   /** The `id` of the `SectionNavSection` this link scrolls to */
   id: string;
@@ -280,8 +284,24 @@ export function SectionNav({
       scheduleSettle();
     };
     const handleUserScrollInput = () => tracking.noteUserScrollInput();
+    // A press on the container's own scrollbar targets the container itself;
+    // a press on its content (a button, a field) does not scroll it
+    const handlePointerDown = (event: Event) => {
+      if (event.target === container) {
+        tracking.noteUserScrollInput();
+      }
+    };
+    // A scroll key typed into a field, or handled by a control, scrolls nothing
     const handleKeyDown = (event: Event) => {
-      if (event instanceof KeyboardEvent && SCROLL_KEYS.has(event.key)) {
+      if (
+        event instanceof KeyboardEvent &&
+        SCROLL_KEYS.has(event.key) &&
+        !event.defaultPrevented &&
+        !(
+          event.target instanceof Element &&
+          event.target.closest(EDITABLE_SELECTOR) != null
+        )
+      ) {
         tracking.noteUserScrollInput();
       }
     };
@@ -324,8 +344,7 @@ export function SectionNav({
       passive: true,
     });
     scrollEventTarget.addEventListener("keydown", handleKeyDown);
-    // a press on the container's own scrollbar
-    scrollEventTarget.addEventListener("pointerdown", handleUserScrollInput, {
+    scrollEventTarget.addEventListener("pointerdown", handlePointerDown, {
       passive: true,
     });
 
@@ -357,10 +376,7 @@ export function SectionNav({
       scrollEventTarget.removeEventListener("wheel", handleUserScrollInput);
       scrollEventTarget.removeEventListener("touchmove", handleUserScrollInput);
       scrollEventTarget.removeEventListener("keydown", handleKeyDown);
-      scrollEventTarget.removeEventListener(
-        "pointerdown",
-        handleUserScrollInput
-      );
+      scrollEventTarget.removeEventListener("pointerdown", handlePointerDown);
       container.style.removeProperty("--section-nav-height");
     };
   }, [sectionIdsKey, scrollContainerRef, orientation]);
