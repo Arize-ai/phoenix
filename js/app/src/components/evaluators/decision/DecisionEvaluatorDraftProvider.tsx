@@ -14,7 +14,7 @@ import {
 export const DECISION_EVALUATOR_DRAFT_INSTANCE_ID = 1;
 
 /** Where a decision evaluator is bound: a dataset's examples or a project's records. */
-export type DecisionEvaluatorSurface = "dataset" | "project";
+type DecisionEvaluatorSurface = "dataset" | "project";
 
 const STARTER_DRAFTS: Record<
   DecisionEvaluatorSurface,
@@ -34,7 +34,7 @@ const STARTER_DRAFTS: Record<
  * The draft a new decision evaluator starts from: a state over variables the
  * surface's records fill without a mapping, and one yes / no question.
  */
-export function createDefaultDecisionEvaluatorDraft(
+function createDefaultDecisionEvaluatorDraft(
   surface: DecisionEvaluatorSurface
 ): DecisionPromptDraft {
   const { state, instructions } = STARTER_DRAFTS[surface];

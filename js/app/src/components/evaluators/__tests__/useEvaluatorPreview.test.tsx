@@ -98,7 +98,7 @@ describe("useEvaluatorPreview", () => {
     ]);
   });
 
-  it("keeps a decision annotation's typed result", async () => {
+  it("keeps a decision annotation's typed result and reports a missing annotation", async () => {
     await act(async () => {
       void preview.run(() => REQUEST);
     });
@@ -114,6 +114,7 @@ describe("useEvaluatorPreview", () => {
                 annotation: { id: "a", name: "quality", score: 1, decision },
               },
               { evaluatorName: "other", error: "Refused", annotation: null },
+              { evaluatorName: "empty", error: null, annotation: null },
             ],
           },
         },
@@ -126,6 +127,11 @@ describe("useEvaluatorPreview", () => {
         annotation: { id: "a", name: "quality", score: 1, decision },
       },
       { kind: "error", evaluatorName: "other", message: "Refused" },
+      {
+        kind: "error",
+        evaluatorName: "empty",
+        message: "The evaluator returned no annotation.",
+      },
     ]);
   });
 

@@ -18,14 +18,14 @@ export type EvaluatorPreviewRequest = {
   inputMapping: EvaluatorInputMappingInput;
 };
 
-export type EvaluatorPreviewResult =
+type EvaluatorPreviewResult =
   | { kind: "success"; annotation: Annotation }
   | { kind: "error"; evaluatorName: string; message: string };
 
-export type EvaluatorPreviewsOutput =
+type EvaluatorPreviewsOutput =
   useEvaluatorPreviewMutation["response"]["evaluatorPreviews"];
 
-export type EvaluatorPreviewRunResult =
+type EvaluatorPreviewRunResult =
   | { ok: true; output: EvaluatorPreviewsOutput }
   | { ok: false; error: string };
 

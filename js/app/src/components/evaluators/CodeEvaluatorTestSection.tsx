@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import { graphql, useMutation } from "react-relay";
+import { useEffect } from "react";
 
 import { createTestCodeEvaluatorDraftClientAction } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { registerUIOperations } from "@phoenix/agent/uiOperations/catalog";
@@ -13,50 +12,59 @@ import {
   Icons,
   Text,
 } from "@phoenix/components";
-import type { Annotation } from "@phoenix/components/annotation";
-import type { CodeEvaluatorTestSectionMutation } from "@phoenix/components/evaluators/__generated__/CodeEvaluatorTestSectionMutation.graphql";
 import {
   AnnotationPreviewCard,
   AnnotationPreviewSkeletonCard,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import {
+  type EvaluatorPreviewRequest,
+  useEvaluatorPreview,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
-import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-type EvaluationPreviewResult =
-  | { kind: "success"; annotation: Annotation }
-  | { kind: "error"; evaluatorName: string; message: string };
-
-type EvaluatorPreviewsOutput =
-  CodeEvaluatorTestSectionMutation["response"]["evaluatorPreviews"];
-
-function buildPreviewResults(
-  response: CodeEvaluatorTestSectionMutation["response"]
-): EvaluationPreviewResult[] {
-  return response.evaluatorPreviews.results.map((result) => {
-    if (result.error != null) {
-      return {
-        kind: "error" as const,
-        evaluatorName: result.evaluatorName,
-        message: result.error,
-      };
-    } else if (result.annotation != null) {
-      return {
-        kind: "success" as const,
-        annotation: {
-          id: result.annotation.id,
-          name: result.annotation.name,
-          label: result.annotation.label,
-          score: result.annotation.score,
-          explanation: result.annotation.explanation,
-        },
-      };
-    } else {
-      throw new Error("Unknown error: no annotation or error returned");
-    }
-  });
+/**
+ * The preview request for a code evaluator draft. Throws the message to show
+ * when the draft cannot run yet.
+ */
+function buildCodeEvaluatorPreviewRequest({
+  evaluatorStore,
+  sourceCode,
+  language,
+  sandboxConfigId,
+}: {
+  evaluatorStore: ReturnType<typeof useEvaluatorStoreInstance>;
+  sourceCode: string;
+  language: CodeEvaluatorLanguage;
+  sandboxConfigId: string | null;
+}): EvaluatorPreviewRequest {
+  if (!sourceCode.trim()) {
+    throw new Error("Source code is required");
+  }
+  const { evaluator, outputConfigs } = evaluatorStore.getState();
+  if (outputConfigs.length === 0) {
+    throw new Error("At least one output configuration is required");
+  }
+  if (sandboxConfigId == null) {
+    throw new Error(
+      "Please select a sandbox configuration to test the evaluator"
+    );
+  }
+  return {
+    evaluator: {
+      inlineCodeEvaluator: {
+        name: evaluator.name || evaluator.globalName || "evaluator",
+        description: evaluator.description || null,
+        language,
+        sourceCode,
+        outputConfigs: buildOutputConfigsInput(outputConfigs),
+        sandboxConfigId,
+      },
+    },
+    inputMapping: evaluator.inputMapping,
+  };
 }
 
 export type CodeEvaluatorTestSectionProps = {
@@ -79,132 +87,15 @@ export const CodeEvaluatorTestSection = ({
   sandboxConfigId,
   isDraftMounted,
 }: CodeEvaluatorTestSectionProps) => {
-  const [error, setError] = useState<string | null>(null);
-  const [previewResults, setPreviewResults] = useState<
-    EvaluationPreviewResult[]
-  >([]);
-
-  const outputConfigs = useEvaluatorStore((state) => state.outputConfigs);
-  const evaluatorName = useEvaluatorStore(
-    (state) => state.evaluator.name || state.evaluator.globalName || "evaluator"
-  );
-  const evaluatorDescription = useEvaluatorStore(
-    (state) => state.evaluator.description
-  );
-  const inputMapping = useEvaluatorStore(
-    (state) => state.evaluator.inputMapping
-  );
-  const evaluatorMappingSource = useEvaluatorStore(
-    (state) => state.evaluatorMappingSource
-  );
-
-  const [testEvaluator, isLoading] =
-    useMutation<CodeEvaluatorTestSectionMutation>(graphql`
-      mutation CodeEvaluatorTestSectionMutation(
-        $input: EvaluatorPreviewsInput!
-      ) {
-        evaluatorPreviews(input: $input) {
-          results {
-            evaluatorName
-            annotation {
-              explanation
-              label
-              score
-              name
-              id
-            }
-            error
-          }
-        }
-      }
-    `);
-
-  const runEvaluatorPreview = useCallback(async (): Promise<
-    { ok: true; output: EvaluatorPreviewsOutput } | { ok: false; error: string }
-  > => {
-    setError(null);
-    setPreviewResults([]);
-
-    if (!sourceCode.trim()) {
-      const errorMessage = "Source code is required";
-      setError(errorMessage);
-      return { ok: false, error: errorMessage };
-    }
-
-    if (outputConfigs.length === 0) {
-      const errorMessage = "At least one output configuration is required";
-      setError(errorMessage);
-      return { ok: false, error: errorMessage };
-    }
-
-    if (sandboxConfigId == null) {
-      const errorMessage =
-        "Please select a sandbox configuration to test the evaluator";
-      setError(errorMessage);
-      return { ok: false, error: errorMessage };
-    }
-
-    const gqlOutputConfigs = buildOutputConfigsInput(outputConfigs);
-    return new Promise((resolve) => {
-      testEvaluator({
-        variables: {
-          input: {
-            previews: [
-              {
-                context: evaluatorMappingSource.source,
-                evaluator: {
-                  inlineCodeEvaluator: {
-                    name: evaluatorName,
-                    description: evaluatorDescription || null,
-                    language,
-                    sourceCode,
-                    outputConfigs: gqlOutputConfigs,
-                    sandboxConfigId,
-                  },
-                },
-                inputMapping,
-              },
-            ],
-          },
-        },
-        onCompleted(response, errors) {
-          if (errors) {
-            const errorMessages =
-              getErrorMessagesFromRelayMutationError(errors);
-            const errorMessage =
-              errorMessages?.join("\n") ??
-              errors[0]?.message ??
-              "An unknown error occurred";
-            setError(errorMessage);
-            resolve({ ok: false, error: errorMessage });
-          } else {
-            const results = buildPreviewResults(response);
-            setPreviewResults(results);
-            resolve({ ok: true, output: response.evaluatorPreviews });
-          }
-        },
-        onError(error) {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          const errorMessage =
-            errorMessages?.join("\n") ??
-            error.message ??
-            "An unknown error occurred";
-          setError(errorMessage);
-          resolve({ ok: false, error: errorMessage });
-        },
-      });
-    });
-  }, [
-    evaluatorDescription,
-    evaluatorMappingSource,
-    evaluatorName,
-    inputMapping,
-    language,
-    outputConfigs,
-    sandboxConfigId,
-    sourceCode,
-    testEvaluator,
-  ]);
+  const evaluatorStore = useEvaluatorStoreInstance();
+  const {
+    run,
+    isRunning: isLoading,
+    results: previewResults,
+    error,
+    clearResults,
+    clearError,
+  } = useEvaluatorPreview();
 
   const agentStore = useAgentStore();
   useEffect(() => {
@@ -215,15 +106,38 @@ export const CodeEvaluatorTestSection = ({
           descriptor: testCodeEvaluatorDraftOperation,
           handler: createTestCodeEvaluatorDraftClientAction({
             isDraftMounted,
-            runEvaluatorPreview,
+            runEvaluatorPreview: () =>
+              run(() =>
+                buildCodeEvaluatorPreviewRequest({
+                  evaluatorStore,
+                  sourceCode,
+                  language,
+                  sandboxConfigId,
+                })
+              ),
           }),
         },
       ],
     });
-  }, [agentStore, isDraftMounted, runEvaluatorPreview]);
+  }, [
+    agentStore,
+    isDraftMounted,
+    run,
+    evaluatorStore,
+    sourceCode,
+    language,
+    sandboxConfigId,
+  ]);
 
   const onTestEvaluator = () => {
-    void runEvaluatorPreview();
+    void run(() =>
+      buildCodeEvaluatorPreviewRequest({
+        evaluatorStore,
+        sourceCode,
+        language,
+        sandboxConfigId,
+      })
+    );
   };
 
   const isShowingPreview =
@@ -247,7 +161,7 @@ export const CodeEvaluatorTestSection = ({
                     <IconButton
                       aria-label="Dismiss evaluator result"
                       size="S"
-                      onPress={() => setPreviewResults([])}
+                      onPress={clearResults}
                     >
                       <Icon svg={<Icons.Close />} />
                     </IconButton>
@@ -269,7 +183,7 @@ export const CodeEvaluatorTestSection = ({
               variant="danger"
               title="Error"
               dismissable
-              onDismissClick={() => setError(null)}
+              onDismissClick={clearError}
             >
               {error}
             </Alert>
