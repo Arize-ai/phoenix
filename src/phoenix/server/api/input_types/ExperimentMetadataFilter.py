@@ -6,6 +6,7 @@ import strawberry
 from sqlalchemy import ColumnElement, and_, func, literal
 from sqlalchemy.dialects.postgresql import JSONB
 from strawberry.scalars import JSON
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -60,7 +61,10 @@ class ExperimentMetadataFilter:
             raise BadRequest("Metadata filter keys and values must not contain NUL characters")
         if dialect is SupportedSQLDialect.POSTGRESQL:
             return _postgresql_condition(self.path, value)
-        return _sqlite_condition(self.path, value)
+        elif dialect is SupportedSQLDialect.SQLITE:
+            return _sqlite_condition(self.path, value)
+        else:
+            assert_never(dialect)
 
 
 def _postgresql_condition(path: list[str], value: MetadataScalar) -> ColumnElement[bool]:

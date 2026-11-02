@@ -28,6 +28,18 @@ export function parseMetadataFilterKey(key: string): string[] | null {
 }
 
 /**
+ * Whether the server accepts a number: finite and, when whole, within the
+ * range JavaScript represents exactly, which is inside the server's 64-bit
+ * integer limit.
+ */
+function isSupportedNumber(value: number): boolean {
+  return (
+    Number.isFinite(value) &&
+    (!Number.isInteger(value) || Number.isSafeInteger(value))
+  );
+}
+
+/**
  * Reads a typed value the way JSON does: `0.7` is a number, `true` is a
  * boolean, and `"0.7"` is a string. Any other text is taken as a string, so
  * `gpt-5` needs no quotes. Returns null for blank text.
@@ -41,11 +53,12 @@ export function parseMetadataFilterValue(
   }
   try {
     const parsed: unknown = JSON.parse(trimmed);
-    // `1e999` parses to `Infinity`, which JSON can't send, so it stays text.
+    // `1e999` parses to `Infinity`, which JSON can't send, and a whole number
+    // past the safe range loses precision, so both stay text.
     if (
       typeof parsed === "string" ||
       typeof parsed === "boolean" ||
-      (typeof parsed === "number" && Number.isFinite(parsed))
+      (typeof parsed === "number" && isSupportedNumber(parsed))
     ) {
       return parsed;
     }
@@ -70,8 +83,12 @@ function isMetadataFilter(value: unknown): value is ExperimentMetadataFilter {
   return (
     Array.isArray(path) &&
     path.length > 0 &&
-    path.every((segment) => typeof segment === "string") &&
-    ["string", "number", "boolean"].includes(typeof filterValue)
+    path.every(
+      (segment) => typeof segment === "string" && !segment.includes("\0")
+    ) &&
+    (typeof filterValue === "boolean" ||
+      (typeof filterValue === "string" && !filterValue.includes("\0")) ||
+      (typeof filterValue === "number" && isSupportedNumber(filterValue)))
   );
 }
 

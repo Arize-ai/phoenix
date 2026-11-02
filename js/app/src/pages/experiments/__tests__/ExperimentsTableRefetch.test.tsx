@@ -129,23 +129,53 @@ describe("ExperimentsTable refetches", () => {
     return refetches[refetches.length - 1].request.variables;
   }
 
-  it("keeps an added metadata filter when the search text changes", async () => {
-    await renderPage();
-
+  async function addMetadataFilter() {
     await clickButton("Filter experiments by metadata");
     await typeInto("Key", "model");
     await typeInto("Value", "gpt-5");
     await clickButton("Add filter");
-    await resolvePendingOperations();
+  }
 
-    await typeInto("Search experiments", "cold");
+  async function search(text: string) {
+    await typeInto("Search experiments", text);
     await act(
       () => new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNCE_MS))
     );
+  }
+
+  it("keeps an added metadata filter when the search text changes", async () => {
+    await renderPage();
+
+    await addMetadataFilter();
+    await resolvePendingOperations();
+    await search("cold");
 
     expect(getLastTableRefetchVariables()).toMatchObject({
       filterCondition: "cold",
       metadataFilters: [{ path: ["model"], value: "gpt-5" }],
     });
+  });
+
+  it("keeps the search text when a metadata filter is added", async () => {
+    await renderPage();
+
+    await search("cold");
+    await resolvePendingOperations();
+    await addMetadataFilter();
+
+    expect(getLastTableRefetchVariables()).toMatchObject({
+      filterCondition: "cold",
+      metadataFilters: [{ path: ["model"], value: "gpt-5" }],
+    });
+  });
+
+  it("says No results when a search matches nothing", async () => {
+    await renderPage();
+    expect(container.textContent).toContain("No experiments");
+
+    await search("cold");
+    await resolvePendingOperations();
+
+    expect(container.textContent).toContain("No results");
   });
 });

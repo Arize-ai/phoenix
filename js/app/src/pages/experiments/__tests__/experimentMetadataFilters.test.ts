@@ -33,6 +33,9 @@ describe("parseMetadataFilterValue", () => {
     ["null", "null"],
     ["[1]", "[1]"],
     ["1e999", "1e999"],
+    ["9300000000000000000", "9300000000000000000"],
+    ["9007199254740991", 9007199254740991],
+    ["1e20", "1e20"],
   ])("reads %j as %j", (text, expected) => {
     expect(parseMetadataFilterValue(text)).toEqual(expected);
   });
@@ -84,6 +87,9 @@ describe("metadata filter search params", () => {
         { path: [], value: "x" },
         { path: ["a"], value: null },
         { path: [1], value: "x" },
+        { path: ["a\0b"], value: "x" },
+        { path: ["a"], value: "x\0y" },
+        { path: ["a"], value: 9300000000000000000 },
         "junk",
       ])
     );

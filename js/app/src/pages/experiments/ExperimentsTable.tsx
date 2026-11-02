@@ -33,6 +33,7 @@ import {
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
 import { ProgressCircle } from "@phoenix/components/core/progress";
 import {
@@ -68,6 +69,7 @@ import {
   IntCell,
   LoadMoreRow,
   RowExpandToggleButton,
+  TableEmptyWrap,
   TableViewSettingsButton,
   useColumnOrder,
   useTableRowsExpanded,
@@ -171,14 +173,31 @@ const TableBody = <T extends { id: string }>({
   onLoadNext,
   isLoadingNext,
   dataset,
+  isFiltered,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
   dataset: ExperimentsTableFragment$data;
+  /**
+   * Whether a search or metadata filter is active, so an empty table reads
+   * "No results" instead of "No experiments".
+   */
+  isFiltered: boolean;
 }) => {
   const navigate = useNavigate();
+  if (!table.getRowModel().rows.length && !hasNext) {
+    return (
+      <TableEmptyWrap>
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.Experiment />} />}
+          description="No experiments"
+          isFiltered={isFiltered}
+        />
+      </TableEmptyWrap>
+    );
+  }
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -252,6 +271,7 @@ export function ExperimentsTable({
     initialMetadataFilters
   );
   const [searchText, setSearchText] = useState("");
+  const isFiltered = Boolean(searchText) || metadataFilters.length > 0;
   const {
     isExpanded: areRowsExpanded,
     setIsExpanded: setAreRowsExpanded,
@@ -1171,6 +1191,7 @@ export function ExperimentsTable({
                 onLoadNext={() => loadNext(PAGE_SIZE)}
                 isLoadingNext={isLoadingNext}
                 dataset={data}
+                isFiltered={isFiltered}
               />
             ) : (
               <TableBody
@@ -1179,6 +1200,7 @@ export function ExperimentsTable({
                 onLoadNext={() => loadNext(PAGE_SIZE)}
                 isLoadingNext={isLoadingNext}
                 dataset={data}
+                isFiltered={isFiltered}
               />
             )}
           </table>
