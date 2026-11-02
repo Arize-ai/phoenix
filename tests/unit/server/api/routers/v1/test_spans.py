@@ -452,7 +452,7 @@ async def test_delete_span_with_global_id(
 
 
 async def test_get_span_with_global_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     span_hierarchy: dict[str, Any],
 ) -> None:
     """Test that a span can be fetched with a relay GlobalID identifier."""
@@ -470,7 +470,7 @@ async def test_get_span_with_global_id(
 
 
 async def test_get_span_with_otel_span_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     span_hierarchy: dict[str, Any],
 ) -> None:
     """Test that a span can be fetched with a raw OpenTelemetry span_id."""
@@ -487,7 +487,7 @@ async def test_get_span_with_otel_span_id(
 
 
 async def test_get_span_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: None,
 ) -> None:
     """Test that fetching an unknown identifier returns 404."""
@@ -497,7 +497,7 @@ async def test_get_span_not_found(
 
 
 async def test_get_span_matches_get_spans_element(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     span_search_test_data: None,
 ) -> None:
     """The single-span payload must be byte-identical to the getSpans list element."""
