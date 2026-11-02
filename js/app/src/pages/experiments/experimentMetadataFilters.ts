@@ -104,10 +104,13 @@ export function readMetadataFiltersFromSearchParams(
  * Returns a copy of the search params with the metadata filters set, or
  * removed when there are none.
  */
-export function writeMetadataFiltersToSearchParams(
-  searchParams: URLSearchParams,
-  filters: ExperimentMetadataFilter[]
-): URLSearchParams {
+export function writeMetadataFiltersToSearchParams({
+  searchParams,
+  filters,
+}: {
+  searchParams: URLSearchParams;
+  filters: ExperimentMetadataFilter[];
+}): URLSearchParams {
   const next = new URLSearchParams(searchParams);
   if (filters.length) {
     next.set(METADATA_FILTERS_SEARCH_PARAM, JSON.stringify(filters));

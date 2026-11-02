@@ -450,7 +450,8 @@ export function ExperimentsTable({
   const onMetadataFiltersChange = (filters: ExperimentMetadataFilter[]) => {
     setMetadataFilters(filters);
     setSearchParams(
-      (prev) => writeMetadataFiltersToSearchParams(prev, filters),
+      (prev) =>
+        writeMetadataFiltersToSearchParams({ searchParams: prev, filters }),
       { replace: true }
     );
     startTransition(() => {

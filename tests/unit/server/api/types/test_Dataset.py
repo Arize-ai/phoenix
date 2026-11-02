@@ -1303,6 +1303,12 @@ class TestDatasetExperimentsMetadataFilter:
             },
             "model-array": {"model": ["gpt-5"]},
             "model-object": {"model": {"name": "gpt-5"}},
+            "special-keys": {
+                'quote"key': "quote",
+                "back\\slash": "backslash",
+                "é": "accent",
+                "new\nline": "newline",
+            },
             "no-metadata": {},
         }
         async with db() as session:
@@ -1430,6 +1436,26 @@ class TestDatasetExperimentsMetadataFilter:
                 [{"path": ["model", "name"], "value": "gpt-5"}],
                 {"model-object"},
                 id="nested-key-under-object",
+            ),
+            pytest.param(
+                [{"path": ['quote"key'], "value": "quote"}],
+                {"special-keys"},
+                id="key-containing-quote",
+            ),
+            pytest.param(
+                [{"path": ["back\\slash"], "value": "backslash"}],
+                {"special-keys"},
+                id="key-containing-backslash",
+            ),
+            pytest.param(
+                [{"path": ["é"], "value": "accent"}],
+                {"special-keys"},
+                id="non-ascii-key",
+            ),
+            pytest.param(
+                [{"path": ["new\nline"], "value": "newline"}],
+                {"special-keys"},
+                id="key-containing-newline",
             ),
             pytest.param(
                 [{"path": ["missing"], "value": "gpt-5"}],

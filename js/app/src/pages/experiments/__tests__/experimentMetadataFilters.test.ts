@@ -59,19 +59,19 @@ describe("metadata filter search params", () => {
       { path: ["model"], value: "gpt-5" },
       { path: ["params", "stream"], value: true },
     ];
-    const params = writeMetadataFiltersToSearchParams(
-      new URLSearchParams("tab=experiments"),
-      filters
-    );
+    const params = writeMetadataFiltersToSearchParams({
+      searchParams: new URLSearchParams("tab=experiments"),
+      filters,
+    });
     expect(params.get("tab")).toBe("experiments");
     expect(readMetadataFiltersFromSearchParams(params)).toEqual(filters);
   });
 
   it("removes the param when there are no filters", () => {
-    const params = writeMetadataFiltersToSearchParams(
-      new URLSearchParams(`${METADATA_FILTERS_SEARCH_PARAM}=[]`),
-      []
-    );
+    const params = writeMetadataFiltersToSearchParams({
+      searchParams: new URLSearchParams(`${METADATA_FILTERS_SEARCH_PARAM}=[]`),
+      filters: [],
+    });
     expect(params.has(METADATA_FILTERS_SEARCH_PARAM)).toBe(false);
   });
 
