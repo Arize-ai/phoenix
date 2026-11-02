@@ -40,10 +40,10 @@
     "@arizeai/phoenix-config": "workspace:*",
     "@mswjs/source": "^0.5.0",
     "msw": "^2.15.0",
-    "openapi-msw": "^2.1.0"
+    "openapi-msw": "^2.1.1"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "openapi-typescript": "^7.13.0",
     "vitest": "^5.0.5"
   },

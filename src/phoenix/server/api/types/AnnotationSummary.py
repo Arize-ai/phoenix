@@ -47,7 +47,7 @@ class AnnotationSummary:
             )
             for row in self.df.itertuples()
             # Pandas can represent the synthetic coverage row's SQL NULL as NaN.
-            if pd.notna(row.label)
+            if pd.notna(cast(Optional[str], row.label))
         ]
 
     @strawberry.field
