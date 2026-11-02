@@ -1,0 +1,300 @@
+---
+title: "Microsoft Azure AI Evaluation"
+description: "Use Microsoft Azure AI Evaluation evaluators such as GroundednessEvaluator to grade Phoenix traces and to score Phoenix experiments."
+---
+
+The [Microsoft Azure AI Evaluation](https://learn.microsoft.com/en-us/python/api/overview/azure/ai-evaluation-readme) library ships LLM-as-a-judge evaluators (groundedness, relevance, coherence, fluency, content safety) along with deterministic NLP scorers (BLEU, F1, ROUGE, METEOR). This guide shows two ways to use them with Phoenix:
+
+- **Flow 1** grades existing Phoenix traces with `GroundednessEvaluator` and logs the scores back as span annotations.
+- **Flow 2** uploads a small dataset, runs a Phoenix experiment with the same evaluator, and records a score for each run.
+
+Both flows share the same setup. Run the code blocks below in order in a single Python session, because each block builds on imports and variables from earlier ones.
+
+## Prerequisites
+
+- Python 3.11+
+- An `OPENAI_API_KEY` from the [OpenAI Platform](https://platform.openai.com/api-keys). It's used for both the model under trace and the judge model for `GroundednessEvaluator`.
+- A running Phoenix instance. See [Phoenix setup](/docs/phoenix/get-started).
+
+## Install
+
+```bash
+pip install azure-ai-evaluation arize-phoenix-otel arize-phoenix-client openai openinference-instrumentation-openai pandas
+```
+
+## Configure credentials
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
+export OPENAI_API_KEY="<your-openai-api-key>"
+
+# Only if your Phoenix instance has authentication enabled
+# export PHOENIX_API_KEY="<your-phoenix-api-key>"
+```
+
+## Define the evaluator
+
+The shared setup creates a Microsoft `GroundednessEvaluator` backed by `gpt-4.1-mini`, the two-row dataset that both flows score, and a Phoenix client. The judge model is pinned to `gpt-4.1-mini` because `azure-ai-evaluation` sends the legacy `max_tokens` parameter, which the GPT-5 and o-series reasoning models reject. `gpt-4.1-mini` accepts `max_tokens` natively.
+
+```python
+# combined.py
+import json
+import os
+import time
+
+import pandas as pd
+from azure.ai.evaluation import GroundednessEvaluator
+from phoenix.client import Client
+
+TIMESTAMP = int(time.time())
+
+# Microsoft GroundednessEvaluator scores 1–5: higher means better grounded
+# in the supplied context. 5 means fully supported; 1 means the response
+# directly contradicts the context.
+groundedness = GroundednessEvaluator(
+    model_config={
+        "type":     "openai",
+        "api_key":  os.environ["OPENAI_API_KEY"],
+        "model":    "gpt-4.1-mini",
+        "base_url": "https://api.openai.com/v1",
+    }
+)
+
+# Two-row dataset: row 0 is factual (the answer matches the reference),
+# row 1 is hallucinated. Both flows grade these same rows.
+ROWS = [
+    {
+        "input":     "What is the capital of France?",
+        "output":    "Paris is the capital of France.",
+        "reference": "Paris is the capital and most populous city of France.",
+    },
+    {
+        "input":     "What is the capital of France?",
+        "output":    "Berlin is the capital of France.",
+        "reference": "Paris is the capital and most populous city of France.",
+    },
+]
+
+px_client = Client()
+```
+
+## Flow 1: Evaluate existing traces
+
+### Trace some LLM calls
+
+Register Phoenix tracing with OpenAI auto-instrumentation, make two calls that each echo a known answer so the trace contains predictable text, then pull the resulting spans back from Phoenix.
+
+```python
+from openai import OpenAI
+from phoenix.otel import register
+
+PROJECT_NAME = f"azure-ai-evaluation-tracing-example-{TIMESTAMP}"
+
+# auto_instrument=True picks up the installed OpenInference OpenAI instrumentor.
+tracer_provider = register(project_name=PROJECT_NAME, auto_instrument=True)
+
+oai = OpenAI()
+for row in ROWS:
+    oai.chat.completions.create(
+        model="gpt-5.4-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a fact-recall assistant. The user states the "
+                    "exact answer to use; reply with that verbatim."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Question: {row['input']}\n"
+                    f"Answer (reply verbatim): {row['output']}"
+                ),
+            },
+        ],
+    )
+
+tracer_provider.force_flush()
+print(f"Project: {PROJECT_NAME}")
+
+spans_df = None
+for _ in range(12):
+    time.sleep(5)
+    spans_df = px_client.spans.get_spans_dataframe(project_identifier=PROJECT_NAME)
+    if len(spans_df) >= len(ROWS):
+        break
+else:
+    raise RuntimeError("Spans never appeared after 60s")
+
+spans_df = spans_df.sort_values("start_time").reset_index(drop=True)
+```
+
+### Run the evaluator
+
+`GroundednessEvaluator` is synchronous, so call it once per span with the question, the response from the span, and the reference context. The OpenAI instrumentor records the full response as JSON in `attributes.output.value`, so the code reads the message text out of it.
+
+The raw `groundedness` value is a 1–5 score from the judge model and can drift by one point between runs. This guide grades on `groundedness_result` (`pass` or `fail` against the default threshold of 3) and normalizes it to `1.0` or `0.0` so the score is stable across runs. To keep the raw 1–5 number, use `float(result["groundedness"])` instead.
+
+```python
+scores = []
+labels = []
+explanations = []
+for i, row in spans_df.iterrows():
+    result = groundedness(
+        query=ROWS[i]["input"],
+        response=json.loads(row["attributes.output.value"])["choices"][0]["message"]["content"],
+        context=ROWS[i]["reference"],
+    )
+    passed = result["groundedness_result"] == "pass"
+    scores.append(1.0 if passed else 0.0)
+    labels.append("grounded" if passed else "ungrounded")
+    explanations.append(result.get("groundedness_reason", ""))
+```
+
+### Log evaluations to Phoenix
+
+`log_span_annotations_dataframe` reads a dataframe indexed by span ID with `score`, `label`, and `explanation` columns, and attaches each row to its span as an annotation.
+
+```python
+eval_df = pd.DataFrame(
+    {
+        "span_id":     spans_df["context.span_id"],
+        "score":       scores,
+        "label":       labels,
+        "explanation": explanations,
+    }
+).set_index("span_id")
+
+px_client.spans.log_span_annotations_dataframe(
+    dataframe=eval_df,
+    annotation_name="groundedness",
+    annotator_kind="LLM",
+)
+
+flow1_display = pd.DataFrame(
+    {
+        "input":  [r["input"]  for r in ROWS],
+        "output": [r["output"] for r in ROWS],
+        "score":  scores,
+    }
+)
+print("Flow 1 results:")
+print(flow1_display.to_string())
+```
+
+You should see output like:
+
+```text wrap
+Flow 1 results:
+                            input                            output  score
+0  What is the capital of France?   Paris is the capital of France.    1.0
+1  What is the capital of France?  Berlin is the capital of France.    0.0
+```
+
+Open the `azure-ai-evaluation-tracing-example-<timestamp>` project in Phoenix (the name printed above). Each traced `ChatCompletion` span now has a `groundedness` annotation with the score, the `grounded` or `ungrounded` label, and the judge's explanation.
+
+<Note>
+`azure-ai-evaluation` calls the judge model through the OpenAI SDK, so the auto-instrumentation also traces the judge calls into the same project as additional `ChatCompletion` spans. Only the two spans fetched before evaluation are annotated.
+</Note>
+
+## Flow 2: Run an experiment
+
+### Create a dataset
+
+```python
+DATASET_NAME = f"azure-ai-evaluation-experiment-example-ds-{TIMESTAMP}"
+dataset = px_client.datasets.create_dataset(
+    name=DATASET_NAME,
+    dataframe=pd.DataFrame(ROWS),
+    input_keys=["input"],
+    output_keys=["output"],
+    metadata_keys=["reference"],
+)
+print(f"Dataset: {DATASET_NAME}")
+```
+
+### Define the task
+
+The task returns the stored answer for each example so the experiment grades the same two responses as Flow 1. In a real experiment, the task would call your application.
+
+```python
+def task(input, expected):
+    return expected["output"]
+```
+
+### Wrap the evaluator
+
+Phoenix binds experiment evaluator arguments by name: `input` and `metadata` are the example's input and metadata, and `output` is the task's result. Return a dictionary with `score`, `label`, and `explanation`.
+
+```python
+def groundedness_eval(input, output, metadata):
+    result = groundedness(
+        query=input["input"],
+        response=output if isinstance(output, str) else str(output),
+        context=metadata["reference"],
+    )
+    passed = result["groundedness_result"] == "pass"
+    return {
+        "score": 1.0 if passed else 0.0,
+        "label": "grounded" if passed else "ungrounded",
+        "explanation": result.get("groundedness_reason", ""),
+    }
+```
+
+### Run the experiment
+
+```python
+from phoenix.client.experiments import run_experiment
+
+EXPERIMENT_NAME = f"azure-ai-evaluation-experiment-example-{TIMESTAMP}"
+experiment = run_experiment(
+    dataset=dataset,
+    task=task,
+    evaluators={"groundedness": groundedness_eval},
+    experiment_name=EXPERIMENT_NAME,
+)
+print(f"Experiment: {EXPERIMENT_NAME}")
+
+outputs = {run["id"]: run["output"] for run in experiment["task_runs"]}
+flow2_display = pd.DataFrame(
+    [
+        {
+            "output": outputs[ev.experiment_run_id],
+            "score":  ev.result["score"],
+            "label":  ev.result["label"],
+        }
+        for ev in experiment["evaluation_runs"]
+    ]
+).sort_values("score", ascending=False, ignore_index=True)
+print("Flow 2 results:")
+print(flow2_display.to_string())
+```
+
+You should see output like:
+
+```text wrap
+Flow 2 results:
+                             output  score       label
+0   Paris is the capital of France.    1.0    grounded
+1  Berlin is the capital of France.    0.0  ungrounded
+```
+
+Open **Datasets** in Phoenix and select `azure-ai-evaluation-experiment-example-ds-<timestamp>`. The experiment `azure-ai-evaluation-experiment-example-<timestamp>` lists one run per example, each with its `groundedness` score, label, and explanation.
+
+## Troubleshooting
+
+- **`OpenAIConnection.__init__() missing 1 required positional argument: 'base_url'`.** Azure AI Evaluation requires an explicit `base_url` in the `model_config`, even for OpenAI. Set it to `https://api.openai.com/v1` as shown in the evaluator setup.
+- **`Unsupported parameter: 'max_tokens' is not supported with this model`.** `azure-ai-evaluation` sends the legacy `max_tokens` parameter that GPT-5 and o-series models reject. Use a non-reasoning judge model such as `gpt-4.1-mini` or `gpt-4.1`.
+- **Spans never appear.** Confirm `PHOENIX_COLLECTOR_ENDPOINT` points at your Phoenix instance and, if authentication is enabled, that `PHOENIX_API_KEY` is set.
+- **Using Azure OpenAI for the judge model.** Replace the `model_config` with `{"type": "azure_openai", "api_key": "...", "azure_endpoint": "https://<resource>.openai.azure.com", "azure_deployment": "<deployment-name>", "api_version": "2024-10-21"}`. The rest of the guide is unchanged.
+- **Using safety evaluators (HateUnfairness, Violence, and others).** These require an Azure AI Foundry project instead of a `model_config`. See [Microsoft's risk and safety evaluators](https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/evaluation-evaluators/risk-safety-evaluators).
+- **Using a different score scale.** Microsoft's LLM-judged evaluators (Groundedness, Relevance, Coherence, Fluency, Similarity, Retrieval) return scores on a 1–5 scale. To project to 0–1, normalize with `score = (raw - 1) / 4`.
+
+## Resources
+
+<CardGroup>
+  <Card title="Azure AI Evaluation documentation" href="https://learn.microsoft.com/en-us/python/api/overview/azure/ai-evaluation-readme" icon="book-open" horizontal />
+  <Card title="azure-ai-evaluation on PyPI" href="https://pypi.org/project/azure-ai-evaluation/" icon="box" horizontal />
+  <Card title="Ragas evaluation with Phoenix" href="/docs/phoenix/integrations/evaluation-integrations/ragas" icon="book-open" horizontal />
+</CardGroup>

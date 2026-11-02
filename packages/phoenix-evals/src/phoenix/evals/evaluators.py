@@ -12,6 +12,7 @@ from typing import (
     Callable,
     DefaultDict,
     Dict,
+    Generic,
     List,
     Literal,
     Optional,
@@ -24,10 +25,11 @@ from typing import (
 import pandas as pd
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
-from typing_extensions import Annotated, Mapping
+from typing_extensions import Annotated, Mapping, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
+from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
@@ -506,7 +508,11 @@ class Evaluator(ABC):
 
 
 # --- LLM Evaluator base ---
-class LLMEvaluator(Evaluator):
+
+_ModelT = TypeVar("_ModelT", default=LLM)
+
+
+class LLMEvaluator(Evaluator, Generic[_ModelT]):
     """
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
@@ -532,7 +538,7 @@ class LLMEvaluator(Evaluator):
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: _ModelT,
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
@@ -572,7 +578,7 @@ class LLMEvaluator(Evaluator):
             direction=direction,
             input_schema=input_schema,
         )
-        self.llm = llm
+        self.llm: _ModelT = llm
         self.schema = schema
 
     @property
@@ -598,7 +604,7 @@ class LLMEvaluator(Evaluator):
 
 
 # --- LLM ClassificationEvaluator ---
-class ClassificationEvaluator(LLMEvaluator):
+class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
     """
     LLM-based evaluator for classification-style judgements.
 
@@ -698,7 +704,7 @@ class ClassificationEvaluator(LLMEvaluator):
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: Union[LLM, DecisionModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
@@ -776,7 +782,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 name=self.name,
                 label=label,
                 explanation=explanation,
-                metadata={"model": self.llm.model},  # could add more metadata here
+                metadata={"model": self.llm.model, **response.get("metadata", {})},
                 kind=self.kind,
                 direction=self.direction,
             )
@@ -818,7 +824,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 name=self.name,
                 label=label,
                 explanation=explanation,
-                metadata={"model": self.llm.model},  # could add more metadata here
+                metadata={"model": self.llm.model, **response.get("metadata", {})},
                 kind=self.kind,
                 direction=self.direction,
             )
@@ -918,7 +924,7 @@ def create_evaluator(
         - A boolean (converted to integer Score.score and string Score.label)
         - A short string (≤3 words, converted to Score.label)
         - A long string (≥4 words, converted to Score.explanation)
-        - A dictionary with keys "score", "label", or "explanation"
+        - A dictionary with keys "score", "label", "explanation", or "metadata"
         - A tuple of values (only bool, number, str types allowed)
 
         An input_schema is automatically created from the function signature, capturing the required
@@ -994,7 +1000,7 @@ def create_evaluator(
         if isinstance(result, dict):
             dict_score_data: Dict[str, Any] = {}
             for key, value in result.items():
-                if key in ["score", "label", "explanation"]:
+                if key in ["score", "label", "explanation", "metadata"]:
                     dict_score_data[key] = value
             return Score(name=name, kind=kind, direction=direction, **dict_score_data)
 
@@ -1133,7 +1139,7 @@ def create_evaluator(
 def create_classifier(
     name: str,
     prompt_template: str,
-    llm: LLM,
+    llm: Union[LLM, DecisionModel],
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
@@ -1372,7 +1378,7 @@ def _process_results_and_add_to_dataframe(
     """
     # Pre-compute column locations for efficiency
     execution_details_cols = {
-        evaluator.name: result_df.columns.get_loc(f"{evaluator.name}_execution_details")
+        evaluator.name: cast(int, result_df.columns.get_loc(f"{evaluator.name}_execution_details"))
         for evaluator in evaluators
     }
 
@@ -1384,7 +1390,7 @@ def _process_results_and_add_to_dataframe(
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
         #  use iat to avoid Series alignment on dict
-        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)
+        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore[assignment]
 
         # Process scores
         if results is None:
@@ -1402,7 +1408,7 @@ def _process_results_and_add_to_dataframe(
     for score_col, score_dict in score_dicts.items():
         # Convert dictionary to list using positional indices
         score_list = [score_dict.get(pos, None) for pos in range(len(result_df))]
-        result_df[score_col] = score_list
+        result_df[score_col] = score_list  # type: ignore[assignment]
 
 
 @_deprecate_positional_args("evaluate_dataframe")

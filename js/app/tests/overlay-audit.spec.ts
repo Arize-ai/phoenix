@@ -247,6 +247,9 @@ test.describe("overlay audit", () => {
       await page.keyboard.press("Escape");
       await expect(listbox).not.toBeVisible();
       await expect(dialog).toBeVisible();
+      // Focus returns to the trigger asynchronously; wait for it so the next
+      // Escape lands inside the dialog rather than on <body>.
+      await expect(dialog.getByRole("button", { name: /Role/ })).toBeFocused();
 
       // Second Escape dismisses the dialog.
       await page.keyboard.press("Escape");

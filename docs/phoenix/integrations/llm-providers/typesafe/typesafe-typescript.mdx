@@ -19,7 +19,7 @@ npm install --save @arizeai/phoenix-otel @arizeai/openinference-instrumentation-
 
 ## Setup
 
-Use the `register` function from `@arizeai/phoenix-otel` to connect to Phoenix, then register the TypeSafe instrumentation.
+Set `TYPESAFE_API_KEY` in your environment using a key from the TypeSafe console. The SDK reads this variable automatically. Use the `register` function from `@arizeai/phoenix-otel` to connect to Phoenix, then manually instrument the TypeSafe SDK for ESM.
 
 Create the `instrumentation.ts` file:
 
@@ -29,7 +29,7 @@ import { TypeSafeInstrumentation } from "@arizeai/openinference-instrumentation-
 
 // Initialize Phoenix tracing
 export const provider = register({
-  projectName: "typesafe-app",
+  projectName: process.env.PHOENIX_PROJECT_NAME ?? "typesafe-app",
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
   // apiKey: process.env.PHOENIX_API_KEY,
@@ -37,29 +37,24 @@ export const provider = register({
   // url: "http://localhost:6006",
 });
 
-// Set up TypeSafe SDK instrumentation
-const instrumentation = new TypeSafeInstrumentation({
+// Export the instrumentor so the app can patch the imported ESM module.
+export const instrumentation = new TypeSafeInstrumentation({
   tracerProvider: provider,
 });
 ```
 
 <Note>
-Registering the instrumentation this way patches `@typesafe-ai/sdk` at load time, which requires `instrumentation.ts` to run **before** the SDK is imported (CommonJS only). For ESM, bundlers, or when the SDK is imported first, call `manuallyInstrument` instead:
-
-```typescript
-import * as TypeSafe from "@typesafe-ai/sdk";
-import { TypeSafeInstrumentation } from "@arizeai/openinference-instrumentation-typesafe";
-
-const instrumentation = new TypeSafeInstrumentation({ tracerProvider: provider });
-instrumentation.manuallyInstrument(TypeSafe);
-```
+Because this SDK is ESM, call `manuallyInstrument()` after importing it. This patches the client method while leaving the module's exports intact.
 </Note>
 
 ## Usage
 
 ```typescript expandable
-import "./instrumentation.js";
-import { TypeSafeClient, choice } from "@typesafe-ai/sdk";
+import { provider, instrumentation } from "./instrumentation.js";
+import * as TypeSafe from "@typesafe-ai/sdk";
+
+instrumentation.manuallyInstrument(TypeSafe);
+const { TypeSafeClient, choice } = TypeSafe;
 
 const client = new TypeSafeClient();
 const { data, requestId } = await client
@@ -76,6 +71,7 @@ const { data, requestId } = await client
   .withResponse();
 
 console.log(data.answers.category, requestId);
+await provider.forceFlush();
 ```
 
 <Note>
@@ -93,10 +89,6 @@ With instrumentation enabled, each `systemOne` call shows up in Phoenix as a **D
 - `decision.token_count.input` and `decision.token_count.output`, when reported by the SDK
 
 Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. Earlier releases recorded them under `llm.*`, and releases before 0.3.0 recorded them as LLM spans.
-
-<Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typesafe.png" alt="TypeSafe AI traces in Phoenix" />
-</Frame>
 
 ## Configuration
 

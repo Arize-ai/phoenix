@@ -25,13 +25,13 @@ export const DEFAULT_CHAT_PARAMETERS: ChatParameters = {
  * map to `undefined`, which the SDK drops before the request is built.
  */
 export function toChatCallSettings(parameters: ChatParameters): {
-  system?: string;
+  instructions?: string;
   temperature?: number;
   topP?: number;
   maxOutputTokens?: number;
 } {
   return {
-    system: parameters.systemPrompt.trim() || undefined,
+    instructions: parameters.systemPrompt.trim() || undefined,
     temperature: parameters.temperature ?? undefined,
     topP: parameters.topP ?? undefined,
     maxOutputTokens: parameters.maxOutputTokens ?? undefined,

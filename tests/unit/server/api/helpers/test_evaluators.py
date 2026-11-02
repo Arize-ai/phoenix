@@ -3127,7 +3127,7 @@ class TestLLMEvaluator:
         error = result.pop("error")
         assert isinstance(error, str)
         assert "401" in error
-        assert "invalid_api_key" in error
+        assert "Incorrect API key provided" in error
         assert result.pop("label") is None
         assert result.pop("score") is None
         assert result.pop("explanation") is None
@@ -3230,7 +3230,7 @@ class TestLLMEvaluator:
         assert evaluator_span.name == "Evaluator: correctness"
         assert evaluator_span.status_code == "ERROR"
         assert "401" in evaluator_span.status_message
-        assert "invalid_api_key" in evaluator_span.status_message
+        assert "Incorrect API key provided" in evaluator_span.status_message
         assert len(evaluator_span.events) == 1
         exception_event = dict(evaluator_span.events[0])
         assert exception_event.pop("name") == "exception"
@@ -3239,7 +3239,7 @@ class TestLLMEvaluator:
         assert event_attributes.pop("exception.type") == "openai.AuthenticationError"
         exception_message = event_attributes.pop("exception.message")
         assert "401" in exception_message
-        assert "invalid_api_key" in exception_message
+        assert "Incorrect API key provided" in exception_message
         assert event_attributes.pop("exception.escaped") == "False"
         assert "Traceback" in event_attributes.pop("exception.stacktrace")
         assert not event_attributes
@@ -3261,7 +3261,7 @@ class TestLLMEvaluator:
         assert event_attributes.pop("exception.type") == "openai.AuthenticationError"
         exception_message = event_attributes.pop("exception.message")
         assert "401" in exception_message
-        assert "invalid_api_key" in exception_message
+        assert "Incorrect API key provided" in exception_message
         assert event_attributes.pop("exception.escaped") == "False"
         assert "Traceback" in event_attributes.pop("exception.stacktrace")
         assert not event_attributes

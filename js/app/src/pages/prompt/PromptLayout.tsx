@@ -83,13 +83,7 @@ export function PromptLayout() {
           id
           name
         }
-        promptVersions {
-          edges {
-            node {
-              id
-            }
-          }
-        }
+        versionCount
       }
     `,
     preloadedData.prompt
@@ -158,7 +152,7 @@ export function PromptLayout() {
         <TabList>
           <Tab id="prompt">Prompt</Tab>
           <Tab id="versions">
-            Versions <Counter>{data.promptVersions.edges.length}</Counter>
+            Versions <Counter>{data.versionCount}</Counter>
           </Tab>
           <Tab id="config">Config</Tab>
         </TabList>
