@@ -24,6 +24,9 @@ export function PromptVersionTagsList({
     promptVersion
   );
 
+  if (data.tags.length === 0) {
+    return null;
+  }
   return (
     <Flex direction="row" gap="size-50" alignItems="center" wrap="wrap">
       {data.tags.map((tag) => (
