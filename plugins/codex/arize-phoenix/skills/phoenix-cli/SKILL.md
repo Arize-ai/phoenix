@@ -391,6 +391,8 @@ px prompt get <name> --format text --no-progress   # plain text, ideal for pipin
 px prompt untag <version-id> --tag staging --yes --format raw   # emits {deleted, prompt_version_id, tag_name}
 ```
 
+`px prompt untag` only removes a tag that is attached to the given version; if the tag points at another version of the prompt it exits `3` (`INVALID_ARGUMENT`) and removes nothing.
+
 ## Annotation Configs
 
 Full CRUD: `list`, `get`, `create`, `update`, `delete`. Types are `CATEGORICAL` (labels + optional scores), `CONTINUOUS` (numeric range), `FREEFORM` (free text).
