@@ -70,8 +70,9 @@ jobs:
           # The action rejects actors without write access, which is whoever opened the issue
           # on an on-open run. The tool allowlist below is the boundary instead.
           allowed_non_write_users: ${{ inputs.issue && '*' || '' }}
-          # The log scans open issues as the factory app, which the action otherwise rejects.
-          allowed_bots: ${{ inputs.issue && vars.FACTORY_GITHUB_LOGIN || '' }}
+          # Apps open issues too, the factory's log scans among them; the prompt is fixed here,
+          # so a bot controls no more of the run than a person does.
+          allowed_bots: ${{ inputs.issue && '*' || '' }}
 
           show_full_output: 'true'
           prompt: |
