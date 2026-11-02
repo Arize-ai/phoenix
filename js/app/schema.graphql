@@ -2293,7 +2293,7 @@ type ExperimentRunMetricComparisons {
   completionCost: ExperimentRunMetricComparison!
 
   """
-  Comparisons of the annotation scores of the dataset's evaluators that have an optimization direction, ordered by annotation name.
+  Comparisons of the annotation scores of the dataset's evaluators that have an optimization direction, ordered by annotation name. Annotation names whose evaluators disagree on the direction are left out.
   """
   annotations: [ExperimentRunAnnotationMetricComparison!]!
 }

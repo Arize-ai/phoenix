@@ -392,12 +392,28 @@ export function ExperimentCompareMetricsPage({
       ];
 
       // Evaluator scores are compared in the direction their evaluator optimizes for, as in
-      // the compare table and list views
-      const annotationConfigsByName = new Map(
-        datasetEvaluatorsToAnnotationConfigs(
-          data.dataset.datasetEvaluators?.edges.map((edge) => edge.node) ?? []
-        ).map((config) => [config.name, config])
-      );
+      // the compare table and list views. Evaluators sharing an annotation name that disagree
+      // on the direction leave it neutral, as the server leaves out their counts.
+      const optimizationDirectionsByName = new Map<
+        string,
+        OptimizationDirectionResult
+      >();
+      for (const config of datasetEvaluatorsToAnnotationConfigs(
+        data.dataset.datasetEvaluators?.edges.map((edge) => edge.node) ?? []
+      )) {
+        const { optimizationDirection } = getOptimizationBounds(config);
+        if (optimizationDirection == null) {
+          continue;
+        }
+        optimizationDirectionsByName.set(
+          config.name,
+          optimizationDirectionsByName.has(config.name) &&
+            optimizationDirectionsByName.get(config.name) !==
+              optimizationDirection
+            ? undefined
+            : optimizationDirection
+        );
+      }
       const annotationComparisonsByName = new Map(
         comparisons?.annotations.map((annotationComparison) => [
           annotationComparison.annotationName,
@@ -428,9 +444,8 @@ export function ExperimentCompareMetricsPage({
               numRegressions: annotationComparison.numRunsRegressed,
               numEqual: annotationComparison.numRunsEqual,
             },
-            optimizationDirection: getOptimizationBounds(
-              annotationConfigsByName.get(annotationName)
-            ).optimizationDirection,
+            optimizationDirection:
+              optimizationDirectionsByName.get(annotationName),
             compareExperiments: compareExperimentMeanScores.map(
               ({ experimentId, meanScore }, experimentIndex) => ({
                 id: experimentId,
@@ -673,19 +688,19 @@ function ImprovementAndRegressionCounter({
     if (numImprovements > 0) {
       tooltipItems.push({
         key: "improved",
-        text: `${numImprovements} run${numImprovements > 1 ? "s" : ""} improved`,
+        text: `Base experiment did better on ${numImprovements} run${numImprovements > 1 ? "s" : ""}`,
       });
     }
     if (numRegressions > 0) {
       tooltipItems.push({
         key: "regressed",
-        text: `${numRegressions} run${numRegressions > 1 ? "s" : ""} regressed`,
+        text: `Base experiment did worse on ${numRegressions} run${numRegressions > 1 ? "s" : ""}`,
       });
     }
     if (numEqual > 0) {
       tooltipItems.push({
         key: "equal",
-        text: `${numEqual} run${numEqual > 1 ? "s" : ""} stayed the same`,
+        text: `Base experiment tied on ${numEqual} run${numEqual > 1 ? "s" : ""}`,
       });
     }
     return { disableTooltip: tooltipItems.length === 0, tooltipItems };

@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -930,6 +930,85 @@ async def test_experiment_run_metric_comparisons_annotations(
                     "numRunsRegressed": 1,
                     "numRunsEqual": 0,
                     "numRunsWithoutComparison": 3,
+                },
+            ]
+        }
+    }
+
+
+async def test_experiment_run_metric_comparisons_annotations_leave_out_conflicting_directions(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    experiment_run_annotation_comparison_experiments: tuple[
+        models.Experiment, tuple[models.Experiment, ...]
+    ],
+) -> None:
+    """
+    Annotations are matched to evaluators by name, so an annotation name whose evaluators
+    disagree on the direction is left out, while evaluators that agree are still compared.
+    """
+    base_experiment, compare_experiments = experiment_run_annotation_comparison_experiments
+    async with db() as session:
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == base_experiment.project_name)
+        )
+        code_evaluator_id = await session.scalar(
+            select(models.CodeEvaluator.id).where(
+                models.CodeEvaluator.name == Identifier(root="code-evaluator")
+            )
+        )
+        assert project_id is not None and code_evaluator_id is not None
+        session.add_all(
+            [
+                models.DatasetEvaluators(
+                    dataset_id=base_experiment.dataset_id,
+                    evaluator_id=code_evaluator_id,
+                    name=Identifier(root=f"{annotation_name}-evaluator-2"),
+                    output_configs=[
+                        ContinuousOutputConfig(
+                            type="CONTINUOUS",
+                            name=annotation_name,
+                            optimization_direction=OptimizationDirection.MINIMIZE,
+                        )
+                    ],
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project_id=project_id,
+                )
+                # accuracy is MAXIMIZE on its first evaluator, refusal is MINIMIZE on its first
+                for annotation_name in ("accuracy", "refusal")
+            ]
+        )
+    query = """
+      query ($baseExperimentId: ID!, $compareExperimentIds: [ID!]!) {
+        experimentRunMetricComparisons(
+          baseExperimentId: $baseExperimentId
+          compareExperimentIds: $compareExperimentIds
+        ) {
+          annotations {
+            annotationName
+            numRunsImproved
+            numRunsRegressed
+            numRunsEqual
+          }
+        }
+      }
+    """
+    variables = {
+        "baseExperimentId": str(GlobalID("Experiment", str(base_experiment.id))),
+        "compareExperimentIds": [
+            str(GlobalID("Experiment", str(experiment.id))) for experiment in compare_experiments
+        ],
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert response.data == {
+        "experimentRunMetricComparisons": {
+            "annotations": [
+                {
+                    "annotationName": "refusal",
+                    "numRunsImproved": 1,
+                    "numRunsRegressed": 1,
+                    "numRunsEqual": 0,
                 },
             ]
         }

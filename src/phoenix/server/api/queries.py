@@ -227,12 +227,26 @@ class ExperimentRunMetricComparisons:
     total_cost: ExperimentRunMetricComparison
     prompt_cost: ExperimentRunMetricComparison
     completion_cost: ExperimentRunMetricComparison
-    annotations: list[ExperimentRunAnnotationMetricComparison] = strawberry.field(
+    base_experiment_rowid: strawberry.Private[int]
+    compare_experiment_rowids: strawberry.Private[list[int]]
+    num_total_runs: strawberry.Private[int]
+
+    @strawberry.field(
         description=(
             "Comparisons of the annotation scores of the dataset's evaluators that have an "
-            "optimization direction, ordered by annotation name."
+            "optimization direction, ordered by annotation name. Annotation names whose "
+            "evaluators disagree on the direction are left out."
         )
-    )
+    )  # type: ignore[untyped-decorator]
+    async def annotations(
+        self, info: Info[Context, None]
+    ) -> list[ExperimentRunAnnotationMetricComparison]:
+        return await _experiment_run_annotation_comparisons(
+            info,
+            base_experiment_rowid=self.base_experiment_rowid,
+            compare_experiment_rowids=self.compare_experiment_rowids,
+            num_total_runs=self.num_total_runs,
+        )
 
 
 @strawberry.type
@@ -962,12 +976,6 @@ class Query:
         async with info.context.db.read() as session:
             result = (await session.execute(comparisons_query)).first()
         assert result is not None
-        annotations = await _experiment_run_annotation_comparisons(
-            info,
-            base_experiment_rowid=base_experiment_rowid,
-            compare_experiment_rowids=compare_experiment_rowids,
-            num_total_runs=result.num_base_experiment_runs,
-        )
 
         return ExperimentRunMetricComparisons(
             latency=ExperimentRunMetricComparison(
@@ -1012,7 +1020,9 @@ class Query:
                 num_runs_equal=result.num_completion_cost_is_equal,
                 num_total_runs=result.num_base_experiment_runs,
             ),
-            annotations=annotations,
+            base_experiment_rowid=base_experiment_rowid,
+            compare_experiment_rowids=compare_experiment_rowids,
+            num_total_runs=result.num_base_experiment_runs,
         )
 
     @strawberry.field
@@ -2051,6 +2061,7 @@ async def _experiment_run_annotation_comparisons(
                     models.Experiment.dataset_id == models.DatasetEvaluators.dataset_id,
                 )
                 .where(models.Experiment.id == base_experiment_rowid)
+                .order_by(models.DatasetEvaluators.id)
             )
         ).all()
     # The base evaluators are only needed for the dataset evaluators without their own configs
@@ -2064,14 +2075,25 @@ async def _experiment_run_annotation_comparisons(
     base_evaluator_by_id = {
         evaluator.id: evaluator for evaluator in base_evaluators if evaluator is not None
     }
+    # Annotations are matched to evaluators by name only, so when evaluators sharing an
+    # annotation name disagree on the direction, neither can be told apart and the name is left
+    # out rather than compared in whichever direction happens to come last
     directions: dict[str, Literal["maximize", "minimize"]] = {}
+    conflicting_names: set[str] = set()
     for dataset_evaluator in dataset_evaluators:
         evaluator = base_evaluator_by_id.get(dataset_evaluator.evaluator_id)
         for config in get_effective_output_configs(dataset_evaluator, evaluator):
+            direction: Literal["maximize", "minimize"]
             if config.optimization_direction is OptimizationDirection.MAXIMIZE:
-                directions[config.name] = "maximize"
+                direction = "maximize"
             elif config.optimization_direction is OptimizationDirection.MINIMIZE:
-                directions[config.name] = "minimize"
+                direction = "minimize"
+            else:
+                continue
+            if directions.setdefault(config.name, direction) != direction:
+                conflicting_names.add(config.name)
+    for name in conflicting_names:
+        del directions[name]
     if not directions:
         return []
 
