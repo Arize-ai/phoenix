@@ -1247,3 +1247,27 @@ class TestCostModelLookupMerge:
         )
         assert result is not None
         assert result.id == 1
+
+    def test_non_llm_models_are_ignored(self) -> None:
+        """Only LLM models price spans, even when a model of another type matches better."""
+
+        def model(id: int, type: models.GenerativeModelType) -> models.GenerativeModel:
+            return models.GenerativeModel(
+                id=id,
+                name="gpt-6-luna",
+                provider="openai",
+                name_pattern=re.compile("gpt-6-luna" if type == "LLM" else "^gpt-6-luna$"),
+                is_built_in=False,
+                type=type,
+            )
+
+        attributes = {"llm": {"model_name": "gpt-6-luna", "provider": "openai"}}
+        start_time = datetime.now(timezone.utc)
+        lookup = CostModelLookup([model(1, "DECISION"), model(2, "LLM"), model(3, "EMBEDDING")])
+        result = lookup.find_model(start_time=start_time, attributes=attributes)
+        assert result is not None and result.id == 2
+
+        # A model that stops being LLM is dropped, and one that becomes LLM is added.
+        lookup.merge([model(2, "DECISION"), model(1, "LLM")])
+        result = lookup.find_model(start_time=start_time, attributes=attributes)
+        assert result is not None and result.id == 1

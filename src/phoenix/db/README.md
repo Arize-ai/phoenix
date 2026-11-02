@@ -488,6 +488,7 @@ erDiagram
         string provider
         string name_pattern
         boolean is_built_in
+        string type
         datetime start_time
         datetime created_at
         datetime updated_at
