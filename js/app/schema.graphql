@@ -730,6 +730,12 @@ type CodeEvaluator implements Evaluator & Node {
   user: User
 }
 
+input CodeEvaluatorDefinitionInput {
+  sourceCode: String!
+  language: Language!
+  sandboxConfigId: ID!
+}
+
 type CodeEvaluatorMutationPayload {
   evaluator: CodeEvaluator!
   query: Query!
@@ -892,8 +898,13 @@ input CreateDatasetBuiltinEvaluatorInput {
 
 input CreateDatasetCodeEvaluatorInput {
   datasetId: ID!
-  evaluatorId: ID!
   name: Identifier!
+
+  """An existing code evaluator to add. Provide this or definition."""
+  evaluatorId: ID = null
+
+  """A new code evaluator to create and add. Provide this or evaluatorId."""
+  definition: CodeEvaluatorDefinitionInput = null
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigs: [AnnotationConfigInput!] = null
   description: String = null

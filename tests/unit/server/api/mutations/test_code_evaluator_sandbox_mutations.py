@@ -1548,3 +1548,82 @@ class TestCreateCodeEvaluatorSandboxStrictness:
         assert result.errors, "Expected BadRequest when sandbox config row is missing"
         joined = "\n".join(err.message for err in result.errors)
         assert "Sandbox config not found" in joined
+
+
+_CREATE_DATASET_CODE_EVALUATOR = """
+mutation CreateDatasetCodeEvaluator($input: CreateDatasetCodeEvaluatorInput!) {
+    createDatasetCodeEvaluator(input: $input) {
+        evaluator {
+            id
+            name
+            evaluator {
+                id
+                name
+            }
+        }
+    }
+}
+"""
+
+
+class TestDatasetCodeEvaluatorNames:
+    async def test_datasets_reuse_a_name_held_by_another_evaluator(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        name = f"hello-{token_hex(2)}"
+        code_input = _create_code_evaluator_input(sandbox_config_id=sandbox_config.id, name=name)
+        standalone = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR, variables={"input": code_input}
+        )
+        assert standalone.data and not standalone.errors
+
+        bindings = []
+        for _ in range(2):
+            async with db() as session:
+                dataset = models.Dataset(name=f"dataset-{token_hex(4)}", metadata_={})
+                session.add(dataset)
+                await session.flush()
+                dataset_id = str(GlobalID("Dataset", str(dataset.id)))
+            result = await gql_client.execute(
+                _CREATE_DATASET_CODE_EVALUATOR,
+                variables={
+                    "input": {
+                        "datasetId": dataset_id,
+                        "name": name,
+                        "definition": {
+                            "sourceCode": code_input["sourceCode"],
+                            "language": code_input["language"],
+                            "sandboxConfigId": code_input["sandboxConfigId"],
+                        },
+                        "inputMapping": code_input["inputMapping"],
+                        "outputConfigs": code_input["outputConfigs"],
+                    }
+                },
+            )
+            assert result.data and not result.errors, result.errors
+            bindings.append(result.data["createDatasetCodeEvaluator"]["evaluator"])
+
+        assert [binding["name"] for binding in bindings] == [name, name]
+        evaluator_ids = {standalone.data["createCodeEvaluator"]["evaluator"]["id"]}
+        evaluator_ids.update(binding["evaluator"]["id"] for binding in bindings)
+        assert len(evaluator_ids) == 3
+
+    async def test_create_code_evaluator_reports_a_taken_name_plainly(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        name = f"taken-{token_hex(4)}"
+        variables = {
+            "input": _create_code_evaluator_input(sandbox_config_id=sandbox_config.id, name=name)
+        }
+        first = await gql_client.execute(_CREATE_CODE_EVALUATOR, variables=variables)
+        assert first.data and not first.errors
+
+        second = await gql_client.execute(_CREATE_CODE_EVALUATOR, variables=variables)
+
+        assert second.errors
+        assert second.errors[0].message == f"An evaluator named '{name}' already exists"
