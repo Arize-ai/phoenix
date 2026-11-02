@@ -1,36 +1,43 @@
 /**
- * Why tracking the scroll position is paused:
- * - `scrollToSection`: the nav is scrolling a section into view, for a link
- *   click or the mount scroll to `defaultActiveId`; that section's link stays
- *   current while other sections slide past the bar.
- * - `defaultActiveId`: the nav just mounted with a given current section,
- *   which stays current until the user scrolls: from mount when the nav could
- *   not scroll to it, or once its scroll to it settles.
+ * Why the nav has stopped following the scroll position for now:
+ * - `programmaticScroll`: the nav itself is scrolling the pane to a section,
+ *   after a link click or on mount to `defaultActiveId`. That section's link
+ *   stays current while other sections pass by.
+ * - `heldDefault`: the nav is keeping `defaultActiveId` current until the
+ *   user scrolls, including after its own scroll there has settled.
  */
-export type ScrollTrackingPauseReason = "scrollToSection" | "defaultActiveId";
+export type ScrollTrackingPauseReason = "programmaticScroll" | "heldDefault";
 
+/**
+ * Pause state for a section nav. The nav's event handlers call the `record*`
+ * methods to report what happened; none of the methods are callbacks.
+ */
 export type ScrollTracking = {
   readonly isPaused: boolean;
   pause: (reason: ScrollTrackingPauseReason) => void;
-  /** The scroll container scrolled, for whatever reason */
-  noteScroll: () => void;
-  /** The user acted to scroll (wheel, touch, scroll keys, scrollbar press) */
-  noteUserScrollInput: () => void;
+  /** Call when the scroll container scrolls, whatever moved it */
+  recordScroll: () => void;
   /**
-   * Scrolling has settled. Ends a section scroll's pause, or a held default
-   * once the user has scrolled, and returns whether the current section should
-   * be resolved from the scroll position.
+   * Call when the user acts to scroll: a wheel turn, a touch drag, a scroll
+   * key, or a press on the scrollbar
+   */
+  recordUserScrollInput: () => void;
+  /**
+   * Call once scrolling has settled. Ends a programmatic scroll's pause, or a
+   * held default once the user has scrolled. Returns whether the nav should
+   * now pick the current section from the scroll position.
    */
   settle: () => boolean;
 };
 
 /**
  * Decides when a section nav follows the scroll position and when it holds
- * the current section it was given. A pause ends when scrolling settles; the
- * scroll position is then resolved only if the user scrolled during the pause,
- * so the nav's own scroll never swaps the scrolled-to link for another section
- * (as the scrolled-to-end rule would when that section is near the
- * end), but a user who scrolls elsewhere mid-pause is followed.
+ * the current section it was given. A pause ends when scrolling settles. The
+ * nav then picks the current section from the scroll position only if the
+ * user scrolled during the pause. So the nav's own scroll never swaps the
+ * link it scrolled to for another section (as the scrolled-to-end rule would
+ * for a section near the end), but a user who scrolls elsewhere mid-pause is
+ * followed.
  */
 export function createScrollTracking(): ScrollTracking {
   let pauseReason: ScrollTrackingPauseReason | null = null;
@@ -43,14 +50,14 @@ export function createScrollTracking(): ScrollTracking {
       pauseReason = reason;
       hasUserScrolled = false;
     },
-    noteScroll() {
-      // Nothing but the user scrolls the pane while a default is held; while
-      // a section scroll is held, the scroll is the nav's own
-      if (pauseReason === "defaultActiveId") {
+    recordScroll() {
+      // While a default is held, only the user scrolls the pane; during a
+      // programmatic scroll, the scroll is the nav's own
+      if (pauseReason === "heldDefault") {
         hasUserScrolled = true;
       }
     },
-    noteUserScrollInput() {
+    recordUserScrollInput() {
       if (pauseReason != null) {
         hasUserScrolled = true;
       }
@@ -59,7 +66,7 @@ export function createScrollTracking(): ScrollTracking {
       if (pauseReason == null) {
         return true;
       }
-      if (pauseReason === "defaultActiveId" && !hasUserScrolled) {
+      if (pauseReason === "heldDefault" && !hasUserScrolled) {
         return false;
       }
       const shouldResolve = hasUserScrolled;

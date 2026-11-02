@@ -1,10 +1,3 @@
-/**
- * How far a section's top may sit below the line and still count as reached.
- * `scrollIntoView` and fractional zoom levels land a section's top a fraction
- * of a pixel off the line it was scrolled to.
- */
-const SUB_PIXEL_TOLERANCE = 1;
-
 export type SectionPosition = {
   id: string;
   /**
@@ -16,10 +9,9 @@ export type SectionPosition = {
 
 /**
  * Picks the section a scrollspy nav marks active: the last section, in
- * document order, whose top edge is at or above the line where content stops
- * being covered by the nav (the sticky bar's bottom edge, or the top of the
- * scroll container for a rail). Before any section reaches the line, the
- * first section is active. Once the container is scrolled to its end, the last
+ * document order, whose top edge has reached `lineTop`, the line where
+ * scrolled-to sections land. Before any section reaches the line, the first
+ * section is active. Once the container is scrolled to its end, the last
  * section is active even if it is too short to ever reach the line.
  *
  * Returns null when there are no sections.
@@ -28,11 +20,19 @@ export function resolveActiveSectionId({
   sections,
   lineTop,
   isScrolledToEnd,
+  tolerance = 1,
 }: {
   /** The sections in document order */
   sections: readonly SectionPosition[];
   lineTop: number;
   isScrolledToEnd: boolean;
+  /**
+   * How far below the line a section's top may sit and still count as
+   * reached, in pixels. A scroll to a section, or a fractional zoom level,
+   * can land its top a fraction of a pixel off the line.
+   * @default 1
+   */
+  tolerance?: number;
 }): string | null {
   if (sections.length === 0) {
     return null;
@@ -42,7 +42,7 @@ export function resolveActiveSectionId({
   }
   let activeId = sections[0].id;
   for (const section of sections) {
-    if (section.top <= lineTop + SUB_PIXEL_TOLERANCE) {
+    if (section.top <= lineTop + tolerance) {
       activeId = section.id;
     }
   }

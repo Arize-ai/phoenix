@@ -49,6 +49,17 @@ describe("resolveActiveSectionId", () => {
     ).toBe("annotations");
   });
 
+  it("counts a section within the tolerance of the line as reached", () => {
+    expect(
+      resolveActiveSectionId({
+        sections,
+        lineTop: 899,
+        isScrolledToEnd: false,
+        tolerance: 0,
+      })
+    ).toBe("input");
+  });
+
   it("makes the last section active at the scroll end even if it never reaches the line", () => {
     expect(
       resolveActiveSectionId({ sections, lineTop: 40, isScrolledToEnd: true })
@@ -60,62 +71,62 @@ describe("createScrollTracking", () => {
   it("follows the scroll position when not paused", () => {
     const tracking = createScrollTracking();
     expect(tracking.isPaused).toBe(false);
-    tracking.noteScroll();
+    tracking.recordScroll();
     expect(tracking.settle()).toBe(true);
   });
 
   it("holds a clicked link through the click's own scroll", () => {
     const tracking = createScrollTracking();
-    tracking.pause("scrollToSection");
-    tracking.noteScroll();
-    tracking.noteScroll();
+    tracking.pause("programmaticScroll");
+    tracking.recordScroll();
+    tracking.recordScroll();
     expect(tracking.isPaused).toBe(true);
     expect(tracking.settle()).toBe(false);
     expect(tracking.isPaused).toBe(false);
     // later scrolling is the user's and is followed
-    tracking.noteScroll();
+    tracking.recordScroll();
     expect(tracking.settle()).toBe(true);
   });
 
   it("follows the user who scrolls elsewhere during a click's scroll", () => {
     const tracking = createScrollTracking();
-    tracking.pause("scrollToSection");
-    tracking.noteScroll();
-    tracking.noteUserScrollInput();
+    tracking.pause("programmaticScroll");
+    tracking.recordScroll();
+    tracking.recordUserScrollInput();
     expect(tracking.settle()).toBe(true);
     expect(tracking.isPaused).toBe(false);
   });
 
   it("holds the default section until the user scrolls", () => {
     const tracking = createScrollTracking();
-    tracking.pause("defaultActiveId");
+    tracking.pause("heldDefault");
     expect(tracking.settle()).toBe(false);
     expect(tracking.isPaused).toBe(true);
-    tracking.noteScroll();
+    tracking.recordScroll();
     expect(tracking.settle()).toBe(true);
     expect(tracking.isPaused).toBe(false);
   });
 
   it("lets a click replace the held default section", () => {
     const tracking = createScrollTracking();
-    tracking.pause("defaultActiveId");
-    tracking.pause("scrollToSection");
-    tracking.noteScroll();
+    tracking.pause("heldDefault");
+    tracking.pause("programmaticScroll");
+    tracking.recordScroll();
     expect(tracking.settle()).toBe(false);
     expect(tracking.isPaused).toBe(false);
   });
 
   it("follows the user who scrolls while the default section is held", () => {
     const tracking = createScrollTracking();
-    tracking.pause("defaultActiveId");
-    tracking.noteScroll();
+    tracking.pause("heldDefault");
+    tracking.recordScroll();
     expect(tracking.settle()).toBe(true);
   });
 
   it("forgets user input from before a pause", () => {
     const tracking = createScrollTracking();
-    tracking.noteUserScrollInput();
-    tracking.pause("scrollToSection");
+    tracking.recordUserScrollInput();
+    tracking.pause("programmaticScroll");
     expect(tracking.settle()).toBe(false);
   });
 });

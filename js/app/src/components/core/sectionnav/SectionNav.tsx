@@ -302,7 +302,7 @@ export function SectionNav({
           // The scroll to the held default settled without the user
           // scrolling; keep holding it, since the scroll position may resolve
           // to another section (e.g. one the pane cannot scroll to the top)
-          tracking.pause("defaultActiveId");
+          tracking.pause("heldDefault");
           return;
         }
         heldDefaultIdRef.current = null;
@@ -316,15 +316,15 @@ export function SectionNav({
       settleTimeout = setTimeout(settle, SCROLL_SETTLE_MS);
     };
     const handleScroll = () => {
-      tracking.noteScroll();
+      tracking.recordScroll();
       scheduleSettle();
     };
-    const handleUserScrollInput = () => tracking.noteUserScrollInput();
+    const handleUserScrollInput = () => tracking.recordUserScrollInput();
     // A press on the container's own scrollbar targets the container itself;
     // a press on its content (a button, a field) does not scroll it
     const handlePointerDown = (event: Event) => {
       if (event.target === container) {
-        tracking.noteUserScrollInput();
+        tracking.recordUserScrollInput();
       }
     };
     // A scroll key typed into a field, or handled by a control, scrolls nothing
@@ -338,7 +338,7 @@ export function SectionNav({
           event.target.closest(EDITABLE_SELECTOR) != null
         )
       ) {
-        tracking.noteUserScrollInput();
+        tracking.recordUserScrollInput();
       }
     };
     const pauseUntilSettled = (reason: ScrollTrackingPauseReason) => {
@@ -348,7 +348,7 @@ export function SectionNav({
     // Unlike `scrollIntoView`, which also scrolls every scrollable ancestor
     // (e.g. the page around the pane), this moves only the container
     const scrollToSection = (section: HTMLElement) => {
-      pauseUntilSettled("scrollToSection");
+      pauseUntilSettled("programmaticScroll");
       const top =
         container.scrollTop +
         section.getBoundingClientRect().top -
@@ -393,7 +393,7 @@ export function SectionNav({
         : null;
       // Re-runs before the user scrolls land it in the same place again
       if (defaultSection == null) {
-        pauseUntilSettled("defaultActiveId");
+        pauseUntilSettled("heldDefault");
       } else {
         scrollToSection(defaultSection);
       }
