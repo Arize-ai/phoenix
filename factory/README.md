@@ -214,11 +214,11 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 
 ```
 agents/          one file per agent: frontmatter = config, body = system prompt; the triage agents' procedure is in .agents/skills/
-environments/    the sandbox (uv, tox, pnpm, limited networking)
+environments/    the sandbox (uv, tox, pnpm, agent-browser, limited networking)
 vaults/          the vault containers (GitHub, Grafana, Datadog); the Grafana and Datadog credentials are added by hand
 rubrics/         outcome rubrics, inlined by dispatch.py and log_scan.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
-bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a PostgreSQL instance, a capability report
+bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a PostgreSQL instance, a headless browser check, a gh that attaches screenshots, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
 github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
 review.py        admits a pull request, starts its pr-reviewer session, and reports and labels the review's verdict

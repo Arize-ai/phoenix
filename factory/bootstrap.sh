@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Prepares a factory sandbox: the Node version in .nvmrc, `make setup`, a running
-# PostgreSQL for the server and a pg_ctl for the PostgreSQL test fixtures. It ends with
-# a report of what works and how to start the server for an end-to-end probe. Anything
+# PostgreSQL for the server, a pg_ctl for the PostgreSQL test fixtures, a headless
+# browser for UI probes, and a gh that can attach screenshots to a PR. It ends with a
+# report of what works and how to start the server for an end-to-end probe. Anything
 # it reports missing is a verification gap for the PR body; CI runs the full matrix.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -60,13 +61,54 @@ if [ -n "$pg_ctl_path" ]; then
   fi
 fi
 
+# agent-browser downloads Chrome for Testing on first launch, and the sandbox's limited
+# network blocks that host, so it is pointed at the Chromium that ships with the
+# sandbox's Playwright. Chromium refuses to run as root without --no-sandbox.
+browsers_dir=${PLAYWRIGHT_BROWSERS_PATH:-/opt/pw-browsers}
+chromium_path=$(find "$browsers_dir" -maxdepth 3 -type f -name chrome 2>/dev/null | sort -V | tail -n 1)
+browser_launch=""
+browser_status="unavailable (agent-browser missing)"
+browser_log=/tmp/factory-browser.log
+if command -v agent-browser >/dev/null 2>&1; then
+  if [ -z "$chromium_path" ]; then
+    browser_status="unavailable (no Chromium under $browsers_dir)"
+  else
+    export AGENT_BROWSER_EXECUTABLE_PATH=$chromium_path
+    browser_status="failed to launch; see $browser_log"
+    for launch_args in "" "--args --no-sandbox"; do
+      agent-browser close >/dev/null 2>&1
+      # shellcheck disable=SC2086
+      if agent-browser $launch_args open about:blank >"$browser_log" 2>&1 \
+        && agent-browser screenshot /tmp/factory-browser-check.png >>"$browser_log" 2>&1; then
+        browser_status=ok
+        browser_launch="agent-browser ${launch_args:+$launch_args }open"
+        break
+      fi
+    done
+    agent-browser close >/dev/null 2>&1
+  fi
+fi
+
+# `gh pr edit --attach` uploads a screenshot into a PR body. Ubuntu's gh predates it, so
+# a release build from GitHub, which allow_package_managers permits, replaces it.
+gh_attach_version=2.103.3
+if command -v gh >/dev/null 2>&1 && ! gh pr edit --help 2>/dev/null | grep -q -- '--attach'; then
+  gh_tarball="gh_${gh_attach_version}_linux_amd64"
+  if curl -fsSL "https://github.com/cli/cli/releases/download/v$gh_attach_version/$gh_tarball.tar.gz" \
+    | tar -xz -C /tmp "$gh_tarball/bin/gh" 2>/dev/null; then
+    sudo_command=$([ -w "$(dirname "$(command -v gh)")" ] || echo sudo)
+    $sudo_command install -m 755 "/tmp/$gh_tarball/bin/gh" "$(command -v gh)"
+    hash -r
+  fi
+fi
+gh_attach_status=$(gh pr edit --help 2>/dev/null | grep -q -- '--attach' && echo ok || echo "unavailable (gh has no --attach)")
+
 echo "--- factory bootstrap report"
 echo "node: $(node --version 2>/dev/null || echo missing) (want v$node_version)"
 echo "pnpm: $(pnpm --version 2>/dev/null || echo missing)"
 echo "uv: $(uv --version 2>/dev/null || echo missing)"
-echo "gh: $(gh --version 2>/dev/null | head -n 1 | grep . || echo missing)"
+echo "gh: $(gh --version 2>/dev/null | head -n 1 | grep . || echo missing); screenshot attach: $gh_attach_status"
 echo "px: $(px --version 2>/dev/null || echo missing)"
-echo "agent-browser: $(agent-browser --version 2>/dev/null || echo missing)"
 if [ "$setup_status" -eq 0 ]; then
   echo "make setup: ok"
 else
@@ -85,5 +127,14 @@ echo "  SQLite:     PHOENIX_WORKING_DIR=/tmp/factory-phoenix PHOENIX_PORT=6006 P
 if [ "$pg_status" = ok ]; then
   echo "  PostgreSQL: PHOENIX_SQL_DATABASE_URL=$pg_url PHOENIX_PORT=6006 PHOENIX_GRPC_PORT=4317 uv run --no-sync phoenix serve &"
 fi
-echo "  wait for: curl -sf http://127.0.0.1:6006/healthz; OTLP at http://127.0.0.1:6006/v1/traces and grpc 127.0.0.1:4317; UI for agent-browser at http://127.0.0.1:6006"
-echo "  the UI needs a built frontend: run 'pnpm -C js/app run build:deps && pnpm -C js/app build' once before a browser probe, and again after frontend changes"
+echo "  wait for: curl -sf http://127.0.0.1:6006/healthz; OTLP at http://127.0.0.1:6006/v1/traces and grpc 127.0.0.1:4317; UI at http://127.0.0.1:6006"
+if [ "$browser_status" = ok ]; then
+  echo "browser: ok ($(agent-browser --version 2>/dev/null), Chromium $chromium_path)"
+  echo "  a UI probe script starts with these two lines, then uses agent-browser as 'agent-browser skills get core' describes:"
+  echo "    export AGENT_BROWSER_EXECUTABLE_PATH=$chromium_path"
+  echo "    $browser_launch http://127.0.0.1:6006"
+  echo "  the UI needs a built frontend: run 'pnpm -C js/app run build:deps && pnpm -C js/app build' once before a browser probe, and again after frontend changes"
+  echo "  end the script with 'agent-browser screenshot <path>' and 'agent-browser get text', then 'agent-browser close'"
+else
+  echo "browser: $browser_status; probe the UI through the REST or GraphQL API and list the browser steps under Not verified"
+fi
