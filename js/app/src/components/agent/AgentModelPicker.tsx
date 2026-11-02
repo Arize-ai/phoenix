@@ -3,7 +3,7 @@ import uniqBy from "lodash/uniqBy";
 import type { KeyboardEvent, RefObject } from "react";
 import { useState } from "react";
 import type { Key, PopoverProps } from "react-aria-components";
-import { MenuSection, SubmenuTrigger } from "react-aria-components";
+import { MenuSection } from "react-aria-components";
 
 import {
   Autocomplete,
@@ -22,35 +22,38 @@ import {
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
+import {
+  type CustomModelProviderPick,
+  CustomModelSubmenu,
+} from "@phoenix/components/generative/CustomModelSubmenu";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import {
+  ModelProviderIcon,
+  ModelRow,
+} from "@phoenix/components/generative/ModelPickerRow";
 import { applyBedrockModelPrefix } from "@phoenix/components/generative/modelProviderUtils";
+import {
+  buildModelCatalog,
+  buildModelProviderOptions,
+  type CustomModelOption,
+  getCustomModelOption,
+  getModelKey,
+  getModelKeyForValue,
+  type ModelCatalogRow,
+  type ModelProviderOption,
+  rankModels,
+  resolveModelRow,
+  toModelMenuValueFromRow,
+} from "@phoenix/components/generative/modelSearch";
 import { useModelMenuData } from "@phoenix/components/generative/useModelMenuData";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { getCuratedBuiltInModels } from "./agentCuratedModels";
 import {
-  DEFAULT_RECENT_AGENT_MODELS_SHOWN,
-  getAgentModelKey,
-  getAgentModelKeyForValue,
-} from "./agentModelConfig";
-import {
-  AgentModelCredentialHint,
-  AgentModelProviderIcon,
-  AgentModelRow,
-  AgentModelRowLayout,
-} from "./AgentModelPickerRow";
-import {
-  type AgentModelCatalogRow,
-  type AgentModelCustomModelOption,
-  type AgentModelProviderOption,
-  buildAgentModelCatalog,
-  buildAgentModelProviderOptions,
-  getAgentModelCustomModelOption,
-  rankAgentModels,
-  resolveAgentModelRow,
-  toAgentModelMenuValue,
-} from "./agentModelSearch";
+  AGENT_MODEL_CURATION,
+  getCuratedBuiltInModels,
+} from "./agentCuratedModels";
+import { DEFAULT_RECENT_AGENT_MODELS_SHOWN } from "./agentModelConfig";
 
 /** The popover's width when the boundary is wider (or not given). */
 const DEFAULT_POPOVER_MAX_WIDTH = 380;
@@ -67,7 +70,7 @@ const CUSTOM_MODEL_ITEM_ID = "custom-model";
 type PickerModelItem = {
   kind: "model";
   id: string;
-  row: AgentModelCatalogRow;
+  row: ModelCatalogRow;
   /** The value to emit, before the Bedrock prefix */
   value: ModelMenuValue;
 };
@@ -75,7 +78,7 @@ type PickerModelItem = {
 type PickerCustomModelItem = {
   kind: "custom-model";
   id: string;
-  option: AgentModelCustomModelOption;
+  option: CustomModelOption;
 };
 
 type PickerItem = PickerModelItem | PickerCustomModelItem;
@@ -93,13 +96,13 @@ function toModelItem({
   row,
 }: {
   sectionId: string;
-  row: AgentModelCatalogRow;
+  row: ModelCatalogRow;
 }): PickerModelItem {
   return {
     kind: "model",
     id: `${sectionId}${ITEM_ID_SEPARATOR}${row.key}`,
     row,
-    value: toAgentModelMenuValue(row),
+    value: toModelMenuValueFromRow(row),
   };
 }
 
@@ -128,11 +131,11 @@ function buildPickerSections({
   recentModelKeys,
   query,
 }: {
-  rows: readonly AgentModelCatalogRow[];
-  providers: readonly AgentModelProviderOption[];
-  recommendedRows: readonly AgentModelCatalogRow[];
-  currentRow: AgentModelCatalogRow | null;
-  recentRows: readonly AgentModelCatalogRow[];
+  rows: readonly ModelCatalogRow[];
+  providers: readonly ModelProviderOption[];
+  recommendedRows: readonly ModelCatalogRow[];
+  currentRow: ModelCatalogRow | null;
+  recentRows: readonly ModelCatalogRow[];
   recentModelKeys: readonly string[];
   query: string;
 }): PickerSection[] {
@@ -169,8 +172,8 @@ function buildPickerSections({
     }
     return sections;
   }
-  const rankedRows = rankAgentModels({ rows, query, recentModelKeys });
-  const customModelOption = getAgentModelCustomModelOption({
+  const rankedRows = rankModels({ rows, query, recentModelKeys });
+  const customModelOption = getCustomModelOption({
     query,
     providers,
   });
@@ -200,31 +203,11 @@ function buildPickerSections({
 }
 
 /**
- * The second line of a provider in the custom-model submenu: why it's first,
- * that Azure takes deployment names, or that it's a custom provider.
- */
-function getCustomModelProviderNote({
-  option,
-  isGuessed,
-}: {
-  option: AgentModelProviderOption;
-  isGuessed: boolean;
-}): string | undefined {
-  if (option.customProvider) {
-    return "Custom provider";
-  }
-  if (option.provider === "AZURE_OPENAI") {
-    return "As a deployment name";
-  }
-  return isGuessed ? "Guessed from the name" : undefined;
-}
-
-/**
  * The trigger's accessible name: `Model: <display name> (<id>), <provider>`,
  * or `Model: <id>, <provider>` for a model without a display name.
  */
 export function getAgentModelTriggerAriaLabel(
-  row: Pick<AgentModelCatalogRow, "displayName" | "modelName" | "providerName">
+  row: Pick<ModelCatalogRow, "displayName" | "modelName" | "providerName">
 ): string {
   const name = row.displayName
     ? `${row.displayName} (${row.modelName})`
@@ -298,7 +281,7 @@ export type AgentModelPickerProps = {
  * The PXI model picker, used in the chat footer and in Settings: a popover
  * with search on top. With no query it lists the current model, recent picks and the
  * curated models; typing searches every provider's models (see
- * `agentModelSearch`). The last row of a search offers the query as a custom
+ * `modelSearch`). The last row of a search offers the query as a custom
  * model name, with a submenu (on hover, ArrowRight or Enter) to pick the
  * provider to send it to.
  */
@@ -328,36 +311,49 @@ export function AgentModelPicker({
     credentialSource: "server",
   });
 
-  const providers = buildAgentModelProviderOptions({
+  const providers = buildModelProviderOptions({
     modelProviders: chatModelProviders,
     customProviders,
   });
-  const rows = buildAgentModelCatalog({
-    playgroundModels: data.playgroundModels,
+  const rows = buildModelCatalog({
+    models: data.playgroundModels,
     providers,
     customProviders,
+    curation: AGENT_MODEL_CURATION,
   });
   const rowsByKey = new Map(rows.map((row) => [row.key, row]));
   const recommendedRows = getCuratedBuiltInModels(
     data.playgroundModels
   ).flatMap((model) => {
-    const row = rowsByKey.get(getAgentModelKey(model));
+    const row = rowsByKey.get(getModelKey(model));
     return row ? [row] : [];
   });
 
   const currentModel = value.modelName ? value : null;
   const currentRow = currentModel
-    ? resolveAgentModelRow({ model: currentModel, rows, providers })
+    ? resolveModelRow({
+        model: currentModel,
+        rows,
+        providers,
+        curation: AGENT_MODEL_CURATION,
+      })
     : null;
   // Recent rows resolve like the Current row, so drop the ones that resolve
   // to the current row or to an earlier recent row
   const recentRows = uniqBy(
     recentModels
-      .map((model) => resolveAgentModelRow({ model, rows, providers }))
+      .map((model) =>
+        resolveModelRow({
+          model,
+          rows,
+          providers,
+          curation: AGENT_MODEL_CURATION,
+        })
+      )
       .filter((row) => row.key !== currentRow?.key),
     (row) => row.key
   ).slice(0, DEFAULT_RECENT_AGENT_MODELS_SHOWN);
-  const recentModelKeys = recentModels.map(getAgentModelKeyForValue);
+  const recentModelKeys = recentModels.map(getModelKeyForValue);
 
   const sections = buildPickerSections({
     rows,
@@ -448,12 +444,9 @@ export function AgentModelPicker({
   const handleCustomModelProviderPick = ({
     modelName,
     provider,
-  }: {
-    modelName: string;
-    provider: AgentModelProviderOption;
-  }) => {
+  }: CustomModelProviderPick) => {
     selectModel(
-      toAgentModelMenuValue({
+      toModelMenuValueFromRow({
         provider: provider.provider,
         customProvider: provider.customProvider,
         modelName,
@@ -520,13 +513,13 @@ export function AgentModelPicker({
  * provider has no key or no longer exists. Whether a model is recommended is
  * left to the picker's badge.
  */
-function AgentModelTriggerContent({ row }: { row: AgentModelCatalogRow }) {
+function AgentModelTriggerContent({ row }: { row: ModelCatalogRow }) {
   const showWarningDot =
     row.credentialState === "no-key" || row.isProviderMissing === true;
   return (
     <span className="agent-model-picker-trigger__content">
       {row.isProviderMissing ? null : (
-        <AgentModelProviderIcon provider={row.provider} />
+        <ModelProviderIcon provider={row.provider} />
       )}
       <span className="agent-model-picker-trigger__name">
         {row.displayName ?? row.modelName}
@@ -553,10 +546,7 @@ function AgentModelResultsMenu({
   query: string;
   selectedItemIds: readonly string[];
   onAction: (key: Key) => void;
-  onCustomModelProviderPick: (pick: {
-    modelName: string;
-    provider: AgentModelProviderOption;
-  }) => void;
+  onCustomModelProviderPick: (pick: CustomModelProviderPick) => void;
 }) {
   return (
     <Menu
@@ -584,14 +574,14 @@ function AgentModelResultsMenu({
                 id={item.id}
                 textValue={`${item.row.displayName ?? item.row.modelName}, ${item.row.providerName}`}
               >
-                <AgentModelRow
+                <ModelRow
                   row={item.row}
                   query={query}
                   showRecommendedBadge={section.showRecommendedBadge}
                 />
               </MenuItem>
             ) : (
-              <AgentCustomModelSubmenu
+              <CustomModelSubmenu
                 key={item.id}
                 id={item.id}
                 option={item.option}
@@ -602,73 +592,5 @@ function AgentModelResultsMenu({
         </MenuSection>
       ))}
     </Menu>
-  );
-}
-
-/**
- * The "Use `x` as a custom model" row and its provider submenu, which opens
- * on hover, ArrowRight or Enter. Picking a provider sends the typed name to
- * it.
- */
-function AgentCustomModelSubmenu({
-  id,
-  option,
-  onPick,
-}: {
-  id: string;
-  option: AgentModelCustomModelOption;
-  onPick: (pick: {
-    modelName: string;
-    provider: AgentModelProviderOption;
-  }) => void;
-}) {
-  const handleAction = (key: Key) => {
-    const provider = option.providers.find(
-      (candidate) => candidate.key === String(key)
-    );
-    if (provider) {
-      onPick({ modelName: option.modelName, provider });
-    }
-  };
-  return (
-    <SubmenuTrigger>
-      <MenuItem id={id} textValue={`Use ${option.modelName} as a custom model`}>
-        <AgentModelRowLayout
-          leadingVisual={<Icon svg={<Icons.Edit />} />}
-          name={`Use "${option.modelName}" as a custom model`}
-          secondary="Choose a provider"
-        />
-      </MenuItem>
-      <MenuContainer minHeight={0} minWidth={260} maxWidth={320}>
-        <Menu
-          aria-label={`Providers for ${option.modelName}`}
-          onAction={handleAction}
-        >
-          {option.providers.map((provider) => (
-            <MenuItem
-              key={provider.key}
-              id={provider.key}
-              textValue={provider.name}
-            >
-              <AgentModelRowLayout
-                leadingVisual={
-                  <AgentModelProviderIcon provider={provider.provider} />
-                }
-                name={provider.name}
-                secondary={getCustomModelProviderNote({
-                  option: provider,
-                  isGuessed: provider.key === option.guessedProviderKey,
-                })}
-                trailing={
-                  <AgentModelCredentialHint
-                    credentialState={provider.credentialState}
-                  />
-                }
-              />
-            </MenuItem>
-          ))}
-        </Menu>
-      </MenuContainer>
-    </SubmenuTrigger>
   );
 }
