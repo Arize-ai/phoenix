@@ -56,7 +56,7 @@ jobs:
             # A label added with GITHUB_TOKEN starts no workflow; it only keeps the next run of
             # this loop from dispatching the issue again before dispatch.py has commented on it.
             gh issue edit "$ISSUE" --add-label factory
-            gh workflow run factory-dispatch.yml -f issue="$ISSUE"
+            gh workflow run factory-dispatch.yml -f issue="$ISSUE" || { gh issue edit "$ISSUE" --remove-label factory; exit 1; }
             echo "#$ISSUE: dispatched, written by $AUTHOR"
             DISPATCHED=$((DISPATCHED + 1))
           done

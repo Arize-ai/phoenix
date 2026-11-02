@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   triage:
+    if: github.event.issue.user.type != 'Bot' || github.event.issue.user.login == vars.FACTORY_GITHUB_LOGIN
     uses: ./.github/workflows/claude-issue-triage.yml
     permissions:
       issues: write
