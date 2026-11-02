@@ -131,7 +131,7 @@ gh issue list --repo Arize-ai/phoenix --state open \
 ```
 
 A single-issue run skips the listing and reads its one issue in full, as Pass B
-does; truncation buys nothing when there is only one body to read.
+does.
 
 If one truncated body leaves sufficiency genuinely unclear, read **that** issue
 in full. Never widen the truncation for the whole slice to settle one case.
