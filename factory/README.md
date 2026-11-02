@@ -18,7 +18,7 @@ flowchart TB
   end
 
   subgraph actions["GitHub Actions"]
-    triage["claude-issue-triage.yml<br/>every 2 days"]
+    triage["claude-issue-triage.yml<br/>on each opened issue, and every 2 days"]
     candidates["factory-candidates.yml<br/>after each triage run"]
     dispatch["factory-dispatch.yml<br/>dispatch.py start, then watch"]
     prreview["factory-review.yml<br/>review.py start, then watch"]
@@ -95,7 +95,7 @@ Each part does one job, so it can be changed and tested on its own:
 
 | Part | Job |
 |---|---|
-| Issue triage | `claude-issue-triage.yml` labels `factory-candidate` the issues that pass [the factory-candidate policy](../.agents/skills/issue-triage/references/factory-candidate.md): specified, typed, `size:S` or `size:M`, reproducible in the sandbox, and needing no product decision |
+| Issue triage | `claude-issue-triage.yml` runs on each issue the moment it is opened, and over a slice of the backlog every 2 days. It labels `factory-candidate` the issues that pass [the factory-candidate policy](../.agents/skills/issue-triage/references/factory-candidate.md): specified, typed, `size:S` or `size:M`, reproducible in the sandbox, and needing no product decision |
 | `factory-candidates.yml` | After each triage run, dispatches up to 3 candidates the factory hasn't run on whose author has write access. Other candidates wait for a maintainer to add `factory` |
 | `dispatch.py start` | Admits the issue: the requester has write access, or for a run a workflow dispatched, the issue's author does, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it |
 | Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, opens the draft PR, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |

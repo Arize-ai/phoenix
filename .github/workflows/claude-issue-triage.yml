@@ -1,6 +1,12 @@
 name: Claude Issue Triage
 
+# Every new issue is triaged as soon as it is opened, so a factory candidate written by a
+# maintainer reaches Factory Candidates within minutes instead of waiting for the sweep, which
+# walks the backlog oldest-updated first and so reaches a new issue last. The sweep still runs
+# every 2 days to re-judge the backlog and catch anything the single-issue run missed.
 on:
+  issues:
+    types: [opened]
   schedule:
     - cron: "0 8 */2 * *" # this means "at 08:00 UTC every 2 days"
   workflow_dispatch:
@@ -25,7 +31,9 @@ on:
         default: 'on'
 
 concurrency:
-  group: claude-issue-triage
+  # One group per opened issue, so new issues triage in parallel and a burst of them does not
+  # collapse into one pending run; sweeps share a group of their own.
+  group: claude-issue-triage-${{ github.event.issue.number || 'backlog' }}
   # Do not cancel in progress: a manual backlog sweep can run for the better part of
   # an hour, and the every-2-days schedule would otherwise kill it partway through.
   cancel-in-progress: false
@@ -35,8 +43,9 @@ jobs:
     runs-on: ubuntu-latest
     # Stage 5 reads the checked-out codebase and stages 5-6 write comments and bodies,
     # so a full 50-issue run is far slower than the old label-only job. Raise this
-    # alongside `limit` for a backlog sweep.
-    timeout-minutes: 60
+    # alongside `limit` for a backlog sweep. A single opened issue needs far less, and
+    # anyone can open one, so that run is capped tighter.
+    timeout-minutes: ${{ github.event_name == 'issues' && 15 || 60 }}
     permissions:
       issues: write # Add/remove labels, edit titles and bodies, post triage comments
       contents: read # Read repo contents, and the codebase for stage 5 investigation
@@ -88,11 +97,12 @@ jobs:
             Those are the only gate policies in effect.
 
             Run scope:
+              issue:      ${{ github.event.issue.number || '(none - a slice of the backlog)' }}
               created:    ${{ inputs.created || '(none - whole backlog)' }}
-              limit:      ${{ inputs.limit || '25' }}
+              limit:      ${{ github.event.issue.number && '1' || inputs.limit || '25' }}
               sort:       ${{ inputs.created && 'created-asc' || 'updated-asc' }}
               stages:     ${{ inputs.stages || '1-7' }}
-              regression: ${{ inputs.regression || 'on' }}
+              regression: ${{ github.event.issue.number && 'off' || inputs.regression || 'on' }}
 
             Stages 5 and 6 write to public issues. Before each such write, re-read that
             issue's current title and body, and keep the reporter's words verbatim as
