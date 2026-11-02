@@ -402,12 +402,48 @@ def test_raises_on_output_that_does_not_match_the_schema(
     assert len(requests) == 1
 
 
-def test_tool_calling_accepts_output_without_a_required_field() -> None:
+@pytest.mark.parametrize(
+    "response, error",
+    [
+        pytest.param(
+            _text(
+                "",
+                "refusal",
+                stop_details={"type": "refusal", "category": "cyber", "explanation": None},
+            ),
+            "refused",
+            id="refusal",
+        ),
+        pytest.param(_text('{"label": "go', "max_tokens"), "max_tokens", id="truncated"),
+    ],
+)
+def test_auto_raises_a_refusal_or_truncation_without_falling_back(
+    response: httpx2.Response, error: str
+) -> None:
+    requests: List[Dict[str, Any]] = []
+    adapter = _sync_adapter(lambda _: response, requests)
+
+    with pytest.raises(ValueError, match=error):
+        adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.AUTO)
+    assert len(requests) == 1
+    assert "output_config" in requests[0]
+
+
+def test_tool_calling_accepts_output_without_a_required_free_text_field() -> None:
+    requests: List[Dict[str, Any]] = []
+    schema = {**_SCHEMA, "required": ["label", "explanation"]}
+    adapter = _sync_adapter(lambda _: _tool_use({"label": "good"}), requests)
+
+    result = adapter.generate_object("q", schema, method=ObjectGenerationMethod.TOOL_CALLING)
+    assert result == {"label": "good"}
+
+
+def test_tool_calling_raises_on_a_missing_required_choice_field() -> None:
     requests: List[Dict[str, Any]] = []
     adapter = _sync_adapter(lambda _: _tool_use({"explanation": "x"}), requests)
 
-    result = adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING)
-    assert result == {"explanation": "x"}
+    with pytest.raises(ValueError, match=r"missing required fields \['label'\]"):
+        adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING)
 
 
 def test_validates_tool_calling_output_against_the_schema() -> None:

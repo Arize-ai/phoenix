@@ -169,19 +169,29 @@ def _validate_object(
 ) -> Dict[str, Any]:
     """Returns the result after a partial check against the schema.
 
-    Checks that the result is an object, that it has every required field when `check_required` is
-    true, and that each top-level field with an `enum` or a choice of `const` values holds one of
-    them. Nested objects and types aren't checked.
+    Checks that the result is an object, that it has its required fields, and that each top-level
+    field with an `enum` or a choice of `const` values holds one of them. When `check_required` is
+    false, only required fields with an `enum` or a choice of `const` values must be present.
+    Nested objects and types aren't checked.
 
     Raises:
         ValueError: If the result fails one of these checks.
     """
     if not isinstance(result, dict):
         raise ValueError(f"Expected a JSON object from Anthropic, got {type(result).__name__}")
-    missing = [name for name in schema.get("required", []) if name not in result]
-    if check_required and missing:
+    properties = schema.get("properties", {})
+    missing = [
+        name
+        for name in schema.get("required", [])
+        if name not in result
+        and (
+            check_required
+            or (isinstance(properties.get(name), dict) and _allowed_values(properties[name]))
+        )
+    ]
+    if missing:
         raise ValueError(f"Anthropic output is missing required fields {missing}: {result}")
-    for name, prop in schema.get("properties", {}).items():
+    for name, prop in properties.items():
         allowed = _allowed_values(prop) if isinstance(prop, dict) else None
         if allowed is not None and name in result and result[name] not in allowed:
             raise ValueError(
