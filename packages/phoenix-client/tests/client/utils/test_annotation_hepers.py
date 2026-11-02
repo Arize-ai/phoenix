@@ -201,10 +201,8 @@ class TestAnnotationDataFrameValidation:
         with pytest.raises(ValueError, match="span_id values must be strings"):
             _validate_span_annotations_dataframe(dataframe=df)
 
-        # Mixed string and non-string values, plus an empty string: only this
-        # combination depends on the check order. Before the fix the .str accessor
-        # runs first and the empty string is what gets reported, so the case fails
-        # without the reorder; a mixed column without an empty string does not.
+        # A mixed column that also holds an empty string is the case where the
+        # empty-string check and the type check disagree; the type error must win.
         df = pd.DataFrame({"span_id": ["", 1], "label": ["positive", "negative"]})
         with pytest.raises(ValueError, match="span_id values must be strings"):
             _validate_span_annotations_dataframe(dataframe=df)
