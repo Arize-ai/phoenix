@@ -34,41 +34,53 @@ const mainCSS = css`
 `;
 
 const PROJECT_EVALUATORS_PATH = "/evaluators/project-evaluators";
+const DATASET_EVALUATORS_PATH = "/evaluators/dataset-evaluators";
 
-const TABS = ["evaluators", "project-evaluators"] as const;
+const TABS = [
+  "evaluators",
+  "project-evaluators",
+  "dataset-evaluators",
+] as const;
 type TabName = (typeof TABS)[number];
+
+const TAB_PATHS: Record<TabName, string> = {
+  evaluators: "/evaluators",
+  "project-evaluators": PROJECT_EVALUATORS_PATH,
+  "dataset-evaluators": DATASET_EVALUATORS_PATH,
+};
 
 function isTabName(name: unknown): name is TabName {
   return typeof name === "string" && (TABS as readonly string[]).includes(name);
 }
 
 /**
- * The Evaluators page's tabs: the evaluator library, and every project
- * evaluator running online across all projects.
+ * The Evaluators page's tabs: the evaluator library, every project evaluator
+ * running online across all projects, and every dataset evaluator across all
+ * datasets.
  */
 export function EvaluatorsLayout() {
   const navigate = useNavigate();
   const isProjectEvaluatorsTab = useMatch(PROJECT_EVALUATORS_PATH) != null;
+  const isDatasetEvaluatorsTab = useMatch(DATASET_EVALUATORS_PATH) != null;
   const selectedTab: TabName = isProjectEvaluatorsTab
     ? "project-evaluators"
-    : "evaluators";
+    : isDatasetEvaluatorsTab
+      ? "dataset-evaluators"
+      : "evaluators";
   return (
     <main css={mainCSS}>
       <Tabs
         selectedKey={selectedTab}
         onSelectionChange={(key) => {
           if (isTabName(key) && key !== selectedTab) {
-            navigate(
-              key === "project-evaluators"
-                ? PROJECT_EVALUATORS_PATH
-                : "/evaluators"
-            );
+            navigate(TAB_PATHS[key]);
           }
         }}
       >
         <TabList>
-          <Tab id="evaluators">Evaluators</Tab>
+          <Tab id="evaluators">All</Tab>
           <Tab id="project-evaluators">Project evaluators</Tab>
+          <Tab id="dataset-evaluators">Dataset evaluators</Tab>
         </TabList>
         <LazyTabPanel id="evaluators">
           <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
@@ -76,6 +88,11 @@ export function EvaluatorsLayout() {
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="project-evaluators">
+          <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
+            <Outlet />
+          </Suspense>
+        </LazyTabPanel>
+        <LazyTabPanel id="dataset-evaluators">
           <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
             <Outlet />
           </Suspense>

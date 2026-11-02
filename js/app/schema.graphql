@@ -5914,6 +5914,11 @@ type Query {
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID): EvaluatorConnection!
 
   """
+  Every dataset evaluator on the server, across datasets, ordered by name unless sorted. The name filter matches the dataset evaluator's name or its dataset's name.
+  """
+  datasetEvaluators(first: Int = 50, after: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
+
+  """
   Every project evaluator on the server, across projects, newest first. projectId narrows to one project.
   """
   projectEvaluators(first: Int = 100, after: String, filter: ProjectEvaluatorFilter, projectId: ID): ProjectEvaluatorConnection!

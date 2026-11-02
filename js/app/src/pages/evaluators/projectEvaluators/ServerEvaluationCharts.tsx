@@ -20,13 +20,11 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Truncate,
-  View,
 } from "@phoenix/components";
 import {
-  CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS,
+  CHART_MIN_WIDTH,
   ChartEmptyStateOverlay,
   ChartPanel,
-  ChartPanelStrip,
   ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
@@ -142,8 +140,8 @@ export function useServerEvaluationActivity({
 }
 
 /**
- * Which projects get their own series and color in the strip's charts and the
- * project picker; see {@link getServerProjectSeries}.
+ * Which projects get their own series and color in the charts and the project
+ * picker; see {@link getServerProjectSeries}.
  */
 export function useServerProjectSeries(
   data: ServerEvaluationChartsQuery$data,
@@ -172,6 +170,62 @@ export function useServerProjectSeries(
   });
 }
 
+type PickedProjectsProps = {
+  /** Projects picked to show on their own; none shows the heaviest few. */
+  pickedProjectIds: ReadonlyArray<string>;
+  /** Called to drop picks that no longer name a project with an evaluator. */
+  onPickedProjectIdsChange: (projectIds: string[]) => void;
+};
+
+function useDropStalePickedProjectIds({
+  projectSeries,
+  pickedProjectIds,
+  onPickedProjectIdsChange,
+}: PickedProjectsProps & { projectSeries: ServerProjectSeries }) {
+  const hasStalePicks =
+    projectSeries.pickedIds.length !== pickedProjectIds.length;
+  useEffect(() => {
+    if (hasStalePicks) {
+      onPickedProjectIdsChange(projectSeries.pickedIds);
+    }
+  }, [hasStalePicks, onPickedProjectIdsChange, projectSeries.pickedIds]);
+}
+
+/**
+ * Drops picked projects that no longer have an evaluator, for pages that
+ * filter by the picks without showing the charts.
+ */
+export function ServerStalePickedProjectsPruner({
+  fetchKey,
+  pickedProjectIds,
+  onPickedProjectIdsChange,
+}: PickedProjectsProps & { fetchKey: number }) {
+  const { data } = useServerEvaluationActivity({
+    fetchKey,
+    fetchPolicy: "store-or-network",
+  });
+  const projectSeries = useServerProjectSeries(data, pickedProjectIds);
+  useDropStalePickedProjectIds({
+    projectSeries,
+    pickedProjectIds,
+    onPickedProjectIdsChange,
+  });
+  return null;
+}
+
+const CHART_ROW_HEIGHT_PIXELS = 300;
+
+const chartsGridCSS = css`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(${CHART_MIN_WIDTH}px, 1fr));
+  grid-auto-rows: ${CHART_ROW_HEIGHT_PIXELS}px;
+  gap: var(--global-dimension-size-200);
+  .server-evaluation-charts__wide {
+    grid-column: 1 / -1;
+    display: grid;
+  }
+`;
+
 /**
  * Charts of the shared queue over the selected range: how full it was by
  * project, what entered and left it, and which projects used it most.
@@ -180,23 +234,15 @@ export function ServerEvaluationCharts({
   fetchKey,
   pickedProjectIds,
   onPickedProjectIdsChange,
-}: {
-  fetchKey: number;
-  /** Projects picked to show on their own; none shows the heaviest few. */
-  pickedProjectIds: ReadonlyArray<string>;
-  /** Called to drop picks that no longer name a project with an evaluator. */
-  onPickedProjectIdsChange: (projectIds: string[]) => void;
-}) {
+}: PickedProjectsProps & { fetchKey: number }) {
   const { data, timeRange, scale } = useServerEvaluationActivity({ fetchKey });
   const activity = data.evaluationActivity;
   const projectSeries = useServerProjectSeries(data, pickedProjectIds);
-  const hasStalePicks =
-    projectSeries.pickedIds.length !== pickedProjectIds.length;
-  useEffect(() => {
-    if (hasStalePicks) {
-      onPickedProjectIdsChange(projectSeries.pickedIds);
-    }
-  }, [hasStalePicks, onPickedProjectIdsChange, projectSeries.pickedIds]);
+  useDropStalePickedProjectIds({
+    projectSeries,
+    pickedProjectIds,
+    onPickedProjectIdsChange,
+  });
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const xAxisProps = {
     ...compactTimeXAxisProps,
@@ -204,13 +250,8 @@ export function ServerEvaluationCharts({
     tickFormatter: (x: number) => timeTickFormatter(new Date(x)),
   };
   return (
-    <View
-      paddingX="size-200"
-      paddingTop="size-100"
-      height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
-      flex="none"
-    >
-      <ChartPanelStrip chartCount={3}>
+    <div css={chartsGridCSS} className="server-evaluation-charts">
+      <div className="server-evaluation-charts__wide">
         <ChartPanel title="Queue size by project" fillHeight>
           <QueueSizeChart
             activity={activity}
@@ -219,16 +260,16 @@ export function ServerEvaluationCharts({
             xAxisProps={xAxisProps}
           />
         </ChartPanel>
-        <ChartPanel title="Queued vs completed" fillHeight>
-          <QueuedVsCompletedChart
-            activity={activity}
-            projectSeries={projectSeries}
-            xAxisProps={xAxisProps}
-          />
-        </ChartPanel>
-        <TopProjectsPanel activity={activity} projectSeries={projectSeries} />
-      </ChartPanelStrip>
-    </View>
+      </div>
+      <ChartPanel title="Queued vs completed" fillHeight>
+        <QueuedVsCompletedChart
+          activity={activity}
+          projectSeries={projectSeries}
+          xAxisProps={xAxisProps}
+        />
+      </ChartPanel>
+      <TopProjectsPanel activity={activity} projectSeries={projectSeries} />
+    </div>
   );
 }
 

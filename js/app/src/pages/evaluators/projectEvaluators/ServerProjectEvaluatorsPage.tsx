@@ -1,25 +1,20 @@
 import { css } from "@emotion/react";
 import type { SortingState } from "@tanstack/react-table";
 import { Suspense, useState } from "react";
-import { useSearchParams } from "react-router";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
-import { ChartPanelStripSkeleton } from "@phoenix/components/chart";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
-import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationCharts";
+import { ServerStalePickedProjectsPruner } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationCharts";
 import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationQueueStrip";
 import { ServerProjectEvaluatorsTable } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsTable";
-import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectsFilterButton";
+import { useServerPickedProjectIds } from "@phoenix/pages/evaluators/projectEvaluators/useServerPickedProjectIds";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
-
-/** The projects picked to show, repeated once per project. */
-const PROJECT_PARAM = "project";
 
 const pageCSS = css`
   flex: 1 1 auto;
@@ -55,22 +50,7 @@ function ServerProjectEvaluatorsPageContent() {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const pickedProjectIds = normalizePickedProjectIds(
-    searchParams.getAll(PROJECT_PARAM)
-  );
-  const setPickedProjectIds = (projectIds: string[]) =>
-    setSearchParams(
-      (params) => {
-        const next = new URLSearchParams(params);
-        next.delete(PROJECT_PARAM);
-        for (const projectId of normalizePickedProjectIds(projectIds)) {
-          next.append(PROJECT_PARAM, projectId);
-        }
-        return next;
-      },
-      { replace: true }
-    );
+  const { pickedProjectIds, setPickedProjectIds } = useServerPickedProjectIds();
   return (
     <QueueStatsRefreshContext.Provider value={refresh}>
       <TopNavActions>
@@ -81,13 +61,15 @@ function ServerProjectEvaluatorsPageContent() {
           refreshKey={refreshKey}
           onQueueCleared={refresh}
         />
-        <Suspense fallback={<ChartPanelStripSkeleton />}>
-          <ServerEvaluationCharts
-            fetchKey={refreshKey}
-            pickedProjectIds={pickedProjectIds}
-            onPickedProjectIdsChange={setPickedProjectIds}
-          />
-        </Suspense>
+        {pickedProjectIds.length > 0 ? (
+          <Suspense fallback={null}>
+            <ServerStalePickedProjectsPruner
+              fetchKey={refreshKey}
+              pickedProjectIds={pickedProjectIds}
+              onPickedProjectIdsChange={setPickedProjectIds}
+            />
+          </Suspense>
+        ) : null}
         <View padding="size-100" flex="none">
           <Flex direction="row" gap="size-100" alignItems="center">
             <DebouncedSearch

@@ -806,6 +806,102 @@ async def test_project_evaluators(
     ]
 
 
+async def test_dataset_evaluators(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        builtin = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        prompt = models.Prompt(name=Identifier(f"prompt-{uuid.uuid4().hex[:8]}"), metadata_={})
+        session.add_all([builtin, prompt])
+        await session.flush()
+        llm = models.LLMEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            metadata_={},
+            prompt_id=prompt.id,
+            output_configs=[],
+        )
+        alpha = models.Dataset(name="alpha", metadata_={})
+        beta = models.Dataset(name="beta", metadata_={})
+        session.add_all([llm, alpha, beta])
+        await session.flush()
+        for dataset, evaluator, name in (
+            (alpha, builtin, "relevance"),
+            (alpha, llm, "toxicity"),
+            (beta, llm, "relevance"),
+            (beta, builtin, "accuracy"),
+        ):
+            session.add(
+                models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(name),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project=models.Project(name=f"dataset-evaluator-{uuid.uuid4().hex}"),
+                )
+            )
+            await session.flush()
+
+    query = """query (
+        $first: Int, $after: String, $sort: DatasetEvaluatorSort, $filter: DatasetEvaluatorFilter
+    ) {
+        datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {
+            edges { node { name dataset { name } } }
+            pageInfo { hasNextPage endCursor }
+        }
+    }"""
+
+    async def page(**variables: Any) -> tuple[list[tuple[str, str]], dict[str, Any]]:
+        response = await gql_client.execute(query, variables)
+        assert not response.errors and response.data
+        connection = response.data["datasetEvaluators"]
+        return [
+            (edge["node"]["name"], edge["node"]["dataset"]["name"]) for edge in connection["edges"]
+        ], connection["pageInfo"]
+
+    by_name = [
+        ("accuracy", "beta"),
+        ("relevance", "alpha"),
+        ("relevance", "beta"),
+        ("toxicity", "alpha"),
+    ]
+    assert (await page())[0] == by_name
+
+    paged: list[tuple[str, str]] = []
+    after = None
+    while True:
+        rows, page_info = await page(first=1, after=after)
+        paged.extend(rows)
+        if not page_info["hasNextPage"]:
+            break
+        after = page_info["endCursor"]
+    assert paged == by_name
+
+    assert (await page(filter={"col": "name", "value": "TOX"}))[0] == [("toxicity", "alpha")]
+    assert (await page(filter={"col": "name", "value": "BETA"}))[0] == [
+        ("accuracy", "beta"),
+        ("relevance", "beta"),
+    ]
+    assert (await page(sort={"col": "kind", "dir": "asc"}))[0] == [
+        ("relevance", "alpha"),
+        ("accuracy", "beta"),
+        ("toxicity", "alpha"),
+        ("relevance", "beta"),
+    ]
+    assert (await page(sort={"col": "name", "dir": "desc"}))[0] == [
+        ("toxicity", "alpha"),
+        ("relevance", "alpha"),
+        ("relevance", "beta"),
+        ("accuracy", "beta"),
+    ]
+
+
 async def test_agents_config_returns_env_values(
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,

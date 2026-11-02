@@ -117,27 +117,27 @@ const DatasetEvaluatorsEmpty = ({
   onSelectCodeEvaluator,
   hasActiveFilter,
 }: {
-  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  builtInEvaluators?: DatasetEvaluatorsPage_builtInEvaluators$data;
   onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
   hasActiveFilter: boolean;
 }) => {
-  const codeEvaluators = builtInEvaluators.builtInEvaluators;
-  const llmEvaluatorTemplates =
-    builtInEvaluators.classificationEvaluatorConfigs;
-
-  // If there's an active filter, show a simple "no results" message
-  if (hasActiveFilter) {
+  if (hasActiveFilter || !builtInEvaluators) {
     return (
       <TableEmptyWrap>
         <CompactEmptyState
           icon={<Icon svg={<Icons.Scale />} />}
-          description="No evaluators"
-          isFiltered
+          description={
+            builtInEvaluators ? "No evaluators" : "No dataset evaluators"
+          }
+          isFiltered={hasActiveFilter}
         />
       </TableEmptyWrap>
     );
   }
+  const codeEvaluators = builtInEvaluators.builtInEvaluators;
+  const llmEvaluatorTemplates =
+    builtInEvaluators.classificationEvaluatorConfigs;
 
   // Otherwise, show the template selection grid
   return (
@@ -215,6 +215,10 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           username
           profilePictureUrl
         }
+        dataset {
+          id
+          name
+        }
         evaluator {
           id
           name
@@ -264,6 +268,24 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
 
 export type TableRow = ReturnType<typeof readRow>;
 
+const datasetColumn: ColumnDef<TableRow> = {
+  id: "dataset",
+  header: "dataset",
+  accessorFn: (row) => row.dataset.name,
+  size: 180,
+  enableSorting: false,
+  cell: ({ row }) => (
+    <StopPropagation>
+      <Link to={`/datasets/${row.original.dataset.id}`}>
+        <Flex direction="row" gap="size-50" alignItems="center">
+          <Icon svg={<Icons.Database />} />
+          <Truncate maxWidth="100%">{row.original.dataset.name}</Truncate>
+        </Flex>
+      </Link>
+    </StopPropagation>
+  ),
+};
+
 type DatasetEvaluatorsTableProps = {
   /**
    * Relay fragment references for the evaluator rows to display in the table.
@@ -273,9 +295,10 @@ type DatasetEvaluatorsTableProps = {
    */
   rowReferences: DatasetEvaluatorsTable_row$key[];
   /**
-   * Built-in evaluators data to display in the empty state.
+   * Built-in evaluators to offer in the empty state. Without them the empty
+   * state is a plain message.
    */
-  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  builtInEvaluators?: DatasetEvaluatorsPage_builtInEvaluators$data;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
@@ -287,7 +310,12 @@ type DatasetEvaluatorsTableProps = {
     filter?: DatasetEvaluatorFilter | null;
   }) => void;
   onRowClick?: (row: TableRow) => void;
-  datasetId: string;
+  /**
+   * The dataset every row belongs to. Without it, rows may come from any
+   * dataset: a dataset column shows each row's dataset and rows have no
+   * edit or delete menu.
+   */
+  datasetId?: string;
   /**
    * If provided, these connections will be updated when a row is edited or deleted.
    */
@@ -347,12 +375,15 @@ export const DatasetEvaluatorsTable = ({
         size: 200,
         cell: ({ getValue, row }) => {
           return (
-            <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
+            <Link
+              to={`/datasets/${row.original.dataset.id}/evaluators/${row.original.id}`}
+            >
               <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
           );
         },
       },
+      ...(datasetId ? [] : [datasetColumn]),
       {
         header: "kind",
         accessorKey: "kind", // special case for sorting that's handled by the backend
@@ -481,37 +512,32 @@ export const DatasetEvaluatorsTable = ({
         cell: TimestampCell,
       },
     ];
-    if (datasetId) {
-      // Pinned to the right edge like the prompts table's actions column.
-      cols.push({
-        header: "",
-        id: ACTIONS_COLUMN_ID,
-        size: 150,
-        enableSorting: false,
-        cell: ({ row }) => (
-          <Flex
-            direction="row"
-            gap="size-100"
-            justifyContent="end"
-            width="100%"
-          >
-            {/* TODO: support opening a decision evaluator as a playground evaluator task. */}
-            {row.original.evaluator.kind !== "BUILTIN" &&
-            row.original.evaluator.kind !== "DECISION" ? (
-              <StopPropagation>
-                <LinkButton
-                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                  size="S"
-                  aria-label="Open in playground"
-                  to={`/playground?${new URLSearchParams({
-                    datasetId,
-                    datasetEvaluator0: row.original.id,
-                  })}`}
-                >
-                  Playground
-                </LinkButton>
-              </StopPropagation>
-            ) : null}
+    // Pinned to the right edge like the prompts table's actions column.
+    cols.push({
+      header: "",
+      id: ACTIONS_COLUMN_ID,
+      size: datasetId ? 150 : 130,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
+          {/* TODO: support opening a decision evaluator as a playground evaluator task. */}
+          {row.original.evaluator.kind !== "BUILTIN" &&
+          row.original.evaluator.kind !== "DECISION" ? (
+            <StopPropagation>
+              <LinkButton
+                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                size="S"
+                aria-label="Open in playground"
+                to={`/playground?${new URLSearchParams({
+                  datasetId: row.original.dataset.id,
+                  datasetEvaluator0: row.original.id,
+                })}`}
+              >
+                Playground
+              </LinkButton>
+            </StopPropagation>
+          ) : null}
+          {datasetId ? (
             <DatasetEvaluatorActionMenu
               datasetEvaluatorId={row.original.id}
               datasetId={datasetId}
@@ -519,10 +545,10 @@ export const DatasetEvaluatorsTable = ({
               evaluatorName={row.original.name}
               updateConnectionIds={updateConnectionIds}
             />
-          </Flex>
-        ),
-      });
-    }
+          ) : null}
+        </Flex>
+      ),
+    });
     return cols;
   }, [datasetId, updateConnectionIds]);
 

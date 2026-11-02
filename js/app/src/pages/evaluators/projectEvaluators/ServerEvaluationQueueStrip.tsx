@@ -1,8 +1,17 @@
 import { css } from "@emotion/react";
 import { Suspense, useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { useLocation } from "react-router";
 
-import { Alert, Flex, Text, View } from "@phoenix/components";
+import {
+  Alert,
+  Flex,
+  Icon,
+  Icons,
+  LinkButton,
+  Text,
+  View,
+} from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
@@ -37,6 +46,8 @@ const stripCSS = css`
   row-gap: var(--global-dimension-size-150);
 `;
 
+const HEALTH_PATH = "/evaluators/project-evaluators/health";
+
 /**
  * The server-wide queue strip: the one queue every project's evaluators share,
  * how fast it fills and drains, how stale results are, and what evaluations
@@ -52,6 +63,7 @@ export function ServerEvaluationQueueStrip({
   onQueueCleared: () => void;
 }) {
   const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
+  const { search } = useLocation();
   // Read by the clear button, which stays outside the stats' error boundary
   // so a failed poll can't take the only clear-all control with it.
   const [clearableCount, setClearableCount] = useState<number | null>(null);
@@ -86,10 +98,19 @@ export function ServerEvaluationQueueStrip({
             />
           </Suspense>
         </ErrorBoundary>
-        <ClearAllQueuedEvaluationsButton
-          isQueueEmpty={clearableCount === 0}
-          onCleared={onQueueCleared}
-        />
+        <Flex direction="row" gap="size-100" alignItems="center" flex="none">
+          <ClearAllQueuedEvaluationsButton
+            isQueueEmpty={clearableCount === 0}
+            onCleared={onQueueCleared}
+          />
+          <LinkButton
+            size="S"
+            to={`${HEALTH_PATH}${search}`}
+            trailingVisual={<Icon svg={<Icons.ChevronRight />} />}
+          >
+            View health
+          </LinkButton>
+        </Flex>
       </Flex>
     </View>
   );

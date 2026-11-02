@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<04e043ab2b46fa908f79af6bc1e05106>>
+ * @generated SignedSource<<70456c9be3a57f28346ecf81387f6066>>
  * @lightSyntaxTransform
  */
 
@@ -81,25 +81,29 @@ v7 = {
   "name": "updatedAt",
   "storageKey": null
 },
-v8 = {
+v8 = [
+  (v2/*:: as any*/),
+  (v5/*:: as any*/)
+],
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v9 = [
+v10 = [
   (v5/*:: as any*/),
   (v2/*:: as any*/)
 ],
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -227,6 +231,16 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "Dataset",
+                            "kind": "LinkedField",
+                            "name": "dataset",
+                            "plural": false,
+                            "selections": (v8/*:: as any*/),
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
                             "name": "evaluator",
@@ -235,7 +249,7 @@ return {
                               (v3/*:: as any*/),
                               (v2/*:: as any*/),
                               (v5/*:: as any*/),
-                              (v8/*:: as any*/),
+                              (v9/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -254,10 +268,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "prompt",
                                     "plural": false,
-                                    "selections": [
-                                      (v2/*:: as any*/),
-                                      (v5/*:: as any*/)
-                                    ],
+                                    "selections": (v8/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -267,7 +278,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "promptVersionTag",
                                     "plural": false,
-                                    "selections": (v9/*:: as any*/),
+                                    "selections": (v10/*:: as any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -278,8 +289,8 @@ return {
                                     "name": "promptVersion",
                                     "plural": false,
                                     "selections": [
-                                      (v10/*:: as any*/),
                                       (v11/*:: as any*/),
+                                      (v12/*:: as any*/),
                                       (v2/*:: as any*/)
                                     ],
                                     "storageKey": null
@@ -314,11 +325,11 @@ return {
                                         "kind": "LinkedField",
                                         "name": "decision",
                                         "plural": false,
-                                        "selections": (v9/*:: as any*/),
+                                        "selections": (v10/*:: as any*/),
                                         "storageKey": null
                                       },
-                                      (v10/*:: as any*/),
-                                      (v11/*:: as any*/)
+                                      (v11/*:: as any*/),
+                                      (v12/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -459,7 +470,7 @@ return {
           (v2/*:: as any*/),
           (v5/*:: as any*/),
           (v6/*:: as any*/),
-          (v8/*:: as any*/)
+          (v9/*:: as any*/)
         ],
         "storageKey": null
       },
@@ -556,12 +567,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "55f4984417de8da29de560796187290f",
+    "cacheID": "ed865ee5105bebca45c33463f71aa2e5",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query datasetEvaluatorsLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      ...DatasetEvaluatorsTable_evaluators\n    }\n  }\n  ...AddEvaluatorMenu_query\n  ...DatasetEvaluatorsPage_builtInEvaluators\n}\n\nfragment AddEvaluatorMenu_codeEvaluatorTemplates on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n    kind\n  }\n}\n\nfragment AddEvaluatorMenu_llmEvaluatorTemplates on Query {\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment AddEvaluatorMenu_query on Query {\n  ...AddEvaluatorMenu_codeEvaluatorTemplates\n  ...AddEvaluatorMenu_llmEvaluatorTemplates\n}\n\nfragment DatasetEvaluatorsPage_builtInEvaluators on Query {\n  builtInEvaluators {\n    id\n    name\n    description\n  }\n  classificationEvaluatorConfigs(labels: [\"promoted_dataset_evaluator\"]) {\n    name\n    description\n    choices\n    optimizationDirection\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators on Dataset {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
