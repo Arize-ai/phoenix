@@ -47,6 +47,8 @@ beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-untag-test-"));
   vi.stubEnv("XDG_CONFIG_HOME", tmpDir);
   vi.stubEnv(ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES, "true");
+  useServerVersion("14.0.0");
+  useVersionTags([TAG_NAME]);
 });
 
 afterEach(() => {
@@ -56,6 +58,43 @@ afterEach(() => {
   setStdinIsTTY(originalIsTTY);
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
+
+/** Answer the client's server-version probe so the route gate can pass. */
+function useServerVersion(version: string) {
+  mock.server.use(
+    http.get("/arize_phoenix_version", ({ response }) =>
+      response.untyped(new Response(version, { status: 200 }))
+    )
+  );
+}
+
+/**
+ * Answer GET /v1/prompt_versions/{id}/tags with the given tag names, one page
+ * per entry of `pages`, and record which versions were looked up.
+ */
+function useVersionTags(...pages: string[][]) {
+  const captured: { promptVersionIds: string[] } = { promptVersionIds: [] };
+  mock.server.use(
+    http.get(
+      "/v1/prompt_versions/{prompt_version_id}/tags",
+      ({ params, request, response }) => {
+        captured.promptVersionIds.push(params.prompt_version_id);
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        const pageIndex = cursor ? Number(cursor) : 0;
+        const names = pages[pageIndex] ?? [];
+        return response(200).json({
+          data: names.map((name, index) => ({
+            id: `tag-${pageIndex}-${index}`,
+            name,
+          })),
+          next_cursor:
+            pageIndex + 1 < pages.length ? String(pageIndex + 1) : null,
+        });
+      }
+    )
+  );
+  return captured;
+}
 
 /**
  * Register a DELETE /v1/prompt_versions/{id}/tags/{tag_name} handler that
@@ -83,11 +122,11 @@ function captureTagDelete() {
   return captured;
 }
 
-function respondToTagDelete(status: number, message: string) {
+function respondToTagDelete(status: number) {
   mock.server.use(
     http.delete(
       "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}",
-      ({ response }) => response.untyped(new HttpResponse(message, { status }))
+      ({ response }) => response.untyped(new HttpResponse(null, { status }))
     )
   );
 }
@@ -143,6 +182,7 @@ describe("prompt untag", () => {
   });
 
   it("URL-encodes both path params", async () => {
+    useVersionTags(["a/b c"]);
     const captured = captureTagDelete();
     captureCliOutput();
 
@@ -164,30 +204,79 @@ describe("prompt untag", () => {
     );
   });
 
-  it.each([
-    ["tag", "Tag 'production' not found for prompt version"],
-    ["version", "Prompt version not found"],
-  ])(
-    "exits FAILURE and reports the server error when the %s is missing",
-    async (_missing, message) => {
-      respondToTagDelete(404, message);
-      const io = captureCliOutput();
-      const exitSpy = mockProcessExit();
+  it("looks up the version's tags and deletes when the tag is on that version", async () => {
+    const lookup = useVersionTags(["staging", TAG_NAME]);
+    const captured = captureTagDelete();
+    captureCliOutput();
 
-      await expect(
-        createPromptCommand().parseAsync(UNTAG_ARGS, { from: "user" })
-      ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+    await createPromptCommand().parseAsync(UNTAG_ARGS, { from: "user" });
 
-      expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
-      expect(io.stdout).not.toHaveBeenCalled();
-      expect(io.stderr).toHaveBeenCalledWith(
-        expect.stringMatching(/^Error deleting prompt version tag: .*404/)
-      );
-    }
-  );
+    expect(lookup.promptVersionIds).toEqual([PROMPT_VERSION_ID]);
+    expect(captured.calls).toBe(1);
+    expect(captured.promptVersionId).toBe(PROMPT_VERSION_ID);
+    expect(captured.tagName).toBe(TAG_NAME);
+  });
 
-  it("exits FAILURE when the server rejects an invalid prompt version ID", async () => {
-    respondToTagDelete(422, "Invalid prompt version ID");
+  it("follows tag pagination before deciding", async () => {
+    const lookup = useVersionTags(["staging"], [TAG_NAME]);
+    const captured = captureTagDelete();
+    captureCliOutput();
+
+    await createPromptCommand().parseAsync(UNTAG_ARGS, { from: "user" });
+
+    expect(lookup.promptVersionIds).toHaveLength(2);
+    expect(captured.calls).toBe(1);
+  });
+
+  it("refuses with INVALID_ARGUMENT and sends no DELETE when the tag is not on the given version", async () => {
+    useVersionTags(["staging"]);
+    const captured = captureTagDelete();
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createPromptCommand().parseAsync(UNTAG_ARGS, { from: "user" })
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(captured.calls).toBe(0);
+    expect(io.stdout).not.toHaveBeenCalled();
+    expect(io.stderr).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Tag "${TAG_NAME}" is not on prompt version ${PROMPT_VERSION_ID}`
+      )
+    );
+    expect(io.stderr).toHaveBeenCalledWith(
+      expect.stringContaining("Nothing was removed")
+    );
+  });
+
+  it("refuses before asking for confirmation", async () => {
+    useVersionTags([]);
+    const captured = captureTagDelete();
+    captureCliOutput();
+    setStdinIsTTY(true);
+    confirmMock.mockResolvedValue(true);
+    mockProcessExit();
+
+    await expect(
+      createPromptCommand().parseAsync(
+        ["untag", PROMPT_VERSION_ID, "--tag", TAG_NAME, ...BASE_ARGS],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(captured.calls).toBe(0);
+  });
+
+  it("exits FAILURE and sends no DELETE when the version lookup returns 404", async () => {
+    mock.server.use(
+      http.get("/v1/prompt_versions/{prompt_version_id}/tags", ({ response }) =>
+        response.untyped(new HttpResponse(null, { status: 404 }))
+      )
+    );
+    const captured = captureTagDelete();
     const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
@@ -196,8 +285,44 @@ describe("prompt untag", () => {
     ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(captured.calls).toBe(0);
     expect(io.stderr).toHaveBeenCalledWith(
-      expect.stringMatching(/^Error deleting prompt version tag: .*422/)
+      expect.stringMatching(/^Error deleting prompt version tag: .*404/)
+    );
+  });
+
+  it.each([404, 422])("exits FAILURE on %i from the DELETE", async (status) => {
+    respondToTagDelete(status);
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createPromptCommand().parseAsync(UNTAG_ARGS, { from: "user" })
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(io.stdout).not.toHaveBeenCalled();
+    expect(io.stderr).toHaveBeenCalledWith(
+      expect.stringMatching(
+        new RegExp(`^Error deleting prompt version tag: .*${status}`)
+      )
+    );
+  });
+
+  it("exits FAILURE without sending a DELETE when the server predates the route", async () => {
+    useServerVersion("13.19.0");
+    const captured = captureTagDelete();
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createPromptCommand().parseAsync(UNTAG_ARGS, { from: "user" })
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(captured.calls).toBe(0);
+    expect(io.stderr).toHaveBeenCalledWith(
+      expect.stringContaining("requires Phoenix server >= 13.20.0")
     );
   });
 

@@ -765,7 +765,7 @@ The `text` format outputs prompt content with XML-style role tags, ideal for pip
 
 ### `px prompt untag <prompt_version_id> --tag <tag_name>`
 
-Delete a tag from a prompt version. Prints `{deleted: true, prompt_version_id, tag_name}` on success.
+Delete a tag from a prompt version. Prints `{deleted: true, prompt_version_id, tag_name}` on success. If the tag is not attached to the given version (tag names are unique per prompt, so it may point at another version), the command exits `3` (`INVALID_ARGUMENT`) without removing anything. Requires Phoenix server 13.20.0 or later.
 
 ```bash
 px prompt untag UHJvbXB0VmVyc2lvbjox --tag production                     # Prompts for confirmation

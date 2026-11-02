@@ -1,4 +1,5 @@
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
+import { deletePromptVersionTag } from "@arizeai/phoenix-client/prompts";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
@@ -8,8 +9,13 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import {
+  ExitCode,
+  getExitCodeForError,
+  InvalidArgumentError,
+} from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { getResponseErrorMessage } from "./annotationMutations";
 import { formatPromptOutput, type OutputFormat } from "./formatPrompt";
 import { formatPromptsOutput } from "./formatPrompts";
 import {
@@ -329,7 +335,62 @@ async function promptDeleteHandler(
 }
 
 /**
+ * Fetch one page of the tags attached to a prompt version.
+ */
+async function fetchPromptVersionTagPage(
+  client: PhoenixClient,
+  promptVersionId: string,
+  cursor: string | null
+): Promise<{ names: string[]; nextCursor: string | null }> {
+  const response = await client.GET(
+    "/v1/prompt_versions/{prompt_version_id}/tags",
+    {
+      params: {
+        path: { prompt_version_id: promptVersionId },
+        query: cursor ? { cursor } : {},
+      },
+    }
+  );
+  if (response.error || !response.data) {
+    throw new Error(
+      `Failed to list tags for prompt version ${promptVersionId}: ${getResponseErrorMessage(response.error)}`
+    );
+  }
+  return {
+    names: response.data.data.map((tag) => tag.name),
+    nextCursor: response.data.next_cursor,
+  };
+}
+
+/**
+ * Fetch the names of all tags attached to a prompt version, following
+ * pagination.
+ */
+async function fetchPromptVersionTagNames(
+  client: PhoenixClient,
+  promptVersionId: string
+): Promise<string[]> {
+  const names: string[] = [];
+  let cursor: string | null = null;
+  do {
+    const page = await fetchPromptVersionTagPage(
+      client,
+      promptVersionId,
+      cursor
+    );
+    names.push(...page.names);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return names;
+}
+
+/**
  * Handler for `prompt untag`
+ *
+ * Tag names are unique per prompt and the server deletes the prompt-scoped
+ * tag wherever it points, using the version only to find the prompt. To keep
+ * "remove this tag from this version" true, the handler first checks that the
+ * tag is attached to the given version and refuses otherwise.
  */
 async function promptUntagHandler(
   promptVersionId: string,
@@ -356,6 +417,18 @@ async function promptUntagHandler(
     const client = createPhoenixClient({ config });
     const tagName = options.tag;
 
+    const versionTagNames = await fetchPromptVersionTagNames(
+      client,
+      promptVersionId
+    );
+    if (!versionTagNames.includes(tagName)) {
+      throw new InvalidArgumentError(
+        `Tag "${tagName}" is not on prompt version ${promptVersionId}. Nothing was removed. ` +
+          `Tag names are unique per prompt, so it may point at another version of this prompt; ` +
+          `run px prompt untag with that version's ID to remove it.`
+      );
+    }
+
     await confirmOrExit({
       message: `Delete tag "${tagName}" from prompt version ${promptVersionId}? This cannot be undone.`,
       yes: options.yes,
@@ -366,23 +439,11 @@ async function promptUntagHandler(
       noProgress: !options.progress,
     });
 
-    const response = await client.DELETE(
-      "/v1/prompt_versions/{prompt_version_id}/tags/{tag_name}",
-      {
-        params: {
-          path: {
-            prompt_version_id: promptVersionId,
-            tag_name: tagName,
-          },
-        },
-      }
-    );
-
-    if (response.error) {
-      throw new Error(
-        `Failed to delete tag "${tagName}" from prompt version ${promptVersionId}: ${response.error}`
-      );
-    }
+    await deletePromptVersionTag({
+      client,
+      prompt: { versionId: promptVersionId },
+      name: tagName,
+    });
 
     writeOutput({
       message: formatPromptVersionTagDeleteOutput({
@@ -463,7 +524,9 @@ export function createPromptUntagCommand(): Command {
       "after",
       "\nExamples:\n" +
         "  px prompt untag UHJvbXB0VmVyc2lvbjox --tag production\n" +
-        "  px prompt untag UHJvbXB0VmVyc2lvbjox --tag staging --yes --format raw --no-progress\n"
+        "  px prompt untag UHJvbXB0VmVyc2lvbjox --tag staging --yes --format raw --no-progress\n" +
+        "\nTag names are unique per prompt. If the tag is not attached to the given\n" +
+        "version, the command exits 3 (INVALID_ARGUMENT) and removes nothing.\n"
     )
     .action(promptUntagHandler);
 }

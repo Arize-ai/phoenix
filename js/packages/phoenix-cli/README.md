@@ -504,6 +504,8 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 
 Delete a tag from a prompt version. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed. On success it prints `{deleted: true, prompt_version_id, tag_name}`.
 
+Tag names are unique per prompt, and the server removes the prompt's tag wherever it currently points. To avoid removing a tag from a different version than the one you named, the command first lists the tags on `<prompt-version-id>`: if `--tag` is not attached to that version, it exits `3` (`INVALID_ARGUMENT`), removes nothing, and sends no delete request. Requires Phoenix server 13.20.0 or later.
+
 ```bash
 # Delete with an interactive confirmation prompt
 px prompt untag UHJvbXB0VmVyc2lvbjox --tag production
