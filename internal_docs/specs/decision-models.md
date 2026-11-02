@@ -1359,7 +1359,13 @@ When an experiment starts or resumes, it loads each attached decision evaluator
 as it is at that moment, the same way it loads LLM, code, and built-in
 evaluators: the judge's selected version and scoring policy, and the binding's
 name and input mapping. A binding deleted before a resume is no longer attached,
-so the resume does not run it. Credentials are resolved through the connection
+so the resume does not run it. A binding deleted while the experiment is running
+keeps scoring until the experiment stops, because the run loaded it at start; the
+logs written for it after the deletion are dropped. On SQLite, a binding created
+in that window can reuse the deleted binding's ID and receive those logs. That is
+accepted: it affects only log messages from a run already in progress, and
+preventing it would need a table rebuild.
+Credentials are resolved through the connection
 system at execution time. Each annotation records the judge, decision version,
 and binding that produced it in `metadata.decision.source` (see [Evaluator
 Annotation Metadata](#56-evaluator-annotation-metadata)).
