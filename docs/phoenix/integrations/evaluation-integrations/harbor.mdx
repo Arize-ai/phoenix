@@ -143,6 +143,10 @@ Each experiment's metadata describes the Harbor job and the agent configuration,
 | `resume_trajectory` | boolean | True if multi-step tasks resume the previous step's session. |
 | `load_trajectory` | string or null | The trajectory loaded before the first step. |
 | `extra_allowed_hosts` | list of strings | Extra hosts the agent can reach during its run. |
+| `base_url` | string or null | The inference endpoint, without embedded credentials. Requires Harbor 0.25 or later. |
+| `model_api_format` | string or null | The model API format, such as `openai_responses`. Requires Harbor 0.25 or later. |
+| `skip_model_parsing` | boolean or null | True if Harbor passes the model string unchanged, without resolving its provider. Requires Harbor 0.25 or later. |
+| `model_api_key_name` | string or null | The name of the environment variable that holds the model API key. The key itself is never recorded. Requires Harbor 0.25 or later. |
 
 `model_params` collects these keys: `temperature`, `top_p`, `top_k`, `max_tokens`, `max_output_tokens`, `max_completion_tokens`, `max_thinking_tokens`, `reasoning_effort`, `seed`, `frequency_penalty`, `presence_penalty`, and `stop`. The plugin reads each one from the top-level agent kwargs first, then from `llm_kwargs`, and then from `llm_call_kwargs`. For example, `--agent-kwarg temperature=0.2` is recorded as `harbor_agent.model_params.temperature`.
 

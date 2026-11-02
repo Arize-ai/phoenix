@@ -79,13 +79,12 @@ _TOKEN_COUNT_SEGMENTS = frozenset({"budget", "count", "limit", "max", "min", "n"
 # The second branch splits an acronym from the word after it: ``OpenAIKey``.
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 _SEGMENT_SEPARATOR = re.compile(r"[^a-z0-9]+")
-# Userinfo runs to the last ``@`` before the path, query, or fragment. A
-# password may also contain ``/``, so after a ``user:`` prefix that isn't a
-# ``host:port`` it runs to the last ``@`` before the query or fragment. The
-# length bound keeps matching linear on long strings without whitespace.
-_URL_USERINFO = re.compile(
-    r"(?<=://)(?:[^\s/?#:@]{0,256}:(?!\d+(?:[/?#\s]|$))[^\s?#]{0,256}|[^\s/?#]{0,256})@"
-)
+_SCHEME_SEPARATOR = re.compile(r"://")
+_AUTHORITY_END = re.compile(r"[\s/?#]")
+_QUERY_START = re.compile(r"[\s?#]")
+# Bounds the search for a password that contains ``/``, which keeps redaction
+# linear on long strings.
+_MAX_USERINFO_LENGTH = 256
 # Parameters follow ``?``, ``&``, or ``;`` in a query, or ``#`` in an OAuth fragment.
 _QUERY_PARAM = re.compile(r"(?<=[?&;#])([^=&;#\s]+)=[^&;#\s]*")
 _REDACTED = "REDACTED"
@@ -170,7 +169,47 @@ def _to_plain(value: Any) -> Any:
 
 
 def _redact_string(value: str) -> str:
-    return _QUERY_PARAM.sub(_redact_query_param, _URL_USERINFO.sub("", value))
+    return _QUERY_PARAM.sub(_redact_query_param, _strip_url_userinfo(value))
+
+
+def _strip_url_userinfo(text: str) -> str:
+    parts: list[str] = []
+    position = 0
+    for separator in _SCHEME_SEPARATOR.finditer(text):
+        start = separator.end()
+        if start < position:
+            continue
+        userinfo_end = _userinfo_end(text, start)
+        if userinfo_end is not None:
+            parts.append(text[position:start])
+            position = userinfo_end
+    parts.append(text[position:])
+    return "".join(parts)
+
+
+def _userinfo_end(text: str, start: int) -> int | None:
+    """Returns the index after the userinfo of the URL authority at ``start``.
+
+    Userinfo runs to the last ``@`` in the authority. When the authority has no
+    ``@`` but looks like ``user:password`` rather than ``host:port`` or an IPv6
+    host, the password might contain ``/``, so userinfo runs to the next ``@``
+    before the query or fragment.
+    """
+    authority_end = _AUTHORITY_END.search(text, start)
+    stop = authority_end.start() if authority_end else len(text)
+    at = text.rfind("@", start, stop)
+    if at != -1:
+        return at + 1
+    authority = text[start:stop]
+    _, colon, port = authority.partition(":")
+    if not colon or port.isdigit() or authority.startswith("["):
+        return None
+    limit = min(len(text), stop + _MAX_USERINFO_LENGTH)
+    query_start = _QUERY_START.search(text, stop, limit)
+    if query_start:
+        limit = query_start.start()
+    at = text.find("@", stop, limit)
+    return at + 1 if at != -1 else None
 
 
 def _redact_query_param(match: re.Match[str]) -> str:

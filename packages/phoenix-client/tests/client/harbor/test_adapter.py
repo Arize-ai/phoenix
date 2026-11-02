@@ -40,7 +40,7 @@ from phoenix.client.harbor._agent_metadata import (
     redacted_key_paths,
 )
 from phoenix.client.harbor._errors import HarborPluginError
-from phoenix.client.harbor._model import TaskRecord
+from phoenix.client.harbor._model import ExperimentSlice, TaskRecord
 
 
 class Parser(Enum):
@@ -328,10 +328,38 @@ class TestSlices:
             "https://host:8080/users/@me",
             "http://localhost:8080/v1/@scope/pkg",
             "https://github.com/org/skills@v1",
+            "http://[::1]:8080/@x",
         ],
     )
     def test_urls_without_userinfo_are_unchanged(self, url: str) -> None:
         assert redact_secrets(url) == url
+
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("https://u:ZZQ123@h/p@q", "https://h/p@q"),
+            ("http://u:ZZQ123@[::1]:8080/x", "http://[::1]:8080/x"),
+            ("see https://a:ZZQ123@h/x and https://ZZQ123@i/y", "see https://h/x and https://i/y"),
+        ],
+    )
+    def test_userinfo_is_stripped_without_touching_the_path(self, url: str, expected: str) -> None:
+        assert redact_secrets(url) == expected
+
+    def test_inference_endpoint_settings_are_recorded(self) -> None:
+        # Harbor 0.25 added these fields; inject them so older versions test too.
+        config = agent().model_copy(
+            update={
+                "base_url": "https://u:ZZQ123@llm.example.com/v1",
+                "model_api_format": "openai_responses",
+                "skip_model_parsing": True,
+                "model_api_key_name": "OPENAI_API_KEY",
+            }
+        )
+        described = ExperimentSlice(identity_digest="sha256:x", agent=config).describe()
+        assert described["base_url"] == "https://llm.example.com/v1"
+        assert described["model_api_format"] == "openai_responses"
+        assert described["skip_model_parsing"] is True
+        assert described["model_api_key_name"] == "OPENAI_API_KEY"
 
     def test_non_finite_floats_become_strings(self) -> None:
         kwargs = {"temperature": float("nan"), "limit": float("inf")}

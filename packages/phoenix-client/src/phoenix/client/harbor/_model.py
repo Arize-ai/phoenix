@@ -153,6 +153,11 @@ class ExperimentSlice:
             "resume_trajectory": agent.resume_trajectory,
             "load_trajectory": redact_secrets(agent.load_trajectory),
             "extra_allowed_hosts": list(agent.extra_allowed_hosts),
+            # Harbor 0.25 added these fields, so older versions record None.
+            "base_url": redact_secrets(getattr(agent, "base_url", None)),
+            "model_api_format": redact_secrets(getattr(agent, "model_api_format", None)),
+            "skip_model_parsing": getattr(agent, "skip_model_parsing", None),
+            "model_api_key_name": getattr(agent, "model_api_key_name", None),
         }
 
 
