@@ -1,16 +1,16 @@
 name: Factory Candidates
 
 # Claude Issue Triage labels the issues the factory could take `factory-candidate`, but a label
-# a workflow adds with its GITHUB_TOKEN starts no other workflow. So after each triage run this
-# dispatches Factory Dispatch for the candidates whose author has write access; dispatch.py
-# checks that author again before it starts a session. Every other candidate waits for a
-# maintainer to add the `factory` label.
+# a workflow adds with its GITHUB_TOKEN starts no other workflow. So after each triage run,
+# whether the sweep or the one an opened issue starts, this dispatches Factory Dispatch for
+# the candidates whose author has write access; dispatch.py checks that author again before
+# it starts a session. Every other candidate waits for a maintainer to add the `factory` label.
 on:
-  # zizmor: ignore[dangerous-triggers] Claude Issue Triage runs only on a schedule or a
-  # maintainer's dispatch, never for a fork. This workflow checks nothing out, reads no
+  # zizmor: ignore[dangerous-triggers] The triage workflows run on a schedule, a maintainer's
+  # dispatch or an opened issue, never for a fork. This workflow checks nothing out, reads no
   # artifacts and runs no code from the triggering run; it only reads issue labels.
   workflow_run:
-    workflows: [Claude Issue Triage]
+    workflows: [Claude Issue Triage Sweep, Claude Issue Triage on Open]
     types: [completed]
   workflow_dispatch:
 
