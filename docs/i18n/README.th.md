@@ -287,9 +287,9 @@ Phoenix ถูกสร้างมาให้ทั้งมนุษย์แ
 
 | Skill | คำอธิบาย |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | ดีบักแอปพลิเคชัน LLM ด้วย Phoenix CLI — ดึง trace วิเคราะห์ข้อผิดพลาด ตรวจสอบ experiment และ query GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | สร้างและรัน evaluator สำหรับแอปพลิเคชัน AI/LLM ด้วย Phoenix |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | semantic conventions และ instrumentation ของ OpenInference สำหรับ tracing แอปพลิเคชัน LLM |
+| [phoenix-cli](../../skills/phoenix-cli/)         | ดีบักแอปพลิเคชัน LLM ด้วย Phoenix CLI — ดึง trace วิเคราะห์ข้อผิดพลาด ตรวจสอบ experiment และ query GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | สร้างและรัน evaluator สำหรับแอปพลิเคชัน AI/LLM ด้วย Phoenix |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | semantic conventions และ instrumentation ของ OpenInference สำหรับ tracing แอปพลิเคชัน LLM |
 
 ## ความปลอดภัยและความเป็นส่วนตัว
 

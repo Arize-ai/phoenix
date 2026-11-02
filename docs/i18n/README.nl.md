@@ -287,9 +287,9 @@ Zie de [documentatie over coding agents](https://arize.com/docs/phoenix/integrat
 
 | Skill                                              | Beschrijving |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Debug LLM-applicaties met de Phoenix CLI — haal traces op, analyseer fouten, beoordeel experimenten en bevraag de GraphQL-API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Bouw en draai evaluators voor AI/LLM-applicaties met Phoenix |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Semantische conventies en instrumentatie van OpenInference voor het tracen van LLM-applicaties |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Debug LLM-applicaties met de Phoenix CLI — haal traces op, analyseer fouten, beoordeel experimenten en bevraag de GraphQL-API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Bouw en draai evaluators voor AI/LLM-applicaties met Phoenix |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Semantische conventies en instrumentatie van OpenInference voor het tracen van LLM-applicaties |
 
 ## Beveiliging en privacy
 

@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-python-${{ github.head_ref }}
+  group: test-python-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -38,9 +38,10 @@ jobs:
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
       filter_dsl: ${{ steps.filter.outputs.filter_dsl }}
       docs_snippets: ${{ steps.filter.outputs.docs_snippets }}
-      mcp_skills: ${{ steps.filter.outputs.mcp_skills }}
+      skills: ${{ steps.filter.outputs.skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
+      sync_models: ${{ steps.filter.outputs.sync_models }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -91,12 +92,19 @@ jobs:
               - "js/app/src/pages/project/sessionFilterDSL.ts"
               - "src/phoenix/trace/dsl/**"
               - "scripts/ci/check_filter_dsl_snippets.py"
-            mcp_skills:
+            skills:
+              - "skills/**"
               - ".agents/skills/**"
+              - "skills-lock.json"
               - "src/phoenix/server/mcp/skills/**"
-              - "src/phoenix/server/mcp/skills-lock.json"
+              - "src/phoenix/server/agents/prompts/public_skills/**"
+              - "src/phoenix/server/agents/prompts/skills/**"
+              - "plugins/**"
+              - ".cursor-plugin/**"
+              - "scripts/sync_skills.py"
+              - "scripts/test_sync_skills.py"
             skill_graphql_examples:
-              - ".agents/skills/**"
+              - "skills/**"
               - "skills-lock.json"
               - "src/phoenix/server/mcp/skills/**"
               - "src/phoenix/server/agents/prompts/skills/**"
@@ -109,6 +117,9 @@ jobs:
               - "evals/harbor/verifiers/harbor_verifiers/graphql/**"
               - "js/app/schema.graphql"
               - "pyproject.toml"
+            sync_models:
+              - "scripts/cost_tracking/**"
+              - "src/phoenix/server/cost_tracking/**"
       # Skip suites only when every changed path is a changelog or release
       # manifest.
       - name: Detect a bookkeeping-only change
@@ -142,9 +153,10 @@ jobs:
           UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
           JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
           FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
-          MCP_SKILLS: ${{ steps.filter.outputs.mcp_skills }}
+          SKILLS: ${{ steps.filter.outputs.skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
           HARBOR_GRAPHQL: ${{ steps.filter.outputs.harbor_graphql }}
+          SYNC_MODELS: ${{ steps.filter.outputs.sync_models }}
         run: |
           echo "ipynb: $IPYNB"
           echo "ipynb_files: $IPYNB_FILES"
@@ -158,9 +170,10 @@ jobs:
           echo "uv_lock: $UV_LOCK"
           echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
           echo "filter_dsl: $FILTER_DSL"
-          echo "mcp_skills: $MCP_SKILLS"
+          echo "skills: $SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
           echo "harbor_graphql: $HARBOR_GRAPHQL"
+          echo "sync_models: $SYNC_MODELS"
 
   phoenix-client:
     name: Phoenix Client
@@ -458,6 +471,39 @@ jobs:
       - name: Check skill filter conditions against the Python filters
         run: make check-skill-filter-examples
 
+  test-sync-models:
+    name: Test Model Cost Sync Script
+    needs: changes
+    if: ${{ needs.changes.outputs.sync_models == 'true' }}
+    strategy:
+      matrix:
+        py: ["3.14"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            scripts/cost_tracking/
+            requirements/
+            src/phoenix/
+            packages/
+            evals/harbor/verifiers/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+      - name: Test the model cost manifest sync script
+        run: make test-sync-models
+
   doctests:
     name: Doctests
     needs: changes
@@ -570,10 +616,10 @@ jobs:
       - name: Check for changes
         run: git diff --exit-code
 
-  mcp-skills:
-    name: Compile MCP Skills
+  skills:
+    name: Check Skills
     needs: changes
-    if: ${{ needs.changes.outputs.mcp_skills == 'true' }}
+    if: ${{ needs.changes.outputs.skills == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -584,12 +630,8 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version-file: .nvmrc
-      - name: Compile MCP Skills
-        run: make mcp-skills
-      - name: Check for changes
-        run: |
-          git add -A
-          git diff --cached --exit-code
+      - name: Check skill copies and what npx offers
+        run: make skills-check
 
   check-lockfile:
     name: Check uv.lock is up to date
@@ -925,10 +967,11 @@ jobs:
       - check-filter-dsl-snippets
       - check-docs-snippets
       - check-skill-graphql-examples
+      - test-sync-models
       - build-openapi-schema
       - build-ddl-schema
       - codegen-prompts
-      - mcp-skills
+      - skills
       - check-lockfile
       - type-check
       - unit-tests

@@ -15,6 +15,7 @@ from ...prompts import (
 )
 from ...registries import register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ..json_schema import close_objects
 from ..tool_calling import TOOL_INSTRUCTION, TOOL_NAME
 from .client import LiteLLMClient
 from .factories import (
@@ -296,7 +297,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate object using structured output."""
-        formatted_schema = self._ensure_additional_properties_false(schema)
+        formatted_schema = close_objects(schema)
 
         response_format = {
             "type": "json_schema",
@@ -354,7 +355,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Async generate object using structured output."""
-        formatted_schema = self._ensure_additional_properties_false(schema)
+        formatted_schema = close_objects(schema)
 
         response_format = {
             "type": "json_schema",
@@ -556,50 +557,6 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         # If we get here, prompt is an unexpected type
         raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
-
-    def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Ensure that additionalProperties is set to false for structured output.
-
-        This normalization ensures compatibility with OpenAI's structured output API
-        requirements and is generally harmless for other providers.
-
-        Args:
-            schema: The original JSON schema
-
-        Returns:
-            Schema with additionalProperties: false added where needed
-        """
-        import json
-
-        # Use JSON serialization for deep copy to avoid type issues
-        schema_str = json.dumps(schema)
-        formatted_schema = json.loads(schema_str)
-
-        def add_additional_properties_false(obj: Any) -> None:
-            if isinstance(obj, dict):
-                # If this is an object type, ensure additionalProperties is false
-                if obj.get("type") == "object" and "additionalProperties" not in obj:  # pyright: ignore
-                    obj["additionalProperties"] = False  # pyright: ignore
-
-                # Recursively process nested objects
-                for value in obj.values():  # pyright: ignore
-                    add_additional_properties_false(value)
-
-            elif isinstance(obj, list):
-                for item in obj:  # pyright: ignore
-                    add_additional_properties_false(item)
-
-        add_additional_properties_false(formatted_schema)
-
-        # Ensure the root level has additionalProperties: false if it's an object
-        if (
-            formatted_schema.get("type") == "object"
-            and "additionalProperties" not in formatted_schema
-        ):
-            formatted_schema["additionalProperties"] = False
-
-        return cast(Dict[str, Any], formatted_schema)
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         """

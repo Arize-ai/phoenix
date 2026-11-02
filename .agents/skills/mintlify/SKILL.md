@@ -9,6 +9,8 @@ metadata:
 
 Reference for working on Mintlify projects. This file covers essentials that apply to every task. For detailed reference on specific topics, read the files listed in the reference index below.
 
+The Mintlify CLI also prints current guidance on completing specific tasks in Mintlify, fetched from the live documentation. Run `mint instructions` to list topics, then `mint instructions <topic>` to fetch instructions. If the command is unknown, run `npx mint@latest instructions`. When it differs from this file, follow `mint instructions`.
+
 ## Reference index
 
 Read these **only when your task requires them**. Each links to a Mintlify documentation page or, for agent workflow guidance, the source file on GitHub.
@@ -32,7 +34,7 @@ Read these **only when your task requires them**. Each links to a Mintlify docum
 
 If the user wants a new docs site, wants to publish docs, or has no `docs.json` yet, run this workflow yourself. Ask the user only for information or approvals you cannot supply. Recommend CLI onboarding. If the user prefers to onboard in the browser, or you cannot run terminal commands, send them to [mintlify.com/start](https://mintlify.com/start).
 
-1. Check `node --version` (v20.17.0 or newer). Run `mint --version`; if missing, install with `npm i -g mint`. If it's installed, run `mint update`.
+1. Check `node --version` (v20.17.0 or newer). Run `mint --version`; if missing, install with `npm i -g mint`. If it's installed, run `mint update`. Then run `mint instructions new-site` for current setup guidance.
 2. Run `mint status`. If it shows an organization, use that account and follow **Existing account**. If the user has an account but isn't logged in, run `mint login`. If the user has no account, follow **No account**. Don't run `mint signup` yourself: from an agent or any non-interactive shell, it only prints https://mintlify.com/auth.md and creates no account.
 
 **Existing account:**
@@ -66,7 +68,7 @@ When you have no local checkout and no CLI (for example, editing through the Min
 
 ### Migrating from another platform
 
-For Docusaurus, GitBook, ReadMe, Fern, or Document360, follow the matching guide at `https://mintlify.com/docs/migration/<platform>.md` (for example `docusaurus.md`), using the Mintlify Search MCP server to read it. For any other platform, follow `https://mintlify.com/docs/migration/manual.md`. The scraper only handles simple public sites. Complex sites migrate from source files. Porting rules are in [Site building](https://raw.githubusercontent.com/mintlify/docs/main/agent-context/context/skills/mintlify/reference/site-building.md).
+The CLI prints migration instructions for agents: `mint migrate` shows the workflow and lists the topics and source platforms it covers. Run `mint migrate --from <platform>` for a platform's guide and `mint migrate --topic <name>` for one topic. For Docusaurus, GitBook, ReadMe, Fern, or Document360, follow the matching guide at `https://mintlify.com/docs/migration/<platform>.md` (for example `docusaurus.md`), using the Mintlify Search MCP server to read it. For any other platform, follow `https://mintlify.com/docs/migration/manual.md`. The scraper only handles simple public sites. Complex sites migrate from source files. Porting rules are in [Site building](https://raw.githubusercontent.com/mintlify/docs/main/agent-context/context/skills/mintlify/reference/site-building.md).
 
 ## MCP servers
 
@@ -101,7 +103,7 @@ Key tools:
 - **`list_nodes`** / **`create_node`** / **`update_node`** / **`move_node`** / **`delete_node`**: Manage the navigation tree. If a `create_node`, `update_node`, `move_node`, or `delete_node` call leaves the navigation invalid (for example, a page at the root next to tabs), the response includes a `navigationErrors` field. Fix these errors before `publish`, because Mintlify can drop invalid nodes from the published navigation. If a page already exists at the `path` on `branch`, `create_node` writes the new content into it, keeps its navigation position, and returns `updated: true`.
 - **`update_config`** — Change top-level `docs.json` fields (theme, colors, logo, navbar, footer, redirects, integrations, SEO). It can't set `navigation`; use the node tools. An invalid config is rejected whole.
 - **`upload_file`** / **`finalize_file_upload`**: Upload a local file. To add an image to `branch`, call `upload_file` with the destination `path` (for example, `images/dashboard.png`), `contentType`, and exact `size` in bytes. `PUT` the file bytes to the returned `uploadUrl` with the returned `headers`, then call `finalize_file_upload` with the `uploadId` and the same `path`. Use the returned `src` in MDX or in the `docs.json` `logo` or `favicon` fields. Uploading to an existing `path` replaces the image. Only logo and favicon uploads may be SVG: for a `docs.json` `logo` or `favicon`, pass `purpose: "logo"` to both tools. Page images can't be SVG. Images publish with your other edits on `publish`. To write a large page from a local file, call `upload_file` with a `.md` or `.mdx` `path` and `contentType: "text/markdown"` (no `branch` needed), `PUT` the file, then pass the `uploadId` in place of `content` to `write_page` or as `data.uploadId` to `create_node` within 10 minutes; skip `finalize_file_upload`. Each `uploadId` works once.
-- **Project management tools** — Read with `get_deployment_settings`, `get_analytics_report`, `get_analytics_schema`, `query_analytics`, `get_workflows`, and `list_repos_and_prs`. Write with `update_deployment_settings`, `manage_custom_domain`, `manage_git_source`, `manage_access_auth`, `manage_workflow`, `manage_workflow_prs`, and `manage_members_sharing`. Pass `subdomain` (required on org-wide connections; read tools also accept `subdomains`, up to 25) and a `request` object whose `action` (or `report`) selects the operation. Writes apply immediately to the live project and return the updated `state`, so confirm the intended change first.
+- **Project management tools**: Read with `get_deployment_settings`, `get_analytics_report`, `get_analytics_schema`, `query_analytics`, `get_workflows`, and `list_repos_and_prs`. Write with `update_deployment_settings`, `manage_custom_domain`, `manage_git_source`, `manage_access_auth`, `manage_workflow`, `manage_workflow_prs`, and `manage_members_sharing`. Pass `subdomain` (required for writes on org-wide connections; reads default to the connection's only project when omitted; read tools also accept `subdomains`, up to 25) and a `request` object whose `action` (or `report`) selects the operation. Writes apply immediately to the live project and return the updated `state`, so confirm the intended change first.
 
 - **`diff`** — See all changes on `branch` relative to the deploy branch.
 - **`status`** — List unpublished edited files, `docs.json` keys and nav changes on `branch`. On the deploy branch, lists only your changes.
@@ -280,7 +282,7 @@ Use `<Columns>` to arrange cards (or other content) in a grid. `cols` accepts 1-
 
 ## CLI commands
 
-Install with `npm i -g mint`. Key commands: `mint dev` (local preview), `mint validate`, `mint broken-links`, `mint a11y`, `mint score`, `mint analytics` (traffic, search, feedback, and assistant conversations; Pro and Enterprise plans), `mint new`, `mint signup`. Read [CLI commands](https://mintlify.com/docs/cli/commands.md) for full flags and subcommands.
+Install with `npm i -g mint`. Key commands: `mint dev` (local preview), `mint validate`, `mint broken-links`, `mint a11y`, `mint score`, `mint analytics` (traffic, search, feedback, and assistant conversations; Pro and Enterprise plans), `mint new`, `mint signup`, `mint instructions` (current guidance for completing specific tasks). Read [CLI commands](https://mintlify.com/docs/cli/commands.md) for full flags and subcommands.
 
 After you edit pages, run `mint validate --no-build --format json` for a fast check and `mint validate --fix` to apply automatic fixes. Run a full `mint validate` before you push.
 

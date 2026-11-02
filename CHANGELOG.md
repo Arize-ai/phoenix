@@ -1,5 +1,52 @@
 # Changelog
 
+## [21.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.27.0...arize-phoenix-v21.0.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* add system_state table
+
+### Features
+
+* add system_state table ([3c5c523](https://github.com/Arize-ai/phoenix/commit/3c5c523043b977ee2252f6356da50ba3a6b5b6cf))
+* **annotations:** add DECISION and AGENT kinds ([#17306](https://github.com/Arize-ai/phoenix/issues/17306)) ([9e7a797](https://github.com/Arize-ai/phoenix/commit/9e7a7976eb455d1047a5290b7f2ba2b3a3a677a9))
+* **auth:** enable auth by default without requiring PHOENIX_SECRET ([#16737](https://github.com/Arize-ai/phoenix/issues/16737)) ([c9c7353](https://github.com/Arize-ai/phoenix/commit/c9c73533112c936a335f980a7624f128fff3e778))
+* **cost-tracking:** fetch the model cost manifest at runtime ([#17019](https://github.com/Arize-ai/phoenix/issues/17019)) ([bae8382](https://github.com/Arize-ai/phoenix/commit/bae838286dc55284d7bf640c0829addee38d8c96))
+
+
+### Bug Fixes
+
+* **annotations:** type experiment-run annotator kind like the others ([3fdddc6](https://github.com/Arize-ai/phoenix/commit/3fdddc653c59ec25d5cfe92e2591e75512ee0e1e))
+* **auth:** apply PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD when upgrading an unchanged default admin ([840d2b9](https://github.com/Arize-ai/phoenix/commit/840d2b988407ea3e595d666a7e195a9ff4c79cea))
+* **auth:** end OAuth2 sessions on security events but not on browser sign-out ([16f01b8](https://github.com/Arize-ai/phoenix/commit/16f01b8c34fbe860c3d42122e84dfa6a0890d602))
+* **auth:** reject a bad deployment seed without assert ([a3cb270](https://github.com/Arize-ai/phoenix/commit/a3cb270c6cbf205407dec0a5fef5f65c905d79e5))
+* **auth:** replace existing password reset token atomically on creation ([986ecf0](https://github.com/Arize-ai/phoenix/commit/986ecf0813c2c7c7e3cbd981e05e87467b380d5e))
+* **auth:** sign OAuth2 login-context cookie and bind it to state ([4d7fbfc](https://github.com/Arize-ai/phoenix/commit/4d7fbfc1c3e674fa69293c148ee93d9c1c1af72b))
+* **cost-tracking:** deduplicate manifest entries during parse and protect skipped models ([68eb063](https://github.com/Arize-ai/phoenix/commit/68eb0638b45ff6efc39b8ecc2a1939b576f08b58))
+* **cost-tracking:** keep serving when the bundled manifest fails to apply at startup ([31fa7af](https://github.com/Arize-ai/phoenix/commit/31fa7af077c582cd7dcab5e0171f9e22ebe499fd))
+* **cost-tracking:** preserve $0 token prices in manifest sync and SpanCost ([ab0ca46](https://github.com/Arize-ai/phoenix/commit/ab0ca46e793cc67ad6a20e1a7e761379243f1c99))
+* **cost-tracking:** require input and output fallback prices in ManifestModel ([246c654](https://github.com/Arize-ai/phoenix/commit/246c654ff35576e61577df5392b42d80c3d2ca1c))
+* **cost-tracking:** resolve pattern reassignments and swaps in _upsert_models ([63178c4](https://github.com/Arize-ai/phoenix/commit/63178c45d37b18045acea68f8cd57c7fe36115e4))
+* **cost-tracking:** soft-delete retired built-in models referenced by SpanCost ([bd3743c](https://github.com/Arize-ai/phoenix/commit/bd3743c2dada5b122eed843349e7775b71c79db8))
+* **db:** normalize sqlite:/// URLs in sqlite_migration_engine ([b5d027d](https://github.com/Arize-ai/phoenix/commit/b5d027dd2f0989529b28f9177e344a38c8f71744))
+* **db:** ORM deletes follow the foreign keys' ON DELETE rules ([#16680](https://github.com/Arize-ai/phoenix/issues/16680)) ([94f8396](https://github.com/Arize-ai/phoenix/commit/94f839658f83a9d3de78ea95895bb158f1cc539f))
+* **db:** require user_id on api_keys and password_reset_tokens ([#16680](https://github.com/Arize-ai/phoenix/issues/16680)) ([6576858](https://github.com/Arize-ai/phoenix/commit/6576858710de104cfdc820597b3bd036f75056f2))
+* **db:** run alembic's SQLite migrations through sqlean ([#16875](https://github.com/Arize-ai/phoenix/issues/16875)) ([27b4c5c](https://github.com/Arize-ai/phoenix/commit/27b4c5c1b6ac85bd50ae6a93057eaaa47584dd97))
+* **db:** stop deduplicating prompt versions that differ only by custom provider ([#16680](https://github.com/Arize-ai/phoenix/issues/16680)) ([4e76cdc](https://github.com/Arize-ai/phoenix/commit/4e76cdc262db1ae2c290c63b07727eb6f6d3bcf0))
+* **email:** replace assert-bound assignments in email_sender_from_env ([4fb526b](https://github.com/Arize-ai/phoenix/commit/4fb526b4ed67601eabad6f4ed416c3c3681eb168))
+* **server:** bind dual-stack in ThreadServer when host is :: ([7a54be2](https://github.com/Arize-ai/phoenix/commit/7a54be277fe7600bf5d8829e128d69a1cf9b1b89))
+
+
+### Documentation
+
+* clarify facilitator bootstrap comments ([4953903](https://github.com/Arize-ai/phoenix/commit/4953903f2b44c90a6932fe7c4dad68e06997a1eb))
+* document secret re-entry after setting or changing PHOENIX_SECRET ([6a89188](https://github.com/Arize-ai/phoenix/commit/6a89188237a5e402dfc654ed188abae476fbaad1))
+* remove contribute, environments, and non-competitive FAQ pages ([#17423](https://github.com/Arize-ai/phoenix/issues/17423)) ([843bfc7](https://github.com/Arize-ai/phoenix/commit/843bfc7c333e81907c6d96bf8f7ee9e786c84d6f))
+* remove Phoenix user guide page ([#17430](https://github.com/Arize-ai/phoenix/issues/17430)) ([edcd9a3](https://github.com/Arize-ai/phoenix/commit/edcd9a306cb38691c627750c74dbbe98913533cd))
+* show star-history rank and trending badges side by side in README ([#17421](https://github.com/Arize-ai/phoenix/issues/17421)) ([5c35d40](https://github.com/Arize-ai/phoenix/commit/5c35d40624816b029ded7f4f2fbd143df2528425))
+* streamline v21 migration guidance ([f9df18f](https://github.com/Arize-ai/phoenix/commit/f9df18f5544600eab32b0a3af0664517e5129fe8))
+
 ## [20.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.26.1...arize-phoenix-v20.27.0) (2026-10-29)
 
 

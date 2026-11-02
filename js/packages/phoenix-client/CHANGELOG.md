@@ -1,5 +1,17 @@
 # @arizeai/phoenix-client
 
+## 7.18.0
+
+### Minor Changes
+
+- ead7dd8: Add typed dataset-label resource and assignment helpers to the existing `@arizeai/phoenix-client/datasets` scope. Callers can manage reusable global labels, list them with cursor pagination, and assign or replace labels on datasets selected by name or GlobalID.
+
+## 7.17.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
 ## 7.16.3
 
 ### Patch Changes

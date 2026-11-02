@@ -287,9 +287,9 @@ Nastavení a použití popisuje [dokumentace pro kódovací agenty](https://ariz
 
 | Dovednost | Popis |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Ladění LLM aplikací pomocí Phoenix CLI — načítání tras, analýza chyb, revize experimentů a dotazy na GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Tvorba a spouštění evaluátorů pro AI/LLM aplikace pomocí Phoenixu |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Sémantické konvence OpenInference a instrumentace pro trasování LLM aplikací |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Ladění LLM aplikací pomocí Phoenix CLI — načítání tras, analýza chyb, revize experimentů a dotazy na GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Tvorba a spouštění evaluátorů pro AI/LLM aplikace pomocí Phoenixu |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Sémantické konvence OpenInference a instrumentace pro trasování LLM aplikací |
 
 ## Bezpečnost a soukromí
 

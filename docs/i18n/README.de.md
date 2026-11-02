@@ -287,9 +287,9 @@ Einrichtung und Verwendung sind in der [Dokumentation zu Coding-Agenten](https:/
 
 | Skill | Beschreibung |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | LLM-Anwendungen mit der Phoenix-CLI debuggen – Traces abrufen, Fehler analysieren, Experimente prüfen und die GraphQL-API abfragen |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Evaluatoren für KI-/LLM-Anwendungen mit Phoenix erstellen und ausführen |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Semantische Konventionen und Instrumentierung von OpenInference für das Tracing von LLM-Anwendungen |
+| [phoenix-cli](../../skills/phoenix-cli/)         | LLM-Anwendungen mit der Phoenix-CLI debuggen – Traces abrufen, Fehler analysieren, Experimente prüfen und die GraphQL-API abfragen |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Evaluatoren für KI-/LLM-Anwendungen mit Phoenix erstellen und ausführen |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Semantische Konventionen und Instrumentierung von OpenInference für das Tracing von LLM-Anwendungen |
 
 ## Sicherheit & Datenschutz
 

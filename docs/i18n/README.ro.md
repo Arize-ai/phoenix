@@ -287,9 +287,9 @@ Consultați [documentația pentru agenți de programare](https://arize.com/docs/
 
 | Skill | Descriere |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/) | Depanați aplicații LLM folosind Phoenix CLI — preluați trace-uri, analizați erori, examinați experimente și interogați API-ul GraphQL |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/) | Construiți și rulați evaluatoare pentru aplicații AI/LLM folosind Phoenix |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Convenții semantice și instrumentare OpenInference pentru tracing-ul aplicațiilor LLM |
+| [phoenix-cli](../../skills/phoenix-cli/) | Depanați aplicații LLM folosind Phoenix CLI — preluați trace-uri, analizați erori, examinați experimente și interogați API-ul GraphQL |
+| [phoenix-evals](../../skills/phoenix-evals/) | Construiți și rulați evaluatoare pentru aplicații AI/LLM folosind Phoenix |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Convenții semantice și instrumentare OpenInference pentru tracing-ul aplicațiilor LLM |
 
 ## Securitate și confidențialitate
 

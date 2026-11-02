@@ -6,7 +6,7 @@
 #   git diff --name-only HEAD^1 HEAD | plugins/claude/arize-phoenix/evals/leg_is_affected.sh phoenix-evals
 #
 # A path is relevant to SKILL when it is:
-#   - inside .agents/skills/SKILL/ or the plugin's skills/SKILL symlink
+#   - inside skills/SKILL/ or the plugin's skills/SKILL symlink
 #   - inside an eval case whose prompt.md tags SKILL
 #   - inside evals/SKILL/ (a skill's case group, e.g. its README)
 #   - anything else in the plugin or the workflow (shared harness, mocks, manifest)
@@ -33,8 +33,8 @@ case_dir_of() {
 while IFS= read -r path; do
   [ -z "${path}" ] && continue
   case "${path}" in
-    .agents/skills/*)
-      name="${path#.agents/skills/}"
+    skills/*)
+      name="${path#skills/}"
       [ "${name%%/*}" = "${skill}" ] && { echo true; exit 0; }
       ;;
     "${plugin}/skills/"*)
@@ -50,7 +50,7 @@ while IFS= read -r path; do
       # A skill's case group (evals/<skill>/...) outside any case, e.g. its README.
       group="${path#"${evals}"/}"
       group="${group%%/*}"
-      if [ -d ".agents/skills/${group}" ]; then
+      if [ -d "skills/${group}" ]; then
         [ "${group}" = "${skill}" ] && { echo true; exit 0; }
         continue
       fi

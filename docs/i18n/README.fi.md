@@ -287,9 +287,9 @@ Asennus- ja käyttöohjeet löydät [koodausagenttien dokumentaatiosta](https://
 
 | Skill                                              | Kuvaus                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | LLM-sovellusten virheenkorjaus Phoenix CLI:llä — tracejen haku, virheiden analysointi, kokeiden tarkastelu ja GraphQL API -kyselyt |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Arvioijien rakentaminen ja ajaminen AI/LLM-sovelluksille Phoenixin avulla                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | OpenInferencen semanttiset konventiot ja instrumentointi LLM-sovellusten tracingiin                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | LLM-sovellusten virheenkorjaus Phoenix CLI:llä — tracejen haku, virheiden analysointi, kokeiden tarkastelu ja GraphQL API -kyselyt |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Arvioijien rakentaminen ja ajaminen AI/LLM-sovelluksille Phoenixin avulla                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | OpenInferencen semanttiset konventiot ja instrumentointi LLM-sovellusten tracingiin                                        |
 
 ## Tietoturva ja yksityisyys
 

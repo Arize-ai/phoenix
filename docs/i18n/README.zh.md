@@ -287,9 +287,9 @@ Phoenix 既为人类工程师打造，也原生支持各类 AI 编程智能体�
 
 | Agent Skill 技能库 | 技能功能描述 |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/) | 使用 Phoenix CLI 调试 LLM 应用——获取链路追踪、分析执行错误、审查对比实验并查询 GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/) | 使用 Phoenix 构建并运行面向 AI / LLM 应用的多维度评估器 |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | 面向大模型应用的 OpenInference 语义约定与全链路追踪插桩规范 |
+| [phoenix-cli](../../skills/phoenix-cli/) | 使用 Phoenix CLI 调试 LLM 应用——获取链路追踪、分析执行错误、审查对比实验并查询 GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/) | 使用 Phoenix 构建并运行面向 AI / LLM 应用的多维度评估器 |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | 面向大模型应用的 OpenInference 语义约定与全链路追踪插桩规范 |
 
 ## 安全性与隐私保护
 

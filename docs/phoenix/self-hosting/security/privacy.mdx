@@ -49,5 +49,6 @@ If you are running Phoenix in an air-gapped environment, set `PHOENIX_ALLOW_EXTE
 - Disable PXI's documentation lookups, web access, and GitHub access
 - Skip the WebAssembly sandbox runtime download
 - Hide the GitHub star count and skip the update check in the web interface
+- Skip the daily fetch of built-in model prices from GitHub
 
 Phoenix then makes no public-internet requests of its own, avoiding connection timeouts and UI loading delays in environments without internet access. Services you configure yourself, such as LLM providers and hosted sandboxes, aren't affected.

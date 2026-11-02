@@ -62,6 +62,37 @@ async def test_rest_span_annotation(
     assert orm_annotation.metadata_ == dict()
 
 
+@pytest.mark.parametrize("annotator_kind", ["DECISION", "AGENT"])
+async def test_rest_span_annotation_with_new_annotator_kind(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+    annotator_kind: str,
+) -> None:
+    name = fake.pystr()
+    request_body = {
+        "data": [
+            {
+                "span_id": "7e2f08cb43bbf521",
+                "name": name,
+                "annotator_kind": annotator_kind,
+                "result": {"label": "relevant"},
+            }
+        ]
+    }
+
+    response = await httpx_client.post("v1/span_annotations?sync=true", json=request_body)
+    assert response.status_code == 200
+
+    response = await httpx_client.get(
+        "v1/projects/project-name/span_annotations", params={"span_ids": ["7e2f08cb43bbf521"]}
+    )
+    assert response.status_code == 200
+    [annotation] = [a for a in response.json()["data"] if a["name"] == name]
+    assert annotation["annotator_kind"] == annotator_kind
+    assert annotation["result"]["label"] == "relevant"
+
+
 async def test_rest_span_annotation_rejects_note_name(
     httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,

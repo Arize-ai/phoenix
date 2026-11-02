@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import pytest
-from pydantic import SecretStr
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
@@ -30,10 +29,6 @@ from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
-
-# The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off SecretStr("").
-_REDACTOR = Redactor(secret=SecretStr(""))
 
 
 async def test_projects_omits_experiment_projects(
@@ -574,6 +569,43 @@ async def test_agents_config_web_access_respects_env_flags(
     assert not response.errors
     assert (data := response.data) is not None
     assert data["agentsConfig"] == {"webAccessEnabled": expected}
+
+
+_MODEL_COST_MANIFEST_QUERY = """
+  query {
+    modelCostManifest {
+      generatedAt
+    }
+  }
+"""
+
+
+async def test_model_cost_manifest_is_null_without_a_marker(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {"modelCostManifest": None}
+
+
+async def test_model_cost_manifest_returns_the_marker(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        session.add(
+            models.SystemState(
+                key="cost_tracking.model_cost_manifest",
+                value={"generated_at": "2099-01-01T00:00:00+00:00"},
+            )
+        )
+    response = await gql_client.execute(query=_MODEL_COST_MANIFEST_QUERY)
+    assert not response.errors
+    assert response.data == {
+        "modelCostManifest": {
+            "generatedAt": "2099-01-01T00:00:00+00:00",
+        }
+    }
 
 
 @pytest.fixture
@@ -1377,6 +1409,7 @@ async def test_experiment_run_metric_comparisons_identical_multi_span_experiment
 async def test_secrets_pagination(
     gql_client: AsyncGraphQLClient,
     secrets_for_pagination: Any,
+    redactor: Redactor,
 ) -> None:
     """Test that secrets query supports pagination and keys filter correctly."""
     query = """
@@ -1415,7 +1448,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     first_page = response.data["secrets"]
     first_page_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in first_page["edges"]
     ]
     assert first_page_secrets == [("secret-a", "value-a"), ("secret-b", "value-b")]
@@ -1432,7 +1465,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     second_page = response.data["secrets"]
     second_page_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in second_page["edges"]
     ]
     assert second_page_secrets == [("secret-c", "value-c"), ("secret-d", "value-d")]
@@ -1449,7 +1482,7 @@ async def test_secrets_pagination(
     assert response.data is not None
     third_page = response.data["secrets"]
     third_page_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in third_page["edges"]
     ]
     assert third_page_secrets == [("secret-e", "value-e"), ("secret-f", "value-f")]
@@ -1466,7 +1499,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     filtered_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert filtered_secrets == [
@@ -1492,7 +1525,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     mixed_secrets = [
-        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        (edge["secret"]["key"], redactor.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert mixed_secrets == [("secret-b", "value-b")]
@@ -3174,3 +3207,44 @@ class TestSearchResources:
         assert response.data and not response.errors
         names = [result["name"] for result in response.data["searchResources"]]
         assert names == ["100% coverage"]
+
+
+class TestSecretNode:
+    _QUERY = """
+      query($id: ID!) {
+        node(id: $id) {
+          __typename
+          ... on Secret { key updatedAt }
+        }
+      }
+    """
+
+    async def test_node_for_missing_secret_returns_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        secret_id = str(GlobalID("Secret", "no-such-secret"))
+        response = await gql_client.execute(query=self._QUERY, variables={"id": secret_id})
+        assert response.errors
+        assert len(response.errors) == 1
+        assert response.errors[0].message == f"Unknown node: {secret_id}"
+        # `node` is non-nullable, so a not-found error nulls the whole response.
+        assert response.data is None
+
+    async def test_node_for_existing_secret_resolves(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            session.add(
+                models.Secret(key="existing-secret", value=EncryptionService().encrypt(b"value"))
+            )
+        secret_id = str(GlobalID("Secret", "existing-secret"))
+        response = await gql_client.execute(query=self._QUERY, variables={"id": secret_id})
+        assert not response.errors
+        assert response.data
+        assert response.data["node"]["__typename"] == "Secret"
+        assert response.data["node"]["key"] == "existing-secret"
+        assert response.data["node"]["updatedAt"]

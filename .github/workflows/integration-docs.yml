@@ -141,7 +141,7 @@ jobs:
             core.setSecret(adminSecret);
 
             const logFd = fs.openSync(`${process.env.RUNNER_TEMP}/phoenix.log`, 'a');
-            const server = spawn('uv', ['run', 'phoenix', 'serve', '--host', '127.0.0.1', '--port', '6006'], {
+            const server = spawn('uv', ['run', 'phoenix', 'serve', '--port', '6006'], {
               cwd: process.env.GITHUB_WORKSPACE,
               detached: true,
               env: {

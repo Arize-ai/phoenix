@@ -297,6 +297,16 @@ describe("prompt-versions list", () => {
   it.each(["0", "-1", "1.5", "abc", "2oops"])(
     "rejects invalid limit %s without making a request",
     async (limit) => {
+      let numRequests = 0;
+      mock.server.use(
+        http.get("/v1/prompts/{prompt_identifier}/versions", ({ response }) => {
+          numRequests += 1;
+          return response(200).json({
+            data: [PROMPT_VERSION],
+            next_cursor: null,
+          });
+        })
+      );
       const io = captureCliOutput();
       mockProcessExit();
       await expect(
@@ -308,6 +318,7 @@ describe("prompt-versions list", () => {
       expect(io.stderr).toHaveBeenCalledWith(
         expect.stringContaining("--limit must be a positive integer")
       );
+      expect(numRequests).toBe(0);
     }
   );
 
