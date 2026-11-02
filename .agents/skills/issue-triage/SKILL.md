@@ -130,14 +130,8 @@ gh issue list --repo Arize-ai/phoenix --state open \
         assignees: [.assignees[].login], body: ((.body // "")[:600])}'
 ```
 
-For a single-issue run, Pass A is that one issue, truncated the same way:
-
-```bash
-gh issue view <number> --repo Arize-ai/phoenix \
-  --json number,title,labels,assignees,body \
-  --jq '{number, title, labels: [.labels[].name],
-        assignees: [.assignees[].login], body: ((.body // "")[:600])}'
-```
+A single-issue run skips the listing and reads its one issue in full, as Pass B
+does; truncation buys nothing when there is only one body to read.
 
 If one truncated body leaves sufficiency genuinely unclear, read **that** issue
 in full. Never widen the truncation for the whole slice to settle one case.
