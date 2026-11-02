@@ -86,7 +86,6 @@ from phoenix.db.types.decisions import (
     DecisionTaskConfig,
 )
 from phoenix.db.types.evaluator_definition import (
-    DecisionEvaluatorSnapshot,
     EvaluatorDefinition,
     EvaluatorDefinitionRootModel,
 )
@@ -827,26 +826,6 @@ class _EvaluatorDefinition(TypeDecorator[EvaluatorDefinition]):
         if value is None:
             return None
         return EvaluatorDefinitionRootModel.model_validate(value).root
-
-
-class _DecisionEvaluatorSnapshots(TypeDecorator[list[DecisionEvaluatorSnapshot]]):
-    cache_ok = True
-    # JSON, not JSONB: the copied state templates keep their key order.
-    impl = JSON
-
-    def process_bind_param(
-        self, value: Optional[list[DecisionEvaluatorSnapshot]], _: Dialect
-    ) -> Optional[list[dict[str, Any]]]:
-        if value is None:
-            return None
-        return [snapshot.model_dump(mode="json") for snapshot in value]
-
-    def process_result_value(
-        self, value: Optional[list[dict[str, Any]]], _: Dialect
-    ) -> Optional[list[DecisionEvaluatorSnapshot]]:
-        if value is None:
-            return None
-        return [DecisionEvaluatorSnapshot.model_validate(snapshot) for snapshot in value]
 
 
 class _ExperimentLogDetail(TypeDecorator[ExperimentLogDetail]):
@@ -2114,9 +2093,6 @@ class ExperimentJob(HasId):
         nullable=False,
     )
 
-    decision_evaluator_snapshots: Mapped[list[DecisionEvaluatorSnapshot]] = mapped_column(
-        _DecisionEvaluatorSnapshots, nullable=False, default=list, server_default="[]"
-    )
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",
         passive_deletes="all",

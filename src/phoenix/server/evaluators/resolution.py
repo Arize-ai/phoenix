@@ -325,7 +325,7 @@ async def get_evaluators(
 
     evaluators: list[BaseEvaluator] = []
     for de_id in dataset_evaluator_ids:
-        _, ev = dataset_evaluators_by_id[de_id]
+        de, ev = dataset_evaluators_by_id[de_id]
         if isinstance(ev, models.LLMEvaluator):
             resolved = llm_evaluators_by_id.get(ev.id)
             if resolved is None:
@@ -347,6 +347,18 @@ async def get_evaluators(
                     "Please configure a sandbox provider at /settings/sandboxes."
                 )
             evaluators.append(code_runner)
+        elif isinstance(ev, models.DecisionEvaluator):
+            definition = capture_decision_evaluator_definition(
+                ev,
+                name=de.name.root,
+                description=de.description,
+                dataset_evaluator_id=de.id,
+            )
+            evaluators.append(
+                await build_decision_evaluator(
+                    definition, session=session, decrypt=decrypt, credentials=credentials
+                )
+            )
         else:
             raise BadRequest(
                 f"DatasetEvaluator '{de_id}' references evaluator with unsupported kind: {ev.kind}"

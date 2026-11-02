@@ -34,6 +34,7 @@ from phoenix.db.types.decisions import (
 )
 from phoenix.db.types.evaluator_definition import (
     EvaluatorDefinition,
+    EvaluatorSource,
     InlineCodeEvaluatorDefinition,
     InlineLLMEvaluatorDefinition,
     InlineLLMEvaluatorPromptVersion,
@@ -86,6 +87,7 @@ from phoenix.server.daemons.experiment_runner import (
 )
 from phoenix.server.evaluators.runtime.base import BaseEvaluator, EvaluationResult
 from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
+from phoenix.server.evaluators.runtime.decision import DecisionEvaluator
 from phoenix.server.evaluators.runtime.llm import LLMEvaluator
 from phoenix.server.evaluators.snapshots import pin_evaluator_definition
 from phoenix.server.monty_runtime import MontyBusy
@@ -2565,6 +2567,76 @@ class TestLoadEvaluatorTaskConfig:
         assert isinstance(evaluator, CodeEvaluatorRunner)
         assert evaluator.name == "answer-length"
         assert list(evaluator.output_configs) == [_LENGTH_CONFIG]
+
+
+class TestLoadDatasetEvaluators:
+    async def test_an_attached_decision_evaluator_loads_as_it_is_now(
+        self, db: DbSessionFactory, evaluator_experiment: _EvaluatorExperiment
+    ) -> None:
+        experiment = evaluator_experiment.experiment
+        async with db() as session:
+            version = _triage_version(
+                _TRIAGE_QUESTIONS, decision=models.Decision(name=Identifier("triage"), metadata_={})
+            )
+            session.add(version)
+            await session.flush()
+            judge = models.DecisionEvaluator(
+                name=Identifier("triage"),
+                description=None,
+                metadata_={},
+                kind="DECISION",
+                decision_id=version.decision_id,
+                selected_version=version,
+                scoring_policy=resolve_scoring_policy(_TRIAGE_QUESTIONS, DecisionScoringPolicy()),
+            )
+            binding = models.DatasetEvaluators(
+                dataset_id=experiment.dataset_id,
+                evaluator=judge,
+                name=Identifier("ticket-triage"),
+                input_mapping=_OUTPUT_ANSWER_MAPPING,
+                project=models.Project(name=f"ticket-triage-{token_hex(4)}", description=""),
+            )
+            session.add_all([binding, models.ExperimentEvalOnlyConfig(id=experiment.id)])
+            await session.flush()
+            session.add(
+                models.ExperimentDatasetEvaluator(
+                    experiment_id=experiment.id, dataset_evaluator_id=binding.id
+                )
+            )
+        async with db() as session:
+            edited = _triage_version(_TRIAGE_QUESTIONS[:1], decision_id=version.decision_id)
+            session.add(edited)
+            saved = await session.get(models.DecisionEvaluator, judge.id)
+            assert saved is not None
+            saved.scoring_policy = resolve_scoring_policy(
+                _TRIAGE_QUESTIONS[:1], DecisionScoringPolicy()
+            )
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda b: b,
+            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+            sandbox_runtime=cast(Any, MagicMock()),
+        )
+
+        async with db() as session:
+            _, _, [spec], _, _ = await runner._load_experiment_config(
+                session,
+                experiment.id,
+                credentials=[
+                    GenerativeCredentialInput(
+                        env_var_name="TYPESAFE_API_KEY", value=SecretStr("test")
+                    )
+                ],
+            )
+
+        assert isinstance(spec.evaluator, DecisionEvaluator)
+        assert spec.dataset_evaluator_id == binding.id
+        assert spec.annotation_names == ["ticket-triage"]
+        assert spec.evaluator.definition.questions == _TRIAGE_QUESTIONS[:1]
+        assert spec.evaluator.definition.source == EvaluatorSource(
+            evaluator_id=judge.id, decision_version_id=edited.id, dataset_evaluator_id=binding.id
+        )
 
 
 class TestLoadDecisionTaskConfig:
