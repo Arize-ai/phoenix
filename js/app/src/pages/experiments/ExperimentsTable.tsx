@@ -247,6 +247,7 @@ export function ExperimentsTable({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const [, setSearchParams] = useSearchParams();
+  const { search } = useLocation();
   const [metadataFilters, setMetadataFilters] = useState(
     initialMetadataFilters
   );
@@ -889,6 +890,7 @@ export function ExperimentsTable({
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
                 size="S"
+                experimentDetailsSearch={search}
                 canEditExperiment
                 experimentName={row.original.name}
                 experimentDescription={row.original.description ?? null}

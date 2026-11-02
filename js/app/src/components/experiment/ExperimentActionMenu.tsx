@@ -64,6 +64,11 @@ type ExperimentActionMenuBaseProps = {
   metadata: unknown;
   jobStatus?: ExperimentJobStatus | null;
   size?: ButtonProps["size"];
+  /**
+   * The search string, such as `?metadataFilters=...`, to keep on the URL when
+   * opening the experiment's details.
+   */
+  experimentDetailsSearch?: string;
 } & (
   | {
       canSetBaseline: true;
@@ -357,9 +362,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                 }
                 case ExperimentAction.VIEW_EXPERIMENT_DETAILS: {
                   if (datasetId) {
-                    navigate(
-                      `/datasets/${datasetId}/experiments/${props.experimentId}`
-                    );
+                    navigate({
+                      pathname: `/datasets/${datasetId}/experiments/${props.experimentId}`,
+                      search: props.experimentDetailsSearch,
+                    });
                   }
                   break;
                 }

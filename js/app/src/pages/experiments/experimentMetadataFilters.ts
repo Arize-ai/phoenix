@@ -88,7 +88,13 @@ export function readMetadataFiltersFromSearchParams(
   }
   try {
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(isMetadataFilter) : [];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    // Copy only the known fields, because GraphQL rejects unknown ones.
+    return parsed
+      .filter(isMetadataFilter)
+      .map(({ path, value }) => ({ path, value }));
   } catch {
     return [];
   }

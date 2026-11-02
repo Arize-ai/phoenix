@@ -92,6 +92,17 @@ describe("metadata filter search params", () => {
     ]);
   });
 
+  it("drops unknown fields from filters", () => {
+    const params = new URLSearchParams();
+    params.set(
+      METADATA_FILTERS_SEARCH_PARAM,
+      JSON.stringify([{ path: ["a"], value: 1, extra: 2 }])
+    );
+    expect(readMetadataFiltersFromSearchParams(params)).toStrictEqual([
+      { path: ["a"], value: 1 },
+    ]);
+  });
+
   it("ignores a param that isn't JSON", () => {
     const params = new URLSearchParams(`${METADATA_FILTERS_SEARCH_PARAM}=nope`);
     expect(readMetadataFiltersFromSearchParams(params)).toEqual([]);

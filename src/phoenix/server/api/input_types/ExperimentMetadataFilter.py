@@ -13,6 +13,9 @@ from phoenix.server.api.exceptions import BadRequest
 
 MetadataScalar = Union[str, int, float, bool]
 
+_INT64_MIN = -(2**63)
+_INT64_MAX = 2**63 - 1
+
 
 @strawberry.input(
     description="Matches experiments whose metadata holds a value at a key path. "
@@ -36,8 +39,9 @@ class ExperimentMetadataFilter:
         metadata value at `path` equals `value` in both type and value.
 
         Raises:
-            BadRequest: If `path` is empty or `value` isn't a string, finite number,
-                or boolean.
+            BadRequest: If `path` is empty, `value` isn't a string, finite number
+                within the 64-bit integer range, or boolean, or a key or value
+                contains a NUL character.
         """
         if not self.path:
             raise BadRequest("Metadata filter path must contain at least one key")
@@ -46,6 +50,14 @@ class ExperimentMetadataFilter:
             raise BadRequest("Metadata filter value must be a string, number, or boolean")
         if isinstance(value, float) and not math.isfinite(value):
             raise BadRequest("Metadata filter value must be a finite number")
+        if (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and not _INT64_MIN <= value <= _INT64_MAX
+        ):
+            raise BadRequest("Metadata filter value must fit in a 64-bit integer")
+        if any("\x00" in key for key in self.path) or (isinstance(value, str) and "\x00" in value):
+            raise BadRequest("Metadata filter keys and values must not contain NUL characters")
         if dialect is SupportedSQLDialect.POSTGRESQL:
             return _postgresql_condition(self.path, value)
         return _sqlite_condition(self.path, value)

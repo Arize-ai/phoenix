@@ -1301,6 +1301,8 @@ class TestDatasetExperimentsMetadataFilter:
                 "model": "other",
                 "harbor_agent": {"model_params": {"temperature": "1"}},
             },
+            "model-array": {"model": ["gpt-5"]},
+            "model-object": {"model": {"name": "gpt-5"}},
             "no-metadata": {},
         }
         async with db() as session:
@@ -1415,6 +1417,21 @@ class TestDatasetExperimentsMetadataFilter:
                 id="key-containing-dot",
             ),
             pytest.param(
+                [{"path": ["model"], "value": '["gpt-5"]'}],
+                set(),
+                id="string-ignores-array",
+            ),
+            pytest.param(
+                [{"path": ["model"], "value": '{"name":"gpt-5"}'}],
+                set(),
+                id="string-ignores-object",
+            ),
+            pytest.param(
+                [{"path": ["model", "name"], "value": "gpt-5"}],
+                {"model-object"},
+                id="nested-key-under-object",
+            ),
+            pytest.param(
                 [{"path": ["missing"], "value": "gpt-5"}],
                 set(),
                 id="missing-key",
@@ -1468,6 +1485,26 @@ class TestDatasetExperimentsMetadataFilter:
                 {"path": ["model"], "value": {"a": 1}},
                 "Metadata filter value must be a string, number, or boolean",
                 id="object-value",
+            ),
+            pytest.param(
+                {"path": ["temperature"], "value": 2**63},
+                "Metadata filter value must fit in a 64-bit integer",
+                id="integer-above-int64",
+            ),
+            pytest.param(
+                {"path": ["temperature"], "value": -(2**63) - 1},
+                "Metadata filter value must fit in a 64-bit integer",
+                id="integer-below-int64",
+            ),
+            pytest.param(
+                {"path": ["model"], "value": "gpt\x005"},
+                "Metadata filter keys and values must not contain NUL characters",
+                id="nul-in-value",
+            ),
+            pytest.param(
+                {"path": ["mo\x00del"], "value": "gpt-5"},
+                "Metadata filter keys and values must not contain NUL characters",
+                id="nul-in-key",
             ),
         ],
     )
