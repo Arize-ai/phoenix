@@ -14,7 +14,6 @@ import {
 import { normalizeInputMapping } from "@phoenix/components/evaluators/utils";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 /**
  * A decision evaluator as the create and edit slideovers need it. Structural so a
@@ -115,14 +114,6 @@ export function policiesEqual(
     a.questions.every((question, index) =>
       questionScoringEqual(question, b.questions[index])
     )
-  );
-}
-
-/** The message of a failed mutation, from a network error or GraphQL errors. */
-export function getMutationErrorMessage(error: unknown): string {
-  return (
-    getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
-    (error instanceof Error ? error.message : "An unknown error occurred")
   );
 }
 

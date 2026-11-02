@@ -7,7 +7,6 @@ import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/d
 import {
   commitAsync,
   type DecisionEvaluatorData,
-  getMutationErrorMessage,
   inputNamesFromSchema,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import {
@@ -19,13 +18,9 @@ import {
   useDeclaredInputMapping,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
-import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
-import {
-  createDecisionQuestion,
-  createDecisionStateDraft,
-} from "@phoenix/pages/playground/decisionUtils";
 import type { ProjectDecisionEvaluatorDialogContentCreateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentCreateMutation.graphql";
 import type { ProjectDecisionEvaluatorDialogContentUpdateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentUpdateMutation.graphql";
 import {
@@ -51,7 +46,7 @@ import {
   type EvaluatorFormDirtyCheck,
   useEvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
-import type { DecisionPromptDraft } from "@phoenix/store/playground";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type ScopeProps = {
   projectId: string;
@@ -64,21 +59,6 @@ type DialogProps = ScopeProps & {
   onSuccess: () => void;
   registerDirtyCheck: (check: EvaluatorFormDirtyCheck) => void;
 };
-
-function createProjectDecisionDraft(): DecisionPromptDraft {
-  return {
-    state: createDecisionStateDraft({
-      text: "Request:\n{{input}}\n\nResponse:\n{{output}}",
-    }),
-    questions: [
-      createDecisionQuestion({
-        type: "predicate",
-        name: "relevant",
-        instructions: "Does the response address the request?",
-      }),
-    ],
-  };
-}
 
 const createMutation = graphql`
   mutation ProjectDecisionEvaluatorDialogContentCreateMutation(
@@ -104,8 +84,7 @@ function toDecisionPreview(
   draft: DecisionEvaluatorDraft
 ): ProjectEvaluatorDecisionPreview {
   try {
-    const { decisionVersion, scoringPolicy } = draft.getDefinition("", "test");
-    return { definition: { decisionVersion, scoringPolicy } };
+    return { definition: draft.getTestDefinition() };
   } catch (error) {
     return { blocker: getMutationErrorMessage(error).replace(/\.$/, "") };
   }
@@ -173,9 +152,9 @@ function ProjectDecisionEvaluatorLayout({
       }
       contentGap="var(--global-dimension-size-100)"
       renderInputVariables={(form) => (
-        <CodeEvaluatorInputVariablesProvider variables={[...variables]}>
+        <EvaluatorInputVariablesProvider variables={[...variables]}>
           {form}
-        </CodeEvaluatorInputVariablesProvider>
+        </EvaluatorInputVariablesProvider>
       )}
       left={definition}
       leftDock={
@@ -199,9 +178,8 @@ function ProjectDecisionEvaluatorLayout({
 export function CreateProjectDecisionEvaluatorDialogContent(
   props: DialogProps
 ) {
-  const [defaultDraft] = useState(createProjectDecisionDraft);
   return (
-    <DecisionEvaluatorDraftProvider defaultDraft={defaultDraft}>
+    <DecisionEvaluatorDraftProvider surface="project">
       <CreateProjectDecisionEvaluatorForm {...props} />
     </DecisionEvaluatorDraftProvider>
   );
@@ -362,9 +340,8 @@ export function EditProjectDecisionEvaluatorDialogContent(
     onClose: () => void;
   }
 ) {
-  const [defaultDraft] = useState(createProjectDecisionDraft);
   return (
-    <DecisionEvaluatorDraftProvider defaultDraft={defaultDraft}>
+    <DecisionEvaluatorDraftProvider surface="project">
       <EditProjectDecisionEvaluatorDraft {...props} />
     </DecisionEvaluatorDraftProvider>
   );
