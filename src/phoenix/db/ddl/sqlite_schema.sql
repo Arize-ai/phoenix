@@ -41,14 +41,17 @@ CREATE TABLE generative_models (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at TIMESTAMP,
+    type VARCHAR DEFAULT 'LLM' NOT NULL
+        CONSTRAINT "ck_generative_models_`valid_type`"
+        CHECK (type IN ('LLM', 'DECISION', 'EMBEDDING')),
     CONSTRAINT pk_generative_models PRIMARY KEY (id)
 );
 
 CREATE UNIQUE INDEX ix_generative_models_match_criteria ON generative_models
-    (name_pattern, provider, is_built_in)
+    (name_pattern, provider, is_built_in, type)
     WHERE deleted_at IS NULL;
-CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON generative_models
-    (name, is_built_in)
+CREATE UNIQUE INDEX ix_generative_models_name_is_built_in_type ON generative_models
+    (name, is_built_in, type)
     WHERE deleted_at IS NULL;
 CREATE INDEX ix_generative_models_updated_at ON generative_models (updated_at);
 

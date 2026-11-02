@@ -120,6 +120,7 @@ class ModelMutationMixin:
                     name=input.name,
                     provider=provider,
                     name_pattern=name_pattern,
+                    model_type=model.type,
                 )
 
         return CreateModelMutationPayload(
@@ -181,6 +182,7 @@ class ModelMutationMixin:
                     name=input.name,
                     provider=input.provider or "",
                     name_pattern=name_pattern,
+                    model_type=model.type,
                     exclude_model_id=model_id,
                 )
 
@@ -225,13 +227,14 @@ async def _conflicting_model_error(
     name: str,
     provider: str,
     name_pattern: re.Pattern[str],
+    model_type: models.GenerativeModelType,
     exclude_model_id: Optional[int] = None,
 ) -> Conflict:
     """
     Describe the constraint that a rejected write actually violated.
 
     Custom models are covered by two partial unique indexes over non-deleted rows:
-    `(name, is_built_in)` and `(name_pattern, provider, is_built_in)`. The failure
+    `(name, is_built_in, type)` and `(name_pattern, provider, is_built_in, type)`. The failure
     alone cannot tell them apart, because the backends describe it differently --
     PostgreSQL names the index, SQLite names the columns -- so this looks up the
     offending row rather than guessing, which is how an unrelated failure used to
@@ -245,6 +248,7 @@ async def _conflicting_model_error(
         sa.select(models.GenerativeModel.name)
         .where(models.GenerativeModel.deleted_at.is_(None))
         .where(models.GenerativeModel.is_built_in.is_(False))
+        .where(models.GenerativeModel.type == model_type)
         .where(
             sa.or_(
                 models.GenerativeModel.name == name,

@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast, get_args
 
 import orjson
 import sqlalchemy as sa
@@ -180,6 +180,10 @@ SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
+# The kind of span a generative model prices, named after the OpenInference span kinds so a
+# span's kind can be compared to it directly.
+GenerativeModelType: TypeAlias = Literal["LLM", "DECISION", "EMBEDDING"]
+_GENERATIVE_MODEL_TYPES_SQL = ", ".join(f"'{t}'" for t in get_args(GenerativeModelType))
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -2640,6 +2644,11 @@ class GenerativeModel(HasId):
         Boolean,
         nullable=False,
     )
+    type: Mapped[GenerativeModelType] = mapped_column(
+        CheckConstraint(f"type IN ({_GENERATIVE_MODEL_TYPES_SQL})", name="valid_type"),
+        default="LLM",
+        server_default="LLM",
+    )
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         server_default=func.now(),
@@ -2665,19 +2674,28 @@ class GenerativeModel(HasId):
             "name_pattern",
             "provider",
             "is_built_in",
+            "type",
             postgresql_where=sa.text("deleted_at IS NULL"),
             sqlite_where=sa.text("deleted_at IS NULL"),
             unique=True,
         ),
         Index(
-            "ix_generative_models_name_is_built_in",
+            "ix_generative_models_name_is_built_in_type",
             "name",
             "is_built_in",
+            "type",
             postgresql_where=sa.text("deleted_at IS NULL"),
             sqlite_where=sa.text("deleted_at IS NULL"),
             unique=True,
         ),
     )
+
+
+@event.listens_for(GenerativeModel, "init")
+def _default_generative_model_type(_: Any, __: Any, kwargs: dict[str, Any]) -> None:
+    """Default the type when the model is constructed, not only when it is inserted, so
+    unsaved models (e.g. in a `CostModelLookup`) have one too."""
+    kwargs.setdefault("type", "LLM")
 
 
 class TokenPrice(HasId):
