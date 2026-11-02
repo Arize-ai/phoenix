@@ -50,12 +50,12 @@ px prompt delete <prompt-identifier>
 px project list
 px project get <name>
 px project delete <project-identifier>
-px annotation-config list
-px annotation-config get <identifier>
 px project annotation-config list <project-identifier>
 px project annotation-config assign <project-identifier> <config-identifier>
 px project annotation-config unassign <project-identifier> <config-identifier>
 px project annotation-config set <project-identifier> [config-identifiers...]
+px annotation-config list
+px annotation-config get <identifier>
 px annotation-config create
 px annotation-config update <identifier>
 px annotation-config delete <id>

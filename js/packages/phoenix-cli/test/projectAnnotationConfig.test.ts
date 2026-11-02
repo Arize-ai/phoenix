@@ -197,6 +197,21 @@ function captureAllConfigs(configs: AnnotationConfig[] = ALL_CONFIGS) {
   return captured;
 }
 
+/**
+ * Record every request the CLI sends as "METHOD /path", except the server
+ * version check. Call `mock.server.events.removeAllListeners()` when done.
+ */
+function recordApiRequests() {
+  const requests: string[] = [];
+  mock.server.events.on("request:start", ({ request }) => {
+    const { pathname } = new URL(request.url);
+    if (pathname !== "/arize_phoenix_version") {
+      requests.push(`${request.method} ${decodeURIComponent(pathname)}`);
+    }
+  });
+  return requests;
+}
+
 /** Answer every project annotation-config route with a plain-text error. */
 function respondWithError(status: number, message: string) {
   mock.server.use(
@@ -386,14 +401,31 @@ describe("project annotation-config assign", () => {
     expect(captured.configIdentifier).toBe(CORRECTNESS.id);
   });
 
-  it("succeeds again when the config is already assigned", async () => {
+  it("makes the same single PUT on a second run, with no lookup and no prompt", async () => {
     const captured = captureAssign();
+    const lookups = captureAllConfigs();
     const io = captureCliOutput();
+    setStdinIsTTY(true);
+    const requests = recordApiRequests();
 
-    await run([...ASSIGN_ARGS, "--format", "raw"]);
-    await run([...ASSIGN_ARGS, "--format", "raw"]);
+    try {
+      await run([...ASSIGN_ARGS, "--format", "raw"]);
+      const firstRun = requests.splice(0);
+      await run([...ASSIGN_ARGS, "--format", "raw"]);
+      const secondRun = requests.splice(0);
+
+      const expected = [
+        `PUT /v1/projects/${PROJECT_NAME}/annotation_configs/correctness`,
+      ];
+      expect(firstRun).toEqual(expected);
+      expect(secondRun).toEqual(expected);
+    } finally {
+      mock.server.events.removeAllListeners();
+    }
 
     expect(captured.calls).toBe(2);
+    expect(lookups.calls).toBe(0);
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(io.stdout.mock.calls.map((call) => call[0])).toEqual([
       JSON.stringify(CORRECTNESS),
       JSON.stringify(CORRECTNESS),
@@ -533,14 +565,31 @@ describe("project annotation-config unassign", () => {
     expect(captured.configIdentifier).toBe(CORRECTNESS.id);
   });
 
-  it("succeeds again when the config is not assigned", async () => {
+  it("makes the same single DELETE on a second run, with no lookup and no prompt", async () => {
     const captured = captureUnassign();
+    const lookups = captureAllConfigs();
     const io = captureCliOutput();
+    setStdinIsTTY(true);
+    const requests = recordApiRequests();
 
-    await run([...UNASSIGN_ARGS, "--format", "raw"]);
-    await run([...UNASSIGN_ARGS, "--format", "raw"]);
+    try {
+      await run([...UNASSIGN_ARGS, "--format", "raw"]);
+      const firstRun = requests.splice(0);
+      await run([...UNASSIGN_ARGS, "--format", "raw"]);
+      const secondRun = requests.splice(0);
+
+      const expected = [
+        `DELETE /v1/projects/${PROJECT_NAME}/annotation_configs/correctness`,
+      ];
+      expect(firstRun).toEqual(expected);
+      expect(secondRun).toEqual(expected);
+    } finally {
+      mock.server.events.removeAllListeners();
+    }
 
     expect(captured.calls).toBe(2);
+    expect(lookups.calls).toBe(0);
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(io.stdout).toHaveBeenCalledTimes(2);
   });
 
