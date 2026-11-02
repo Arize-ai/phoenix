@@ -279,7 +279,7 @@ class DecisionConnection:
     provider names who hosts it."""
     ignore_environment: bool = False
     """Keep the SDK from reading the server's environment (organization, project), so
-    a custom provider sends only what it configures."""
+    a custom provider, or a built-in one on another host, sends only what it configures."""
 
 
 class DecisionClient(ABC):
@@ -307,6 +307,9 @@ class DecisionClient(ABC):
     requires_api_key: ClassVar[bool] = True
     """False for servers that ignore the key; a placeholder is sent, since the SDK
     requires one."""
+    ignore_environment: ClassVar[bool] = False
+    """True when the SDK's environment variables belong to another host, so a built-in
+    connection must not read them (see :attr:`DecisionConnection.ignore_environment`)."""
 
     def __init__(self, *, model_name: str, connection: DecisionConnection) -> None:
         self.model_name = model_name
@@ -715,15 +718,19 @@ class AzureOpenAIDecisionClient(OpenAIDecisionClient):
     Configured the way Azure OpenAI chat is: ``AZURE_OPENAI_API_KEY`` and the resource
     endpoint from the run or ``AZURE_OPENAI_ENDPOINT``. Like chat, it calls Azure's v1
     API through the plain OpenAI client, which needs no ``api-version``; the SDK's
-    ``AsyncAzureOpenAI`` would require one. The model name is the deployment name.
+    ``AsyncAzureOpenAI`` would require one. The model name is the deployment name, which
+    the user chooses, so the catalog suggests none. The SDK is kept from reading
+    ``OPENAI_*`` variables, so the server's OpenAI organization and project never reach
+    Azure.
     """
 
     provider_key = GenerativeProviderKey.AZURE_OPENAI
     system = OpenInferenceDecisionSystemValues.OPENAI
     provider = "azure"  # OpenInference has no Azure decision provider value yet.
-    model_names = OPENAI_DECISION_MODELS
+    model_names = ()
     default_base_url = None
     base_url_env_var = "AZURE_OPENAI_ENDPOINT"
+    ignore_environment = True
 
     @classmethod
     def resolve_base_url(cls, override: Optional[str]) -> Optional[str]:
@@ -902,7 +909,11 @@ async def get_decision_client(
     if not client_class.requires_api_key:
         return client_class(
             model_name=model_name,
-            connection=DecisionConnection(api_key=_PLACEHOLDER_API_KEY, base_url=resolved_base_url),
+            connection=DecisionConnection(
+                api_key=_PLACEHOLDER_API_KEY,
+                base_url=resolved_base_url,
+                ignore_environment=client_class.ignore_environment,
+            ),
         )
     env_var_name = client_class.credential_env_var()
     api_key = await resolve_provider_api_key(
@@ -919,7 +930,11 @@ async def get_decision_client(
         )
     return client_class(
         model_name=model_name,
-        connection=DecisionConnection(api_key=api_key, base_url=resolved_base_url),
+        connection=DecisionConnection(
+            api_key=api_key,
+            base_url=resolved_base_url,
+            ignore_environment=client_class.ignore_environment,
+        ),
     )
 
 

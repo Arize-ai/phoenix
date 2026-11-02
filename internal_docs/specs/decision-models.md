@@ -993,6 +993,35 @@ Preview flags such as `TypeSafe-Danger-Zone-Images` aren't stored at first. If
 they need to be, they go in an allow-listed per-provider `options` field, never
 as raw headers.
 
+### 10.7 Fireworks
+
+Fireworks serves its decision models through System One at
+`/inference/v1/systemone`, so the built-in `FIREWORKS` provider runs them with
+the TypeSafe adapter and serves both model types. It is configured the way
+Fireworks chat is: `FIREWORKS_API_KEY`, and a base URL from the run or
+`FIREWORKS_BASE_URL`, defaulting to `https://api.fireworks.ai/inference`. That
+variable names chat's OpenAI-compatible root (`.../inference/v1`), so a
+trailing `/v1` is dropped, as for Ollama. The catalog suggests
+`accounts/fireworks/models/rune`. The span's `decision.system` is `typesafe`
+and `decision.provider` is `fireworks`, a plain string until OpenInference has
+a value.
+
+### 10.8 Azure OpenAI
+
+Azure OpenAI serves OpenAI's Decisions API at `{endpoint}/openai/v1/decisions`,
+so the built-in `AZURE_OPENAI` provider runs it with the OpenAI adapter and
+serves both model types. It is configured the way Azure chat is:
+`AZURE_OPENAI_API_KEY`, and the resource endpoint from the run or
+`AZURE_OPENAI_ENDPOINT`, with no default. `/openai/v1` is appended unless the
+endpoint already ends with it. Like chat, it uses the plain OpenAI client on
+Azure's v1 API, which takes no `api-version`. The model name is the user's
+deployment name, so the catalog suggests none. As for a custom provider, the
+OpenAI SDK is kept from reading `OPENAI_*` variables, so the server's OpenAI
+organization and project never reach Azure. An API key is required: unlike
+chat, decisions don't fall back to Entra ID (`DefaultAzureCredential`), and the
+playground's per-model Azure endpoint isn't sent on decision runs. The span's
+`decision.system` is `openai` and `decision.provider` is `azure`.
+
 ## 11. App Access
 
 REST mirrors the prompt routes:
@@ -1664,7 +1693,8 @@ is in the [appendix](#19-appendix-decision-evaluator-implementation).
 ## 17. Implementation Status
 
 Everywhere Phoenix uses a chat model, a decision model needs an equivalent.
-Providers and models are done: built-in TypeSafe, OpenAI, and Ollama; custom
+Providers and models are done: built-in TypeSafe, OpenAI, Ollama, Fireworks,
+and Azure OpenAI (API key only); custom
 `openai` and `typesafe` providers with capability checks; credentials; the
 catalog; and decision models kept out of every chat path. The server also
 blocks deleting a custom provider referenced by a saved decision version or a

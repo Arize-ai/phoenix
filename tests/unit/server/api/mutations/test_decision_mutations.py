@@ -509,10 +509,10 @@ async def test_catalog_keeps_same_name_types_distinct(gql_client: AsyncGraphQLCl
     assert result.data and not result.errors
     assert all(model["modelType"] == "LLM" for model in result.data["llm"])
     assert all(model["modelType"] == "DECISION" for model in result.data["decision"])
+    # Azure suggests no decision models: they are named by the user's deployment.
     assert {model["providerKey"] for model in result.data["decision"]} == {
         "OPENAI",
         "TYPESAFE",
-        "AZURE_OPENAI",
         "FIREWORKS",
         "OLLAMA",
     }

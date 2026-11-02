@@ -178,7 +178,8 @@ def _key(env_var_name: str) -> list[GenerativeCredentialInput]:
 def test_registry_includes_azure_openai_and_fireworks() -> None:
     assert DECISION_CLIENTS[GenerativeProviderKey.AZURE_OPENAI] is AzureOpenAIDecisionClient
     assert DECISION_CLIENTS[GenerativeProviderKey.FIREWORKS] is FireworksDecisionClient
-    assert AzureOpenAIDecisionClient.model_names == ("gpt-6-luna",)
+    # Azure routes by deployment name, which the user chooses, so none is suggested.
+    assert AzureOpenAIDecisionClient.model_names == ()
     assert FireworksDecisionClient.model_names == ("accounts/fireworks/models/rune",)
     assert AzureOpenAIDecisionClient.credential_env_var() == "AZURE_OPENAI_API_KEY"
     assert FireworksDecisionClient.credential_env_var() == "FIREWORKS_API_KEY"
@@ -338,6 +339,29 @@ class TestAzureOpenAIDecisions:
         assert attributes["decision.system"] == "openai"
         assert attributes["decision.provider"] == "azure"
         assert attributes["decision.request.model_name"] == "my-luna-deployment"
+
+    async def test_the_servers_openai_organization_and_project_stay_off_azure(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_ORG_ID", "org-server")
+        monkeypatch.setenv("OPENAI_PROJECT_ID", "proj-server")
+        async with db() as session:
+            client = await get_decision_client(
+                provider=GenerativeProviderKey.AZURE_OPENAI,
+                model_name="my-luna-deployment",
+                base_url="https://res.openai.azure.com",
+                credentials=_key("AZURE_OPENAI_API_KEY"),
+                session=session,
+                decrypt=lambda value: value,
+            )
+        with respx.mock(assert_all_called=True) as router:
+            route = router.post("https://res.openai.azure.com/openai/v1/decisions").respond(
+                200, json=OPENAI_DECISION_RESPONSE
+            )
+            await client.create(request=REQUEST, tracer=_tracer())
+        headers = route.calls[0].request.headers
+        assert "openai-organization" not in headers
+        assert "openai-project" not in headers
 
     async def test_an_error_names_azure_openai(self, db: DbSessionFactory) -> None:
         async with db() as session:
