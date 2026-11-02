@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, AsyncIterator, ClassVar, Mapping, Optional, Sequence, Union
 
-import httpx
+import httpx2
 from pydantic import SecretStr
 from typing_extensions import override
 
@@ -95,7 +95,7 @@ class DockerSandboxesError(Exception):
         self.code = code
 
 
-def _checked(response: httpx.Response) -> httpx.Response:
+def _checked(response: httpx2.Response) -> httpx2.Response:
     if not response.is_error:
         return response
     code, message = "", response.reason_phrase
@@ -149,7 +149,7 @@ class _PatAuth:
 
 
 class _DockerSandboxesAPI:
-    def __init__(self, http: httpx.AsyncClient, auth: _PatAuth) -> None:
+    def __init__(self, http: httpx2.AsyncClient, auth: _PatAuth) -> None:
         self._http = http
         self._auth = auth
 
@@ -161,9 +161,9 @@ class _DockerSandboxesAPI:
         retry: bool,
         bearer: Optional[str] = None,
         headers: Optional[Mapping[str, str]] = None,
-        timeout: Union[httpx.Timeout, float, None] = _REQUEST_TIMEOUT_SECONDS,
+        timeout: Union[httpx2.Timeout, float, None] = _REQUEST_TIMEOUT_SECONDS,
         **kwargs: Any,
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         request_headers = dict(headers or {})
         if bearer is not None:
             request_headers["Authorization"] = f"Bearer {bearer}"
@@ -172,7 +172,7 @@ class _DockerSandboxesAPI:
                 response = await self._http.request(
                     method, url, headers=request_headers, timeout=timeout, **kwargs
                 )
-            except httpx.TransportError:
+            except httpx2.TransportError:
                 pass
             else:
                 if response.status_code not in _RETRYABLE_STATUSES:
@@ -186,7 +186,7 @@ class _DockerSandboxesAPI:
 
     async def _manage(
         self, method: str, path: str, *, retry: bool, **kwargs: Any
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         bearer = await self._auth.bearer(self)
         return await self.send(
             method, f"{_API_BASE_URL}{path}", retry=retry, bearer=bearer, **kwargs
@@ -285,7 +285,7 @@ class _DockerSandboxesAPI:
             retry=False,
             bearer=token,
             json=body,
-            timeout=httpx.Timeout(timeout, connect=_REQUEST_TIMEOUT_SECONDS),
+            timeout=httpx2.Timeout(timeout, connect=_REQUEST_TIMEOUT_SECONDS),
         )
         return dict(response.json())
 
@@ -344,7 +344,7 @@ class DockerSandboxBackend(SandboxBackend):
         user_env: Optional[Mapping[str, str]] = None,
         packages: Optional[Sequence[str]] = None,
         deny_internet: bool = False,
-        transport: Optional[httpx.AsyncBaseTransport] = None,
+        transport: Optional[httpx2.AsyncBaseTransport] = None,
     ) -> None:
         self._auth = _PatAuth(docker_id, pat)
         self._language: LanguageName = language
@@ -371,7 +371,7 @@ class DockerSandboxBackend(SandboxBackend):
 
     @asynccontextmanager
     async def _api(self) -> AsyncIterator[_DockerSandboxesAPI]:
-        async with httpx.AsyncClient(transport=self._transport) as http:
+        async with httpx2.AsyncClient(transport=self._transport) as http:
             yield _DockerSandboxesAPI(http, self._auth)
 
     def _create_body(self, display_name: Optional[str]) -> dict[str, Any]:
@@ -450,7 +450,7 @@ class DockerSandboxBackend(SandboxBackend):
             response = await api.exec(
                 sandbox.endpoint_uri, token, cmd, env=env, timeout=http_timeout
             )
-        except httpx.ReadTimeout:
+        except httpx2.ReadTimeout:
             if timeout is None:
                 raise
             return _timed_out(timeout)

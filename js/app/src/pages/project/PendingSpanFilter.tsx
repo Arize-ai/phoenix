@@ -17,6 +17,7 @@ export function PendingSpanFilter({
 }) {
   return (
     <PendingDSLFilter
+      isSelectable
       onValidCondition={({
         condition,
         selectsRootSpansOnly,

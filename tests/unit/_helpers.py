@@ -4,7 +4,7 @@ from secrets import token_hex
 from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
 from uuid import UUID, uuid5
 
-import httpx
+import httpx2
 from sqlalchemy import Result, Row, Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -71,7 +71,7 @@ async def _node(
     field: str,
     type_name: str,
     id_: int,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> dict[str, Any]:
     query = "query($id:ID!){node(id:$id){... on " + type_name + "{" + field + "}}}"
     gid = str(GlobalID(type_name, str(id_)))

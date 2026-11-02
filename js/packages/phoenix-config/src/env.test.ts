@@ -486,6 +486,26 @@ describe("env", () => {
       expect(getBaseUrlFromEnvironment()).toBe("http://127.0.0.1:7007");
     });
 
+    it.each([
+      [
+        { [ENV_PHOENIX_HOST]: "::", [ENV_PHOENIX_PORT]: "7007" },
+        "http://127.0.0.1:7007",
+      ],
+      [{ [ENV_PHOENIX_HOST]: "[::]" }, "http://127.0.0.1:6006"],
+      [
+        { [ENV_PHOENIX_HOST]: "::1", [ENV_PHOENIX_PORT]: "1234" },
+        "http://[::1]:1234",
+      ],
+      [{ [ENV_PHOENIX_HOST]: "[::1]" }, "http://[::1]:6006"],
+      [{ [ENV_PHOENIX_HOST]: "[::1]:1234" }, "http://[::1]:1234"],
+    ])(
+      "should normalize IPv6 PHOENIX_HOST %o to %s",
+      (envVars, expectedUrl) => {
+        Object.assign(process.env, envVars);
+        expect(getBaseUrlFromEnvironment()).toBe(expectedUrl);
+      }
+    );
+
     it("should default the port for a bare PHOENIX_HOST without one", () => {
       process.env[ENV_PHOENIX_HOST] = "phoenix.internal";
       expect(getBaseUrlFromEnvironment()).toBe("http://phoenix.internal:6006");

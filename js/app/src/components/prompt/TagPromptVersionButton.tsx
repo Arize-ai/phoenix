@@ -14,10 +14,13 @@ import {
   PopoverArrow,
   View,
 } from "@phoenix/components";
+import type { TagPromptVersionButtonSetTagMutation } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonSetTagMutation.graphql";
 import type { TagPromptVersionButtonTagsQuery } from "@phoenix/components/prompt/__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { NewPromptVersionDialog } from "@phoenix/pages/prompt/NewPromptVersionTagDialog";
+
+import { movePromptVersionTag } from "./movePromptVersionTag";
 
 type TagPromptVersionButtonProps = {
   promptId: string;
@@ -93,6 +96,7 @@ export function TagPromptVersionButton({
         }}
       >
         <NewPromptVersionDialog
+          promptId={promptId}
           promptVersionId={versionId}
           onDismiss={() => setShowNewTagDialog(false)}
           onNewTagCreated={(newTag) => {
@@ -163,22 +167,20 @@ function TagList({
     );
   }, [allVersionTags]);
 
-  const [commitSetTag, isCommitting] = useMutation(graphql`
-    mutation TagPromptVersionButtonSetTagMutation(
-      $input: SetPromptVersionTagInput!
-      $promptId: ID!
-    ) {
-      setPromptVersionTag(input: $input) {
-        query {
-          prompt: node(id: $promptId) {
-            ... on Prompt {
-              ...PromptVersionsList__main
-            }
+  const [commitSetTag, isCommitting] =
+    useMutation<TagPromptVersionButtonSetTagMutation>(graphql`
+      mutation TagPromptVersionButtonSetTagMutation(
+        $input: SetPromptVersionTagInput!
+      ) {
+        setPromptVersionTag(input: $input) {
+          promptVersionTag {
+            id
+            name
+            promptVersionId
           }
         }
       }
-    }
-  `);
+    `);
   return (
     <ul>
       {allVersionTagsWithDefaults.map((tagName: string) => {
@@ -213,7 +215,18 @@ function TagList({
                           promptVersionId: versionId,
                           description,
                         },
-                        promptId: promptId,
+                      },
+                      updater: (store, data) => {
+                        const tagId =
+                          data?.setPromptVersionTag.promptVersionTag?.id;
+                        if (tagId) {
+                          movePromptVersionTag({
+                            store,
+                            promptId,
+                            versionId,
+                            tagId,
+                          });
+                        }
                       },
                       onCompleted: () => {
                         onTagSet(tagName);

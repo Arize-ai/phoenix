@@ -1058,6 +1058,19 @@ Not returned by `Daytona#list`; call `#refreshData()` on each item to populate.
 
 - `Boolean` - block-all flag, or `null` if not yet populated
 
+#### getKvm()
+```java
+public Boolean getKvm()
+```
+
+Whether the sandbox exposes KVM (/dev/kvm) to its guest.
+
+Not returned by `Daytona#list`; call `#refreshData()` on each item to populate.
+
+**Returns**:
+
+- `Boolean` - KVM flag, or `null` if not yet populated
+
 #### getNetworkAllowList()
 ```java
 public String getNetworkAllowList()

@@ -570,9 +570,6 @@ export const DatasetEvaluatorsTable = ({
                       <div
                         {...{
                           className: header.column.getCanSort() ? "sort" : "",
-                          ["aria-role"]: header.column.getCanSort()
-                            ? "button"
-                            : null,
                           onClick: header.column.getToggleSortingHandler(),
                           style: {
                             textAlign: header.column.columnDef.meta?.textAlign,

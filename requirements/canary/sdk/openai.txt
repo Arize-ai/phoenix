@@ -1,2 +1,0 @@
--r common.txt
-openai>=1.66.5

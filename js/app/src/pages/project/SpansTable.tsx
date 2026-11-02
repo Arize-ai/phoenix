@@ -640,7 +640,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "input",
-      accessorKey: "input.value",
+      // keep the id accessorKey "input.value" derived, which saved column
+      // preferences refer to; a span without an input has no `input`
+      id: "input_value",
+      accessorFn: (row) => row.input?.value,
       cell: ({ getValue, row }) => (
         <SpanInputValueTooltipCell
           nodeId={row.original.id}
@@ -651,7 +654,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "output",
-      accessorKey: "output.value",
+      // keep the id accessorKey "output.value" derived, which saved column
+      // preferences refer to; a span without an output has no `output`
+      id: "output_value",
+      accessorFn: (row) => row.output?.value,
       cell: ({ getValue, row }) => (
         <SpanOutputValueTooltipCell
           nodeId={row.original.id}
@@ -790,9 +796,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: rootSpansOnly ? "cumulative cost" : "total cost",
-      accessorKey: rootSpansOnly
-        ? "trace.costSummary.total.cost"
-        : "costSummary.total.cost",
+      accessorFn: (row) =>
+        rootSpansOnly
+          ? row.trace?.costSummary?.total?.cost
+          : row.costSummary?.total?.cost,
       id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
       meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {

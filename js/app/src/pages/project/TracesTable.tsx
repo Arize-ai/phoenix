@@ -779,7 +779,10 @@ export function TracesTable(props: TracesTableProps) {
       },
       {
         header: "input",
-        accessorKey: "input.value",
+        // keep the id accessorKey "input.value" derived, which saved column
+        // preferences refer to; a span without an input has no `input`
+        id: "input_value",
+        accessorFn: (row) => row.input?.value,
         enableSorting: false,
         cell: ({ getValue, row }) => (
           <SpanInputValueTooltipCell
@@ -790,7 +793,10 @@ export function TracesTable(props: TracesTableProps) {
       },
       {
         header: "output",
-        accessorKey: "output.value",
+        // keep the id accessorKey "output.value" derived, which saved column
+        // preferences refer to; a span without an output has no `output`
+        id: "output_value",
+        accessorFn: (row) => row.output?.value,
         enableSorting: false,
         cell: ({ getValue, row }) => (
           <SpanOutputValueTooltipCell
@@ -896,7 +902,11 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "total cost",
         minSize: 80,
-        accessorKey: "trace.costSummary.total.cost",
+        // only root spans are fetched with their trace's cost summary
+        accessorFn: (row) =>
+          "costSummary" in row.trace
+            ? (row.trace as RootSpanTrace).costSummary.total.cost
+            : undefined,
         id: "cumulativeTokenCostTotal",
         meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {

@@ -465,6 +465,8 @@ Base parameters for creating a new Sandbox.
   requests to the Secret's allowed hosts. Every referenced Secret name must already exist
   in the organization.
 - `network_block_all` _bool | None_ - Whether to block all network access for the Sandbox.
+- `kvm` _bool | None_ - Expose KVM (/dev/kvm) inside the sandbox via nested virtualization.
+  linux-vm snapshots only. Requires the sandbox_kvm feature for the organization.
 - `network_allow_list` _str | None_ - Comma-separated list of allowed CIDR network addresses for the Sandbox.
 - `domain_allow_list` _str | None_ - Comma-separated list of allowed domains for the Sandbox.
 - `outbound_proxy_url` _str | None_ - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied

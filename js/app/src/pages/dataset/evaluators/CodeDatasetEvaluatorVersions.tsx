@@ -9,8 +9,11 @@ import invariant from "tiny-invariant";
 import {
   Card,
   CopyToClipboardButton,
+  EdgeFade,
   Empty,
   Flex,
+  ListSkeleton,
+  Skeleton,
   Switch,
   Text,
   Token,
@@ -60,6 +63,27 @@ const detailColCSS = css`
   height: 100%;
   overflow: auto;
   min-width: 0;
+`;
+
+const masterDetailSkeletonCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-100);
+  box-sizing: border-box;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+
+  .code-dataset-evaluator-versions-skeleton__list {
+    flex: none;
+    width: var(--global-dimension-size-4600);
+    height: 100%;
+  }
+  .code-dataset-evaluator-versions-skeleton__detail {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 `;
 
 const versionItemCSS = css`
@@ -315,6 +339,26 @@ export function CodeDatasetEvaluatorVersions({
           version={selectedVersion}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * A loading placeholder for {@link CodeDatasetEvaluatorVersions}: the master
+ * list beside a detail area that fills the remaining space.
+ */
+export function CodeDatasetEvaluatorVersionsSkeleton() {
+  return (
+    <div css={masterDetailSkeletonCSS} role="status" aria-label="loading">
+      <div className="code-dataset-evaluator-versions-skeleton__list">
+        <ListSkeleton itemCount={5} fadeEdge="bottom" aria-hidden />
+      </div>
+      <EdgeFade
+        edge="bottom"
+        className="code-dataset-evaluator-versions-skeleton__detail"
+      >
+        <Skeleton height="100%" borderRadius="medium" aria-hidden />
+      </EdgeFade>
     </div>
   );
 }
