@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { getModelKey } from "@phoenix/components/generative/modelSearch";
 
 import {
   addRecentAgentModel,
-  getAgentModelKey,
   normalizeRecentAgentModels,
 } from "../agentModelConfig";
 
@@ -30,13 +30,13 @@ function pick(models: readonly ModelMenuValue[]) {
   );
 }
 
-describe("getAgentModelKey", () => {
+describe("getModelKey", () => {
   it("separates custom providers from built-in ones", () => {
-    expect(getAgentModelKey({ provider: "OPENAI", modelName: "gpt-5.4" })).toBe(
+    expect(getModelKey({ provider: "OPENAI", modelName: "gpt-5.4" })).toBe(
       "OPENAI:gpt-5.4"
     );
     expect(
-      getAgentModelKey({
+      getModelKey({
         provider: "OPENAI",
         customProviderId: "custom-acme",
         modelName: "gpt-5.4",

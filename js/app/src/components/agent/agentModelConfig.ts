@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { getModelKeyForValue } from "@phoenix/components/generative/modelSearch";
 import { AGENT_MODEL_CONFIG_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { modelProviderSchema } from "@phoenix/utils/generativeUtils";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
@@ -69,54 +70,6 @@ export function getAgentModelConfigFromLocalStorage(): AgentModelConfig | null {
   }
 }
 
-/**
- * The stable id of a provider: the built-in provider key, or `custom:<id>`
- * for a custom provider.
- *
- * @param params - the provider
- * @param params.provider - built-in provider key (the SDK's key for custom providers)
- * @param params.customProviderId - custom provider id, if any
- */
-export function getAgentProviderKey({
-  provider,
-  customProviderId,
-}: {
-  provider: string;
-  customProviderId?: string | null;
-}): string {
-  return customProviderId ? `custom:${customProviderId}` : provider;
-}
-
-/**
- * The stable id of a model selection, used for picker row keys, recency
- * lookups and recent-model dedupe.
- *
- * @param params - the selection
- * @param params.provider - built-in provider key (the SDK's key for custom providers)
- * @param params.customProviderId - custom provider id, if any
- * @param params.modelName - the model id
- */
-export function getAgentModelKey({
-  provider,
-  customProviderId,
-  modelName,
-}: {
-  provider: string;
-  customProviderId?: string | null;
-  modelName: string;
-}): string {
-  return `${getAgentProviderKey({ provider, customProviderId })}:${modelName}`;
-}
-
-/** {@link getAgentModelKey} for a picker value. */
-export function getAgentModelKeyForValue(model: ModelMenuValue): string {
-  return getAgentModelKey({
-    provider: model.provider,
-    customProviderId: model.customProvider?.id,
-    modelName: model.modelName,
-  });
-}
-
 /** How many recently picked models are kept. */
 export const DEFAULT_RECENT_AGENT_MODELS_LIMIT = 5;
 
@@ -159,11 +112,11 @@ export function addRecentAgentModel({
   if (!parsed.success) {
     return recentModels.slice(0, limit);
   }
-  const key = getAgentModelKeyForValue(parsed.data);
+  const key = getModelKeyForValue(parsed.data);
   return [
     parsed.data,
     ...recentModels.filter(
-      (recentModel) => getAgentModelKeyForValue(recentModel) !== key
+      (recentModel) => getModelKeyForValue(recentModel) !== key
     ),
   ].slice(0, limit);
 }
@@ -193,7 +146,7 @@ export function normalizeRecentAgentModels({
       if (!parsed.success) {
         return [];
       }
-      const key = getAgentModelKeyForValue(parsed.data);
+      const key = getModelKeyForValue(parsed.data);
       if (seenKeys.has(key)) {
         return [];
       }
