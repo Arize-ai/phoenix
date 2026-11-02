@@ -7,11 +7,11 @@ import type { GenerativeProviderKey } from "@phoenix/components/generative/useMo
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import {
-  type AgentModelCatalogRow,
-  type AgentModelCredentialState,
-  getAgentModelHighlightRanges,
-  getAgentModelProviderHighlightQuery,
-} from "./agentModelSearch";
+  type ModelCatalogRow,
+  type ModelCredentialState,
+  getModelHighlightRanges,
+  getProviderHighlightQuery,
+} from "./modelSearch";
 
 const highlightCSS = css`
   /* color-mix rather than the -rgb companion, which only the dark theme defines */
@@ -26,16 +26,16 @@ const highlightCSS = css`
 
 /**
  * Renders `text` with the parts that match `query` marked, see
- * {@link getAgentModelHighlightRanges}.
+ * {@link getModelHighlightRanges}.
  */
-function AgentModelHighlight({
+export function ModelHighlight({
   text,
   query,
 }: {
   text: string;
   query?: string;
 }) {
-  const ranges = query ? getAgentModelHighlightRanges({ text, query }) : [];
+  const ranges = query ? getModelHighlightRanges({ text, query }) : [];
   if (ranges.length === 0) {
     return <>{text}</>;
   }
@@ -58,7 +58,7 @@ function AgentModelHighlight({
  * The provider icon for a row. Nothing for a provider key the icon set
  * doesn't know, so a future key can't break the picker.
  */
-export function AgentModelProviderIcon({
+export function ModelProviderIcon({
   provider,
 }: {
   provider: GenerativeProviderKey;
@@ -74,11 +74,11 @@ export function AgentModelProviderIcon({
  * with an ambient credential chain (AWS, Azure) show nothing: whether that
  * chain works can't be told until a send.
  */
-export function AgentModelCredentialHint({
+export function ModelCredentialHint({
   credentialState,
   isProviderMissing = false,
 }: {
-  credentialState: AgentModelCredentialState;
+  credentialState: ModelCredentialState;
   isProviderMissing?: boolean;
 }) {
   if (isProviderMissing) {
@@ -105,27 +105,27 @@ const modelRowCSS = css`
   min-width: 0;
   width: 100%;
 
-  .agent-model-row__text {
+  .model-row__text {
     display: flex;
     flex-direction: column;
     min-width: 0;
     flex: 1 1 auto;
   }
 
-  .agent-model-row__name,
-  .agent-model-row__secondary {
+  .model-row__name,
+  .model-row__secondary {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .agent-model-row__secondary {
+  .model-row__secondary {
     color: var(--global-text-color-500);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
   }
 
-  .agent-model-row__trailing {
+  .model-row__trailing {
     flex: none;
     display: inline-flex;
     align-items: center;
@@ -134,7 +134,7 @@ const modelRowCSS = css`
 
   /* A row with no badges renders an empty trailing slot; drop it so it adds
      no gap */
-  .agent-model-row__trailing:empty {
+  .model-row__trailing:empty {
     display: none;
   }
 `;
@@ -143,29 +143,29 @@ const modelRowCSS = css`
  * The content of one picker row: an icon, a name line, a muted second line
  * and trailing badges.
  */
-export function AgentModelRowLayout({
+export function ModelRowLayout({
   leadingVisual,
   name,
   secondary,
   trailing,
 }: {
-  /** Usually an {@link AgentModelProviderIcon} */
+  /** Usually an {@link ModelProviderIcon} */
   leadingVisual?: ReactNode;
   name: ReactNode;
   secondary?: ReactNode;
   trailing?: ReactNode;
 }) {
   return (
-    <span css={modelRowCSS} className="agent-model-row">
+    <span css={modelRowCSS} className="model-row">
       {leadingVisual}
-      <span className="agent-model-row__text">
-        <span className="agent-model-row__name">{name}</span>
+      <span className="model-row__text">
+        <span className="model-row__name">{name}</span>
         {secondary ? (
-          <span className="agent-model-row__secondary">{secondary}</span>
+          <span className="model-row__secondary">{secondary}</span>
         ) : null}
       </span>
       {trailing ? (
-        <span className="agent-model-row__trailing">{trailing}</span>
+        <span className="model-row__trailing">{trailing}</span>
       ) : null}
     </span>
   );
@@ -177,44 +177,39 @@ export function AgentModelRowLayout({
  * provider below. Both lines highlight the query; the provider label only
  * where a token names the provider.
  */
-export function AgentModelRow({
+export function ModelRow({
   row,
   query,
   showRecommendedBadge = false,
 }: {
-  row: AgentModelCatalogRow;
+  row: ModelCatalogRow;
   query?: string;
   /** Marks curated rows in search results; the empty state has a section */
   showRecommendedBadge?: boolean;
 }) {
   const isRecommendedBadgeVisible = showRecommendedBadge && row.isCurated;
   const providerLabel = (
-    <AgentModelHighlight
+    <ModelHighlight
       text={row.providerName}
-      query={
-        query ? getAgentModelProviderHighlightQuery({ row, query }) : undefined
-      }
+      query={query ? getProviderHighlightQuery({ row, query }) : undefined}
     />
   );
   return (
-    <AgentModelRowLayout
+    <ModelRowLayout
       leadingVisual={
         row.isProviderMissing ? (
           <Icon svg={<Icons.AlertTriangle />} color="warning" />
         ) : (
-          <AgentModelProviderIcon provider={row.provider} />
+          <ModelProviderIcon provider={row.provider} />
         )
       }
       name={
-        <AgentModelHighlight
-          text={row.displayName ?? row.modelName}
-          query={query}
-        />
+        <ModelHighlight text={row.displayName ?? row.modelName} query={query} />
       }
       secondary={
         row.displayName ? (
           <>
-            <AgentModelHighlight text={row.modelName} query={query} />
+            <ModelHighlight text={row.modelName} query={query} />
             {" · "}
             {providerLabel}
           </>
@@ -229,7 +224,7 @@ export function AgentModelRow({
               Recommended
             </Badge>
           ) : null}
-          <AgentModelCredentialHint
+          <ModelCredentialHint
             credentialState={row.credentialState}
             isProviderMissing={row.isProviderMissing}
           />

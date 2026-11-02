@@ -157,7 +157,7 @@ describe("AgentModelPicker", () => {
   const getItemTexts = () => getItems().map((item) => item.textContent ?? "");
   const getItemNames = () =>
     getItems().map(
-      (item) => item.querySelector(".agent-model-row__name")?.textContent
+      (item) => item.querySelector(".model-row__name")?.textContent
     );
   const getSectionTitles = () =>
     [...document.body.querySelectorAll('[role="menu"] header')].map(
@@ -190,12 +190,12 @@ describe("AgentModelPicker", () => {
   ];
   const getSubmenuNames = () =>
     getSubmenuItems().map(
-      (item) => item.querySelector(".agent-model-row__name")?.textContent
+      (item) => item.querySelector(".model-row__name")?.textContent
     );
   const findSubmenuItem = (name: string) => {
     const item = getSubmenuItems().find(
       (candidate) =>
-        candidate.querySelector(".agent-model-row__name")?.textContent === name
+        candidate.querySelector(".model-row__name")?.textContent === name
     );
     if (!item) {
       throw new Error(`no provider "${name}" in ${getSubmenuNames().join()}`);
