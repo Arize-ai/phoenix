@@ -1,12 +1,14 @@
 /**
  * Why the nav has stopped following the scroll position for now:
- * - `programmaticScroll`: the nav itself is scrolling the pane to a section,
- *   after a link click or on mount to `defaultActiveId`. That section's link
- *   stays current while other sections pass by.
- * - `heldDefault`: the nav is keeping `defaultActiveId` current until the
- *   user scrolls, including after its own scroll there has settled.
+ * - `programmaticallyScrolling`: the nav itself is scrolling the pane to a
+ *   section, after a link click or on mount to `defaultActiveId`. That
+ *   section's link stays current while other sections pass by.
+ * - `holdingDefaultSection`: the nav is keeping `defaultActiveId` current
+ *   until the user scrolls, including after its own scroll there has settled.
  */
-export type ScrollTrackingPauseReason = "programmaticScroll" | "heldDefault";
+export type ScrollTrackingPauseReason =
+  | "programmaticallyScrolling"
+  | "holdingDefaultSection";
 
 /**
  * Pause state for a section nav. The nav's event handlers call the `record*`
@@ -53,7 +55,7 @@ export function createScrollTracking(): ScrollTracking {
     recordScroll() {
       // While a default is held, only the user scrolls the pane; during a
       // programmatic scroll, the scroll is the nav's own
-      if (pauseReason === "heldDefault") {
+      if (pauseReason === "holdingDefaultSection") {
         hasUserScrolled = true;
       }
     },
@@ -66,7 +68,7 @@ export function createScrollTracking(): ScrollTracking {
       if (pauseReason == null) {
         return true;
       }
-      if (pauseReason === "heldDefault" && !hasUserScrolled) {
+      if (pauseReason === "holdingDefaultSection" && !hasUserScrolled) {
         return false;
       }
       const shouldResolve = hasUserScrolled;

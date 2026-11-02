@@ -302,7 +302,7 @@ export function SectionNav({
           // The scroll to the held default settled without the user
           // scrolling; keep holding it, since the scroll position may resolve
           // to another section (e.g. one the pane cannot scroll to the top)
-          tracking.pause("heldDefault");
+          tracking.pause("holdingDefaultSection");
           return;
         }
         heldDefaultIdRef.current = null;
@@ -348,7 +348,7 @@ export function SectionNav({
     // Unlike `scrollIntoView`, which also scrolls every scrollable ancestor
     // (e.g. the page around the pane), this moves only the container
     const scrollToSection = (section: HTMLElement) => {
-      pauseUntilSettled("programmaticScroll");
+      pauseUntilSettled("programmaticallyScrolling");
       const top =
         container.scrollTop +
         section.getBoundingClientRect().top -
@@ -393,7 +393,7 @@ export function SectionNav({
         : null;
       // Re-runs before the user scrolls land it in the same place again
       if (defaultSection == null) {
-        pauseUntilSettled("heldDefault");
+        pauseUntilSettled("holdingDefaultSection");
       } else {
         scrollToSection(defaultSection);
       }

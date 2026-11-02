@@ -77,7 +77,7 @@ describe("createScrollTracking", () => {
 
   it("holds a clicked link through the click's own scroll", () => {
     const tracking = createScrollTracking();
-    tracking.pause("programmaticScroll");
+    tracking.pause("programmaticallyScrolling");
     tracking.recordScroll();
     tracking.recordScroll();
     expect(tracking.isPaused).toBe(true);
@@ -90,7 +90,7 @@ describe("createScrollTracking", () => {
 
   it("follows the user who scrolls elsewhere during a click's scroll", () => {
     const tracking = createScrollTracking();
-    tracking.pause("programmaticScroll");
+    tracking.pause("programmaticallyScrolling");
     tracking.recordScroll();
     tracking.recordUserScrollInput();
     expect(tracking.settle()).toBe(true);
@@ -99,7 +99,7 @@ describe("createScrollTracking", () => {
 
   it("holds the default section until the user scrolls", () => {
     const tracking = createScrollTracking();
-    tracking.pause("heldDefault");
+    tracking.pause("holdingDefaultSection");
     expect(tracking.settle()).toBe(false);
     expect(tracking.isPaused).toBe(true);
     tracking.recordScroll();
@@ -109,8 +109,8 @@ describe("createScrollTracking", () => {
 
   it("lets a click replace the held default section", () => {
     const tracking = createScrollTracking();
-    tracking.pause("heldDefault");
-    tracking.pause("programmaticScroll");
+    tracking.pause("holdingDefaultSection");
+    tracking.pause("programmaticallyScrolling");
     tracking.recordScroll();
     expect(tracking.settle()).toBe(false);
     expect(tracking.isPaused).toBe(false);
@@ -118,7 +118,7 @@ describe("createScrollTracking", () => {
 
   it("follows the user who scrolls while the default section is held", () => {
     const tracking = createScrollTracking();
-    tracking.pause("heldDefault");
+    tracking.pause("holdingDefaultSection");
     tracking.recordScroll();
     expect(tracking.settle()).toBe(true);
   });
@@ -126,7 +126,7 @@ describe("createScrollTracking", () => {
   it("forgets user input from before a pause", () => {
     const tracking = createScrollTracking();
     tracking.recordUserScrollInput();
-    tracking.pause("programmaticScroll");
+    tracking.pause("programmaticallyScrolling");
     expect(tracking.settle()).toBe(false);
   });
 });
