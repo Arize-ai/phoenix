@@ -3,8 +3,8 @@
 `start` checks that the PR is open and that whoever asked has write access, then creates a
 Managed Agents session with the pr-reviewer agent, kicked off with the PR number and the
 commit to review. `watch` waits for the session to end, finds the review it posted, and
-reports that review's verdict on the PR. Agent, environment and vault IDs come from
-claude-lock.json, which `ant apply` writes.
+reports that review's verdict on the PR as a comment and as one of the VERDICT_LABELS. Agent,
+environment and vault IDs come from claude-lock.json, which `ant apply` writes.
 """
 
 import argparse
@@ -13,7 +13,7 @@ import os
 import re
 import time
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 
 import anthropic
 from dispatch import (
@@ -39,6 +39,25 @@ REVIEW_AGENT_LOCK_KEY = "./agents/pr-reviewer.md"
 VERDICT_PATTERN = re.compile(r"## Factory review of \S+: (Approve|Request changes|Close)")
 
 
+class VerdictLabel(NamedTuple):
+    name: str
+    color: str
+    description: str
+
+
+# The label each verdict leaves on the PR, so maintainers can filter the review queue by it.
+# A PR carries at most one of them, for the factory's latest review.
+VERDICT_LABELS = {
+    "Approve": VerdictLabel(
+        "factory-approved", "0E8A16", "The factory review recommends approving"
+    ),
+    "Request changes": VerdictLabel(
+        "factory-request-changes", "D93F0B", "The factory review recommends requesting changes"
+    ),
+    "Close": VerdictLabel("factory-close", "B60205", "The factory review recommends closing"),
+}
+
+
 def read_pr(*, pr_number: int) -> dict[str, Any]:
     return json.loads(
         run_gh(
@@ -58,6 +77,37 @@ def comment_on_pr(*, pr_number: int, body: str, token: Optional[str]) -> None:
 
 def remove_review_label(*, pr_number: int, token: Optional[str]) -> None:
     run_gh("pr", "edit", str(pr_number), "--remove-label", REVIEW_LABEL, token=token)
+
+
+def set_verdict_label(*, pr_number: int, verdict: Optional[str], token: Optional[str]) -> None:
+    """Leave the PR with the label for `verdict` and no other verdict label; None clears them."""
+    pr_labels = json.loads(run_gh("pr", "view", str(pr_number), "--json", "labels", token=token))
+    current_names = {label["name"] for label in pr_labels["labels"]}
+    wanted = VERDICT_LABELS[verdict] if verdict is not None else None
+    stale_names = [
+        label.name
+        for label in VERDICT_LABELS.values()
+        if label != wanted and label.name in current_names
+    ]
+    edit_args: list[str] = []
+    if wanted is not None and wanted.name not in current_names:
+        # Create or update the label on use, so a repo never lacks one the factory applies.
+        run_gh(
+            "label",
+            "create",
+            wanted.name,
+            "--color",
+            wanted.color,
+            "--description",
+            wanted.description,
+            "--force",
+            token=token,
+        )
+        edit_args += ["--add-label", wanted.name]
+    if stale_names:
+        edit_args += ["--remove-label", ",".join(stale_names)]
+    if edit_args:
+        run_gh("pr", "edit", str(pr_number), *edit_args, token=token)
 
 
 def read_factory_login() -> str:
@@ -173,7 +223,8 @@ def watch_session(
     started_at: str,
     factory_login: str,
     watch_minutes: int,
-) -> str:
+) -> tuple[str, Optional[str]]:
+    """Return the report to comment on the PR and the review's verdict, if it named one."""
     session, idle_event = wait_for_session(
         client=client,
         app_token=app_token,
@@ -185,7 +236,7 @@ def watch_session(
         return (
             f"The factory's **review** session {format_session_link(session_id=session_id)} "
             f"is still running after {watch_minutes} minutes."
-        )
+        ), None
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
     # The PR comment is for the maintainer; how the session ran goes to the job log.
     print(f"stop_reason={stop_reason} cost={format_cost(session=session)}")
@@ -197,18 +248,18 @@ def watch_session(
         return (
             f"The factory's **review** session {format_session_link(session_id=session_id)} "
             f"ended without posting a review (stop reason: `{stop_reason}`)."
-        )
+        ), None
     reviewed_sha = review["commit_id"][:10]
     verdict = read_verdict(review_body=review["body"] or "")
     if verdict is None:
         return (
             f"The factory posted [its review of {reviewed_sha}]({review['html_url']}), but the "
             "review's heading names no verdict."
-        )
+        ), None
     return (
-        f"The factory recommends **{verdict}** for {reviewed_sha}. "
-        f"[Read the review]({review['html_url']})."
-    )
+        f"The factory recommends **{verdict}** for {reviewed_sha} and labeled this pull "
+        f"request `{VERDICT_LABELS[verdict].name}`. [Read the review]({review['html_url']})."
+    ), verdict
 
 
 def run_start(*, args: argparse.Namespace) -> None:
@@ -238,6 +289,8 @@ def run_start(*, args: argparse.Namespace) -> None:
 
     # Fail before starting a session that the watch step could not check.
     read_factory_login()
+    # A verdict from an earlier review describes an older commit, so drop it until this one ends.
+    set_verdict_label(pr_number=args.pr, verdict=None, token=app_token.refresh())
     # Taken before the session exists, so every review it posts is submitted at or after it.
     started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     session_id = start_session(
@@ -266,13 +319,14 @@ def run_watch(*, args: argparse.Namespace) -> None:
         f"The factory lost track of session {format_session_link(session_id=args.session_id)}; "
         "see the workflow run."
     )
+    verdict: Optional[str] = None
     client = anthropic.Anthropic()
     app_token: Optional[GitHubAppToken] = None
     try:
         factory_login = read_factory_login()
         app_token = create_app_token(client=client, repo=args.repo)
         app_token.follow_session(session_id=args.session_id)
-        report = watch_session(
+        report, verdict = watch_session(
             client=client,
             app_token=app_token,
             session_id=args.session_id,
@@ -289,8 +343,12 @@ def run_watch(*, args: argparse.Namespace) -> None:
             report_token = app_token.refresh() if app_token is not None else None
         except Exception as error:
             print(f"::warning::Reporting with GITHUB_TOKEN; the app token failed: {error}")
-        comment_on_pr(pr_number=args.pr, body=report, token=report_token)
-        remove_review_label(pr_number=args.pr, token=report_token)
+        try:
+            comment_on_pr(pr_number=args.pr, body=report, token=report_token)
+            set_verdict_label(pr_number=args.pr, verdict=verdict, token=report_token)
+        finally:
+            # Free the label even when reporting fails, so re-adding it runs the PR again.
+            remove_review_label(pr_number=args.pr, token=report_token)
 
 
 def main() -> None:

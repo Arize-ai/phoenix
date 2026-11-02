@@ -31,7 +31,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = Path(__file__).with_name("integrations.json")
 SKIP_CONFIG_PATH = REPO_ROOT / ".agents/skills/test-integration/scripts/skip_config.json"
 DEFAULT_ENDPOINT = "http://127.0.0.1:6006"
-PYTHON_BASE_PACKAGES = ("arize-phoenix-otel",)
+# Current OpenTelemetry instrumentation still imports ``pkg_resources``.
+# Setuptools removed that module in 82.0.0, so keep the disposable harness
+# environments on the last compatible release line until OTel drops the import.
+PYTHON_BASE_PACKAGES = ("arize-phoenix-otel", "setuptools<82")
 FENCE = re.compile(r"^```(?P<language>[\w+-]+)[^\n]*\n(?P<body>[\s\S]*?)^```", re.MULTILINE)
 IMPORT = re.compile(
     r'^import\s+(?P<name>[A-Za-z_]\w*)\s+from\s+["\'](?P<path>[^"\']+)["\'];?',

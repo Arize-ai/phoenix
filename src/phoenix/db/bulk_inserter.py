@@ -262,9 +262,9 @@ class BulkInserter:
                             try:
                                 async with session.begin_nested():
                                     await op(session)
-                            except Exception as e:
+                            except Exception:
                                 BULK_LOADER_EXCEPTIONS.inc()
-                                logger.exception(str(e))
+                                logger.exception("Failed to run queued operation")
                 except Exception:
                     BULK_LOADER_EXCEPTIONS.inc()
                     logger.exception("Failed to insert queued operations")

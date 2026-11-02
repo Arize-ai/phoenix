@@ -1,6 +1,7 @@
 """Endpoint through which clients report errors to the server log."""
 
 import logging
+import re
 from typing import Annotated, Optional
 from urllib.parse import urlsplit
 
@@ -54,6 +55,20 @@ def route_path(url: Optional[str], *, root_path: str) -> Optional[str]:
     return path
 
 
+def strip_origins(text: Optional[str], *, root_path: str) -> Optional[str]:
+    """Reduce every absolute URL in free text to a path without the root path.
+
+    Browser stack frames and fetch failures name script and request URLs in full,
+    and the root path segment identifies the deployment they came from.
+    """
+    if text is None:
+        return None
+    pattern = r"https?://[^\s/'\")]+"
+    if root_path:
+        pattern += f"(?:{re.escape(root_path)}(?=/|$))?"
+    return re.sub(pattern, "", text)
+
+
 rate_limiter = ServerRateLimiter(
     per_second_rate_limit=1,
     enforcement_window_seconds=20,
@@ -74,8 +89,13 @@ def create_client_errors_router(authentication_enabled: bool) -> APIRouter:
 
     @router.post("/client_errors", status_code=HTTP_204_NO_CONTENT)
     async def report_client_error(report: ErrorReport, request: Request) -> Response:
+        root_path = get_root_path(request.scope)
         report = report.model_copy(
-            update={"url": route_path(report.url, root_path=get_root_path(request.scope))}
+            update={
+                "url": route_path(report.url, root_path=root_path),
+                "message": strip_origins(report.message, root_path=root_path),
+                "stack": strip_origins(report.stack, root_path=root_path),
+            }
         )
         logger.error(
             "Client error at %s: %s",
