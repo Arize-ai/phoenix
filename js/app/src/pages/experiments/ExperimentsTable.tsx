@@ -251,6 +251,7 @@ export function ExperimentsTable({
   const [metadataFilters, setMetadataFilters] = useState(
     initialMetadataFilters
   );
+  const [searchText, setSearchText] = useState("");
   const {
     isExpanded: areRowsExpanded,
     setIsExpanded: setAreRowsExpanded,
@@ -438,13 +439,36 @@ export function ExperimentsTable({
     [data.experiments.edges]
   );
 
-  const onSearchTextChange = (searchText: string) => {
+  /**
+   * Refetches the experiments with both the search text and the metadata
+   * filters. Relay fills any variable a refetch omits from the page query,
+   * not from the previous refetch, so every refetch must pass both.
+   */
+  const refetchExperiments = ({
+    fetchPolicy,
+    nextSearchText = searchText,
+    nextMetadataFilters = metadataFilters,
+  }: {
+    fetchPolicy: "network-only" | "store-and-network";
+    nextSearchText?: string;
+    nextMetadataFilters?: ExperimentMetadataFilter[];
+  }) => {
     startTransition(() => {
       refetch(
-        { filterCondition: searchText || null },
-        { fetchPolicy: "network-only" }
+        {
+          filterCondition: nextSearchText || null,
+          metadataFilters: nextMetadataFilters.length
+            ? nextMetadataFilters
+            : null,
+        },
+        { fetchPolicy }
       );
     });
+  };
+
+  const onSearchTextChange = (nextSearchText: string) => {
+    setSearchText(nextSearchText);
+    refetchExperiments({ fetchPolicy: "network-only", nextSearchText });
   };
 
   const onMetadataFiltersChange = (filters: ExperimentMetadataFilter[]) => {
@@ -454,11 +478,9 @@ export function ExperimentsTable({
         writeMetadataFiltersToSearchParams({ searchParams: prev, filters }),
       { replace: true }
     );
-    startTransition(() => {
-      refetch(
-        { metadataFilters: filters.length ? filters : null },
-        { fetchPolicy: "network-only" }
-      );
+    refetchExperiments({
+      fetchPolicy: "network-only",
+      nextMetadataFilters: filters,
     });
   };
 
@@ -469,9 +491,7 @@ export function ExperimentsTable({
 
   useInterval(
     () => {
-      startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
-      });
+      refetchExperiments({ fetchPolicy: "store-and-network" });
     },
     hasRunningExperiments ? RUNNING_EXPERIMENTS_POLL_INTERVAL_MS : null
   );
@@ -897,7 +917,7 @@ export function ExperimentsTable({
                 experimentDescription={row.original.description ?? null}
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
-                  refetch({}, { fetchPolicy: "network-only" });
+                  refetchExperiments({ fetchPolicy: "network-only" });
                 }}
               />
             </Flex>
@@ -1169,7 +1189,7 @@ export function ExperimentsTable({
             selectedExperiments={selectedExperiments}
             onClearSelection={clearSelection}
             onExperimentsDeleted={() => {
-              refetch({}, { fetchPolicy: "network-only" });
+              refetchExperiments({ fetchPolicy: "network-only" });
             }}
           />
         ) : null}
