@@ -8,19 +8,27 @@ import { classNames } from "@phoenix/utils/classNames";
 import { sectionNavSectionCSS } from "./styles";
 
 export interface SectionNavSectionProps extends StylableProps {
-  /** Matches the `id` of this section's link in `SectionNav` */
+  /**
+   * Matches the `id` of this section's link in `SectionNav`. It must be
+   * unique within the document.
+   */
   id: string;
-  /** Visible heading; also names the section for assistive technology */
+  /**
+   * The visible heading, rendered at level 3. It also names the section for
+   * assistive technology.
+   */
   heading: ReactNode;
   children?: ReactNode;
   className?: string;
+  /** The `<section>` element */
   ref?: Ref<HTMLElement>;
 }
 
 /**
- * One section of the pane a `SectionNav` scrolls through. A focusable
- * `<section id>` (out of the tab order) with a heading, so following its link
- * moves the reading position and focus to it, and lands below the sticky bar.
+ * One section of the pane a `SectionNav` scrolls through. It renders a
+ * `<section>` named by its heading, which assistive technology lists as a
+ * region landmark. Following its link moves the reading position and focus
+ * into it. It takes focus from code but stays out of the tab order.
  */
 export function SectionNavSection({
   id,

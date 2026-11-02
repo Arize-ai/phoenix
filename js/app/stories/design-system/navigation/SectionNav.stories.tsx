@@ -23,19 +23,17 @@ import {
 } from "@phoenix/components/core/dialog";
 
 /**
- * Navigation over one scrolling pane: a sticky bar of links (or a rail beside
- * the sections) where every section stays rendered. Clicking a link scrolls
- * its section to just below the bar and moves focus into it; scrolling the
- * pane moves the current link to the section under the bar, and to the last
- * section once the pane is scrolled to its end. It shares the tab bar's look
- * but is a `<nav>` of in-page links marked with `aria-current`, not a tablist.
+ * Navigation for one scrolling pane: a bar of links above the sections, or a
+ * rail beside them, where every section stays rendered. Clicking a link
+ * scrolls the pane to its section and moves focus into it. Scrolling moves the
+ * current link to the section at the top of the pane, and to the last section
+ * once the pane is scrolled to its end. It shares the tab bar's look but is a
+ * `<nav>` of in-page links marked with `aria-current`, not a tablist.
  *
- * Scroll the panes below or click a link to see the current link follow.
- * Smooth scrolling (`isScrollAnimated`, on by default) and the indicator's
- * slide both turn off when the operating system asks for reduced motion, so
- * they are not toggled here. Each nav shows the
- * current link beside links that are not current; hover and keyboard focus
- * are drawn only while the pointer or focus is on a link.
+ * Scroll a pane or click a link to see the current link follow. Smooth
+ * scrolling and the indicator's slide turn off when the operating system asks
+ * for reduced motion. Hover and keyboard focus are drawn only while the
+ * pointer or focus is on a link, so the stories cannot hold them.
  */
 const meta: Meta = {
   title: "Design System/Navigation/Section Nav",
@@ -247,9 +245,9 @@ Rail.tags = ["!dev"];
 Rail.parameters = { themeLayout: "column" };
 
 /**
- * Opening on a section other than the first, as when restoring one from the
- * URL hash: the pane starts scrolled to it, with the scroll animation turned
- * off so it opens there without motion.
+ * `defaultActiveId` opens the pane scrolled to a section other than the
+ * first, as when restoring one from the URL hash, and keeps it current until
+ * you scroll. `isScrollAnimated={false}` opens it there without motion.
  */
 export const DefaultActiveSection: StoryFn = () => (
   <Flex direction="row" gap="size-300" wrap>
@@ -276,9 +274,8 @@ Overflow.tags = ["!dev"];
 Overflow.parameters = { themeLayout: "row" };
 
 /**
- * In a drawer's scrolling body, the way a run's details read in a detail
- * panel. The drawer is held open; scroll its body or click a link. Kept off
- * the Docs page because the drawer's dialog takes focus when it mounts.
+ * In a detail drawer, the nav sits under the drawer's header and only the
+ * body below it scrolls.
  */
 export const InDrawer: StoryFn = () => {
   const idPrefix = useId();
@@ -309,5 +306,6 @@ export const InDrawer: StoryFn = () => {
     </OverlayFrameProvider>
   );
 };
+// Off the Docs page: the drawer's dialog takes focus when it mounts
 InDrawer.tags = ["!autodocs"];
 InDrawer.parameters = { themeLayout: "column" };

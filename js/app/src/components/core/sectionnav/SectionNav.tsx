@@ -44,6 +44,10 @@ const EDITABLE_SELECTOR =
 export type SectionNavItem = {
   /** The `id` of the `SectionNavSection` this link scrolls to */
   id: string;
+  /**
+   * The link's text. It stays on one line; a bar too narrow for every label
+   * scrolls sideways.
+   */
   label: string;
 };
 
@@ -52,35 +56,46 @@ export type SectionNavOrientation = "horizontal" | "vertical";
 export interface SectionNavProps extends StylableProps {
   /** Names the navigation landmark, e.g. "Run details" */
   "aria-label": string;
-  /** One link per section, in the order the sections are rendered */
+  /**
+   * One link per section, in the order the sections render. Each `id` must
+   * match the `id` of a `SectionNavSection`.
+   */
   sections: readonly SectionNavItem[];
   /**
-   * The element that scrolls the sections. Defaults to the nav's nearest
-   * scrollable ancestor (or the document).
+   * The element that scrolls the sections. Pass it whenever the nav is not
+   * inside that element, as in the usual layout with the nav above or beside
+   * it. Without it, the nav uses its own nearest scrollable ancestor, or the
+   * document.
    */
   scrollContainerRef?: RefObject<HTMLElement | null>;
   /**
-   * A bar of links above the sections, or a rail beside them
+   * `"horizontal"` is a bar of links above the sections; `"vertical"` is a
+   * rail beside them.
    * @default "horizontal"
    */
   orientation?: SectionNavOrientation;
   /**
-   * The section marked active on mount, e.g. one restored from the URL hash.
-   * The pane scrolls to it on mount, animated as `isScrollAnimated` says, and
-   * it stays active until the user scrolls. Defaults to the first section,
-   * which neither scrolls the pane nor holds it.
+   * The section that is current on mount, e.g. one restored from the URL
+   * hash. The pane scrolls to it on mount, and it stays current until the
+   * user scrolls, even when the pane cannot bring it to the top. Without it,
+   * the first section is current and the pane does not scroll.
    */
   defaultActiveId?: string;
-  /** Called with the new section id when the active section changes */
+  /**
+   * Called with the section id whenever the current link changes, from a
+   * click or from scrolling, but not on mount. Link clicks do not write the
+   * URL hash; use this to sync it.
+   */
   onChange?: (activeId: string) => void;
   /**
-   * Whether clicking a link (or mounting with `defaultActiveId`) smoothly
-   * scrolls to its section rather than jumping there. Ignored, and the scroll
-   * jumps, when the user prefers reduced motion.
+   * Whether a link click, or the mount scroll to `defaultActiveId`, scrolls
+   * smoothly rather than jumping. It always jumps when the user prefers
+   * reduced motion.
    * @default true
    */
   isScrollAnimated?: boolean;
   className?: string;
+  /** The `<nav>` element */
   ref?: Ref<HTMLElement>;
 }
 
@@ -90,21 +105,42 @@ function isDocumentScroller(element: Element) {
 }
 
 /**
- * Scrollspy navigation over a single scrolling pane: a sticky row (or rail)
- * of links to `SectionNavSection`s rendered in the same pane. Clicking a link
- * scrolls its section into view and moves focus into it; the active link
- * follows the section currently under the bar as the user scrolls.
+ * Scrollspy navigation for one scrolling pane: a bar of links, or a rail, to
+ * the `SectionNavSection`s in that pane. Every section stays rendered.
+ * Clicking a link scrolls the pane to its section and moves focus into it. As
+ * the user scrolls, the current link follows the last section whose top has
+ * reached the line where clicked sections land, or the last section once the
+ * pane is scrolled to its end.
  *
- * Unlike `Tabs`, every section stays mounted and scrollable, so this is a
- * `<nav>` of in-page links (marked with `aria-current`), not a tablist.
+ * It is a `<nav>` landmark of in-page links with `aria-current` on the current
+ * one, not a tablist: unlike `Tabs`, it switches no panels and takes no arrow
+ * keys.
  *
- * Render the nav above (or, for a rail, beside) the element that scrolls the
- * sections and pass that element as `scrollContainerRef`, so the scrollbar
- * spans only the sections. A nav inside the scroll container also works: it
- * sticks to the container's top and sections land below it. Sections land a
- * padding-sized gap below the top; set `--section-nav-scroll-inset` on the
- * container to match its padding. Section ids must be unique within the
- * document.
+ * Layout:
+ * - Render the nav above the element that scrolls the sections, or beside it
+ *   for a rail, and pass that element as `scrollContainerRef`. The scrollbar
+ *   then spans only the sections.
+ * - A nav inside the scroll container also works. It sticks to the top of the
+ *   container, and sections land below it.
+ * - Sections land a gap below the top of the pane. Set
+ *   `--section-nav-scroll-inset` on the scroll container to match its
+ *   padding.
+ * - Section ids must be unique within the document.
+ *
+ * @example
+ * const bodyRef = useRef<HTMLDivElement>(null);
+ * <SectionNav
+ *   aria-label="Run details"
+ *   sections={[
+ *     { id: "input", label: "Input" },
+ *     { id: "output", label: "Output" },
+ *   ]}
+ *   scrollContainerRef={bodyRef}
+ * />
+ * <div ref={bodyRef} css={scrollingBodyCSS}>
+ *   <SectionNavSection id="input" heading="Input">…</SectionNavSection>
+ *   <SectionNavSection id="output" heading="Output">…</SectionNavSection>
+ * </div>
  */
 export function SectionNav({
   "aria-label": ariaLabel,

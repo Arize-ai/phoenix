@@ -195,6 +195,35 @@ export const sectionNavCSS = css`
       transition: none;
     }
   }
+
+  // Links opt out of forced colors to keep their pills and indicator, so in
+  // high contrast mode they would keep theme colors on the forced Canvas
+  // background. Use system colors instead.
+  @media (forced-colors: active) {
+    .section-nav__link {
+      &,
+      &:hover,
+      &:focus-visible,
+      &[aria-current="true"] {
+        color: LinkText;
+      }
+      &:hover:not([aria-current="true"]):before {
+        background: transparent;
+      }
+      &:hover {
+        text-decoration: underline;
+      }
+      &:focus-visible:after {
+        border-color: Highlight;
+      }
+    }
+    &[data-orientation] .section-nav__indicator {
+      background: Highlight;
+    }
+    &[data-orientation="vertical"] .section-nav__link[aria-current="true"] {
+      color: HighlightText;
+    }
+  }
 `;
 
 export const sectionNavSectionCSS = css`
