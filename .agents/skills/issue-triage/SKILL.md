@@ -81,7 +81,7 @@ The caller sets the scope; defaults apply to anything left unspecified.
 
 | Parameter | Default | Notes |
 | --- | --- | --- |
-| `issue` | none | One issue number. Triage that issue alone: Pass A fetches only it, and there is no regression pass. `created`, `limit` and `sort` do not apply |
+| `issue` | none | Triage one issue by number. The other parameters are ignored and the regression pass is skipped |
 | `created` | none (whole backlog) | GitHub date range: `2025-01-01..2025-12-31`, `>=2026-01-01`, `<2025-07-01` |
 | `limit` | `25` | Issues fetched per pass |
 | `sort` | `updated-asc` | `created-asc` when sweeping a `created` window |
@@ -90,10 +90,8 @@ The caller sets the scope; defaults apply to anything left unspecified.
 
 Four shapes cover most runs:
 
-- **Single issue** — `issue` set. What the workflow does the moment an issue is
-  opened, so a new issue is typed, sized and gated within minutes rather than
-  waiting for the sweep, which reaches the newest issues last. Every stage runs
-  on that one issue; nothing else is read or written.
+- **Single issue** — `issue` set. The workflow runs this when an issue is
+  opened. All seven stages run on that one issue and nothing else is touched.
 - **Incremental** — the defaults. Oldest-updated 25, no date filter. What the
   scheduled workflow does. Seven stages per issue is a lot of judgment to hold at
   once; a larger `limit` does not improve the quality of any single issue, so
@@ -130,8 +128,8 @@ gh issue list --repo Arize-ai/phoenix --state open \
         assignees: [.assignees[].login], body: ((.body // "")[:600])}'
 ```
 
-A single-issue run skips the listing and reads its one issue in full, as Pass B
-does.
+For a single issue, skip the listing and read the issue in full with
+`gh issue view`.
 
 If one truncated body leaves sufficiency genuinely unclear, read **that** issue
 in full. Never widen the truncation for the whole slice to settle one case.
@@ -141,8 +139,8 @@ reach those stages. Read each in full, immediately before editing it:
 
 `gh issue view <number> --repo Arize-ai/phoenix [--comments]`
 
-Regression pass, over issues already gated by the policy, and never part of a
-single-issue run. Labels and assignees decide most of it, so truncate here too:
+Regression pass, over issues already gated by the policy. Labels and assignees
+decide most of it, so truncate here too:
 
 ```bash
 gh issue list --repo Arize-ai/phoenix --state open \
