@@ -48,6 +48,10 @@ def _echoing_500_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(500, text=f"boom: {request.content.decode()}")
 
 
+def _connect_error_handler(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("connection refused", request=request)
+
+
 def _sync(handler: Any) -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
 
@@ -65,6 +69,8 @@ def _assert_no_leak(exc: BaseException) -> None:
     if isinstance(exc, httpx.HTTPStatusError):
         assert SENTINEL.encode() not in exc.request.content
         assert SENTINEL not in exc.response.text
+    if isinstance(exc, httpx.RequestError):
+        assert SENTINEL.encode() not in exc.request.content
 
 
 class TestSecretsUpsertOrDelete:
@@ -132,6 +138,29 @@ class TestSecretsUpsertOrDelete:
         assert "body.secrets.0.value: Value error, Value cannot be empty" in message
         assert exc_info.value.response.status_code == 422
 
+    def test_transport_errors_do_not_leak_values(self) -> None:
+        client = _sync(_connect_error_handler)
+        with pytest.raises(httpx.ConnectError) as exc_info:
+            Secrets(client).upsert_or_delete(secrets={"OPENAI_API_KEY": SENTINEL})
+        _assert_no_leak(exc_info.value)
+        assert exc_info.value.request.method == "PUT"
+        assert exc_info.value.request.url == "http://test/v1/secrets"
+
+    @pytest.mark.parametrize(
+        "response",
+        [
+            httpx.Response(422, json={"detail": "not a list"}),
+            httpx.Response(422, text="not json"),
+            httpx.Response(422, json={"detail": [{"loc": ["body"]}]}),
+        ],
+        ids=["string-detail", "non-json", "missing-msg"],
+    )
+    def test_unexpected_422_body_still_raises_status_error(self, response: httpx.Response) -> None:
+        client = _sync(lambda request: response)
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            Secrets(client).upsert_or_delete(secrets={"OPENAI_API_KEY": SENTINEL})
+        assert str(exc_info.value).endswith("HTTP 422 Unprocessable Entity")
+
     def test_repr_does_not_leak_values(self, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level(logging.DEBUG)
         resource = Secrets(_sync(_ok_handler([])))
@@ -191,6 +220,13 @@ class TestAsyncSecretsUpsertOrDelete:
             await AsyncSecrets(client).upsert_or_delete(secrets={"OPENAI_API_KEY": SENTINEL})
         _assert_no_leak(exc_info.value)
         assert SENTINEL not in caplog.text
+
+    async def test_transport_errors_do_not_leak_values(self) -> None:
+        client = _async(_connect_error_handler)
+        with pytest.raises(httpx.ConnectError) as exc_info:
+            await AsyncSecrets(client).upsert_or_delete(secrets={"OPENAI_API_KEY": SENTINEL})
+        _assert_no_leak(exc_info.value)
+        assert exc_info.value.request.method == "PUT"
 
 
 def test_client_exposes_secrets_resource() -> None:

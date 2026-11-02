@@ -81,6 +81,8 @@ class Secrets:
             ValueError: If ``secrets`` is empty.
             httpx.HTTPStatusError: If the server rejects the request. The error's
                 message, request, and response do not include the submitted values.
+            httpx.RequestError: If the request could not be sent or completed. The
+                error's request does not include the submitted values.
             PhoenixException: If the server is older than Phoenix 13.21.0.
 
         Example::
@@ -97,7 +99,10 @@ class Secrets:
         """
         body = _build_request_body(secrets)
         self._guard.require(UPSERT_OR_DELETE_SECRETS)
-        response = self._client.put("v1/secrets", json=body)
+        try:
+            response = self._client.put("v1/secrets", json=body)
+        except httpx.RequestError as error:
+            raise _redacted_request_error(error) from None
         return _parse_response(response)
 
 
@@ -168,6 +173,8 @@ class AsyncSecrets:
             ValueError: If ``secrets`` is empty.
             httpx.HTTPStatusError: If the server rejects the request. The error's
                 message, request, and response do not include the submitted values.
+            httpx.RequestError: If the request could not be sent or completed. The
+                error's request does not include the submitted values.
             PhoenixException: If the server is older than Phoenix 13.21.0.
 
         Example::
@@ -184,7 +191,10 @@ class AsyncSecrets:
         """
         body = _build_request_body(secrets)
         await self._guard.require(UPSERT_OR_DELETE_SECRETS)
-        response = await self._client.put("v1/secrets", json=body)
+        try:
+            response = await self._client.put("v1/secrets", json=body)
+        except httpx.RequestError as error:
+            raise _redacted_request_error(error) from None
         return _parse_response(response)
 
 
@@ -223,6 +233,13 @@ def _redacted_status_error(response: httpx.Response) -> httpx.HTTPStatusError:
     return httpx.HTTPStatusError(message, request=request, response=redacted_response)
 
 
+def _redacted_request_error(error: httpx.RequestError) -> httpx.RequestError:
+    """Rebuild a transport error without the original request, whose body holds
+    the submitted secret values. The error type and message are kept."""
+    request = httpx.Request(error.request.method, error.request.url)
+    return type(error)(str(error), request=request)
+
+
 def _validation_error_messages(response: httpx.Response) -> list[str]:
     # FastAPI 422 bodies look like {"detail": [{"loc": [...], "msg": "...", "input": ...}]}.
     # Only "loc" and "msg" are used; "input" and "ctx" can echo submitted values.
@@ -234,6 +251,8 @@ def _validation_error_messages(response: httpx.Response) -> list[str]:
             if isinstance(msg, str):
                 location = ".".join(str(part) for part in error["loc"])
                 messages.append(f"{location}: {msg}")
-    except Exception:
+    except (ValueError, KeyError, TypeError):
+        # A non-JSON body, a missing field, or a non-list "detail" (e.g. from
+        # HTTPException(422, detail="...")); fall back to the status line.
         return []
     return messages
