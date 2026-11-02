@@ -2831,6 +2831,14 @@
       "created_at": "2026-10-31T07:02:37Z",
       "repoId": 564072810,
       "pullRequestNo": 17429
+    },
+    {
+      "name": "Karthik-beta",
+      "id": 80052122,
+      "comment_id": 6576814858,
+      "created_at": "2026-11-02T12:11:51Z",
+      "repoId": 564072810,
+      "pullRequestNo": 17512
     }
   ]
 }
