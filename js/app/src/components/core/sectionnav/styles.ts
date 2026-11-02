@@ -72,6 +72,11 @@ export const sectionNavCSS = css`
 
   .section-nav__list[data-orientation="vertical"] {
     flex-direction: column;
+    // Every link spans the rail's width, so the pills and the current link's
+    // fill line up as one column whatever each label's length.
+    .section-nav__link {
+      flex: 1 1 auto;
+    }
   }
 
   .section-nav__item {
@@ -239,10 +244,12 @@ export const sectionNavSectionCSS = css`
   &:focus {
     outline: none;
   }
-  // Clicking a link moves focus here. Keyboard users get a ring inset into
-  // the section, so the scroll container's edges cannot clip it.
+  // Following a link moves focus here. Keyboard users get a rounded ring a
+  // small gap outside the section's content, which the pane's padding (the
+  // gap --section-nav-scroll-inset matches) leaves room for.
   &:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
-    outline-offset: calc(-1 * var(--focus-ring-thickness));
+    outline-offset: var(--global-dimension-size-100);
+    border-radius: var(--global-rounding-medium);
   }
 `;
