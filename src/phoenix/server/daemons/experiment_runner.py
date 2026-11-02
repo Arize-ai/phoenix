@@ -2639,9 +2639,7 @@ class RunningExperiment:
         """Persist a log row for this experiment."""
         try:
             async with self._db() as session:
-                # A frozen judge can outlive its binding, and an eval log cannot: its foreign
-                # key cascades from the binding. Skip the row rather than fail the insert.
-                # TODO: SQLite can reuse a deleted binding's ID, attaching the log to another.
+                # A binding deleted mid-run would fail the log's foreign key; skip the row.
                 if isinstance(log, models.ExperimentEvalLog) and (
                     await session.get(models.DatasetEvaluators, log.dataset_evaluator_id) is None
                 ):
@@ -3293,11 +3291,7 @@ class ExperimentRunner(DaemonTask):
             )
             .where(models.ExperimentDatasetEvaluator.experiment_id == experiment_id)
         )
-        snapshots = list(experiment_job.decision_evaluator_snapshots)
-        frozen_ids = {snapshot.dataset_evaluator_id for snapshot in snapshots}
-        dataset_evaluators = [
-            binding for binding in dataset_evaluators_result.all() if binding.id not in frozen_ids
-        ]
+        dataset_evaluators = dataset_evaluators_result.all()
 
         evaluator_run_specs: list[EvaluatorRunSpec] = []
         if dataset_evaluators:
@@ -3322,43 +3316,6 @@ class ExperimentRunner(DaemonTask):
                 )
                 for de, ev in zip(dataset_evaluators, evaluators)
             ]
-
-        snapshots_updated = False
-        for index, snapshot in enumerate(snapshots):
-            evaluator = await build_evaluator_from_definition(
-                definition=snapshot.definition,
-                session=session,
-                decrypt=self._decrypt,
-                credentials=credentials,
-            )
-            project_id = snapshot.project_id
-            # TODO: Handle SQLite reusing a deleted trace-project ID before resume.
-            if await session.get(models.Project, project_id) is None:
-                from phoenix.server.evaluators.services.management import (
-                    get_project_for_dataset_evaluator,
-                )
-
-                project = get_project_for_dataset_evaluator(
-                    dataset_name=f"experiment {experiment_id}", dataset_evaluator_name=snapshot.name
-                )
-                session.add(project)
-                await session.flush()
-                project_id = project.id
-                snapshots[index] = snapshot.model_copy(update={"project_id": project_id})
-                snapshots_updated = True
-            evaluator_run_specs.append(
-                EvaluatorRunSpec(
-                    dataset_evaluator_id=snapshot.dataset_evaluator_id,
-                    name=snapshot.name,
-                    evaluator=evaluator,
-                    input_mapping=snapshot.input_mapping,
-                    output_configs=list(evaluator.output_configs),
-                    evaluator_project_id=project_id,
-                )
-            )
-        if snapshots_updated:
-            experiment_job.decision_evaluator_snapshots = snapshots
-            await session.flush()
 
         logger.debug(
             f"Loaded {len(evaluator_run_specs)} evaluator(s) for experiment "

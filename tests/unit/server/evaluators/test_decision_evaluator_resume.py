@@ -1,4 +1,4 @@
-"""Resume queues each frozen decision judge once per run, from its recorded results."""
+"""Resume queues each decision judge once per run, from its recorded results."""
 
 from datetime import datetime, timezone
 from typing import Any, Optional, cast
@@ -11,9 +11,6 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.daemons.experiment_runner import EvalWorkItem, ExperimentRunner
-from phoenix.server.evaluators.snapshots import (
-    capture_dataset_decision_evaluators,
-)
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
 from tests.unit.graphql import AsyncGraphQLClient
@@ -123,7 +120,6 @@ async def test_resume_queues_incomplete_judges_once(
                     experiment_id=experiment.id, dataset_evaluator_id=binding_id
                 )
             )
-        await capture_dataset_decision_evaluators(session, experiment.id)
         session.add(
             models.ExperimentDatasetExample(
                 experiment_id=experiment.id, dataset_example_id=1, dataset_example_revision_id=1

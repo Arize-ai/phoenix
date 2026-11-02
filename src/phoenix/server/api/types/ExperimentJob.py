@@ -8,7 +8,7 @@ import strawberry
 from sqlalchemy import select
 from sqlalchemy.orm import with_polymorphic
 from strawberry import UNSET
-from strawberry.relay import GlobalID, Node, NodeID
+from strawberry.relay import Node, NodeID
 from strawberry.relay.types import Connection
 from strawberry.types import Info
 
@@ -24,7 +24,6 @@ from phoenix.server.api.types.ExperimentTaskConfig import (
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 
 if TYPE_CHECKING:
-    from .EvaluatorTaskDefinition import InlineDecisionEvaluatorDefinition
     from .Experiment import Experiment
     from .ExperimentLog import ExperimentLog
 
@@ -35,29 +34,6 @@ class ExperimentJobStatus(Enum):
     COMPLETED = "COMPLETED"
     STOPPED = "STOPPED"
     ERROR = "ERROR"
-
-
-@strawberry.type(
-    description="A decision evaluator configuration captured when the experiment was created. "
-    "It keeps running on resume even if its dataset evaluator binding was later deleted."
-)
-class DecisionEvaluatorSnapshot:
-    name: str = strawberry.field(
-        description="The binding name captured when the experiment was created."
-    )
-    dataset_evaluator_id: GlobalID = strawberry.field(
-        description="The dataset evaluator binding's ID. The binding may have been deleted, "
-        "so this ID may no longer resolve."
-    )
-    definition: Annotated[
-        "InlineDecisionEvaluatorDefinition",
-        strawberry.lazy(".EvaluatorTaskDefinition"),
-    ] = strawberry.field(
-        description="The captured evaluator definition, including its scoring settings."
-    )
-    annotation_names: list[str] = strawberry.field(
-        description="Names of the annotations this evaluator writes."
-    )
 
 
 @strawberry.type
@@ -197,40 +173,3 @@ class ExperimentJob(Node):
             )
             data = [DatasetEvaluator(id=row.id, db_record=row) for row in result.all()]
         return connection_from_list(data=data, args=args)
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Decision evaluator configurations captured for this experiment, with binding "
-        "names, scoring, and annotation names. Unlike datasetEvaluators, these remain after a "
-        "binding is deleted.",
-    )
-    async def decision_evaluator_snapshots(
-        self, info: Info[Context, None]
-    ) -> list[DecisionEvaluatorSnapshot]:
-        from phoenix.server.api.types.EvaluatorTaskDefinition import (
-            InlineDecisionEvaluatorDefinition,
-        )
-        from phoenix.server.evaluators.runtime.base import result_annotation_names
-
-        if self.db_record:
-            snapshots = self.db_record.decision_evaluator_snapshots
-        else:
-            snapshots = await info.context.data_loaders.experiment_job_fields.load(
-                (self.id, models.ExperimentJob.decision_evaluator_snapshots),
-            )
-        result: list[DecisionEvaluatorSnapshot] = []
-        for snapshot in snapshots or []:
-            result.append(
-                DecisionEvaluatorSnapshot(
-                    name=snapshot.name,
-                    dataset_evaluator_id=GlobalID(
-                        "DatasetEvaluator", str(snapshot.dataset_evaluator_id)
-                    ),
-                    definition=InlineDecisionEvaluatorDefinition.from_orm(
-                        snapshot.definition, snapshot.dataset_evaluator_id
-                    ),
-                    annotation_names=result_annotation_names(
-                        snapshot.name, snapshot.output_configs
-                    ),
-                )
-            )
-        return result
