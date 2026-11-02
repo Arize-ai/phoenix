@@ -1,6 +1,5 @@
 name: Claude Issue Triage on Open
 
-# The sweep walks the backlog oldest-updated first, so a new issue would wait days for it.
 on:
   issues:
     types: [opened]
@@ -9,21 +8,17 @@ permissions:
   contents: read
 
 concurrency:
-  # GitHub keeps one pending run per group, so a shared group would drop most of a burst.
   group: claude-issue-triage-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
   triage:
     uses: ./.github/workflows/claude-issue-triage.yml
-    # GitHub requires the caller to grant everything the called job declares.
     permissions:
       issues: write
       contents: read
       id-token: write
     with:
       issue: ${{ github.event.issue.number }}
-      # The regression pass re-judges the whole gated pool; one new issue is no reason to.
       regression: 'off'
-      # One issue needs far less than a sweep, and anyone can open one.
       timeout-minutes: 15

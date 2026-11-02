@@ -2,7 +2,7 @@ name: Claude Issue Triage Sweep
 
 on:
   schedule:
-    - cron: "0 8 */2 * *" # this means "at 08:00 UTC every 2 days"
+    - cron: "0 8 */2 * *"
   workflow_dispatch:
     inputs:
       created:
@@ -29,14 +29,11 @@ permissions:
 
 concurrency:
   group: claude-issue-triage-sweep
-  # Do not cancel in progress: a manual backlog sweep can run for the better part of
-  # an hour, and the every-2-days schedule would otherwise kill it partway through.
   cancel-in-progress: false
 
 jobs:
   sweep:
     uses: ./.github/workflows/claude-issue-triage.yml
-    # GitHub requires the caller to grant everything the called job declares.
     permissions:
       issues: write
       contents: read
@@ -46,7 +43,4 @@ jobs:
       limit: ${{ inputs.limit || '25' }}
       stages: ${{ inputs.stages || '1-7' }}
       regression: ${{ inputs.regression || 'on' }}
-      # Stage 5 reads the checked-out codebase and stages 5-6 write comments and bodies,
-      # so a full 50-issue run is far slower than a label-only one. Raise this alongside
-      # `limit` for a backlog sweep.
       timeout-minutes: 60
