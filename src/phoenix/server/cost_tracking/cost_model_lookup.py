@@ -29,6 +29,10 @@ class CostModelLookup:
 
     def _add_or_update_model(self, model: models.GenerativeModel) -> None:
         """Add or update a single model in the lookup."""
+        if model.type != "LLM":
+            # Only LLM spans are priced so far.
+            self._remove_model(model.id)
+            return
         self._models_by_id[model.id] = model
 
         specificity_score = regex_specificity.score(model.name_pattern)
