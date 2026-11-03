@@ -33,40 +33,32 @@ const mainCSS = css`
   }
 `;
 
-const PROJECT_EVALUATORS_PATH = "/evaluators/project-evaluators";
-const DATASET_EVALUATORS_PATH = "/evaluators/dataset-evaluators";
-
-const TABS = [
-  "evaluators",
-  "project-evaluators",
-  "dataset-evaluators",
-] as const;
-type TabName = (typeof TABS)[number];
-
-const TAB_PATHS: Record<TabName, string> = {
-  evaluators: "/evaluators",
-  "project-evaluators": PROJECT_EVALUATORS_PATH,
-  "dataset-evaluators": DATASET_EVALUATORS_PATH,
-};
+const TAB_PATHS = {
+  "project-evaluators": "/evaluators/project-evaluators",
+  "dataset-evaluators": "/evaluators/dataset-evaluators",
+  all: "/evaluators/all",
+} as const;
+type TabName = keyof typeof TAB_PATHS;
 
 function isTabName(name: unknown): name is TabName {
-  return typeof name === "string" && (TABS as readonly string[]).includes(name);
+  return typeof name === "string" && name in TAB_PATHS;
 }
 
 /**
- * The Evaluators page's tabs: the evaluator library, every project evaluator
- * running online across all projects, and every dataset evaluator across all
- * datasets.
+ * The Evaluators page's tabs: every project evaluator running online across
+ * all projects, every dataset evaluator across all datasets, and both in one
+ * list.
  */
 export function EvaluatorsLayout() {
   const navigate = useNavigate();
-  const isProjectEvaluatorsTab = useMatch(PROJECT_EVALUATORS_PATH) != null;
-  const isDatasetEvaluatorsTab = useMatch(DATASET_EVALUATORS_PATH) != null;
-  const selectedTab: TabName = isProjectEvaluatorsTab
-    ? "project-evaluators"
-    : isDatasetEvaluatorsTab
-      ? "dataset-evaluators"
-      : "evaluators";
+  const isDatasetEvaluatorsTab =
+    useMatch(TAB_PATHS["dataset-evaluators"]) != null;
+  const isAllTab = useMatch(TAB_PATHS.all) != null;
+  const selectedTab: TabName = isDatasetEvaluatorsTab
+    ? "dataset-evaluators"
+    : isAllTab
+      ? "all"
+      : "project-evaluators";
   return (
     <main css={mainCSS}>
       <Tabs
@@ -78,21 +70,21 @@ export function EvaluatorsLayout() {
         }}
       >
         <TabList>
-          <Tab id="evaluators">All</Tab>
           <Tab id="project-evaluators">Project evaluators</Tab>
           <Tab id="dataset-evaluators">Dataset evaluators</Tab>
+          <Tab id="all">All</Tab>
         </TabList>
-        <LazyTabPanel id="evaluators">
-          <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
-            <Outlet />
-          </Suspense>
-        </LazyTabPanel>
         <LazyTabPanel id="project-evaluators">
           <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
             <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="dataset-evaluators">
+          <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
+            <Outlet />
+          </Suspense>
+        </LazyTabPanel>
+        <LazyTabPanel id="all">
           <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
             <Outlet />
           </Suspense>
