@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "anthropic==1.12.1",
+#     "PyJWT[crypto]==2.15.1",
+# ]
+# ///
 """Take one pull request the rest of the way to mergeable.
 
 `start` checks that whoever labeled the PR has write access, that the PR is open and that its

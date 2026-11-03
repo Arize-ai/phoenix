@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "anthropic==1.12.1",
+#     "PyJWT[crypto]==2.15.1",
+# ]
+# ///
 """Run one Phoenix issue through the factory.
 
 `start` checks that the issue is ready for the factory, routes it to a lane from its
