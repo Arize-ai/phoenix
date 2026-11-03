@@ -156,10 +156,23 @@ class TestSecretsUpsertOrDelete:
         ids=["string-detail", "non-json", "missing-msg"],
     )
     def test_unexpected_422_body_still_raises_status_error(self, response: httpx.Response) -> None:
-        client = _sync(lambda request: response)
+        def handler(request: httpx.Request) -> httpx.Response:
+            return response
+
+        client = _sync(handler)
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
             Secrets(client).upsert_or_delete(secrets={"OPENAI_API_KEY": SENTINEL})
         assert str(exc_info.value).endswith("HTTP 422 Unprocessable Entity")
+
+    def test_redirect_raises_status_error(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(302, headers={"Location": "https://test/v1/secrets"})
+
+        client = _sync(handler)
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            Secrets(client).upsert_or_delete(secrets={"OPENAI_API_KEY": SENTINEL})
+        _assert_no_leak(exc_info.value)
+        assert exc_info.value.response.status_code == 302
 
     def test_repr_does_not_leak_values(self, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level(logging.DEBUG)

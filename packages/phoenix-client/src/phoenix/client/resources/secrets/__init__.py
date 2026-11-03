@@ -210,7 +210,7 @@ def _build_request_body(
 
 
 def _parse_response(response: httpx.Response) -> v1.UpsertOrDeleteSecretsResult:
-    if response.is_error:
+    if not response.is_success:
         raise _redacted_status_error(response) from None
     return cast(v1.ResponseBodyUpsertOrDeleteSecretsResult, response.json())["data"]
 
