@@ -8,13 +8,17 @@ def create_openai_client(model: str, is_async: bool, **kwargs: Any) -> Any:
     try:
         from openai import AsyncOpenAI, OpenAI
     except ImportError:
-        raise ImportError("openai package not installed. Run: pip install 'openai>=3.26.0'")
+        raise ImportError(
+            f"openai package not installed. Run: pip install 'openai>={_MIN_OPENAI_VERSION}'"
+        )
+
+    kwargs.setdefault("max_retries", 0)
 
     client: Union[AsyncOpenAI, OpenAI]
     if is_async:
-        client = AsyncOpenAI(max_retries=0, **kwargs)
+        client = AsyncOpenAI(**kwargs)
     else:
-        client = OpenAI(max_retries=0, **kwargs)
+        client = OpenAI(**kwargs)
 
     # The Decisions API is a capability of newer SDKs; an older openai is importable but has
     # no ``decisions`` resource
