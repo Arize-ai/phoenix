@@ -18,12 +18,12 @@ from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.decision_version_tags import upsert_decision_version_tag
+from phoenix.server.api.helpers.decision_versions import clone_decision
 from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Decision import Decision, DecisionVersion, DecisionVersionTag
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.decisions.validation import validate_decision_custom_provider
-from phoenix.server.decisions.versions import clone_decision
 
 
 @strawberry.input

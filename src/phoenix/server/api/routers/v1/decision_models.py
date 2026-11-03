@@ -310,7 +310,7 @@ class DecisionVersionData(V1RoutesBaseModel):
             BadRequest: The provider offers no decision models, the model name is empty, or
                 the state template or questions break a rule.
         """
-        from phoenix.server.decisions.versions import new_decision_version
+        from phoenix.server.api.helpers.decision_versions import new_decision_version
 
         return new_decision_version(
             template_format=self.template_format,

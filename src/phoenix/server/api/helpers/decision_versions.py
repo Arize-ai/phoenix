@@ -1,7 +1,7 @@
-"""Building and cloning decision versions, shared by the REST and GraphQL APIs.
+"""Building new decision versions and copying a decision's version history.
 
-Both APIs build versions through :func:`new_decision_version`, so they accept the same
-ones.
+Shared by the REST and GraphQL APIs, so both accept the same versions. Tag writes are in
+:mod:`phoenix.server.api.helpers.decision_version_tags`.
 """
 
 from typing import Any, Mapping, Optional, Sequence, Union

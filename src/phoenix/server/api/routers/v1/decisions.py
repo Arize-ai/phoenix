@@ -28,6 +28,7 @@ from phoenix.server.api.helpers.decision_version_tags import (
     set_decision_version_tag,
     upsert_decision_version_tag,
 )
+from phoenix.server.api.helpers.decision_versions import InvalidDecisionVersion, clone_decision
 from phoenix.server.api.routers.v1.decision_models import (
     Decision,
     DecisionData,
@@ -57,7 +58,6 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.decisions.validation import validate_decision_custom_provider
-from phoenix.server.decisions.versions import InvalidDecisionVersion, clone_decision
 
 _IntegrityError = (PostgreSQLIntegrityError, SQLiteIntegrityError)
 
