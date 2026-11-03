@@ -538,7 +538,7 @@ dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, defau
 
 dev-mock-llm: ## Start the mock LLM server
 	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
-	cd scripts/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
+	cd scripts/docker/devops/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
 
 gh-comment-watch: ## Start the GitHub comment watcher
 	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"
