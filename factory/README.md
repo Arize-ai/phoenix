@@ -111,6 +111,7 @@ Each part does one job, so it can be changed and tested on its own:
 | `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
 | `factory-log-scan.yml` | Daily at 5am Eastern, checks Grafana for the last day of server errors and, if there are any, runs the `railway-triage` agent, which follows the `phoenix-railway-triage` skill to file a user-facing `bug` issue per new bug or update the issue that covers it. Can label new issues `factory` to start the bug lane. See [Log scan](#log-scan) |
 | `factory-cloud-log-scan.yml` | The same for Phoenix Cloud, half an hour later: checks Datadog for the last day of server errors across every tenant and runs the `cloud-triage` agent, which follows the `phoenix-cloud-triage` skill to file issues with the customer data redacted. See [Log scan](#log-scan) |
+| `factory-cla-check.yml` | Hourly, reads every open, non-draft PR at least an hour old. One whose CLA Assistant comment says the CLA is unsigned gets the `cla-unsigned` label and one reminder, and is closed if still unsigned a day after the reminder; a signed one loses the label. See [CLA check](#cla-check) |
 
 ### Trust boundaries
 
@@ -199,6 +200,20 @@ Every run ends with one factory comment. If no verdict label was added, the fact
 | The review's heading names no verdict | The agent did not follow the summary template | Read the review yourself. Fix `agents/pr-reviewer.md` if it happens again |
 | The factory lost track of the session | The watch step failed, for example the app token could not be minted | Read the workflow run and the session, then re-add `factory-review` |
 
+## CLA check
+
+Every pull request needs a signed CLA, and `cla.yml` already tells the author so, but nothing followed up. `factory-cla-check.yml` runs `cla_check.py` hourly with a token minted for the factory app, so its comments and labels come from the app like every other factory action. It reads every open, non-draft pull request created at least an hour ago, so an author has that long to sign before anything happens, and skips bot authors. The CLA Assistant keeps one comment per pull request current with its conclusion, so the check reads that comment rather than the signatures file: no comment means the CLA action never ran on the pull request, and the check leaves it alone.
+
+| CLA | Label | What the check does |
+|---|---|---|
+| Unsigned, no reminder yet | adds `cla-unsigned` | Posts one reminder with the sentence to post, marked so the next sweep finds it |
+| Unsigned, reminder under a day old | `cla-unsigned` | Nothing |
+| Unsigned, reminder a day old or more | `cla-unsigned` | Closes the pull request with a comment that says how to sign and reopen |
+| Unsigned, reminder posted but label removed | none | Nothing: taking the label off exempts the pull request |
+| Signed | removes `cla-unsigned` | Nothing else; the reminder stays as history |
+
+A closed pull request that is reopened without a signature is closed again on the next sweep, since its reminder is already past the deadline. One that is reopened after signing loses the label on the next sweep. The step log lists each pull request in scope with what was done. The check creates the label on first use.
+
 ## Run outcomes
 
 Every report on the issue names how the run ended. Only `success` asks for a human review; the other outcomes are the factory's own backlog:
@@ -223,6 +238,7 @@ dispatch.py      admits an issue, starts its session, and follows it to a review
 github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
 review.py        admits a pull request, starts its pr-reviewer session, and reports and labels the review's verdict
 log_scan.py      counts the day's server errors in Grafana or Datadog and, if any, runs the matching triage session
+cla_check.py     reminds the author of a PR whose CLA is unsigned, closes it a day later if still unsigned, and clears the label once signed
 ```
 
 `claude-lock.json` is state, not config: Factory Sync keeps it on the `factory-state` branch and pulls it before each plan, apply and dispatch. Don't commit it to `main`.
