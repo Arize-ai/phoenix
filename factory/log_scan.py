@@ -268,7 +268,7 @@ def escape_slack(text: str) -> str:
 
 
 def post_filed_issues_to_slack(
-    *, webhook_url: str, source: TriageSource, issues: list[dict[str, Any]]
+    *, token: str, channel: str, source: TriageSource, issues: list[dict[str, Any]]
 ) -> None:
     noun = "issue" if len(issues) == 1 else "issues"
     lines = [f"*{source.heading}* filed {len(issues)} {noun}:"]
@@ -276,13 +276,18 @@ def post_filed_issues_to_slack(
         f"• <{issue['url']}|#{issue['number']}> {escape_slack(issue['title'])}" for issue in issues
     )
     request = urllib.request.Request(
-        webhook_url,
-        data=json.dumps({"text": "\n".join(lines)}).encode(),
-        headers={"Content-Type": "application/json"},
+        "https://slack.com/api/chat.postMessage",
+        data=json.dumps({"channel": channel, "text": "\n".join(lines)}).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=30):
-        pass
+    with urllib.request.urlopen(request, timeout=30) as response:
+        # chat.postMessage answers 200 even on failure; the error is in the body.
+        if not (body := json.load(response)).get("ok"):
+            print(f"Slack chat.postMessage failed: {body.get('error')}", file=sys.stderr)
 
 
 def write_step_summary(lines: list[str]) -> None:
@@ -407,8 +412,12 @@ def main() -> None:
     if not touched_issues:
         summary.append("No issues filed or updated.\n")
     write_step_summary(summary)
-    if new_issues and (webhook_url := os.environ.get("SLACK_WEBHOOK_URL")):
-        post_filed_issues_to_slack(webhook_url=webhook_url, source=source, issues=new_issues)
+    slack_token = os.environ.get("SLACK_BOT_TOKEN")
+    slack_channel = os.environ.get("SLACK_CHANNEL_ID")
+    if new_issues and slack_token and slack_channel:
+        post_filed_issues_to_slack(
+            token=slack_token, channel=slack_channel, source=source, issues=new_issues
+        )
     if stop_reason != "end_turn":
         raise SystemExit(f"The session stopped with {stop_reason}; see the Claude Console.")
 
