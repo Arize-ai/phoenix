@@ -44,7 +44,6 @@ without being verbose.
 | @arizeai/phoenix-client (TS SDK) | Check `js/packages/phoenix-client/package.json` |
 | @arizeai/phoenix-cli (TS CLI) | Check `js/packages/phoenix-cli/package.json` |
 | @arizeai/phoenix-evals (TS evals) | Check `js/packages/phoenix-evals/package.json` |
-| @arizeai/phoenix-mcp (TS MCP) | Check `js/packages/phoenix-mcp/package.json` |
 | @arizeai/phoenix-otel (TS OTel) | Check `js/packages/phoenix-otel/package.json` |
 
 ## Step 1: Identify Undocumented Releases

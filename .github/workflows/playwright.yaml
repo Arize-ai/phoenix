@@ -58,10 +58,10 @@ jobs:
               # `pretest:e2e` script in js/app/package.json):
               # phoenix-client and phoenix-evals, plus their transitive
               # workspace deps phoenix-config, phoenix-otel and
-              # phoenix-testing. phoenix-cli and phoenix-mcp are
-              # downstream consumers of the workspace, not inputs to the
-              # app build, so changes there must not trigger e2e. Add a
-              # package here if the app ever starts depending on it.
+              # phoenix-testing. phoenix-cli is a downstream consumer of
+              # the workspace, not an input to the app build, so changes
+              # there must not trigger e2e. Add a package here if the app
+              # ever starts depending on it.
               - "js/packages/phoenix-client/**"
               - "js/packages/phoenix-config/**"
               - "js/packages/phoenix-evals/**"

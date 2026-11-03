@@ -586,7 +586,6 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Phoenix OTEL Context Attributes (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes): Propagate session, user, metadata, prompt template, and custom attributes in @arizeai/phoenix-otel
 - [Phoenix OTEL Manual Spans (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans): Build raw spans, OpenInference attributes, and redaction with `OITracer`
 - [OpenInference Core (TS)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core): Semantic conventions and span utilities via @arizeai/openinference-core
-- [MCP Server SDK](https://arize.com/docs/phoenix/sdk-api-reference/typescript/mcp-server): Build MCP servers that expose Phoenix data to AI assistants
 - [Phoenix CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli): Fetch docs, manage traces, and run experiments from the terminal
 
 ### REST API

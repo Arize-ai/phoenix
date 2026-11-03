@@ -16,7 +16,7 @@ The skills are the public skills in [`skills/`](../skills/), referenced directly
 
 ## Requirements
 
-- **Phoenix 19.0.0 or later.** Older servers do not serve `/mcp`; use the standalone [npm MCP server](https://arize.com/docs/phoenix/integrations/phoenix-mcp-server) instead.
+- **Phoenix 19.0.0 or later.** Older servers do not serve `/mcp`; upgrade Phoenix to use this plugin.
 - **Node.js** and the Phoenix CLI for the `phoenix-cli` skill: `npm install -g @arizeai/phoenix-cli`, or let the skill run it through `npx`.
 - **Shell environment for the CLI.** The plugin variable below configures the MCP server only. The `px` CLI reads `PHOENIX_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix has auth enabled) from your shell, so export those too. See [Coding Agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents#shared-environment-configuration).
 
