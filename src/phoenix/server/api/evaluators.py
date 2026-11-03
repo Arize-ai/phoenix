@@ -2082,7 +2082,15 @@ class LevenshteinDistanceEvaluator(BuiltInEvaluator):
         return result
 
 
+def _is_json_number(value: Any) -> bool:
+    # JSON has one number type, but json.loads returns int or float; bool is not a number
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def json_diff_count(expected: Any, actual: Any) -> int:
+    if _is_json_number(expected) and _is_json_number(actual):
+        return 0 if expected == actual else 1
+
     if type(expected) is not type(actual):
         return 1
 
