@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Union
 
 from ....exceptions import PhoenixDecisionRefusal
-from ....llm.prompts import PromptLike
+from ....llm.prompts import MessageRole, PromptLike, normalize_role
 from ...registries import register_provider
 from ...types import BaseDecisionAdapter
 from .factories import create_openai_client, get_openai_rate_limit_errors
@@ -9,6 +9,19 @@ from .factories import create_openai_client, get_openai_rate_limit_errors
 _QUESTION_NAME = "label"
 # The Decisions API rejects a choice question without instructions.
 _CHOICE_INSTRUCTIONS = "Select the single best label for the input."
+
+
+def _message_texts(content: Any) -> List[str]:
+    """Non-empty text pieces of a message's content, dropping non-text (e.g. image) parts."""
+    if isinstance(content, str):
+        return [content] if content else []
+    if isinstance(content, list):
+        return [
+            part["text"]
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text" and part.get("text")
+        ]
+    return []
 
 
 @register_provider(
@@ -28,6 +41,20 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
     @classmethod
     def client_name(cls) -> str:
         return "openai"
+
+    def _to_input(self, prompt: PromptLike) -> Any:
+        if isinstance(prompt, str):
+            return prompt
+        messages: List[Dict[str, Any]] = []
+        for message in prompt:
+            role = normalize_role(message.get("role") or MessageRole.USER).value
+            part_type = "output_text" if role == MessageRole.AI.value else "input_text"
+            parts = [
+                {"type": part_type, "text": text} for text in _message_texts(message.get("content"))
+            ]
+            if parts:
+                messages.append({"role": role, "content": parts})
+        return messages
 
     def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> List[Dict[str, Any]]:
         criteria: Dict[str, Any] = (
@@ -91,7 +118,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         response = self.client.decisions.create(
             model=self.model,
-            input=self._to_state(prompt),
+            input=self._to_input(prompt),
             questions=self._build_questions(labels),
             **kwargs,
         )
@@ -105,7 +132,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         response = await self.client.decisions.create(
             model=self.model,
-            input=self._to_state(prompt),
+            input=self._to_input(prompt),
             questions=self._build_questions(labels),
             **kwargs,
         )
