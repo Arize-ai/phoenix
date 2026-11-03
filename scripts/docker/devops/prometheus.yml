@@ -19,3 +19,10 @@ scrape_configs:
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
+
+  # The datagen control server, when the datagen profile is running. The target is
+  # down otherwise, which leaves the datagen panels empty.
+  - job_name: 'datagen'
+    static_configs:
+      - targets: ['datagen:8080']
+    metrics_path: '/metrics'
