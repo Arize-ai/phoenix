@@ -89,7 +89,10 @@ export interface DecisionModelsFormData {
   decision_enabled: boolean;
   /** Which decision API to call. Always TYPESAFE (System One) for TypeSafe. */
   decision_sdk: DecisionSDK;
-  /** Base URL of the decision API; ignored for TypeSafe, which uses its own. */
+  /**
+   * Base URL of the decision API; empty follows the chat base URL. Ignored for
+   * TypeSafe, which uses its own.
+   */
   decision_base_url?: string;
   /** Suggested decision model names, comma or newline separated. */
   decision_model_names?: string;
@@ -1162,7 +1165,6 @@ export const ProviderForm = ({
     handleSubmit,
     reset,
     getValues,
-    setValue,
     formState: { isDirty },
   } = useForm<ProviderFormData>({
     defaultValues,
@@ -1277,7 +1279,6 @@ export const ProviderForm = ({
             sdk={sdk}
             control={control}
             getValues={getValues}
-            setValue={setValue}
             isSubmitting={isSubmitting}
           />
         ) : null}

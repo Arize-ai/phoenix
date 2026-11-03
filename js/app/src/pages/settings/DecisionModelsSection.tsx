@@ -1,10 +1,6 @@
 import { css } from "@emotion/react";
-import { useEffect, useRef, useState } from "react";
-import type {
-  Control,
-  UseFormGetValues,
-  UseFormSetValue,
-} from "react-hook-form";
+import { useState } from "react";
+import type { Control, UseFormGetValues } from "react-hook-form";
 import { Controller, useFormState, useWatch } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
@@ -105,13 +101,11 @@ export function DecisionModelsSection({
   sdk,
   control,
   getValues,
-  setValue,
   isSubmitting,
 }: {
   sdk: GenerativeModelSDK;
   control: Control<ProviderFormData>;
   getValues: UseFormGetValues<ProviderFormData>;
-  setValue: UseFormSetValue<ProviderFormData>;
   isSubmitting: boolean;
 }) {
   const isTypeSafe = sdk === "TYPESAFE";
@@ -121,57 +115,16 @@ export function DecisionModelsSection({
   });
   const chatBaseUrl = useChatBaseUrl({ control, sdk });
   const client: DecisionSDK = isTypeSafe ? "TYPESAFE" : decisionSdk;
+  // An empty decision base URL follows the chat base URL; the guess is only
+  // shown, never stored.
   const guess = guessDecisionBaseUrl({ decisionSdk: client, chatBaseUrl });
   const effectiveBaseUrl = isTypeSafe
-    ? guessDecisionBaseUrl({ decisionSdk: "TYPESAFE", chatBaseUrl })
+    ? guess
     : decisionBaseUrl?.trim() || guess;
   const endpointUrl = decisionEndpointUrl({
     decisionSdk: client,
     baseUrl: effectiveBaseUrl,
   });
-
-  /** Fill the base URL with the guess unless the user typed their own. */
-  const prefillBaseUrl = ({
-    nextClient,
-    previousGuess,
-  }: {
-    nextClient: DecisionSDK;
-    previousGuess: string | null;
-  }) => {
-    const current = getValues("decision_base_url")?.trim();
-    if (!current || current === previousGuess) {
-      setValue(
-        "decision_base_url",
-        guessDecisionBaseUrl({ decisionSdk: nextClient, chatBaseUrl }),
-        { shouldDirty: true, shouldValidate: true }
-      );
-    }
-  };
-
-  // An untouched guess follows the chat base URL, so it never goes stale.
-  const previousChatBaseUrl = useRef(chatBaseUrl);
-  useEffect(() => {
-    const previous = previousChatBaseUrl.current;
-    previousChatBaseUrl.current = chatBaseUrl;
-    if (isTypeSafe || previous === chatBaseUrl) {
-      return;
-    }
-    const current = getValues("decision_base_url")?.trim();
-    const previousGuess = guessDecisionBaseUrl({
-      decisionSdk: getValues("decision_sdk"),
-      chatBaseUrl: previous,
-    });
-    if (current && current === previousGuess) {
-      setValue(
-        "decision_base_url",
-        guessDecisionBaseUrl({
-          decisionSdk: getValues("decision_sdk"),
-          chatBaseUrl,
-        }),
-        { shouldDirty: true, shouldValidate: true }
-      );
-    }
-  }, [chatBaseUrl, getValues, isTypeSafe, setValue]);
 
   const enabledError = (
     useFormState({ control, name: "decision_enabled" }).errors as {
@@ -197,12 +150,7 @@ export function DecisionModelsSection({
               aria-label="Serve decision models"
               isSelected={isOn}
               isDisabled={isTypeSafe || isSubmitting}
-              onChange={(next) => {
-                field.onChange(next);
-                if (next) {
-                  prefillBaseUrl({ nextClient: client, previousGuess: null });
-                }
-              }}
+              onChange={field.onChange}
             >
               {isOn ? "On" : "Off"}
             </Switch>
@@ -230,16 +178,7 @@ export function DecisionModelsSection({
                   <Select
                     value={field.value}
                     onChange={(key) => {
-                      if (key == null || key === field.value) return;
-                      const previousGuess = guessDecisionBaseUrl({
-                        decisionSdk: field.value,
-                        chatBaseUrl,
-                      });
-                      field.onChange(key);
-                      prefillBaseUrl({
-                        nextClient: key as DecisionSDK,
-                        previousGuess,
-                      });
+                      if (key != null) field.onChange(key);
                     }}
                     isDisabled={isSubmitting}
                     css={decisionClientCSS}

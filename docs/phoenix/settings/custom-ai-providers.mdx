@@ -72,12 +72,12 @@ To turn on decision models:
 2.  Choose a **Decision client**:
     *   **OpenAI Decisions API**: sends `POST {base URL}/decisions`.
     *   **System One**: sends `POST {base URL}/v1/systemone`. If the base URL ends in `/v1`, Phoenix removes it once, because System One adds `/v1`.
-3.  Examine the **Decision base URL**. Phoenix fills it in from the provider's base URL. Change it if the endpoint serves decisions at a different URL. The form shows the exact URL that a run sends to.
+3.  Optional: enter a **Decision base URL** if the endpoint serves decisions at a different URL. If you leave it empty, decision runs use the provider's base URL. The field shows that URL as a placeholder. The form shows the exact URL that a run sends to.
 4.  Optional: enter **Suggested model names** for decision models, separated by commas.
 5.  Click **Test decision endpoint**. The test sends a request for a model that does not exist to the exact URL. The test passes only when the endpoint rejects that model by name, which shows that the URL, the decision client, and the API key are correct. No model runs.
 
 <Note>
-If you do not change the decision base URL, Phoenix does not save it. Decision runs then follow the provider's base URL when you change it.
+An empty decision base URL follows the provider's base URL, also when you change the provider's base URL later. To stop decision runs from following it, enter a decision base URL. To follow it again, clear the field.
 </Note>
 
 *   A TypeSafe provider always serves decision models through System One, at its own base URL.

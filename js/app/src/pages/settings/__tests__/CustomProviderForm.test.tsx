@@ -89,6 +89,13 @@ describe("CustomProviderForm decision models", () => {
   };
   const preview = () =>
     container.querySelector('[data-testid="decision-endpoint"]')?.textContent;
+  const decisionBaseUrlInput = () => {
+    const element = container.querySelector<HTMLInputElement>(
+      'input[name="decision_base_url"]'
+    );
+    if (!element) throw new Error("no decision base URL input");
+    return element;
+  };
   const input = (placeholder: string) => {
     const element = container.querySelector<HTMLInputElement>(
       `input[placeholder="${placeholder}"]`
@@ -97,7 +104,7 @@ describe("CustomProviderForm decision models", () => {
     return element;
   };
 
-  it("pre-fills the base URL from the chat base URL and previews the exact POST URL", async () => {
+  it("shows the chat base URL as the decision base URL's placeholder and previews the exact POST URL", async () => {
     const user = userEvent.setup();
     render();
     expect(decisionSwitch().checked).toBe(false);
@@ -108,13 +115,12 @@ describe("CustomProviderForm decision models", () => {
     );
     await act(() => user.click(decisionSwitch()));
     expect(decisionSwitch().checked).toBe(true);
-    expect(input("https://proxy.example/v1").value).toBe(
-      "https://proxy.example/v1"
-    );
+    // The guess is only shown; an empty field follows the chat base URL.
+    expect(input("https://proxy.example/v1").value).toBe("");
     expect(preview()).toBe("POST https://proxy.example/v1/decisions");
   });
 
-  it("keeps an untouched decision base URL in step with the chat base URL", async () => {
+  it("keeps an empty decision base URL in step with the chat base URL", async () => {
     const user = userEvent.setup();
     render();
     await act(() => user.click(decisionSwitch()));
@@ -123,6 +129,22 @@ describe("CustomProviderForm decision models", () => {
       user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
     );
     expect(preview()).toBe("POST https://proxy.example/v1/decisions");
+    expect(input("https://proxy.example/v1").value).toBe("");
+    expect(container.textContent).not.toContain("Must be a valid URL");
+  });
+
+  it("keeps a typed decision base URL when the chat base URL changes", async () => {
+    const user = userEvent.setup();
+    render();
+    await act(() => user.click(decisionSwitch()));
+    await act(() =>
+      user.type(decisionBaseUrlInput(), "https://decisions.example/v1")
+    );
+    await act(() =>
+      user.type(input("https://api.openai.com/v1"), "https://proxy.example/v1")
+    );
+    expect(decisionBaseUrlInput().value).toBe("https://decisions.example/v1");
+    expect(preview()).toBe("POST https://decisions.example/v1/decisions");
   });
 
   it("shows only the decision heading while decision models are off", () => {

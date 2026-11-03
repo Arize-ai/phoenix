@@ -34,11 +34,6 @@ import type {
   ProviderFormData,
   TypeSafeFormData,
 } from "./CustomProviderForm";
-import {
-  type DecisionSDK,
-  azureChatBaseUrl,
-  guessDecisionBaseUrl,
-} from "./decisionEndpoints";
 
 export type ProviderNode = EditCustomProviderButtonQuery$data["node"];
 type CustomProviderNode = Extract<
@@ -226,16 +221,12 @@ export function transformConfigToFormValues(
 }
 
 /**
- * Decision settings as the form edits them. A provider saved without a
- * decision base URL shows the guess its runs use.
+ * Decision settings as the form edits them. The decision base URL is the one
+ * stored, if any; empty follows the chat base URL.
  */
-function getDecisionModelsFormValues({
-  decisionModels,
-  chatBaseUrl,
-}: {
-  decisionModels: ProviderConfig["decisionModels"];
-  chatBaseUrl: string | null | undefined;
-}): DecisionModelsFormData {
+function getDecisionModelsFormValues(
+  decisionModels: ProviderConfig["decisionModels"]
+): DecisionModelsFormData {
   if (!decisionModels) {
     return {
       decision_enabled: false,
@@ -244,14 +235,11 @@ function getDecisionModelsFormValues({
       decision_model_names: undefined,
     };
   }
-  const decisionSdk: DecisionSDK =
-    decisionModels.decisionSdk === "TYPESAFE" ? "TYPESAFE" : "OPENAI";
   return {
     decision_enabled: true,
-    decision_sdk: decisionSdk,
-    decision_base_url:
-      decisionModels.baseUrl ??
-      guessDecisionBaseUrl({ decisionSdk, chatBaseUrl }),
+    decision_sdk:
+      decisionModels.decisionSdk === "TYPESAFE" ? "TYPESAFE" : "OPENAI",
+    decision_base_url: decisionModels.baseUrl ?? undefined,
     decision_model_names: formatModelNames(decisionModels.modelNames),
   };
 }
@@ -275,10 +263,7 @@ function transformOpenAIConfig(provider: CustomProviderNode): OpenAIFormData {
     openai_api_key: config?.openaiAuthenticationMethod?.apiKey || "",
     ...getOpenAIClientFormValues(config?.openaiClientKwargs),
     model_names: formatModelNames(config?.modelNames),
-    ...getDecisionModelsFormValues({
-      decisionModels: config?.decisionModels,
-      chatBaseUrl: config?.openaiClientKwargs?.baseUrl,
-    }),
+    ...getDecisionModelsFormValues(config?.decisionModels),
   };
 }
 
@@ -314,12 +299,7 @@ function transformAzureOpenAIConfig(
     ),
     ...getAzureClientFormValues(config?.azureOpenaiClientKwargs),
     model_names: formatModelNames(config?.modelNames),
-    ...getDecisionModelsFormValues({
-      decisionModels: config?.decisionModels,
-      chatBaseUrl: azureChatBaseUrl(
-        config?.azureOpenaiClientKwargs?.azureEndpoint
-      ),
-    }),
+    ...getDecisionModelsFormValues(config?.decisionModels),
   };
 }
 
@@ -435,29 +415,18 @@ function transformTypeSafeConfig(
 
 /**
  * The decision settings to send: none when decision models are off, so the
- * provider stops serving them.
+ * provider stops serving them. An empty base URL is left out, so runs follow
+ * the chat base URL.
  */
-function buildDecisionModels({
-  formData,
-  chatBaseUrl,
-}: {
-  formData: DecisionModelsFormData;
-  /** The provider's chat base URL; a decision base URL equal to its guess isn't sent. */
-  chatBaseUrl: string | null | undefined;
-}) {
+function buildDecisionModels(formData: DecisionModelsFormData) {
   if (!formData.decision_enabled) {
     return undefined;
   }
   const modelNames = parseModelNames(formData.decision_model_names);
   const baseUrl = formData.decision_base_url?.trim().replace(/\/+$/, "");
-  // The pre-filled guess isn't stored, so runs keep following the chat base
-  // URL; only a base URL the user changed is pinned.
-  const isGuess =
-    baseUrl ===
-    guessDecisionBaseUrl({ decisionSdk: formData.decision_sdk, chatBaseUrl });
   return {
     decisionSdk: formData.decision_sdk,
-    ...(baseUrl && !isGuess && { baseUrl }),
+    ...(baseUrl && { baseUrl }),
     ...(modelNames.length > 0 && { modelNames }),
   };
 }
@@ -490,10 +459,7 @@ export function buildClientConfig(
                 : undefined,
           }),
           ...buildModelNames(formData),
-          decisionModels: buildDecisionModels({
-            formData,
-            chatBaseUrl: formData.openai_base_url,
-          }),
+          decisionModels: buildDecisionModels(formData),
         },
       };
     case "AZURE_OPENAI": {
@@ -572,10 +538,7 @@ export function buildClientConfig(
             ...(defaultHeaders !== undefined && { defaultHeaders }),
           },
           ...buildModelNames(formData),
-          decisionModels: buildDecisionModels({
-            formData,
-            chatBaseUrl: azureChatBaseUrl(formData.azure_endpoint),
-          }),
+          decisionModels: buildDecisionModels(formData),
         },
       };
     }
@@ -689,13 +652,10 @@ export function buildClientConfig(
           }),
           // Always System One; a TypeSafe provider's own base URL is its endpoint.
           decisionModels: buildDecisionModels({
-            formData: {
-              ...formData,
-              decision_enabled: true,
-              decision_sdk: "TYPESAFE",
-              decision_base_url: undefined,
-            },
-            chatBaseUrl: formData.typesafe_base_url,
+            ...formData,
+            decision_enabled: true,
+            decision_sdk: "TYPESAFE",
+            decision_base_url: undefined,
           }),
         },
       };
