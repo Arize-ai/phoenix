@@ -22,6 +22,8 @@ Use your existing Wonder Toys checkout. You'll need:
 - [Docker](https://docs.docker.com/get-started/get-docker/) and [Phoenix](/docs/phoenix/learn/capture-first-run#step-1-start-phoenix) running. Use Phoenix 15.0 or newer.
 - The [Anthropic API key configured earlier](/docs/phoenix/learn/capture-first-run#step-2-set-up-wonder-toys). The agent run makes model API calls.
 
+Harbor [requires Python 3.12 or newer](/docs/phoenix/integrations/evaluation-integrations/harbor), while the earlier app lessons use Python 3.11. The `--python 3.12` option below selects the runtime for the Harbor commands.
+
 ## Step 1: Understand the task
 
 The exercise includes a ready-to-run [purchase task](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/harbor/purchase-confirmed/instruction.md). First, read the fictional shopper's request and the checks below so you know what counts as success:
@@ -54,7 +56,7 @@ Run the supplied task to see whether Wonder Toys meets those checks. Harbor read
 From the Wonder Toys repository root, prepare the application files:
 
 ```bash
-python3 -m academy.harbor.prepare
+uv run --python 3.12 python -m academy.harbor.prepare
 ```
 
 Then run Wonder Toys on the shopper's request:
@@ -62,11 +64,11 @@ Then run Wonder Toys on the shopper's request:
 ```bash
 uv run --python 3.12 --with 'arize-phoenix-client[harbor]' \
   python -m academy.harbor.run \
-  --env-file phoenix/langchain-py/.env.local \
+  --env-file no-observability/langchain-py/.env.local \
   --phoenix-url http://localhost:6006
 ```
 
-Replace `http://localhost:6006` if Phoenix uses a different address.
+Use your Phoenix address for `--phoenix-url` if it differs from the example. Use your app's `.env.local` path for `--env-file` if you configured it elsewhere.
 
 These helpers run Harbor with the [Phoenix plugin](/docs/phoenix/integrations/evaluation-integrations/harbor). Once the agent and verifier finish, Phoenix holds the scores and trace you'll use to explain the outcome.
 
