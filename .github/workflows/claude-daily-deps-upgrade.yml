@@ -62,7 +62,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          PR_NUMBER=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --base main --state open --json number,isCrossRepository --jq '[.[] | select(.isCrossRepository | not)][0].number // empty')
           if [ -n "$PR_NUMBER" ] && git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             echo "Reusing open PR #$PR_NUMBER on branch $BRANCH"
             git fetch origin "$BRANCH"
@@ -398,8 +398,9 @@ jobs:
           else
             git push --force-with-lease -u origin "${BRANCH}"
           fi
-          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
-            gh pr create \
+          pr_number=$(gh pr list --head "${BRANCH}" --base main --state open --json number,isCrossRepository --jq '[.[] | select(.isCrossRepository | not)][0].number // empty')
+          if [ -z "$pr_number" ]; then
+            pr_url=$(gh pr create \
               --base main \
               --head "${BRANCH}" \
               --title "chore(deps): daily dependency upgrade" \
@@ -409,10 +410,11 @@ jobs:
           - \`uv lock --upgrade\` (Python)
           - \`pnpm update --recursive\` in \`js/\`
 
-          All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
+          All verification checks passed (typecheck, fmt, lint, test, build). Review and merge.")
+            pr_number="${pr_url##*/}"
           fi
           # Auto-merge once a reviewer approves and checks pass.
-          gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
+          gh pr merge "$pr_number" --auto --squash || echo "::warning::Could not enable auto-merge on #${pr_number}"
 
       - name: Install subprocess isolation deps
         # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
@@ -631,17 +633,19 @@ jobs:
               git push --force-with-lease -u origin "${BRANCH}"
             fi
           fi
-          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
-            gh pr create \
+          pr_number=$(gh pr list --head "${BRANCH}" --base main --state open --json number,isCrossRepository --jq '[.[] | select(.isCrossRepository | not)][0].number // empty')
+          if [ -z "$pr_number" ]; then
+            pr_url=$(gh pr create \
               --base main \
               --head "${BRANCH}" \
               --title "chore(deps): daily dependency upgrade" \
-              --body-file .scratch/pr-body-full.md
+              --body-file .scratch/pr-body-full.md)
+            pr_number="${pr_url##*/}"
           else
-            gh pr edit "${BRANCH}" --body-file .scratch/pr-body-full.md
+            gh pr edit "$pr_number" --body-file .scratch/pr-body-full.md
           fi
           # Auto-merge once a reviewer approves and checks pass.
-          gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
+          gh pr merge "$pr_number" --auto --squash || echo "::warning::Could not enable auto-merge on #${pr_number}"
 
   slack-notification:
     name: Slack Notification
