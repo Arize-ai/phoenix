@@ -6,7 +6,7 @@ import {
   type DetailedMetricsSnapshot,
 } from "../detailed-metrics.js";
 import { metrics, type ConnectionEvent } from "../metrics.js";
-import type { EndpointId } from "../providers/types.js";
+import { ENDPOINT_IDS, type EndpointId } from "../providers/types.js";
 import { registry, type DynamicConfig } from "../registry.js";
 
 interface WebSocketMessage {
@@ -105,11 +105,23 @@ export class AdminWebSocketServer {
       case "update_endpoint_config":
         if (message.data && typeof message.data === "object") {
           const { endpoint, config } = message.data as {
-            endpoint: string;
-            config: Record<string, unknown>;
+            endpoint?: unknown;
+            config?: unknown;
           };
-          if (endpoint && config) {
-            registry.updateEndpointConfig(endpoint as EndpointId, config);
+          if (isEndpointId(endpoint) && config && typeof config === "object") {
+            registry.updateEndpointConfig(
+              endpoint,
+              config as Record<string, unknown>
+            );
+          }
+        }
+        break;
+
+      case "clear_endpoint_overrides":
+        if (message.data && typeof message.data === "object") {
+          const { endpoint } = message.data as { endpoint?: unknown };
+          if (isEndpointId(endpoint)) {
+            registry.clearEndpointOverrides(endpoint);
           }
         }
         break;
@@ -196,6 +208,13 @@ export class AdminWebSocketServer {
       this.wss = null;
     }
   }
+}
+
+function isEndpointId(value: unknown): value is EndpointId {
+  return (
+    typeof value === "string" &&
+    (ENDPOINT_IDS as readonly string[]).includes(value)
+  );
 }
 
 // Singleton instance

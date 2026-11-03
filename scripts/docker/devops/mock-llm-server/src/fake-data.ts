@@ -216,3 +216,23 @@ export async function generateAnthropicToolUseFromSdk(
     caller: "user",
   } as unknown as ToolUseBlock;
 }
+
+/**
+ * Generate a random probability distribution over `n` outcomes.
+ * Normalized exponential draws give a flat Dirichlet sample.
+ */
+export function generateProbabilities(n: number): number[] {
+  const draws = Array.from({ length: n }, () => -Math.log(1 - Math.random()));
+  const total = draws.reduce((sum, d) => sum + d, 0);
+  return draws.map((d) => d / total);
+}
+
+/**
+ * Index of the largest value
+ */
+export function argmax(values: number[]): number {
+  return values.reduce(
+    (best, value, i) => (value > values[best] ? i : best),
+    0
+  );
+}

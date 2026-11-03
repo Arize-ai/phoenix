@@ -2,14 +2,13 @@ import { useState } from "react";
 
 import { ConcurrentConnectionsChart } from "./components/ConcurrentConnectionsChart";
 import { ConnectionMonitor } from "./components/ConnectionMonitor";
-import { ConnectionsChart } from "./components/ConnectionsChart";
 import { EventLog } from "./components/EventLog";
-import { FailureModes } from "./components/FailureModes";
-import { LatencyControls } from "./components/LatencyControls";
-import { RateLimitPanel } from "./components/RateLimitPanel";
+import { ProviderControls } from "./components/ProviderControls";
 import { ThroughputChart } from "./components/ThroughputChart";
 import { TimeRangeSelector } from "./components/TimeRangeSelector";
 import { useWebSocket } from "./hooks/useWebSocket";
+import { PROVIDER_GROUPS, type EndpointConfig } from "./types";
+import { publicUrl } from "./utils/publicPath";
 import type { TimeRange } from "./utils/timeRange";
 
 function App() {
@@ -20,18 +19,27 @@ function App() {
     detailedMetrics,
     config,
     events,
-    updateGlobalConfig,
+    updateEndpointConfig,
     resetConfig,
     resetDetailedMetrics,
     resetRateLimiters,
   } = useWebSocket();
 
+  const updateProvider = (
+    endpoints: (typeof PROVIDER_GROUPS)[number]["endpoints"],
+    updates: Partial<EndpointConfig>
+  ) => {
+    for (const endpoint of endpoints) {
+      updateEndpointConfig(endpoint, updates);
+    }
+  };
+
   const handleExportJSON = () => {
-    window.open("/api/detailed-metrics/export/json", "_blank");
+    window.open(publicUrl("/api/detailed-metrics/export/json"), "_blank");
   };
 
   const handleExportCSV = () => {
-    window.open("/api/detailed-metrics/export/csv", "_blank");
+    window.open(publicUrl("/api/detailed-metrics/export/csv"), "_blank");
   };
 
   return (
@@ -127,35 +135,43 @@ function App() {
 
       {/* Main Content */}
       <main className="p-3">
-        {/* Charts Row */}
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs text-gray-500">Time Series</span>
+        <div className="mb-2 flex justify-end">
           <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
         </div>
-        <div className="mb-3 grid grid-cols-3 gap-3">
-          <ThroughputChart
-            detailedMetrics={detailedMetrics}
-            timeRange={timeRange}
-          />
-          <ConcurrentConnectionsChart
-            detailedMetrics={detailedMetrics}
-            timeRange={timeRange}
-          />
-          <ConnectionsChart
-            detailedMetrics={detailedMetrics}
-            timeRange={timeRange}
-          />
+        <div className="mb-3 space-y-3">
+          {PROVIDER_GROUPS.map((provider) => (
+            <div
+              key={provider.id}
+              className="grid items-stretch gap-3 lg:grid-cols-3"
+            >
+              <ThroughputChart
+                detailedMetrics={detailedMetrics}
+                timeRange={timeRange}
+                endpointIds={provider.endpoints}
+                providerLabel={provider.label}
+              />
+              <ConcurrentConnectionsChart
+                detailedMetrics={detailedMetrics}
+                timeRange={timeRange}
+                endpointIds={provider.endpoints}
+                providerLabel={provider.label}
+              />
+              <ProviderControls
+                provider={provider}
+                config={config}
+                onUpdate={(updates) =>
+                  updateProvider(provider.endpoints, updates)
+                }
+              />
+            </div>
+          ))}
         </div>
 
-        {/* Controls Row */}
-        <div className="mb-3 grid grid-cols-4 gap-3">
+        <div className="mb-3">
           <ConnectionMonitor
             metrics={metrics}
             detailedMetrics={detailedMetrics}
           />
-          <LatencyControls config={config} onUpdate={updateGlobalConfig} />
-          <RateLimitPanel config={config} onUpdate={updateGlobalConfig} />
-          <FailureModes config={config} onUpdate={updateGlobalConfig} />
         </div>
 
         {/* Event Log - Full Width */}

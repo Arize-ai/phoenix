@@ -6,30 +6,36 @@ import type { Request, Response } from "express";
 export type EndpointId =
   | "openai-chat"
   | "openai-responses"
+  | "openai-decisions"
   | "anthropic-messages"
   | "gemini-generate"
   | "gemini-stream"
   | "gemini-generate-v1"
-  | "gemini-stream-v1";
+  | "gemini-stream-v1"
+  | "typesafe-systemone";
 
 export const ENDPOINT_IDS: EndpointId[] = [
   "openai-chat",
   "openai-responses",
+  "openai-decisions",
   "anthropic-messages",
   "gemini-generate",
   "gemini-stream",
   "gemini-generate-v1",
   "gemini-stream-v1",
+  "typesafe-systemone",
 ];
 
 export const ENDPOINT_LABELS: Record<EndpointId, string> = {
   "openai-chat": "OpenAI Chat Completions",
   "openai-responses": "OpenAI Responses",
+  "openai-decisions": "OpenAI Decisions",
   "anthropic-messages": "Anthropic Messages",
   "gemini-generate": "Gemini Generate (v1beta)",
   "gemini-stream": "Gemini Stream (v1beta)",
   "gemini-generate-v1": "Gemini Generate (v1)",
   "gemini-stream-v1": "Gemini Stream (v1)",
+  "typesafe-systemone": "TypeSafe System One",
 };
 
 /**

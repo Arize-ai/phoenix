@@ -44,6 +44,9 @@ export type ErrorType =
  * Per-endpoint configuration
  */
 export interface EndpointConfig {
+  // Wait before a non-streaming response is sent
+  responseDelayMs: number;
+
   // Streaming configuration
   streamInitialDelayMs: number;
   streamDelayMs: number;
@@ -89,6 +92,7 @@ export interface DynamicConfig {
  * Default global configuration
  */
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
+  responseDelayMs: 0,
   streamInitialDelayMs: 100,
   streamDelayMs: 10,
   streamJitterMs: 10,
@@ -168,6 +172,8 @@ class EndpointRegistry extends EventEmitter {
   getEndpointConfig(endpointId: EndpointId): EndpointConfig {
     const overrides = this.config.endpoints[endpointId] || {};
     const merged: EndpointConfig = {
+      responseDelayMs:
+        overrides.responseDelayMs ?? this.config.global.responseDelayMs ?? 0,
       streamInitialDelayMs:
         overrides.streamInitialDelayMs ??
         this.config.global.streamInitialDelayMs,
@@ -410,6 +416,7 @@ class EndpointRegistry extends EventEmitter {
     }
 
     const globalConfig: GlobalConfig = {
+      responseDelayMs: 0,
       streamInitialDelayMs: envConfig.streamInitialDelayMs,
       streamDelayMs: envConfig.streamDelayMs,
       streamJitterMs: envConfig.streamJitterMs,

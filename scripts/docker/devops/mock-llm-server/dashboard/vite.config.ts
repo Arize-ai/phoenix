@@ -5,7 +5,8 @@ import { defineConfig } from "vite";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: "/dashboard/",
+  // Docker sets this so the built UI is served under the Traefik prefix.
+  base: process.env.DASHBOARD_BASE || "/dashboard/",
   server: {
     proxy: {
       "/api": "http://localhost:57593",

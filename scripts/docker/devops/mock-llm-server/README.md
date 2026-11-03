@@ -1,13 +1,15 @@
 # Mock LLM Server
 
-A TypeScript mock server that simulates **OpenAI**, **Anthropic**, and **Google GenAI (Gemini)** APIs for testing streaming, rate limiting, and tool calls. Includes a **real-time dashboard** for monitoring and controlling the server.
+A TypeScript mock server that simulates **OpenAI**, **Anthropic**, **Google GenAI (Gemini)**, and **TypeSafe** APIs for testing streaming, rate limiting, tool calls, and decision models. Includes a **real-time dashboard** for monitoring and controlling the server.
 
 ## Features
 
 - **OpenAI Chat Completions API** - Full compatibility with the official OpenAI SDK
 - **OpenAI Responses API** - Newer API with event-based streaming
+- **OpenAI Decisions API** - Predicate, choice, and score questions with random probability distributions
 - **Anthropic Messages API** - Full compatibility with the official Anthropic SDK
 - **Google GenAI (Gemini) API** - Full compatibility with the official @google/genai SDK
+- **TypeSafe System One API** - Named noul, choice, score, and box questions; compatible with the official @typesafe-ai/sdk
 - **Streaming support** - SSE streaming with configurable chunk size and delay
 - **Tool calls** - Generates fake tool call/use responses based on provided JSON Schema
 - **Rate limiting** - Configurable rate limiting with multiple modes
@@ -31,6 +33,17 @@ pnpm start
 ```
 
 The server runs on `http://localhost:57593` by default.
+
+From the repository root, `make dev-mock-llm` installs, builds, and starts the
+server in one step. To run it in the devops Docker stack instead, start the
+stack with the `mock-llm` profile. The container is not published on the host.
+Phoenix reaches it at `http://mock-llm:57593/v1`, and the dashboard is
+http://localhost:18273/mock-llm/dashboard/.
+
+```bash
+cd scripts/docker/devops
+./dev.sh up --profile mock-llm
+```
 
 ## Dashboard
 
@@ -283,6 +296,7 @@ TOOL_CALL_PROBABILITY=1.0 pnpm start
 | --------------------------- | -------------------------------------------------- |
 | `POST /v1/chat/completions` | Chat Completions API (streaming and non-streaming) |
 | `POST /v1/responses`        | Responses API (streaming and non-streaming)        |
+| `POST /v1/decisions`        | Decisions API (non-streaming)                      |
 | `GET /v1/models`            | List available models                              |
 
 ### Anthropic-Compatible
@@ -299,6 +313,13 @@ TOOL_CALL_PROBABILITY=1.0 pnpm start
 | `POST /v1beta/models/:model:streamGenerateContent` | Generate content (streaming)        |
 | `POST /v1/models/:model:generateContent`           | Generate content v1 (non-streaming) |
 | `POST /v1/models/:model:streamGenerateContent`     | Generate content v1 (streaming)     |
+
+### TypeSafe-Compatible
+
+| Endpoint             | Description                                                  |
+| -------------------- | ------------------------------------------------------------ |
+| `POST /v1/systemone` | System One API (non-streaming)                               |
+| `GET /v1/models`     | Model cards, in the `models` field of the OpenAI models list |
 
 ### Admin & Monitoring
 
@@ -376,6 +397,72 @@ with httpx2.stream(
         # Events: response.created, response.output_text.delta, response.completed, etc.
 ```
 
+## Decision Model APIs
+
+Decision endpoints return random answers. Each choice or score answer carries a
+probability distribution over its options that sums to one. The selected choice
+is the most probable option, and `confidence` is that option's probability. A
+score is the expected level index, so it can fall between levels. Neither
+endpoint returns refusals.
+
+### OpenAI Decisions
+
+Answers keep the order of `questions` and echo each question's `name`, or
+`null` for an unnamed question.
+
+```typescript
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://localhost:57593/v1",
+  apiKey: "fake-key",
+});
+
+const decision = await client.decisions.create({
+  model: "gpt-6-luna",
+  input: "My invoice contains a duplicate charge.",
+  questions: [
+    {
+      type: "predicate",
+      name: "is_billing",
+      instructions: "The ticket is about billing.",
+    },
+    {
+      type: "choice",
+      name: "team",
+      instructions: "Which department should handle the ticket?",
+      choices: [{ value: "billing" }, { value: "technical" }],
+    },
+  ],
+});
+console.log(decision.answers[1]); // { type: "choice", name: "team", choice: "billing", ... }
+```
+
+### TypeSafe System One
+
+Answers are keyed by question name. The TypeSafe SDK appends `/v1` to its base
+URL, so pass the server root. The server decodes the SDK's zstd-compressed
+request bodies. It does not accept image assets, which the SDK sends as
+`multipart/form-data`.
+
+```typescript
+import { TypeSafeClient, choice, noul } from "@typesafe-ai/sdk";
+
+const client = new TypeSafeClient({
+  baseURL: "http://localhost:57593",
+  apiKey: "fake-key",
+});
+
+const { answers } = await client.systemOne({
+  state: "I was charged twice. Please help.",
+  questions: {
+    billing: noul("Is this about billing?"),
+    team: choice("Which department?", { billing: null, technical: null }),
+  },
+});
+console.log(answers.billing.noul, answers.team.choice);
+```
+
 ## Anthropic Streaming Details
 
 The Anthropic Messages API uses a different streaming format with named events:
@@ -418,7 +505,7 @@ mock-llm-server/
 │   ├── server.ts              # Express server entry point
 │   ├── config.ts              # Environment configuration
 │   ├── registry.ts            # Central config & rate limiter registry
-│   ├── types.ts               # TypeScript types (OpenAI + Anthropic + Gemini APIs)
+│   ├── types.ts               # TypeScript types (OpenAI + Anthropic + Gemini + TypeSafe APIs)
 │   ├── fake-data.ts           # JSON Schema → fake data generator
 │   ├── metrics.ts             # Basic metrics collection
 │   ├── detailed-metrics.ts    # Time series & histogram metrics
@@ -429,8 +516,10 @@ mock-llm-server/
 │   ├── handlers/
 │   │   ├── chat-completions.ts   # OpenAI Chat Completions handler
 │   │   ├── responses.ts          # OpenAI Responses API handler
+│   │   ├── openai-decisions.ts   # OpenAI Decisions API handler
 │   │   ├── anthropic-messages.ts # Anthropic Messages API handler
-│   │   └── gemini.ts             # Google GenAI (Gemini) handler
+│   │   ├── gemini.ts             # Google GenAI (Gemini) handler
+│   │   └── typesafe-systemone.ts # TypeSafe System One handler
 │   ├── middleware/
 │   │   ├── index.ts           # Middleware exports
 │   │   └── request-pipeline.ts # Request processing pipeline
@@ -439,8 +528,10 @@ mock-llm-server/
 │   │   ├── types.ts           # Provider type definitions
 │   │   ├── openai-chat.ts     # OpenAI Chat provider config
 │   │   ├── openai-responses.ts # OpenAI Responses provider config
+│   │   ├── openai-decisions.ts # OpenAI Decisions provider config
 │   │   ├── anthropic.ts       # Anthropic provider config
-│   │   └── gemini.ts          # Gemini provider config
+│   │   ├── gemini.ts          # Gemini provider config
+│   │   └── typesafe.ts        # TypeSafe System One provider config
 │   └── rate-limiting/
 │       ├── index.ts           # Rate limiting exports
 │       ├── types.ts           # Rate limiter interfaces

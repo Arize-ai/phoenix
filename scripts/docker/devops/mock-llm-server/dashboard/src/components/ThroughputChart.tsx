@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   LineChart,
   Line,
@@ -8,58 +9,61 @@ import {
   ReferenceLine,
 } from "recharts";
 
-import type { DetailedMetricsSnapshot } from "../types";
-import { type TimeRange, getTimeRangeMs } from "../utils/timeRange";
+import type { DetailedMetricsSnapshot, EndpointId } from "../types";
+import { providerSeries } from "../utils/providerSeries";
+import type { TimeRange } from "../utils/timeRange";
 
 interface Props {
   detailedMetrics: DetailedMetricsSnapshot | null;
   timeRange: TimeRange;
+  endpointIds: readonly EndpointId[];
+  providerLabel: string;
 }
 
-export function ThroughputChart({ detailedMetrics, timeRange }: Props) {
-  if (!detailedMetrics || detailedMetrics.global.timeSeries.length === 0) {
+export function ThroughputChart({
+  detailedMetrics,
+  timeRange,
+  endpointIds,
+  providerLabel,
+}: Props) {
+  const series = detailedMetrics
+    ? providerSeries(detailedMetrics, endpointIds, timeRange)
+    : null;
+
+  if (!series || series.points.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
-        <h2 className="mb-2 text-sm font-medium">
-          Requests Completed per Second
-        </h2>
-        <div className="flex h-64 items-center justify-center text-xs text-gray-500">
+      <ChartCard providerLabel={providerLabel}>
+        <div className="flex min-h-32 flex-1 items-center justify-center text-xs text-gray-500">
           Collecting data...
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
-  const cutoffTime = detailedMetrics.timestamp - getTimeRangeMs(timeRange);
-  const filteredSeries = detailedMetrics.global.timeSeries.filter(
-    (point) => point.timestamp >= cutoffTime
-  );
-
-  const data = filteredSeries.map((point) => ({
+  const data = series.points.map((point) => ({
     time: new Date(point.timestamp).toLocaleTimeString(),
-    rps: point.requestsCompleted + point.requestsFailed,
+    rps: point.rps,
   }));
 
-  const { peaks } = detailedMetrics.global;
-
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-medium">Requests Completed per Second</h2>
+    <ChartCard
+      providerLabel={providerLabel}
+      stats={
         <div className="flex gap-2 text-xs">
           <span className="text-gray-500">
             now{" "}
             <span className="font-mono text-green-400">
-              {detailedMetrics.global.currentRPS}
+              {series.currentRPS}
             </span>
           </span>
           <span className="text-gray-500">
             peak{" "}
-            <span className="font-mono text-green-400">{peaks.maxRPS}</span>
+            <span className="font-mono text-green-400">{series.peakRPS}</span>
           </span>
         </div>
-      </div>
-      <div className="h-64">
+      }
+    >
+      <div className="min-h-32 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <XAxis
@@ -86,11 +90,13 @@ export function ThroughputChart({ detailedMetrics, timeRange }: Props) {
               }}
               labelStyle={{ color: "#9ca3af" }}
             />
-            <ReferenceLine
-              y={peaks.maxRPS}
-              stroke="#10b981"
-              strokeDasharray="3 3"
-            />
+            {series.peakRPS > 0 && (
+              <ReferenceLine
+                y={series.peakRPS}
+                stroke="#10b981"
+                strokeDasharray="3 3"
+              />
+            )}
             <Line
               type="monotone"
               dataKey="rps"
@@ -103,6 +109,30 @@ export function ThroughputChart({ detailedMetrics, timeRange }: Props) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+    </ChartCard>
+  );
+}
+
+function ChartCard({
+  providerLabel,
+  stats,
+  children,
+}: {
+  providerLabel: string;
+  stats?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex h-full flex-col rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-medium">
+          <span className="text-gray-400">{providerLabel}</span>
+          <span className="text-gray-600"> · </span>
+          Requests / sec
+        </h2>
+        {stats}
+      </div>
+      {children}
     </div>
   );
 }

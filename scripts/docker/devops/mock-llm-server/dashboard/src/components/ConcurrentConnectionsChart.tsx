@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   LineChart,
   Line,
@@ -8,64 +9,63 @@ import {
   ReferenceLine,
 } from "recharts";
 
-import type { DetailedMetricsSnapshot } from "../types";
-import { type TimeRange, getTimeRangeMs } from "../utils/timeRange";
+import type { DetailedMetricsSnapshot, EndpointId } from "../types";
+import { providerSeries } from "../utils/providerSeries";
+import type { TimeRange } from "../utils/timeRange";
 
 interface Props {
   detailedMetrics: DetailedMetricsSnapshot | null;
   timeRange: TimeRange;
+  endpointIds: readonly EndpointId[];
+  providerLabel: string;
 }
 
 export function ConcurrentConnectionsChart({
   detailedMetrics,
   timeRange,
+  endpointIds,
+  providerLabel,
 }: Props) {
-  if (!detailedMetrics || detailedMetrics.global.timeSeries.length === 0) {
+  const series = detailedMetrics
+    ? providerSeries(detailedMetrics, endpointIds, timeRange)
+    : null;
+
+  if (!series || series.points.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
-        <h2 className="mb-2 text-sm font-medium">
-          Active Requests (In-Flight)
-        </h2>
-        <div className="flex h-64 items-center justify-center text-xs text-gray-500">
+      <ChartCard providerLabel={providerLabel}>
+        <div className="flex min-h-32 flex-1 items-center justify-center text-xs text-gray-500">
           Collecting data...
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
-  const cutoffTime = detailedMetrics.timestamp - getTimeRangeMs(timeRange);
-  const filteredSeries = detailedMetrics.global.timeSeries.filter(
-    (point) => point.timestamp >= cutoffTime
-  );
-
-  const data = filteredSeries.map((point) => ({
+  const data = series.points.map((point) => ({
     time: new Date(point.timestamp).toLocaleTimeString(),
-    concurrent: point.activeConnections,
+    concurrent: point.active,
   }));
 
-  const { peaks } = detailedMetrics.global;
-  const currentConnections = detailedMetrics.global.currentConnections;
-
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800 p-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-medium">Active Requests (In-Flight)</h2>
+    <ChartCard
+      providerLabel={providerLabel}
+      stats={
         <div className="flex gap-2 text-xs">
           <span className="text-gray-500">
             now{" "}
             <span className="font-mono text-blue-400">
-              {currentConnections}
+              {series.currentConnections}
             </span>
           </span>
           <span className="text-gray-500">
             peak{" "}
             <span className="font-mono text-blue-400">
-              {peaks.maxConcurrentConnections}
+              {series.peakConnections}
             </span>
           </span>
         </div>
-      </div>
-      <div className="h-64">
+      }
+    >
+      <div className="min-h-32 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <XAxis
@@ -93,9 +93,9 @@ export function ConcurrentConnectionsChart({
               }}
               labelStyle={{ color: "#9ca3af" }}
             />
-            {peaks.maxConcurrentConnections > 0 && (
+            {series.peakConnections > 0 && (
               <ReferenceLine
-                y={peaks.maxConcurrentConnections}
+                y={series.peakConnections}
                 stroke="#3b82f6"
                 strokeDasharray="3 3"
               />
@@ -106,12 +106,36 @@ export function ConcurrentConnectionsChart({
               stroke="#3b82f6"
               strokeWidth={2}
               dot={false}
-              name="Active Connections"
+              name="Active"
               isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
+    </ChartCard>
+  );
+}
+
+function ChartCard({
+  providerLabel,
+  stats,
+  children,
+}: {
+  providerLabel: string;
+  stats?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex h-full flex-col rounded-lg border border-gray-700 bg-gray-800 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-medium">
+          <span className="text-gray-400">{providerLabel}</span>
+          <span className="text-gray-600"> · </span>
+          Active
+        </h2>
+        {stats}
+      </div>
+      {children}
     </div>
   );
 }

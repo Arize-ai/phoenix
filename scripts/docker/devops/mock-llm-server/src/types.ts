@@ -16,6 +16,27 @@ export type {
   ChatCompletionCreateParamsStreaming,
 } from "openai/resources/chat/completions";
 
+export type {
+  Decision as OpenAIDecision,
+  DecisionCreateParams as OpenAIDecisionCreateParams,
+} from "openai/resources/decisions";
+
+// ============================================
+// TypeSafe Types (from @typesafe-ai/sdk)
+// ============================================
+export type {
+  BoxResponse as TypeSafeBoxResponse,
+  ChoiceResponse as TypeSafeChoiceResponse,
+  EntryType as TypeSafeEntryType,
+  ModelCard as TypeSafeModelCard,
+  NoulResponse as TypeSafeNoulResponse,
+  Question as TypeSafeQuestion,
+  Questions as TypeSafeQuestions,
+  ScoreResponse as TypeSafeScoreResponse,
+  SystemOneRequest as TypeSafeSystemOneRequest,
+  SystemOneResult as TypeSafeSystemOneResult,
+} from "@typesafe-ai/sdk";
+
 // ============================================
 // Anthropic Types (from @anthropic-ai/sdk)
 // ============================================

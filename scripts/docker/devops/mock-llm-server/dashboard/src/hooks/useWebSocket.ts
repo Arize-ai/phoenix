@@ -7,7 +7,10 @@ import type {
   DynamicConfig,
   WebSocketMessage,
   GlobalConfig,
+  EndpointConfig,
+  EndpointId,
 } from "../types";
+import { publicUrl } from "../utils/publicPath";
 
 interface UseWebSocketReturn {
   connected: boolean;
@@ -16,6 +19,11 @@ interface UseWebSocketReturn {
   config: DynamicConfig | null;
   events: ConnectionEvent[];
   updateGlobalConfig: (updates: Partial<GlobalConfig>) => void;
+  updateEndpointConfig: (
+    endpoint: EndpointId,
+    updates: Partial<EndpointConfig>
+  ) => void;
+  clearEndpointOverrides: (endpoint: EndpointId) => void;
   resetConfig: () => void;
   resetDetailedMetrics: () => void;
   resetRateLimiters: () => void;
@@ -38,7 +46,7 @@ export function useWebSocket(): UseWebSocketReturn {
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}${publicUrl("/ws")}`;
     isUnmountingRef.current = false;
 
     const connect = () => {
@@ -124,6 +132,23 @@ export function useWebSocket(): UseWebSocketReturn {
     [send]
   );
 
+  const updateEndpointConfig = useCallback(
+    (endpoint: EndpointId, updates: Partial<EndpointConfig>) => {
+      send({
+        type: "update_endpoint_config",
+        data: { endpoint, config: updates },
+      });
+    },
+    [send]
+  );
+
+  const clearEndpointOverrides = useCallback(
+    (endpoint: EndpointId) => {
+      send({ type: "clear_endpoint_overrides", data: { endpoint } });
+    },
+    [send]
+  );
+
   const resetConfig = useCallback(() => {
     send({ type: "reset_config" });
   }, [send]);
@@ -143,6 +168,8 @@ export function useWebSocket(): UseWebSocketReturn {
     config,
     events,
     updateGlobalConfig,
+    updateEndpointConfig,
+    clearEndpointOverrides,
     resetConfig,
     resetDetailedMetrics,
     resetRateLimiters,

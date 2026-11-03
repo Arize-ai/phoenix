@@ -113,6 +113,12 @@ export function createEndpointHandler(provider: Provider): RequestHandler {
           await provider.handleStreaming(req, res, handlerConfig);
         }
       } else {
+        const responseDelayMs = Math.round(
+          endpointConfig.responseDelayMs * loadFactor
+        );
+        if (responseDelayMs > 0) {
+          await sleep(responseDelayMs);
+        }
         const response = await provider.handleNonStreaming(req, handlerConfig);
         res.json(response);
       }

@@ -3,21 +3,98 @@
 export type EndpointId =
   | "openai-chat"
   | "openai-responses"
+  | "openai-decisions"
   | "anthropic-messages"
   | "gemini-generate"
   | "gemini-stream"
   | "gemini-generate-v1"
-  | "gemini-stream-v1";
+  | "gemini-stream-v1"
+  | "typesafe-systemone";
+
+export const ENDPOINT_IDS: EndpointId[] = [
+  "openai-chat",
+  "openai-responses",
+  "openai-decisions",
+  "anthropic-messages",
+  "gemini-generate",
+  "gemini-stream",
+  "gemini-generate-v1",
+  "gemini-stream-v1",
+  "typesafe-systemone",
+];
 
 export const ENDPOINT_LABELS: Record<EndpointId, string> = {
   "openai-chat": "OpenAI Chat",
   "openai-responses": "OpenAI Responses",
+  "openai-decisions": "OpenAI Decisions",
   "anthropic-messages": "Anthropic",
   "gemini-generate": "Gemini (v1beta)",
   "gemini-stream": "Gemini Stream (v1beta)",
   "gemini-generate-v1": "Gemini (v1)",
   "gemini-stream-v1": "Gemini Stream (v1)",
+  "typesafe-systemone": "TypeSafe",
 };
+
+/** Endpoints that only stream, so a whole-response delay never runs. */
+export const STREAM_ONLY_ENDPOINT_IDS: ReadonlySet<EndpointId> = new Set([
+  "gemini-stream",
+  "gemini-stream-v1",
+]);
+
+/** Endpoints whose handlers can emit a streamed response. */
+export const STREAMING_ENDPOINT_IDS: ReadonlySet<EndpointId> = new Set([
+  "openai-chat",
+  "openai-responses",
+  "anthropic-messages",
+  "gemini-stream",
+  "gemini-stream-v1",
+]);
+
+/** Endpoints whose handlers read toolCallProbability. */
+export const TOOL_CALL_ENDPOINT_IDS: ReadonlySet<EndpointId> = new Set([
+  "openai-chat",
+  "openai-responses",
+  "anthropic-messages",
+  "gemini-generate",
+  "gemini-stream",
+  "gemini-generate-v1",
+  "gemini-stream-v1",
+]);
+
+export interface ProviderGroup {
+  id: "openai" | "anthropic" | "gemini" | "typesafe";
+  label: string;
+  endpoints: readonly EndpointId[];
+}
+
+/** Controls are edited per provider and applied to every endpoint in the group. */
+export const PROVIDER_GROUPS: readonly ProviderGroup[] = [
+  {
+    id: "typesafe",
+    label: "TypeSafe",
+    endpoints: ["typesafe-systemone"],
+  },
+  {
+    id: "openai",
+    label: "OpenAI",
+    endpoints: ["openai-chat", "openai-responses", "openai-decisions"],
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    endpoints: ["anthropic-messages"],
+  },
+  {
+    id: "gemini",
+    label: "Gemini",
+    endpoints: [
+      "gemini-generate",
+      "gemini-stream",
+      "gemini-generate-v1",
+      "gemini-stream-v1",
+    ],
+  },
+];
 
 // Basic metrics (original)
 export interface EndpointMetrics {
@@ -160,6 +237,7 @@ export type ErrorType =
   | "connection_reset";
 
 export interface EndpointConfig {
+  responseDelayMs: number;
   streamInitialDelayMs: number;
   streamDelayMs: number;
   streamJitterMs: number;

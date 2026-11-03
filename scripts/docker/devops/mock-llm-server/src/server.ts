@@ -1,18 +1,55 @@
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import express, { type Express, type Request, type Response } from "express";
+import { zstdDecompress } from "zlib";
+import express, {
+  type Express,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 
 import { adminRoutes, adminWebSocket } from "./admin/index.js";
 import { getConfig } from "./config.js";
 import { createEndpointHandler } from "./middleware/index.js";
 import { ALL_PROVIDERS } from "./providers/index.js";
 import { registry } from "./registry.js";
+import type { TypeSafeModelCard } from "./types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app: Express = express();
-app.use(express.json());
+
+/**
+ * Parse JSON bodies, including zstd-compressed ones. The TypeSafe SDK
+ * compresses request bodies of 1 KiB or more with zstd by default, and the
+ * Express JSON parser only decodes gzip, deflate, and brotli.
+ */
+const jsonParser = express.json();
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.headers["content-encoding"] !== "zstd") {
+    jsonParser(req, res, next);
+    return;
+  }
+  const chunks: Buffer[] = [];
+  req.on("data", (chunk: Buffer) => chunks.push(chunk));
+  req.on("error", next);
+  req.on("end", () => {
+    zstdDecompress(Buffer.concat(chunks), (err, decoded) => {
+      if (err) {
+        res.status(400).json({ detail: "Invalid zstd request body" });
+        return;
+      }
+      try {
+        req.body = JSON.parse(decoded.toString("utf8"));
+      } catch {
+        res.status(400).json({ detail: "Invalid JSON request body" });
+        return;
+      }
+      next();
+    });
+  });
+});
 
 const envConfig = getConfig();
 
@@ -91,9 +128,17 @@ app.get(
   }
 );
 
-// Redirect root /dashboard to /dashboard/
-app.get("/dashboard", (_req: Request, res: Response) => {
-  res.redirect("/dashboard/");
+// Traefik's StripPrefix sets this to /mock-llm. Absent when hit directly.
+function forwardedPrefix(req: Request): string {
+  return (req.get("x-forwarded-prefix") ?? "").replace(/\/$/, "");
+}
+
+app.get("/", (req: Request, res: Response) => {
+  res.redirect(`${forwardedPrefix(req)}/dashboard/`);
+});
+
+app.get("/dashboard", (req: Request, res: Response) => {
+  res.redirect(`${forwardedPrefix(req)}/dashboard/`);
 });
 
 // =============================================================================
@@ -103,6 +148,19 @@ app.get("/dashboard", (_req: Request, res: Response) => {
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+const TYPESAFE_MODELS: TypeSafeModelCard[] = [
+  {
+    name: "jev-latest",
+    description: "Mock TypeSafe decision model",
+    release_date: "2026-10-01",
+  },
+  {
+    name: "jev-preview",
+    description: "Mock TypeSafe preview decision model",
+    release_date: "2026-10-01",
+  },
+];
 
 app.get("/v1/models", (_req: Request, res: Response) => {
   res.json({
@@ -132,7 +190,15 @@ app.get("/v1/models", (_req: Request, res: Response) => {
         created: 1715367049,
         owned_by: "mock-server",
       },
+      {
+        id: "gpt-6-luna",
+        object: "model",
+        created: 1715367049,
+        owned_by: "mock-server",
+      },
     ],
+    // TypeSafe's SDK reads `models` from the same path
+    models: TYPESAFE_MODELS,
   });
 });
 
@@ -179,9 +245,11 @@ export function startServer(): Promise<void> {
    Endpoints:
      POST /v1/chat/completions      (OpenAI)
      POST /v1/responses             (OpenAI Responses API)
+     POST /v1/decisions             (OpenAI Decisions API)
      POST /v1/messages              (Anthropic)
      POST /v1beta/models/*          (Gemini v1beta)
      POST /v1/models/*              (Gemini v1)
+     POST /v1/systemone             (TypeSafe System One)
 
    Set VERBOSE=true for request logging
 `);
