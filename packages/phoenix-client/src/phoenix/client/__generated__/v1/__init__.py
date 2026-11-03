@@ -921,6 +921,7 @@ class PromptVersionTagData(TypedDict):
 
 class PromptVersionTag(PromptVersionTagData):
     id: str
+    prompt_version_id: str
 
 
 class PromptVersionUIContext(TypedDict):
@@ -1785,6 +1786,10 @@ class CreateProjectResponseBody(TypedDict):
     data: Project
 
 
+class CreatePromptVersionTagResponseBody(TypedDict):
+    data: PromptVersionTag
+
+
 class CreateSessionNoteRequestBody(TypedDict):
     data: SessionNoteData
 
@@ -1861,6 +1866,9 @@ class DecisionScoringPolicy(TypedDict):
 class DecisionVersion(TypedDict):
     id: str
     decision_id: str
+    decision_name: str
+    version_number: int
+    tag_names: Sequence[str]
     template_format: Literal["MUSTACHE", "F_STRING", "NONE"]
     state: Union[DecisionTextState, DecisionJsonState]
     questions: Sequence[
@@ -2621,6 +2629,10 @@ class CreateDecisionVersionResponseBody(TypedDict):
     data: DecisionVersion
 
 
+class CreateDecisionVersionTagResponseBody(TypedDict):
+    data: DecisionVersionTag
+
+
 class CreateLLMEvaluatorRequest(TypedDict):
     type: Literal["llm"]
     name: str
@@ -2966,6 +2978,10 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
+    prompt_id: str
+    prompt_name: str
+    version_number: int
+    tag_names: Sequence[str]
     created_at: str
 
 

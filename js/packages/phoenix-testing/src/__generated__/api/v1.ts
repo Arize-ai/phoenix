@@ -1243,8 +1243,8 @@ export interface paths {
         get: operations["getPrompts"];
         put?: never;
         /**
-         * Create a new prompt
-         * @description Create a new prompt and its initial version. A prompt can have multiple versions.
+         * Create a prompt or add a version
+         * @description Create a prompt with its initial version. If a prompt with `prompt.name` already exists, add the version to it instead. Either way a version is created: the response is 201 with its URL in `Location`, and a `version_number` of 1 means the prompt was created too.
          */
         post: operations["postPromptVersion"];
         delete?: never;
@@ -1352,7 +1352,7 @@ export interface paths {
         put?: never;
         /**
          * Add tag to prompt version
-         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.
+         * @description Point a tag at a prompt version. Tag names are unique within a prompt: if the version's prompt already has a tag of this name, it moves to this version. Returns 201 with the tag when it was created, or 200 when an existing tag moved.
          */
         post: operations["createPromptVersionTag"];
         delete?: never;
@@ -1576,7 +1576,7 @@ export interface paths {
         put?: never;
         /**
          * Tag a decision version
-         * @description Point a tag at a decision version. Tag names are unique within a decision: if the version's decision already has a tag of this name, it moves to this version and keeps its description unless a new one is given.
+         * @description Point a tag at a decision version. Tag names are unique within a decision: if the version's decision already has a tag of this name, it moves to this version and keeps its description unless a new one is given. Returns 201 with the tag when it was created, or 200 when an existing tag moved.
          */
         post: operations["createDecisionVersionTag"];
         delete?: never;
@@ -3481,6 +3481,10 @@ export interface components {
         CreateDecisionVersionResponseBody: {
             data: components["schemas"]["DecisionVersion"];
         };
+        /** CreateDecisionVersionTagResponseBody */
+        CreateDecisionVersionTagResponseBody: {
+            data: components["schemas"]["DecisionVersionTag"];
+        };
         /**
          * CreateExperimentRequestBody
          * @description Details of the experiment to be created
@@ -3661,6 +3665,10 @@ export interface components {
         /** CreatePromptVersionResponseBody */
         CreatePromptVersionResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreatePromptVersionTagResponseBody */
+        CreatePromptVersionTagResponseBody: {
+            data: components["schemas"]["PromptVersionTag"];
         };
         /** CreateSessionNoteRequestBody */
         CreateSessionNoteRequestBody: {
@@ -4304,6 +4312,18 @@ export interface components {
              * @description The GlobalID of the decision this version belongs to.
              */
             decision_id: string;
+            /** @description The name of the decision. */
+            decision_name: components["schemas"]["Identifier"];
+            /**
+             * Version Number
+             * @description The version's position in its decision's history, from 1. A version numbered 1 is the decision's first, so a create-or-append that returns 1 created the decision.
+             */
+            version_number: number;
+            /**
+             * Tag Names
+             * @description The names of the tags pointing at this version.
+             */
+            tag_names: string[];
             /** Description */
             description?: string | null;
             /** Metadata */
@@ -6942,6 +6962,23 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * Prompt Id
+             * @description The GlobalID of the prompt this version belongs to.
+             */
+            prompt_id: string;
+            /** @description The name of the prompt. */
+            prompt_name: components["schemas"]["Identifier"];
+            /**
+             * Version Number
+             * @description The version's position in its prompt's history, from 1. A version numbered 1 is the prompt's first, so a create-or-append that returns 1 created the prompt.
+             */
+            version_number: number;
+            /**
+             * Tag Names
+             * @description The names of the tags pointing at this version.
+             */
+            tag_names: string[];
+            /**
              * Created At
              * Format: date-time
              * @description The creation timestamp of the prompt version.
@@ -7000,6 +7037,11 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+            /**
+             * Prompt Version Id
+             * @description The GlobalID of the version the tag points to.
+             */
+            prompt_version_id: string;
         };
         /** PromptVersionTagData */
         PromptVersionTagData: {
@@ -13900,7 +13942,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -13909,7 +13951,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13928,7 +13970,7 @@ export interface operations {
         };
         responses: {
             /** @description The newly created prompt version */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13942,7 +13984,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -13951,7 +13993,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -13960,7 +14002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -13997,7 +14039,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14006,7 +14048,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14015,7 +14057,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14051,7 +14093,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14060,7 +14102,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14069,7 +14111,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14101,7 +14143,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14110,7 +14152,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14119,7 +14161,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14153,7 +14195,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14162,7 +14204,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14171,7 +14213,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14203,7 +14245,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14212,7 +14254,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14221,7 +14263,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14258,7 +14300,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14267,7 +14309,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14276,7 +14318,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14297,12 +14339,23 @@ export interface operations {
             };
         };
         responses: {
-            /** @description No content returned on successful tag creation */
-            204: {
+            /** @description An existing tag moved to this version */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionTagResponseBody"];
+                };
+            };
+            /** @description The tag was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionTagResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -14310,7 +14363,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14319,7 +14372,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14328,7 +14381,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14360,7 +14413,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14369,7 +14422,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14378,7 +14431,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14408,7 +14461,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14417,7 +14470,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14426,7 +14479,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -14462,7 +14515,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -14471,7 +14524,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -14480,7 +14533,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -15175,12 +15228,23 @@ export interface operations {
             };
         };
         responses: {
-            /** @description No content returned on success */
-            204: {
+            /** @description An existing tag moved to this version */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CreateDecisionVersionTagResponseBody"];
+                };
+            };
+            /** @description The tag was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDecisionVersionTagResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {

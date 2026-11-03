@@ -1044,7 +1044,8 @@ decision. Errors are problem details.
 - `GET /v1/decisions/{identifier}/tags/{tag_name}`
 - `GET /v1/decision_versions/{id}`
 - `GET /v1/decision_versions/{id}/tags`
-- `POST /v1/decision_versions/{id}/tags` (create or move a tag)
+- `POST /v1/decision_versions/{id}/tags` (201 with the tag when created, 200
+  when an existing tag moves)
 - `DELETE /v1/decision_versions/{id}/tags/{tag_name}`
 - `GET`, `POST /v1/decision_labels`; `GET`, `PATCH`, `DELETE
   /v1/decision_labels/{id}`
@@ -1058,7 +1059,12 @@ prompt does: apps format a version with the SDK and call their provider.
 that offer decision models.
 
 Each version response carries `template_format`, `state`, `questions`, the
-derived `variables`, and the model.
+derived `variables`, and the model, plus `decision_name`, a 1-based
+`version_number`, and `tag_names`, so an app can record which release it ran.
+A create-or-append that returns `version_number: 1` created the decision.
+Every create returns 201 with the new resource's URL in `Location`. A version
+that breaks a write-time rule is a 422 whose `errors` name the field, such as
+`body.version.questions.1.choices`. `/v1/prompts` follows the same contract.
 
 `phoenix-client` (Python and TypeScript) adds:
 

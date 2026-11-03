@@ -240,3 +240,8 @@ async def get_dataset_by_identifier(
                 detail=f"Dataset with ID {dataset_identifier} not found",
             )
     return dataset
+
+
+def location_of(request: Request, path: str) -> str:
+    """The URL of a created resource, for a 201's Location header."""
+    return f"{request.scope.get('root_path', '')}{path}"

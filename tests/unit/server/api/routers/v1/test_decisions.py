@@ -350,14 +350,22 @@ class TestDecisionVersionTags:
         second = await create(httpx_client, model_name="tev2")
         url = f"v1/decision_versions/{first['id']}/tags"
         response = await httpx_client.post(url, json={"name": "staging", "description": "qa"})
-        assert response.status_code == 204, response.text
+        assert response.status_code == 201, response.text
+        created = response.json()["data"]
+        assert (created["name"], created["description"]) == ("staging", "qa")
+        assert created["decision_version_id"] == first["id"]
+        assert response.headers["location"] == f"/v1/decisions/{first['decision_id']}/tags/staging"
         tags = (await httpx_client.get(url)).json()["data"]
         assert [(t["name"], t["decision_version_id"]) for t in tags] == [("staging", first["id"])]
         # Moving the tag keeps its description.
         response = await httpx_client.post(
             f"v1/decision_versions/{second['id']}/tags", json={"name": "staging"}
         )
-        assert response.status_code == 204
+        assert response.status_code == 200, response.text
+        moved = response.json()["data"]
+        assert moved["id"] == created["id"]
+        assert (moved["description"], moved["decision_version_id"]) == ("qa", second["id"])
+        assert "location" not in response.headers
         assert (await httpx_client.get(url)).json()["data"] == []
         tagged = (await httpx_client.get("v1/decisions/triage/tags/staging")).json()["data"]
         assert tagged["id"] == second["id"]
@@ -371,7 +379,7 @@ class TestDecisionVersionTags:
         version = await create(httpx_client)
         url = f"v1/decision_versions/{version['id']}/tags"
         for name in ("a", "b", "c"):
-            assert (await httpx_client.post(url, json={"name": name})).status_code == 204
+            assert (await httpx_client.post(url, json={"name": name})).status_code == 201
         names: list[str] = []
         cursor = None
         while True:
@@ -678,3 +686,114 @@ class TestDeletedMidRequest:
                 )
         assert caught.value.status_code == 404
         assert "Decision not found" in str(caught.value.detail)
+
+
+class TestVersionContext:
+    async def test_versions_name_their_decision_number_and_tags(
+        self, httpx_client: httpx.AsyncClient
+    ) -> None:
+        first = await create(httpx_client, tags=[{"name": "production"}, {"name": "canary"}])
+        assert (first["decision_name"], first["version_number"]) == ("triage", 1)
+        assert first["tag_names"] == ["canary", "production"]
+        second = await create(httpx_client, model_name="tev2")
+        assert second["version_number"] == 2
+        assert second["tag_names"] == []
+        await create(httpx_client, "other")  # numbering is per decision
+        third = await create(httpx_client, model_name="tev3", tags=[{"name": "production"}])
+        assert third["version_number"] == 3
+        listed = (await httpx_client.get("v1/decisions/triage/versions")).json()["data"]
+        assert [(v["version_number"], v["tag_names"]) for v in listed] == [
+            (3, ["production"]),
+            (2, []),
+            (1, ["canary"]),
+        ]
+        by_tag = (await httpx_client.get("v1/decisions/triage/tags/production")).json()["data"]
+        assert (by_tag["decision_name"], by_tag["version_number"]) == ("triage", 3)
+        clone = (
+            await httpx_client.post("v1/decisions/triage/clones", json={"name": "copy"})
+        ).json()["data"]
+        latest = (await httpx_client.get(f"v1/decisions/{clone['id']}/latest")).json()["data"]
+        assert (latest["decision_name"], latest["version_number"]) == ("copy", 3)
+
+
+class TestRuleErrorsNameTheField:
+    @pytest.mark.parametrize(
+        "overrides,field,code",
+        [
+            pytest.param(
+                {"model_provider": "ANTHROPIC"}, "model_provider", "invalid_choice", id="provider"
+            ),
+            pytest.param({"model_name": " "}, "model_name", "too_short", id="model"),
+            pytest.param(
+                {"state": {"type": "text", "template": " "}},
+                "state.template",
+                "too_short",
+                id="state",
+            ),
+            pytest.param(
+                {
+                    "questions": [
+                        {"type": "predicate", "name": "a", "instructions": "ok"},
+                        {
+                            "type": "choice",
+                            "name": "b",
+                            "instructions": "ok",
+                            "choices": [{"value": "x"}],
+                        },
+                    ]
+                },
+                "questions.1.choices",
+                "out_of_range",
+                id="choice-count",
+            ),
+            pytest.param(
+                {
+                    "questions": [
+                        {
+                            "type": "scale",
+                            "name": "s",
+                            "instructions": "ok",
+                            "levels": [{"label": "low"}, {"label": " "}],
+                        }
+                    ]
+                },
+                "questions.0.levels.1.label",
+                "too_short",
+                id="level-label",
+            ),
+            pytest.param(
+                {
+                    "questions": [
+                        {"type": "predicate", "name": "a", "instructions": "ok"},
+                        {"type": "predicate", "name": "a", "instructions": "ok"},
+                    ]
+                },
+                "questions.1.name",
+                "invalid",
+                id="duplicate-name",
+            ),
+            pytest.param(
+                {
+                    "template_format": "F_STRING",
+                    "state": {"type": "text", "template": "{ticket}"},
+                    "questions": [{"type": "predicate", "name": "a", "instructions": "bad {"}],
+                },
+                "questions.0",
+                "invalid",
+                id="unparseable-question",
+            ),
+        ],
+    )
+    async def test_field_paths(
+        self, httpx_client: httpx.AsyncClient, overrides: dict[str, Any], field: str, code: str
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/decisions",
+            json={"decision": {"name": "triage"}, "version": version_body(**overrides)},
+        )
+        assert response.status_code == 422, response.text
+        problem = response.json()
+        assert problem["code"] == "invalid_argument"
+        assert problem["errors"] == [
+            {"field": f"body.version.{field}", "code": code, "message": problem["detail"]}
+        ]

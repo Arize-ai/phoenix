@@ -25,7 +25,6 @@ from phoenix.server.api.routers.v1.decision_models import (
 from phoenix.server.api.routers.v1.decisions import (
     decision_not_found,
     decision_where_clause,
-    location_of,
     parse_cursor,
     parse_decision_label_id,
 )
@@ -40,6 +39,7 @@ from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     Responses,
+    location_of,
 )
 from phoenix.server.authorization import is_not_locked
 

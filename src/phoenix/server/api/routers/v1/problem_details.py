@@ -292,3 +292,16 @@ def problem_responses(status_codes: list[int]) -> Responses:
         }
         for status in status_codes
     }
+
+
+def invalid_field(
+    message: str, path: tuple[Union[str, int], ...], code: str = "invalid"
+) -> ProblemException:
+    """A 422 for input that passed the schema but broke a rule, naming the field."""
+    field = ".".join(str(part) for part in path)
+    return ProblemException(
+        422,
+        "invalid_argument",
+        message,
+        errors=[ProblemFieldError(field=field, code=code, message=message)],
+    )

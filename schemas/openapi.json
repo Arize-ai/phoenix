@@ -7846,24 +7846,24 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       },
@@ -7871,8 +7871,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "Create a new prompt",
-        "description": "Create a new prompt and its initial version. A prompt can have multiple versions.",
+        "summary": "Create a prompt or add a version",
+        "description": "Create a prompt with its initial version. If a prompt with `prompt.name` already exists, add the version to it instead. Either way a version is created: the response is 201 with its URL in `Location`, and a `version_number` of 1 means the prompt was created too.",
         "operationId": "postPromptVersion",
         "requestBody": {
           "required": true,
@@ -7885,7 +7885,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "The newly created prompt version",
             "content": {
               "application/json": {
@@ -7896,34 +7896,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -7992,34 +7992,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           }
         }
       },
@@ -8065,34 +8065,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -8130,34 +8130,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -8206,34 +8206,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -8271,34 +8271,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -8367,34 +8367,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       },
@@ -8403,7 +8403,7 @@
           "prompts"
         ],
         "summary": "Add tag to prompt version",
-        "description": "Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.",
+        "description": "Point a tag at a prompt version. Tag names are unique within a prompt: if the version's prompt already has a tag of this name, it moves to this version. Returns 201 with the tag when it was created, or 200 when an existing tag moved.",
         "operationId": "createPromptVersionTag",
         "parameters": [
           {
@@ -8429,38 +8429,55 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "No content returned on successful tag creation"
+          "201": {
+            "description": "The tag was created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptVersionTagResponseBody"
+                }
+              }
+            }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
+          },
+          "200": {
+            "description": "An existing tag moved to this version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptVersionTagResponseBody"
+                }
+              }
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -8502,34 +8519,34 @@
             "description": "No content returned on successful tag deletion"
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -8577,34 +8594,34 @@
             }
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       },
@@ -8633,34 +8650,34 @@
             "description": "Successful Response"
           },
           "403": {
+            "description": "Forbidden",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Forbidden"
+            }
           },
           "404": {
+            "description": "Not Found",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Not Found"
+            }
           },
           "422": {
+            "description": "Unprocessable Entity",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
@@ -9643,7 +9660,7 @@
           "decisions"
         ],
         "summary": "Tag a decision version",
-        "description": "Point a tag at a decision version. Tag names are unique within a decision: if the version's decision already has a tag of this name, it moves to this version and keeps its description unless a new one is given.",
+        "description": "Point a tag at a decision version. Tag names are unique within a decision: if the version's decision already has a tag of this name, it moves to this version and keeps its description unless a new one is given. Returns 201 with the tag when it was created, or 200 when an existing tag moved.",
         "operationId": "createDecisionVersionTag",
         "parameters": [
           {
@@ -9669,8 +9686,15 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "No content returned on success"
+          "201": {
+            "description": "The tag was created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDecisionVersionTagResponseBody"
+                }
+              }
+            }
           },
           "403": {
             "description": "Forbidden",
@@ -9678,6 +9702,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "An existing tag moved to this version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDecisionVersionTagResponseBody"
                 }
               }
             }
@@ -16292,6 +16326,18 @@
         ],
         "title": "CreateDecisionVersionResponseBody"
       },
+      "CreateDecisionVersionTagResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DecisionVersionTag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateDecisionVersionTagResponseBody"
+      },
       "CreateExperimentRequestBody": {
         "properties": {
           "name": {
@@ -16698,6 +16744,18 @@
           "data"
         ],
         "title": "CreatePromptVersionResponseBody"
+      },
+      "CreatePromptVersionTagResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersionTag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatePromptVersionTagResponseBody"
       },
       "CreateSessionNoteRequestBody": {
         "properties": {
@@ -18165,6 +18223,23 @@
             "title": "Decision Id",
             "description": "The GlobalID of the decision this version belongs to."
           },
+          "decision_name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "The name of the decision."
+          },
+          "version_number": {
+            "type": "integer",
+            "title": "Version Number",
+            "description": "The version's position in its decision's history, from 1. A version numbered 1 is the decision's first, so a create-or-append that returns 1 created the decision."
+          },
+          "tag_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tag Names",
+            "description": "The names of the tags pointing at this version."
+          },
           "description": {
             "anyOf": [
               {
@@ -18263,6 +18338,9 @@
         "required": [
           "id",
           "decision_id",
+          "decision_name",
+          "version_number",
+          "tag_names",
           "template_format",
           "state",
           "questions",
@@ -24982,6 +25060,28 @@
             "type": "string",
             "title": "Id"
           },
+          "prompt_id": {
+            "type": "string",
+            "title": "Prompt Id",
+            "description": "The GlobalID of the prompt this version belongs to."
+          },
+          "prompt_name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "The name of the prompt."
+          },
+          "version_number": {
+            "type": "integer",
+            "title": "Version Number",
+            "description": "The version's position in its prompt's history, from 1. A version numbered 1 is the prompt's first, so a create-or-append that returns 1 created the prompt."
+          },
+          "tag_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tag Names",
+            "description": "The names of the tags pointing at this version."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -24998,6 +25098,10 @@
           "template_format",
           "invocation_parameters",
           "id",
+          "prompt_id",
+          "prompt_name",
+          "version_number",
+          "tag_names",
           "created_at"
         ],
         "title": "PromptVersion"
@@ -25221,12 +25325,18 @@
           "id": {
             "type": "string",
             "title": "Id"
+          },
+          "prompt_version_id": {
+            "type": "string",
+            "title": "Prompt Version Id",
+            "description": "The GlobalID of the version the tag points to."
           }
         },
         "type": "object",
         "required": [
           "name",
-          "id"
+          "id",
+          "prompt_version_id"
         ],
         "title": "PromptVersionTag"
       },

@@ -135,13 +135,32 @@ class PromptVersionData(V1RoutesBaseModel):
 
 class PromptVersion(PromptVersionData):
     id: str
+    prompt_id: str = Field(description="The GlobalID of the prompt this version belongs to.")
+    prompt_name: Identifier = Field(description="The name of the prompt.")
+    version_number: int = Field(
+        description="The version's position in its prompt's history, from 1. A version "
+        "numbered 1 is the prompt's first, so a create-or-append that returns 1 created the "
+        "prompt."
+    )
+    tag_names: list[str] = Field(description="The names of the tags pointing at this version.")
     created_at: IsoDatetime = Field(description="The creation timestamp of the prompt version.")
 
     @classmethod
-    def from_orm_prompt_version(cls, prompt_version: models.PromptVersion) -> "PromptVersion":
+    def from_orm_prompt_version(
+        cls,
+        prompt_version: models.PromptVersion,
+        *,
+        prompt_name: Identifier,
+        version_number: int,
+        tag_names: list[str],
+    ) -> "PromptVersion":
         """Build the REST prompt version from a stored row; a missing description reads as empty."""
         return cls(
             id=str(GlobalID("PromptVersion", str(prompt_version.id))),
+            prompt_id=str(GlobalID("Prompt", str(prompt_version.prompt_id))),
+            prompt_name=prompt_name,
+            version_number=version_number,
+            tag_names=tag_names,
             created_at=prompt_version.created_at,
             description=prompt_version.description or "",
             metadata=prompt_version.metadata_,
@@ -168,3 +187,4 @@ class PromptVersionTagData(V1RoutesBaseModel):
 
 class PromptVersionTag(PromptVersionTagData):
     id: str
+    prompt_version_id: str = Field(description="The GlobalID of the version the tag points to.")

@@ -334,6 +334,13 @@ class DecisionVersion(V1RoutesBaseModel):
 
     id: str = Field(description="The GlobalID of the decision version.")
     decision_id: str = Field(description="The GlobalID of the decision this version belongs to.")
+    decision_name: Identifier = Field(description="The name of the decision.")
+    version_number: int = Field(
+        description="The version's position in its decision's history, from 1. A version "
+        "numbered 1 is the decision's first, so a create-or-append that returns 1 created "
+        "the decision."
+    )
+    tag_names: list[str] = Field(description="The names of the tags pointing at this version.")
     description: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     template_format: PromptTemplateFormat
@@ -351,12 +358,22 @@ class DecisionVersion(V1RoutesBaseModel):
     created_at: IsoDatetime
 
     @classmethod
-    def from_orm_decision_version(cls, version: models.DecisionVersion) -> "DecisionVersion":
+    def from_orm_decision_version(
+        cls,
+        version: models.DecisionVersion,
+        *,
+        decision_name: Identifier,
+        version_number: int,
+        tag_names: list[str],
+    ) -> "DecisionVersion":
         from phoenix.server.decisions.rendering import decision_variables
 
         return cls(
             id=encode_decision_version_id(version.id),
             decision_id=encode_decision_id(version.decision_id),
+            decision_name=decision_name,
+            version_number=version_number,
+            tag_names=tag_names,
             description=version.description,
             metadata=version.metadata_,
             template_format=PromptTemplateFormat(version.template_format),

@@ -5,13 +5,14 @@ version by its GlobalID, and a tag by its name within the version's decision. Er
 RFC 9457 problem details.
 """
 
-from typing import Any, Optional, Union
+from typing import Any, Optional, Sequence, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, ValidationError, model_validator
-from sqlalchemy import String, cast, delete, select
+from sqlalchemy import String, and_, cast, delete, func, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from sqlalchemy.orm.exc import StaleDataError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
@@ -23,7 +24,12 @@ from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.saved_decisions import clone_decision, upsert_decision_version_tag
+from phoenix.server.api.helpers.saved_decisions import (
+    InvalidDecisionVersion,
+    clone_decision,
+    set_decision_version_tag,
+    upsert_decision_version_tag,
+)
 from phoenix.server.api.routers.v1.decision_models import (
     Decision,
     DecisionData,
@@ -40,12 +46,14 @@ from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import (
     ProblemDetailsRoute,
     ProblemException,
+    invalid_field,
     problem_responses,
 )
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     Responses,
+    location_of,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
@@ -287,7 +295,7 @@ async def create_decision(
         )
         await _upsert_tags(session, version, request_body.tags, user_id=user_id)
         await session.refresh(version)
-        data = DecisionVersion.from_orm_decision_version(version)
+        data = await _rest_version(session, version)
     response.headers["Location"] = location_of(request, f"/v1/decision_versions/{data.id}")
     return CreateDecisionResponseBody(data=data)
 
@@ -452,14 +460,12 @@ async def list_decision_versions(
         if cursor:
             stmt = stmt.where(models.DecisionVersion.id <= parse_cursor(cursor, "DecisionVersion"))
         versions = list((await session.scalars(stmt.limit(limit + 1))).all())
-    next_cursor = None
-    if len(versions) > limit:
-        next_cursor = encode_decision_version_id(versions[limit].id)
-        versions = versions[:limit]
-    return GetDecisionVersionsResponseBody(
-        data=[DecisionVersion.from_orm_decision_version(version) for version in versions],
-        next_cursor=next_cursor,
-    )
+        next_cursor = None
+        if len(versions) > limit:
+            next_cursor = encode_decision_version_id(versions[limit].id)
+            versions = versions[:limit]
+        data = await _rest_versions(session, versions)
+    return GetDecisionVersionsResponseBody(data=data, next_cursor=next_cursor)
 
 
 @router.post(
@@ -493,7 +499,7 @@ async def create_decision_version(
         )
         await _upsert_tags(session, version, request_body.tags, user_id=user_id)
         await session.refresh(version)
-        data = DecisionVersion.from_orm_decision_version(version)
+        data = await _rest_version(session, version)
     response.headers["Location"] = location_of(request, f"/v1/decision_versions/{data.id}")
     return CreateDecisionVersionResponseBody(data=data)
 
@@ -520,9 +526,10 @@ async def get_decision_version_latest(
     )
     async with request.app.state.db() as session:
         version = await session.scalar(stmt)
-    if version is None:
-        raise decision_not_found(decision_identifier)
-    return GetDecisionVersionResponseBody(data=DecisionVersion.from_orm_decision_version(version))
+        if version is None:
+            raise decision_not_found(decision_identifier)
+        data = await _rest_version(session, version)
+    return GetDecisionVersionResponseBody(data=data)
 
 
 @router.get(
@@ -552,11 +559,12 @@ async def get_decision_version_by_tag_name(
     )
     async with request.app.state.db() as session:
         version = await session.scalar(stmt)
-    if version is None:
-        raise HTTPException(
-            404, f"No version of decision '{decision_identifier}' is tagged '{tag_name}'"
-        )
-    return GetDecisionVersionResponseBody(data=DecisionVersion.from_orm_decision_version(version))
+        if version is None:
+            raise HTTPException(
+                404, f"No version of decision '{decision_identifier}' is tagged '{tag_name}'"
+            )
+        data = await _rest_version(session, version)
+    return GetDecisionVersionResponseBody(data=data)
 
 
 @router.get(
@@ -575,9 +583,10 @@ async def get_decision_version_by_decision_version_id(
     id_ = _parse_decision_version_id(decision_version_id)
     async with request.app.state.db() as session:
         version = await session.get(models.DecisionVersion, id_)
-    if version is None:
-        raise _decision_version_not_found(decision_version_id)
-    return GetDecisionVersionResponseBody(data=DecisionVersion.from_orm_decision_version(version))
+        if version is None:
+            raise _decision_version_not_found(decision_version_id)
+        data = await _rest_version(session, version)
+    return GetDecisionVersionResponseBody(data=data)
 
 
 # --------------------------------------------------------------------------------------------
@@ -631,6 +640,10 @@ async def list_decision_version_tags(
     )
 
 
+class CreateDecisionVersionTagResponseBody(ResponseBody[DecisionVersionTag]):
+    pass
+
+
 @router.post(
     "/decision_versions/{decision_version_id}/tags",
     dependencies=[Depends(is_not_locked)],
@@ -638,16 +651,25 @@ async def list_decision_version_tags(
     summary="Tag a decision version",
     description="Point a tag at a decision version. Tag names are unique within a decision: "
     "if the version's decision already has a tag of this name, it moves to this version "
-    "and keeps its description unless a new one is given.",
-    response_description="No content returned on success",
-    status_code=204,
-    responses=_errors([404, 422, 507]),
+    "and keeps its description unless a new one is given. Returns 201 with the tag when "
+    "it was created, or 200 when an existing tag moved.",
+    response_description="The tag was created",
+    status_code=201,
+    responses={
+        200: {
+            "description": "An existing tag moved to this version",
+            "model": CreateDecisionVersionTagResponseBody,
+        },
+        **_errors([404, 422, 507]),
+    },
+    **_RESPONSE_OPTIONS,
 )
 async def create_decision_version_tag(
     request: Request,
+    response: Response,
     request_body: DecisionVersionTagData,
     decision_version_id: str = _DECISION_VERSION_ID,
-) -> None:
+) -> CreateDecisionVersionTagResponseBody:
     id_ = _parse_decision_version_id(decision_version_id)
     async with request.app.state.db() as session:
         decision_id = await session.scalar(
@@ -655,7 +677,7 @@ async def create_decision_version_tag(
         )
         if decision_id is None:
             raise _decision_version_not_found(decision_version_id)
-        await upsert_decision_version_tag(
+        tag, created = await set_decision_version_tag(
             session,
             decision_id=decision_id,
             decision_version_id=id_,
@@ -663,6 +685,14 @@ async def create_decision_version_tag(
             description=request_body.description,
             user_id=user_id_of(request),
         )
+        data = DecisionVersionTag.from_orm_decision_version_tag(tag)
+    if created:
+        response.headers["Location"] = location_of(
+            request, f"/v1/decisions/{encode_decision_id(decision_id)}/tags/{tag.name.root}"
+        )
+    else:
+        response.status_code = 200
+    return CreateDecisionVersionTagResponseBody(data=data)
 
 
 @router.delete(
@@ -787,6 +817,8 @@ def _version_to_orm(
 ) -> models.DecisionVersion:
     try:
         return version.to_orm(user_id=user_id)
+    except InvalidDecisionVersion as error:
+        raise invalid_field(str(error), ("body", "version", *error.path), error.code) from error
     except BadRequest as error:
         raise HTTPException(422, str(error)) from error
 
@@ -823,7 +855,7 @@ async def _validate_custom_provider(session: AsyncSession, version: models.Decis
     except NotFound as error:
         raise HTTPException(404, str(error)) from error
     except BadRequest as error:
-        raise HTTPException(422, str(error)) from error
+        raise invalid_field(str(error), ("body", "version", "custom_provider_id")) from error
 
 
 def _clean_description(description: Optional[str]) -> Optional[str]:
@@ -884,6 +916,55 @@ async def _insert_version(
         raise
 
 
-def location_of(request: Request, path: str) -> str:
-    """The URL of a created resource, for a 201's Location header."""
-    return f"{request.scope.get('root_path', '')}{path}"
+async def _rest_version(session: AsyncSession, version: models.DecisionVersion) -> DecisionVersion:
+    return (await _rest_versions(session, [version]))[0]
+
+
+async def _rest_versions(
+    session: AsyncSession, versions: Sequence[models.DecisionVersion]
+) -> list[DecisionVersion]:
+    """REST versions with what a caller needs to name them: the decision's name, the
+    version's 1-based number within its decision, and the tags pointing at it."""
+    if not versions:
+        return []
+    ids = [version.id for version in versions]
+    other = aliased(models.DecisionVersion)
+    numbers: dict[int, int] = {
+        version_id: count
+        for version_id, count in await session.execute(
+            select(models.DecisionVersion.id, func.count(other.id))
+            .join(
+                other,
+                and_(
+                    other.decision_id == models.DecisionVersion.decision_id,
+                    other.id <= models.DecisionVersion.id,
+                ),
+            )
+            .where(models.DecisionVersion.id.in_(ids))
+            .group_by(models.DecisionVersion.id)
+        )
+    }
+    names: dict[int, Identifier] = {
+        decision_id: name
+        for decision_id, name in await session.execute(
+            select(models.Decision.id, models.Decision.name).where(
+                models.Decision.id.in_({version.decision_id for version in versions})
+            )
+        )
+    }
+    tag_names: dict[int, list[str]] = {version_id: [] for version_id in ids}
+    for version_id, tag_name in await session.execute(
+        select(models.DecisionVersionTag.decision_version_id, models.DecisionVersionTag.name)
+        .where(models.DecisionVersionTag.decision_version_id.in_(ids))
+        .order_by(models.DecisionVersionTag.name)
+    ):
+        tag_names[version_id].append(tag_name.root)
+    return [
+        DecisionVersion.from_orm_decision_version(
+            version,
+            decision_name=names[version.decision_id],
+            version_number=numbers[version.id],
+            tag_names=tag_names[version.id],
+        )
+        for version in versions
+    ]
