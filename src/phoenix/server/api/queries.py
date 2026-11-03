@@ -1059,7 +1059,10 @@ class Query:
             raise NotFound(f"Unknown node: {id}") from None
         type_name = global_id.type_name
         if type_name == Secret.__name__:
-            return Secret(id=global_id.node_id)
+            secret = await info.context.data_loaders.secrets.load(global_id.node_id)
+            if secret is None:
+                raise NotFound(f"Unknown node: {id}")
+            return Secret(id=secret.key, db_record=secret)
         if type_name == SandboxProvider.__name__:
             backend_type = global_id.node_id
             if backend_type not in SANDBOX_BACKEND_TYPES:

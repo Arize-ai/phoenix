@@ -287,9 +287,9 @@ npx @arizeai/phoenix-cli setup
 
 | Skill                                              | Περιγραφή                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Αποσφαλμάτωση εφαρμογών LLM με το Phoenix CLI — ανάκτηση traces, ανάλυση σφαλμάτων, επισκόπηση πειραμάτων και ερωτήματα στο GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Δημιουργία και εκτέλεση αξιολογητών για εφαρμογές AI/LLM με το Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Σημασιολογικές συμβάσεις και instrumentation του OpenInference για tracing εφαρμογών LLM                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Αποσφαλμάτωση εφαρμογών LLM με το Phoenix CLI — ανάκτηση traces, ανάλυση σφαλμάτων, επισκόπηση πειραμάτων και ερωτήματα στο GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Δημιουργία και εκτέλεση αξιολογητών για εφαρμογές AI/LLM με το Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Σημασιολογικές συμβάσεις και instrumentation του OpenInference για tracing εφαρμογών LLM                                        |
 
 ## Ασφάλεια & απόρρητο
 

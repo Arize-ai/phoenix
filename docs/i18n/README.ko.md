@@ -287,9 +287,9 @@ Phoenix는 사람과 AI 코딩 에이전트 모두가 똑같이 활용할 수 �
 
 | 스킬 | 설명 |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI를 사용하여 LLM 애플리케이션을 디버깅합니다 — 트레이스 가져오기, 오류 분석, 실험 검토, GraphQL API 조회 |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix를 사용하여 AI/LLM 애플리케이션용 평가기를 구축하고 실행합니다 |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM 애플리케이션 트레이싱을 위한 OpenInference 시맨틱 컨벤션 및 계측 |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI를 사용하여 LLM 애플리케이션을 디버깅합니다 — 트레이스 가져오기, 오류 분석, 실험 검토, GraphQL API 조회 |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix를 사용하여 AI/LLM 애플리케이션용 평가기를 구축하고 실행합니다 |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM 애플리케이션 트레이싱을 위한 OpenInference 시맨틱 컨벤션 및 계측 |
 
 ## 보안 및 개인정보 보호
 

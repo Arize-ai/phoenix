@@ -1,6 +1,8 @@
 ---
 name: test-integration
 description: Run and extend Phoenix's executable integration documentation checks. Use when changing an integration doc, its runnable example, or the CI harness.
+metadata:
+  internal: true
 ---
 
 # Integration documentation checks

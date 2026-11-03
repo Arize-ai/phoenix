@@ -287,9 +287,9 @@ Tingnan ang [dokumentasyon sa mga coding agent](https://arize.com/docs/phoenix/i
 
 | Kasanayan                                              | Paglalarawan                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Mag-debug ng mga LLM application gamit ang Phoenix CLI — kumuha ng mga trace, suriin ang mga error, repasuhin ang mga eksperimento, at mag-query sa GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Bumuo at magpatakbo ng mga evaluator para sa mga AI/LLM application gamit ang Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Mga semantic convention at instrumentation ng OpenInference para sa pag-trace ng mga LLM application                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Mag-debug ng mga LLM application gamit ang Phoenix CLI — kumuha ng mga trace, suriin ang mga error, repasuhin ang mga eksperimento, at mag-query sa GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Bumuo at magpatakbo ng mga evaluator para sa mga AI/LLM application gamit ang Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Mga semantic convention at instrumentation ng OpenInference para sa pag-trace ng mga LLM application                                        |
 
 ## Seguridad at Privacy
 

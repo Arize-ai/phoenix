@@ -287,9 +287,9 @@ Phoenix مبنية على OpenTelemetry وهي مستقلة عن المزوّد 
 
 | المهارة (Skill) | الوصف |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/) | تصحيح أخطاء تطبيقات LLM باستخدام Phoenix CLI — جلب الـ traces وتحليل الأخطاء ومراجعة التجارب والاستعلام عبر GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/) | بناء وتشغيل المقيّمات لتطبيقات AI/LLM باستخدام Phoenix |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | الاصطلاحات الدلالية وأدوات القياس من OpenInference لتتبّع تطبيقات LLM |
+| [phoenix-cli](../../skills/phoenix-cli/) | تصحيح أخطاء تطبيقات LLM باستخدام Phoenix CLI — جلب الـ traces وتحليل الأخطاء ومراجعة التجارب والاستعلام عبر GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/) | بناء وتشغيل المقيّمات لتطبيقات AI/LLM باستخدام Phoenix |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | الاصطلاحات الدلالية وأدوات القياس من OpenInference لتتبّع تطبيقات LLM |
 
 ## الأمان والخصوصية
 

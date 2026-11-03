@@ -376,6 +376,14 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       # Fresh checkout: nothing from the audit job's working tree, .git/ or
       # virtualenv reaches the job that holds the publishing token, and no
       # repository code is executed here.
@@ -411,7 +419,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
-          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          token: ${{ steps.factory-token.outputs.token }}
           commit-message: ${{ needs.sync-model-pricing.outputs.title }}
           title: ${{ needs.sync-model-pricing.outputs.title }}
           body-path: ${{ runner.temp }}/catalog/pr-body.md
@@ -428,7 +436,7 @@ jobs:
       - name: Enable auto-merge
         if: steps.cpr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.factory-token.outputs.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         # Lets a reviewer merge with a single approval; a failure here should
         # not fail the run since the PR itself was opened successfully.

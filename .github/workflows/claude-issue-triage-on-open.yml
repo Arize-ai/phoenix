@@ -1,0 +1,24 @@
+name: Claude Issue Triage on Open
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claude-issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    uses: ./.github/workflows/claude-issue-triage.yml
+    permissions:
+      issues: write
+      contents: read
+      id-token: write
+    with:
+      issue: ${{ github.event.issue.number }}
+      regression: 'off'
+      timeout-minutes: 15

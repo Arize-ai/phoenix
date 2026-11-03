@@ -104,7 +104,7 @@ def test_new_entry_pattern_stops_at_a_version_boundary() -> None:
     assert [model.name_pattern for model in updated.models] == [r"claude-test-5(?!-\d{1,2}(?!\d))"]
 
 
-def test_extract_litellm_entries_preserves_zero_input_rate() -> None:
+def test_extract_litellm_entries_preserves_zero_rates() -> None:
     entries = extract_litellm_entries(
         {
             "perplexity/sonar-small-online": {
@@ -116,6 +116,12 @@ def test_extract_litellm_entries_preserves_zero_input_rate() -> None:
                 "output_cost_per_token": 3.2e-6,
                 "cache_read_input_token_cost": 2e-7,
                 "cache_creation_input_token_cost": 0,
+            },
+            "zai/glm-4.7": {
+                "input_cost_per_token": 6e-7,
+                "output_cost_per_token": 2.2e-6,
+                "cache_read_input_token_cost": 0,
+                "output_cost_per_reasoning_token": None,
             },
         }
     )
@@ -133,5 +139,74 @@ def test_extract_litellm_entries_preserves_zero_input_rate() -> None:
             ("output", False): 3.2e-6,
             ("cache_read", True): 2e-7,
             ("cache_write", True): 0.0,
+        },
+        "zai/glm-4.7": {
+            ("input", True): 6e-7,
+            ("output", False): 2.2e-6,
+            ("cache_read", True): 0.0,
+        },
+    }
+
+
+def _rates(entries: list[LiteLLMPricingEntry]) -> dict[str, dict[tuple[str, bool], float]]:
+    return {
+        entry.name: {(tp.token_type, tp.is_prompt): tp.base_rate for tp in entry.token_prices}
+        for entry in entries
+    }
+
+
+def test_extract_litellm_entries_keeps_free_models() -> None:
+    entries = extract_litellm_entries(
+        {
+            "zai/glm-4.5-flash": {
+                "input_cost_per_token": 0,
+                "output_cost_per_token": 0,
+            },
+            "together_ai/Salesforce/Llama-Rank-V1": {
+                "input_cost_per_token": 1e-7,
+                "output_cost_per_token": 0,
+            },
+        }
+    )
+    assert _rates(entries) == {
+        "zai/glm-4.5-flash": {
+            ("input", True): 0.0,
+            ("output", False): 0.0,
+        },
+        "together_ai/Salesforce/Llama-Rank-V1": {
+            ("input", True): 1e-7,
+            ("output", False): 0.0,
+        },
+    }
+
+
+def test_extract_litellm_entries_skips_zero_token_rates_with_non_token_price() -> None:
+    entries = extract_litellm_entries(
+        {
+            "gemini-2.0-flash-exp-image-generation": {
+                "input_cost_per_token": 0,
+                "output_cost_per_token": 0,
+                "output_cost_per_image": 0.039,
+            },
+            "zai/glm-4.5-flash": {
+                "input_cost_per_token": 0,
+                "output_cost_per_token": 0,
+            },
+            "gpt-image-free-text": {
+                "input_cost_per_token": 5e-6,
+                "output_cost_per_token": 0,
+                "output_cost_per_image_token": 4e-5,
+            },
+        }
+    )
+    assert _rates(entries) == {
+        "zai/glm-4.5-flash": {
+            ("input", True): 0.0,
+            ("output", False): 0.0,
+        },
+        "gpt-image-free-text": {
+            ("input", True): 5e-6,
+            ("output", False): 4e-5,
+            ("image", False): 4e-5,
         },
     }

@@ -94,7 +94,8 @@ jobs:
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           LANE: ${{ steps.start.outputs.lane }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
-        run: python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE"
+          STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
+        run: python factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures on the issue. This report uses GITHUB_TOKEN, so
       # it still lands when the failure is the app's credentials.
@@ -102,3 +103,4 @@ jobs:
         if: failure() && steps.start.outcome != 'success'
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          gh issue edit "$ISSUE_NUMBER" --remove-label factory
