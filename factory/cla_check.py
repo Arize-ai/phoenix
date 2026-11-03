@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
 """Remind pull request authors to sign the CLA, and close the pull requests that never do.
 
 The hourly sweep reads each open, non-draft pull request that is at least an hour old. When
