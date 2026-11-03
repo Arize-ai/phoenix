@@ -29,7 +29,16 @@ jobs:
 
   publish-experimental-packages:
     needs: changes
-    if: ${{ needs.changes.outputs.packages == 'true' }}
+    # This job runs the PR's package scripts with a token that can write PRs. A factory/
+    # branch may hold a fork PR the factory copied here, and `factory-finished` marks a PR an
+    # agent pushed to, so skip both as the eval workflows do.
+    if: >-
+      needs.changes.outputs.packages == 'true' &&
+      !startsWith(github.head_ref, 'factory/') &&
+      !contains(github.event.pull_request.labels.*.name, 'factory-finished') &&
+      (vars.FACTORY_GITHUB_LOGIN == '' ||
+       (github.event.pull_request.user.login != vars.FACTORY_GITHUB_LOGIN &&
+        github.actor != vars.FACTORY_GITHUB_LOGIN))
     runs-on: ubuntu-latest
     permissions:
       contents: read
