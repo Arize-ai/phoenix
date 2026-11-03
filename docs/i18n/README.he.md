@@ -280,7 +280,7 @@ Phoenix בנויה על גבי OpenTelemetry ואינה תלויה בספק, ב�
 Phoenix נבנתה כדי שגם אנשים וגם סוכני קוד מבוססי AI יוכלו להפעיל אותה. שלושה ממשקים מאפשרים לסוכנים (Claude Code, Codex, Cursor ואחרים) לעבוד עם ה-traces, מערכי הנתונים והניסויים שלכם:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` מאחזר traces, מערכי נתונים וניסויים ומבצע אינסטרומנטציה לאפליקציה שלכם (`setup`), כך שסוכן יכול לשלוף הקשר ולפעול לפיו מהטרמינל.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) אורז תהליכי עבודה שמלמדים סוכנים כיצד לנפות באגים, להעריך ולבצע tracing עם Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) אורז תהליכי עבודה שמלמדים סוכנים כיצד לנפות באגים, להעריך ולבצע tracing עם Phoenix.
 - **[שרת MCP מרוחק](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — חברו כל לקוח MCP לנקודת הקצה `/mcp` של המופע שלכם כדי לשאול את Phoenix ישירות.
 
 ראו את [התיעוד לסוכני קוד](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) להגדרה ולשימוש.

@@ -280,7 +280,7 @@ Führen Sie Phoenix-[Code-Evaluatoren](https://arize.com/docs/phoenix/evaluation
 Phoenix ist so gebaut, dass es von Menschen und KI-Coding-Agenten gleichermaßen gesteuert werden kann. Über drei Schnittstellen können Agenten (Claude Code, Codex, Cursor und andere) mit Ihren Traces, Datasets und Experimenten arbeiten:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` ruft Traces, Datasets und Experimente ab und instrumentiert Ihre App (`setup`), sodass ein Agent Kontext abrufen und direkt im Terminal darauf reagieren kann.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) bündelt Workflows, die Agenten beibringen, wie sie mit Phoenix debuggen, evaluieren und tracen.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) bündelt Workflows, die Agenten beibringen, wie sie mit Phoenix debuggen, evaluieren und tracen.
 - **[Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — verbinden Sie einen beliebigen MCP-Client mit dem `/mcp`-Endpunkt Ihrer Instanz, um Phoenix direkt abzufragen.
 
 Einrichtung und Verwendung sind in der [Dokumentation zu Coding-Agenten](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) beschrieben.

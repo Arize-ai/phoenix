@@ -280,7 +280,7 @@ Chạy các [code evaluator](https://arize.com/docs/phoenix/evaluation/server-ev
 Phoenix được xây dựng để cả con người lẫn AI coding agent đều có thể sử dụng. Ba giao diện cho phép các agent (Claude Code, Codex, Cursor và các công cụ khác) làm việc với trace, dataset và thử nghiệm của bạn:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` lấy trace, dataset và thử nghiệm, đồng thời instrument ứng dụng của bạn (`setup`), để agent có thể lấy ngữ cảnh và hành động ngay từ terminal.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) đóng gói các quy trình dạy agent cách gỡ lỗi, đánh giá và trace với Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) đóng gói các quy trình dạy agent cách gỡ lỗi, đánh giá và trace với Phoenix.
 - **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — kết nối bất kỳ MCP client nào tới endpoint `/mcp` của phiên bản của bạn để truy vấn Phoenix trực tiếp.
 
 Xem [tài liệu về coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) để biết cách thiết lập và sử dụng.

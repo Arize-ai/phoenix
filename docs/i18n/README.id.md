@@ -280,7 +280,7 @@ Jalankan [code evaluator](https://arize.com/docs/phoenix/evaluation/server-evals
 Phoenix dirancang untuk dapat digunakan oleh manusia maupun AI coding agent. Tiga antarmuka memungkinkan agen (Claude Code, Codex, Cursor, dan lainnya) bekerja dengan trace, dataset, dan eksperimen Anda:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` mengambil trace, dataset, dan eksperimen serta menginstrumentasi aplikasi Anda (`setup`), sehingga agen dapat menarik konteks dan bertindak berdasarkan konteks tersebut dari terminal.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) mengemas alur kerja yang mengajarkan agen cara men-debug, mengevaluasi, dan melakukan tracing dengan Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) mengemas alur kerja yang mengajarkan agen cara men-debug, mengevaluasi, dan melakukan tracing dengan Phoenix.
 - **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — hubungkan klien MCP apa pun ke endpoint `/mcp` pada instance Anda untuk melakukan kueri ke Phoenix secara langsung.
 
 Lihat [dokumentasi coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) untuk penyiapan dan penggunaan.

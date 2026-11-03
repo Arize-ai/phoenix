@@ -280,7 +280,7 @@ Normalizacja i konwersja danych z innych bibliotek instrumentacji poprzez dodani
 Phoenix został zaprojektowany tak, aby mogli z niego korzystać zarówno ludzie, jak i agenci kodujący AI. Trzy interfejsy pozwalają agentom (Claude Code, Codex, Cursor i innym) pracować z trace'ami, zbiorami danych i eksperymentami:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` pobiera trace'y, zbiory danych i eksperymenty oraz instrumentuje aplikację (`setup`), dzięki czemu agent może pobrać kontekst i działać na jego podstawie z poziomu terminala.
-- **[Umiejętności (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) zawiera przepływy pracy, które uczą agentów debugowania, ewaluacji i śledzenia z użyciem Phoenix.
+- **[Umiejętności (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) zawiera przepływy pracy, które uczą agentów debugowania, ewaluacji i śledzenia z użyciem Phoenix.
 - **[Zdalny serwer MCP](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — dowolnego klienta MCP można połączyć z endpointem `/mcp` instancji, aby bezpośrednio odpytywać Phoenix.
 
 Konfigurację i sposób użycia opisano w [dokumentacji agentów kodujących](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).

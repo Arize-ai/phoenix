@@ -280,7 +280,7 @@ Phoenix مبنية على OpenTelemetry وهي مستقلة عن المزوّد 
 صُممت Phoenix ليستخدمها البشر ووكلاء البرمجة بالذكاء الاصطناعي على حد سواء. تتيح ثلاث واجهات للوكلاء (Claude Code وCodex وCursor وغيرها) العمل مع الـ traces ومجموعات البيانات والتجارب الخاصة بك:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — يجلب `npx @arizeai/phoenix-cli` الـ traces ومجموعات البيانات والتجارب ويضيف أدوات القياس إلى تطبيقك (`setup`)، بحيث يمكن للوكيل جلب السياق والتصرف بناءً عليه من الطرفية.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — تحزم [`.agents/skills/`](../../.agents/skills/) سير عمل يعلّم الوكلاء كيفية تصحيح الأخطاء والتقييم والتتبع باستخدام Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — تحزم [`skills/`](../../skills/) سير عمل يعلّم الوكلاء كيفية تصحيح الأخطاء والتقييم والتتبع باستخدام Phoenix.
 - **[خادم MCP البعيد](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — اربط أي عميل MCP بنقطة النهاية `/mcp` في نسختك للاستعلام من Phoenix مباشرةً.
 
 راجع [توثيق وكلاء البرمجة](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) للإعداد والاستخدام.

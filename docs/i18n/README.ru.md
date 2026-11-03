@@ -280,7 +280,7 @@ Phoenix построен на OpenTelemetry и не зависит от пост
 Phoenix создан для работы как с людьми, так и с ИИ-агентами для программирования. Три интерфейса позволяют агентам (Claude Code, Codex, Cursor и другим) работать с Вашими трейсами, датасетами и экспериментами:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` получает трейсы, датасеты и эксперименты и инструментирует Ваше приложение (`setup`), так что агент может получать контекст и действовать на его основе прямо из терминала.
-- **[Навыки (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) упаковывает рабочие процессы, которые учат агентов отлаживать, оценивать и трассировать с помощью Phoenix.
+- **[Навыки (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) упаковывает рабочие процессы, которые учат агентов отлаживать, оценивать и трассировать с помощью Phoenix.
 - **[Удалённый MCP-сервер](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — подключите любой MCP-клиент к эндпоинту `/mcp` Вашего экземпляра, чтобы напрямую выполнять запросы к Phoenix.
 
 Настройка и использование описаны в [документации по ИИ-агентам для программирования](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).

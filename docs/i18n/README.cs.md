@@ -280,7 +280,7 @@ Spouštějte [evaluátory kódu](https://arize.com/docs/phoenix/evaluation/serve
 Phoenix je navržen tak, aby jej mohli ovládat lidé i AI kódovací agenti. Tři rozhraní umožňují agentům (Claude Code, Codex, Cursor a dalším) pracovat s vašimi trasami, datovými sadami a experimenty:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` načítá trasy, datové sady a experimenty a instrumentuje vaši aplikaci (`setup`), takže agent může z terminálu získat kontext a pracovat s ním.
-- **[Dovednosti (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) obsahuje pracovní postupy, které agenty učí, jak s Phoenixem ladit, evaluovat a trasovat.
+- **[Dovednosti (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) obsahuje pracovní postupy, které agenty učí, jak s Phoenixem ladit, evaluovat a trasovat.
 - **[Vzdálený MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — připojte libovolného MCP klienta k endpointu `/mcp` vaší instance a dotazujte se přímo na Phoenix.
 
 Nastavení a použití popisuje [dokumentace pro kódovací agenty](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).

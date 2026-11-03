@@ -280,7 +280,7 @@ Aja Phoenixin [koodiarvioijia](https://arize.com/docs/phoenix/evaluation/server-
 Phoenix on suunniteltu sekä ihmisten että AI-koodausagenttien käytettäväksi. Kolme rajapintaa antaa agenttien (Claude Code, Codex, Cursor ja muut) työskennellä tracejesi, datasettiesi ja kokeidesi kanssa:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` hakee traceja, datasettejä ja kokeita sekä instrumentoi sovelluksesi (`setup`), joten agentti voi hakea kontekstia ja toimia sen pohjalta suoraan päätteestä.
-- **[Skillit](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) sisältää työnkulkuja, jotka opettavat agenteille virheenkorjauksen, arvioinnin ja tracingin Phoenixin avulla.
+- **[Skillit](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) sisältää työnkulkuja, jotka opettavat agenteille virheenkorjauksen, arvioinnin ja tracingin Phoenixin avulla.
 - **[Etä-MCP-palvelin](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — yhdistä mikä tahansa MCP-asiakas instanssisi `/mcp`-päätepisteeseen ja tee kyselyitä suoraan Phoenixiin.
 
 Asennus- ja käyttöohjeet löydät [koodausagenttien dokumentaatiosta](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).
