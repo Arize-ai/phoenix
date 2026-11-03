@@ -61,6 +61,43 @@ cp -n academy/release/decision-template.md \
   academy/release/budget-rule-decision.md
 ```
 
+Open `academy/release/budget-rule-decision.md`. The copied template contains:
+
+```markdown title="Decision note template" wrap
+# Wonder Toys change review
+
+Decision: hold / limited rollout / release
+
+Change:
+Baseline experiment:
+Candidate experiment:
+Dataset version:
+Judge model and rubric version:
+
+## Requirements
+
+- Expected behavior:
+- Response-time limit:
+- Cost limit:
+- Intended rollout scope:
+
+## Evidence
+
+- Requests improved:
+- Previously passing requests checked:
+- Remaining failures or disputed judgments:
+- Task errors, evaluation errors, and unscored answers:
+- Cost and response-time change:
+- Behaviors outside this test set:
+
+## Next action
+
+- Evidence needed before changing the decision:
+- Reviewer and review date:
+- If released, signals to watch and who will respond:
+- Previous version to restore if needed:
+```
+
 Fill in your requirements, the change, experiment links, dataset version, and judge version. Then choose a decision and explain it with specific results:
 
 - **Hold:** An unresolved failure, disputed judgment, or important coverage gap needs attention first.
