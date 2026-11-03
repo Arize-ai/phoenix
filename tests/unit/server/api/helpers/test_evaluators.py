@@ -2957,10 +2957,10 @@ class TestLLMEvaluator:
         expected_total_cost = expected_prompt_cost + expected_completion_cost
         assert span_cost.total_cost == pytest.approx(expected_total_cost)
         assert span_cost.total_tokens == llm_span.llm_token_count_total
-        assert span_cost.prompt_tokens == llm_span.llm_token_count_prompt
-        assert span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
-        assert span_cost.completion_tokens == llm_span.llm_token_count_completion
-        assert span_cost.completion_cost == pytest.approx(expected_completion_cost)
+        assert span_cost.input_tokens == llm_span.llm_token_count_prompt
+        assert span_cost.input_cost == pytest.approx(expected_prompt_cost)
+        assert span_cost.output_tokens == llm_span.llm_token_count_completion
+        assert span_cost.output_cost == pytest.approx(expected_completion_cost)
 
         # Verify span cost details
         assert len(span_cost.span_cost_details) >= 2

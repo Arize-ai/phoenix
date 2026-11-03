@@ -238,8 +238,8 @@ def seed(
                     "trace_rowid": trace_id,
                     "span_start_time": root_start,
                     "total_cost": 0.02,
-                    "prompt_cost": 0.02,
-                    "completion_cost": 0.0,
+                    "input_cost": 0.02,
+                    "output_cost": 0.0,
                     "_root_span_id": root_span_id,
                 }
             )

@@ -866,8 +866,8 @@ class TestSpanCostDetailsCalculator:
                 token_type="output", is_prompt=False, tokens=50, cost=0.0, cost_per_token=0.0
             )
         )
-        assert span_cost.prompt_cost == 0.0
-        assert span_cost.completion_cost == 0.0
+        assert span_cost.input_cost == 0.0
+        assert span_cost.output_cost == 0.0
         assert span_cost.total_cost == 0.0
 
         unpriced = models.SpanCost()
@@ -876,7 +876,7 @@ class TestSpanCostDetailsCalculator:
                 token_type="input", is_prompt=True, tokens=100, cost=None, cost_per_token=None
             )
         )
-        assert unpriced.prompt_cost is None
+        assert unpriced.input_cost is None
         assert unpriced.total_cost is None
 
 

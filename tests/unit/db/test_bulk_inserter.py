@@ -779,8 +779,8 @@ async def test_embedding_span_from_otlp_gets_a_cost_row(db: DbSessionFactory) ->
         )
     assert set(costs_by_name) == {"text-embedding-3-small", "nomic-embed-text"}
     for cost in costs_by_name.values():
-        assert (cost.prompt_tokens, cost.completion_tokens, cost.total_tokens) == (2, None, 2)
-        assert cost.completion_cost is None
+        assert (cost.input_tokens, cost.output_tokens, cost.total_tokens) == (2, None, 2)
+        assert cost.output_cost is None
     assert costs_by_name["text-embedding-3-small"].model_id == rows["EMBEDDING"].id
     assert costs_by_name["text-embedding-3-small"].total_cost == pytest.approx(2 * 2e-8)
     assert costs_by_name["nomic-embed-text"].model_id is None

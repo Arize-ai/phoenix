@@ -2488,12 +2488,12 @@ class TestChatCompletionOverDatasetSubscription:
             assert span_cost.total_tokens == (
                 llm_llm_span.llm_token_count_prompt + llm_llm_span.llm_token_count_completion
             )
-            assert span_cost.prompt_tokens == llm_llm_span.llm_token_count_prompt
-            assert span_cost.prompt_cost is not None
-            assert span_cost.prompt_cost > 0
-            assert span_cost.completion_tokens == llm_llm_span.llm_token_count_completion
-            assert span_cost.completion_cost is not None
-            assert span_cost.completion_cost > 0
+            assert span_cost.input_tokens == llm_llm_span.llm_token_count_prompt
+            assert span_cost.input_cost is not None
+            assert span_cost.input_cost > 0
+            assert span_cost.output_tokens == llm_llm_span.llm_token_count_completion
+            assert span_cost.output_cost is not None
+            assert span_cost.output_cost > 0
 
             # span cost details for evaluator trace
             span_cost_details_result = await session.execute(

@@ -919,10 +919,10 @@ class TestTracer:
         assert expected_total_cost == pytest.approx(0.00045)  # $0.00015 + $0.0003 = $0.00045
         assert returned_span_cost.total_cost == pytest.approx(expected_total_cost)
         assert returned_span_cost.total_tokens == prompt_tokens + completion_tokens
-        assert returned_span_cost.prompt_tokens == prompt_tokens
-        assert returned_span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
-        assert returned_span_cost.completion_tokens == completion_tokens
-        assert returned_span_cost.completion_cost == pytest.approx(expected_completion_cost)
+        assert returned_span_cost.input_tokens == prompt_tokens
+        assert returned_span_cost.input_cost == pytest.approx(expected_prompt_cost)
+        assert returned_span_cost.output_tokens == completion_tokens
+        assert returned_span_cost.output_cost == pytest.approx(expected_completion_cost)
 
         # Verify span cost details
 
@@ -1074,10 +1074,10 @@ class TestTracer:
         assert returned_span_cost.span_start_time == returned_span.start_time
         assert returned_span_cost.total_cost is None  # no pricing model found
         assert returned_span_cost.total_tokens == prompt_tokens + completion_tokens
-        assert returned_span_cost.prompt_tokens == prompt_tokens
-        assert returned_span_cost.prompt_cost is None  # no pricing model found
-        assert returned_span_cost.completion_tokens == completion_tokens
-        assert returned_span_cost.completion_cost is None  # no pricing model found
+        assert returned_span_cost.input_tokens == prompt_tokens
+        assert returned_span_cost.input_cost is None  # no pricing model found
+        assert returned_span_cost.output_tokens == completion_tokens
+        assert returned_span_cost.output_cost is None  # no pricing model found
 
         # Verify span cost details
         assert returned_input_detail.span_cost_id == returned_span_cost.id
@@ -1192,11 +1192,11 @@ class TestTracer:
         assert priced_cost.span_start_time == priced_decision_span.start_time
         assert priced_cost.model_id == decision_model.id
         expected_decision_input_cost = 1000 * 0.10 / 1_000_000
-        assert priced_cost.prompt_tokens == 1000
-        assert priced_cost.completion_tokens == 500
+        assert priced_cost.input_tokens == 1000
+        assert priced_cost.output_tokens == 500
         assert priced_cost.total_tokens == 1500
-        assert priced_cost.prompt_cost == pytest.approx(expected_decision_input_cost)
-        assert priced_cost.completion_cost == 0.0
+        assert priced_cost.input_cost == pytest.approx(expected_decision_input_cost)
+        assert priced_cost.output_cost == 0.0
         assert priced_cost.total_cost == pytest.approx(expected_decision_input_cost)
         priced_details = {d.token_type: d for d in priced_cost.span_cost_details}
         assert set(priced_details) == {"input", "output"}
@@ -1214,10 +1214,10 @@ class TestTracer:
         assert llm_cost.model_id == llm_model.id
         expected_llm_input_cost = 1000 * 1.0 / 1_000_000
         expected_llm_output_cost = 500 * 5.0 / 1_000_000
-        assert llm_cost.prompt_tokens == 1000
-        assert llm_cost.completion_tokens == 500
-        assert llm_cost.prompt_cost == pytest.approx(expected_llm_input_cost)
-        assert llm_cost.completion_cost == pytest.approx(expected_llm_output_cost)
+        assert llm_cost.input_tokens == 1000
+        assert llm_cost.output_tokens == 500
+        assert llm_cost.input_cost == pytest.approx(expected_llm_input_cost)
+        assert llm_cost.output_cost == pytest.approx(expected_llm_output_cost)
         assert llm_cost.total_cost == pytest.approx(
             expected_llm_input_cost + expected_llm_output_cost
         )
@@ -1225,11 +1225,11 @@ class TestTracer:
         unmatched_cost = spans_by_name["unmatched_decision"].span_cost
         assert unmatched_cost is not None
         assert unmatched_cost.model_id is None
-        assert unmatched_cost.prompt_tokens == 1000
-        assert unmatched_cost.completion_tokens == 500
+        assert unmatched_cost.input_tokens == 1000
+        assert unmatched_cost.output_tokens == 500
         assert unmatched_cost.total_tokens == 1500
-        assert unmatched_cost.prompt_cost is None
-        assert unmatched_cost.completion_cost is None
+        assert unmatched_cost.input_cost is None
+        assert unmatched_cost.output_cost is None
         assert unmatched_cost.total_cost is None
         unmatched_details = {d.token_type: d for d in unmatched_cost.span_cost_details}
         assert set(unmatched_details) == {"input", "output"}

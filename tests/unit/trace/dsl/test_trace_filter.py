@@ -91,11 +91,11 @@ async def _seed_reference_trace(
                 span_rowid=span.id,
                 trace_rowid=trace.id,
                 span_start_time=span.start_time,
-                prompt_cost=cost.prompt_cost,
-                completion_cost=cost.completion_cost,
+                input_cost=cost.prompt_cost,
+                output_cost=cost.completion_cost,
                 total_cost=cost.total_cost,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
+                input_tokens=prompt_tokens,
+                output_tokens=completion_tokens,
                 total_tokens=prompt_tokens + completion_tokens,
             )
             session.add(span_cost)

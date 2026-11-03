@@ -33,11 +33,11 @@ async def test_trace_aggregate_builders(db: DbSessionFactory) -> None:
                 span_rowid=tool.id,
                 trace_rowid=trace.id,
                 span_start_time=datetime.now(timezone.utc),
-                prompt_cost=0.25,
-                completion_cost=0.5,
+                input_cost=0.25,
+                output_cost=0.5,
                 total_cost=0.75,
-                prompt_tokens=100,
-                completion_tokens=200,
+                input_tokens=100,
+                output_tokens=200,
                 total_tokens=300,
             )
         )

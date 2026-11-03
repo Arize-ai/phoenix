@@ -788,7 +788,7 @@ class TestSpanCostPerToken:
         db: DbSessionFactory,
     ) -> None:
         start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
-        # (cost, tokens, expected cost per token) for total, prompt and completion, in that order.
+        # (cost, tokens, expected cost per token) for total, input and output, in that order.
         # Each column gets different values, so a hybrid reading the wrong column fails.
         Case = tuple[float | None, float | None, float | None]
         test_cases: list[tuple[Case, Case, Case]] = [
@@ -829,33 +829,33 @@ class TestSpanCostPerToken:
             session.add(span)
             await session.flush()
 
-            for i, (total, prompt, completion) in enumerate(test_cases):
+            for i, (total, input_, output) in enumerate(test_cases):
                 span_cost = models.SpanCost(
                     span_rowid=span.id,
                     trace_rowid=trace.id,
                     span_start_time=start_time,
                     total_cost=total[0],
                     total_tokens=total[1],
-                    prompt_cost=prompt[0],
-                    prompt_tokens=prompt[1],
-                    completion_cost=completion[0],
-                    completion_tokens=completion[1],
+                    input_cost=input_[0],
+                    input_tokens=input_[1],
+                    output_cost=output[0],
+                    output_tokens=output[1],
                 )
                 session.add(span_cost)
                 await session.flush()
 
                 python_values = (
                     span_cost.total_cost_per_token,
-                    span_cost.prompt_cost_per_token,
-                    span_cost.completion_cost_per_token,
+                    span_cost.input_cost_per_token,
+                    span_cost.output_cost_per_token,
                 )
                 stmt = select(
                     models.SpanCost.total_cost_per_token,
-                    models.SpanCost.prompt_cost_per_token,
-                    models.SpanCost.completion_cost_per_token,
+                    models.SpanCost.input_cost_per_token,
+                    models.SpanCost.output_cost_per_token,
                 ).where(models.SpanCost.id == span_cost.id)
                 sql_values = tuple((await session.execute(stmt)).one())
-                expected = (total[2], prompt[2], completion[2])
+                expected = (total[2], input_[2], output[2])
                 assert python_values == pytest.approx(expected), f"Case {i} (Python)"
                 assert sql_values == pytest.approx(expected), f"Case {i} (SQL)"
 

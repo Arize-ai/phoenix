@@ -1112,11 +1112,11 @@ async def experiment_run_metric_comparison_experiments(
                     trace_rowid=trace.id,
                     span_start_time=start_time,
                     total_tokens=metric_values.span_cost.total_tokens,
-                    prompt_tokens=metric_values.span_cost.prompt_tokens,
-                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    input_tokens=metric_values.span_cost.prompt_tokens,
+                    output_tokens=metric_values.span_cost.completion_tokens,
                     total_cost=metric_values.span_cost.total_cost,
-                    prompt_cost=metric_values.span_cost.prompt_cost,
-                    completion_cost=metric_values.span_cost.completion_cost,
+                    input_cost=metric_values.span_cost.prompt_cost,
+                    output_cost=metric_values.span_cost.completion_cost,
                 )
                 session.add(span_cost)
 
@@ -1172,11 +1172,11 @@ async def experiment_run_metric_comparison_experiments(
                     trace_rowid=trace.id,
                     span_start_time=start_time,
                     total_tokens=metric_values.span_cost.total_tokens,
-                    prompt_tokens=metric_values.span_cost.prompt_tokens,
-                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    input_tokens=metric_values.span_cost.prompt_tokens,
+                    output_tokens=metric_values.span_cost.completion_tokens,
                     total_cost=metric_values.span_cost.total_cost,
-                    prompt_cost=metric_values.span_cost.prompt_cost,
-                    completion_cost=metric_values.span_cost.completion_cost,
+                    input_cost=metric_values.span_cost.prompt_cost,
+                    output_cost=metric_values.span_cost.completion_cost,
                 )
                 session.add(span_cost)
 
@@ -1232,11 +1232,11 @@ async def experiment_run_metric_comparison_experiments(
                     trace_rowid=trace.id,
                     span_start_time=start_time,
                     total_tokens=metric_values.span_cost.total_tokens,
-                    prompt_tokens=metric_values.span_cost.prompt_tokens,
-                    completion_tokens=metric_values.span_cost.completion_tokens,
+                    input_tokens=metric_values.span_cost.prompt_tokens,
+                    output_tokens=metric_values.span_cost.completion_tokens,
                     total_cost=metric_values.span_cost.total_cost,
-                    prompt_cost=metric_values.span_cost.prompt_cost,
-                    completion_cost=metric_values.span_cost.completion_cost,
+                    input_cost=metric_values.span_cost.prompt_cost,
+                    output_cost=metric_values.span_cost.completion_cost,
                 )
                 session.add(span_cost)
 
@@ -1334,11 +1334,11 @@ async def test_experiment_run_metric_comparisons_identical_multi_span_experiment
                                 trace_rowid=trace.id,
                                 span_start_time=start_time,
                                 total_tokens=100,
-                                prompt_tokens=60,
-                                completion_tokens=40,
+                                input_tokens=60,
+                                output_tokens=40,
                                 total_cost=1.0,
-                                prompt_cost=0.6,
-                                completion_cost=0.4,
+                                input_cost=0.6,
+                                output_cost=0.4,
                             )
                         )
                     session.add(

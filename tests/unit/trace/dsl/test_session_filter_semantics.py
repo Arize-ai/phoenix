@@ -329,8 +329,8 @@ async def _seed_corpus_session(db: DbSessionFactory) -> models.Project:
             span_rowid=root.id,
             trace_rowid=trace.id,
             span_start_time=root.start_time,
-            prompt_cost=0.25,
-            completion_cost=0.5,
+            input_cost=0.25,
+            output_cost=0.5,
             total_cost=0.75,
         )
         session.add(span_cost)

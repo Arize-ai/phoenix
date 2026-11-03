@@ -824,12 +824,12 @@ class Span(Node):
             return None
         return SpanCostSummary(
             prompt=CostBreakdown(
-                tokens=span_cost.prompt_tokens,
-                cost=span_cost.prompt_cost,
+                tokens=span_cost.input_tokens,
+                cost=span_cost.input_cost,
             ),
             completion=CostBreakdown(
-                tokens=span_cost.completion_tokens,
-                cost=span_cost.completion_cost,
+                tokens=span_cost.output_tokens,
+                cost=span_cost.output_cost,
             ),
             total=CostBreakdown(
                 tokens=span_cost.total_tokens,

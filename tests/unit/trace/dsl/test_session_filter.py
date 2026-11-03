@@ -193,8 +193,8 @@ async def _add_span_cost(
             trace_rowid=trace.id,
             span_start_time=span.start_time,
             total_cost=total_cost,
-            prompt_cost=total_cost,
-            completion_cost=0.0,
+            input_cost=total_cost,
+            output_cost=0.0,
         )
     )
     await session.flush()
@@ -822,8 +822,8 @@ async def _seed_reference_session(
                     span_rowid=span.id,
                     trace_rowid=trace.id,
                     span_start_time=span.start_time,
-                    prompt_cost=cost.prompt_cost,
-                    completion_cost=cost.completion_cost,
+                    input_cost=cost.prompt_cost,
+                    output_cost=cost.completion_cost,
                     total_cost=cost.total_cost,
                 )
                 session.add(span_cost)
