@@ -315,6 +315,28 @@ async def test_the_endpoint_check_accepts_only_a_rejection_of_its_model(
 
 
 @pytest.mark.parametrize(
+    ("decision_sdk", "url"),
+    [
+        pytest.param("TYPESAFE", SYSTEM_ONE_URL, id="system-one"),
+        pytest.param("OPENAI", DECISIONS_URL, id="openai"),
+    ],
+)
+async def test_the_check_redacts_the_api_key_from_an_unexpected_error(
+    gql_client: AsyncGraphQLClient, decision_sdk: str, url: str
+) -> None:
+    # An error the clients don't wrap reaches the reason with its text, key included.
+    base_url = "https://api.typesafe.ai" if decision_sdk == "TYPESAFE" else None
+    config = openai_config(
+        base_url="https://proxy.example/v1",
+        decision={"decisionSdk": decision_sdk, "baseUrl": base_url},
+    )
+    with respx.mock:
+        respx.post(url).mock(side_effect=RuntimeError(f"proxy rejected {API_KEY}"))
+        payload = await check(gql_client, config)
+    assert payload["error"] == f"POST {url} failed: proxy rejected [REDACTED]"
+
+
+@pytest.mark.parametrize(
     ("base_url", "url"),
     [
         pytest.param("https://api.typesafe.ai", SYSTEM_ONE_URL, id="root"),
