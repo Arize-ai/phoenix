@@ -50,6 +50,7 @@ async def create(
     response = await client.post("v1/decisions", json=body)
     assert response.status_code == 201, response.text
     data: dict[str, Any] = response.json()["data"]
+    assert response.headers["location"] == f"/v1/decision_versions/{data['id']}"
     return data
 
 
@@ -494,6 +495,7 @@ class TestCloneDecision:
         )
         assert response.status_code == 201, response.text
         clone = response.json()["data"]
+        assert response.headers["location"] == f"/v1/decisions/{clone['id']}"
         assert clone["name"] == "triage-copy"
         assert clone["source_decision_id"] == first["decision_id"]
         assert clone["description"] == "source"
@@ -525,6 +527,7 @@ async def create_label(client: httpx.AsyncClient, name: str, **fields: Any) -> d
     )
     assert response.status_code == 201, response.text
     data: dict[str, Any] = response.json()["data"]
+    assert response.headers["location"] == f"/v1/decision_labels/{data['id']}"
     return data
 
 

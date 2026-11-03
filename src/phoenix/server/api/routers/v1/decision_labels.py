@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
+from starlette.responses import Response
 from typing_extensions import Self
 
 from phoenix.db import models
@@ -24,6 +25,7 @@ from phoenix.server.api.routers.v1.decision_models import (
 from phoenix.server.api.routers.v1.decisions import (
     decision_not_found,
     decision_where_clause,
+    location_of,
     parse_cursor,
     parse_decision_label_id,
 )
@@ -148,6 +150,7 @@ async def list_decision_labels(
 )
 async def create_decision_label(
     request: Request,
+    response: Response,
     request_body: DecisionLabelData,
 ) -> DecisionLabelResponseBody:
     async with request.app.state.db() as session:
@@ -162,6 +165,7 @@ async def create_decision_label(
         except _IntegrityError as error:
             raise await _name_taken(session, request_body.name) from error
         data = DecisionLabel.from_orm_decision_label(label)
+    response.headers["Location"] = location_of(request, f"/v1/decision_labels/{data.id}")
     return DecisionLabelResponseBody(data=data)
 
 

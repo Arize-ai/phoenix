@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
+from starlette.responses import Response
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
@@ -243,6 +244,7 @@ async def get_decision(
 )
 async def create_decision(
     request: Request,
+    response: Response,
     request_body: CreateDecisionRequestBody,
 ) -> CreateDecisionResponseBody:
     decision_data = request_body.decision
@@ -286,6 +288,7 @@ async def create_decision(
         await _upsert_tags(session, version, request_body.tags, user_id=user_id)
         await session.refresh(version)
         data = DecisionVersion.from_orm_decision_version(version)
+    response.headers["Location"] = location_of(request, f"/v1/decision_versions/{data.id}")
     return CreateDecisionResponseBody(data=data)
 
 
@@ -374,6 +377,7 @@ async def delete_decision(
 )
 async def create_decision_clone(
     request: Request,
+    response: Response,
     request_body: CloneDecisionRequestBody,
     decision_identifier: str = _DECISION_IDENTIFIER,
 ) -> CloneDecisionResponseBody:
@@ -407,6 +411,7 @@ async def create_decision_clone(
             ) from error
         await session.refresh(decision)
         data = Decision.from_orm_decision(decision)
+    response.headers["Location"] = location_of(request, f"/v1/decisions/{data.id}")
     return CloneDecisionResponseBody(data=data)
 
 
@@ -471,6 +476,7 @@ async def list_decision_versions(
 )
 async def create_decision_version(
     request: Request,
+    response: Response,
     request_body: CreateDecisionVersionRequestBody,
     decision_identifier: str = _DECISION_IDENTIFIER,
 ) -> CreateDecisionVersionResponseBody:
@@ -488,6 +494,7 @@ async def create_decision_version(
         await _upsert_tags(session, version, request_body.tags, user_id=user_id)
         await session.refresh(version)
         data = DecisionVersion.from_orm_decision_version(version)
+    response.headers["Location"] = location_of(request, f"/v1/decision_versions/{data.id}")
     return CreateDecisionVersionResponseBody(data=data)
 
 
@@ -875,3 +882,8 @@ async def _insert_version(
                 404, f"Custom provider not found: {encode_custom_provider_id(provider_id)}"
             ) from error
         raise
+
+
+def location_of(request: Request, path: str) -> str:
+    """The URL of a created resource, for a 201's Location header."""
+    return f"{request.scope.get('root_path', '')}{path}"
