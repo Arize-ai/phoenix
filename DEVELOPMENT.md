@@ -114,6 +114,22 @@ uv run phoenix datagen \
 
 Stop it with `Ctrl+C`.
 
+### Changing the rate while it runs
+
+Pass `--control-port` to serve a control page, for example
+`uv run phoenix datagen --control-port 8080`, then open http://127.0.0.1:8080/.
+The page sets the rate and burstiness, pauses and resumes replay, sends a burst
+of traces immediately, and shows delivered and failed exports. A new rate takes
+effect immediately. Settings are not saved, so a restart uses the command-line
+values again.
+
+The same controls are available as JSON, for example
+`curl -X PATCH localhost:8080/api/state -d '{"rate": 120}'`. `GET /api/state`
+returns the settings and counts, and `POST /api/send?n=10` sends ten traces now.
+`GET /metrics` exposes the counts and settings in the Prometheus text format.
+The control server has no authentication. It listens on `127.0.0.1` unless you
+pass `--control-host`.
+
 ### Options
 
 Command-line flags take precedence over environment variables.
@@ -127,6 +143,8 @@ Command-line flags take precedence over environment variables.
 | `--api-key` | `PHOENIX_API_KEY` | none | API key, required when authentication is enabled. |
 | `--corpus` | — | published corpus | Path to a local corpus archive to replay instead of the published one. |
 | `--no-datasets` | — | false | Skip dataset and decision seeding and only replay traces. |
+| `--control-port` | — | off | Serve a page and JSON API for changing the rate while replaying. |
+| `--control-host` | — | `127.0.0.1` | Interface the control server listens on. |
 | — | `PHOENIX_CLIENT_HEADERS` | none | Extra request headers as `key=value,key2=value2` (URL-encoded). |
 
 ### Development datasets

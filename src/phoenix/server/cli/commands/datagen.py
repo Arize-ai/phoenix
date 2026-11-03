@@ -5,7 +5,7 @@ import sys
 import time
 from argparse import SUPPRESS, Namespace
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Mapping, Sequence, TextIO, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, TextIO, TypeVar
 
 if TYPE_CHECKING:
     from argparse import ArgumentParser, _SubParsersAction
@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     import httpx
 
     from phoenix.client.resources.datasets import Dataset
+    from phoenix.experimental.datagen.control import ReplayControl
     from phoenix.experimental.datagen.datasets import DatasetSource
 
 _DEFAULT_ENDPOINT = "http://localhost:6006"
@@ -94,6 +95,16 @@ def register(subparsers: _SubParsersAction[ArgumentParser]) -> None:
         "--burstiness",
         type=_nonnegative_float,
         help="Interarrival variability; 0 is uniform (default: 0.5).",
+    )
+    parser.add_argument(
+        "--control-port",
+        type=int,
+        help="Serve a page and API for changing the rate while replaying (default: off).",
+    )
+    parser.add_argument(
+        "--control-host",
+        default="127.0.0.1",
+        help="Interface for the control server (default: 127.0.0.1).",
     )
 
 
@@ -197,6 +208,11 @@ def _seed_when_ready(config: _Config) -> None:
 
 def run(args: Namespace) -> None:
     from phoenix.experimental.datagen import OTLPHTTPExporter, Replayer, load_corpus
+    from phoenix.experimental.datagen.control import (
+        ReplayControl,
+        ReplaySettings,
+        start_control_server,
+    )
 
     config = _resolve_config(args, os.environ)
     corpus = load_corpus(config.corpus)
@@ -208,25 +224,72 @@ def run(args: Namespace) -> None:
         f"Replaying into projects: {', '.join(replayer.project_names)}",
         file=sys.stderr,
     )
+    control = ReplayControl(
+        ReplaySettings(rate=config.rate, burstiness=config.burstiness),
+        project_names=tuple(replayer.project_names),
+    )
+    if args.control_port is not None:
+        start_control_server(control, host=args.control_host, port=args.control_port)
+        print(
+            f"Datagen control at http://{args.control_host}:{args.control_port}/",
+            file=sys.stderr,
+        )
 
     try:
         if not args.no_datasets:
             _seed_when_ready(config)
+        control.set_phase("replaying")
         with OTLPHTTPExporter(
             config.endpoint,
             api_key=config.api_key,
             headers=config.headers,
         ) as exporter:
-            while True:
-                exporter.export(replayer.emit())
-                time.sleep(
-                    replayer.interarrival_seconds(
-                        rate=config.rate,
-                        burstiness=config.burstiness,
-                    )
-                )
+            _replay(replayer, exporter, control)
     except KeyboardInterrupt:
         return
+
+
+# How long a paused loop waits before checking again; a change wakes it sooner.
+_PAUSED_POLL_SECONDS = 1.0
+
+
+def _replay(replayer: Any, exporter: Any, control: ReplayControl) -> None:
+    """Export traces on a schedule drawn from the control's current settings, forever.
+
+    A settings change wakes the wait and redraws the delay from now, so a new rate
+    takes effect immediately instead of after a long delay drawn at the old rate.
+    """
+
+    def export() -> None:
+        control.record_export(bool(exporter.export(replayer.emit())))
+
+    due_at: float | None = None
+    drawn_for = -1
+    while True:
+        for _ in range(control.take_pending_sends()):
+            export()
+        settings = control.settings()
+        if settings.paused:
+            due_at = None
+            control.wait(_PAUSED_POLL_SECONDS)
+            continue
+        version = control.version
+        now = time.monotonic()
+        if due_at is None:
+            due_at = now
+        elif version != drawn_for:
+            due_at = now + replayer.interarrival_seconds(
+                rate=settings.rate, burstiness=settings.burstiness
+            )
+            drawn_for = version
+        if (remaining := due_at - now) > 0:
+            control.wait(remaining)
+            continue
+        export()
+        due_at = time.monotonic() + replayer.interarrival_seconds(
+            rate=settings.rate, burstiness=settings.burstiness
+        )
+        drawn_for = version
 
 
 def _parse_env_headers(value: str | None) -> dict[str, str]:
