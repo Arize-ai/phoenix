@@ -145,7 +145,7 @@ if [ "$browser_status" = ok ]; then
   echo "    export AGENT_BROWSER_EXECUTABLE_PATH=$chromium_path"
   echo "    $browser_launch http://127.0.0.1:6006"
   echo "  the UI needs a built frontend: run 'pnpm -C js/app run build:deps && pnpm -C js/app build' once before a browser probe, and again after frontend changes"
-  echo "  end the script with 'agent-browser screenshot <path>' and 'agent-browser get text', then 'agent-browser close'"
+  echo "  end the script with 'agent-browser screenshot <path>' and 'agent-browser get text body', then 'agent-browser close'"
 else
   echo "browser: $browser_status; probe the UI through the REST or GraphQL API and list the browser steps under Not verified"
 fi
