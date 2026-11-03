@@ -783,7 +783,7 @@ px annotation-config list --format raw --no-progress | jq -r '.[].name'  # Names
 
 ### `px project annotation-config list|assign|unassign|set <project-identifier>`
 
-List or change the annotation configs assigned to a project. The project and each config may be a name or ID. Assigning an already assigned config, or unassigning one that is not assigned, succeeds without a change. `unassign` and `set` never delete the configs themselves.
+List or change the annotation configs assigned to a project. The project and each config may be a name or ID. Assigning an already assigned config, or unassigning one that is not assigned, succeeds without a change. `unassign` and `set` never delete the configs themselves. Requires Phoenix server `>= 17.16.0`.
 
 ```bash
 px project annotation-config list my-project                                 # Configs assigned to the project

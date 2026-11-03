@@ -935,6 +935,46 @@ describe("project annotation-config set", () => {
   });
 });
 
+describe("project annotation-config network errors", () => {
+  it.each([
+    ["list", "listing project annotation configs", LIST_ARGS],
+    ["assign", "assigning project annotation config", ASSIGN_ARGS],
+    ["unassign", "unassigning project annotation config", UNASSIGN_ARGS],
+    ["set --none", "setting project annotation configs", SET_NONE_ARGS],
+    ["set <configs>", "setting project annotation configs", SET_ARGS],
+  ])(
+    "%s exits NETWORK_ERROR when the server cannot be reached",
+    async (_command, action, args) => {
+      // Fail the first request the CLI makes, the server version check, the
+      // way an unreachable server would. Unhandled project routes fail the
+      // test, and `set <configs>` must not look up configs first.
+      let configLookups = 0;
+      mock.server.use(
+        http.get("/arize_phoenix_version", () => HttpResponse.error()),
+        http.get("/v1/annotation_configs", ({ response }) => {
+          configLookups += 1;
+          return response(200).json({ data: ALL_CONFIGS, next_cursor: null });
+        })
+      );
+      const io = captureCliOutput();
+      const exitSpy = mockProcessExit();
+
+      await expect(run(args)).rejects.toThrow(
+        `process.exit:${ExitCode.NETWORK_ERROR}`
+      );
+
+      expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+      expect(io.stdout).not.toHaveBeenCalled();
+      expect(io.stderr).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `Error ${action}: Could not reach the Phoenix server`
+        )
+      );
+      expect(configLookups).toBe(0);
+    }
+  );
+});
+
 describe("project annotation-config registration", () => {
   it("registers list, assign, unassign, and set under project", () => {
     const group = createProjectCommand().commands.find(

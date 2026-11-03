@@ -635,7 +635,7 @@ The two forms are mutually exclusive — pass one or the other, not both.
 
 ### `px project annotation-config list|assign|unassign|set <project-identifier>`
 
-List or change the annotation configs assigned to a project. The project and each config may be a name or ID. `assign` and `unassign` are idempotent: assigning an assigned config or unassigning an unassigned one succeeds. `unassign` and `set` never delete the configs themselves.
+List or change the annotation configs assigned to a project. The project and each config may be a name or ID. `assign` and `unassign` are idempotent: assigning an assigned config or unassigning an unassigned one succeeds. `unassign` and `set` never delete the configs themselves. Requires Phoenix server `17.16.0` or newer.
 
 ```bash
 px project annotation-config list my-project

@@ -1,4 +1,4 @@
-import { HttpError } from "@arizeai/phoenix-client";
+import { HttpError, type PhoenixClient } from "@arizeai/phoenix-client";
 import {
   assignProjectAnnotationConfig,
   listProjectAnnotationConfigs,
@@ -14,7 +14,7 @@ import {
   validateConfig,
 } from "../config";
 import { confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import { ExitCode, getExitCodeForError, NetworkError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import { fetchAnnotationConfigs } from "./annotationConfig";
@@ -82,6 +82,25 @@ function createProjectAnnotationConfigClient(
 }
 
 /**
+ * Check the server version before calling a project annotation-config helper.
+ * The helpers run the same check, but the client reports any failure there,
+ * including a server that can't be reached, as a plain `Error`, which would
+ * exit `FAILURE`. Raising it as a `NetworkError` here makes it exit
+ * `NETWORK_ERROR`. The client caches the version, so the helper doesn't fetch
+ * it again.
+ */
+async function ensureServerReachable(client: PhoenixClient): Promise<void> {
+  try {
+    await client.getServerVersion();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NetworkError(
+      `Could not reach the Phoenix server at ${client.config.baseUrl}. ${detail}`
+    );
+  }
+}
+
+/**
  * Report a failed request and exit with the matching code. The server answers
  * 404 with a plain-text detail for an unknown project or annotation config,
  * 422 for an invalid config GlobalID in `set`, and 403 for viewers on the
@@ -140,6 +159,7 @@ async function projectAnnotationConfigListHandler(
 ): Promise<void> {
   try {
     const client = createProjectAnnotationConfigClient(options);
+    await ensureServerReachable(client);
 
     writeProgress({
       message: `Fetching annotation configs for project ${projectIdentifier}...`,
@@ -178,6 +198,7 @@ async function projectAnnotationConfigAssignHandler(
 ): Promise<void> {
   try {
     const client = createProjectAnnotationConfigClient(options);
+    await ensureServerReachable(client);
 
     writeProgress({
       message: `Assigning annotation config ${configIdentifier} to project ${projectIdentifier}...`,
@@ -218,6 +239,7 @@ async function projectAnnotationConfigUnassignHandler(
 ): Promise<void> {
   try {
     const client = createProjectAnnotationConfigClient(options);
+    await ensureServerReachable(client);
 
     writeProgress({
       message: `Unassigning annotation config ${configIdentifier} from project ${projectIdentifier}...`,
@@ -285,6 +307,7 @@ async function projectAnnotationConfigSetHandler(
 
   try {
     const client = createProjectAnnotationConfigClient(options);
+    await ensureServerReachable(client);
 
     let configIds: string[] = [];
     let configNames: string[] = [];

@@ -419,7 +419,7 @@ px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 Assign configs to a project with `px project annotation-config` (project and
 configs by name or ID). `assign`/`unassign` are idempotent and never delete the
 config; `set` replaces the whole assignment, needs `--none` to clear it, and
-prompts unless `--yes` is passed.
+prompts unless `--yes` is passed. Requires Phoenix server >= 17.16.0.
 
 ```bash
 px project annotation-config list my-project --format raw --no-progress | jq -r '.[].name'
