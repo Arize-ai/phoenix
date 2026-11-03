@@ -1414,7 +1414,7 @@ export interface paths {
         };
         /**
          * List decisions
-         * @description Retrieve a paginated list of saved decisions, newest first. A decision can have multiple versions.
+         * @description Retrieve a paginated list of saved decisions, newest first, optionally filtered by name or label. A decision can have multiple versions.
          */
         get: operations["getDecisions"];
         put?: never;
@@ -1455,6 +1455,26 @@ export interface paths {
          * @description Update a decision's description and/or metadata by GlobalID or name. An omitted field is left unchanged; a null description clears it, and metadata is replaced as a whole. At least one field is required.
          */
         patch: operations["patchDecision"];
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/clones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clone a decision
+         * @description Create a new decision that copies a decision's version history, by GlobalID or name. Each copied version keeps its author; tags are not copied. The copy's `source_decision_id` names the source. A name that is taken is refused with 409.
+         */
+        post: operations["cloneDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/decisions/{decision_identifier}/versions": {
@@ -1580,6 +1600,106 @@ export interface paths {
          * @description Delete a tag by name. The tag is resolved within the decision of the given version.
          */
         delete: operations["deleteDecisionVersionTag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision_labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List decision labels
+         * @description Retrieve a paginated list of decision labels, newest first.
+         */
+        get: operations["listDecisionLabels"];
+        put?: never;
+        /**
+         * Create a decision label
+         * @description Create a decision label. Label names are unique; a taken name is refused with 409.
+         */
+        post: operations["createDecisionLabel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision_labels/{decision_label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a decision label
+         * @description Retrieve a decision label by its GlobalID.
+         */
+        get: operations["getDecisionLabel"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a decision label
+         * @description Delete a decision label. It is removed from every decision it is applied to.
+         */
+        delete: operations["deleteDecisionLabel"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a decision label
+         * @description Update a decision label's name, color, and/or description. An omitted field is left unchanged; at least one is required. A taken name is refused with 409.
+         */
+        patch: operations["patchDecisionLabel"];
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a decision's labels
+         * @description Retrieve the labels applied to a decision, by GlobalID or name.
+         */
+        get: operations["listDecisionLabelsForDecision"];
+        /**
+         * Replace a decision's labels
+         * @description Replace the set of labels applied to a decision: listed labels not yet applied are added, and applied labels not listed are removed. An empty list removes all labels.
+         */
+        put: operations["setDecisionLabels"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/labels/{decision_label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply a label to a decision
+         * @description Apply a label to a decision. Applying a label that is already applied changes nothing.
+         */
+        put: operations["addDecisionLabelToDecision"];
+        post?: never;
+        /**
+         * Remove a label from a decision
+         * @description Remove a label from a decision without deleting the label. Removing a label that is not applied changes nothing.
+         */
+        delete: operations["removeDecisionLabelFromDecision"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2951,6 +3071,30 @@ export interface components {
             /** @default NONE */
             optimization_direction?: components["schemas"]["OptimizationDirection"];
         };
+        /**
+         * CloneDecisionRequestBody
+         * @description The new decision's name, and optionally its own description and metadata.
+         */
+        CloneDecisionRequestBody: {
+            /** @description The new decision's name. It must not be taken. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description The copy's description. Omit to copy the source's.
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description The copy's metadata. Omit to copy the source's.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** CloneDecisionResponseBody */
+        CloneDecisionResponseBody: {
+            data: components["schemas"]["Decision"];
+        };
         /** CodeEvaluatorDefinition */
         CodeEvaluatorDefinition: {
             /**
@@ -4023,6 +4167,50 @@ export interface components {
             template: unknown;
         };
         /**
+         * DecisionLabel
+         * @description A label for organizing decisions, such as ``support`` or ``billing``.
+         */
+        DecisionLabel: {
+            /**
+             * Id
+             * @description The GlobalID of the decision label.
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Color
+             * @description A lowercase hex color code used to display the label.
+             */
+            color?: string | null;
+        };
+        /** DecisionLabelData */
+        DecisionLabelData: {
+            /**
+             * Name
+             * @description The label's name, unique among decision labels.
+             */
+            name: string;
+            /**
+             * Color
+             * @description A lowercase hex color code (e.g. '#00cc88') used to display the label.
+             */
+            color: string;
+            /** Description */
+            description?: string | null;
+        };
+        /** DecisionLabelResponseBody */
+        DecisionLabelResponseBody: {
+            data: components["schemas"]["DecisionLabel"];
+        };
+        /** DecisionLabelsResponseBody */
+        DecisionLabelsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DecisionLabel"][];
+        };
+        /**
          * DecisionPredicateCriteria
          * @description What counts as true and as false; either may be omitted.
          */
@@ -4662,6 +4850,13 @@ export interface components {
         /** GetDatasetResponseBody */
         GetDatasetResponseBody: {
             data: components["schemas"]["DatasetWithExampleCount"];
+        };
+        /** GetDecisionLabelsResponseBody */
+        GetDecisionLabelsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DecisionLabel"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** GetDecisionResponseBody */
         GetDecisionResponseBody: {
@@ -5615,6 +5810,27 @@ export interface components {
             /** Description */
             description?: string | null;
             scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
+        };
+        /**
+         * PatchDecisionLabelRequestBody
+         * @description Fields to update on a decision label. Omit a field to leave it unchanged.
+         */
+        PatchDecisionLabelRequestBody: {
+            /**
+             * Name
+             * @description The label's new name.
+             */
+            name?: string;
+            /**
+             * Color
+             * @description The label's new color.
+             */
+            color?: string;
+            /**
+             * Description
+             * @description The label's new description (null clears it).
+             */
+            description?: string | null;
         };
         /**
          * PatchDecisionRequestBody
@@ -7162,6 +7378,14 @@ export interface components {
              * @description The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels.
              */
             dataset_label_ids?: string[];
+        };
+        /** SetDecisionLabelsRequestBody */
+        SetDecisionLabelsRequestBody: {
+            /**
+             * Decision Label Ids
+             * @description The complete set of decision label GlobalIDs to apply. Labels not in this list are removed from the decision; an empty list removes all labels.
+             */
+            decision_label_ids: string[];
         };
         /** SetExperimentTagRequestBody */
         SetExperimentTagRequestBody: {
@@ -14268,6 +14492,10 @@ export interface operations {
                 cursor?: string | null;
                 /** @description The max number of decisions to return at a time. */
                 limit?: number;
+                /** @description Only decisions whose name contains this text, ignoring case. */
+                name?: string | null;
+                /** @description Only decisions with any of these labels (DecisionLabel GlobalIDs). Repeat the parameter for more than one. */
+                label_id?: string[] | null;
             };
             header?: never;
             path?: never;
@@ -14507,6 +14735,78 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    cloneDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloneDecisionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The new decision */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloneDecisionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14929,6 +15229,503 @@ export interface operations {
                 decision_version_id: string;
                 /** @description The name of the tag to delete. */
                 tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listDecisionLabels: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a DecisionLabel GlobalID) */
+                cursor?: string | null;
+                /** @description The max number of labels to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of decision labels with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionLabelData"];
+            };
+        };
+        responses: {
+            /** @description The created decision label */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested decision label */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchDecisionLabelRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated decision label */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listDecisionLabelsForDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The labels applied to the decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    setDecisionLabels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetDecisionLabelsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The labels now applied to the decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    addDecisionLabelToDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The applied label */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    removeDecisionLabelFromDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
             };
             cookie?: never;
         };

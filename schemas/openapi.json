@@ -8671,7 +8671,7 @@
           "decisions"
         ],
         "summary": "List decisions",
-        "description": "Retrieve a paginated list of saved decisions, newest first. A decision can have multiple versions.",
+        "description": "Retrieve a paginated list of saved decisions, newest first, optionally filtered by name or label. A decision can have multiple versions.",
         "operationId": "getDecisions",
         "parameters": [
           {
@@ -8704,6 +8704,45 @@
               "title": "Limit"
             },
             "description": "The max number of decisions to return at a time."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only decisions whose name contains this text, ignoring case.",
+              "title": "Name"
+            },
+            "description": "Only decisions whose name contains this text, ignoring case."
+          },
+          {
+            "name": "label_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only decisions with any of these labels (DecisionLabel GlobalIDs). Repeat the parameter for more than one.",
+              "title": "Label Id"
+            },
+            "description": "Only decisions with any of these labels (DecisionLabel GlobalIDs). Repeat the parameter for more than one."
           }
         ],
         "responses": {
@@ -9013,6 +9052,101 @@
           },
           "422": {
             "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/decisions/{decision_identifier}/clones": {
+      "post": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Clone a decision",
+        "description": "Create a new decision that copies a decision's version history, by GlobalID or name. Each copied version keeps its author; tags are not copied. The copy's `source_decision_id` names the source. A name that is taken is refused with 409.",
+        "operationId": "cloneDecision",
+        "parameters": [
+          {
+            "name": "decision_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the decision: its GlobalID or name.",
+              "title": "Decision Identifier"
+            },
+            "description": "The identifier of the decision: its GlobalID or name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneDecisionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloneDecisionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9611,6 +9745,666 @@
               "title": "Tag Name"
             },
             "description": "The name of the tag to delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/decision_labels": {
+      "get": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "List decision labels",
+        "description": "Retrieve a paginated list of decision labels, newest first.",
+        "operationId": "listDecisionLabels",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a DecisionLabel GlobalID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a DecisionLabel GlobalID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of labels to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of labels to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of decision labels with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDecisionLabelsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Create a decision label",
+        "description": "Create a decision label. Label names are unique; a taken name is refused with 409.",
+        "operationId": "createDecisionLabel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionLabelData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created decision label",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/decision_labels/{decision_label_id}": {
+      "get": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Get a decision label",
+        "description": "Retrieve a decision label by its GlobalID.",
+        "operationId": "getDecisionLabel",
+        "parameters": [
+          {
+            "name": "decision_label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the decision label.",
+              "title": "Decision Label Id"
+            },
+            "description": "The GlobalID of the decision label."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested decision label",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Update a decision label",
+        "description": "Update a decision label's name, color, and/or description. An omitted field is left unchanged; at least one is required. A taken name is refused with 409.",
+        "operationId": "patchDecisionLabel",
+        "parameters": [
+          {
+            "name": "decision_label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the decision label.",
+              "title": "Decision Label Id"
+            },
+            "description": "The GlobalID of the decision label."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchDecisionLabelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated decision label",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Delete a decision label",
+        "description": "Delete a decision label. It is removed from every decision it is applied to.",
+        "operationId": "deleteDecisionLabel",
+        "parameters": [
+          {
+            "name": "decision_label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the decision label.",
+              "title": "Decision Label Id"
+            },
+            "description": "The GlobalID of the decision label."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/decisions/{decision_identifier}/labels": {
+      "get": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "List a decision's labels",
+        "description": "Retrieve the labels applied to a decision, by GlobalID or name.",
+        "operationId": "listDecisionLabelsForDecision",
+        "parameters": [
+          {
+            "name": "decision_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the decision: its GlobalID or name.",
+              "title": "Decision Identifier"
+            },
+            "description": "The identifier of the decision: its GlobalID or name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The labels applied to the decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLabelsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Replace a decision's labels",
+        "description": "Replace the set of labels applied to a decision: listed labels not yet applied are added, and applied labels not listed are removed. An empty list removes all labels.",
+        "operationId": "setDecisionLabels",
+        "parameters": [
+          {
+            "name": "decision_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the decision: its GlobalID or name.",
+              "title": "Decision Identifier"
+            },
+            "description": "The identifier of the decision: its GlobalID or name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDecisionLabelsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The labels now applied to the decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLabelsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/decisions/{decision_identifier}/labels/{decision_label_id}": {
+      "put": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Apply a label to a decision",
+        "description": "Apply a label to a decision. Applying a label that is already applied changes nothing.",
+        "operationId": "addDecisionLabelToDecision",
+        "parameters": [
+          {
+            "name": "decision_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the decision: its GlobalID or name.",
+              "title": "Decision Identifier"
+            },
+            "description": "The identifier of the decision: its GlobalID or name."
+          },
+          {
+            "name": "decision_label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the decision label.",
+              "title": "Decision Label Id"
+            },
+            "description": "The GlobalID of the decision label."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The applied label",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "507": {
+            "description": "Insufficient Storage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "decisions"
+        ],
+        "summary": "Remove a label from a decision",
+        "description": "Remove a label from a decision without deleting the label. Removing a label that is not applied changes nothing.",
+        "operationId": "removeDecisionLabelFromDecision",
+        "parameters": [
+          {
+            "name": "decision_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the decision: its GlobalID or name.",
+              "title": "Decision Identifier"
+            },
+            "description": "The identifier of the decision: its GlobalID or name."
+          },
+          {
+            "name": "decision_label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The GlobalID of the decision label.",
+              "title": "Decision Label Id"
+            },
+            "description": "The GlobalID of the decision label."
           }
         ],
         "responses": {
@@ -14312,6 +15106,50 @@
         ],
         "title": "ChoiceScoring"
       },
+      "CloneDecisionRequestBody": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier",
+            "description": "The new decision's name. It must not be taken."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The copy's description. Omit to copy the source's."
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "The copy's metadata. Omit to copy the source's."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CloneDecisionRequestBody",
+        "description": "The new decision's name, and optionally its own description and metadata."
+      },
+      "CloneDecisionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Decision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CloneDecisionResponseBody"
+      },
       "CodeEvaluatorDefinition": {
         "properties": {
           "type": {
@@ -17035,6 +17873,110 @@
         "title": "DecisionJsonState",
         "description": "The state is JSON: any JSON value whose string leaves are templates.\n\nA string leaf that is exactly one variable tag is replaced by the variable's value with its\nJSON type kept; any other string leaf renders as text. Object keys are literal."
       },
+      "DecisionLabel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The GlobalID of the decision label."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "A lowercase hex color code used to display the label."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "DecisionLabel",
+        "description": "A label for organizing decisions, such as ``support`` or ``billing``."
+      },
+      "DecisionLabelData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "The label's name, unique among decision labels."
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#([0-9a-f]{6})$",
+            "title": "Color",
+            "description": "A lowercase hex color code (e.g. '#00cc88') used to display the label."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "color"
+        ],
+        "title": "DecisionLabelData"
+      },
+      "DecisionLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DecisionLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "DecisionLabelResponseBody"
+      },
+      "DecisionLabelsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "DecisionLabelsResponseBody"
+      },
       "DecisionPredicateCriteria": {
         "properties": {
           "true": {
@@ -18676,6 +19618,34 @@
           "data"
         ],
         "title": "GetDatasetResponseBody"
+      },
+      "GetDecisionLabelsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetDecisionLabelsResponseBody"
       },
       "GetDecisionResponseBody": {
         "properties": {
@@ -21247,6 +22217,37 @@
           "type"
         ],
         "title": "PatchDecisionEvaluatorRequest"
+      },
+      "PatchDecisionLabelRequestBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "The label's new name."
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#([0-9a-f]{6})$",
+            "title": "Color",
+            "description": "The label's new color."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The label's new description (null clears it)."
+          }
+        },
+        "type": "object",
+        "title": "PatchDecisionLabelRequestBody",
+        "description": "Fields to update on a decision label. Omit a field to leave it unchanged."
       },
       "PatchDecisionRequestBody": {
         "properties": {
@@ -25016,6 +26017,23 @@
         },
         "type": "object",
         "title": "SetDatasetLabelsRequestBody"
+      },
+      "SetDecisionLabelsRequestBody": {
+        "properties": {
+          "decision_label_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Decision Label Ids",
+            "description": "The complete set of decision label GlobalIDs to apply. Labels not in this list are removed from the decision; an empty list removes all labels."
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_label_ids"
+        ],
+        "title": "SetDecisionLabelsRequestBody"
       },
       "SetExperimentTagRequestBody": {
         "properties": {

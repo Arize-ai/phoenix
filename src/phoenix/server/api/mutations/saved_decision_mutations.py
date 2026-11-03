@@ -17,7 +17,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.decision_version_tags import upsert_decision_version_tag
+from phoenix.server.api.helpers.saved_decisions import clone_decision, upsert_decision_version_tag
 from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Decision import Decision, DecisionVersion, DecisionVersionTag
@@ -151,46 +151,14 @@ class SavedDecisionMutationMixin:
         """Clone a saved decision and its version history, retaining author provenance."""
         async with info.context.db() as session:
             source = await _get_decision(session, input.decision_id)
-            versions = (
-                await session.scalars(
-                    select(models.DecisionVersion)
-                    .where(models.DecisionVersion.decision_id == source.id)
-                    .order_by(models.DecisionVersion.id)
-                )
-            ).all()
-            decision = models.Decision(
+            decision = await clone_decision(
+                session,
+                source,
                 name=input.name,
-                source_decision_id=source.id,
                 description=source.description if input.description is UNSET else input.description,
-                metadata_=source.metadata_
-                if input.metadata is UNSET
-                else _metadata(input.metadata),
+                metadata=source.metadata_ if input.metadata is UNSET else _metadata(input.metadata),
                 user_id=_user_id(info),
-                decision_versions=[
-                    models.DecisionVersion(
-                        **{
-                            field: getattr(version, field)
-                            for field in (
-                                "description",
-                                "user_id",
-                                "template_format",
-                                "state",
-                                "questions",
-                                "model_provider",
-                                "model_name",
-                                "custom_provider_id",
-                                "metadata_",
-                            )
-                        }
-                    )
-                    for version in versions
-                ],
             )
-            session.add(decision)
-            try:
-                await session.flush()
-            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-                raise Conflict(f"A decision named '{input.name}' already exists") from error
         return Decision(id=decision.id, db_record=decision)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore

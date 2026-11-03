@@ -15,6 +15,7 @@ from .custom_model_providers import router as custom_model_providers_router
 from .dataset_evaluators import router as dataset_evaluators_router
 from .dataset_labels import router as dataset_labels_router
 from .datasets import router as datasets_router
+from .decision_labels import router as decision_labels_router
 from .decisions import router as decisions_router
 from .documents import router as documents_router
 from .evaluators import router as evaluators_router
@@ -83,6 +84,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     viewer_restricted_router.include_router(spans_router)
     viewer_restricted_router.include_router(prompts_router)
     viewer_restricted_router.include_router(decisions_router)
+    viewer_restricted_router.include_router(decision_labels_router)
     viewer_restricted_router.include_router(projects_router)
     viewer_restricted_router.include_router(model_providers_router)
     viewer_restricted_router.include_router(custom_model_providers_router)

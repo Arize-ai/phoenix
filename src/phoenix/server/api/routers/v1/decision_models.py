@@ -29,8 +29,8 @@ from phoenix.db.types.decisions import (
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import PromptTemplateFormat
-from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
+from phoenix.server.api.routers.v1.utils import HexColor
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
@@ -205,6 +205,14 @@ def encode_decision_version_id(decision_version_id: int) -> str:
     return str(GlobalID("DecisionVersion", str(decision_version_id)))
 
 
+def encode_custom_provider_id(custom_provider_id: int) -> str:
+    return str(GlobalID("GenerativeModelCustomProvider", str(custom_provider_id)))
+
+
+def encode_decision_label_id(decision_label_id: int) -> str:
+    return str(GlobalID("DecisionLabel", str(decision_label_id)))
+
+
 def encode_decision_version_tag_id(decision_version_tag_id: int) -> str:
     return str(GlobalID("DecisionVersionTag", str(decision_version_tag_id)))
 
@@ -302,38 +310,22 @@ class DecisionVersionData(V1RoutesBaseModel):
             BadRequest: The provider offers no decision models, the model name is empty, or
                 the state template or questions break a rule.
         """
-        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
-        from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-        from phoenix.server.decisions.validation import validate_questions, validate_template
+        from phoenix.server.api.helpers.saved_decisions import new_decision_version
 
-        if GenerativeProviderKey.from_model_provider(self.model_provider) not in DECISION_CLIENTS:
-            raise BadRequest(f"{self.model_provider.value} does not offer decision models.")
-        if not (model_name := self.model_name.strip()):
-            raise BadRequest("A decision model name is required.")
-        state = _state_to_db(self.state)
-        questions = [_question_to_db(question) for question in self.questions]
-        try:
-            validate_template(self.template_format, state, questions)
-            validate_questions(questions)
-        except ValueError as error:
-            raise BadRequest(str(error)) from error
-        custom_provider_id = (
-            from_global_id_with_expected_type(
+        return new_decision_version(
+            template_format=self.template_format,
+            state=_state_to_db(self.state),
+            questions=[_question_to_db(question) for question in self.questions],
+            model_provider=self.model_provider,
+            model_name=self.model_name,
+            custom_provider_id=from_global_id_with_expected_type(
                 GlobalID.from_id(self.custom_provider_id), "GenerativeModelCustomProvider"
             )
             if self.custom_provider_id is not None
-            else None
-        )
-        return models.DecisionVersion(
+            else None,
             description=self.description,
+            metadata=self.metadata,
             user_id=user_id,
-            template_format=self.template_format,
-            state=state,
-            questions=questions,
-            model_provider=self.model_provider,
-            model_name=model_name,
-            custom_provider_id=custom_provider_id,
-            metadata_=self.metadata,
         )
 
 
@@ -373,9 +365,7 @@ class DecisionVersion(V1RoutesBaseModel):
             variables=decision_variables(version.template_format, version.state, version.questions),
             model_provider=version.model_provider,
             model_name=version.model_name,
-            custom_provider_id=str(
-                GlobalID("GenerativeModelCustomProvider", str(version.custom_provider_id))
-            )
+            custom_provider_id=encode_custom_provider_id(version.custom_provider_id)
             if version.custom_provider_id is not None
             else None,
             created_at=version.created_at,
@@ -406,3 +396,31 @@ class DecisionVersionTag(V1RoutesBaseModel):
             description=tag.description,
             decision_version_id=encode_decision_version_id(tag.decision_version_id),
         )
+
+
+class DecisionLabel(V1RoutesBaseModel):
+    """A label for organizing decisions, such as ``support`` or ``billing``."""
+
+    id: str = Field(description="The GlobalID of the decision label.")
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = Field(
+        default=None, description="A lowercase hex color code used to display the label."
+    )
+
+    @classmethod
+    def from_orm_decision_label(cls, label: models.DecisionLabel) -> "DecisionLabel":
+        return cls(
+            id=encode_decision_label_id(label.id),
+            name=label.name,
+            description=label.description,
+            color=label.color,
+        )
+
+
+class DecisionLabelData(V1RoutesBaseModel):
+    name: str = Field(min_length=1, description="The label's name, unique among decision labels.")
+    color: HexColor = Field(
+        description="A lowercase hex color code (e.g. '#00cc88') used to display the label."
+    )
+    description: Optional[str] = None

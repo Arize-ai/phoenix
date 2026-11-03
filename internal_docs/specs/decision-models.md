@@ -1028,13 +1028,16 @@ REST mirrors the prompt routes. A decision is addressed by its GlobalID or
 name, a version by its GlobalID, and a tag by name within the version's
 decision. Errors are problem details.
 
-- `GET /v1/decisions` (paginated, newest first)
+- `GET /v1/decisions` (paginated, newest first; filter by `name` substring or
+  `label_id`)
 - `POST /v1/decisions` (create a decision with its first version, or add a
   version; an existing decision's description and metadata change only when
   given)
 - `GET /v1/decisions/{identifier}`
 - `PATCH /v1/decisions/{identifier}` (description and/or metadata)
 - `DELETE /v1/decisions/{identifier}` (409 while an evaluator runs it)
+- `POST /v1/decisions/{identifier}/clones` (copy the version history under a
+  new name; tags are not copied)
 - `GET /v1/decisions/{identifier}/versions` (paginated, newest first)
 - `POST /v1/decisions/{identifier}/versions`
 - `GET /v1/decisions/{identifier}/latest`
@@ -1043,6 +1046,13 @@ decision. Errors are problem details.
 - `GET /v1/decision_versions/{id}/tags`
 - `POST /v1/decision_versions/{id}/tags` (create or move a tag)
 - `DELETE /v1/decision_versions/{id}/tags/{tag_name}`
+- `GET`, `POST /v1/decision_labels`; `GET`, `PATCH`, `DELETE
+  /v1/decision_labels/{id}`
+- `GET`, `PUT /v1/decisions/{identifier}/labels` (`PUT` replaces the set);
+  `PUT`, `DELETE /v1/decisions/{identifier}/labels/{label_id}` (idempotent)
+
+Running a decision stays in GraphQL (`runDecisionVersion`), as running a
+prompt does: apps format a version with the SDK and call their provider.
 
 `GET /v1/model_providers?model_type=DECISION` lists the built-in providers
 that offer decision models.

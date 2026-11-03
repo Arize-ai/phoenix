@@ -170,7 +170,9 @@ _UNION_TAGS = frozenset(
 )
 """Discriminator tag values used by the opted-in routers' `Field(discriminator="type")` unions.
 A tagged union's error `loc` repeats the tag as a path segment (e.g. `body.code.name`) even
-though it names no real field, so `_normalize_field_path` drops it."""
+though it names no real field, so `_normalize_field_path` drops it. Some tags are also real
+field names (`version` in `POST /v1/decisions`), so a segment is dropped only where the
+submitted object names it as its `type` rather than holding it as a key."""
 
 _CODE_BY_ERROR_TYPE: dict[str, str] = {
     "missing": "missing",
@@ -201,23 +203,45 @@ def _field_error_code(error_type: str) -> str:
     return "invalid"
 
 
-def _normalize_field_path(loc: tuple[Union[str, int], ...]) -> str:
+def _is_union_tag(node: Any, part: Union[str, int]) -> bool:
+    if not (isinstance(part, str) and part in _UNION_TAGS):
+        return False
+    if isinstance(node, dict):
+        return part not in node and node.get("type") == part
+    return True
+
+
+def _child(node: Any, part: Union[str, int]) -> Any:
+    if isinstance(node, dict):
+        return node.get(part)
+    if isinstance(node, list) and isinstance(part, int) and 0 <= part < len(node):
+        return node[part]
+    return None
+
+
+def _normalize_field_path(loc: tuple[Union[str, int], ...], body: Any = None) -> str:
     """`("body", "code", "name")` becomes `body.name`: the location prefix (body, query, or
-    path) stays, but a discriminated union's tag value along the way names no real field."""
+    path) stays, but a discriminated union's tag value along the way names no real field.
+
+    `body` is the submitted request body, used to tell a tag from a real field of that name.
+    """
     if not loc:
         return ""
     location, *rest = loc
     segments = [str(location)]
-    segments.extend(
-        str(part) for part in rest if not (isinstance(part, str) and part in _UNION_TAGS)
-    )
+    node = body if location == "body" else None
+    for part in rest:
+        if _is_union_tag(node, part):
+            continue
+        segments.append(str(part))
+        node = _child(node, part)
     return ".".join(segments)
 
 
 def _validation_problem(exc: RequestValidationError) -> ProblemException:
     errors = [
         ProblemFieldError(
-            field=_normalize_field_path(tuple(error.get("loc", ()))),
+            field=_normalize_field_path(tuple(error.get("loc", ())), exc.body),
             code=_field_error_code(str(error.get("type", ""))),
             message=str(error.get("msg", "")),
         )

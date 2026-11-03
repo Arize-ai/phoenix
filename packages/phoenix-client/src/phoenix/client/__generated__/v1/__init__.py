@@ -301,6 +301,27 @@ class DecisionJsonState(TypedDict):
     template: Any
 
 
+class DecisionLabel(TypedDict):
+    id: str
+    name: str
+    description: NotRequired[str]
+    color: NotRequired[str]
+
+
+class DecisionLabelData(TypedDict):
+    name: str
+    color: str
+    description: NotRequired[str]
+
+
+class DecisionLabelResponseBody(TypedDict):
+    data: DecisionLabel
+
+
+class DecisionLabelsResponseBody(TypedDict):
+    data: Sequence[DecisionLabel]
+
+
 class DecisionPredicateCriteria(TypedDict):
     true: NotRequired[str]
     false: NotRequired[str]
@@ -408,6 +429,11 @@ class GetDatasetLabelsResponseBody(TypedDict):
 
 class GetDatasetResponseBody(TypedDict):
     data: DatasetWithExampleCount
+
+
+class GetDecisionLabelsResponseBody(TypedDict):
+    data: Sequence[DecisionLabel]
+    next_cursor: Optional[str]
 
 
 class GetExperimentResponseBody(TypedDict):
@@ -538,6 +564,12 @@ class OAuth2User(OAuth2UserData):
 class OtlpStatus(TypedDict):
     code: NotRequired[int]
     message: NotRequired[str]
+
+
+class PatchDecisionLabelRequestBody(TypedDict):
+    name: NotRequired[str]
+    color: NotRequired[str]
+    description: NotRequired[str]
 
 
 class PatchDecisionRequestBody(TypedDict):
@@ -1007,6 +1039,10 @@ class SetDatasetLabelsForDatasetResponseBody(TypedDict):
 
 class SetDatasetLabelsRequestBody(TypedDict):
     dataset_label_ids: NotRequired[Sequence[str]]
+
+
+class SetDecisionLabelsRequestBody(TypedDict):
+    decision_label_ids: Sequence[str]
 
 
 class SetExperimentTagRequestBody(TypedDict):
@@ -1670,6 +1706,12 @@ class ChoiceScoring(TypedDict):
     type: Literal["choice"]
     scores: NotRequired[Mapping[str, float]]
     optimization_direction: NotRequired[Literal["MINIMIZE", "MAXIMIZE", "NONE"]]
+
+
+class CloneDecisionRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
 
 
 class ContinuousAnnotationConfigData(TypedDict):
@@ -2460,6 +2502,10 @@ class ChatCompletion(TypedDict):
     choices: Sequence[ChatCompletionChoice]
     usage: ChatCompletionUsage
     object: NotRequired[Literal["chat.completion"]]
+
+
+class CloneDecisionResponseBody(TypedDict):
+    data: Decision
 
 
 class CodeEvaluatorDefinition(TypedDict):

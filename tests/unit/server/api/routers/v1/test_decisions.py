@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 import httpx
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -150,7 +150,21 @@ class TestCreateDecision:
         assert response.status_code == 422
         problem = response.json()
         assert problem["code"] == "validation_error"
-        assert problem["errors"]
+        assert [error["field"] for error in problem["errors"]] == ["body.version.questions.0"]
+
+    async def test_field_paths_keep_real_fields_named_like_union_tags(
+        self, httpx_client: httpx.AsyncClient
+    ) -> None:
+        response = await httpx_client.post(
+            "v1/decisions",
+            json={
+                "decision": {"name": "triage"},
+                "version": version_body(state={"type": "json"}),
+            },
+        )
+        assert response.status_code == 422
+        fields = [error["field"] for error in response.json()["errors"]]
+        assert fields == ["body.version.state.template"]
 
     async def test_missing_custom_provider_is_not_found(
         self, httpx_client: httpx.AsyncClient, db: DbSessionFactory
@@ -421,3 +435,243 @@ class TestModelProviders:
         assert "ANTHROPIC" not in decision
         response = await httpx_client.get("v1/model_providers", params={"model_type": "BOX"})
         assert response.status_code == 422
+
+
+class TestListFilters:
+    async def test_filter_by_name_substring(self, httpx_client: httpx.AsyncClient) -> None:
+        for name in ("ticket-triage", "refund-check", "triage_100"):
+            await create(httpx_client, name)
+        response = await httpx_client.get("v1/decisions", params={"name": "TRIAGE"})
+        assert response.status_code == 200
+        assert {d["name"] for d in response.json()["data"]} == {"ticket-triage", "triage_100"}
+        # LIKE wildcards in the filter are matched literally.
+        response = await httpx_client.get("v1/decisions", params={"name": "e_1"})
+        assert [d["name"] for d in response.json()["data"]] == ["triage_100"]
+        response = await httpx_client.get("v1/decisions", params={"name": "%"})
+        assert response.json()["data"] == []
+
+    async def test_filter_by_labels(self, httpx_client: httpx.AsyncClient) -> None:
+        for name in ("a-decision", "b-decision", "c-decision"):
+            await create(httpx_client, name)
+        support = await create_label(httpx_client, "support")
+        billing = await create_label(httpx_client, "billing")
+        await httpx_client.put(f"v1/decisions/a-decision/labels/{support['id']}")
+        await httpx_client.put(f"v1/decisions/b-decision/labels/{billing['id']}")
+        response = await httpx_client.get("v1/decisions", params={"label_id": [support["id"]]})
+        assert [d["name"] for d in response.json()["data"]] == ["a-decision"]
+        response = await httpx_client.get(
+            "v1/decisions", params={"label_id": [support["id"], billing["id"]]}
+        )
+        assert [d["name"] for d in response.json()["data"]] == ["b-decision", "a-decision"]
+        response = await httpx_client.get("v1/decisions", params={"label_id": ["nope"]})
+        assert response.status_code == 422
+
+
+class TestDescriptions:
+    async def test_descriptions_are_trimmed_on_every_route(
+        self, httpx_client: httpx.AsyncClient
+    ) -> None:
+        await create(httpx_client, decision={"description": "  padded  "})
+        decision = (await httpx_client.get("v1/decisions/triage")).json()["data"]
+        assert decision["description"] == "padded"
+        await create(httpx_client, decision={"description": "  again  "})
+        decision = (await httpx_client.get("v1/decisions/triage")).json()["data"]
+        assert decision["description"] == "again"
+
+
+class TestCloneDecision:
+    async def test_clone_copies_versions_but_not_tags(
+        self, httpx_client: httpx.AsyncClient
+    ) -> None:
+        first = await create(
+            httpx_client,
+            decision={"description": "source", "metadata": {"a": 1}},
+            tags=[{"name": "production"}],
+        )
+        await create(httpx_client, model_name="tev2")
+        response = await httpx_client.post(
+            "v1/decisions/triage/clones", json={"name": "triage-copy", "metadata": {"b": 2}}
+        )
+        assert response.status_code == 201, response.text
+        clone = response.json()["data"]
+        assert clone["name"] == "triage-copy"
+        assert clone["source_decision_id"] == first["decision_id"]
+        assert clone["description"] == "source"
+        assert clone["metadata"] == {"b": 2}
+        versions = (await httpx_client.get(f"v1/decisions/{clone['id']}/versions")).json()
+        assert [v["model_name"] for v in versions["data"]] == ["tev2", "tev1"]
+        assert all(v["decision_id"] == clone["id"] for v in versions["data"])
+        response = await httpx_client.get("v1/decisions/triage-copy/tags/production")
+        assert response.status_code == 404
+
+    async def test_taken_name_is_already_exists(self, httpx_client: httpx.AsyncClient) -> None:
+        source = await create(httpx_client)
+        other = await create(httpx_client, "other")
+        response = await httpx_client.post("v1/decisions/triage/clones", json={"name": "other"})
+        assert response.status_code == 409
+        problem = response.json()
+        assert problem["code"] == "already_exists"
+        assert problem["existing_id"] == other["decision_id"]
+        assert problem["existing_id"] != source["decision_id"]
+
+    async def test_missing_source(self, httpx_client: httpx.AsyncClient) -> None:
+        response = await httpx_client.post("v1/decisions/missing/clones", json={"name": "x"})
+        assert response.status_code == 404
+
+
+async def create_label(client: httpx.AsyncClient, name: str, **fields: Any) -> dict[str, Any]:
+    response = await client.post(
+        "v1/decision_labels", json={"name": name, "color": "#00cc88", **fields}
+    )
+    assert response.status_code == 201, response.text
+    data: dict[str, Any] = response.json()["data"]
+    return data
+
+
+class TestDecisionLabels:
+    async def test_label_crud(self, httpx_client: httpx.AsyncClient) -> None:
+        label = await create_label(httpx_client, "support", description="Support routing")
+        assert GlobalID.from_id(label["id"]).type_name == "DecisionLabel"
+        response = await httpx_client.get(f"v1/decision_labels/{label['id']}")
+        assert response.json()["data"] == label
+        response = await httpx_client.patch(
+            f"v1/decision_labels/{label['id']}", json={"color": "#112233", "description": None}
+        )
+        assert response.status_code == 200, response.text
+        patched = response.json()["data"]
+        assert patched["color"] == "#112233"
+        assert patched["name"] == "support"
+        assert patched.get("description") is None
+        await create_label(httpx_client, "billing")
+        listed = (await httpx_client.get("v1/decision_labels", params={"limit": 1})).json()
+        assert [item["name"] for item in listed["data"]] == ["billing"]
+        listed = (
+            await httpx_client.get(
+                "v1/decision_labels", params={"limit": 1, "cursor": listed["next_cursor"]}
+            )
+        ).json()
+        assert [item["name"] for item in listed["data"]] == ["support"]
+        assert listed.get("next_cursor") is None
+        assert (await httpx_client.delete(f"v1/decision_labels/{label['id']}")).status_code == 204
+        assert (await httpx_client.get(f"v1/decision_labels/{label['id']}")).status_code == 404
+        assert (await httpx_client.delete(f"v1/decision_labels/{label['id']}")).status_code == 404
+
+    async def test_names_are_unique(self, httpx_client: httpx.AsyncClient) -> None:
+        support = await create_label(httpx_client, "support")
+        billing = await create_label(httpx_client, "billing")
+        response = await httpx_client.post(
+            "v1/decision_labels", json={"name": "support", "color": "#00cc88"}
+        )
+        assert response.status_code == 409
+        assert response.json()["code"] == "already_exists"
+        assert response.json()["existing_id"] == support["id"]
+        response = await httpx_client.patch(
+            f"v1/decision_labels/{billing['id']}", json={"name": "support"}
+        )
+        assert response.status_code == 409
+        assert response.json()["existing_id"] == support["id"]
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param({}, id="empty-patch"),
+            pytest.param({"color": "red"}, id="bad-color"),
+            pytest.param({"name": ""}, id="empty-name"),
+        ],
+    )
+    async def test_invalid_patch(
+        self, httpx_client: httpx.AsyncClient, body: dict[str, Any]
+    ) -> None:
+        label = await create_label(httpx_client, "support")
+        response = await httpx_client.patch(f"v1/decision_labels/{label['id']}", json=body)
+        assert response.status_code == 422, response.text
+
+    async def test_applying_labels(self, httpx_client: httpx.AsyncClient) -> None:
+        await create(httpx_client)
+        support = await create_label(httpx_client, "support")
+        billing = await create_label(httpx_client, "billing")
+        url = "v1/decisions/triage/labels"
+        for _ in range(2):  # idempotent
+            response = await httpx_client.put(f"{url}/{support['id']}")
+            assert response.status_code == 200, response.text
+            assert response.json()["data"]["id"] == support["id"]
+        assert [lbl["id"] for lbl in (await httpx_client.get(url)).json()["data"]] == [
+            support["id"]
+        ]
+        response = await httpx_client.put(url, json={"decision_label_ids": [billing["id"]]})
+        assert response.status_code == 200, response.text
+        assert [lbl["id"] for lbl in response.json()["data"]] == [billing["id"]]
+        for _ in range(2):  # idempotent
+            assert (await httpx_client.delete(f"{url}/{billing['id']}")).status_code == 204
+        assert (await httpx_client.get(url)).json()["data"] == []
+        response = await httpx_client.put(
+            url, json={"decision_label_ids": [support["id"], billing["id"], support["id"]]}
+        )
+        assert {lbl["id"] for lbl in response.json()["data"]} == {support["id"], billing["id"]}
+        # Deleting a label removes it from the decision.
+        await httpx_client.delete(f"v1/decision_labels/{support['id']}")
+        assert [lbl["id"] for lbl in (await httpx_client.get(url)).json()["data"]] == [
+            billing["id"]
+        ]
+        response = await httpx_client.put(url, json={"decision_labels_ids": []})
+        assert response.status_code == 422
+
+    async def test_unknown_decision_or_label(self, httpx_client: httpx.AsyncClient) -> None:
+        await create(httpx_client)
+        label = await create_label(httpx_client, "support")
+        missing_label = str(GlobalID("DecisionLabel", "999"))
+        assert (await httpx_client.get("v1/decisions/missing/labels")).status_code == 404
+        response = await httpx_client.put(f"v1/decisions/missing/labels/{label['id']}")
+        assert response.status_code == 404
+        response = await httpx_client.put(f"v1/decisions/triage/labels/{missing_label}")
+        assert response.status_code == 404
+        response = await httpx_client.put(
+            "v1/decisions/triage/labels", json={"decision_label_ids": [label["id"], missing_label]}
+        )
+        assert response.status_code == 404
+        assert (await httpx_client.get("v1/decisions/triage/labels")).json()["data"] == []
+        response = await httpx_client.put("v1/decisions/triage/labels/not-an-id")
+        assert response.status_code == 422
+
+
+class TestDeletedMidRequest:
+    """A decision or custom provider deleted between a route's checks and its write is a 404
+    naming the missing row, not a 500."""
+
+    @pytest.mark.parametrize("update_fields", [False, True])
+    async def test_decision_deleted_before_version_insert(
+        self, httpx_client: httpx.AsyncClient, db: DbSessionFactory, update_fields: bool
+    ) -> None:
+        from fastapi import HTTPException
+
+        from phoenix.db.types.identifier import Identifier
+        from phoenix.server.api.routers.v1.decision_models import DecisionData, DecisionVersionData
+        from phoenix.server.api.routers.v1.decisions import _insert_version
+
+        created = await create(httpx_client)
+        decision_id = int(GlobalID.from_id(created["decision_id"]).node_id)
+        async with db() as session:
+            decision = await session.get(models.Decision, decision_id)
+            assert decision is not None
+            # Delete the row behind the session's back, as a concurrent request would.
+            await session.execute(
+                delete(models.Decision)
+                .where(models.Decision.id == decision_id)
+                .execution_options(synchronize_session=False)
+            )
+            version = DecisionVersionData.model_validate(version_body()).to_orm(user_id=None)
+            with pytest.raises(HTTPException) as caught:
+                await _insert_version(
+                    session,
+                    version,
+                    decision_id=decision_id,
+                    decision_identifier="triage",
+                    update=(
+                        decision,
+                        DecisionData(name=Identifier("triage"), description="changed"),
+                    )
+                    if update_fields
+                    else None,
+                )
+        assert caught.value.status_code == 404
+        assert "Decision not found" in str(caught.value.detail)
