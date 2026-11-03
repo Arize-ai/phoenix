@@ -217,7 +217,7 @@ def find_factory_review(
         f"repos/{{owner}}/{{repo}}/pulls/{pr_number}/reviews",
         "--jq",
         f'.[] | select(.user.login == "{factory_login}" and .submitted_at >= "{started_at}") '
-        "| {id, html_url, body, commit_id}",
+        "| {html_url, body, commit_id}",
     ).splitlines()
     reviews = [json.loads(review_line) for review_line in review_lines if review_line]
     return reviews[0] if reviews else None
@@ -225,8 +225,6 @@ def find_factory_review(
 
 class ReviewThread(NamedTuple):
     id: str
-    path: str
-    line: Optional[int]
     comment_id: Optional[int]
     review_id: Optional[int]
 
@@ -251,8 +249,6 @@ def read_unresolved_threads(
             nodes {
               id
               isResolved
-              path
-              line
               comments(first: 1) { nodes { databaseId pullRequestReview { databaseId } } }
             }
           }
@@ -278,8 +274,6 @@ def read_unresolved_threads(
             threads.append(
                 ReviewThread(
                     id=node["id"],
-                    path=node["path"],
-                    line=node["line"],
                     comment_id=first_comment["databaseId"] if first_comment else None,
                     review_id=review["databaseId"] if review else None,
                 )
