@@ -92,10 +92,13 @@ fi
 # `gh pr edit --attach` uploads a screenshot into a PR body. Ubuntu's gh predates it, so
 # a release build from GitHub, which allow_package_managers permits, replaces it.
 gh_attach_version=2.103.3
+# sha256 of gh_2.103.3_linux_amd64.tar.gz from the release's gh_2.103.3_checksums.txt
+gh_attach_sha256=4c806978ffce1cec70853302a56d70ac6da4f19bae7adca4e1a8ab00633dd91d
 if command -v gh >/dev/null 2>&1 && ! gh pr edit --help 2>/dev/null | grep -q -- '--attach'; then
   gh_tarball="gh_${gh_attach_version}_linux_amd64"
-  if curl -fsSL "https://github.com/cli/cli/releases/download/v$gh_attach_version/$gh_tarball.tar.gz" \
-    | tar -xz -C /tmp "$gh_tarball/bin/gh" 2>/dev/null; then
+  if curl -fsSL -o "/tmp/$gh_tarball.tar.gz" "https://github.com/cli/cli/releases/download/v$gh_attach_version/$gh_tarball.tar.gz" \
+    && echo "$gh_attach_sha256  /tmp/$gh_tarball.tar.gz" | sha256sum -c --status \
+    && tar -xzf "/tmp/$gh_tarball.tar.gz" -C /tmp "$gh_tarball/bin/gh" 2>/dev/null; then
     sudo_command=$([ -w "$(dirname "$(command -v gh)")" ] || echo sudo)
     $sudo_command install -m 755 "/tmp/$gh_tarball/bin/gh" "$(command -v gh)"
     hash -r
