@@ -3,8 +3,9 @@
 `start` checks that the PR is open and that whoever asked has write access, then creates a
 Managed Agents session with the pr-reviewer agent, kicked off with the PR number and the
 commit to review, and posts one status comment on the PR. `watch` waits for the session to
-end, finds the review it posted, and turns that comment into the review's verdict, which it
-also sets as one of the VERDICT_LABELS. Agent, environment and vault IDs come from
+end, finds the review it posted, turns that comment into the review's verdict, which it
+also sets as one of the VERDICT_LABELS, and resolves the earlier factory review threads
+the review reports as fixed or no longer applicable. Agent, environment and vault IDs come from
 claude-lock.json, which `ant apply` writes.
 """
 
@@ -12,6 +13,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import time
 from datetime import datetime, timezone
 from typing import Any, NamedTuple, Optional
@@ -149,10 +151,20 @@ def start_session(
     repo: str,
     pr: dict[str, Any],
     github_token: str,
+    factory_login: str,
     budget_cents: int,
 ) -> str:
     lock = json.loads(LOCK_FILE_PATH.read_text())
     head_sha = pr["headRefOid"]
+    open_threads: list[ReviewThread] = []
+    try:
+        open_threads = read_open_factory_threads(
+            repo=repo, pr_number=pr["number"], factory_login=factory_login, token=github_token
+        )
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::gh failed while listing review threads: {error}: {error.stderr}")
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        print(f"::warning::Unexpected GitHub response while listing review threads: {error!r}")
     # Keep untrusted PR text (title, body, comments) out of the prompt; the agent reads it
     # through the GitHub MCP server.
     kickoff_text = (
@@ -160,7 +172,7 @@ def start_session(
         f"{describe_head(pr=pr)}, against base branch {pr['baseRefName']}. "
         f"Read the PR with pull_request_read. Fetch its commits with "
         f"`git fetch origin {pr['baseRefName']} pull/{pr['number']}/head` and check out "
-        f"{head_sha} before you run anything."
+        f"{head_sha} before you run anything." + format_open_threads(threads=open_threads)
     )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=REVIEW_AGENT_LOCK_KEY),
@@ -211,6 +223,146 @@ def find_factory_review(
     return reviews[0] if reviews else None
 
 
+class ReviewThread(NamedTuple):
+    id: str
+    comment_id: Optional[int]
+    review_id: Optional[int]
+
+
+# The review summary's line naming the earlier threads whose finding the reviewer found
+# fixed or no longer applicable, per agents/pr-reviewer.md.
+RESOLVED_THREADS_PATTERN = re.compile(r"^\*\*Resolved threads:\*\* (.*)$", re.MULTILINE)
+THREAD_ID_PATTERN = re.compile(r"PRRT_[A-Za-z0-9_-]+")
+
+
+def read_unresolved_threads(
+    *, repo: str, pr_number: int, token: Optional[str]
+) -> list[ReviewThread]:
+    """Every unresolved review thread on the PR, with the review its first comment belongs to."""
+    owner, name = repo.split("/")
+    query = """
+    query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
+      repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+          reviewThreads(first: 100, after: $cursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes {
+              id
+              isResolved
+              comments(first: 1) { nodes { databaseId pullRequestReview { databaseId } } }
+            }
+          }
+        }
+      }
+    }"""
+    threads: list[ReviewThread] = []
+    cursor: Optional[str] = None
+    while True:
+        variables = ["-F", f"owner={owner}", "-F", f"name={name}", "-F", f"number={pr_number}"]
+        if cursor is not None:
+            variables += ["-F", f"cursor={cursor}"]
+        response = json.loads(
+            run_gh("api", "graphql", "-f", f"query={query}", *variables, token=token)
+        )
+        connection = response["data"]["repository"]["pullRequest"]["reviewThreads"]
+        for node in connection["nodes"]:
+            if node["isResolved"]:
+                continue
+            first_comments = node["comments"]["nodes"]
+            first_comment = first_comments[0] if first_comments else None
+            review = first_comment["pullRequestReview"] if first_comment else None
+            threads.append(
+                ReviewThread(
+                    id=node["id"],
+                    comment_id=first_comment["databaseId"] if first_comment else None,
+                    review_id=review["databaseId"] if review else None,
+                )
+            )
+        if not connection["pageInfo"]["hasNextPage"]:
+            return threads
+        cursor = connection["pageInfo"]["endCursor"]
+
+
+def read_factory_review_ids(
+    *, pr_number: int, factory_login: str, token: Optional[str]
+) -> set[int]:
+    id_lines = run_gh(
+        "api",
+        "--paginate",
+        f"repos/{{owner}}/{{repo}}/pulls/{pr_number}/reviews",
+        "--jq",
+        f'.[] | select(.user.login == "{factory_login}") | .id',
+        token=token,
+    ).split()
+    return {int(id_line) for id_line in id_lines}
+
+
+def read_open_factory_threads(
+    *, repo: str, pr_number: int, factory_login: str, token: Optional[str]
+) -> list[ReviewThread]:
+    """The unresolved threads that earlier factory reviews opened on the PR."""
+    factory_review_ids = read_factory_review_ids(
+        pr_number=pr_number, factory_login=factory_login, token=token
+    )
+    return [
+        thread
+        for thread in read_unresolved_threads(repo=repo, pr_number=pr_number, token=token)
+        if thread.review_id in factory_review_ids
+    ]
+
+
+def format_open_threads(*, threads: list[ReviewThread]) -> str:
+    """The kickoff's list of earlier factory threads for the reviewer to re-check."""
+    if not threads:
+        return ""
+    thread_lines = "\n".join(f"- {thread.id} (comment {thread.comment_id})" for thread in threads)
+    return (
+        " The factory's earlier reviews left these threads open; re-check each against the "
+        "code you review and name the ones whose finding is fixed or no longer applies on the "
+        "summary's Resolved threads line:\n" + thread_lines
+    )
+
+
+def parse_resolved_thread_ids(*, review_body: str) -> list[str]:
+    """The thread IDs the review's Resolved threads line names; none when the line is absent."""
+    line_match = RESOLVED_THREADS_PATTERN.search(review_body)
+    if line_match is None:
+        return []
+    return THREAD_ID_PATTERN.findall(line_match.group(1))
+
+
+def select_resolvable_threads(
+    *, requested_ids: list[str], open_factory_threads: list[ReviewThread]
+) -> list[ReviewThread]:
+    """The requested threads that really are open threads of an earlier factory review."""
+    requested = set(requested_ids)
+    return [thread for thread in open_factory_threads if thread.id in requested]
+
+
+def resolve_thread(*, thread_id: str, token: Optional[str]) -> None:
+    mutation = (
+        "mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) "
+        "{ thread { isResolved } } }"
+    )
+    run_gh("api", "graphql", "-f", f"query={mutation}", "-F", f"id={thread_id}", token=token)
+
+
+def resolve_reported_threads(
+    *, repo: str, pr_number: int, review_body: str, factory_login: str, token: Optional[str]
+) -> int:
+    """Resolve the earlier factory threads the review reports as fixed or no longer
+    applicable; return how many."""
+    resolvable_threads = select_resolvable_threads(
+        requested_ids=parse_resolved_thread_ids(review_body=review_body),
+        open_factory_threads=read_open_factory_threads(
+            repo=repo, pr_number=pr_number, factory_login=factory_login, token=token
+        ),
+    )
+    for thread in resolvable_threads:
+        resolve_thread(thread_id=thread.id, token=token)
+    return len(resolvable_threads)
+
+
 def read_verdict(*, review_body: str) -> Optional[str]:
     heading = review_body.lstrip().split("\n", 1)[0].rstrip()
     verdict_match = VERDICT_PATTERN.fullmatch(heading)
@@ -221,6 +373,7 @@ def watch_session(
     *,
     client: anthropic.Anthropic,
     app_token: GitHubAppToken,
+    repo: str,
     session_id: str,
     pr_number: int,
     started_at: str,
@@ -252,6 +405,20 @@ def watch_session(
             f"The factory's **review** session {format_session_link(session_id=session_id)} "
             f"ended without posting a review (stop reason: `{stop_reason}`)."
         ), None
+    try:
+        resolved_count = resolve_reported_threads(
+            repo=repo,
+            pr_number=pr_number,
+            review_body=review["body"] or "",
+            factory_login=factory_login,
+            token=app_token.refresh(),
+        )
+        print(f"resolved_threads={resolved_count}")
+    except subprocess.CalledProcessError as error:
+        # The verdict matters more than tidy threads; a maintainer can resolve them by hand.
+        print(f"::warning::gh failed while resolving review threads: {error}: {error.stderr}")
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        print(f"::warning::Unexpected GitHub response while resolving review threads: {error!r}")
     reviewed_sha = review["commit_id"][:10]
     session_link = format_session_link(session_id=session_id)
     verdict = read_verdict(review_body=review["body"] or "")
@@ -293,7 +460,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         return
 
     # Fail before starting a session that the watch step could not check.
-    read_factory_login()
+    factory_login = read_factory_login()
     # A verdict from an earlier review describes an older commit, so drop it until this one ends.
     set_verdict_label(pr_number=args.pr, verdict=None, token=app_token.refresh())
     # Taken before the session exists, so every review it posts is submitted at or after it.
@@ -303,6 +470,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         repo=args.repo,
         pr=pr,
         github_token=app_token.refresh(),
+        factory_login=factory_login,
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
@@ -339,6 +507,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
         report, verdict = watch_session(
             client=client,
             app_token=app_token,
+            repo=args.repo,
             session_id=args.session_id,
             pr_number=args.pr,
             started_at=args.started_at,
