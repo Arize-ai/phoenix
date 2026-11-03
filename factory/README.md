@@ -139,7 +139,7 @@ Claude Code Review runs on the `pull_request` event, which carries no secrets fo
    | `factory-request-changes` | **Request changes** | Check the **Blocking** findings. Then request changes in GitHub, linking the factory's review, or fix the PR yourself. |
    | `factory-close` | **Close** | Read the sentence under the review's heading, which gives the reason, such as a duplicate PR or a declined approach. Then close the PR with a comment to the author. |
 
-5. **Review again after new commits.** Re-add `factory-review`. The new run removes the old verdict label when it starts, and adds the new one when it ends. When the new review ends, the factory resolves its own threads from earlier rounds on files the new review raises nothing on; a thread on a file it still comments on stays open for you to judge.
+5. **Review again after new commits.** Re-add `factory-review`. The new run removes the old verdict label when it starts, and adds the new one when it ends. The new review re-checks the threads earlier rounds left open: `review.py` resolves the ones the review names as fixed, and a finding that still holds keeps its thread instead of being posted again.
 
 Saved searches for the queue:
 

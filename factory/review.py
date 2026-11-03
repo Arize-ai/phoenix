@@ -4,8 +4,8 @@
 Managed Agents session with the pr-reviewer agent, kicked off with the PR number and the
 commit to review, and posts one status comment on the PR. `watch` waits for the session to
 end, finds the review it posted, turns that comment into the review's verdict, which it
-also sets as one of the VERDICT_LABELS, and resolves the factory's earlier review threads
-whose finding the new review no longer raises. Agent, environment and vault IDs come from
+also sets as one of the VERDICT_LABELS, and resolves the earlier factory review threads
+the review reports as fixed. Agent, environment and vault IDs come from
 claude-lock.json, which `ant apply` writes.
 """
 
@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import time
 from datetime import datetime, timezone
 from typing import Any, NamedTuple, Optional
@@ -150,6 +151,7 @@ def start_session(
     repo: str,
     pr: dict[str, Any],
     github_token: str,
+    factory_login: str,
     budget_cents: int,
 ) -> str:
     lock = json.loads(LOCK_FILE_PATH.read_text())
@@ -162,6 +164,11 @@ def start_session(
         f"Read the PR with pull_request_read. Fetch its commits with "
         f"`git fetch origin {pr['baseRefName']} pull/{pr['number']}/head` and check out "
         f"{head_sha} before you run anything."
+        + format_open_threads(
+            threads=read_open_factory_threads(
+                repo=repo, pr_number=pr["number"], factory_login=factory_login, token=github_token
+            )
+        )
     )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=REVIEW_AGENT_LOCK_KEY),
@@ -214,8 +221,16 @@ def find_factory_review(
 
 class ReviewThread(NamedTuple):
     id: str
-    path: Optional[str]
+    path: str
+    line: Optional[int]
+    comment_id: Optional[int]
     review_id: Optional[int]
+
+
+# The review summary's line naming the earlier threads the reviewer found fixed, per
+# agents/pr-reviewer.md.
+RESOLVED_THREADS_PATTERN = re.compile(r"^\*\*Resolved threads:\*\* (.*)$", re.MULTILINE)
+THREAD_ID_PATTERN = re.compile(r"PRRT_[A-Za-z0-9_-]+")
 
 
 def read_unresolved_threads(
@@ -233,7 +248,8 @@ def read_unresolved_threads(
               id
               isResolved
               path
-              comments(first: 1) { nodes { pullRequestReview { databaseId } } }
+              line
+              comments(first: 1) { nodes { databaseId pullRequestReview { databaseId } } }
             }
           }
         }
@@ -253,11 +269,14 @@ def read_unresolved_threads(
             if node["isResolved"]:
                 continue
             first_comments = node["comments"]["nodes"]
-            review = first_comments[0]["pullRequestReview"] if first_comments else None
+            first_comment = first_comments[0] if first_comments else None
+            review = first_comment["pullRequestReview"] if first_comment else None
             threads.append(
                 ReviewThread(
                     id=node["id"],
                     path=node["path"],
+                    line=node["line"],
+                    comment_id=first_comment["databaseId"] if first_comment else None,
                     review_id=review["databaseId"] if review else None,
                 )
             )
@@ -280,38 +299,50 @@ def read_factory_review_ids(
     return {int(id_line) for id_line in id_lines}
 
 
-def read_review_paths(*, pr_number: int, review_id: int, token: Optional[str]) -> set[str]:
-    path_lines = run_gh(
-        "api",
-        "--paginate",
-        f"repos/{{owner}}/{{repo}}/pulls/{pr_number}/reviews/{review_id}/comments",
-        "--jq",
-        ".[] | .path",
-        token=token,
-    ).splitlines()
-    return {path_line for path_line in path_lines if path_line}
-
-
-def select_addressed_threads(
-    *,
-    threads: list[ReviewThread],
-    factory_review_ids: set[int],
-    new_review_id: int,
-    new_review_paths: set[str],
+def read_open_factory_threads(
+    *, repo: str, pr_number: int, factory_login: str, token: Optional[str]
 ) -> list[ReviewThread]:
-    """The factory's earlier threads on files the new review raises nothing on.
-
-    The reviewer posts every finding still open as a new comment each round, so a file
-    with no comment in the new review has no open finding left. A file the new review
-    still comments on keeps its older threads, since one of them may be the same finding.
-    """
+    """The unresolved threads that earlier factory reviews opened on the PR."""
+    factory_review_ids = read_factory_review_ids(
+        pr_number=pr_number, factory_login=factory_login, token=token
+    )
     return [
         thread
-        for thread in threads
+        for thread in read_unresolved_threads(repo=repo, pr_number=pr_number, token=token)
         if thread.review_id in factory_review_ids
-        and thread.review_id != new_review_id
-        and thread.path not in new_review_paths
     ]
+
+
+def format_open_threads(*, threads: list[ReviewThread]) -> str:
+    """The kickoff's list of earlier factory threads for the reviewer to re-check."""
+    if not threads:
+        return ""
+    thread_lines = "\n".join(
+        f"- {thread.id}: {thread.path}:{thread.line if thread.line is not None else 'outdated'}"
+        f" (comment {thread.comment_id})"
+        for thread in threads
+    )
+    return (
+        " The factory's earlier reviews left these threads open; re-check each against the "
+        "code you review and name the fixed ones on the summary's Resolved threads line:\n"
+        + thread_lines
+    )
+
+
+def parse_resolved_thread_ids(*, review_body: str) -> list[str]:
+    """The thread IDs the review's Resolved threads line names; none when the line is absent."""
+    line_match = RESOLVED_THREADS_PATTERN.search(review_body)
+    if line_match is None:
+        return []
+    return THREAD_ID_PATTERN.findall(line_match.group(1))
+
+
+def select_resolvable_threads(
+    *, requested_ids: list[str], open_factory_threads: list[ReviewThread]
+) -> list[ReviewThread]:
+    """The requested threads that really are open threads of an earlier factory review."""
+    requested = set(requested_ids)
+    return [thread for thread in open_factory_threads if thread.id in requested]
 
 
 def resolve_thread(*, thread_id: str, token: Optional[str]) -> None:
@@ -322,23 +353,19 @@ def resolve_thread(*, thread_id: str, token: Optional[str]) -> None:
     run_gh("api", "graphql", "-f", f"query={mutation}", "-F", f"id={thread_id}", token=token)
 
 
-def resolve_addressed_threads(
-    *, repo: str, pr_number: int, new_review_id: int, factory_login: str, token: Optional[str]
+def resolve_reported_threads(
+    *, repo: str, pr_number: int, review_body: str, factory_login: str, token: Optional[str]
 ) -> int:
-    """Resolve the factory's earlier threads the new review no longer raises; return how many."""
-    addressed_threads = select_addressed_threads(
-        threads=read_unresolved_threads(repo=repo, pr_number=pr_number, token=token),
-        factory_review_ids=read_factory_review_ids(
-            pr_number=pr_number, factory_login=factory_login, token=token
-        ),
-        new_review_id=new_review_id,
-        new_review_paths=read_review_paths(
-            pr_number=pr_number, review_id=new_review_id, token=token
+    """Resolve the earlier factory threads the review reports as fixed; return how many."""
+    resolvable_threads = select_resolvable_threads(
+        requested_ids=parse_resolved_thread_ids(review_body=review_body),
+        open_factory_threads=read_open_factory_threads(
+            repo=repo, pr_number=pr_number, factory_login=factory_login, token=token
         ),
     )
-    for thread in addressed_threads:
+    for thread in resolvable_threads:
         resolve_thread(thread_id=thread.id, token=token)
-    return len(addressed_threads)
+    return len(resolvable_threads)
 
 
 def read_verdict(*, review_body: str) -> Optional[str]:
@@ -384,17 +411,19 @@ def watch_session(
             f"ended without posting a review (stop reason: `{stop_reason}`)."
         ), None
     try:
-        resolved_count = resolve_addressed_threads(
+        resolved_count = resolve_reported_threads(
             repo=repo,
             pr_number=pr_number,
-            new_review_id=review["id"],
+            review_body=review["body"] or "",
             factory_login=factory_login,
             token=app_token.refresh(),
         )
         print(f"resolved_threads={resolved_count}")
-    except Exception as error:
+    except subprocess.CalledProcessError as error:
         # The verdict matters more than tidy threads; a maintainer can resolve them by hand.
-        print(f"::warning::Could not resolve the factory's earlier review threads: {error}")
+        print(f"::warning::gh failed while resolving review threads: {error}: {error.stderr}")
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        print(f"::warning::Unexpected GitHub response while resolving review threads: {error!r}")
     reviewed_sha = review["commit_id"][:10]
     session_link = format_session_link(session_id=session_id)
     verdict = read_verdict(review_body=review["body"] or "")
@@ -436,7 +465,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         return
 
     # Fail before starting a session that the watch step could not check.
-    read_factory_login()
+    factory_login = read_factory_login()
     # A verdict from an earlier review describes an older commit, so drop it until this one ends.
     set_verdict_label(pr_number=args.pr, verdict=None, token=app_token.refresh())
     # Taken before the session exists, so every review it posts is submitted at or after it.
@@ -446,6 +475,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         repo=args.repo,
         pr=pr,
         github_token=app_token.refresh(),
+        factory_login=factory_login,
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
