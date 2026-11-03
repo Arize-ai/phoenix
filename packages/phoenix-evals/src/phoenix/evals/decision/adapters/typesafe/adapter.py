@@ -27,10 +27,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         return "typesafe"
 
     def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> Dict[str, Any]:
-        """
-        Returns a dictionary with a single key "_QUESTION_NAME" whose value is a Choice object.
-        e.g. {"label": Choice(criteria={"helpful": None, "not helpful": None})}
-        """
         from typesafe_sdk import Choice
 
         criteria: Dict[str, Optional[str]] = (
@@ -40,7 +36,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
 
     @staticmethod
     def _to_result(response: Any) -> Dict[str, Any]:
-        answer = response.choices["label"]
+        answer = response.choices[_QUESTION_NAME]
         metadata: Dict[str, Any] = {
             "probabilities": answer.probabilities,
             "model_id": response.model,
