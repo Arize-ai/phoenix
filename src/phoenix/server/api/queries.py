@@ -773,11 +773,11 @@ class Query:
                     "latency_ms"
                 ),
                 func.sum(models.SpanCost.total_tokens).label("total_tokens"),
-                func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
-                func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
+                func.sum(models.SpanCost.input_tokens).label("prompt_tokens"),
+                func.sum(models.SpanCost.output_tokens).label("completion_tokens"),
                 func.sum(models.SpanCost.total_cost).label("total_cost"),
-                func.sum(models.SpanCost.prompt_cost).label("prompt_cost"),
-                func.sum(models.SpanCost.completion_cost).label("completion_cost"),
+                func.sum(models.SpanCost.input_cost).label("prompt_cost"),
+                func.sum(models.SpanCost.output_cost).label("completion_cost"),
             )
             .select_from(models.ExperimentRun)
             .join(

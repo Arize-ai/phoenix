@@ -2978,41 +2978,37 @@ class SpanCost(HasId):
             )
         )
 
-    prompt_cost: Mapped[Optional[float]]
-    prompt_tokens: Mapped[Optional[float]]
+    input_cost: Mapped[Optional[float]]
+    input_tokens: Mapped[Optional[float]]
 
     @hybrid_property
-    def prompt_cost_per_token(self) -> Optional[float]:
-        return ((self.prompt_cost or 0) / self.prompt_tokens) if self.prompt_tokens else None
+    def input_cost_per_token(self) -> Optional[float]:
+        return ((self.input_cost or 0) / self.input_tokens) if self.input_tokens else None
 
-    @prompt_cost_per_token.inplace.expression
+    @input_cost_per_token.inplace.expression
     @classmethod
-    def _prompt_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+    def _input_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
         return sql.case(
             (
-                sa.and_(cls.prompt_tokens.isnot(None), cls.prompt_tokens != 0),
-                cls.prompt_cost / cls.prompt_tokens,
+                sa.and_(cls.input_tokens.isnot(None), cls.input_tokens != 0),
+                cls.input_cost / cls.input_tokens,
             )
         )
 
-    completion_cost: Mapped[Optional[float]]
-    completion_tokens: Mapped[Optional[float]]
+    output_cost: Mapped[Optional[float]]
+    output_tokens: Mapped[Optional[float]]
 
     @hybrid_property
-    def completion_cost_per_token(self) -> Optional[float]:
-        return (
-            ((self.completion_cost or 0) / self.completion_tokens)
-            if self.completion_tokens
-            else None
-        )
+    def output_cost_per_token(self) -> Optional[float]:
+        return ((self.output_cost or 0) / self.output_tokens) if self.output_tokens else None
 
-    @completion_cost_per_token.inplace.expression
+    @output_cost_per_token.inplace.expression
     @classmethod
-    def _completion_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
+    def _output_cost_per_token_expression(cls) -> ColumnElement[Optional[float]]:
         return sql.case(
             (
-                sa.and_(cls.completion_tokens.isnot(None), cls.completion_tokens != 0),
-                cls.completion_cost / cls.completion_tokens,
+                sa.and_(cls.output_tokens.isnot(None), cls.output_tokens != 0),
+                cls.output_cost / cls.output_tokens,
             )
         )
 
@@ -3037,15 +3033,15 @@ class SpanCost(HasId):
         self.span_cost_details.append(detail)
         if (cost := detail.cost) is not None:
             if detail.is_prompt:
-                self.prompt_cost = (self.prompt_cost or 0) + cost
+                self.input_cost = (self.input_cost or 0) + cost
             else:
-                self.completion_cost = (self.completion_cost or 0) + cost
+                self.output_cost = (self.output_cost or 0) + cost
             self.total_cost = (self.total_cost or 0) + cost
         if tokens := detail.tokens:
             if detail.is_prompt:
-                self.prompt_tokens = (self.prompt_tokens or 0) + tokens
+                self.input_tokens = (self.input_tokens or 0) + tokens
             else:
-                self.completion_tokens = (self.completion_tokens or 0) + tokens
+                self.output_tokens = (self.output_tokens or 0) + tokens
             self.total_tokens = (self.total_tokens or 0) + tokens
 
 

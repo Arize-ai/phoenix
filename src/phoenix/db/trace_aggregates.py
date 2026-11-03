@@ -123,8 +123,8 @@ def cost_summary_by_trace() -> TraceAggregate:
     return TraceAggregate(
         group_key=models.SpanCost.trace_rowid,
         values=(
-            func.coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
-            func.coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
+            func.coalesce(func.sum(models.SpanCost.input_cost), 0).label("prompt_cost"),
+            func.coalesce(func.sum(models.SpanCost.output_cost), 0).label("completion_cost"),
             func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
         ),
         source=models.SpanCost,

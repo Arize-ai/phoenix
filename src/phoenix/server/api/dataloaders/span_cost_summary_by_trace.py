@@ -24,11 +24,11 @@ class SpanCostSummaryByTraceDataLoader(DataLoader[Key, Result]):
         stmt = (
             select(
                 pk,
-                coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
-                coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
+                coalesce(func.sum(models.SpanCost.input_cost), 0).label("prompt_cost"),
+                coalesce(func.sum(models.SpanCost.output_cost), 0).label("completion_cost"),
                 coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
-                coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-                coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
+                coalesce(func.sum(models.SpanCost.input_tokens), 0).label("prompt_tokens"),
+                coalesce(func.sum(models.SpanCost.output_tokens), 0).label("completion_tokens"),
                 coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
             )
             .where(pk.in_(keys))

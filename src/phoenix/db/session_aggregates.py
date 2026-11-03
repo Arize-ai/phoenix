@@ -145,13 +145,11 @@ def cost_summary_by_session() -> SessionAggregate:
     ``total_cost``, ``prompt_tokens``, ``completion_tokens``, ``total_tokens``."""
     return SessionAggregate(
         values=(
-            func.coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),
-            func.coalesce(func.sum(models.SpanCost.completion_cost), 0).label("completion_cost"),
+            func.coalesce(func.sum(models.SpanCost.input_cost), 0).label("prompt_cost"),
+            func.coalesce(func.sum(models.SpanCost.output_cost), 0).label("completion_cost"),
             func.coalesce(func.sum(models.SpanCost.total_cost), 0).label("total_cost"),
-            func.coalesce(func.sum(models.SpanCost.prompt_tokens), 0).label("prompt_tokens"),
-            func.coalesce(func.sum(models.SpanCost.completion_tokens), 0).label(
-                "completion_tokens"
-            ),
+            func.coalesce(func.sum(models.SpanCost.input_tokens), 0).label("prompt_tokens"),
+            func.coalesce(func.sum(models.SpanCost.output_tokens), 0).label("completion_tokens"),
             func.coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
         ),
         source=models.SpanCost,

@@ -64,10 +64,10 @@ async def _add_span_cost(
     model: models.GenerativeModel,
     total_cost: Optional[float] = None,
     total_tokens: Optional[float] = None,
-    prompt_cost: Optional[float] = None,
-    prompt_tokens: Optional[float] = None,
-    completion_cost: Optional[float] = None,
-    completion_tokens: Optional[float] = None,
+    input_cost: Optional[float] = None,
+    input_tokens: Optional[float] = None,
+    output_cost: Optional[float] = None,
+    output_tokens: Optional[float] = None,
     span_start_time: Optional[datetime] = None,
 ) -> models.SpanCost:
     """Helper function to create a SpanCost for testing."""
@@ -78,10 +78,10 @@ async def _add_span_cost(
         model_id=model.id,
         total_cost=total_cost,
         total_tokens=total_tokens,
-        prompt_cost=prompt_cost,
-        prompt_tokens=prompt_tokens,
-        completion_cost=completion_cost,
-        completion_tokens=completion_tokens,
+        input_cost=input_cost,
+        input_tokens=input_tokens,
+        output_cost=output_cost,
+        output_tokens=output_tokens,
     )
     session.add(span_cost)
     await session.flush()
@@ -174,10 +174,10 @@ async def _cost_data(db: DbSessionFactory) -> _CostTestData:
                 model=gpt4,
                 total_cost=1.50 + (i * 0.30),  # $1.50, $1.80, $2.10
                 total_tokens=1000 + (i * 200),  # 1000, 1200, 1400 tokens
-                prompt_cost=(1.50 + (i * 0.30)) * 0.75,  # 75% prompt cost
-                prompt_tokens=(1000 + (i * 200)) * 0.8,  # 80% prompt tokens
-                completion_cost=(1.50 + (i * 0.30)) * 0.25,  # 25% completion cost
-                completion_tokens=(1000 + (i * 200)) * 0.2,  # 20% completion tokens
+                input_cost=(1.50 + (i * 0.30)) * 0.75,  # 75% prompt cost
+                input_tokens=(1000 + (i * 200)) * 0.8,  # 80% prompt tokens
+                output_cost=(1.50 + (i * 0.30)) * 0.25,  # 25% completion cost
+                output_tokens=(1000 + (i * 200)) * 0.2,  # 20% completion tokens
                 span_start_time=span.start_time,
             )
             span_costs.append(cost)
@@ -209,10 +209,10 @@ async def _cost_data(db: DbSessionFactory) -> _CostTestData:
                 model=gpt35,
                 total_cost=0.40 + (i * 0.20),  # $0.40, $0.60, $0.80, $1.00
                 total_tokens=2000 + (i * 500),  # 2000, 2500, 3000, 3500 tokens
-                prompt_cost=(0.40 + (i * 0.20)) * 0.70,  # 70% prompt cost
-                prompt_tokens=(2000 + (i * 500)) * 0.85,  # 85% prompt tokens
-                completion_cost=(0.40 + (i * 0.20)) * 0.30,  # 30% completion cost
-                completion_tokens=(2000 + (i * 500)) * 0.15,  # 15% completion tokens
+                input_cost=(0.40 + (i * 0.20)) * 0.70,  # 70% prompt cost
+                input_tokens=(2000 + (i * 500)) * 0.85,  # 85% prompt tokens
+                output_cost=(0.40 + (i * 0.20)) * 0.30,  # 30% completion cost
+                output_tokens=(2000 + (i * 500)) * 0.15,  # 15% completion tokens
                 span_start_time=span.start_time,
             )
             span_costs.append(cost)
@@ -244,10 +244,10 @@ async def _cost_data(db: DbSessionFactory) -> _CostTestData:
                 model=claude,
                 total_cost=1.00 + (i * 0.50),  # $1.00, $1.50
                 total_tokens=1500 + (i * 300),  # 1500, 1800 tokens
-                prompt_cost=(1.00 + (i * 0.50)) * 0.80,  # 80% prompt cost
-                prompt_tokens=(1500 + (i * 300)) * 0.75,  # 75% prompt tokens
-                completion_cost=(1.00 + (i * 0.50)) * 0.20,  # 20% completion cost
-                completion_tokens=(1500 + (i * 300)) * 0.25,  # 25% completion tokens
+                input_cost=(1.00 + (i * 0.50)) * 0.80,  # 80% prompt cost
+                input_tokens=(1500 + (i * 300)) * 0.75,  # 75% prompt tokens
+                output_cost=(1.00 + (i * 0.50)) * 0.20,  # 20% completion cost
+                output_tokens=(1500 + (i * 300)) * 0.25,  # 25% completion tokens
                 span_start_time=span.start_time,
             )
             span_costs.append(cost)
@@ -592,10 +592,10 @@ class TestTopModels:
                 model=gpt4,
                 total_cost=100,
                 total_tokens=100_000,
-                prompt_cost=100,
-                prompt_tokens=100_000,
-                completion_cost=0,
-                completion_tokens=0,
+                input_cost=100,
+                input_tokens=100_000,
+                output_cost=0,
+                output_tokens=0,
             )
             await _add_span_cost_detail(
                 session,
@@ -723,8 +723,8 @@ class TestTraceTokenCountTimeSeries:
                 trace=trace_with_details,
                 model=model,
                 total_tokens=170,
-                prompt_tokens=120,
-                completion_tokens=50,
+                input_tokens=120,
+                output_tokens=50,
                 span_start_time=span_with_details.start_time,
             )
             await _add_span_cost_detail(
@@ -781,8 +781,8 @@ class TestTraceTokenCountTimeSeries:
                 trace=trace_without_details,
                 model=model,
                 total_tokens=80,
-                prompt_tokens=60,
-                completion_tokens=20,
+                input_tokens=60,
+                output_tokens=20,
                 span_start_time=span_without_details.start_time,
             )
             await session.commit()
@@ -2647,10 +2647,10 @@ class TestProject:
                         model=model,
                         total_cost=cost,
                         total_tokens=1000,
-                        prompt_cost=cost * 0.75,
-                        prompt_tokens=800,
-                        completion_cost=cost * 0.25,
-                        completion_tokens=200,
+                        input_cost=cost * 0.75,
+                        input_tokens=800,
+                        output_cost=cost * 0.25,
+                        output_tokens=200,
                         span_start_time=span.start_time,
                     )
 

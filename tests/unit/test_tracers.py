@@ -919,10 +919,10 @@ class TestTracer:
         assert expected_total_cost == pytest.approx(0.00045)  # $0.00015 + $0.0003 = $0.00045
         assert returned_span_cost.total_cost == pytest.approx(expected_total_cost)
         assert returned_span_cost.total_tokens == prompt_tokens + completion_tokens
-        assert returned_span_cost.prompt_tokens == prompt_tokens
-        assert returned_span_cost.prompt_cost == pytest.approx(expected_prompt_cost)
-        assert returned_span_cost.completion_tokens == completion_tokens
-        assert returned_span_cost.completion_cost == pytest.approx(expected_completion_cost)
+        assert returned_span_cost.input_tokens == prompt_tokens
+        assert returned_span_cost.input_cost == pytest.approx(expected_prompt_cost)
+        assert returned_span_cost.output_tokens == completion_tokens
+        assert returned_span_cost.output_cost == pytest.approx(expected_completion_cost)
 
         # Verify span cost details
 
@@ -1074,10 +1074,10 @@ class TestTracer:
         assert returned_span_cost.span_start_time == returned_span.start_time
         assert returned_span_cost.total_cost is None  # no pricing model found
         assert returned_span_cost.total_tokens == prompt_tokens + completion_tokens
-        assert returned_span_cost.prompt_tokens == prompt_tokens
-        assert returned_span_cost.prompt_cost is None  # no pricing model found
-        assert returned_span_cost.completion_tokens == completion_tokens
-        assert returned_span_cost.completion_cost is None  # no pricing model found
+        assert returned_span_cost.input_tokens == prompt_tokens
+        assert returned_span_cost.input_cost is None  # no pricing model found
+        assert returned_span_cost.output_tokens == completion_tokens
+        assert returned_span_cost.output_cost is None  # no pricing model found
 
         # Verify span cost details
         assert returned_input_detail.span_cost_id == returned_span_cost.id
