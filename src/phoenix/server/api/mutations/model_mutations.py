@@ -1,4 +1,3 @@
-import math
 import re
 from datetime import datetime, timezone
 from typing import Optional
@@ -276,14 +275,13 @@ async def _conflicting_model_error(
 
 def _check_token_rates(costs: list[TokenPriceInput]) -> None:
     """
-    Raises a BadRequest error if any rate is negative or not a finite number.
+    Raises a BadRequest error if any rate is negative.
     Zero is allowed: it means the tokens are free.
     """
     for cost in costs:
-        rate = cost.cost_per_million_tokens
-        if not math.isfinite(rate) or rate < 0:
+        if cost.cost_per_million_tokens < 0:
             raise BadRequest(
-                f"Cost per million tokens for '{cost.token_type}' must be zero or more, got {rate}"
+                f"Cost per million tokens for '{cost.token_type}' must be zero or more"
             )
 
 
