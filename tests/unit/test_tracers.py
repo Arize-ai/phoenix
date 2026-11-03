@@ -105,6 +105,107 @@ class TestTracer:
     def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
         return Tracer(span_cost_calculator=span_cost_calculator)
 
+    @pytest.fixture
+    async def gpt_6_luna_llm_generative_model(self, db: DbSessionFactory) -> models.GenerativeModel:
+        model = models.GenerativeModel(
+            name="gpt-6-luna",
+            provider="openai",
+            start_time=None,
+            name_pattern=re.compile("gpt-6-luna"),
+            is_built_in=True,
+            type="LLM",
+            token_prices=[
+                models.TokenPrice(
+                    token_type="input",
+                    is_prompt=True,
+                    base_rate=1.0 / 1_000_000,
+                    customization=None,
+                ),
+                models.TokenPrice(
+                    token_type="output",
+                    is_prompt=False,
+                    base_rate=5.0 / 1_000_000,
+                    customization=None,
+                ),
+            ],
+        )
+        async with db() as session:
+            session.add(model)
+        return model
+
+    @pytest.fixture
+    async def gpt_6_luna_decision_generative_model(
+        self, db: DbSessionFactory
+    ) -> models.GenerativeModel:
+        model = models.GenerativeModel(
+            name="gpt-6-luna-decisions",
+            provider="openai",
+            start_time=None,
+            name_pattern=re.compile("gpt-6-luna"),
+            is_built_in=True,
+            type="DECISION",
+            token_prices=[
+                models.TokenPrice(
+                    token_type="input",
+                    is_prompt=True,
+                    base_rate=0.10 / 1_000_000,
+                    customization=None,
+                ),
+                models.TokenPrice(
+                    token_type="output",
+                    is_prompt=False,
+                    base_rate=0.0,
+                    customization=None,
+                ),
+            ],
+        )
+        async with db() as session:
+            session.add(model)
+        return model
+
+    @pytest.fixture
+    async def decision_pricing_tracer(
+        self,
+        db: DbSessionFactory,
+        gpt_6_luna_llm_generative_model: models.GenerativeModel,
+        gpt_6_luna_decision_generative_model: models.GenerativeModel,
+    ) -> Tracer:
+        """A tracer whose model store has an LLM and a DECISION row with the same pattern."""
+        store = GenerativeModelStore(db=db)
+        await store._fetch_models()
+        return Tracer(span_cost_calculator=SpanCostCalculator(model_store=store))
+
+    @staticmethod
+    async def _save_single_span_cost(
+        db: DbSessionFactory, project: models.Project, tracer: Tracer
+    ) -> models.SpanCost | None:
+        """Save the tracer's single span and return its cost as read back from the db."""
+        async with db() as session:
+            returned_traces = tracer.get_db_traces(project_id=project.id)
+            session.add_all(returned_traces)
+            await session.flush()
+            session.expunge_all()
+            fetched_spans = (
+                (
+                    await session.scalars(
+                        select(models.Span).options(
+                            joinedload(models.Span.span_cost).joinedload(
+                                models.SpanCost.span_cost_details
+                            )
+                        )
+                    )
+                )
+                .unique()
+                .all()
+            )
+        assert len(fetched_spans) == 1
+        span_cost = fetched_spans[0].span_cost
+        if span_cost is not None:
+            assert span_cost.span_rowid == fetched_spans[0].id
+            assert span_cost.trace_rowid == fetched_spans[0].trace_rowid
+            assert span_cost.span_start_time == fetched_spans[0].start_time
+        return span_cost
+
     @pytest.mark.asyncio
     async def test_get_db_traces_attaches_project_session_when_session_id_present(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
@@ -1094,8 +1195,121 @@ class TestTracer:
         assert returned_output_detail.cost is None  # no pricing model found
         assert returned_output_detail.cost_per_token is None  # no pricing model found
 
+    @pytest.mark.asyncio
+    async def test_save_db_traces_calculates_costs_for_decision_spans(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        decision_pricing_tracer: Tracer,
+        gpt_6_luna_decision_generative_model: models.GenerativeModel,
+    ) -> None:
+        with decision_pricing_tracer.start_as_current_span(
+            "decision",
+            attributes={
+                OPENINFERENCE_SPAN_KIND: "DECISION",
+                DECISION_MODEL_NAME: "gpt-6-luna",
+                DECISION_PROVIDER: "openai",
+                DECISION_TOKEN_COUNT_INPUT: 1000,
+                DECISION_TOKEN_COUNT_OUTPUT: 500,
+            },
+        ) as span:
+            span.set_status(Status(StatusCode.OK))
+
+        span_cost = await self._save_single_span_cost(db, project, decision_pricing_tracer)
+
+        assert span_cost is not None
+        assert span_cost.model_id == gpt_6_luna_decision_generative_model.id
+        expected_input_cost = 1000 * 0.10 / 1_000_000
+        assert span_cost.prompt_tokens == 1000
+        assert span_cost.completion_tokens == 500
+        assert span_cost.total_tokens == 1500
+        assert span_cost.prompt_cost == pytest.approx(expected_input_cost)
+        assert span_cost.completion_cost == 0.0
+        assert span_cost.total_cost == pytest.approx(expected_input_cost)
+        details = {d.token_type: d for d in span_cost.span_cost_details}
+        assert set(details) == {"input", "output"}
+        assert details["input"].is_prompt is True
+        assert details["input"].tokens == 1000
+        assert details["input"].cost == pytest.approx(expected_input_cost)
+        assert details["input"].cost_per_token == pytest.approx(0.10 / 1_000_000)
+        assert details["output"].is_prompt is False
+        assert details["output"].tokens == 500
+        assert details["output"].cost == 0.0
+        assert details["output"].cost_per_token == 0.0
+
+    @pytest.mark.asyncio
+    async def test_save_db_traces_prices_llm_spans_against_llm_model_not_decision_model(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        decision_pricing_tracer: Tracer,
+        gpt_6_luna_llm_generative_model: models.GenerativeModel,
+    ) -> None:
+        with decision_pricing_tracer.start_as_current_span(
+            "llm_call",
+            attributes={
+                OPENINFERENCE_SPAN_KIND: "LLM",
+                LLM_MODEL_NAME: "gpt-6-luna",
+                LLM_PROVIDER: "openai",
+                LLM_TOKEN_COUNT_PROMPT: 1000,
+                LLM_TOKEN_COUNT_COMPLETION: 500,
+            },
+        ) as span:
+            span.set_status(Status(StatusCode.OK))
+
+        span_cost = await self._save_single_span_cost(db, project, decision_pricing_tracer)
+
+        assert span_cost is not None
+        assert span_cost.model_id == gpt_6_luna_llm_generative_model.id
+        expected_input_cost = 1000 * 1.0 / 1_000_000
+        expected_output_cost = 500 * 5.0 / 1_000_000
+        assert span_cost.prompt_tokens == 1000
+        assert span_cost.completion_tokens == 500
+        assert span_cost.prompt_cost == pytest.approx(expected_input_cost)
+        assert span_cost.completion_cost == pytest.approx(expected_output_cost)
+        assert span_cost.total_cost == pytest.approx(expected_input_cost + expected_output_cost)
+
+    @pytest.mark.asyncio
+    async def test_save_db_traces_writes_unpriced_cost_for_decision_span_without_decision_model(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+        decision_pricing_tracer: Tracer,
+    ) -> None:
+        with decision_pricing_tracer.start_as_current_span(
+            "decision",
+            attributes={
+                OPENINFERENCE_SPAN_KIND: "DECISION",
+                DECISION_MODEL_NAME: "jev-1.13.0",
+                DECISION_PROVIDER: "openai",
+                DECISION_TOKEN_COUNT_INPUT: 1000,
+                DECISION_TOKEN_COUNT_OUTPUT: 500,
+            },
+        ) as span:
+            span.set_status(Status(StatusCode.OK))
+
+        span_cost = await self._save_single_span_cost(db, project, decision_pricing_tracer)
+
+        assert span_cost is not None
+        assert span_cost.model_id is None
+        assert span_cost.prompt_tokens == 1000
+        assert span_cost.completion_tokens == 500
+        assert span_cost.total_tokens == 1500
+        assert span_cost.prompt_cost is None
+        assert span_cost.completion_cost is None
+        assert span_cost.total_cost is None
+        details = {d.token_type: d for d in span_cost.span_cost_details}
+        assert set(details) == {"input", "output"}
+        assert details["input"].tokens == 1000
+        assert details["output"].tokens == 500
+        assert all(d.cost is None and d.cost_per_token is None for d in details.values())
+
 
 # span attributes
+DECISION_MODEL_NAME = SpanAttributes.DECISION_MODEL_NAME
+DECISION_PROVIDER = SpanAttributes.DECISION_PROVIDER
+DECISION_TOKEN_COUNT_INPUT = SpanAttributes.DECISION_TOKEN_COUNT_INPUT
+DECISION_TOKEN_COUNT_OUTPUT = SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
