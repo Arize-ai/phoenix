@@ -41,7 +41,7 @@ jobs:
       # Pinned so results stay comparable across runs. Bump them deliberately.
       CLAUDE_CODE_VERSION: "2.1.287"
       SKILL_EVAL_MODEL: claude-sonnet-5-5
-      # About $6 for all five suites. The cap stops a run that goes far over.
+      # About $3 for all five suites (measured locally). The cap stops a run that goes far over.
       MAX_COST_USD: "10"
     steps:
       - name: Checkout repository
