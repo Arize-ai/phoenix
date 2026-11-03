@@ -228,8 +228,8 @@ def test_reports_names_of_skipped_entries() -> None:
     manifest = parse_manifest(json.dumps(data))
     assert [model.name for model in manifest.models] == ["model-a", "model-b"]
     # model-b also has a valid entry, so it isn't reported; blank names can't be.
-    assert manifest.skipped_model_names == {"bad", "dup-pattern"}
-    assert "skipped_model_names" not in manifest.model_dump()
+    assert manifest.skipped_models == {("bad", "LLM"), ("dup-pattern", "LLM")}
+    assert "skipped_models" not in manifest.model_dump()
 
 
 def test_ignores_unknown_fields() -> None:
@@ -254,3 +254,148 @@ def test_ignores_unknown_fields() -> None:
     assert [model.name for model in manifest.models] == ["model-a"]
     assert not hasattr(manifest, "future_top_level_field")
     assert not hasattr(manifest.models[0], "max_input_tokens")
+
+
+def test_parses_non_llm_models_with_their_types() -> None:
+    data = _manifest(
+        non_llm_models=[
+            _model("gpt-6-luna", type="DECISION"),
+            _model("embed-a", type="EMBEDDING"),
+        ]
+    )
+    manifest = parse_manifest(json.dumps(data))
+    assert [model.key for model in manifest.models] == [
+        ("model-a", "LLM"),
+        ("model-b", "LLM"),
+        ("gpt-6-luna", "DECISION"),
+        ("embed-a", "EMBEDDING"),
+    ]
+    assert not manifest.skipped_models
+
+
+def test_rejects_non_list_non_llm_models() -> None:
+    with pytest.raises(ManifestError, match="non_llm_models"):
+        parse_manifest(json.dumps(_manifest(non_llm_models={})))
+
+
+@pytest.mark.parametrize(
+    "models, non_llm_models, skipped",
+    [
+        pytest.param(
+            [_model("model-a"), _model("decision-a", type="DECISION")],
+            [],
+            ("decision-a", "DECISION"),
+            id="decision-in-models",
+        ),
+        pytest.param(
+            [_model("model-a")],
+            [_model("llm-a")],
+            ("llm-a", "LLM"),
+            id="default-llm-in-non-llm-models",
+        ),
+    ],
+)
+def test_skips_entry_whose_type_does_not_belong_in_its_list(
+    models: list[Any],
+    non_llm_models: list[Any],
+    skipped: tuple[str, str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    data = _manifest(models=models, non_llm_models=non_llm_models)
+    with caplog.at_level(logging.WARNING):
+        manifest = parse_manifest(json.dumps(data))
+    assert [model.key for model in manifest.models] == [("model-a", "LLM")]
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "is not allowed in" in warnings[0]
+    # Left as it is when applied, like any other skipped entry.
+    assert manifest.skipped_models == {skipped}
+
+
+def test_keeps_llm_and_decision_with_the_same_name_and_pattern() -> None:
+    data = _manifest(
+        models=[_model("gpt-6-luna", provider="openai")],
+        non_llm_models=[
+            _model(
+                "gpt-6-luna",
+                provider="openai",
+                type="DECISION",
+                token_prices=[
+                    {"base_rate": 1e-7, "is_prompt": True, "token_type": "input"},
+                    {"base_rate": 0.0, "is_prompt": False, "token_type": "output"},
+                ],
+            )
+        ],
+    )
+    manifest = parse_manifest(json.dumps(data))
+    assert [model.key for model in manifest.models] == [
+        ("gpt-6-luna", "LLM"),
+        ("gpt-6-luna", "DECISION"),
+    ]
+    assert [model.token_prices[0].base_rate for model in manifest.models] == [1e-6, 1e-7]
+    # A $0 rate is a price, not a missing one.
+    assert manifest.models[1].token_prices[1].base_rate == 0.0
+    assert not manifest.skipped_models
+
+
+def test_skips_duplicate_name_within_a_type(caplog: pytest.LogCaptureFixture) -> None:
+    data = _manifest(
+        non_llm_models=[
+            _model("decision-a", type="DECISION"),
+            _model("decision-a", name_pattern="other", type="DECISION"),
+        ]
+    )
+    with caplog.at_level(logging.WARNING):
+        manifest = parse_manifest(json.dumps(data))
+    decisions = [model for model in manifest.models if model.type == "DECISION"]
+    assert [model.name_pattern.pattern for model in decisions] == ["decision-a"]
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "duplicate name" in warnings[0]
+    # The name still has a valid entry, so it isn't reported as skipped.
+    assert not manifest.skipped_models
+
+
+def test_skips_duplicate_pattern_within_a_type_only() -> None:
+    data = _manifest(
+        non_llm_models=[
+            # Same name_pattern and provider as the LLM model-a: allowed across types.
+            _model("decision-a", name_pattern="model-a", type="DECISION"),
+            # Same as decision-a within DECISION: skipped.
+            _model("decision-b", name_pattern="model-a", type="DECISION"),
+            # Same pattern, but another type again: allowed.
+            _model("embed-a", name_pattern="model-a", type="EMBEDDING"),
+        ]
+    )
+    manifest = parse_manifest(json.dumps(data))
+    assert [model.key for model in manifest.models] == [
+        ("model-a", "LLM"),
+        ("model-b", "LLM"),
+        ("decision-a", "DECISION"),
+        ("embed-a", "EMBEDDING"),
+    ]
+    assert manifest.skipped_models == {("decision-b", "DECISION")}
+
+
+def test_reports_name_and_type_of_skipped_non_llm_entries() -> None:
+    invalid_rate = [{"base_rate": -1, "is_prompt": True, "token_type": "input"}]
+    data = _manifest(
+        models=[_model("model-a")],
+        non_llm_models=[
+            _model(" decision-a ", type="DECISION", token_prices=invalid_rate),
+            # An LLM name that is valid as an LLM; its invalid DECISION entry is still reported.
+            _model("model-a", type="DECISION", token_prices=invalid_rate),
+            # Unknown types can't be attributed to a model.
+            _model("unknown-type", type="AUDIO"),
+            _model("unhashable-type", type=["DECISION"]),
+            # An invalid entry in the wrong list keeps its model, like a valid one.
+            _model("llm-in-non-llm", token_prices=invalid_rate),
+        ],
+    )
+    manifest = parse_manifest(json.dumps(data))
+    assert [model.key for model in manifest.models] == [("model-a", "LLM")]
+    assert manifest.skipped_models == {
+        ("decision-a", "DECISION"),
+        ("model-a", "DECISION"),
+        ("llm-in-non-llm", "LLM"),
+    }

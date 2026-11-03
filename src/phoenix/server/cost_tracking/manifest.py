@@ -6,6 +6,13 @@ A copy ships with Phoenix, and newer copies can be fetched at runtime, so this l
 lenient about content: unknown fields are ignored, and an entry that fails validation is
 skipped with a warning instead of failing the whole manifest. Only problems with the manifest
 as a whole (invalid JSON, an unsupported ``schema_version``, a bad ``generated_at``) raise.
+
+Built-in models are identified by name and type (``LLM``, ``DECISION`` or ``EMBEDDING``), so
+one name can be priced once as an LLM and once as a decision model. LLM entries go in
+``models`` and every other type in ``non_llm_models``. The split is for servers released before
+types existed: they fetch this same file, ignore keys they don't know, and treat every entry in
+``models`` as an LLM keyed by name alone. So a typed entry in ``models`` would be priced as an
+LLM by those servers, and a second entry with the same name would be dropped as a duplicate.
 """
 
 import hashlib
@@ -14,7 +21,7 @@ import logging
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated, Any, Optional, Union
+from typing import Annotated, Any, NamedTuple, Optional, Union, cast, get_args
 
 from pydantic import (
     AfterValidator,
@@ -26,6 +33,8 @@ from pydantic import (
     ValidationError,
     model_validator,
 )
+
+from phoenix.db.models import GenerativeModelType
 
 logger = logging.getLogger(__name__)
 
@@ -88,12 +97,24 @@ class ManifestTokenPrice(_ManifestBaseModel):
     customization: Optional[dict[str, Any]] = None
 
 
+class ManifestModelKey(NamedTuple):
+    """Identifies a built-in model: names are only unique within a type."""
+
+    name: str
+    type: GenerativeModelType
+
+
 class ManifestModel(_ManifestBaseModel):
     name: Annotated[str, AfterValidator(_strip_non_empty)]
     name_pattern: Annotated[re.Pattern[str], BeforeValidator(_compile_regex)]
     provider: Annotated[Optional[str], AfterValidator(_strip_optional)] = None
     source: Optional[str] = None
+    type: GenerativeModelType = "LLM"
     token_prices: list[ManifestTokenPrice]
+
+    @property
+    def key(self) -> ManifestModelKey:
+        return ManifestModelKey(self.name, self.type)
 
     @model_validator(mode="after")
     def _check_unique_token_prices(self) -> "ManifestModel":
@@ -115,10 +136,18 @@ class ManifestModel(_ManifestBaseModel):
 class ModelCostManifest(_ManifestBaseModel):
     schema_version: int
     generated_at: Annotated[AwareDatetime, AfterValidator(_to_utc)]
+    # The valid entries of every type: those from ``models`` and those from ``non_llm_models``.
     models: list[ManifestModel]
-    # Names of entries that were skipped as invalid and have no valid entry. Their models
-    # are not gone upstream, so applying the manifest leaves them as they are.
-    skipped_model_names: frozenset[str] = Field(default_factory=frozenset, exclude=True)
+    # Names and types of entries that were skipped as invalid and have no valid entry. Their
+    # models are not gone upstream, so applying the manifest leaves them as they are.
+    skipped_models: frozenset[ManifestModelKey] = Field(default_factory=frozenset, exclude=True)
+
+
+# The manifest's lists of entries, and whether each holds LLMs or every other type.
+_LLM_SECTION = "models"
+_NON_LLM_SECTION = "non_llm_models"
+_MODEL_TYPES: frozenset[str] = frozenset(get_args(GenerativeModelType))
+_NON_LLM_TYPES: frozenset[str] = _MODEL_TYPES - {"LLM"}
 
 
 def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
@@ -128,8 +157,8 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
     Raises:
         ManifestError: If the manifest is not valid JSON, has a missing or unsupported
             ``schema_version``, or a missing or invalid ``generated_at``. Invalid model
-            entries are logged and skipped instead, and their names are recorded in
-            ``skipped_model_names``.
+            entries are logged and skipped instead, and their names and types are recorded
+            in ``skipped_models``.
     """
     try:
         raw = json.loads(data)
@@ -152,55 +181,95 @@ def parse_manifest(data: Union[bytes, str]) -> ModelCostManifest:
         )
     if "generated_at" not in raw:
         raise ManifestError("Model cost manifest is missing generated_at")
-    raw_models = raw.get("models")
+    raw_models = raw.get(_LLM_SECTION)
     if not isinstance(raw_models, list):
         raise ManifestError("Model cost manifest must have a list of models")
+    raw_non_llm_models = raw.get(_NON_LLM_SECTION, [])
+    if not isinstance(raw_non_llm_models, list):
+        raise ManifestError(f"Model cost manifest's {_NON_LLM_SECTION} must be a list")
 
     # Validate the top level before the entries, so a rejected manifest logs nothing per entry.
+    top_level = {k: v for k, v in raw.items() if k != _NON_LLM_SECTION}
     try:
-        manifest = ModelCostManifest.model_validate({**raw, "models": []})
+        manifest = ModelCostManifest.model_validate({**top_level, "models": []})
     except ValidationError as error:
         raise ManifestError(f"Invalid model cost manifest: {_summarize(error)}") from error
 
     models: list[ManifestModel] = []
-    seen_names: set[str] = set()
-    seen_patterns: set[tuple[re.Pattern[str], Optional[str]]] = set()
-    skipped_names: set[str] = set()
-    for index, model_data in enumerate(raw_models):
-        try:
-            model = ManifestModel.model_validate(model_data)
-        except ValidationError as error:
-            name = model_data.get("name") if isinstance(model_data, dict) else None
-            if isinstance(name, str) and name.strip():
-                label = f"'{name}'"
-                skipped_names.add(name.strip())
-            else:
-                label = f"at index {index}"
-            logger.warning(f"Skipping model {label} in model cost manifest: {_summarize(error)}")
-            continue
-        if model.name in seen_names:
-            logger.warning(f"Skipping model '{model.name}' in model cost manifest: duplicate name")
-            continue
-        pattern_key = (model.name_pattern, model.provider)
-        if pattern_key in seen_patterns:
-            logger.warning(
-                f"Skipping model '{model.name}' in model cost manifest: "
-                "duplicate name_pattern/provider combination"
-            )
-            skipped_names.add(model.name)
-            continue
-        seen_names.add(model.name)
-        seen_patterns.add(pattern_key)
-        models.append(model)
-    skipped_names -= seen_names
-    return manifest.model_copy(
-        update={"models": models, "skipped_model_names": frozenset(skipped_names)}
-    )
+    seen_keys: set[ManifestModelKey] = set()
+    seen_patterns: set[tuple[re.Pattern[str], Optional[str], str]] = set()
+    skipped_keys: set[ManifestModelKey] = set()
+    for section, section_models in (
+        (_LLM_SECTION, raw_models),
+        (_NON_LLM_SECTION, raw_non_llm_models),
+    ):
+        for index, model_data in enumerate(section_models):
+            try:
+                model = ManifestModel.model_validate(model_data)
+            except ValidationError as error:
+                label = _label(section, index, model_data)
+                if (key := _raw_key(model_data)) is not None:
+                    skipped_keys.add(key)
+                logger.warning(
+                    f"Skipping model {label} in model cost manifest: {_summarize(error)}"
+                )
+                continue
+            if (section == _NON_LLM_SECTION) != (model.type in _NON_LLM_TYPES):
+                # Servers that predate types would price a non-LLM entry in models as an LLM.
+                # Treated like an invalid entry, so its model is left as it is.
+                logger.warning(
+                    f"Skipping model '{model.name}' in model cost manifest: type {model.type} "
+                    f"is not allowed in {section}"
+                )
+                skipped_keys.add(model.key)
+                continue
+            if model.key in seen_keys:
+                logger.warning(
+                    f"Skipping model '{model.name}' ({model.type}) in model cost manifest: "
+                    "duplicate name"
+                )
+                continue
+            pattern_key = (model.name_pattern, model.provider, model.type)
+            if pattern_key in seen_patterns:
+                logger.warning(
+                    f"Skipping model '{model.name}' ({model.type}) in model cost manifest: "
+                    "duplicate name_pattern/provider combination"
+                )
+                skipped_keys.add(model.key)
+                continue
+            seen_keys.add(model.key)
+            seen_patterns.add(pattern_key)
+            models.append(model)
+    skipped_keys -= seen_keys
+    return manifest.model_copy(update={"models": models, "skipped_models": frozenset(skipped_keys)})
+
+
+def _label(section: str, index: int, model_data: Any) -> str:
+    name = model_data.get("name") if isinstance(model_data, dict) else None
+    if isinstance(name, str) and name.strip():
+        return f"'{name}'"
+    return f"at index {index} of {section}"
+
+
+def _raw_key(model_data: Any) -> Optional[ManifestModelKey]:
+    """The name and type of an invalid entry, if they can be told, so its model is kept."""
+    if not isinstance(model_data, dict):
+        return None
+    name = model_data.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    model_type = model_data.get("type", "LLM")
+    if not isinstance(model_type, str) or model_type not in _MODEL_TYPES:
+        return None
+    # Kept even when the entry is in the wrong list, like a valid misplaced entry.
+    return ManifestModelKey(name.strip(), cast(GenerativeModelType, model_type))
 
 
 def compute_models_sha256(models: list[Any]) -> str:
     """
-    Digest of a manifest's ``models``, as JSON values, recorded as its ``models_sha256``.
+    Digest of a manifest's entries, as JSON values, recorded as its ``models_sha256``. Pass
+    ``models`` followed by ``non_llm_models``, so a manifest without non-LLM entries keeps the
+    digest it had before they existed.
 
     Servers apply a manifest only if its ``generated_at`` is newer than the one they have, so
     the models must not change without it. The sync script records this digest whenever it
