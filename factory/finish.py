@@ -38,7 +38,9 @@ from github_app import GitHubAppToken
 from review import comment_on_pr, read_factory_login
 
 FINISH_LABEL = "factory-finish"
+# The job and workflow names in cla.yml, which runs on pull_request_target from the base.
 CLA_CHECK_NAME = "CLAAssistant"
+CLA_WORKFLOW_NAME = "CLA Assistant"
 # Stays on a PR the factory pushed to, so the secret-bearing CI jobs and Factory Guard treat
 # every later head as factory work; `github.actor` would only cover the app's own pushes.
 FINISHED_LABEL = "factory-finished"
@@ -147,13 +149,19 @@ def read_cla_status(*, pr_number: int) -> Optional[bool]:
     """What the CLA Assistant's check on the head commit says: signed, unsigned, or None when
     it is missing or still pending. The Assistant comments only when someone has to sign,
     so the check is the one record every fork PR has."""
-    checks = json.loads(run_gh("pr", "checks", str(pr_number), "--json", "name,bucket"))
-    buckets = {check["bucket"] for check in checks if check["name"] == CLA_CHECK_NAME}
-    if "pass" in buckets:
-        return True
+    checks = json.loads(run_gh("pr", "checks", str(pr_number), "--json", "name,bucket,workflow"))
+    buckets = {
+        check["bucket"]
+        for check in checks
+        if check["name"] == CLA_CHECK_NAME and check["workflow"] == CLA_WORKFLOW_NAME
+    }
+    # A fork PR can add a workflow whose job shares these names, but it cannot remove the
+    # real run, so a failing or pending run outweighs a passing one.
     if "fail" in buckets:
         return False
-    return None
+    if "pending" in buckets or "pass" not in buckets:
+        return None
+    return True
 
 
 def copy_branch_name(*, pr_number: int) -> str:
