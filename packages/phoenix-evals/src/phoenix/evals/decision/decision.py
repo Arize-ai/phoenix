@@ -13,7 +13,6 @@ from phoenix.evals.tracing import trace
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
-from .types import BaseDecisionAdapter
 
 register_adapters()
 
@@ -34,11 +33,12 @@ def _get_decision_model_name(bound: BoundArguments) -> str:
 
 
 def _get_decision_input(bound: BoundArguments) -> str:
-    """A JSON view of the request: the flattened state, the model, and the labels."""
+    """A JSON view of the request: the input actually sent, the model, and the labels."""
+    model = bound.arguments["self"]
     prompt = bound.arguments.get("prompt")
     payload = {
-        "state": BaseDecisionAdapter._to_state(prompt) if prompt is not None else "",
-        "model": bound.arguments["self"].model,
+        "input": model._sync_adapter._to_input(prompt) if prompt is not None else "",
+        "model": model.model,
         "questions": bound.arguments.get("labels"),
     }
     return json.dumps(payload, default=str)
