@@ -279,7 +279,7 @@ Verileri birleştiren span işlemcileri ekleyerek diğer enstrümantasyon kütü
 Phoenix, hem insanlar hem de AI kodlama ajanları tarafından kullanılmak üzere tasarlanmıştır. Üç arayüz, ajanların (Claude Code, Codex, Cursor ve diğerleri) trace'leriniz, veri setleriniz ve deneylerinizle çalışmasını sağlar:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` trace'leri, veri setlerini ve deneyleri getirir ve uygulamanızı enstrümante eder (`setup`); böylece bir ajan terminalden bağlam çekip buna göre işlem yapabilir.
-- **[Beceriler (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/), ajanlara Phoenix ile nasıl hata ayıklayacaklarını, değerlendirme yapacaklarını ve izleme yapacaklarını öğreten iş akışlarını paketler.
+- **[Beceriler (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/), ajanlara Phoenix ile nasıl hata ayıklayacaklarını, değerlendirme yapacaklarını ve izleme yapacaklarını öğreten iş akışlarını paketler.
 - **[Uzak MCP Sunucusu](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — Phoenix'i doğrudan sorgulamak için herhangi bir MCP istemcisini örneğinizin `/mcp` endpoint'ine bağlayın.
 
 Kurulum ve kullanım için [kodlama ajanları dokümantasyonuna](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) bakın.

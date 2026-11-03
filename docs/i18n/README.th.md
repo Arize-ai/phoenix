@@ -279,7 +279,7 @@ Phoenix สร้างขึ้นบน OpenTelemetry และไม่ผู
 Phoenix ถูกสร้างมาให้ทั้งมนุษย์และ AI coding agents ใช้งานได้เท่าเทียมกัน มีสามช่องทางที่ช่วยให้เอเจนต์ (Claude Code, Codex, Cursor และอื่น ๆ) ทำงานกับ trace, dataset และ experiment ของคุณได้:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` ดึง trace, dataset และ experiment รวมถึงทำ instrumentation ให้แอปของคุณ (`setup`) เพื่อให้เอเจนต์ดึงบริบทและดำเนินการต่อได้จากเทอร์มินัล
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) รวบรวมเวิร์กโฟลว์ที่สอนเอเจนต์ให้ดีบัก ประเมินผล และ trace ด้วย Phoenix
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) รวบรวมเวิร์กโฟลว์ที่สอนเอเจนต์ให้ดีบัก ประเมินผล และ trace ด้วย Phoenix
 - **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — เชื่อมต่อไคลเอนต์ MCP ใดก็ได้เข้ากับ endpoint `/mcp` ของอินสแตนซ์ของคุณเพื่อ query Phoenix โดยตรง
 
 ดู[เอกสาร coding agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) สำหรับการตั้งค่าและการใช้งาน

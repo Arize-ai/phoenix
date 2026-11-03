@@ -279,7 +279,7 @@ kernel سطح کی علیحدگی اور رن ٹائم پر dependencies کی ا
 Phoenix کو اس طرح بنایا گیا ہے کہ اسے انسان اور AI کوڈنگ ایجنٹس دونوں یکساں طور پر چلا سکیں۔ تین انٹرفیسز ایجنٹس (Claude Code، Codex، Cursor اور دیگر) کو آپ کے traces، ڈیٹا سیٹس اور تجربات کے ساتھ کام کرنے دیتے ہیں:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` traces، ڈیٹا سیٹس اور تجربات حاصل کرتا ہے اور آپ کی ایپ میں instrumentation شامل کرتا ہے (`setup`)، تاکہ ایجنٹ ٹرمینل سے سیاق و سباق حاصل کر کے اس پر عمل کر سکے۔
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) ایسے ورک فلوز پیک کرتا ہے جو ایجنٹس کو سکھاتے ہیں کہ Phoenix کے ساتھ ڈیبگ، جانچ اور ٹریس کیسے کریں۔
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) ایسے ورک فلوز پیک کرتا ہے جو ایجنٹس کو سکھاتے ہیں کہ Phoenix کے ساتھ ڈیبگ، جانچ اور ٹریس کیسے کریں۔
 - **[ریموٹ MCP سرور](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — کسی بھی MCP کلائنٹ کو اپنے انسٹینس کے `/mcp` اینڈ پوائنٹ سے جوڑیں تاکہ براہ راست Phoenix سے کوئری کر سکیں۔
 
 سیٹ اپ اور استعمال کے لیے [کوڈنگ ایجنٹس کی دستاویزات](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) دیکھیں۔

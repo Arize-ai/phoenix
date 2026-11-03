@@ -279,7 +279,7 @@ kernel-স্তরের আইসোলেশন এবং রানটাই�
 Phoenix এমনভাবে তৈরি যাতে মানুষ ও AI কোডিং এজেন্ট উভয়েই এটি সমানভাবে চালাতে পারে। তিনটি মাধ্যম এজেন্টদের (Claude Code, Codex, Cursor এবং অন্যান্য) আপনার trace, dataset ও experiment নিয়ে কাজ করতে দেয়:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` trace, dataset ও experiment সংগ্রহ করে এবং আপনার অ্যাপ instrument করে (`setup`), যাতে একটি এজেন্ট টার্মিনাল থেকেই প্রসঙ্গ সংগ্রহ করে সে অনুযায়ী কাজ করতে পারে।
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) এমন ওয়ার্কফ্লো প্যাকেজ করে যা এজেন্টদের Phoenix দিয়ে ডিবাগ, মূল্যায়ন ও ট্রেস করতে শেখায়।
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) এমন ওয়ার্কফ্লো প্যাকেজ করে যা এজেন্টদের Phoenix দিয়ে ডিবাগ, মূল্যায়ন ও ট্রেস করতে শেখায়।
 - **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — যেকোনো MCP ক্লায়েন্টকে আপনার ইনস্ট্যান্সের `/mcp` endpoint-এ সংযুক্ত করে সরাসরি Phoenix query করুন।
 
 সেটআপ ও ব্যবহারের জন্য [কোডিং এজেন্ট ডকুমেন্টেশন](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) দেখুন।

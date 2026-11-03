@@ -279,7 +279,7 @@ Phoenix 建構於 OpenTelemetry 之上，不受限於特定供應商、程式語
 Phoenix 的設計讓人類與 AI 程式設計代理都能操作。代理（Claude Code、Codex、Cursor 等）可透過以下三種介面處理您的追蹤、資料集與實驗：
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` 可擷取追蹤、資料集與實驗，並為您的應用程式加上檢測（`setup`），讓代理能在終端機中取得情境並採取行動。
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) 封裝了多種工作流程，教導代理如何使用 Phoenix 進行除錯、評估與追蹤。
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) 封裝了多種工作流程，教導代理如何使用 Phoenix 進行除錯、評估與追蹤。
 - **[遠端 MCP 伺服器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 將任何 MCP 用戶端連線至執行個體的 `/mcp` 端點，直接查詢 Phoenix。
 
 如需設定與使用方式，請參閱 [程式設計代理文件](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents)。

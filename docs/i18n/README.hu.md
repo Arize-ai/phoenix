@@ -279,7 +279,7 @@ Futtassa a Phoenix [kódkiértékelőit](https://arize.com/docs/phoenix/evaluati
 A Phoenixet úgy tervezték, hogy emberek és AI kódoló ágensek egyaránt használhassák. Három felület teszi lehetővé, hogy az ágensek (Claude Code, Codex, Cursor és mások) az Ön trace-eivel, adatkészleteivel és kísérleteivel dolgozzanak:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — az `npx @arizeai/phoenix-cli` lekéri a trace-eket, adatkészleteket és kísérleteket, valamint instrumentálja az alkalmazását (`setup`), így egy ágens a terminálból gyűjthet kontextust és cselekedhet annak alapján.
-- **[Skillek](https://docs.anthropic.com/en/docs/claude-code/skills)** — a [`.agents/skills/`](../../.agents/skills/) olyan munkafolyamatokat csomagol, amelyek megtanítják az ágenseknek a Phoenixszel végzett hibakeresést, kiértékelést és tracinget.
+- **[Skillek](https://docs.anthropic.com/en/docs/claude-code/skills)** — a [`skills/`](../../skills/) olyan munkafolyamatokat csomagol, amelyek megtanítják az ágenseknek a Phoenixszel végzett hibakeresést, kiértékelést és tracinget.
 - **[Távoli MCP-szerver](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — csatlakoztasson bármilyen MCP-klienst példánya `/mcp` végpontjához, hogy közvetlenül a Phoenixet kérdezze le.
 
 A beállításhoz és a használathoz lásd a [kódoló ágensekről szóló dokumentációt](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).

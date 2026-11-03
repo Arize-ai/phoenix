@@ -279,7 +279,7 @@ Kör Phoenix [kodutvärderare](https://arize.com/docs/phoenix/evaluation/server-
 Phoenix är byggt för att användas av både människor och AI-kodagenter. Tre gränssnitt låter agenter (Claude Code, Codex, Cursor med flera) arbeta med dina traces, dataset och experiment:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` hämtar traces, dataset och experiment och instrumenterar din app (`setup`), så att en agent kan hämta kontext och agera på den från terminalen.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) paketerar arbetsflöden som lär agenter hur man felsöker, utvärderar och spårar med Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) paketerar arbetsflöden som lär agenter hur man felsöker, utvärderar och spårar med Phoenix.
 - **[Fjärr-MCP-server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — anslut valfri MCP-klient till din instans `/mcp`-endpoint för att söka direkt i Phoenix.
 
 Se [dokumentationen för kodagenter](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) för konfiguration och användning.

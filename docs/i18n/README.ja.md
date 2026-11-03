@@ -279,7 +279,7 @@ Phoenix の [コード評価器](https://arize.com/docs/phoenix/evaluation/serve
 Phoenix は、人間と AI コーディングエージェントのどちらからも操作できるように設計されています。エージェント（Claude Code、Codex、Cursor など）がトレース、データセット、実験を扱うための 3 つのインターフェースがあります。
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` はトレース、データセット、実験を取得し、アプリを計装します（`setup`）。これにより、エージェントはターミナルからコンテキストを取得して作業できます。
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) には、Phoenix を使ったデバッグ、評価、トレースの方法をエージェントに教えるワークフローがパッケージ化されています。
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) には、Phoenix を使ったデバッグ、評価、トレースの方法をエージェントに教えるワークフローがパッケージ化されています。
 - **[リモート MCP サーバー](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 任意の MCP クライアントをインスタンスの `/mcp` エンドポイントに接続し、Phoenix に直接クエリできます。
 
 セットアップと使用方法については、[コーディングエージェントのドキュメント](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) を参照してください。

@@ -279,7 +279,7 @@ Phoenix는 OpenTelemetry 기반으로 구축되었으며 벤더, 언어, 프레�
 Phoenix는 사람과 AI 코딩 에이전트 모두가 똑같이 활용할 수 있도록 만들어졌습니다. 다음 세 가지 인터페이스를 통해 에이전트(Claude Code, Codex, Cursor 등)가 트레이스, 데이터셋, 실험을 다룰 수 있습니다:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli`는 트레이스, 데이터셋, 실험을 가져오고 앱을 계측(`setup`)하므로, 에이전트가 터미널에서 컨텍스트를 가져와 이를 바탕으로 작업할 수 있습니다.
-- **[스킬](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/)는 Phoenix로 디버깅, 평가, 트레이싱하는 방법을 에이전트에게 알려 주는 워크플로를 패키지로 제공합니다.
+- **[스킬](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/)는 Phoenix로 디버깅, 평가, 트레이싱하는 방법을 에이전트에게 알려 주는 워크플로를 패키지로 제공합니다.
 - **[원격 MCP 서버](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 모든 MCP 클라이언트를 인스턴스의 `/mcp` 엔드포인트에 연결하여 Phoenix를 직접 조회할 수 있습니다.
 
 설정 및 사용 방법은 [코딩 에이전트 문서](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents)를 참고하세요.

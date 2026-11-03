@@ -279,7 +279,7 @@ npx @arizeai/phoenix-cli setup
 Το Phoenix έχει σχεδιαστεί ώστε να χρησιμοποιείται τόσο από ανθρώπους όσο και από AI coding agents. Τρεις διεπαφές επιτρέπουν στους agents (Claude Code, Codex, Cursor και άλλους) να εργάζονται με τα traces, τα σύνολα δεδομένων και τα πειράματά σας:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — το `npx @arizeai/phoenix-cli` ανακτά traces, σύνολα δεδομένων και πειράματα και κάνει το instrumentation της εφαρμογής σας (`setup`), ώστε ένας agent να μπορεί να αντλεί πλαίσιο και να ενεργεί με βάση αυτό από το τερματικό.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — το [`.agents/skills/`](../../.agents/skills/) περιέχει έτοιμες ροές εργασίας που διδάσκουν στους agents πώς να κάνουν αποσφαλμάτωση, αξιολόγηση και tracing με το Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — το [`skills/`](../../skills/) περιέχει έτοιμες ροές εργασίας που διδάσκουν στους agents πώς να κάνουν αποσφαλμάτωση, αξιολόγηση και tracing με το Phoenix.
 - **[Απομακρυσμένος διακομιστής MCP](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — συνδέστε οποιονδήποτε πελάτη MCP στο endpoint `/mcp` της εγκατάστασής σας για να κάνετε ερωτήματα απευθείας στο Phoenix.
 
 Δείτε την [τεκμηρίωση για coding agents](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) για οδηγίες ρύθμισης και χρήσης.

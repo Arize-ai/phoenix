@@ -279,7 +279,7 @@ Execute [avaliadores de código](https://arize.com/docs/phoenix/evaluation/serve
 O Phoenix foi concebido para ser utilizado tanto por pessoas como por agentes de programação de IA. Três interfaces permitem que os agentes (Claude Code, Codex, Cursor, entre outros) trabalhem com os seus traces, conjuntos de dados e experiências:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — o `npx @arizeai/phoenix-cli` obtém traces, conjuntos de dados e experiências e instrumenta a sua aplicação (`setup`), para que um agente possa recolher contexto e agir com base nele a partir do terminal.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — o [`.agents/skills/`](../../.agents/skills/) reúne fluxos de trabalho que ensinam os agentes a depurar, avaliar e rastrear com o Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — o [`skills/`](../../skills/) reúne fluxos de trabalho que ensinam os agentes a depurar, avaliar e rastrear com o Phoenix.
 - **[Servidor MCP remoto](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — ligue qualquer cliente MCP ao endpoint `/mcp` da sua instância para consultar o Phoenix diretamente.
 
 Consulte a [documentação sobre agentes de programação](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) para obter informações sobre configuração e utilização.

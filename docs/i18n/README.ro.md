@@ -279,7 +279,7 @@ Rulați [evaluatoarele de cod](https://arize.com/docs/phoenix/evaluation/server-
 Phoenix este conceput pentru a fi utilizat atât de oameni, cât și de agenți AI de programare. Trei interfețe permit agenților (Claude Code, Codex, Cursor și alții) să lucreze cu trace-urile, dataseturile și experimentele dumneavoastră:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` preia trace-uri, dataseturi și experimente și vă instrumentează aplicația (`setup`), astfel încât un agent poate obține context și poate acționa pe baza lui din terminal.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) împachetează fluxuri de lucru care îi învață pe agenți cum să depaneze, să evalueze și să facă tracing cu Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) împachetează fluxuri de lucru care îi învață pe agenți cum să depaneze, să evalueze și să facă tracing cu Phoenix.
 - **[Server MCP la distanță](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — conectați orice client MCP la endpointul `/mcp` al instanței dumneavoastră pentru a interoga Phoenix direct.
 
 Consultați [documentația pentru agenți de programare](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) pentru configurare și utilizare.

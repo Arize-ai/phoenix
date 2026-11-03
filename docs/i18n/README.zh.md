@@ -279,7 +279,7 @@ Phoenix 基于 OpenTelemetry 深度打造，具备完全的供应商、语言与
 Phoenix 既为人类工程师打造，也原生支持各类 AI 编程智能体协作交互。以下三套核心界面使智能体（如 Claude Code、Codex、Cursor 等）能够深度感知并操作你的 Traces、数据集和实验：
 
 - **[CLI 命令行](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — 运行 `npx @arizeai/phoenix-cli` 抓取 Traces、数据集与实验指标，并自动插桩应用（`setup`），使智能体可以直接在终端获取上下文并执行任务。
-- **[智能体技能 (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) 目录打包了专有工作流，赋予编程智能体使用 Phoenix 调试、评估与链路追踪的完整技能。
+- **[智能体技能 (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) 目录打包了专有工作流，赋予编程智能体使用 Phoenix 调试、评估与链路追踪的完整技能。
 - **[远程 MCP 服务器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 支持将任意符合 MCP 规范的客户端连接至 Phoenix 实例的 `/mcp` 端点，直接执行上下文检索与操作。
 
 关于智能体的完整配置与调用方式，请参阅[编程智能体集成指南](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents)。

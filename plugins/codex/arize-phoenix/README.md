@@ -1,6 +1,6 @@
 # Arize Phoenix plugin
 
-A [Codex plugin](https://developers.openai.com/codex/plugins) in the portable [Agent Plugins](https://agent-plugins.org) format. It registers the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) so Codex can explore traces, sessions, datasets, experiments, and evaluations in your Phoenix instance.
+A [Codex plugin](https://developers.openai.com/codex/plugins) in the portable [Agent Plugins](https://agent-plugins.org) format. It registers the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) and installs all five public Phoenix skills: `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-harbor`, and `phoenix-tracing`. Codex can then explore traces, sessions, datasets, experiments, and evaluations in your Phoenix instance. This is the recommended way to connect Codex to Phoenix. See [Connect Your Coding Agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents). The `phoenix-cli` skill also needs the optional `px` CLI.
 
 ## How it connects
 
