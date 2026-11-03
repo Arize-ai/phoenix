@@ -1,0 +1,10 @@
+datasets:
+  - path: tasks/support-bench
+agents:
+  - name: claude-code
+    model_name: anthropic/claude-sonnet-5-5
+  - name: codex
+    model_name: openai/gpt-5.5
+environment:
+  type: docker
+n_attempts: 2

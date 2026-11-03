@@ -1,0 +1,62 @@
+skill: phoenix-tracing
+cases:
+  - query: "How do I send traces from my Python OpenAI app to Phoenix?"
+    expect: load
+    kind: explicit
+  - query: "Add OpenInference auto-instrumentation for LlamaIndex to my service and point it at Phoenix"
+    expect: load
+    kind: explicit
+  - query: "Our Phoenix tracing works locally but drops spans in production on Kubernetes. How should I configure batching and the exporter?"
+    expect: load
+    kind: explicit
+  - query: "I want to see every LLM call and tool call my agent makes, with token counts. Set that up."
+    expect: load
+    kind: implicit
+  - query: "Create a custom span around my retrieval step and record the retrieved documents on it"
+    expect: load
+    kind: implicit
+  - query: "Attach a session ID and a user ID to my traces so I can group conversations"
+    expect: load
+    kind: implicit
+  - query: "Add tracing to this app so I can see its LLM calls"
+    expect: load
+    kind: contextual
+    files: [fixtures/app.py]
+  - query: "Instrument this script so its OpenAI calls show up in my observability tool"
+    expect: load
+    kind: contextual
+    files: [fixtures/agent.ts]
+  - query: "Pull the last 50 spans with errors from my Phoenix project using px"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-cli
+  - query: "Run a hallucination eval over my traced spans and log the results back to Phoenix"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-evals
+  - query: "Read through a sample of my agent's traces and sort what it gets wrong into categories"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-error-analysis
+  - query: "Add the Phoenix plugin to my Harbor job so each trial is recorded as an experiment"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-harbor
+  - query: "Set up distributed tracing with Jaeger for my Go microservices"
+    expect: no-load
+    kind: near-miss
+  - query: "How do I add Sentry performance tracing to my Django app?"
+    expect: no-load
+    kind: near-miss
+  - query: |
+      Trace this function by hand and tell me what it returns for n=4.
+
+      ```python
+      def f(n):
+          return n if n < 2 else f(n - 1) + f(n - 2)
+      ```
+    expect: no-load
+    kind: near-miss
+  - query: "Configure structured JSON logging for my FastAPI app"
+    expect: no-load
+    kind: near-miss

@@ -1,0 +1,76 @@
+skill: phoenix-cli
+cases:
+  - query: "Use px to pull the 20 most recent traces from my support-bot project and show me which ones errored"
+    expect: load
+    kind: explicit
+  - query: "How do I log the Phoenix CLI into our self-hosted Phoenix at https://phoenix.internal.acme.com with an API key?"
+    expect: load
+    kind: explicit
+  - query: "With the Phoenix CLI, save every span from trace 8f3c2a1b to a JSON file"
+    expect: load
+    kind: explicit
+  - query: "From the terminal, grab the last hour of traces in my Phoenix project and tell me which tool calls failed"
+    expect: load
+    kind: implicit
+  - query: "How many sessions in my Phoenix project this week have the user complaining about a wrong order status? I want a count."
+    expect: load
+    kind: implicit
+  - query: "Create a categorical annotation config named helpfulness with the labels helpful and unhelpful on my Phoenix server"
+    expect: load
+    kind: implicit
+  - query: "Run a GraphQL query against my Phoenix server that lists every project and its trace count"
+    expect: load
+    kind: implicit
+  - query: "Fetch Phoenix session sess_42 and summarize the conversation turn by turn"
+    expect: load
+    kind: implicit
+  - query: "Add OpenInference instrumentation to my FastAPI app so its OpenAI calls show up in Phoenix"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-tracing
+  - query: "Write an LLM-as-a-judge evaluator in Python that scores whether answers are faithful to the retrieved context"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-evals
+  - query: "Add the arize-phoenix plugin to my Harbor job config so each trial is recorded as a Phoenix experiment"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-harbor
+  # From the Claude plugin eval 07-neg-elixir-phoenix.
+  - query: "I am using the Phoenix web framework in Elixir. My LiveView is not re-rendering after I update state in handle_event. The event fires (I can see it in the log) but the template does not change. What am I doing wrong?"
+    expect: no-load
+    kind: near-miss
+  # From the Claude plugin eval 08-neg-agent-no-phoenix.
+  - query: |
+      My LangGraph agent never finishes. It bounces between the planner node and the tool node forever until I hit the recursion limit. The tool results come back fine, the model even produces a final answer with no tool calls, but the graph still routes back to tools. Here's the routing code. What am I doing wrong?
+
+      ```python
+      from langgraph.graph import StateGraph, END
+      from langgraph.prebuilt import ToolNode
+
+
+      def should_continue(state: AgentState):
+          if state["messages"]:
+              return "tools"
+          return END
+
+
+      graph = StateGraph(AgentState)
+      graph.add_node("planner", call_model)
+      graph.add_node("tools", ToolNode(tools))
+      graph.set_entry_point("planner")
+      graph.add_conditional_edges("planner", should_continue, {"tools": "tools", END: END})
+      graph.add_edge("tools", "planner")
+      app = graph.compile()
+      ```
+    expect: no-load
+    kind: near-miss
+  - query: "Run mix phx.new to start a new Phoenix project with Postgres. Which flags should I pass?"
+    expect: no-load
+    kind: near-miss
+  - query: "Write a bash one-liner that tails my nginx access log and counts 500 errors per minute"
+    expect: no-load
+    kind: near-miss
+  - query: "How do I use the Datadog CLI to list the APM traces for my checkout service?"
+    expect: no-load
+    kind: near-miss

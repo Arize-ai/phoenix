@@ -1,0 +1,58 @@
+skill: phoenix-evals
+cases:
+  - query: "Set up a correctness eval on my Phoenix dataset and run it as an experiment"
+    expect: load
+    kind: explicit
+  - query: "How do I gate CI on a Phoenix eval so a PR fails when faithfulness drops below 0.9?"
+    expect: load
+    kind: explicit
+  - query: "Write a judge that checks whether our support bot's answers are grounded in the retrieved docs"
+    expect: load
+    kind: implicit
+  - query: "Write an LLM-as-a-judge in TypeScript for my Vercel AI SDK app that scores answer relevance"
+    expect: load
+    kind: implicit
+  - query: "I have 200 human-labeled examples. How do I check that my LLM judge agrees with them before I trust it?"
+    expect: load
+    kind: implicit
+  - query: "Score every exported trace in this dataframe for toxicity with an LLM classifier"
+    expect: load
+    kind: implicit
+  - query: "Build a code-based check that every answer cites at least one source, then use it to compare two prompt versions"
+    expect: load
+    kind: implicit
+  - query: "This eval script stopped working after I upgraded arize-phoenix-evals. The imports fail now. Fix it."
+    expect: load
+    kind: contextual
+    files: [fixtures/relevance_eval.py]
+  - query: "Why are my LangChain spans missing the model name?"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-tracing
+  # From the Claude plugin eval phoenix-evals/11-neg-export-traces-dataframe.
+  - query: "My LangGraph agent already sends traces to Phoenix (project `support-agent`). I just want to pull the root spans into a pandas dataframe so I can eyeball the inputs and outputs in a notebook. I'm not scoring anything or setting up evals, I only want to look at the data. What's the Python code?"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-cli
+  - query: "I don't know what's wrong with my agent yet. Read some of its traces and write notes on what's failing."
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-error-analysis
+  - query: "Map my Harbor task rewards to Phoenix experiment scores with the Phoenix plugin"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-harbor
+  # From the Claude plugin eval phoenix-evals/07-neg-elixir-exunit.
+  - query: "I'm building a web API with the Phoenix framework in Elixir. I want to write ExUnit tests that evaluate my controller's responses, checking the status code and the JSON body for a few endpoints. How should I structure these tests?"
+    expect: no-load
+    kind: near-miss
+  # From the Claude plugin eval phoenix-evals/08-neg-generic-metric-q.
+  - query: "I have 500 machine-translation outputs and their reference translations in a CSV. I want a single corpus-level BLEU score over the whole set to report alongside my other metrics. Which library should I use and what is the exact call?"
+    expect: no-load
+    kind: near-miss
+  - query: "Write unit tests for this date parser that cover leap years and time zones"
+    expect: no-load
+    kind: near-miss
+  - query: "Compare the accuracy of these two scikit-learn classifiers with 5-fold cross-validation"
+    expect: no-load
+    kind: near-miss

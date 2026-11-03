@@ -1,0 +1,62 @@
+skill: phoenix-error-analysis
+cases:
+  - query: "Do an error analysis on the last 100 traces in my Phoenix project support-agent: open-code them, then group the notes into failure categories"
+    expect: load
+    kind: explicit
+  - query: "I just instrumented my app with Phoenix. Where do I start figuring out what's going wrong?"
+    expect: load
+    kind: explicit
+  - query: "Give me a MECE breakdown of the failure modes in last week's traces from my Phoenix project"
+    expect: load
+    kind: explicit
+  - query: "What's going wrong with my customer-support agent? Read a sample of its recent conversations and tell me the main kinds of failures"
+    expect: load
+    kind: implicit
+  - query: "The chatbot keeps losing context after a few turns. Look at the sessions and work out what kinds of mistakes it makes"
+    expect: load
+    kind: implicit
+  - query: "I have about 60 free-form notes on bad agent responses. Group them into a few categories with counts so I know what to fix first"
+    expect: load
+    kind: implicit
+  - query: "What should I build evals for? I don't know yet which failures matter in our RAG bot's traffic"
+    expect: load
+    kind: implicit
+  - query: "Review a sample of traces from our travel-booking agent and annotate each one with what went wrong"
+    expect: load
+    kind: implicit
+  - query: "Write a code evaluator that checks every response is valid JSON and run it as a Phoenix experiment"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-evals
+  - query: "My hallucination judge disagrees with our human labels 30% of the time. How do I measure and improve its agreement?"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-evals
+  - query: "My spans show up in Phoenix but the tool calls have no inputs. How do I add the tool attributes?"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-tracing
+  - query: "Use px to fetch trace 4b9e and print its span tree"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-cli
+  - query: |
+      Why does this raise a KeyError?
+
+      ```
+      Traceback (most recent call last):
+        File "report.py", line 14, in <module>
+          total += row["amount"]
+      KeyError: 'amount'
+      ```
+    expect: no-load
+    kind: near-miss
+  - query: "Our Sentry dashboard shows a spike in 500 errors since Tuesday's deploy. How do I find which release caused it?"
+    expect: no-load
+    kind: near-miss
+  - query: "Write a postmortem for last night's database outage. The primary ran out of disk and failover took 40 minutes."
+    expect: no-load
+    kind: near-miss
+  - query: "Cluster these 2,000 customer reviews into topics with Python and label each cluster"
+    expect: no-load
+    kind: near-miss

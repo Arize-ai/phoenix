@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from evals.skills.runner import affected as affected_module
-from evals.skills.runner.cases import Case, RoutingFile, load_routing_file
+from evals.skills.runner.cases import Case, RoutingFile, load_routing_file, routing_files
 from evals.skills.runner.claude_code import parse_stream
 from evals.skills.runner.scoring import CaseResult, SuiteResult
 
@@ -179,3 +179,12 @@ class TestAffected:
     def test_routing_file_change_runs_that_skill(self, files: list[RoutingFile]) -> None:
         result = affected_module.affected("main", ["evals/skills/phoenix-cli/routing.yaml"], files)
         assert result == {"skills": ["phoenix-cli"], "channels": ["claude-code"]}
+
+
+@pytest.mark.parametrize("routing", routing_files(), ids=lambda r: r.skill)
+def test_routing_file_meets_the_minimum(routing: RoutingFile) -> None:
+    expects = [case.expect for case in routing.cases]
+    assert expects.count("load") >= 8
+    assert expects.count("no-load") >= 8
+    assert sum(case.kind == "sibling" for case in routing.cases) >= 3
+    assert routing.skill not in {case.sibling for case in routing.cases}

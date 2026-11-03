@@ -1,0 +1,124 @@
+name: Skill routing evals
+
+# Checks that each public skill loads for the requests it covers and stays unloaded for the
+# requests it doesn't. See evals/skills/README.md for the routing files and the runner.
+#
+# A pull request runs the suites that evals/skills/runner/affected.py picks: a changed
+# description reruns every sibling suite, because routing is relative. A SKILL.md change
+# that leaves the description alone runs nothing.
+
+on:
+  pull_request:
+    paths:
+      - "skills/*/SKILL.md"
+      - "src/phoenix/server/mcp/skills/__init__.py"
+      - "src/phoenix/server/agents/prompts/skills/SKILLS_INSTRUCTIONS.xml.j2"
+      - "evals/skills/**"
+      - ".github/workflows/skill-routing-evals.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: skill-routing-evals-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  routing:
+    name: Skill routing evals
+    # This job runs pull request code with an API key. Fork pull requests get no secrets.
+    # Factory pull requests are written by an agent that reads public issue text, so a
+    # maintainer runs this workflow by hand on them after reading the diff.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       !startsWith(github.head_ref, 'factory/') &&
+       (vars.FACTORY_GITHUB_LOGIN == '' || github.event.pull_request.user.login != vars.FACTORY_GITHUB_LOGIN))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Pinned so results stay comparable across runs. Bump them deliberately.
+      CLAUDE_CODE_VERSION: "2.1.287"
+      SKILL_EVAL_MODEL: claude-sonnet-5-5
+      # About $6 for all five suites. The cap stops a run that goes far over.
+      MAX_COST_USD: "10"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+
+      - name: Sync dependencies
+        run: uv sync --frozen --package harbor-verifiers
+
+      - name: Test the runner and check the routing files
+        run: uv run --package harbor-verifiers python -m pytest evals/skills/tests
+
+      - name: Pick the suites to run
+        id: affected
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            selection='{"skills": ["all"], "channels": ["all"]}'
+          else
+            selection="$(uv run --package harbor-verifiers python -m evals.skills.runner.affected "${BASE_SHA}")"
+          fi
+          echo "${selection}"
+          {
+            echo "skills=$(jq -r '.skills | join(" ")' <<< "${selection}")"
+            echo "channels=$(jq -r '.channels | join(" ")' <<< "${selection}")"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Node
+        if: steps.affected.outputs.skills != ''
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Claude Code
+        if: steps.affected.outputs.skills != ''
+        run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+
+      - name: Run routing evals
+        if: steps.affected.outputs.skills != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          SKILL_EVAL_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SKILLS: ${{ steps.affected.outputs.skills }}
+          CHANNELS: ${{ steps.affected.outputs.channels }}
+        run: |
+          args=(--auth api-key --max-cost-usd "${MAX_COST_USD}" --json routing-results.json)
+          if [ "${SKILLS}" != "all" ]; then
+            for skill in ${SKILLS}; do args+=(--skill "${skill}"); done
+            for channel in ${CHANNELS}; do args+=(--channel "${channel}"); done
+          fi
+          if [ -z "${PHOENIX_COLLECTOR_ENDPOINT}" ]; then
+            echo "::notice::PHOENIX_COLLECTOR_ENDPOINT isn't set, so results aren't recorded to Phoenix"
+            args+=(--no-record)
+          fi
+          uv run --package harbor-verifiers python -m evals.skills.runner "${args[@]}"
+
+      - name: Upload results
+        if: always() && steps.affected.outputs.skills != ''
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: skill-routing-results
+          if-no-files-found: ignore
+          path: routing-results.json

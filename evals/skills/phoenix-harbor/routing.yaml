@@ -1,0 +1,54 @@
+skill: phoenix-harbor
+cases:
+  - query: "Add the arize-phoenix plugin to my Harbor job so each trial shows up in Phoenix"
+    expect: load
+    kind: explicit
+  - query: "Should I use ATIF tracing or OTLP for my Harbor runs that report to Phoenix?"
+    expect: load
+    kind: explicit
+  - query: "My Harbor job crashed halfway through. How do I resume it without creating duplicate Phoenix experiments?"
+    expect: load
+    kind: explicit
+  - query: "What dataset name will the Phoenix Harbor plugin create for my terminal-bench job?"
+    expect: load
+    kind: explicit
+  - query: "I benchmark coding agents with Harbor. How do I compare Claude Code and Codex on the same tasks side by side in Phoenix?"
+    expect: load
+    kind: implicit
+  - query: "How do the rewards from my Harbor verifiers turn into evaluation scores in Phoenix?"
+    expect: load
+    kind: implicit
+  - query: "My Harbor trials finished but nothing appeared in my Phoenix project. What should I check?"
+    expect: load
+    kind: implicit
+  - query: "Wire this job up so its results get recorded to my Phoenix at http://localhost:6006"
+    expect: load
+    kind: contextual
+    files: [fixtures/job.yaml]
+  - query: "Write an LLM judge that grades my agent's final answer and run it over a Phoenix dataset"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-evals
+  - query: "Instrument my LangGraph agent with OpenInference so each node shows up as a span in Phoenix"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-tracing
+  - query: "List my Phoenix experiments from the terminal and show the scores of the latest one"
+    expect: no-load
+    kind: sibling
+    sibling: phoenix-cli
+  - query: "How do I push a Docker image to our self-hosted Harbor registry?"
+    expect: no-load
+    kind: near-miss
+  - query: "Turn on Trivy vulnerability scanning for the images in our Harbor registry project"
+    expect: no-load
+    kind: near-miss
+  - query: "How do I run SWE-bench locally with Docker to benchmark my coding agent?"
+    expect: no-load
+    kind: near-miss
+  - query: "Set up a GitHub Actions workflow that runs my pytest suite on every pull request"
+    expect: no-load
+    kind: near-miss
+  - query: "Write a pytest fixture that starts a fresh Docker container for each test"
+    expect: no-load
+    kind: near-miss
