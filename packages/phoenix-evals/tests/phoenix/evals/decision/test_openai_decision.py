@@ -165,6 +165,23 @@ def test_refusal_raises(monkeypatch):
         decision.generate_classification("something", ["correct", "incorrect"])
 
 
+def test_max_retries_defaults_to_zero_but_can_be_overridden(monkeypatch):
+    sync_ctor = MagicMock(return_value=MagicMock())
+    async_ctor = MagicMock(return_value=MagicMock())
+    monkeypatch.setattr("openai.OpenAI", sync_ctor)
+    monkeypatch.setattr("openai.AsyncOpenAI", async_ctor)
+
+    DecisionModel(provider="openai", model="gpt-6-luna")
+    assert sync_ctor.call_args.kwargs["max_retries"] == 0
+
+    sync_ctor.reset_mock()
+    async_ctor.reset_mock()
+
+    # A caller-provided value must win and must not crash with a duplicate-kwarg error.
+    DecisionModel(provider="openai", model="gpt-6-luna", max_retries=3)
+    assert sync_ctor.call_args.kwargs["max_retries"] == 3
+
+
 def test_old_sdk_without_decisions_raises_a_helpful_error(monkeypatch):
     # An importable-but-old openai has no `decisions` resource; the factory rejects it and the
     # facade wraps the failure in a ValueError whose message still points at the Decisions API.
