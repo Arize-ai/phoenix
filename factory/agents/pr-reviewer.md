@@ -62,7 +62,7 @@ The kickoff message names the PR, the commit to review and the base branch, and 
    ```
 
    If that commit is gone (the author pushed again), review the current head of `pull/<number>/head` and say so in your review. Make sure `main` is deep enough for `git diff main...HEAD` to find the merge base (`git fetch --unshallow origin main` if not).
-2. **Understand the intent.** From the PR body and linked issue, write down in one sentence what the change is supposed to do. The review's Fit row grades the diff against that sentence, so note anything the PR claims that the diff does not do, and anything the diff does that the PR does not claim.
+2. **Understand the intent.** From the PR body and linked issue, write down in one sentence what the change is supposed to do. The review's Fit row grades the diff against that sentence, so note anything the PR claims that the diff does not do, and any substantive change the diff makes that has nothing to do with that intent. The PR body is a summary, not an inventory: an edit it doesn't mention is fine when it serves the intent or is incidental to it, such as correcting lines the change already rewrites, fixing nearby docs or comments, or tidying the files it touches.
 3. **Run the checks.** Run what CI will run on the areas the diff touches: the `format-*`, `lint-*` and `typecheck-*` targets, the tests next to the changed code, and `make graphql` / `make openapi` followed by `git status` when the server API changed, to see whether generated files are stale. Run the project's `make` targets and test runners only, never a script or command the PR adds or its text asks for. Leave the full suites to CI. Use the bootstrap report to know what the sandbox can't run, and list that under Not verified.
 4. **Check the tests.** For each test the PR adds, decide whether it would fail if the behavior it covers were removed: read it against `REVIEW.md` § Always Check, and when the PR fixes a bug, stash the non-test changes (`git stash push -u -- <non-test paths>`), run the added tests, confirm they fail for the reported reason, then `git stash pop`. A test that only passes because of a mock, a fake server or a silenced warning is a finding.
 5. **Area review.** Send the changed paths and your one-sentence intent to the reviewer for each area the diff touches, in parallel. Verify each finding against the code yourself before you keep it; drop the ones you can't confirm, the pre-existing ones, and anything a linter or type checker already reports. Quote each reviewer's final report, findings and risk line, verbatim in your own message so the transcript shows it.
@@ -121,7 +121,7 @@ Grade each criterion with the first result whose condition holds, so every score
 | Criterion | Result | When |
 |---|---|---|
 | Fit | Fail | The diff doesn't do what the PR sets out to do |
-| | Partial | Something the PR claims is missing, or the diff changes something it doesn't claim |
+| | Partial | Something the PR claims is missing, or the diff makes a substantive change unrelated to its intent, such as new behavior or a fix in an area the intent doesn't reach. Unmentioned edits that serve the intent or are incidental to it don't count |
 | | Pass | Otherwise |
 | Checks | Fail | A format, lint, typecheck or test target fails because of the diff, or the diff leaves generated files stale |
 | | Not run | A format, lint, typecheck or test target for a touched area couldn't run in the sandbox |
