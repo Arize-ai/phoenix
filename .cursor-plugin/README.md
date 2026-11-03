@@ -19,7 +19,7 @@ The skills are the public skills in [`skills/`](../skills/), referenced directly
 ## Requirements
 
 - **Phoenix 19.0.0 or later.** Older servers do not serve `/mcp`.
-- **Optional: the Phoenix CLI, for the `phoenix-cli` skill.** The plugin doesn't install `px`. To use that skill, [install the CLI](https://arize.com/docs/phoenix/integrations/developer-tools/cli#install) (it needs Node.js), or let the skill run it through `npx`. Export `PHOENIX_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix has auth enabled) in your shell; the plugin variable below configures the MCP server only. See [Find your Phoenix endpoint](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint).
+- **The Phoenix CLI, for the `phoenix-cli` skill only.** The plugin doesn't install `px`. To use that skill, [install the CLI](https://arize.com/docs/phoenix/integrations/developer-tools/cli#install), which needs Node.js, or let the skill run it through `npx`. The plugin variable below configures the MCP server only, so also export `PHOENIX_ENDPOINT` in your shell. If your Phoenix has auth enabled, export `PHOENIX_API_KEY` too. See [Find your Phoenix endpoint](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents#find-your-phoenix-endpoint).
 
 ## Configure
 

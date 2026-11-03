@@ -279,11 +279,11 @@ Run Phoenix [code evaluators](https://arize.com/docs/phoenix/evaluation/server-e
 
 ## For Humans and Coding Agents
 
-Phoenix is built to be driven by people and by AI coding agents alike. To let an agent (Claude Code, Codex, Cursor, and others) work with your traces, datasets, and experiments, connect it to Phoenix:
+People and coding agents such as Claude Code, Codex, and Cursor can both work with Phoenix. To give an agent access to your traces, datasets, and experiments, connect it in one of these ways:
 
-- **Claude Code or Codex** — install the Arize Phoenix plugin. It registers the Phoenix MCP server and installs the Phoenix skills.
-- **Any other agent** — add the **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** at your instance's `/mcp` endpoint. It serves your Phoenix data and the Phoenix skills, which match your server version.
-- **Optional: the [CLI](https://arize.com/docs/phoenix/integrations/developer-tools/cli)** — `npx @arizeai/phoenix-cli` runs Phoenix commands in a terminal, and `px setup` instruments your app through your coding agent.
+- **Claude Code or Codex.** Install the Arize Phoenix plugin. It registers the Phoenix MCP server and installs the Phoenix skills.
+- **Any other agent.** Add the [Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) at your instance's `/mcp` endpoint. It serves your Phoenix data and the Phoenix skills, which match your server version.
+- **Optional CLI.** The [Phoenix CLI](https://arize.com/docs/phoenix/integrations/developer-tools/cli), `npx @arizeai/phoenix-cli`, runs Phoenix commands in a terminal, and `px setup` instruments your app through your coding agent.
 
 See [Connect Your Coding Agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for setup steps.
 
@@ -291,7 +291,7 @@ The **[skills](https://arize.com/docs/phoenix/integrations/developer-tools/skill
 
 | Skill                                                    | Description                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](skills/phoenix-cli/)                       | Debug LLM applications using the Phoenix CLI — fetch traces, analyze errors, review experiments, and query the GraphQL API |
+| [phoenix-cli](skills/phoenix-cli/)                       | Debug LLM applications with the Phoenix CLI. Fetch traces, analyze errors, review experiments, and query the GraphQL API  |
 | [phoenix-error-analysis](skills/phoenix-error-analysis/) | Read sampled traces, write notes, and group them into failure categories that pick eval targets and fix priorities         |
 | [phoenix-evals](skills/phoenix-evals/)                   | Build, run, and validate evaluators for AI/LLM applications using Phoenix                                                  |
 | [phoenix-harbor](skills/phoenix-harbor/)                 | Configure and interpret the Phoenix plugin for Harbor agent evaluations                                                    |
