@@ -218,7 +218,7 @@ A closed pull request that is reopened without a signature is closed again on th
 
 ## Finishing a PR
 
-A review tells a maintainer what a pull request needs. The finish lane does it. A maintainer labels an open PR `factory-finish`, or runs **Factory Finish** from the Actions tab with its number, and the factory takes the PR the rest of the way: a linked issue, every review finding fixed in the project's style, CI green, with one comment to the author saying what changed and why. The PR may be a draft. The requester needs write access, and a fork PR's CLA must be signed per the CLA Assistant's comment; otherwise the factory comments why it skipped and removes the label.
+A review tells a maintainer what a pull request needs. The finish lane does it. A maintainer labels an open PR `factory-finish`, or runs **Factory Finish** from the Actions tab with its number, and the factory takes the PR the rest of the way: a linked issue, every review finding fixed in the project's style, CI green, with one comment to the author saying what changed and why. The PR may be a draft. The requester needs write access, and a fork PR's CLA must be signed per the CLA Assistant's check on the head commit, falling back to its comment when the check is missing; otherwise the factory comments why it skipped and removes the label.
 
 ```mermaid
 sequenceDiagram

@@ -38,6 +38,7 @@ from github_app import GitHubAppToken
 from review import comment_on_pr, read_factory_login
 
 FINISH_LABEL = "factory-finish"
+CLA_CHECK_NAME = "CLAAssistant"
 # Stays on a PR the factory pushed to, so the secret-bearing CI jobs and Factory Guard treat
 # every later head as factory work; `github.actor` would only cover the app's own pushes.
 FINISHED_LABEL = "factory-finished"
@@ -103,13 +104,15 @@ def find_admission_problem(
         return f"`{requester_login}` needs write access to this repository to start it"
     if pr["state"] != "OPEN" and copy is None:
         return f"the pull request is {pr['state'].lower()}"
-    # The CLA Assistant comments only on PRs it has to check, and someone who pushed a
-    # branch to this repository has write access, so a same-repo PR passes without one.
+    # Someone who pushed a branch to this repository has write access, so a same-repo PR
+    # passes without a CLA check.
     if not pr["isCrossRepository"]:
         return None
-    cla_signed = read_cla_signed(comments=pr["comments"])
+    cla_signed = read_cla_status(pr_number=pr["number"])
     if cla_signed is None:
-        return "the CLA Assistant has not checked it yet; try again once it has commented"
+        cla_signed = read_cla_signed(comments=pr["comments"])
+    if cla_signed is None:
+        return "the CLA Assistant has not checked it yet; try again once its check has run"
     if not cla_signed:
         return "its CLA is not signed; the factory starts once the CLA Assistant says it is"
     if copy is None and changes_guarded_paths(pr=pr):
@@ -138,6 +141,19 @@ def changes_guarded_paths(*, pr: dict[str, Any]) -> bool:
         ".[] | .filename, (.previous_filename // empty)",
     ).split()
     return any(GUARDED_PATH_PATTERN.search(path) for path in paths)
+
+
+def read_cla_status(*, pr_number: int) -> Optional[bool]:
+    """What the CLA Assistant's check on the head commit says: signed, unsigned, or None when
+    it is missing or still pending. The Assistant comments only when someone has to sign,
+    so the check is the one record every fork PR has."""
+    checks = json.loads(run_gh("pr", "checks", str(pr_number), "--json", "name,bucket"))
+    buckets = {check["bucket"] for check in checks if check["name"] == CLA_CHECK_NAME}
+    if "pass" in buckets:
+        return True
+    if "fail" in buckets:
+        return False
+    return None
 
 
 def copy_branch_name(*, pr_number: int) -> str:
