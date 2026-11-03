@@ -156,6 +156,15 @@ def start_session(
 ) -> str:
     lock = json.loads(LOCK_FILE_PATH.read_text())
     head_sha = pr["headRefOid"]
+    open_threads: list[ReviewThread] = []
+    try:
+        open_threads = read_open_factory_threads(
+            repo=repo, pr_number=pr["number"], factory_login=factory_login, token=github_token
+        )
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::gh failed while listing review threads: {error}: {error.stderr}")
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        print(f"::warning::Unexpected GitHub response while listing review threads: {error!r}")
     # Keep untrusted PR text (title, body, comments) out of the prompt; the agent reads it
     # through the GitHub MCP server.
     kickoff_text = (
@@ -163,12 +172,7 @@ def start_session(
         f"{describe_head(pr=pr)}, against base branch {pr['baseRefName']}. "
         f"Read the PR with pull_request_read. Fetch its commits with "
         f"`git fetch origin {pr['baseRefName']} pull/{pr['number']}/head` and check out "
-        f"{head_sha} before you run anything."
-        + format_open_threads(
-            threads=read_open_factory_threads(
-                repo=repo, pr_number=pr["number"], factory_login=factory_login, token=github_token
-            )
-        )
+        f"{head_sha} before you run anything." + format_open_threads(threads=open_threads)
     )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=REVIEW_AGENT_LOCK_KEY),
@@ -317,11 +321,7 @@ def format_open_threads(*, threads: list[ReviewThread]) -> str:
     """The kickoff's list of earlier factory threads for the reviewer to re-check."""
     if not threads:
         return ""
-    thread_lines = "\n".join(
-        f"- {thread.id}: {thread.path}:{thread.line if thread.line is not None else 'outdated'}"
-        f" (comment {thread.comment_id})"
-        for thread in threads
-    )
+    thread_lines = "\n".join(f"- {thread.id} (comment {thread.comment_id})" for thread in threads)
     return (
         " The factory's earlier reviews left these threads open; re-check each against the "
         "code you review and name the fixed ones on the summary's Resolved threads line:\n"
