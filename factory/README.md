@@ -107,6 +107,8 @@ Each part does one job, so it can be changed and tested on its own:
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
 | `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, then edits its status comment on the PR into the review's verdict and labels it `factory-approved`, `factory-request-changes` or `factory-close`, or says why there is no verdict. See [Reviewing a PR](#reviewing-a-pr) |
 | `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
+| `factory-finish.yml` | Runs when a maintainer labels a PR `factory-finish` or dispatches it by number. `finish.py` checks that the requester has write access, the PR is open and, for a fork PR, its CLA is signed, copies a fork PR to a `factory/pr-N` branch here and closes the original, starts a `pr-finisher` session on the PR's branch, then follows it the way `dispatch.py` does. See [Finishing a PR](#finishing-a-pr) |
+| `pr-finisher` | Links or files the PR's issue from the issue template, grades it by the `pr-reviewer` verdict rules with the area reviewers, closes it and labels the issue `factory` when the approach is not sound, otherwise has the reproducer or analyst verify the claim, fixes every finding in the project's style with appended commits, and posts one comment to the author on what changed and why |
 | `factory-guard.yml` | Fails factory PRs that touch `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/`, `plugins/`, `AGENTS.md` or `CLAUDE.md` |
 | `factory-sync.yml` | Plans resource changes on PRs, applies them on merge, and pushes `claude-lock.json` to the `factory-state` branch, which holds only the lock |
 | `factory-log-scan.yml` | Daily at 5am Eastern, checks Grafana for the last day of server errors and, if there are any, runs the `railway-triage` agent, which follows the `phoenix-railway-triage` skill to file a user-facing `bug` issue per new bug or update the issue that covers it. Can label new issues `factory` to start the bug lane. See [Log scan](#log-scan) |
@@ -214,6 +216,45 @@ Every pull request needs a signed CLA, and `cla.yml` already tells the author so
 
 A closed pull request that is reopened without a signature is closed again on the next sweep, since its reminder is already past the deadline. One that is reopened after signing loses the label and the reminder on the next sweep. The step log lists each pull request in scope with what was done. The check creates the label on first use.
 
+## Finishing a PR
+
+A review tells a maintainer what a pull request needs. The finish lane does it. A maintainer labels an open PR `factory-finish`, or runs **Factory Finish** from the Actions tab with its number, and the factory takes the PR the rest of the way: a linked issue, every review finding fixed in the project's style, CI green, with one comment to the author saying what changed and why. The PR may be a draft. The requester needs write access, and a fork PR's CLA must be signed per the CLA Assistant's comment; otherwise the factory comments why it skipped and removes the label.
+
+```mermaid
+sequenceDiagram
+  actor maintainer as Maintainer
+  participant github as GitHub
+  participant finish as finish.py
+  participant session as pr-finisher session
+
+  maintainer->>github: add the factory-finish label
+  github->>finish: pull_request_target labeled
+  finish->>github: check the requester, the PR and its CLA
+  alt not admissible
+    finish->>github: comment why, remove factory-finish
+  else fork PR
+    finish->>github: push pull/N/head to factory/pr-N, open a PR from it, close the original with a pointer
+  end
+  finish->>session: create with pr-finisher, the repo mounted on the PR's branch
+  finish->>github: post the run's status comment with the session link
+  session->>session: bootstrap, link or file the issue, run checks, area review, grade the verdict
+  alt Close verdict
+    session->>github: comment the reason, close the PR, label the issue factory
+  else
+    session->>session: verify the claim, fix every finding, append commits
+    session->>github: push, update the body, comment to the author, post the assessment
+    finish->>session: CI failures and review findings, up to 3 rounds
+    finish->>github: mark the PR ready, replace the status comment with the outcome, remove factory-finish
+  end
+  maintainer->>github: review at the assessment's depth, then merge
+```
+
+The factory cannot push to a fork, so a fork PR is first copied: the Actions job fetches `pull/N/head` and pushes it to `factory/pr-N` as objects, without running anything from it, opens a draft PR from that branch with the contributor's title and body plus a provenance line, and closes the original with a comment that links the copy. The commits keep the contributor's authorship, and the session only ever appends commits, so what they wrote stays theirs in the history. A rerun on the original continues the open copy instead of making another. A same-repo PR is finished on its own branch.
+
+The session grades the PR by the same verdict rules as the review lane, in [`agents/pr-reviewer.md` § Verdict](agents/pr-reviewer.md#verdict). A **Close** verdict, or a Fit failure that only a rewrite would fix, ends the run: the session comments the reason, closes the PR and labels its issue `factory`, which starts the issue lane on a fresh branch. Otherwise it has the reproducer or analyst check the PR's claim against the issue, fixes every finding, blocking and non-blocking, and ships. The fixes follow the project's conventions rather than the PR's. Factory Guard applies to the `factory/pr-N` branch, so a contribution that changes automation files cannot be finished by the factory; the assessment says so.
+
+The watch step reuses the dispatch loop: failing required checks and Claude Code Review findings go back to the session for up to 3 rounds, the PR leaves draft once CI passes, and the status comment becomes the outcome with the rubric result and cost. Each session has a spend cap of $25 at list price, and the job waits up to 270 minutes. Re-adding the label runs the lane again on the PR's current head.
+
 ## Run outcomes
 
 Every report on the issue names how the run ended. Only `success` asks for a human review; the other outcomes are the factory's own backlog:
@@ -237,6 +278,7 @@ bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, 
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
 github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
 review.py        admits a pull request, starts its pr-reviewer session, and reports and labels the review's verdict
+finish.py        admits a pull request, copies it from a fork if needed, starts its pr-finisher session, and follows it to a mergeable PR
 log_scan.py      counts the day's server errors in Grafana or Datadog and, if any, runs the matching triage session
 cla_check.py     reminds the author of a PR whose CLA is unsigned, closes it a day later if still unsigned, and clears the label once signed
 ```
@@ -251,7 +293,7 @@ cla_check.py     reminds the author of a PR whose CLA is unsigned, closes it a d
 4. Create the repo variable `FACTORY_APP_CLIENT_ID` with the app's Client ID and the repo secret `FACTORY_APP_PRIVATE_KEY` with the private key. For each session, `dispatch.py`, `review.py` and `log_scan.py` mint an installation token limited to this repo and those three permissions, mount it as the session's repo token, and write it to the GitHub vault as a `static_bearer` credential for `https://api.githubcopilot.com/mcp/` and a header-only `GH_TOKEN` environment-variable credential for `api.github.com`, creating them on first use. Tokens last an hour, so they re-mint one while they follow a session. The sandbox sees only placeholders. The app then authors factory PRs, so any maintainer can approve them. The release and sync workflows (`release.yml`, `typescript-packages-publish.yml`, `sync-lockfile-release-pr.yml`, `update-phoenix-package-versions.yml`, `docker-build-release.yml`, `cost-sync.yml`, `generate-sitemap.yml`, `daily-skills-update.yml` and `phoenix-sqlean-upstream.yml`) mint their own installation token from the same variable and secret with `actions/create-github-app-token`, so the app authors those PRs too.
 5. Create the repo variable `FACTORY_GITHUB_LOGIN` with the app's bot login, `arize-phoenix-factory[bot]`. CI uses it to recognize factory PRs, `dispatch.py` accepts it as a requester, `review.py` finds the review it posts by it, and the factory commits as its noreply address. The login is in the `allowlist` in `cla.yml` and in `allowed_bots` in `claude-code-review.yml`.
 6. Don't restrict the app's branches. It pushes the release-please, changesets, version-bump and sync branches as well as `factory/**`. If a ruleset from an earlier bootstrap keeps it on `factory/**`, delete the ruleset or add the app to its bypass list. Branch protection on `main` still applies to it, so its PRs need a maintainer's approval.
-7. Create the `factory`, `factory-candidate` and `factory-review` labels, and make `Factory Guard` a required check on `main`. `review.py` creates the verdict labels `factory-approved`, `factory-request-changes` and `factory-close` on first use; to create them up front, run `gh label create <name> --color <color> --description <description> --force` with the values in `VERDICT_LABELS` in `review.py`.
+7. Create the `factory`, `factory-candidate`, `factory-review` and `factory-finish` labels, and make `Factory Guard` a required check on `main`. `review.py` creates the verdict labels `factory-approved`, `factory-request-changes` and `factory-close` on first use; to create them up front, run `gh label create <name> --color <color> --description <description> --force` with the values in `VERDICT_LABELS` in `review.py`.
 8. Try it on one small issue with **Run workflow** on `Factory Dispatch`, and on one open PR with **Run workflow** on `Factory Review`.
 
 ## Grafana access
