@@ -212,27 +212,27 @@ jobs:
         run: |
           mkdir -p .scratch/verify
           log=".scratch/verify/upgrade-python.log"
-          {
-            set -e
+          if (
             pins=$(printf 'strawberry-graphql\npydantic-monty\n' \
-              | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.11)
-            echo "$pins"
-            while IFS='=' read -r name _ version; do
-              [ -n "$name" ] || continue
-              sed -i -E "s/(\"${name}(\[[^]]*\])?==)[0-9][^\"]*\"/\1${version}\"/g" pyproject.toml
-            done <<< "$pins"
-            git diff --stat -- pyproject.toml
-            uv lock --upgrade
-            uv sync
-          } > "$log" 2>&1 && {
+              | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.11) \
+              && echo "$pins" \
+              && while IFS='=' read -r name _ version; do
+                if [ -n "$name" ]; then
+                  sed -i -E "s/(\"${name}(\[[^]]*\])?==)[0-9][^\"]*\"/\1${version}\"/g" pyproject.toml || exit 1
+                fi
+              done <<< "$pins" \
+              && git diff --stat -- pyproject.toml \
+              && uv lock --upgrade \
+              && uv sync
+          ) > "$log" 2>&1; then
             cat "$log"
             rm -f "$log"
             echo "failed=false" >> "$GITHUB_OUTPUT"
-          } || {
+          else
             echo "✗ upgrade-python (see $log)" >> "$log"
             cat "$log"
             echo "failed=true" >> "$GITHUB_OUTPUT"
-          }
+          fi
 
       - name: Upgrade JavaScript (pnpm)
         id: upgrade_js
@@ -240,20 +240,19 @@ jobs:
         run: |
           mkdir -p .scratch/verify
           log=".scratch/verify/upgrade-js.log"
-          (
-            set -e
-            cd js
-            pnpm update --recursive
-            pnpm install --frozen-lockfile
-          ) > "$log" 2>&1 && {
+          if (
+            cd js \
+              && pnpm update --recursive \
+              && pnpm install --frozen-lockfile
+          ) > "$log" 2>&1; then
             cat "$log"
             rm -f "$log"
             echo "failed=false" >> "$GITHUB_OUTPUT"
-          } || {
+          else
             echo "✗ upgrade-js (see $log)" >> "$log"
             cat "$log"
             echo "failed=true" >> "$GITHUB_OUTPUT"
-          }
+          fi
 
       - name: Detect changes or issues to fix
         id: changes
