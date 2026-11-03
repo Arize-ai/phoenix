@@ -1,9 +1,14 @@
 import type {
+  Completion,
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
 import { describe, expect, it } from "vitest";
 
+import {
+  getDSLFilterStaticCompletions,
+  MAX_BROWSE_SUGGESTIONS,
+} from "../DSLFilterConditionField";
 import {
   canInsertDSLFilterConditionAtToken,
   createDSLFilterCompletionSource,
@@ -43,7 +48,13 @@ describe("canInsertDSLFilterConditionAtToken", () => {
     ["span_kind == 'LLM' and lat", ""],
     ["span_kind == 'LLM' or ", ""],
     ["not ", ""],
+    ["not not ", ""],
+    ["span_kind == 'LLM' and not ", ""],
     ["(", ")"],
+    ["((", ""],
+    ["not(", ""],
+    ["span_kind == 'LLM' and(", ""],
+    ["span_kind == 'LLM' or (not ", ")"],
     ["", " and span_kind == 'LLM'"],
     ["lat", " or span_kind == 'LLM'"],
   ])("allows a condition at %j|%j", (textBeforeCursor, textAfterCursor) => {
@@ -60,10 +71,65 @@ describe("canInsertDSLFilterConditionAtToken", () => {
     ["lat", " > 100"],
     ["", " span_kind == 'LLM'"],
     ["", " android"],
+    ["parent_id is not ", ""],
+    ["parent_id is not (", ""],
+    ["x not ", ""],
+    ["span_kind not ", ""],
+    ["cannot ", ""],
+    ["len(", ")"],
+    ["latency_ms > (", ""],
+    ["span_kind in (", ""],
+    ["span_kind == 'LLM' and len(", ""],
   ])("rejects a condition at %j|%j", (textBeforeCursor, textAfterCursor) => {
     expect(
       canInsertDSLFilterConditionAtToken({ textBeforeCursor, textAfterCursor })
     ).toBe(false);
+  });
+});
+
+describe("getDSLFilterStaticCompletions", () => {
+  const snippetOptions: Completion[] = Array.from({ length: 8 }, (_, i) => ({
+    label: `snippet ${i}`,
+    type: "text",
+  }));
+  const fieldOptions: Completion[] = [
+    { label: "span_kind" },
+    { label: "latency_ms" },
+  ];
+  const optionsFor = (
+    textBeforeCursor: string,
+    { isBrowsing = false, contextualOptions = null as Completion[] | null } = {}
+  ) =>
+    getDSLFilterStaticCompletions({
+      request: { isBrowsing, textBeforeCursor, textAfterCursor: "" },
+      snippetOptions,
+      fieldOptions,
+      contextualOptions,
+    });
+
+  it("offers no full-condition suggestions right after a complete condition", () => {
+    const options = optionsFor("span_kind == 'LLM' ", { isBrowsing: true });
+    expect(options.filter((option) => option.type === "text")).toEqual([]);
+    expect(options).toEqual(fieldOptions);
+  });
+
+  it("offers suggestions and fields in an empty field, capped while browsing", () => {
+    expect(optionsFor("", { isBrowsing: true })).toEqual([
+      ...snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS),
+      ...fieldOptions,
+    ]);
+  });
+
+  it("offers every matching suggestion once the user types", () => {
+    expect(optionsFor("span_kind == 'LLM' and lat")).toEqual([
+      ...snippetOptions,
+      ...fieldOptions,
+    ]);
+  });
+
+  it("lets contextual options replace both groups", () => {
+    const contextualOptions = [{ label: "name" }];
+    expect(optionsFor("", { contextualOptions })).toEqual(contextualOptions);
   });
 });
 

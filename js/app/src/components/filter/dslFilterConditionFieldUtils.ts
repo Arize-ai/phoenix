@@ -82,12 +82,33 @@ export function canInsertDSLFilterConditionAtToken({
   textAfterCursor: string;
 }): boolean {
   const { from } = getDSLFilterCompletionTokenBeforeCursor(textBeforeCursor);
-  const before = textBeforeCursor.slice(0, from).trimEnd();
   const after = textAfterCursor.trimStart();
   return (
-    (before === "" || /(?:^|[\s()])(?:and|or|not)$|\($/.test(before)) &&
+    isDSLFilterConditionStart(textBeforeCursor.slice(0, from)) &&
     (after === "" || /^(?:(?:and|or)\b|\))/.test(after))
   );
+}
+
+/**
+ * Whether `text` ends where a new condition can begin: the start of the
+ * query, or after `and` / `or`. A trailing `not` or `(` only counts when the
+ * text before it is itself such a place, so the `not` of `is not` / `not in`
+ * and the `(` of a call or tuple don't qualify.
+ */
+function isDSLFilterConditionStart(text: string): boolean {
+  let before = text.trimEnd();
+  for (;;) {
+    if (before === "" || /(?:^|[\s()])(?:and|or)$/.test(before)) {
+      return true;
+    }
+    if (/(?:^|[\s()])not$/.test(before)) {
+      before = before.slice(0, -"not".length).trimEnd();
+    } else if (before.endsWith("(")) {
+      before = before.slice(0, -1).trimEnd();
+    } else {
+      return false;
+    }
+  }
 }
 
 /**

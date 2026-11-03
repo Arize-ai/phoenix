@@ -180,6 +180,41 @@ export const MAX_BROWSE_SUGGESTIONS = 5;
 const MAX_BROWSE_FIELDS = 30;
 
 /**
+ * The snippet and field options offered for one completion request. Snippets
+ * are whole conditions, so they're only offered where one can replace the
+ * token at the cursor. Contextual options, when a caller supplies them,
+ * replace both groups.
+ */
+export function getDSLFilterStaticCompletions({
+  request,
+  snippetOptions,
+  fieldOptions,
+  contextualOptions,
+}: {
+  request: DSLFilterCompletionRequest;
+  snippetOptions: readonly Completion[];
+  fieldOptions: readonly Completion[];
+  contextualOptions?: readonly Completion[] | null;
+}): Completion[] {
+  if (contextualOptions) {
+    return request.isBrowsing
+      ? contextualOptions.slice(0, MAX_BROWSE_FIELDS)
+      : [...contextualOptions];
+  }
+  const suggestionOptions = canInsertDSLFilterConditionAtToken(request)
+    ? snippetOptions
+    : [];
+  return [
+    ...(request.isBrowsing
+      ? suggestionOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
+      : suggestionOptions),
+    ...(request.isBrowsing
+      ? fieldOptions.slice(0, MAX_BROWSE_FIELDS)
+      : fieldOptions),
+  ];
+}
+
+/**
  * How long a typed condition must sit still before it is validated. Tuned by
  * feel: long enough that a phrase being typed does not flash red, short enough
  * that a finished one applies without a wait.
@@ -624,27 +659,13 @@ export function DSLFilterConditionField<
         ? completion
         : { ...completion, section: fieldsSection }
     );
-    const staticOptions = (
-      request: DSLFilterCompletionRequest
-    ): Completion[] => {
-      const contextualOptions = getContextualCompletions?.(request);
-      if (contextualOptions) {
-        return request.isBrowsing
-          ? contextualOptions.slice(0, MAX_BROWSE_FIELDS)
-          : contextualOptions;
-      }
-      const suggestionOptions = canInsertDSLFilterConditionAtToken(request)
-        ? snippetOptions
-        : [];
-      return [
-        ...(request.isBrowsing
-          ? suggestionOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
-          : suggestionOptions),
-        ...(request.isBrowsing
-          ? fieldOptions.slice(0, MAX_BROWSE_FIELDS)
-          : fieldOptions),
-      ];
-    };
+    const staticOptions = (request: DSLFilterCompletionRequest) =>
+      getDSLFilterStaticCompletions({
+        request,
+        snippetOptions,
+        fieldOptions,
+        contextualOptions: getContextualCompletions?.(request),
+      });
     return [
       ...composedExtensions,
       singleLineKeymap,
