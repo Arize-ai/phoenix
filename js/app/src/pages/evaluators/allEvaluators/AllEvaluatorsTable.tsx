@@ -22,7 +22,10 @@ type QueryData = AllEvaluatorsTableQuery["response"];
 type ProjectEvaluatorNode =
   QueryData["projectEvaluators"]["edges"][number]["node"];
 
-/** Every project and dataset evaluator is loaded; sorting happens here. */
+/**
+ * Up to this many of each type are loaded, newest first, the same cap as the
+ * Project evaluators tab. Sorting and search happen here, over those rows.
+ */
 const EVALUATORS_LIMIT = 1000;
 
 export const ALL_EVALUATORS_DEFAULT_SORTING: SortingState = [
@@ -169,7 +172,7 @@ export function AllEvaluatorsTable({
             }
           }
         }
-        datasetEvaluators(first: $first) {
+        datasetEvaluators(first: $first, sort: { col: createdAt, dir: desc }) {
           edges {
             node {
               id

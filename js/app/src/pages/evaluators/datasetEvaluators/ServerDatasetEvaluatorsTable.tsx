@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
@@ -49,22 +48,16 @@ export function ServerDatasetEvaluatorsTable({
     `,
     query
   );
-  const loadNext = useCallback(
-    (
-      args: NonNullable<
-        Parameters<typeof _loadNext>[1]
-      >["UNSTABLE_extraVariables"]
-    ) => {
-      _loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: args });
-    },
-    [_loadNext]
-  );
-  const refetch = useCallback(
-    (args: NonNullable<Parameters<typeof _refetch>[0]>) => {
-      _refetch(args, { fetchPolicy: "store-and-network" });
-    },
-    [_refetch]
-  );
+  const loadNext = (
+    args: NonNullable<
+      Parameters<typeof _loadNext>[1]
+    >["UNSTABLE_extraVariables"]
+  ) => {
+    _loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: args });
+  };
+  const refetch = (args: NonNullable<Parameters<typeof _refetch>[0]>) => {
+    _refetch(args, { fetchPolicy: "store-and-network" });
+  };
   return (
     <DatasetEvaluatorsTable
       rowReferences={data.datasetEvaluators.edges.map((edge) => edge.node)}

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e7a1d4e2d55af0e7870668b6f994911>>
+ * @generated SignedSource<<1de16410ee9c7916d33b4b3f630ba9f6>>
  * @lightSyntaxTransform
  */
 
@@ -71,63 +71,64 @@ var v0 = [
     "name": "first"
   }
 ],
-v1 = [
-  {
-    "kind": "Variable",
-    "name": "first",
-    "variableName": "first"
-  }
+v1 = {
+  "kind": "Variable",
+  "name": "first",
+  "variableName": "first"
+},
+v2 = [
+  (v1/*:: as any*/)
 ],
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "createdAt",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v6 = [
-  (v2/*:: as any*/),
-  (v3/*:: as any*/)
+v7 = [
+  (v3/*:: as any*/),
+  (v4/*:: as any*/)
 ],
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "Project",
   "kind": "LinkedField",
   "name": "project",
   "plural": false,
-  "selections": (v6/*:: as any*/),
+  "selections": (v7/*:: as any*/),
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "kind",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -135,11 +136,11 @@ v9 = {
   "name": "evaluator",
   "plural": false,
   "selections": [
-    (v8/*:: as any*/)
+    (v9/*:: as any*/)
   ],
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "ProjectEvaluatorRunSummary",
@@ -199,17 +200,28 @@ v10 = {
   ],
   "storageKey": null
 },
-v11 = {
+v12 = [
+  (v1/*:: as any*/),
+  {
+    "kind": "Literal",
+    "name": "sort",
+    "value": {
+      "col": "createdAt",
+      "dir": "desc"
+    }
+  }
+],
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "Dataset",
   "kind": "LinkedField",
   "name": "dataset",
   "plural": false,
-  "selections": (v6/*:: as any*/),
+  "selections": (v7/*:: as any*/),
   "storageKey": null
 },
-v12 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -224,8 +236,8 @@ v12 = {
       "name": "__typename",
       "storageKey": null
     },
-    (v8/*:: as any*/),
-    (v2/*:: as any*/)
+    (v9/*:: as any*/),
+    (v3/*:: as any*/)
   ],
   "storageKey": null
 };
@@ -238,7 +250,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectEvaluatorConnection",
         "kind": "LinkedField",
         "name": "projectEvaluators",
@@ -260,13 +272,13 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
                   (v3/*:: as any*/),
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
-                  (v7/*:: as any*/),
-                  (v9/*:: as any*/),
-                  (v10/*:: as any*/)
+                  (v6/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v10/*:: as any*/),
+                  (v11/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -278,7 +290,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v12/*:: as any*/),
         "concreteType": "DatasetEvaluatorConnection",
         "kind": "LinkedField",
         "name": "datasetEvaluators",
@@ -300,12 +312,12 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
                   (v3/*:: as any*/),
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
-                  (v11/*:: as any*/),
-                  (v9/*:: as any*/)
+                  (v6/*:: as any*/),
+                  (v13/*:: as any*/),
+                  (v10/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -327,7 +339,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v2/*:: as any*/),
         "concreteType": "ProjectEvaluatorConnection",
         "kind": "LinkedField",
         "name": "projectEvaluators",
@@ -349,13 +361,13 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
                   (v3/*:: as any*/),
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
-                  (v7/*:: as any*/),
-                  (v12/*:: as any*/),
-                  (v10/*:: as any*/)
+                  (v6/*:: as any*/),
+                  (v8/*:: as any*/),
+                  (v14/*:: as any*/),
+                  (v11/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -367,7 +379,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v12/*:: as any*/),
         "concreteType": "DatasetEvaluatorConnection",
         "kind": "LinkedField",
         "name": "datasetEvaluators",
@@ -389,12 +401,12 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
                   (v3/*:: as any*/),
                   (v4/*:: as any*/),
                   (v5/*:: as any*/),
-                  (v11/*:: as any*/),
-                  (v12/*:: as any*/)
+                  (v6/*:: as any*/),
+                  (v13/*:: as any*/),
+                  (v14/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -407,16 +419,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "84f3a2bf3cbc19e4db33e49475290fe7",
+    "cacheID": "bafad62d2d202e24190f88753ac21c09",
     "id": null,
     "metadata": {},
     "name": "AllEvaluatorsTableQuery",
     "operationKind": "query",
-    "text": "query AllEvaluatorsTableQuery(\n  $first: Int!\n) {\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          evaluatedCount\n          failedCount\n          droppedCount\n          oldestQueuedAt\n        }\n      }\n    }\n  }\n  datasetEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        dataset {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query AllEvaluatorsTableQuery(\n  $first: Int!\n) {\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          evaluatedCount\n          failedCount\n          droppedCount\n          oldestQueuedAt\n        }\n      }\n    }\n  }\n  datasetEvaluators(first: $first, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        dataset {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "58e139d8591d18c25a62bcfbabb4fd6d";
+(node as any).hash = "1ba7dd43dc0d7a57ac7ff25f5ff86cc3";
 
 export default node;
