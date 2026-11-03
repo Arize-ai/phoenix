@@ -1,9 +1,5 @@
 name: Factory CLA Check
 
-# Hourly: every open, non-draft pull request at least an hour old needs a signed CLA.
-# cla_check.py labels and reminds the author of one whose CLA is unsigned, closes it when the
-# CLA is still unsigned a day after the reminder, and removes the label once it is signed. It
-# runs as the factory's GitHub App, so the comments come from it.
 on:
   schedule:
     - cron: "17 * * * *"
