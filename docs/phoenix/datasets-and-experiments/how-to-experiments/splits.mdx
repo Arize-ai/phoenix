@@ -114,7 +114,8 @@ client.datasets.update_split(
 )
 
 # Deleting a split removes the split and its memberships. The examples stay in
-# the dataset.
+# the dataset. Splits are shared across datasets, so deleting a split removes
+# its memberships in every dataset.
 client.datasets.delete_split(dataset="my-dataset", split_id=test_split["id"])
 ```
 

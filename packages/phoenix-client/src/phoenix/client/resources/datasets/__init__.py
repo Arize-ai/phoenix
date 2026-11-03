@@ -1307,7 +1307,9 @@ class Datasets:
 
         This deletes the split and its example memberships only. The examples
         themselves stay in the dataset and in any other splits, and no new
-        dataset version is created. Requires Phoenix server >= 19.20.0.
+        dataset version is created. Splits are shared across datasets, so
+        deleting a split removes its memberships in every dataset. Requires
+        Phoenix server >= 19.20.0.
 
         Args:
             dataset (DatasetIdentifier): Dataset identifier - can be a dataset
@@ -2424,7 +2426,9 @@ class AsyncDatasets:
 
         This deletes the split and its example memberships only. The examples
         themselves stay in the dataset and in any other splits, and no new
-        dataset version is created. Requires Phoenix server >= 19.20.0.
+        dataset version is created. Splits are shared across datasets, so
+        deleting a split removes its memberships in every dataset. Requires
+        Phoenix server >= 19.20.0.
 
         Args:
             dataset (DatasetIdentifier): Dataset identifier - can be a dataset
