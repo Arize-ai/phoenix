@@ -7,6 +7,7 @@ from ...types import BaseDecisionAdapter
 from .factories import create_openai_client, get_openai_rate_limit_errors
 
 _QUESTION_NAME = "label"
+# The Decisions API rejects a choice question without instructions.
 _CHOICE_INSTRUCTIONS = "Select the single best label for the input."
 
 
@@ -29,15 +30,6 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         return "openai"
 
     def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> List[Dict[str, Any]]:
-        """
-        Returns a list with a single dictionary containing a "choice" question.
-        e.g. [{ "type": "choice",
-                "name": "label",
-                "instructions": "Select the single best label for the input.",
-                "choices": [{"value": "helpful", "description": None},
-                            {"value": "not helpful", "description": None}]
-                }]
-        """
         criteria: Dict[str, Any] = (
             dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
         )
@@ -59,10 +51,6 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
 
     @staticmethod
     def _to_result(response: Any) -> Dict[str, Any]:
-        """
-        Returns a dictionary with a single key "label" whose value is the answer choice.
-        e.g. {"label": "helpful"}
-        """
         answer = response.answers[0]
 
         if getattr(answer, "type", None) == "refusal":
@@ -74,7 +62,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         # OpenAI reports probabilities as a list of {value, probability}; flatten to a
         # value -> probability dict so metadata matches the other decision adapters.
         probabilities = {
-            _opt(option, "value"): _opt(option, "probability")
+            getattr(option, "value", None): getattr(option, "probability", None)
             for option in (getattr(answer, "probabilities", None) or [])
         }
         metadata: Dict[str, Any] = {
@@ -90,8 +78,8 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         usage = getattr(response, "usage", None)
         if usage is not None:
             result["usage"] = {
-                "input_tokens": _opt(usage, "input_tokens"),
-                "output_tokens": _opt(usage, "output_tokens"),
+                "input_tokens": getattr(usage, "input_tokens", None),
+                "output_tokens": getattr(usage, "output_tokens", None),
             }
         return result
 
@@ -122,8 +110,3 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
             **kwargs,
         )
         return self._to_result(response)
-
-
-def _opt(obj: Any, key: str) -> Any:
-    """Read ``key`` whether the SDK returns pydantic models (attributes) or plain dicts."""
-    return obj[key] if isinstance(obj, dict) else getattr(obj, key, None)
