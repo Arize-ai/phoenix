@@ -23,7 +23,7 @@ The skills are the public skills in [`skills/`](../skills/), referenced directly
 
 ## Configure
 
-1. Install the plugin. It isn't in Cursor's public marketplace, so add it to a team marketplace (an admin imports this repository under **Dashboard → Plugins & MCPs → Team Marketplaces**), then install it from **Customize**. To install it locally, see below.
+1. Install the plugin. It isn't in Cursor's public marketplace, so an admin adds it to a team marketplace by importing this repository under **Dashboard → Plugins & MCPs → Team Marketplaces**. Then install it from **Customize**. To install it locally, see below.
 2. If your Phoenix is not at `http://localhost:6006`, set **Phoenix endpoint** to your base URL with no trailing slash, for example `https://phoenix.example.com`. Cursor exposes plugin variables under **Dashboard → Plugins → Configure**; on a team marketplace an admin sets the value once for everyone.
 3. Use a Phoenix MCP tool once and complete the login in the browser.
 

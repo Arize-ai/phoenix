@@ -101,7 +101,7 @@ Each plugin registers the Phoenix MCP server and installs all five [Phoenix skil
     | `phoenix` MCP server | Streamable HTTP to `<your-endpoint>/mcp`, the [Remote MCP Server](/docs/phoenix/integrations/mcp#remote-mcp-server). |
     | Five skills | `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-harbor`, and `phoenix-tracing`. See [Skills](/docs/phoenix/integrations/developer-tools/skills). |
 
-    The `phoenix-cli` skill runs the optional `px` CLI. The plugin doesn't install `px`; to use that skill, [install the CLI](/docs/phoenix/integrations/developer-tools/cli#install).
+    The `phoenix-cli` skill runs the optional `px` CLI. The plugin doesn't install `px`. To use that skill, [install the CLI](/docs/phoenix/integrations/developer-tools/cli#install).
 
     **Change the endpoint.** `claude plugin install arize-phoenix@arize-phoenix --config endpoint=https://phoenix.example.com` at install time, `/plugin configure` afterward, or edit `~/.claude/settings.json`:
 
@@ -188,7 +188,7 @@ Each plugin registers the Phoenix MCP server and installs all five [Phoenix skil
   </Accordion>
 
   <Accordion title="Cursor plugin">
-    The Cursor plugin isn't in Cursor's public marketplace. On a Teams or Enterprise plan, an admin adds it to a team marketplace. Otherwise, add the [MCP server](/docs/phoenix/integrations/mcp#connect) by hand; it serves four of the five skills.
+    The Cursor plugin isn't in Cursor's public marketplace. On a Teams or Enterprise plan, an admin adds it to a team marketplace. Otherwise, add the [MCP server](/docs/phoenix/integrations/mcp#connect) by hand. It serves four of the five skills.
 
     <Steps>
       <Step title="Add the plugin to a team marketplace">
