@@ -111,7 +111,9 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
         system:
           systemMessages.length === 1
             ? systemMessages[0]
-            : systemMessages.map((text) => ({ type: "text" as const, text })),
+            : systemMessages
+                .filter((text) => text.length > 0)
+                .map((text) => ({ type: "text" as const, text })),
       }),
       messages,
       tools,

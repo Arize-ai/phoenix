@@ -95,6 +95,46 @@ describe("Anthropic system messages", () => {
     expect(result?.messages).toStrictEqual([userMessage]);
   });
 
+  it("omits empty strings from the system array", () => {
+    const prompt: PromptVersion = {
+      ...basePrompt,
+      template: {
+        type: "chat",
+        messages: [
+          { role: "system", content: "" },
+          { role: "developer", content: "Keep it short." },
+          userTurn,
+        ],
+      },
+    };
+    const result = toSDK({ sdk: "anthropic", prompt });
+
+    expect(result?.system).toStrictEqual([
+      { type: "text", text: "Keep it short." },
+    ]);
+    expect(result?.messages).toStrictEqual([userMessage]);
+  });
+
+  it("returns no conversation messages for a system-only prompt", () => {
+    const prompt: PromptVersion = {
+      ...basePrompt,
+      template: {
+        type: "chat",
+        messages: [
+          { role: "system", content: "Answer in French." },
+          { role: "system", content: "Keep it short." },
+        ],
+      },
+    };
+    const result = toSDK({ sdk: "anthropic", prompt });
+
+    expect(result?.system).toStrictEqual([
+      { type: "text", text: "Answer in French." },
+      { type: "text", text: "Keep it short." },
+    ]);
+    expect(result?.messages).toStrictEqual([]);
+  });
+
   it("omits system when the prompt has no system instructions", () => {
     const result = toSDK({ sdk: "anthropic", prompt: basePrompt });
 
