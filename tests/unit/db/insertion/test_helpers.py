@@ -290,6 +290,51 @@ class TestShouldCalculateSpanCost:
                 True,
                 id="model_name_with_tab",
             ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                True,
+                id="decision_span_with_decision_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "llm": {"model_name": "jev-latest"},
+                },
+                True,
+                id="legacy_decision_span_with_llm_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "  ", "token_count": {"input": 10}},
+                },
+                False,
+                id="decision_span_with_blank_model_name",
+            ),
+            pytest.param(
+                {"openinference": {"span": {"kind": "DECISION"}}, "decision": {}},
+                False,
+                id="decision_span_without_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "LLM"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                False,
+                id="llm_span_with_only_decision_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "llm": {"model_name": "text-embedding-3-small"},
+                },
+                False,
+                id="embedding_span",
+            ),
         ],
     )
     def test_should_calculate_span_cost(

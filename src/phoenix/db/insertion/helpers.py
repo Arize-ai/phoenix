@@ -115,14 +115,25 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
         yield k, v
 
 
+_COST_MODEL_NAME_KEYS: Mapping[str, tuple[str, ...]] = {
+    OpenInferenceSpanKindValues.LLM.value: (SpanAttributes.LLM_MODEL_NAME,),
+    # `llm.model_name` on DECISION spans is from TypeSafe instrumentor releases that predate the
+    # `decision.*` attributes (OpenInference `spec/decision_spans.md`, "Transition Note").
+    OpenInferenceSpanKindValues.DECISION.value: (
+        SpanAttributes.DECISION_MODEL_NAME,
+        SpanAttributes.LLM_MODEL_NAME,
+    ),
+}
+
+
 def should_calculate_span_cost(
     attributes: Optional[Mapping[str, Any]],
 ) -> bool:
-    return bool(
-        (span_kind := get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND))
-        and isinstance(span_kind, str)
-        and span_kind == OpenInferenceSpanKindValues.LLM.value
-        and (llm_name := get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME))
-        and isinstance(llm_name, str)
-        and llm_name.strip()
+    """Whether the span is an LLM or DECISION span with a model name to price it by."""
+    span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
+    if not isinstance(span_kind, str) or span_kind not in _COST_MODEL_NAME_KEYS:
+        return False
+    return any(
+        isinstance(model_name := get_attribute_value(attributes, key), str) and model_name.strip()
+        for key in _COST_MODEL_NAME_KEYS[span_kind]
     )
