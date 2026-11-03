@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Prepares a factory sandbox: the Node version in .nvmrc, `make setup`, a running
 # PostgreSQL for the server, a pg_ctl for the PostgreSQL test fixtures, a headless
-# browser for UI probes, and a gh that can attach screenshots to a PR. It ends with a
-# report of what works and how to start the server for an end-to-end probe. Anything
-# it reports missing is a verification gap for the PR body; CI runs the full matrix.
+# browser for acceptance tests that drive the UI, and a gh that can attach screenshots
+# to a PR. It ends with a report of what works and how to start the server for an
+# acceptance test. Anything it reports missing is a verification gap for the PR body;
+# CI runs the full matrix.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 repo_dir=$(pwd)
@@ -131,24 +132,24 @@ if [ "$pg_status" = ok ]; then
 else
   echo "postgresql: $pg_status; rely on CI for --db postgresql"
 fi
-echo "server for an end-to-end probe (stop it with kill when the probe is done):"
+echo "server for an acceptance test (stop it with kill when the test is done):"
 echo "  SQLite:     PHOENIX_WORKING_DIR=/tmp/factory-phoenix PHOENIX_PORT=6006 PHOENIX_GRPC_PORT=4317 uv run --no-sync phoenix serve &"
 if [ "$pg_status" = ok ]; then
   echo "  PostgreSQL: PHOENIX_SQL_DATABASE_URL=$pg_url PHOENIX_PORT=6006 PHOENIX_GRPC_PORT=4317 uv run --no-sync phoenix serve &"
 fi
 echo "  wait for: curl -sf http://127.0.0.1:6006/healthz; OTLP at http://127.0.0.1:6006/v1/traces and grpc 127.0.0.1:4317; UI at http://127.0.0.1:6006"
-echo "fresh storage for the after probe, with the server stopped:"
+echo "fresh storage for the acceptance test's after run, with the server stopped:"
 echo "  SQLite:     rm -rf /tmp/factory-phoenix"
 if [ "$pg_status" = ok ]; then
   echo "  PostgreSQL: $pg_bin/dropdb -h 127.0.0.1 -p $pg_port -U phoenix phoenix && $pg_bin/createdb -h 127.0.0.1 -p $pg_port -U phoenix phoenix"
 fi
 if [ "$browser_status" = ok ]; then
   echo "browser: ok ($(agent-browser --version 2>/dev/null), Chromium $chromium_path)"
-  echo "  a UI probe script starts with these two lines, then uses agent-browser as 'agent-browser skills get core' describes:"
+  echo "  an acceptance test that drives the UI starts with these two lines, then uses agent-browser as 'agent-browser skills get core' describes:"
   echo "    export AGENT_BROWSER_EXECUTABLE_PATH=$chromium_path"
   echo "    $browser_launch http://127.0.0.1:6006"
-  echo "  the UI needs a built frontend: run 'pnpm -C js/app run build:deps && pnpm -C js/app build' once before a browser probe, and again after frontend changes"
+  echo "  the UI needs a built frontend: run 'pnpm -C js/app run build:deps && pnpm -C js/app build' once before a browser run, and again after frontend changes"
   echo "  end the script with 'agent-browser screenshot <path>' and 'agent-browser get text body', then 'agent-browser close'"
 else
-  echo "browser: $browser_status; probe the UI through the REST or GraphQL API and list the browser steps under Not verified"
+  echo "browser: $browser_status; test the UI's behavior through the REST or GraphQL API and list the browser steps under Not verified"
 fi
