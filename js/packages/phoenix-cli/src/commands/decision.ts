@@ -43,12 +43,12 @@ interface DecisionListOptions extends CommonOptions<OutputFormat> {
    */
   name?: string;
   /**
-   * `--label-id <id>`: Only decisions with any of these labels
-   * (DecisionLabel GlobalIDs). Repeatable; defaults to none.
+   * `--label <label>`: Only decisions with any of these labels, each given
+   * by its name or its ID. Repeatable; defaults to none.
    *
-   * @example ["RGVjaXNpb25MYWJlbDox"]
+   * @example ["support", "RGVjaXNpb25MYWJlbDox"]
    */
-  labelId?: string[];
+  label?: string[];
 }
 
 /**
@@ -113,12 +113,12 @@ async function fetchDecisions({
   client,
   limit,
   name,
-  labelIds,
+  labels,
 }: {
   client: PhoenixClient;
   limit?: number;
   name?: string;
-  labelIds?: string[];
+  labels?: string[];
 }): Promise<Decision[]> {
   const decisions: Decision[] = [];
   let cursor: string | undefined;
@@ -129,7 +129,7 @@ async function fetchDecisions({
           cursor,
           limit: limit ? Math.min(limit - decisions.length, 100) : 100,
           name,
-          label_id: labelIds,
+          label: labels,
         },
       },
     });
@@ -222,7 +222,7 @@ async function decisionListHandler(
       client,
       limit: options.limit,
       name: options.name,
-      labelIds: options.labelId?.length ? options.labelId : undefined,
+      labels: options.label?.length ? options.label : undefined,
     });
     writeProgress({
       message: `Found ${decisions.length} decision(s)`,
@@ -339,8 +339,8 @@ export function createDecisionListCommand(): Command {
         "Only decisions whose name contains this text, ignoring case"
       )
       .option(
-        "--label-id <id>",
-        "Only decisions with this label (repeatable)",
+        "--label <label>",
+        "Only decisions with this label, by name or ID (repeatable)",
         collectString,
         []
       )
@@ -355,6 +355,8 @@ export function createDecisionListCommand(): Command {
       "\nExamples:\n" +
         "  # List every decision\n" +
         "  px decision list\n\n" +
+        "  # List the decisions labeled support or billing\n" +
+        "  px decision list --label support --label billing\n\n" +
         "  # Find decisions by name and print their IDs (agent-friendly)\n" +
         "  px decision list --name triage --format raw --no-progress | jq -r '.[].id'\n"
     )

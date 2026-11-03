@@ -409,6 +409,7 @@ px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != n
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
 px decision list --name triage --format raw --no-progress | jq '.[].name'
+px decision list --label support --format raw --no-progress   # --label takes a label name or ID
 px decision get <name> --tag production --format raw --no-progress | jq '{version_number, variables, questions: [.questions[].name]}'
 ```
 

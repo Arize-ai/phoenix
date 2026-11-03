@@ -578,12 +578,12 @@ List saved decisions, newest first.
 px decision list --name triage --format raw --no-progress | jq '.[].name'
 ```
 
-| Option              | Description                                       | Default  |
-| ------------------- | ------------------------------------------------- | -------- |
-| `--name <text>`     | Only decisions whose name contains this, any case | —        |
-| `--label-id <id>`   | Only decisions with this label (repeatable)       | —        |
-| `--limit <number>`  | Maximum number of decisions to fetch              | all      |
-| `--format <format>` | `pretty`, `json`, or `raw`                        | `pretty` |
+| Option              | Description                                                | Default  |
+| ------------------- | ---------------------------------------------------------- | -------- |
+| `--name <text>`     | Only decisions whose name contains this, any case          | —        |
+| `--label <label>`   | Only decisions with this label, by name or ID (repeatable) | —        |
+| `--limit <number>`  | Maximum number of decisions to fetch                       | all      |
+| `--format <format>` | `pretty`, `json`, or `raw`                                 | `pretty` |
 
 ---
 

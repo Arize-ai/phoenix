@@ -145,9 +145,9 @@ describe("decision list", () => {
       ...BASE_ARGS,
       "--name",
       "triage",
-      "--label-id",
-      "RGVjaXNpb25MYWJlbDox",
-      "--label-id",
+      "--label",
+      "support",
+      "--label",
       "RGVjaXNpb25MYWJlbDoy",
       "--format",
       "raw",
@@ -159,8 +159,9 @@ describe("decision list", () => {
     ]);
     expect(queries).toHaveLength(2);
     expect(queries[0]?.get("name")).toBe("triage");
-    expect(queries[0]?.getAll("label_id")).toEqual([
-      "RGVjaXNpb25MYWJlbDox",
+    // Names and IDs pass through as given; the server resolves either.
+    expect(queries[0]?.getAll("label")).toEqual([
+      "support",
       "RGVjaXNpb25MYWJlbDoy",
     ]);
     expect(queries[1]?.get("cursor")).toBe("RGVjaXNpb246MQ==");
