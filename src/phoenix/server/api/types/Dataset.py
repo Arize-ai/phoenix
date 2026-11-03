@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 import strawberry
-from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy import ColumnElement, Text, and_, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.sqltypes import String
@@ -651,7 +651,9 @@ async def dataset_evaluator_connection(
         stmt = stmt.where(models.DatasetEvaluators.dataset_id == dataset_id)
     if filter:
         pattern = f"%{filter.value}%"
-        name_matches = sqlalchemy_cast(models.DatasetEvaluators.name, String).ilike(pattern)
+        name_matches: ColumnElement[bool] = sqlalchemy_cast(
+            models.DatasetEvaluators.name, String
+        ).ilike(pattern)
         if dataset_id is None:
             stmt = stmt.join(
                 models.Dataset,
