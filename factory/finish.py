@@ -171,10 +171,15 @@ def find_copy(*, pr_number: int) -> Optional[dict[str, Any]]:
             "--state",
             "open",
             "--json",
-            "number",
+            "number,isCrossRepository",
         )
     )
-    return read_pr(pr_number=pr_list[0]["number"]) if pr_list else None
+    # `--head` matches the branch name on any fork too, and anyone can name a fork branch
+    # `factory/pr-N`; only a branch in this repository is the factory's copy.
+    for candidate in pr_list:
+        if not candidate["isCrossRepository"]:
+            return read_pr(pr_number=candidate["number"])
+    return None
 
 
 def run_git_as_app(*args: str, token: str) -> None:
