@@ -244,10 +244,12 @@ const CreateCodeEvaluatorDialog = ({
           input: {
             datasetId,
             name: normalizedName,
-            definition: {
-              sourceCode: payload.sourceCode,
-              language: payload.language,
-              sandboxConfigId,
+            source: {
+              definition: {
+                sourceCode: payload.sourceCode,
+                language: payload.language,
+                sandboxConfigId,
+              },
             },
             description: normalizedDescription,
             outputConfigs: buildOutputConfigsInput(outputConfigs),

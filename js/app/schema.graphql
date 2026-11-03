@@ -741,6 +741,14 @@ type CodeEvaluatorMutationPayload {
   query: Query!
 }
 
+input CodeEvaluatorSourceInput @oneOf {
+  """An existing code evaluator to add."""
+  evaluatorId: ID
+
+  """A new code evaluator to create and add."""
+  definition: CodeEvaluatorDefinitionInput
+}
+
 type CodeEvaluatorVersion implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -899,12 +907,7 @@ input CreateDatasetBuiltinEvaluatorInput {
 input CreateDatasetCodeEvaluatorInput {
   datasetId: ID!
   name: Identifier!
-
-  """An existing code evaluator to add. Provide this or definition."""
-  evaluatorId: ID = null
-
-  """A new code evaluator to create and add. Provide this or evaluatorId."""
-  definition: CodeEvaluatorDefinitionInput = null
+  source: CodeEvaluatorSourceInput!
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigs: [AnnotationConfigInput!] = null
   description: String = null

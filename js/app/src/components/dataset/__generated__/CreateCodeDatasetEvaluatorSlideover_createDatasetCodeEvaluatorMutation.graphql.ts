@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1759850879f77489b167fde36293bc32>>
+ * @generated SignedSource<<bed09c4cfb03054f6d12d72068cca236>>
  * @lightSyntaxTransform
  */
 
@@ -13,12 +13,18 @@ export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateDatasetCodeEvaluatorInput = {
   datasetId: string;
-  definition?: CodeEvaluatorDefinitionInput | null;
   description?: string | null;
-  evaluatorId?: string | null;
   inputMapping?: EvaluatorInputMappingInput | null;
   name: string;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
+  source: CodeEvaluatorSourceInput;
+};
+export type CodeEvaluatorSourceInput = {
+  definition?: never;
+  evaluatorId: string;
+} | {
+  definition: CodeEvaluatorDefinitionInput;
+  evaluatorId?: never;
 };
 export type CodeEvaluatorDefinitionInput = {
   language: Language;

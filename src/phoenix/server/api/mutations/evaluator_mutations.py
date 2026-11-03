@@ -430,18 +430,21 @@ class CodeEvaluatorDefinitionInput:
     sandbox_config_id: GlobalID
 
 
+@strawberry.input(one_of=True)
+class CodeEvaluatorSourceInput:
+    evaluator_id: Optional[GlobalID] = strawberry.field(
+        default=UNSET, description="An existing code evaluator to add."
+    )
+    definition: Optional[CodeEvaluatorDefinitionInput] = strawberry.field(
+        default=UNSET, description="A new code evaluator to create and add."
+    )
+
+
 @strawberry.input
 class CreateDatasetCodeEvaluatorInput:
     dataset_id: GlobalID
     name: Identifier
-    evaluator_id: Optional[GlobalID] = strawberry.field(
-        default=None,
-        description="An existing code evaluator to add. Provide this or definition.",
-    )
-    definition: Optional[CodeEvaluatorDefinitionInput] = strawberry.field(
-        default=None,
-        description="A new code evaluator to create and add. Provide this or evaluatorId.",
-    )
+    source: CodeEvaluatorSourceInput
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
     description: Optional[str] = None
@@ -1245,14 +1248,14 @@ class EvaluatorMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
-        if (input.evaluator_id is None) == (input.definition is None):
-            raise BadRequest("Provide either evaluatorId or definition")
+        source_evaluator_id = input.source.evaluator_id
+        definition = input.source.definition
         evaluator_id: Optional[int] = None
-        if input.evaluator_id is not None:
+        if isinstance(source_evaluator_id, GlobalID):
             try:
-                evaluator_id, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
+                evaluator_id, evaluator_kind = _parse_evaluator_id(source_evaluator_id)
             except ValueError as e:
-                raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
+                raise BadRequest(f"Invalid evaluator id: {source_evaluator_id}. {e}")
             if evaluator_kind != "CODE":
                 raise BadRequest("Evaluator must be a code evaluator")
 
@@ -1280,12 +1283,12 @@ class EvaluatorMutationMixin:
             output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
 
         sandbox_config_id: Optional[int] = None
-        if input.definition is not None:
+        if isinstance(definition, CodeEvaluatorDefinitionInput):
             sandbox_config_id = await _validate_new_code_evaluator(
                 info.context,
-                source_code=input.definition.source_code,
-                language=input.definition.language,
-                sandbox_config_id=input.definition.sandbox_config_id,
+                source_code=definition.source_code,
+                language=definition.language,
+                sandbox_config_id=definition.sandbox_config_id,
             )
 
         try:
@@ -1294,7 +1297,7 @@ class EvaluatorMutationMixin:
                 if evaluator_id is not None:
                     existing_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
                     if existing_evaluator is None:
-                        raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
+                        raise NotFound(f"Code evaluator with id {source_evaluator_id} not found")
                 dataset_name = await session.scalar(
                     select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
                 )
@@ -1303,17 +1306,18 @@ class EvaluatorMutationMixin:
                 if existing_evaluator is not None:
                     code_evaluator = existing_evaluator
                 else:
-                    assert input.definition is not None and sandbox_config_id is not None
+                    assert isinstance(definition, CodeEvaluatorDefinitionInput)
+                    assert sandbox_config_id is not None
                     code_evaluator = await _add_code_evaluator(
                         session,
                         name=await _generate_unique_evaluator_name(session, name),
                         description=input.description,
-                        language=input.definition.language,
+                        language=definition.language,
                         user_id=user_id,
                         sandbox_config_id=sandbox_config_id,
                         input_mapping=input_mapping,
                         output_configs=output_configs or [],
-                        source_code=input.definition.source_code,
+                        source_code=definition.source_code,
                     )
 
                 dataset_evaluator = models.DatasetEvaluators(
