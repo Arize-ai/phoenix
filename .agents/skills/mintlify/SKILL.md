@@ -53,6 +53,8 @@ If the user wants a new docs site, wants to publish docs, or has no `docs.json` 
 6. The site expires unless someone claims it. Ask the user which email should own it (never invent one) and run `mint claim --email <email>`. Have the user open the link, sign in or create an account, and read back the code, then run `mint claim --code <code>`. Run both commands from the `mint deploy` directory.
 7. If the docs live in a GitHub repository and the user wants a deploy on every push, run `mint deploy --github --subdomain <subdomain>` before claiming and commit the `.github/workflows/mintlify.yml` it writes. It needs a GitHub `origin` remote and a signed-in GitHub CLI, and only works for unclaimed sites.
 
+Before publishing in either flow, offer to connect the user's coding agent to the project. If they agree and Node.js is v22.20 or newer, run `mint agent setup --agent <agent>` from the project directory, where `<agent>` is `claude-code`, `codex`, or `cursor`. It installs Mintlify skills and adds the admin MCP to the agent's project configuration. Pass `--agent`, because without an interactive terminal the command configures every agent it detects. The user then completes OAuth sign-in in the agent. See [CLI commands](https://mintlify.com/docs/cli/commands.md).
+
 The user only needs the browser for OAuth approval, connecting GitHub, and claiming a site.
 
 ### No local repository

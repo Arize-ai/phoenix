@@ -29,8 +29,8 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "257163cff410f68fc23ab5ee64c7396aeb7a1fd72335af8805b832f310fa4a5a",
-      "wellKnownDigest": "sha256:d4c2bd46a509cecbfaeb2b98556db14b17c55d2febdd28a9e1c6de25c5e20023"
+      "computedHash": "ba4978812e8f3c0cadaf53e4535caad773436fcd92457bd7297ac02391bd7e24",
+      "wellKnownDigest": "sha256:2a592d358ea69cf4e8bcbe325ce467c329af00b3d94665b0b9b77a558f55ee05"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
@@ -42,7 +42,7 @@
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-best-practices/SKILL.md",
-      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
     }
   }
 }
