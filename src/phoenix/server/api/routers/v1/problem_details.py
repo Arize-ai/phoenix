@@ -165,7 +165,9 @@ def problem_response(exc: ProblemException) -> Response:
     )
 
 
-_UNION_TAGS = frozenset({"llm", "code", "version", "latest"})
+_UNION_TAGS = frozenset(
+    {"llm", "code", "version", "latest", "text", "json", "predicate", "choice", "scale"}
+)
 """Discriminator tag values used by the opted-in routers' `Field(discriminator="type")` unions.
 A tagged union's error `loc` repeats the tag as a path segment (e.g. `body.code.name`) even
 though it names no real field, so `_normalize_field_path` drops it."""

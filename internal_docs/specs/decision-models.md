@@ -1024,16 +1024,31 @@ playground's per-model Azure endpoint isn't sent on decision runs. The span's
 
 ## 11. App Access
 
-REST mirrors the prompt routes:
+REST mirrors the prompt routes. A decision is addressed by its GlobalID or
+name, a version by its GlobalID, and a tag by name within the version's
+decision. Errors are problem details.
 
+- `GET /v1/decisions` (paginated, newest first)
+- `POST /v1/decisions` (create a decision with its first version, or add a
+  version; an existing decision's description and metadata change only when
+  given)
+- `GET /v1/decisions/{identifier}`
+- `PATCH /v1/decisions/{identifier}` (description and/or metadata)
+- `DELETE /v1/decisions/{identifier}` (409 while an evaluator runs it)
+- `GET /v1/decisions/{identifier}/versions` (paginated, newest first)
+- `POST /v1/decisions/{identifier}/versions`
 - `GET /v1/decisions/{identifier}/latest`
 - `GET /v1/decisions/{identifier}/tags/{tag_name}`
 - `GET /v1/decision_versions/{id}`
-- `POST /v1/decisions` (create a decision with its first version, or add a
-  version)
+- `GET /v1/decision_versions/{id}/tags`
+- `POST /v1/decision_versions/{id}/tags` (create or move a tag)
+- `DELETE /v1/decision_versions/{id}/tags/{tag_name}`
 
-Each response carries `template_format`, `state`, `questions`, the derived
-`variables`, and the model.
+`GET /v1/model_providers?model_type=DECISION` lists the built-in providers
+that offer decision models.
+
+Each version response carries `template_format`, `state`, `questions`, the
+derived `variables`, and the model.
 
 `phoenix-client` (Python and TypeScript) adds:
 

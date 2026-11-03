@@ -284,6 +284,52 @@ class DatasetWithExampleCount(TypedDict):
     example_count: int
 
 
+class DecisionChoiceOption(TypedDict):
+    value: str
+    description: NotRequired[str]
+
+
+class DecisionChoiceQuestion(TypedDict):
+    type: Literal["choice"]
+    name: str
+    instructions: str
+    choices: Sequence[DecisionChoiceOption]
+
+
+class DecisionJsonState(TypedDict):
+    type: Literal["json"]
+    template: Any
+
+
+class DecisionPredicateCriteria(TypedDict):
+    true: NotRequired[str]
+    false: NotRequired[str]
+
+
+class DecisionPredicateQuestion(TypedDict):
+    type: Literal["predicate"]
+    name: str
+    instructions: str
+    criteria: NotRequired[DecisionPredicateCriteria]
+
+
+class DecisionScaleLevel(TypedDict):
+    label: str
+    description: NotRequired[str]
+
+
+class DecisionScaleQuestion(TypedDict):
+    type: Literal["scale"]
+    name: str
+    instructions: str
+    levels: Sequence[DecisionScaleLevel]
+
+
+class DecisionTextState(TypedDict):
+    type: Literal["text"]
+    template: str
+
+
 class DecisionVersionSelector(TypedDict):
     type: Literal["version"]
     decision_version_id: str
@@ -492,6 +538,11 @@ class OAuth2User(OAuth2UserData):
 class OtlpStatus(TypedDict):
     code: NotRequired[int]
     message: NotRequired[str]
+
+
+class PatchDecisionRequestBody(TypedDict):
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
 
 
 class PatchProjectEvaluatorRequest(TypedDict):
@@ -1735,6 +1786,22 @@ class DatasetExample(TypedDict):
     source: NotRequired[DatasetExampleSource]
 
 
+class Decision(TypedDict):
+    id: str
+    name: str
+    created_at: str
+    updated_at: str
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    source_decision_id: NotRequired[str]
+
+
+class DecisionData(TypedDict):
+    name: str
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+
+
 class DecisionEvaluatorDecision(TypedDict):
     decision_id: str
     selector: Union[DecisionVersionSelector, LatestDecisionVersionSelector]
@@ -1747,6 +1814,86 @@ class DecisionEvaluatorDecisionInput(TypedDict):
 
 class DecisionScoringPolicy(TypedDict):
     questions: NotRequired[Mapping[str, Union[PredicateScoring, ChoiceScoring, ScaleScoring]]]
+
+
+class DecisionVersion(TypedDict):
+    id: str
+    decision_id: str
+    template_format: Literal["MUSTACHE", "F_STRING", "NONE"]
+    state: Union[DecisionTextState, DecisionJsonState]
+    questions: Sequence[
+        Union[DecisionPredicateQuestion, DecisionChoiceQuestion, DecisionScaleQuestion]
+    ]
+    variables: Sequence[str]
+    model_provider: Literal[
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
+        "MINIMAX",
+        "PERPLEXITY",
+        "TOGETHER",
+        "ZAI",
+        "META",
+        "TYPESAFE",
+    ]
+    model_name: str
+    created_at: str
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    custom_provider_id: NotRequired[str]
+
+
+class DecisionVersionData(TypedDict):
+    template_format: Literal["MUSTACHE", "F_STRING", "NONE"]
+    state: Union[DecisionTextState, DecisionJsonState]
+    questions: Sequence[
+        Union[DecisionPredicateQuestion, DecisionChoiceQuestion, DecisionScaleQuestion]
+    ]
+    model_provider: Literal[
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
+        "MINIMAX",
+        "PERPLEXITY",
+        "TOGETHER",
+        "ZAI",
+        "META",
+        "TYPESAFE",
+    ]
+    model_name: str
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    custom_provider_id: NotRequired[str]
+
+
+class DecisionVersionTag(TypedDict):
+    id: str
+    name: str
+    decision_version_id: str
+    description: NotRequired[str]
+
+
+class DecisionVersionTagData(TypedDict):
+    name: str
+    description: NotRequired[str]
 
 
 class DynamicToolApprovalRequestedPart(TypedDict):
@@ -1824,6 +1971,29 @@ class GetAnnotationConfigsResponseBody(TypedDict):
     data: Sequence[
         Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
     ]
+    next_cursor: Optional[str]
+
+
+class GetDecisionResponseBody(TypedDict):
+    data: Decision
+
+
+class GetDecisionVersionResponseBody(TypedDict):
+    data: DecisionVersion
+
+
+class GetDecisionVersionTagsResponseBody(TypedDict):
+    data: Sequence[DecisionVersionTag]
+    next_cursor: Optional[str]
+
+
+class GetDecisionVersionsResponseBody(TypedDict):
+    data: Sequence[DecisionVersion]
+    next_cursor: Optional[str]
+
+
+class GetDecisionsResponseBody(TypedDict):
+    data: Sequence[Decision]
     next_cursor: Optional[str]
 
 
@@ -1949,6 +2119,10 @@ class PatchDecisionEvaluatorRequest(TypedDict):
     decision: NotRequired[DecisionEvaluatorDecisionInput]
     description: NotRequired[str]
     scoring_policy: NotRequired[DecisionScoringPolicy]
+
+
+class PatchDecisionResponseBody(TypedDict):
+    data: Decision
 
 
 class PatchLLMEvaluatorRequest(TypedDict):
@@ -2380,6 +2554,25 @@ class CreateDecisionEvaluatorRequest(TypedDict):
     decision: DecisionEvaluatorDecisionInput
     description: NotRequired[str]
     scoring_policy: NotRequired[DecisionScoringPolicy]
+
+
+class CreateDecisionRequestBody(TypedDict):
+    decision: DecisionData
+    version: DecisionVersionData
+    tags: NotRequired[Sequence[DecisionVersionTagData]]
+
+
+class CreateDecisionResponseBody(TypedDict):
+    data: DecisionVersion
+
+
+class CreateDecisionVersionRequestBody(TypedDict):
+    version: DecisionVersionData
+    tags: NotRequired[Sequence[DecisionVersionTagData]]
+
+
+class CreateDecisionVersionResponseBody(TypedDict):
+    data: DecisionVersion
 
 
 class CreateLLMEvaluatorRequest(TypedDict):

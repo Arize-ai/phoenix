@@ -1,0 +1,729 @@
+"""Manage saved decisions, decision versions, and version tags over REST.
+
+The routes mirror ``/v1/prompts``: a decision is addressed by its GlobalID or its name, a
+version by its GlobalID, and a tag by its name within the version's decision. Errors are
+RFC 9457 problem details.
+"""
+
+from typing import Any, Optional, Union
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from pydantic import ValidationError, model_validator
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
+from starlette.requests import Request
+from strawberry.relay import GlobalID
+from typing_extensions import Self, TypeAlias, assert_never
+
+from phoenix.db import models
+from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.decision_version_tags import upsert_decision_version_tag
+from phoenix.server.api.routers.v1.decision_models import (
+    Decision,
+    DecisionData,
+    DecisionVersion,
+    DecisionVersionData,
+    DecisionVersionTag,
+    DecisionVersionTagData,
+    encode_decision_id,
+    encode_decision_version_id,
+    encode_decision_version_tag_id,
+)
+from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.problem_details import (
+    ProblemDetailsRoute,
+    ProblemException,
+    problem_responses,
+)
+from phoenix.server.api.routers.v1.utils import (
+    PaginatedResponseBody,
+    ResponseBody,
+    Responses,
+)
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.authorization import is_not_locked
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.decisions.validation import validate_decision_custom_provider
+
+_IntegrityError = (PostgreSQLIntegrityError, SQLiteIntegrityError)
+
+router = APIRouter(tags=["decisions"], route_class=ProblemDetailsRoute)
+
+
+def _errors(status_codes: list[int]) -> Responses:
+    """Every error body on this router is problem details, 403 included (see
+    ``evaluator_error_responses``)."""
+    return problem_responses([*status_codes, 403])
+
+
+_DECISION_IDENTIFIER = Path(description="The identifier of the decision: its GlobalID or name.")
+_DECISION_VERSION_ID = Path(description="The GlobalID of the decision version.")
+
+_RESPONSE_OPTIONS: dict[str, Any] = dict(
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
+)
+
+
+class GetDecisionsResponseBody(PaginatedResponseBody[Decision]):
+    pass
+
+
+class GetDecisionResponseBody(ResponseBody[Decision]):
+    pass
+
+
+class GetDecisionVersionResponseBody(ResponseBody[DecisionVersion]):
+    pass
+
+
+class GetDecisionVersionsResponseBody(PaginatedResponseBody[DecisionVersion]):
+    pass
+
+
+class GetDecisionVersionTagsResponseBody(PaginatedResponseBody[DecisionVersionTag]):
+    pass
+
+
+class CreateDecisionRequestBody(V1RoutesBaseModel):
+    decision: DecisionData
+    version: DecisionVersionData
+    tags: Optional[list[DecisionVersionTagData]] = None
+
+
+class CreateDecisionResponseBody(ResponseBody[DecisionVersion]):
+    pass
+
+
+class CreateDecisionVersionRequestBody(V1RoutesBaseModel):
+    version: DecisionVersionData
+    tags: Optional[list[DecisionVersionTagData]] = None
+
+
+class CreateDecisionVersionResponseBody(ResponseBody[DecisionVersion]):
+    pass
+
+
+class PatchDecisionRequestBody(V1RoutesBaseModel):
+    """Fields to update on a decision. Omit a field to leave it unchanged."""
+
+    description: Optional[str] = UNDEFINED
+    metadata: dict[str, Any] = UNDEFINED
+
+    @model_validator(mode="after")
+    def _validate_patch(self) -> Self:
+        if self.description is UNDEFINED and self.metadata is UNDEFINED:
+            raise ValueError("at least one field must be provided")
+        return self
+
+
+class PatchDecisionResponseBody(ResponseBody[Decision]):
+    pass
+
+
+# --------------------------------------------------------------------------------------------
+# Decisions
+# --------------------------------------------------------------------------------------------
+
+
+@router.get(
+    "/decisions",
+    operation_id="getDecisions",
+    summary="List decisions",
+    description="Retrieve a paginated list of saved decisions, newest first. A decision can "
+    "have multiple versions.",
+    response_description="A list of decisions with pagination information",
+    responses=_errors([422]),
+    **_RESPONSE_OPTIONS,
+)
+async def list_decisions(
+    request: Request,
+    cursor: Optional[str] = Query(
+        default=None, description="Cursor for pagination (a Decision GlobalID)"
+    ),
+    limit: int = Query(
+        default=100, description="The max number of decisions to return at a time.", gt=0
+    ),
+) -> GetDecisionsResponseBody:
+    stmt = select(models.Decision).order_by(models.Decision.id.desc())
+    if cursor:
+        stmt = stmt.where(models.Decision.id <= _parse_cursor(cursor, "Decision"))
+    async with request.app.state.db() as session:
+        decisions = list((await session.scalars(stmt.limit(limit + 1))).all())
+    next_cursor = None
+    if len(decisions) > limit:
+        next_cursor = encode_decision_id(decisions[limit].id)
+        decisions = decisions[:limit]
+    return GetDecisionsResponseBody(
+        data=[Decision.from_orm_decision(decision) for decision in decisions],
+        next_cursor=next_cursor,
+    )
+
+
+@router.get(
+    "/decisions/{decision_identifier}",
+    operation_id="getDecision",
+    summary="Get a decision",
+    description="Retrieve a decision's name, description, and metadata by GlobalID or name. "
+    "Its versions are listed by `GET /v1/decisions/{decision_identifier}/versions`.",
+    response_description="The requested decision",
+    responses=_errors([404, 422]),
+    **_RESPONSE_OPTIONS,
+)
+async def get_decision(
+    request: Request,
+    decision_identifier: str = _DECISION_IDENTIFIER,
+) -> GetDecisionResponseBody:
+    where_clause = _decision_where_clause(decision_identifier)
+    async with request.app.state.db() as session:
+        decision = await session.scalar(select(models.Decision).where(where_clause))
+    if decision is None:
+        raise _decision_not_found(decision_identifier)
+    return GetDecisionResponseBody(data=Decision.from_orm_decision(decision))
+
+
+@router.post(
+    "/decisions",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="postDecisionVersion",
+    summary="Create a decision or add a version",
+    description="Create a decision with its initial version. If a decision with "
+    "`decision.name` already exists, add the version to it instead; that decision's "
+    "description and metadata change only when given. Optional `tags` are set on the new "
+    "version, moving any tag of that name from another version of the decision.",
+    response_description="The newly created decision version",
+    status_code=201,
+    responses=_errors([404, 422, 507]),
+    **_RESPONSE_OPTIONS,
+)
+async def create_decision(
+    request: Request,
+    request_body: CreateDecisionRequestBody,
+) -> CreateDecisionResponseBody:
+    decision_data = request_body.decision
+    user_id = _user_id(request)
+    version = _version_to_orm(request_body.version, user_id=user_id)
+    async with request.app.state.db() as session:
+        await _validate_custom_provider(session, version)
+        decision = await session.scalar(
+            select(models.Decision).where(models.Decision.name == decision_data.name)
+        )
+        if decision is None:
+            try:
+                async with session.begin_nested():
+                    decision = models.Decision(
+                        name=decision_data.name,
+                        description=None
+                        if decision_data.description is UNDEFINED
+                        else decision_data.description,
+                        metadata_={}
+                        if decision_data.metadata is UNDEFINED
+                        else decision_data.metadata,
+                        user_id=user_id,
+                    )
+                    session.add(decision)
+            except _IntegrityError:
+                # A concurrent request created it first: add the version to that one.
+                decision = await session.scalar(
+                    select(models.Decision).where(models.Decision.name == decision_data.name)
+                )
+                if decision is None:
+                    raise
+                _apply_decision_fields(decision, decision_data)
+        else:
+            _apply_decision_fields(decision, decision_data)
+        version.decision = decision
+        session.add(version)
+        await session.flush()
+        await _upsert_tags(session, version, request_body.tags, user_id=user_id)
+        await session.refresh(version)
+        data = DecisionVersion.from_orm_decision_version(version)
+    return CreateDecisionResponseBody(data=data)
+
+
+@router.patch(
+    "/decisions/{decision_identifier}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="patchDecision",
+    summary="Update a decision",
+    description="Update a decision's description and/or metadata by GlobalID or name. An "
+    "omitted field is left unchanged; a null description clears it, and metadata is "
+    "replaced as a whole. At least one field is required.",
+    response_description="The updated decision",
+    responses=_errors([404, 422, 507]),
+    **_RESPONSE_OPTIONS,
+)
+async def patch_decision(
+    request: Request,
+    request_body: PatchDecisionRequestBody,
+    decision_identifier: str = _DECISION_IDENTIFIER,
+) -> PatchDecisionResponseBody:
+    where_clause = _decision_where_clause(decision_identifier)
+    async with request.app.state.db() as session:
+        decision = await session.scalar(select(models.Decision).where(where_clause))
+        if decision is None:
+            raise _decision_not_found(decision_identifier)
+        if (description := request_body.description) is not UNDEFINED:
+            decision.description = description.strip() if description is not None else None
+        if (metadata := request_body.metadata) is not UNDEFINED:
+            decision.metadata_ = metadata
+        await session.flush()
+        await session.refresh(decision)
+        data = Decision.from_orm_decision(decision)
+    return PatchDecisionResponseBody(data=data)
+
+
+@router.delete(
+    "/decisions/{decision_identifier}",
+    operation_id="deleteDecision",
+    summary="Delete a decision",
+    description="Delete a decision with all its versions, tags, and labels, by GlobalID or "
+    "name. A decision run by an evaluator is refused with 409; delete the evaluator first. "
+    "Experiments that ran a deleted version keep their results.",
+    status_code=204,
+    responses=_errors([404, 409, 422]),
+)
+async def delete_decision(
+    request: Request,
+    decision_identifier: str = _DECISION_IDENTIFIER,
+) -> None:
+    where_clause = _decision_where_clause(decision_identifier)
+    async with request.app.state.db() as session:
+        decision_id = await session.scalar(select(models.Decision.id).where(where_clause))
+        if decision_id is None:
+            raise _decision_not_found(decision_identifier)
+        evaluator_names = (
+            await session.scalars(
+                select(models.DecisionEvaluator.name)
+                .where(models.DecisionEvaluator.decision_id == decision_id)
+                .order_by(models.DecisionEvaluator.name)
+            )
+        ).all()
+        if evaluator_names:
+            raise _referenced_by_evaluators([name.root for name in evaluator_names])
+        try:
+            async with session.begin_nested():
+                await session.execute(
+                    delete(models.Decision).where(models.Decision.id == decision_id)
+                )
+        except _IntegrityError as error:
+            # An evaluator started referencing the decision after the check above.
+            raise _referenced_by_evaluators([]) from error
+
+
+# --------------------------------------------------------------------------------------------
+# Decision versions
+# --------------------------------------------------------------------------------------------
+
+
+@router.get(
+    "/decisions/{decision_identifier}/versions",
+    operation_id="listDecisionVersions",
+    summary="List decision versions",
+    description="Retrieve a paginated list of a decision's versions, newest first.",
+    response_description="A list of decision versions with pagination information",
+    responses=_errors([404, 422]),
+    **_RESPONSE_OPTIONS,
+)
+async def list_decision_versions(
+    request: Request,
+    decision_identifier: str = _DECISION_IDENTIFIER,
+    cursor: Optional[str] = Query(
+        default=None, description="Cursor for pagination (a DecisionVersion GlobalID)"
+    ),
+    limit: int = Query(
+        default=100, description="The max number of decision versions to return at a time.", gt=0
+    ),
+) -> GetDecisionVersionsResponseBody:
+    where_clause = _decision_where_clause(decision_identifier)
+    async with request.app.state.db() as session:
+        decision_id = await session.scalar(select(models.Decision.id).where(where_clause))
+        if decision_id is None:
+            raise _decision_not_found(decision_identifier)
+        stmt = (
+            select(models.DecisionVersion)
+            .where(models.DecisionVersion.decision_id == decision_id)
+            .order_by(models.DecisionVersion.id.desc())
+        )
+        if cursor:
+            stmt = stmt.where(models.DecisionVersion.id <= _parse_cursor(cursor, "DecisionVersion"))
+        versions = list((await session.scalars(stmt.limit(limit + 1))).all())
+    next_cursor = None
+    if len(versions) > limit:
+        next_cursor = encode_decision_version_id(versions[limit].id)
+        versions = versions[:limit]
+    return GetDecisionVersionsResponseBody(
+        data=[DecisionVersion.from_orm_decision_version(version) for version in versions],
+        next_cursor=next_cursor,
+    )
+
+
+@router.post(
+    "/decisions/{decision_identifier}/versions",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createDecisionVersion",
+    summary="Create a decision version",
+    description="Add a version to an existing decision, by GlobalID or name. Optional `tags` "
+    "are set on the new version, moving any tag of that name from another version.",
+    response_description="The created decision version",
+    status_code=201,
+    responses=_errors([404, 422, 507]),
+    **_RESPONSE_OPTIONS,
+)
+async def create_decision_version(
+    request: Request,
+    request_body: CreateDecisionVersionRequestBody,
+    decision_identifier: str = _DECISION_IDENTIFIER,
+) -> CreateDecisionVersionResponseBody:
+    where_clause = _decision_where_clause(decision_identifier)
+    user_id = _user_id(request)
+    version = _version_to_orm(request_body.version, user_id=user_id)
+    async with request.app.state.db() as session:
+        decision_id = await session.scalar(select(models.Decision.id).where(where_clause))
+        if decision_id is None:
+            raise _decision_not_found(decision_identifier)
+        await _validate_custom_provider(session, version)
+        version.decision_id = decision_id
+        session.add(version)
+        try:
+            await session.flush()
+        except _IntegrityError as error:
+            # The decision was deleted after the lookup above.
+            raise _decision_not_found(decision_identifier) from error
+        await _upsert_tags(session, version, request_body.tags, user_id=user_id)
+        await session.refresh(version)
+        data = DecisionVersion.from_orm_decision_version(version)
+    return CreateDecisionVersionResponseBody(data=data)
+
+
+@router.get(
+    "/decisions/{decision_identifier}/latest",
+    operation_id="getDecisionVersionLatest",
+    summary="Get the latest decision version",
+    description="Retrieve the most recent version of a decision, by GlobalID or name.",
+    response_description="The latest version of the decision",
+    responses=_errors([404, 422]),
+    **_RESPONSE_OPTIONS,
+)
+async def get_decision_version_latest(
+    request: Request,
+    decision_identifier: str = _DECISION_IDENTIFIER,
+) -> GetDecisionVersionResponseBody:
+    stmt = (
+        select(models.DecisionVersion)
+        .join(models.Decision)
+        .where(_decision_where_clause(decision_identifier))
+        .order_by(models.DecisionVersion.id.desc())
+        .limit(1)
+    )
+    async with request.app.state.db() as session:
+        version = await session.scalar(stmt)
+    if version is None:
+        raise _decision_not_found(decision_identifier)
+    return GetDecisionVersionResponseBody(data=DecisionVersion.from_orm_decision_version(version))
+
+
+@router.get(
+    "/decisions/{decision_identifier}/tags/{tag_name}",
+    operation_id="getDecisionVersionByTagName",
+    summary="Get a decision version by tag",
+    description="Retrieve the version of a decision that a tag, such as `production`, points to.",
+    response_description="The decision version the tag points to",
+    responses=_errors([404, 422]),
+    **_RESPONSE_OPTIONS,
+)
+async def get_decision_version_by_tag_name(
+    request: Request,
+    decision_identifier: str = _DECISION_IDENTIFIER,
+    tag_name: str = Path(description="The name of the tag."),
+) -> GetDecisionVersionResponseBody:
+    name = _parse_tag_name(tag_name)
+    stmt = (
+        select(models.DecisionVersion)
+        .join(
+            models.DecisionVersionTag,
+            models.DecisionVersionTag.decision_version_id == models.DecisionVersion.id,
+        )
+        .join(models.Decision, models.Decision.id == models.DecisionVersion.decision_id)
+        .where(models.DecisionVersionTag.name == name)
+        .where(_decision_where_clause(decision_identifier))
+    )
+    async with request.app.state.db() as session:
+        version = await session.scalar(stmt)
+    if version is None:
+        raise HTTPException(
+            404, f"No version of decision '{decision_identifier}' is tagged '{tag_name}'"
+        )
+    return GetDecisionVersionResponseBody(data=DecisionVersion.from_orm_decision_version(version))
+
+
+@router.get(
+    "/decision_versions/{decision_version_id}",
+    operation_id="getDecisionVersionByDecisionVersionId",
+    summary="Get a decision version by ID",
+    description="Retrieve a specific decision version by its GlobalID.",
+    response_description="The requested decision version",
+    responses=_errors([404, 422]),
+    **_RESPONSE_OPTIONS,
+)
+async def get_decision_version_by_decision_version_id(
+    request: Request,
+    decision_version_id: str = _DECISION_VERSION_ID,
+) -> GetDecisionVersionResponseBody:
+    id_ = _parse_decision_version_id(decision_version_id)
+    async with request.app.state.db() as session:
+        version = await session.get(models.DecisionVersion, id_)
+    if version is None:
+        raise _decision_version_not_found(decision_version_id)
+    return GetDecisionVersionResponseBody(data=DecisionVersion.from_orm_decision_version(version))
+
+
+# --------------------------------------------------------------------------------------------
+# Decision version tags
+# --------------------------------------------------------------------------------------------
+
+
+@router.get(
+    "/decision_versions/{decision_version_id}/tags",
+    operation_id="getDecisionVersionTags",
+    summary="List decision version tags",
+    description="Retrieve a paginated list of the tags that point to a decision version.",
+    response_description="A list of the version's tags with pagination information",
+    responses=_errors([404, 422]),
+    **_RESPONSE_OPTIONS,
+)
+async def list_decision_version_tags(
+    request: Request,
+    decision_version_id: str = _DECISION_VERSION_ID,
+    cursor: Optional[str] = Query(
+        default=None, description="Cursor for pagination (a DecisionVersionTag GlobalID)"
+    ),
+    limit: int = Query(
+        default=100, description="The max number of tags to return at a time.", gt=0
+    ),
+) -> GetDecisionVersionTagsResponseBody:
+    id_ = _parse_decision_version_id(decision_version_id)
+    stmt = (
+        select(models.DecisionVersionTag)
+        .where(models.DecisionVersionTag.decision_version_id == id_)
+        .order_by(models.DecisionVersionTag.id.desc())
+    )
+    if cursor:
+        stmt = stmt.where(
+            models.DecisionVersionTag.id <= _parse_cursor(cursor, "DecisionVersionTag")
+        )
+    async with request.app.state.db() as session:
+        exists = await session.scalar(
+            select(models.DecisionVersion.id).where(models.DecisionVersion.id == id_)
+        )
+        if exists is None:
+            raise _decision_version_not_found(decision_version_id)
+        tags = list((await session.scalars(stmt.limit(limit + 1))).all())
+    next_cursor = None
+    if len(tags) > limit:
+        next_cursor = encode_decision_version_tag_id(tags[limit].id)
+        tags = tags[:limit]
+    return GetDecisionVersionTagsResponseBody(
+        data=[DecisionVersionTag.from_orm_decision_version_tag(tag) for tag in tags],
+        next_cursor=next_cursor,
+    )
+
+
+@router.post(
+    "/decision_versions/{decision_version_id}/tags",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createDecisionVersionTag",
+    summary="Tag a decision version",
+    description="Point a tag at a decision version. Tag names are unique within a decision: "
+    "if the version's decision already has a tag of this name, it moves to this version "
+    "and keeps its description unless a new one is given.",
+    response_description="No content returned on success",
+    status_code=204,
+    responses=_errors([404, 422, 507]),
+)
+async def create_decision_version_tag(
+    request: Request,
+    request_body: DecisionVersionTagData,
+    decision_version_id: str = _DECISION_VERSION_ID,
+) -> None:
+    id_ = _parse_decision_version_id(decision_version_id)
+    async with request.app.state.db() as session:
+        decision_id = await session.scalar(
+            select(models.DecisionVersion.decision_id).where(models.DecisionVersion.id == id_)
+        )
+        if decision_id is None:
+            raise _decision_version_not_found(decision_version_id)
+        await upsert_decision_version_tag(
+            session,
+            decision_id=decision_id,
+            decision_version_id=id_,
+            name=request_body.name,
+            description=request_body.description,
+            user_id=_user_id(request),
+        )
+
+
+@router.delete(
+    "/decision_versions/{decision_version_id}/tags/{tag_name}",
+    operation_id="deleteDecisionVersionTag",
+    summary="Delete a decision version tag",
+    description="Delete a tag by name. The tag is resolved within the decision of the given "
+    "version.",
+    status_code=204,
+    responses=_errors([404, 422]),
+)
+async def delete_decision_version_tag(
+    request: Request,
+    decision_version_id: str = _DECISION_VERSION_ID,
+    tag_name: str = Path(description="The name of the tag to delete."),
+) -> None:
+    id_ = _parse_decision_version_id(decision_version_id)
+    name = _parse_tag_name(tag_name)
+    async with request.app.state.db() as session:
+        decision_id = await session.scalar(
+            select(models.DecisionVersion.decision_id).where(models.DecisionVersion.id == id_)
+        )
+        if decision_id is None:
+            raise _decision_version_not_found(decision_version_id)
+        deleted_id = await session.scalar(
+            delete(models.DecisionVersionTag)
+            .where(models.DecisionVersionTag.decision_id == decision_id)
+            .where(models.DecisionVersionTag.name == name)
+            .returning(models.DecisionVersionTag.id)
+        )
+    if deleted_id is None:
+        raise HTTPException(404, f"Decision version tag not found: {tag_name}")
+
+
+# --------------------------------------------------------------------------------------------
+# Helpers
+# --------------------------------------------------------------------------------------------
+
+
+class _DecisionId(int): ...
+
+
+_DecisionIdentifier: TypeAlias = Union[_DecisionId, Identifier]
+
+
+def _parse_decision_identifier(decision_identifier: str) -> _DecisionIdentifier:
+    try:
+        return _DecisionId(
+            from_global_id_with_expected_type(GlobalID.from_id(decision_identifier), "Decision")
+        )
+    except ValueError:
+        pass
+    try:
+        return Identifier.model_validate(decision_identifier)
+    except ValidationError:
+        raise HTTPException(422, f"Invalid decision identifier: {decision_identifier}")
+
+
+def _decision_where_clause(decision_identifier: str) -> Any:
+    identifier = _parse_decision_identifier(decision_identifier)
+    if isinstance(identifier, _DecisionId):
+        return models.Decision.id == int(identifier)
+    if isinstance(identifier, Identifier):
+        return models.Decision.name == identifier
+    assert_never(identifier)
+
+
+def _parse_decision_version_id(decision_version_id: str) -> int:
+    try:
+        return from_global_id_with_expected_type(
+            GlobalID.from_id(decision_version_id), "DecisionVersion"
+        )
+    except ValueError:
+        raise HTTPException(422, f"Invalid decision version ID: {decision_version_id}")
+
+
+def _parse_tag_name(tag_name: str) -> Identifier:
+    try:
+        return Identifier.model_validate(tag_name)
+    except ValidationError:
+        raise HTTPException(422, f"Invalid tag name: {tag_name}")
+
+
+def _parse_cursor(cursor: str, type_name: str) -> int:
+    try:
+        return from_global_id_with_expected_type(GlobalID.from_id(cursor), type_name)
+    except ValueError:
+        raise HTTPException(422, f"Invalid cursor format: {cursor}")
+
+
+def _decision_not_found(decision_identifier: str) -> HTTPException:
+    return HTTPException(404, f"Decision not found: {decision_identifier}")
+
+
+def _decision_version_not_found(decision_version_id: str) -> HTTPException:
+    return HTTPException(404, f"Decision version not found: {decision_version_id}")
+
+
+def _referenced_by_evaluators(evaluator_names: list[str]) -> ProblemException:
+    if not evaluator_names:
+        detail = "This decision is referenced by an evaluator; delete it first"
+    else:
+        noun, pronoun = (
+            ("an evaluator", "it") if len(evaluator_names) == 1 else ("evaluators", "them")
+        )
+        detail = (
+            f"This decision is referenced by {noun} ({', '.join(evaluator_names)}); "
+            f"delete {pronoun} first"
+        )
+    return ProblemException(409, "conflict", detail, reason="referenced_by_evaluator")
+
+
+def _user_id(request: Request) -> Optional[int]:
+    if request.app.state.authentication_enabled:
+        assert isinstance(user := request.user, PhoenixUser)
+        return int(user.identity)
+    return None
+
+
+def _version_to_orm(
+    version: DecisionVersionData, *, user_id: Optional[int]
+) -> models.DecisionVersion:
+    try:
+        return version.to_orm(user_id=user_id)
+    except BadRequest as error:
+        raise HTTPException(422, str(error)) from error
+
+
+def _apply_decision_fields(decision: models.Decision, data: DecisionData) -> None:
+    if data.description is not UNDEFINED:
+        decision.description = data.description
+    if data.metadata is not UNDEFINED:
+        decision.metadata_ = data.metadata
+
+
+async def _upsert_tags(
+    session: AsyncSession,
+    version: models.DecisionVersion,
+    tags: Optional[list[DecisionVersionTagData]],
+    *,
+    user_id: Optional[int],
+) -> None:
+    for tag in tags or ():
+        await upsert_decision_version_tag(
+            session,
+            decision_id=version.decision_id,
+            decision_version_id=version.id,
+            name=tag.name,
+            description=tag.description,
+            user_id=user_id,
+        )
+
+
+async def _validate_custom_provider(session: AsyncSession, version: models.DecisionVersion) -> None:
+    """Map the shared provider check to REST codes: 404 missing, 422 incompatible."""
+    try:
+        await validate_decision_custom_provider(session, version)
+    except NotFound as error:
+        raise HTTPException(404, str(error)) from error
+    except BadRequest as error:
+        raise HTTPException(422, str(error)) from error
