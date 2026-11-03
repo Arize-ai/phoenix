@@ -61,10 +61,13 @@ class CaseResult:
 
     def summary(self) -> dict[str, Any]:
         return {
+            "id": self.case.id,
             "query": self.case.query,
             "expect": self.case.expect,
             "kind": self.case.kind,
             "sibling": self.case.sibling,
+            "files": self.case.files,
+            "split": self.case.split,
             "loaded": self.loaded,
             "correct": self.correct,
             "loads": self.loads,
@@ -123,8 +126,9 @@ class SuiteResult:
     def run_count(self) -> int:
         return sum(len(c.runs) for c in self.cases)
 
-    def summary(self) -> dict[str, Any]:
+    def summary(self, metadata: Optional[dict[str, Any]] = None) -> dict[str, Any]:
         return {
+            "metadata": metadata or {},
             "skill": self.routing.skill,
             "channel": self.channel,
             "passed": self.passed,

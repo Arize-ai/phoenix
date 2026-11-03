@@ -156,18 +156,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         "auth": args.auth,
         "runs_per_case": args.runs,
     }
-    recorded = True
-    if not args.no_record:
-        from evals.skills.runner.record import record_suite
+    from evals.skills.runner.record import record_suite, suite_metadata
 
-        for suite in suites:
-            try:
-                experiment_id = record_suite(suite, metadata)
-                print(f"recorded {suite.routing.skill} on {suite.channel}: {experiment_id}")
-            except Exception as error:  # noqa: BLE001
-                recorded = False
-                print(f"couldn't record {suite.routing.skill} on {suite.channel}: {error}")
-
+    summaries = [s.summary(suite_metadata(s, metadata)) for s in suites]
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(
@@ -177,11 +168,21 @@ def main(argv: Optional[list[str]] = None) -> int:
                     "cost_usd": round(total, 4),
                     "runs": runs,
                     "cost_cap_hit": budget.exhausted,
-                    "suites": [s.summary() for s in suites],
+                    "suites": summaries,
                 },
                 indent=2,
             )
         )
+
+    recorded = True
+    if not args.no_record:
+        for summary in summaries:
+            try:
+                experiment_id = record_suite(summary)
+                print(f"recorded {summary['skill']} on {summary['channel']}: {experiment_id}")
+            except Exception as error:  # noqa: BLE001
+                recorded = False
+                print(f"couldn't record {summary['skill']} on {summary['channel']}: {error}")
 
     if any(s.passed is False for s in suites):
         return 1
