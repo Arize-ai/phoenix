@@ -125,8 +125,8 @@ Grade each criterion with the first result whose condition holds, so every score
 | Checks | Fail | A format, lint, typecheck or test target fails because of the diff, or the diff leaves generated files stale |
 | | Not run | A format, lint, typecheck or test target for a touched area couldn't run in the sandbox |
 | | Pass | Otherwise |
-| Tests | Fail | An added test would still pass without the behavior it covers, or the change alters behavior outside GitHub Actions workflows under `.github/` and the factory's prompts, rubrics, environment and vault YAML and `bootstrap.sh` under `factory/`, and adds no test that covers it |
-| | Not needed | The change adds no tests and alters no behavior, or alters only GitHub Actions workflows under `.github/`, or the factory's prompts, rubrics, environment and vault YAML and `bootstrap.sh` under `factory/`, which the repo has no way to test; docs, comments and refactors existing tests cover land here too. The factory's Python under `factory/` gets the normal rule |
+| Tests | Fail | An added test would still pass without the behavior it covers, or the change alters behavior the repo can test and adds no test that covers it |
+| | Not needed | The change adds no tests, and alters no behavior or only what the repo cannot test: workflows under `.github/`, and everything under `factory/` except its Python |
 | | Pass | Otherwise |
 | Risk | High, Medium, Low or None | The highest of the area reviewers' side effects, performance and backwards compatibility ratings |
 | Depth | Deep | The change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions; Risk is Medium or High; or Checks is Not run |
