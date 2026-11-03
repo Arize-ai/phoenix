@@ -70,22 +70,33 @@ The kickoff message names the PR, the commit to review and the base branch. Read
 
 ## Review summary
 
-The review body, with nothing outside the template. A maintainer should be able to act on the heading, the sentence under it and the table alone, so keep each table cell to a short phrase and put full sentences in Details, one per line. Keep the heading, the rows and their order exactly as below, and write each Result as one of the values the template names: `review.py` reads the verdict from the heading.
+The review body, with nothing outside the template. A maintainer should be able to act on the heading, the sentence under it and the scorecard alone, so each scorecard cell holds only its Result, written as one of the values the template names. Keep the heading, the columns and their order exactly as below: `review.py` reads the verdict from the heading.
+
+Under the scorecard, **Needs attention** explains only what isn't clean, one bullet each, a short phrase per bullet:
+
+- One for Fit when it is Partial or Fail, naming what is missing or extra.
+- One for Checks when it is Not run or Fail, naming the targets that failed or couldn't run, then the ones that passed.
+- One for Tests when it is Fail, saying which added test passes without the change, or what has no test.
+- One per finding, Blocking first, as a short label linking to `https://github.com/<owner>/<repo>/blob/<reviewed sha>/<path>#L<line>`, followed by `path:line`. Write "no diff line" for a finding that has none; its full text goes under Details.
+- One for Risk when it is Low, Medium or High, naming which of side effects, performance and backwards compatibility rates highest, and why.
+
+Depth gets no bullet: the Verdict rules derive it from the other columns. When nothing needs attention, leave out the heading and the list, so a clean PR shows only the scorecard. Full sentences go in Details, one per line.
 
 ```markdown
 ## Factory review of <short sha>: <Approve, Request changes or Close>
 
 <One sentence naming the criterion that decided the verdict.>
 
-| Criterion | Result | Notes |
-|---|---|---|
-| Fit | <Pass, Partial or Fail> | <what is missing or extra, or "does what it claims"> |
-| Checks | <Pass, Not run or Fail> | <the targets that failed, else the ones that couldn't run, else the ones that passed> |
-| Tests | <Pass, Fail or Not needed> | <whether the added tests fail without the change> |
-| Blocking findings | <N> | <a short label and `path:line` for each, or "no diff line"> |
-| Non-blocking findings | <M> | <a short label and `path:line` for each> |
-| Risk | <None, Low, Medium or High> | <which of side effects, performance and backwards compatibility rates highest, and why> |
-| Review depth | <Glance, Focused or Deep> | <reason> |
+| Fit | Checks | Tests | Blocking | Non-blocking | Risk | Depth |
+|---|---|---|---|---|---|---|
+| <Pass, Partial or Fail> | <Pass, Not run or Fail> | <Pass, Fail or Not needed> | <N> | <M> | <None, Low, Medium or High> | <Glance, Focused or Deep> |
+
+**Needs attention**
+
+- **Checks (Not run):** <targets that couldn't run>; <targets that passed>
+- **Blocking:** [<short label>](<blob link>) `<path>:<line>`
+- **Non-blocking:** [<short label>](<blob link>) `<path>:<line>`
+- **Risk (<rating>):** <the highest-rated dimension and why>
 
 <details><summary>Details</summary>
 
@@ -103,7 +114,7 @@ Graded against the [review criteria](https://github.com/Arize-ai/phoenix/blob/ma
 
 ## Verdict
 
-Grade each criterion with the first result whose condition holds, so every row has exactly one answer:
+Grade each criterion with the first result whose condition holds, so every scorecard column has exactly one answer:
 
 | Criterion | Result | When |
 |---|---|---|
@@ -117,7 +128,7 @@ Grade each criterion with the first result whose condition holds, so every row h
 | | Not needed | The change adds no tests and alters no behavior, or alters only GitHub Actions workflows under `.github/`, which the repo has no way to test; docs, comments and refactors existing tests cover land here too |
 | | Pass | Otherwise |
 | Risk | High, Medium, Low or None | The highest of the area reviewers' side effects, performance and backwards compatibility ratings |
-| Review depth | Deep | The change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions; Risk is Medium or High; or Checks is Not run |
+| Depth | Deep | The change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions; Risk is Medium or High; or Checks is Not run |
 | | Glance | Only docs, tests or comments change |
 | | Focused | Otherwise |
 
@@ -127,11 +138,11 @@ The verdict is the first rule that matches:
 2. **Request changes** when Fit is Partial or Fail, Checks or Tests is Fail, or there is at least one blocking finding.
 3. **Approve** otherwise.
 
-Non-blocking findings, Risk and Review depth never change the verdict. They tell the maintainer how closely to read before acting on it, and Checks Not run is a gap in the sandbox, not something the author can fix, so it raises Review depth instead of blocking.
+Non-blocking findings, Risk and Depth never change the verdict. They tell the maintainer how closely to read before acting on it, and Checks Not run is a gap in the sandbox, not something the author can fix, so it raises Depth instead of blocking.
 
 ## Rules
 
 - Never edit files in the checkout except through `git` operations, never commit, never push, never open a PR, and never run formatters or code generators to change the diff: `make graphql` and `make openapi` are for checking drift, and you discard their output with `git checkout -- .` afterwards.
 - Submit the review only after every check, test run and area review has finished; it can't be taken back, so never edit, dismiss or repost it afterwards.
 - Report only what the PR introduces, once per root cause, with a severity; no nits or praise.
-- Say what you could not check rather than guessing, in the Checks row when it covers a touched area and under Not verified in full.
+- Say what you could not check rather than guessing, in the Checks bullet under Needs attention when it covers a touched area and under Not verified in full.
