@@ -186,7 +186,13 @@ const drawerFrameCSS = css`
  * Section ids must be unique in the document, and both a Docs page and the
  * side-by-side theme layout render a story more than once
  */
-function withIdPrefix(prefix: string, sections: RunSection[]): RunSection[] {
+function withIdPrefix({
+  prefix,
+  sections,
+}: {
+  prefix: string;
+  sections: RunSection[];
+}): RunSection[] {
   return sections.map((section) => ({
     ...section,
     id: `${prefix}-${section.id}`,
@@ -230,7 +236,7 @@ function RunDetailsPane({
   isScrollAnimated?: boolean;
 }) {
   const idPrefix = useId();
-  const prefixedSections = withIdPrefix(idPrefix, sections);
+  const prefixedSections = withIdPrefix({ prefix: idPrefix, sections });
   const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <div css={paneCSS} data-orientation={orientation} style={{ width, height }}>
@@ -298,7 +304,7 @@ function RunDetailsDrawer({
   height?: string;
 }) {
   const idPrefix = useId();
-  const prefixedSections = withIdPrefix(idPrefix, sections);
+  const prefixedSections = withIdPrefix({ prefix: idPrefix, sections });
   const bodyRef = useRef<HTMLDivElement>(null);
   return (
     <OverlayFrameProvider>

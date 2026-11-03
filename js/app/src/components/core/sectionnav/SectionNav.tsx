@@ -183,10 +183,14 @@ export function SectionNav({
     hasOverflowAtEnd,
   } = useHorizontalOverflow<HTMLUListElement>();
 
+  // The id last made current, rather than the committed `activeId`, so two
+  // resolves before React re-renders report a change once
+  const reportedActiveIdRef = useRef(activeId);
   const changeActiveId = (id: string) => {
-    if (id === activeId) {
+    if (id === reportedActiveIdRef.current) {
       return;
     }
+    reportedActiveIdRef.current = id;
     setActiveId(id);
     onChange?.(id);
   };
@@ -307,7 +311,13 @@ export function SectionNav({
       runoutSection = null;
       runout = 0;
     };
-    const setRunout = (section: HTMLElement, nextRunout: number) => {
+    const setRunout = ({
+      section,
+      nextRunout,
+    }: {
+      section: HTMLElement;
+      nextRunout: number;
+    }) => {
       if (nextRunout <= 0) {
         clearRunout();
         return;
@@ -348,10 +358,12 @@ export function SectionNav({
       if (container.scrollHeight <= container.clientHeight) {
         const lastSectionBottom =
           container.scrollTop + lastSectionRect.bottom - viewportTop;
-        setRunout(
-          lastSection,
-          Math.ceil(requiredScrollHeight - lastSectionBottom - runoutMargin)
-        );
+        setRunout({
+          section: lastSection,
+          nextRunout: Math.ceil(
+            requiredScrollHeight - lastSectionBottom - runoutMargin
+          ),
+        });
       }
       const scrollHeightWithoutRunout = container.scrollHeight - runout;
       const nextRunout = Math.max(
@@ -359,7 +371,7 @@ export function SectionNav({
         Math.ceil(requiredScrollHeight - scrollHeightWithoutRunout)
       );
       if (nextRunout !== runout) {
-        setRunout(lastSection, nextRunout);
+        setRunout({ section: lastSection, nextRunout });
       }
     };
 
@@ -481,7 +493,11 @@ export function SectionNav({
 
     return () => {
       clearTimeout(settleTimeout);
-      tracking.settle();
+      // A user who scrolled before the re-run has released the held default,
+      // so the next setup must not scroll back to it
+      if (tracking.settle()) {
+        heldDefaultIdRef.current = null;
+      }
       scrollToSectionRef.current = () => {};
       observer?.disconnect();
       resizeObserver.disconnect();
@@ -497,10 +513,13 @@ export function SectionNav({
     };
   }, [sectionIdsKey, scrollContainerRef, orientation]);
 
-  const handleLinkClick = (
-    event: MouseEvent<HTMLAnchorElement>,
-    id: string
-  ) => {
+  const handleLinkClick = ({
+    event,
+    id,
+  }: {
+    event: MouseEvent<HTMLAnchorElement>;
+    id: string;
+  }) => {
     // Leave modified clicks (open in a new tab, etc.) to the browser
     if (
       event.button !== 0 ||
@@ -552,7 +571,9 @@ export function SectionNav({
                   href={`#${section.id}`}
                   className="section-nav__link"
                   aria-current={isActive ? "true" : undefined}
-                  onClick={(event) => handleLinkClick(event, section.id)}
+                  onClick={(event) =>
+                    handleLinkClick({ event, id: section.id })
+                  }
                 >
                   <span
                     className="section-nav__label"

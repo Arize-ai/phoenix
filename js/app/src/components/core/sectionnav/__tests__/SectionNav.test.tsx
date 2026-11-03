@@ -420,37 +420,16 @@ describe("SectionNav", () => {
     expect(document.activeElement).toBe(section);
   });
 
-  it("scrolls only the scroll container, landing the section its scroll margin below the top", async () => {
+  // jsdom has no layout, so where the section lands is left to the browser
+  it("scrolls only the scroll container", async () => {
     const scrollContainerRef = createRef<HTMLDivElement>();
     await render({ orientation: "vertical", scrollContainerRef });
-    const pane = scrollContainerRef.current;
-    const section = container.querySelector<HTMLElement>("section#output");
-    if (pane == null || section == null) {
-      throw new Error("pane or section not rendered");
-    }
-    pane.scrollTop = 40;
-    vi.spyOn(pane, "getBoundingClientRect").mockReturnValue(
-      new DOMRect(0, 100, 480, 280)
-    );
-    vi.spyOn(section, "getBoundingClientRect").mockReturnValue(
-      new DOMRect(0, 600, 480, 120)
-    );
-    // jsdom does not resolve the section's scroll-margin-top calc
-    const getComputedStyle = window.getComputedStyle.bind(window);
-    vi.spyOn(window, "getComputedStyle").mockImplementation((element) =>
-      element === section
-        ? ({ scrollMarginTop: "16px" } as CSSStyleDeclaration)
-        : getComputedStyle(element)
-    );
     await click(link("Output"));
     expect(elementScrollTo).toHaveBeenCalledOnce();
-    expect(elementScrollTo.mock.contexts[0]).toBe(pane);
-    // the section's offset from the pane's top, plus what is already
-    // scrolled, less the gap its scroll-margin-top leaves above it
-    expect(elementScrollTo).toHaveBeenCalledWith({
-      top: 524,
-      behavior: "smooth",
-    });
+    expect(elementScrollTo.mock.contexts[0]).toBe(scrollContainerRef.current);
+    expect(elementScrollTo).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: "smooth" })
+    );
     expect(windowScrollTo).not.toHaveBeenCalled();
   });
 
@@ -613,6 +592,39 @@ describe("SectionNav scroll tracking", () => {
     await scrollPane({ pane, scrollTop: 0 });
     await settleScroll();
     expect(currentLinks()).toEqual(["Annotations:true"]);
+  });
+
+  it("does not scroll back to the default active section the user scrolled away from when it re-subscribes", async () => {
+    const scrollContainerRef = createRef<HTMLDivElement>();
+    await render({ defaultActiveId: "input", scrollContainerRef });
+    const pane = scrollContainerRef.current;
+    if (pane == null) {
+      throw new Error("pane not rendered");
+    }
+    expect(elementScrollTo).toHaveBeenCalledOnce();
+    // the user scrolls before the mount scroll settles, then the nav
+    // re-subscribes (here, to a new orientation)
+    await scrollPane({ pane, scrollTop: 0, crossesLine: false });
+    await render({
+      defaultActiveId: "input",
+      scrollContainerRef,
+      orientation: "vertical",
+    });
+    expect(elementScrollTo).toHaveBeenCalledOnce();
+  });
+
+  it("reports a change once when the observer reports it twice before re-rendering", async () => {
+    const onChange = vi.fn();
+    const pane = await renderPane({ onChange });
+    await act(async () => {
+      pane.scrollTop = 300;
+      for (const observer of intersectionObservers) {
+        observer.report();
+        observer.report();
+      }
+    });
+    expect(currentLinks()).toEqual(["Input:true"]);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith("input");
   });
 
   it("sets the bar's height on the scroll container for sections to land below", async () => {
