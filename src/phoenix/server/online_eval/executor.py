@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -24,6 +25,7 @@ from typing import (
     Optional,
     Protocol,
     Sequence,
+    get_args,
 )
 
 from sqlalchemy import func, select
@@ -34,6 +36,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.config import (
+    get_env_enable_prometheus,
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
 )
@@ -101,6 +104,7 @@ from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
     persist_evaluator_traces,
 )
+from phoenix.server.prometheus import ONLINE_EVAL_EVALUATOR_DURATION_SECONDS
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
@@ -651,6 +655,9 @@ class OnlineEvalExecutor:
         self._tracer_factory = tracer_factory
         self._execution_deadline_seconds = execution_deadline_seconds
         self._db_semaphore = db_semaphore
+        self._publish_metrics = get_env_enable_prometheus()
+        for evaluator_kind in get_args(EvaluatorKind):
+            ONLINE_EVAL_EVALUATOR_DURATION_SECONDS.labels(evaluator_kind=evaluator_kind)
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
@@ -1123,6 +1130,7 @@ class OnlineEvalExecutor:
             if self._tracer_factory
             else None
         )
+        started_at = time.perf_counter()
         try:
             context = {
                 **hydrated.context,
@@ -1139,6 +1147,10 @@ class OnlineEvalExecutor:
                 tracer=tracer,
             )
         finally:
+            if self._publish_metrics:
+                ONLINE_EVAL_EVALUATOR_DURATION_SECONDS.labels(
+                    evaluator_kind=hydrated.evaluator_kind
+                ).observe(time.perf_counter() - started_at)
             if tracer is not None:
                 # A failed evaluation is exactly when its trace is worth reading,
                 # so the trace is written whether or not the evaluation succeeded —
