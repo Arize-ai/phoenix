@@ -5,7 +5,7 @@ Managed Agents session with the pr-reviewer agent, kicked off with the PR number
 commit to review, and posts one status comment on the PR. `watch` waits for the session to
 end, finds the review it posted, turns that comment into the review's verdict, which it
 also sets as one of the VERDICT_LABELS, and resolves the earlier factory review threads
-the review reports as fixed. Agent, environment and vault IDs come from
+the review reports as fixed or no longer applicable. Agent, environment and vault IDs come from
 claude-lock.json, which `ant apply` writes.
 """
 
@@ -229,8 +229,8 @@ class ReviewThread(NamedTuple):
     review_id: Optional[int]
 
 
-# The review summary's line naming the earlier threads the reviewer found fixed, per
-# agents/pr-reviewer.md.
+# The review summary's line naming the earlier threads whose finding the reviewer found
+# fixed or no longer applicable, per agents/pr-reviewer.md.
 RESOLVED_THREADS_PATTERN = re.compile(r"^\*\*Resolved threads:\*\* (.*)$", re.MULTILINE)
 THREAD_ID_PATTERN = re.compile(r"PRRT_[A-Za-z0-9_-]+")
 
@@ -318,8 +318,8 @@ def format_open_threads(*, threads: list[ReviewThread]) -> str:
     thread_lines = "\n".join(f"- {thread.id} (comment {thread.comment_id})" for thread in threads)
     return (
         " The factory's earlier reviews left these threads open; re-check each against the "
-        "code you review and name the fixed ones on the summary's Resolved threads line:\n"
-        + thread_lines
+        "code you review and name the ones whose finding is fixed or no longer applies on the "
+        "summary's Resolved threads line:\n" + thread_lines
     )
 
 
@@ -350,7 +350,8 @@ def resolve_thread(*, thread_id: str, token: Optional[str]) -> None:
 def resolve_reported_threads(
     *, repo: str, pr_number: int, review_body: str, factory_login: str, token: Optional[str]
 ) -> int:
-    """Resolve the earlier factory threads the review reports as fixed; return how many."""
+    """Resolve the earlier factory threads the review reports as fixed or no longer
+    applicable; return how many."""
     resolvable_threads = select_resolvable_threads(
         requested_ids=parse_resolved_thread_ids(review_body=review_body),
         open_factory_threads=read_open_factory_threads(
