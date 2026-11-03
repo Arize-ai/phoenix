@@ -5964,6 +5964,8 @@ type Query {
   decisionCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
+  projectEvaluatorCount: Int!
+  datasetEvaluatorCount: Int!
   sandboxBackends: [SandboxBackendInfo!]!
   sandboxProviders: [SandboxProvider!]!
 }

@@ -2247,6 +2247,16 @@ class Query:
             return await session.scalar(stmt) or 0
 
     @strawberry.field
+    async def project_evaluator_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.ProjectEvaluator.id))) or 0
+
+    @strawberry.field
+    async def dataset_evaluator_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.DatasetEvaluators.id))) or 0
+
+    @strawberry.field
     async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:
         """Return static + runtime info for all known sandbox backends."""
         from phoenix.server.sandbox import SecretsContext

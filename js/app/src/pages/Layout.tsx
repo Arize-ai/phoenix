@@ -359,8 +359,11 @@ function SideNavContent({
               text="Evaluators"
               leadingVisual={<Icon svg={<Icons.Scale />} />}
               trailingVisual={
-                counts?.evaluatorCount != null ? (
-                  <Counter variant="quiet">{counts.evaluatorCount}</Counter>
+                counts != null ? (
+                  <Counter variant="quiet">
+                    {counts.projectEvaluatorCount +
+                      counts.datasetEvaluatorCount}
+                  </Counter>
                 ) : undefined
               }
               isExpanded={isExpanded}

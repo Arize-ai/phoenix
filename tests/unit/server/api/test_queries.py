@@ -804,6 +804,8 @@ async def test_project_evaluators(
         ("toxicity", first),
         ("toxicity", second),
     ]
+    count = await gql_client.execute("query { projectEvaluatorCount }")
+    assert count.data == {"projectEvaluatorCount": 3}
 
 
 async def test_dataset_evaluators(
@@ -900,6 +902,8 @@ async def test_dataset_evaluators(
         ("relevance", "beta"),
         ("accuracy", "beta"),
     ]
+    count = await gql_client.execute("query { datasetEvaluatorCount }")
+    assert count.data == {"datasetEvaluatorCount": 4}
 
 
 async def test_agents_config_returns_env_values(
