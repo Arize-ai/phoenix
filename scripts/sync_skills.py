@@ -35,9 +35,15 @@ Both modes also lint the public skills, and fail on:
 - a relative Markdown link, or a ``references/...`` path in code font, that
   points at a file the skill doesn't have.
 
-A ``SKILL.md`` body longer than 500 lines is only a warning, because
-``phoenix-cli`` is over the limit today. Add
-``--npx`` to also run ``npx skills add . --list`` and fail unless it lists
+These are only warnings:
+
+- a ``SKILL.md`` body longer than 500 lines, because ``phoenix-cli`` is over
+  the limit today;
+- a skill without the minimum eval cases: a routing file at
+  ``evals/skills/<name>/routing.yaml`` and at least one Harbor task under
+  ``evals/harbor/tasks/skills/<name>/`` whose ``[metadata] skill`` is ``<name>``.
+
+Add ``--npx`` to also run ``npx skills add . --list`` and fail unless it lists
 exactly the public skills.
 
 Never edit a copy: edit the skill in ``skills/`` and run ``make skills``.
@@ -71,6 +77,8 @@ PXI_ROOT = REPO_ROOT / "src" / "phoenix" / "server" / "agents" / "prompts" / "sk
 CLAUDE_PLUGIN_ROOT = REPO_ROOT / "plugins" / "claude" / "arize-phoenix" / "skills"
 CODEX_PLUGIN_ROOT = REPO_ROOT / "plugins" / "codex" / "arize-phoenix" / "skills"
 CURSOR_MANIFEST = REPO_ROOT / ".cursor-plugin" / "plugin.json"
+ROUTING_ROOT = REPO_ROOT / "evals" / "skills"
+HARBOR_SKILL_TASKS_ROOT = REPO_ROOT / "evals" / "harbor" / "tasks" / "skills"
 
 TARGETS = frozenset({"agents", "mcp", "pxi"})
 SKILL_FILE = "SKILL.md"
@@ -85,6 +93,10 @@ _CODE_REFERENCE = re.compile(r"`(?P<target>references/[^`\s]+)`")
 MAX_DESCRIPTION_CHARS = 1024
 MAX_DESCRIPTION_BYTES_PER_TARGET = 4096
 MAX_BODY_LINES = 500
+# Reads `skill = "..."` in a task.toml's [metadata] table. A regex keeps this script
+# stdlib-only on Python versions without tomllib.
+_TOML_TABLE = re.compile(r"^\s*\[(?P<name>[^\]]+)\]\s*$", re.MULTILINE)
+_TOML_SKILL = re.compile(r"^\s*skill\s*=\s*[\"'](?P<skill>[^\"']+)[\"']", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -331,6 +343,32 @@ def _broken_references(skill: Skill) -> Iterator[str]:
                 yield f"{_rel(markdown)}: mentions missing file {target}"
 
 
+def _task_skill(task_file: Path) -> str | None:
+    """The ``skill`` field of a Harbor task's ``[metadata]`` table, if it has one."""
+    text = task_file.read_text(encoding="utf-8")
+    tables = list(_TOML_TABLE.finditer(text))
+    for index, table in enumerate(tables):
+        if table["name"].strip() != "metadata":
+            continue
+        end = tables[index + 1].start() if index + 1 < len(tables) else len(text)
+        if match := _TOML_SKILL.search(text, table.end(), end):
+            return match["skill"]
+    return None
+
+
+def _missing_cases(skill: Skill) -> Iterator[str]:
+    routing_file = ROUTING_ROOT / skill.name / "routing.yaml"
+    if not routing_file.is_file():
+        yield f"skills/{skill.name}: no routing file at {_rel(routing_file)}"
+    task_dir = HARBOR_SKILL_TASKS_ROOT / skill.name
+    tasks = sorted(task_dir.rglob("task.toml")) if task_dir.is_dir() else []
+    if not any(_task_skill(task) == skill.name for task in tasks):
+        yield (
+            f"skills/{skill.name}: no Harbor task under {_rel(task_dir)} "
+            f'with [metadata] skill = "{skill.name}"'
+        )
+
+
 def lint(skills: list[Skill]) -> tuple[list[str], list[str]]:
     """Returns the size and link errors and the warnings for the public skills."""
     errors = []
@@ -355,6 +393,7 @@ def lint(skills: list[Skill]) -> tuple[list[str], list[str]]:
                 "and move detail into references/"
             )
         errors.extend(_broken_references(skill))
+        warnings.extend(_missing_cases(skill))
     for target, total in description_bytes.items():
         if total > MAX_DESCRIPTION_BYTES_PER_TARGET:
             errors.append(
