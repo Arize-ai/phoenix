@@ -1,10 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "anthropic==1.12.1",
-#     "PyJWT[crypto]==2.15.1",
-# ]
-# ///
 import argparse
 import json
 import os

@@ -1,10 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#     "anthropic==1.12.1",
-#     "PyJWT[crypto]==2.15.1",
-# ]
-# ///
 """Run one Phoenix pull request through the factory's review lane.
 
 `start` checks that the PR is open and that whoever asked has write access, then creates a
