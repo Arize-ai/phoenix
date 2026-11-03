@@ -20,13 +20,13 @@ Have these ready:
 
 - Wonder Toys running with [tracing enabled](/docs/phoenix/learn/capture-first-run).
 - The budget judge from [Write and validate an LLM judge](/docs/phoenix/learn/llm-judge), using the same rubric as your experiments.
-- Your [Anthropic API key](/docs/phoenix/learn/capture-first-run#step-2-set-up-wonder-toys) in `phoenix/langchain-py/.env.local`.
+- Your [Anthropic API key](/docs/phoenix/learn/capture-first-run#step-2-set-up-wonder-toys) in `no-observability/langchain-py/.env.local` from your setup.
 
 ## Step 1: Choose a new run to review
 
 Start a new conversation in the Wonder Toys agent and send a request such as:
 
-```text
+```text wrap
 Find dinosaur toys for a 6-year-old under $20. Recommend at most 2 options.
 ```
 
@@ -53,13 +53,14 @@ uv run --python 3.11 \
   --with-requirements phoenix/langchain-py/backend/requirements.txt \
   python -m academy.evaluations.score_runs \
   --trace-id YOUR_TRACE_ID \
-  --env-file phoenix/langchain-py/.env.local \
+  --env-file no-observability/langchain-py/.env.local \
   --phoenix-url http://localhost:6006
 ```
 
 Use your setup's addresses:
 
 - Replace `http://localhost:6006` if Phoenix runs elsewhere.
+- Use your app's `.env.local` path for `--env-file` if you configured it elsewhere.
 - Add `--project YOUR_PROJECT` if your project isn't named `wonder-toys`.
 
 When the command finishes, it prints the judge's label and explanation. Phoenix stores the result as a [`budget_compliance_judge` annotation](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui) marked **LLM** in the **kind** column, separate from your manual `budget_compliance` review.

@@ -22,6 +22,7 @@
 ### Understand behavior
 
 - [Capture your first agent run](https://arize.com/docs/phoenix/learn/capture-first-run): Run Wonder Toys locally and find the trace of a shopping request in Phoenix
+- [Add an agent span](https://arize.com/docs/phoenix/learn/add-context-to-traces): Add a named agent span with the complete request and answer above the automatically recorded calls
 - [Read model, retrieval, and tool steps](https://arize.com/docs/phoenix/learn/read-agent-run): Follow model calls and search results to explain how an agent produced its recommendation
 - [Follow a conversation with sessions](https://arize.com/docs/phoenix/learn/sessions): Review a conversation's traces together and compare follow-up answers with the messages the model received
 

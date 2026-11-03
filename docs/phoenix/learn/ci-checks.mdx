@@ -86,7 +86,7 @@ To use it in your repository, add the workflow under `.github/workflows/` and co
 
 Without a configured endpoint, this workflow sets [`PHOENIX_TEST_TRACKING=0`](/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest#configuring-with-environment-variables). The tests still run and can fail CI, but nothing is sent to Phoenix. Upload problems are reported as warnings; test assertions determine the CI result.
 
-After pushing a matching pull request, inspect **Wonder Toys Academy checks** in its [**Checks** tab](https://docs.github.com/en/pull-requests/reference/status-checks#checks). Confirm the tests run and, when recording is enabled, that the experiment appears in Phoenix.
+After pushing a matching pull request, inspect **Phoenix Academy checks** and its `purchase-checks` job in the [**Checks** tab](https://docs.github.com/en/pull-requests/reference/status-checks#checks). Confirm the tests run and, when recording is enabled, that the experiment appears in Phoenix.
 
 ## Step 4: Apply the same pattern to model evaluations
 
