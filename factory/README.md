@@ -78,7 +78,7 @@ sequenceDiagram
     session->>grader: end turn
     grader-->>session: needs revision, up to 3 iterations, or satisfied
     loop up to 3 feedback rounds
-      dispatch->>github: wait for required checks
+      dispatch->>github: wait for CI checks
       alt CI fails
         dispatch->>session: failed job logs
       else CI passes
@@ -104,7 +104,7 @@ Each part does one job, so it can be changed and tested on its own:
 | `feature-analyst` | Runs an acceptance test showing the target branch lacks the behavior, then plans slices, or returns `NEEDS_DECISION`; called back after the implementation, reruns the acceptance test unchanged and reports `IMPLEMENTED` or `NOT_IMPLEMENTED` |
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
-| `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
+| `dispatch.py watch` | Sends failing checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
 | `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, then edits its status comment on the PR into the review's verdict and labels it `factory-approved`, `factory-request-changes` or `factory-close`, or says why there is no verdict. See [Reviewing a PR](#reviewing-a-pr) |
 | `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
 | `factory-finish.yml` | Runs when a maintainer labels a PR `factory-finish` or dispatches it by number. `finish.py` checks that the requester has write access, the PR is open and, for a fork PR, its CLA is signed, copies a fork PR to a `factory/pr-N` branch here and closes the original, starts a `pr-finisher` session on the PR's branch, then follows it the way `dispatch.py` does. See [Finishing a PR](#finishing-a-pr) |

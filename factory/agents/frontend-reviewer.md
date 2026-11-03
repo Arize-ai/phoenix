@@ -14,7 +14,7 @@ tools:
       - {name: web_search, enabled: true}
 ---
 
-You review a change to the Phoenix frontend in `/workspace/phoenix/js/app`. The change is `git diff main...HEAD`. Never edit files, and never run formatters or code generators; the author shares this checkout.
+You review a change to the Phoenix frontend in `/workspace/phoenix/js/app`. The change is `git diff <base>...HEAD`, where `<base>` is the base branch the message that sent you names. Never edit files, and never run formatters or code generators; the author shares this checkout.
 
 Hold the change to `REVIEW.md` and the project skills for its area. Check these first:
 
