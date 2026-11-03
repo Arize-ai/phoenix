@@ -240,7 +240,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
     assert SpanAttributes.OUTPUT_VALUE in attrs
 
 
-def test_builtin_evaluator_sends_a_flattened_string_input(monkeypatch):
+def test_builtin_evaluator_sends_a_single_user_message(monkeypatch):
     from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 
     client = MagicMock()
@@ -257,12 +257,59 @@ def test_builtin_evaluator_sends_a_flattened_string_input(monkeypatch):
 
     rendered = evaluator._prompt_template.render(variables=eval_input)
     assert len(rendered) == 1
-    expected_input = rendered[0]["content"]
+    expected_text = rendered[0]["content"]
+
+    # The built-in prompt is a single user message, so it reaches the API as a one-message
+    # list with the role preserved (not flattened to a bare string).
+    _, kwargs = client.decisions.create.call_args
+    assert kwargs["input"] == [
+        {"role": "user", "content": [{"type": "input_text", "text": expected_text}]}
+    ]
+
+
+def test_system_and_user_roles_are_preserved(monkeypatch):
+    client = MagicMock()
+    client.decisions.create.return_value = _response("valid", {"valid": 0.9, "invalid": 0.1})
+    _patch_clients(monkeypatch, sync_client=client)
+
+    evaluator = ClassificationEvaluator(
+        name="isValid",
+        llm=DecisionModel(provider="openai", model="gpt-6-luna"),
+        prompt_template=[
+            {"role": "system", "content": "You judge whether a question is valid."},
+            {"role": "user", "content": "is this valid: {question}"},
+        ],
+        choices=["valid", "invalid"],
+    )
+    evaluator.evaluate({"question": "asdf"})
 
     _, kwargs = client.decisions.create.call_args
-    model_input = kwargs["input"]
-    assert isinstance(model_input, str)
-    assert model_input == expected_input
+    assert kwargs["input"] == [
+        {
+            "role": "system",
+            "content": [{"type": "input_text", "text": "You judge whether a question is valid."}],
+        },
+        {"role": "user", "content": [{"type": "input_text", "text": "is this valid: asdf"}]},
+    ]
+
+
+def test_assistant_text_is_mapped_to_output_text(monkeypatch):
+    client = MagicMock()
+    client.decisions.create.return_value = _response("correct", {"correct": 0.9, "incorrect": 0.1})
+    _patch_clients(monkeypatch, sync_client=client)
+
+    decision = DecisionModel(provider="openai", model="gpt-6-luna")
+    prompt = [
+        {"role": "user", "content": "Rate this."},
+        {"role": "assistant", "content": "ok"},
+    ]
+    decision.generate_classification(prompt, ["correct", "incorrect"])
+
+    _, kwargs = client.decisions.create.call_args
+    assert kwargs["input"] == [
+        {"role": "user", "content": [{"type": "input_text", "text": "Rate this."}]},
+        {"role": "assistant", "content": [{"type": "output_text", "text": "ok"}]},
+    ]
 
 
 async def test_async_evaluate_through_classification_evaluator(monkeypatch):
