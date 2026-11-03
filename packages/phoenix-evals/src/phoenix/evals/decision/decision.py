@@ -67,6 +67,7 @@ class DecisionModel:
 
         evaluator = ClassificationEvaluator(
             name="sentiment",
+            # or DecisionModel(provider="openai", model="gpt-6-luna")
             llm=DecisionModel(provider="typesafe", model="jev-latest"),
             prompt_template="Classify the sentiment: {text}",
             choices=["positive", "negative", "neutral"],
@@ -106,8 +107,8 @@ class DecisionModel:
 
             from phoenix.evals import DecisionModel
             dm = DecisionModel(
-                provider="typesafe",
-                model="jev-latest",
+                provider="typesafe", model="jev-latest",
+                # or provider="openai", model="gpt-6-luna"
                 api_key="your-api-key",
             )
         """
@@ -120,7 +121,8 @@ class DecisionModel:
             raise ValueError(
                 "Must specify both 'provider' and 'model'. "
                 "Examples:\n"
-                "  DecisionModel(provider='typesafe', model='jev-latest')"
+                "  DecisionModel(provider='typesafe', model='jev-latest')\n"
+                "  DecisionModel(provider='openai', model='gpt-6-luna')"
             )
 
         if provider is None:
