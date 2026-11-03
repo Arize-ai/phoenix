@@ -335,51 +335,36 @@ async function promptDeleteHandler(
 }
 
 /**
- * Fetch one page of the tags attached to a prompt version.
- */
-async function fetchPromptVersionTagPage(
-  client: PhoenixClient,
-  promptVersionId: string,
-  cursor: string | null
-): Promise<{ names: string[]; nextCursor: string | null }> {
-  const response = await client.GET(
-    "/v1/prompt_versions/{prompt_version_id}/tags",
-    {
-      params: {
-        path: { prompt_version_id: promptVersionId },
-        query: cursor ? { cursor } : {},
-      },
-    }
-  );
-  if (response.error || !response.data) {
-    throw new Error(
-      `Failed to list tags for prompt version ${promptVersionId}: ${getResponseErrorMessage(response.error)}`
-    );
-  }
-  return {
-    names: response.data.data.map((tag) => tag.name),
-    nextCursor: response.data.next_cursor,
-  };
-}
-
-/**
  * Fetch the names of all tags attached to a prompt version, following
  * pagination.
  */
-async function fetchPromptVersionTagNames(
-  client: PhoenixClient,
-  promptVersionId: string
-): Promise<string[]> {
+async function fetchPromptVersionTagNames({
+  client,
+  promptVersionId,
+}: {
+  client: PhoenixClient;
+  promptVersionId: string;
+}): Promise<string[]> {
   const names: string[] = [];
   let cursor: string | null = null;
   do {
-    const page = await fetchPromptVersionTagPage(
-      client,
-      promptVersionId,
-      cursor
+    const query: { cursor?: string } = cursor ? { cursor } : {};
+    const response = await client.GET(
+      "/v1/prompt_versions/{prompt_version_id}/tags",
+      {
+        params: {
+          path: { prompt_version_id: promptVersionId },
+          query,
+        },
+      }
     );
-    names.push(...page.names);
-    cursor = page.nextCursor;
+    if (response.error || !response.data) {
+      throw new Error(
+        `Failed to list tags for prompt version ${promptVersionId}: ${getResponseErrorMessage(response.error)}`
+      );
+    }
+    names.push(...response.data.data.map((tag) => tag.name));
+    cursor = response.data.next_cursor;
   } while (cursor);
   return names;
 }
@@ -417,10 +402,10 @@ async function promptUntagHandler(
     const client = createPhoenixClient({ config });
     const tagName = options.tag;
 
-    const versionTagNames = await fetchPromptVersionTagNames(
+    const versionTagNames = await fetchPromptVersionTagNames({
       client,
-      promptVersionId
-    );
+      promptVersionId,
+    });
     if (!versionTagNames.includes(tagName)) {
       throw new InvalidArgumentError(
         `Tag "${tagName}" is not on prompt version ${promptVersionId}. Nothing was removed. ` +
