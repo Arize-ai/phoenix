@@ -126,7 +126,7 @@ Grade each criterion with the first result whose condition holds, so every score
 | | Not run | A format, lint, typecheck or test target for a touched area couldn't run in the sandbox |
 | | Pass | Otherwise |
 | Tests | Fail | An added test would still pass without the behavior it covers, or the change alters behavior the repo can test and adds no test that covers it |
-| | Not needed | The change adds no tests, and alters no behavior or only what the repo cannot test: workflows under `.github/`, and everything under `factory/` except its Python |
+| | Not needed | The change adds no tests, and alters no behavior or only what the repo cannot test: workflows under `.github/` and factory code under `factory/` |
 | | Pass | Otherwise |
 | Risk | High, Medium, Low or None | The highest of the area reviewers' side effects, performance and backwards compatibility ratings |
 | Depth | Deep | The change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions; Risk is Medium or High; or Checks is Not run |
