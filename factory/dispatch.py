@@ -193,6 +193,14 @@ def find_admission_problem(
     return None
 
 
+def branch_exists(*, branch: str) -> bool:
+    try:
+        run_gh("api", f"repos/{{owner}}/{{repo}}/branches/{branch}", "--jq", ".name")
+    except subprocess.CalledProcessError:
+        return False
+    return True
+
+
 def read_repo_permission(*, login: str) -> str:
     """Return `login`'s permission on the repository: admin, write, read or none."""
     try:
@@ -295,6 +303,7 @@ def start_session(
     github_token: str,
     git_author_name: str,
     git_author_email: str,
+    base_branch: str,
     budget_cents: int,
 ) -> str:
     """Create the lane's session, kicked off with the issue and the lane's outcome."""
@@ -305,7 +314,8 @@ def start_session(
     kickoff_text = (
         f"Work on GitHub issue #{issue_number} in {repo}. "
         f"Its triage labels are: {', '.join(label_names)}. "
-        f"Read it with issue_read. Use branch factory/issue-{issue_number}. "
+        f"Read it with issue_read. The repo is checked out on branch {base_branch}; work on "
+        f"branch factory/issue-{issue_number} and open the pull request against {base_branch}. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
         f'`git config user.email "{git_author_email}"`.'
@@ -325,7 +335,7 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                "checkout": {"type": "branch", "name": "main"},
+                "checkout": {"type": "branch", "name": base_branch},
             }
         ],
         initial_events=[
@@ -714,6 +724,8 @@ def run_start(*, args: argparse.Namespace) -> None:
         admission_problem = (
             "it has no `bug`, `enhancement` or `documentation` label; run triage first"
         )
+    if admission_problem is None and not branch_exists(branch=args.base):
+        admission_problem = f"the base branch `{args.base}` does not exist"
     print(f"lane={lane} admission_problem={admission_problem}")
     if args.dry_run:
         return
@@ -743,13 +755,14 @@ def run_start(*, args: argparse.Namespace) -> None:
         github_token=app_token.refresh(),
         git_author_name=factory_login,
         git_author_email=read_noreply_email(login=factory_login),
+        base_branch=args.base,
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
     status_comment_id = post_status_comment(
         number=args.issue,
         body=(
-            f"The factory is running the **{lane}** lane for this issue "
+            f"The factory is running the **{lane}** lane for this issue against `{args.base}` "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
         ),
@@ -813,6 +826,9 @@ def main() -> None:
     )
     start_parser.add_argument(
         "--lane", choices=sorted(LANE_AGENT_LOCK_KEYS), help="Override the lane"
+    )
+    start_parser.add_argument(
+        "--base", default="main", help="Branch the session checks out and the PR targets"
     )
     start_parser.add_argument(
         "--budget-cents", type=int, default=2000, help="Session spend cap, USD cents"
