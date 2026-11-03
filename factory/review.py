@@ -2,9 +2,10 @@
 
 `start` checks that the PR is open and that whoever asked has write access, then creates a
 Managed Agents session with the pr-reviewer agent, kicked off with the PR number and the
-commit to review. `watch` waits for the session to end, finds the review it posted, and
-reports that review's verdict on the PR as a comment and as one of the VERDICT_LABELS. Agent,
-environment and vault IDs come from claude-lock.json, which `ant apply` writes.
+commit to review, and posts one status comment on the PR. `watch` waits for the session to
+end, finds the review it posted, and turns that comment into the review's verdict, which it
+also sets as one of the VERDICT_LABELS. Agent, environment and vault IDs come from
+claude-lock.json, which `ant apply` writes.
 """
 
 import argparse
@@ -24,9 +25,11 @@ from dispatch import (
     create_app_token,
     format_cost,
     format_session_link,
+    post_status_comment,
     read_lock_id,
     read_repo_permission,
     read_vault_ids,
+    report_on_status_comment,
     run_gh,
     wait_for_session,
     write_github_outputs,
@@ -250,15 +253,17 @@ def watch_session(
             f"ended without posting a review (stop reason: `{stop_reason}`)."
         ), None
     reviewed_sha = review["commit_id"][:10]
+    session_link = format_session_link(session_id=session_id)
     verdict = read_verdict(review_body=review["body"] or "")
     if verdict is None:
         return (
             f"The factory posted [its review of {reviewed_sha}]({review['html_url']}), but the "
-            "review's heading names no verdict."
+            f"review's heading names no verdict (session {session_link})."
         ), None
     return (
         f"The factory recommends **{verdict}** for {reviewed_sha} and labeled this pull "
-        f"request `{VERDICT_LABELS[verdict].name}`. [Read the review]({review['html_url']})."
+        f"request `{VERDICT_LABELS[verdict].name}`. [Read the review]({review['html_url']}) "
+        f"· session {session_link}"
     ), verdict
 
 
@@ -301,16 +306,21 @@ def run_start(*, args: argparse.Namespace) -> None:
         budget_cents=args.budget_cents,
     )
     print(f"session_id={session_id}")
-    comment_on_pr(
-        pr_number=args.pr,
+    status_comment_id = post_status_comment(
+        number=args.pr,
         body=(
-            f"The factory started a **review** of {pr['headRefOid'][:10]} "
+            f"The factory is reviewing {pr['headRefOid'][:10]} "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
         ),
         token=app_token.refresh(),
     )
-    write_github_outputs(started="true", session_id=session_id, started_at=started_at)
+    write_github_outputs(
+        started="true",
+        session_id=session_id,
+        started_at=started_at,
+        status_comment_id=str(status_comment_id),
+    )
 
 
 def run_watch(*, args: argparse.Namespace) -> None:
@@ -344,7 +354,15 @@ def run_watch(*, args: argparse.Namespace) -> None:
         except Exception as error:
             print(f"::warning::Reporting with GITHUB_TOKEN; the app token failed: {error}")
         try:
-            comment_on_pr(pr_number=args.pr, body=report, token=report_token)
+            # A verdict means the factory posted a review, which already notified the PR's
+            # subscribers. Any other report is the only word that the run ended.
+            report_on_status_comment(
+                number=args.pr,
+                comment_id=args.status_comment_id,
+                body=report,
+                token=report_token,
+                notify=verdict is None,
+            )
             set_verdict_label(pr_number=args.pr, verdict=verdict, token=report_token)
         finally:
             # Free the label even when reporting fails, so re-adding it runs the PR again.
@@ -370,6 +388,9 @@ def main() -> None:
     watch_parser.add_argument("--session-id", required=True)
     watch_parser.add_argument(
         "--started-at", required=True, help="UTC time the start step created the session"
+    )
+    watch_parser.add_argument(
+        "--status-comment-id", type=int, help="The start step's comment, edited into the report"
     )
     watch_parser.add_argument("--watch-minutes", type=int, default=100)
 

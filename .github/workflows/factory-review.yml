@@ -77,7 +77,8 @@ jobs:
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STARTED_AT: ${{ steps.start.outputs.started_at }}
-        run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT"
+          STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
+        run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures. This uses GITHUB_TOKEN, so it lands even when
       # the app's credentials are what failed.
