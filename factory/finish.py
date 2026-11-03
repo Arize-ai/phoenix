@@ -46,7 +46,7 @@ FINISH_OUTCOME = (
 )
 PR_FIELDS = (
     "number,url,state,isDraft,isCrossRepository,baseRefName,headRefName,headRefOid,"
-    "title,body,author,comments,closingIssuesReferences,files"
+    "title,body,author,comments,closingIssuesReferences"
 )
 
 
@@ -100,7 +100,15 @@ def find_admission_problem(
 
 
 def changes_workflows(*, pr: dict[str, Any]) -> bool:
-    return any(file["path"].startswith(".github/workflows/") for file in pr["files"])
+    # Paged through the REST API: `gh pr view --json files` stops at 100 files.
+    paths = run_gh(
+        "api",
+        "--paginate",
+        f"repos/{{owner}}/{{repo}}/pulls/{pr['number']}/files",
+        "--jq",
+        ".[] | .filename, (.previous_filename // empty)",
+    ).split()
+    return any(path.startswith(".github/workflows/") for path in paths)
 
 
 def copy_branch_name(*, pr_number: int) -> str:
