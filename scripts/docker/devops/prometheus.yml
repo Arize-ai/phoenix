@@ -3,9 +3,15 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  # Resolve every phoenix container, so each replica is scraped as its own
+  # instance when the service is scaled. A static target would scrape
+  # whichever replica DNS returns and mix them into one series.
   - job_name: 'phoenix'
-    static_configs:
-      - targets: ['phoenix:9090']
+    dns_sd_configs:
+      - names: ['phoenix']
+        type: 'A'
+        port: 9090
+        refresh_interval: 15s
     metrics_path: '/metrics'
 
   - job_name: 'prometheus'
