@@ -45,4 +45,6 @@ jobs:
         env:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ steps.factory-token.outputs.token }}
+          # The reminder counts only when the app wrote it, so the sweep must know its login.
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
         run: python factory/cla_check.py --repo "$GH_REPO"

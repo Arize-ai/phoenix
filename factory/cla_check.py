@@ -22,7 +22,8 @@ LABEL_COLOR = "D4C5F9"
 LABEL_DESCRIPTION = "The CLA is not signed; the factory closes the PR a day after reminding"
 # Marks the reminder, so the sweep finds it again and measures the deadline from it.
 REMINDER_MARKER = "<!-- factory-cla-check -->"
-# The CLA Assistant edits one comment per pull request into its current conclusion.
+# The CLA Assistant edits one comment per pull request into its current conclusion. Logins
+# are compared without the "[bot]" suffix REST adds and GraphQL leaves off.
 CLA_BOT_LOGIN = "github-actions"
 CLA_BOT_SIGNATURE = "CLA Assistant Lite bot"
 CLA_SIGNED_TEXT = "All contributors have signed the CLA"
@@ -30,16 +31,21 @@ CLA_SIGN_SENTENCE = "I have read the CLA Document and I hereby sign the CLA"
 PULL_REQUESTS_PER_PAGE = 100
 COMMENTS_PER_PAGE = 100
 
+# The CLA Assistant's comment names who still has to sign, and when a commit's author has
+# no GitHub account, that posting the sentence is not enough; so both messages point to it.
+HOW_TO_SIGN = (
+    "The CLA Assistant's comment above names who still has to sign. For most contributors, "
+    f"posting this comment is all it takes:\n\n> {CLA_SIGN_SENTENCE}"
+)
 REMINDER = (
     "The factory checked this pull request and the CLA is not signed yet. Every pull request "
-    f"needs one. To sign it, post this comment:\n\n> {CLA_SIGN_SENTENCE}\n\n"
+    f"needs one. {HOW_TO_SIGN}\n\n"
     "A pull request whose CLA is still unsigned 24 hours from now is closed, and can be "
     f"reopened once it is signed.\n{REMINDER_MARKER}"
 )
 CLOSING = (
     "The factory closed this pull request because the CLA was still unsigned 24 hours after "
-    f"the reminder. To continue, post this comment:\n\n> {CLA_SIGN_SENTENCE}\n\n"
-    "then reopen the pull request."
+    f"the reminder. {HOW_TO_SIGN}\n\nThen reopen the pull request."
 )
 
 PULL_REQUESTS_QUERY = """
@@ -73,6 +79,20 @@ def run_gh(*args: str, input_text: Optional[str] = None) -> str:
 
 def parse_timestamp(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def normalize_login(login: str) -> str:
+    return login.removesuffix("[bot]")
+
+
+def read_factory_login() -> str:
+    factory_login = os.environ.get("FACTORY_GITHUB_LOGIN", "")
+    if not factory_login:
+        raise SystemExit(
+            "Set the FACTORY_GITHUB_LOGIN repository variable to the factory app's bot login, "
+            "such as arize-phoenix-factory[bot]."
+        )
+    return normalize_login(factory_login)
 
 
 def list_open_pull_requests(*, repo: str) -> list[dict[str, Any]]:
@@ -119,18 +139,29 @@ def is_in_scope(*, pr: dict[str, Any], now: datetime) -> bool:
     return parse_timestamp(pr["createdAt"]) <= now - GRACE_PERIOD
 
 
+def is_written_by(*, comment: dict[str, Any], login: str) -> bool:
+    author = comment["author"]
+    return author is not None and normalize_login(author["login"]) == login
+
+
 def read_cla_signed(*, comments: list[dict[str, Any]]) -> Optional[bool]:
     """Whether the CLA Assistant says every contributor signed; None when it never ran."""
     for comment in reversed(comments):
-        author = comment["author"]
-        if author and author["login"] == CLA_BOT_LOGIN and CLA_BOT_SIGNATURE in comment["body"]:
+        if is_written_by(comment=comment, login=CLA_BOT_LOGIN) and (
+            CLA_BOT_SIGNATURE in comment["body"]
+        ):
             return CLA_SIGNED_TEXT in comment["body"]
     return None
 
 
-def find_reminder(*, comments: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
+def find_reminder(
+    *, comments: list[dict[str, Any]], factory_login: str
+) -> Optional[dict[str, Any]]:
+    """The factory's own reminder; a marker anyone else posted does not count."""
     for comment in comments:
-        if REMINDER_MARKER in comment["body"]:
+        if is_written_by(comment=comment, login=factory_login) and (
+            REMINDER_MARKER in comment["body"]
+        ):
             return comment
     return None
 
@@ -151,7 +182,7 @@ def remind(*, pr_number: int) -> None:
     run_gh("pr", "comment", str(pr_number), "--body-file", "-", input_text=REMINDER)
 
 
-def check_pull_request(*, pr: dict[str, Any], now: datetime) -> str:
+def check_pull_request(*, pr: dict[str, Any], now: datetime, factory_login: str) -> str:
     """Bring the pull request's label and state in line with its CLA; return what was done."""
     pr_number = pr["number"]
     comments = read_all_comments(pr=pr)
@@ -164,7 +195,7 @@ def check_pull_request(*, pr: dict[str, Any], now: datetime) -> str:
             run_gh("pr", "edit", str(pr_number), "--remove-label", LABEL)
             return "label removed"
         return "signed"
-    reminder = find_reminder(comments=comments)
+    reminder = find_reminder(comments=comments, factory_login=factory_login)
     if reminder is None:
         remind(pr_number=pr_number)
         return "reminded"
@@ -177,10 +208,11 @@ def check_pull_request(*, pr: dict[str, Any], now: datetime) -> str:
     return "closed"
 
 
-def sweep(*, repo: str, now: datetime) -> None:
+def sweep(*, repo: str, now: datetime, factory_login: str) -> None:
     for pr in list_open_pull_requests(repo=repo):
         if is_in_scope(pr=pr, now=now):
-            print(f"#{pr['number']}: {check_pull_request(pr=pr, now=now)}")
+            result = check_pull_request(pr=pr, now=now, factory_login=factory_login)
+            print(f"#{pr['number']}: {result}")
 
 
 def main() -> None:
@@ -189,7 +221,7 @@ def main() -> None:
     args = parser.parse_args()
     if not args.repo:
         raise SystemExit("Pass --repo or set GH_REPO.")
-    sweep(repo=args.repo, now=datetime.now(timezone.utc))
+    sweep(repo=args.repo, now=datetime.now(timezone.utc), factory_login=read_factory_login())
 
 
 if __name__ == "__main__":
