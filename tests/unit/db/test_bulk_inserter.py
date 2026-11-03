@@ -1,6 +1,6 @@
 import asyncio
 from asyncio import sleep
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -21,6 +21,7 @@ from phoenix.db.engines import aio_sqlite_engine, get_async_db_url
 from phoenix.db.insertion.helpers import get_sqlstate
 from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
+from phoenix.db.insertion.trace import advance_trace_liveness
 from phoenix.server.app import _db
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
@@ -1842,3 +1843,33 @@ async def test_session_liveness_failure_does_not_rollback_inserted_spans(
     assert inserted_span is not None
     assert project_session is not None
     assert project_session.last_span_ingested_at is None
+
+
+async def test_liveness_stamp_deadlock_replays_batch(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_id = "7" * 32
+    spans = [_session_span(trace_id=trace_id, span_id=f"{i:016x}", session_id="s") for i in (1, 2)]
+    calls = 0
+
+    async def deadlock_first_stamp(session: AsyncSession, rowids: Iterable[int]) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise DBAPIError("liveness", {}, _PostgresError("40P01"))
+        await advance_trace_liveness(session, rowids)
+
+    monkeypatch.setattr(bulk_inserter, "advance_trace_liveness", deadlock_first_stamp)
+    inserter = _inserter(db, *spans)
+
+    await inserter._insert_spans(2)
+    assert len(inserter._span_batch) == 2
+    await inserter._insert_spans(0)
+    assert not inserter._span_batch
+    async with db() as session:
+        span_count = await session.scalar(select(func.count()).select_from(models.Span))
+        trace_seen_at = await session.scalar(
+            select(models.Trace.last_span_ingested_at).where(models.Trace.trace_id == trace_id)
+        )
+    assert span_count == 2
+    assert trace_seen_at is not None
