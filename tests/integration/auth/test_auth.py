@@ -2232,7 +2232,7 @@ class TestVercelChatStreamRouterAuth:
             "id": "test-msg-id",
             "headless": False,
             "message": {
-                "id": "msg-1",
+                "id": "00000000-0000-4000-8000-000000000001",
                 "role": "user",
                 "parts": [{"type": "text", "text": "hi"}],
             },
