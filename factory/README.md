@@ -210,9 +210,9 @@ Every pull request needs a signed CLA, and `cla.yml` already tells the author so
 | Unsigned, reminder under a day old | `cla-unsigned` | Nothing |
 | Unsigned, reminder a day old or more | `cla-unsigned` | Closes the pull request with a comment that says how to sign and reopen |
 | Unsigned, reminder posted but label removed | none | Nothing: taking the label off exempts the pull request |
-| Signed | removes `cla-unsigned` | Nothing else; the reminder stays as history |
+| Signed | removes `cla-unsigned` | Deletes its reminder too, so a CLA that turns unsigned again gets a fresh reminder and deadline |
 
-A closed pull request that is reopened without a signature is closed again on the next sweep, since its reminder is already past the deadline. One that is reopened after signing loses the label on the next sweep. The step log lists each pull request in scope with what was done. The check creates the label on first use.
+A closed pull request that is reopened without a signature is closed again on the next sweep, since its reminder is already past the deadline. One that is reopened after signing loses the label and the reminder on the next sweep. The step log lists each pull request in scope with what was done. The check creates the label on first use.
 
 ## Run outcomes
 

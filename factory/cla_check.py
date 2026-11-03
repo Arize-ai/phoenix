@@ -61,7 +61,7 @@ query($owner: String!, $name: String!, $cursor: String) {
         labels(first: 100) { nodes { name } }
         comments(first: %d) {
           totalCount
-          nodes { author { login } body createdAt }
+          nodes { databaseId author { login } body createdAt }
         }
       }
     }
@@ -127,7 +127,8 @@ def read_all_comments(*, pr: dict[str, Any]) -> list[dict[str, Any]]:
         "--paginate",
         f"repos/{{owner}}/{{repo}}/issues/{pr['number']}/comments",
         "--jq",
-        ".[] | {author: {login: .user.login}, body: .body, createdAt: .created_at}",
+        ".[] | {databaseId: .id, author: {login: .user.login}, body: .body, "
+        "createdAt: .created_at}",
     )
     return [json.loads(line) for line in comment_lines.splitlines() if line]
 
@@ -182,20 +183,29 @@ def remind(*, pr_number: int) -> None:
     run_gh("pr", "comment", str(pr_number), "--body-file", "-", input_text=REMINDER)
 
 
+def delete_comment(*, comment_id: int) -> None:
+    run_gh("api", "--method", "DELETE", f"repos/{{owner}}/{{repo}}/issues/comments/{comment_id}")
+
+
 def check_pull_request(*, pr: dict[str, Any], now: datetime, factory_login: str) -> str:
     """Bring the pull request's label and state in line with its CLA; return what was done."""
     pr_number = pr["number"]
     comments = read_all_comments(pr=pr)
     signed = read_cla_signed(comments=comments)
     has_label = any(label["name"] == LABEL for label in pr["labels"]["nodes"])
+    reminder = find_reminder(comments=comments, factory_login=factory_login)
     if signed is None:
         return "unknown"
     if signed:
         if has_label:
             run_gh("pr", "edit", str(pr_number), "--remove-label", LABEL)
+            # The reminder goes too, so a CLA that turns unsigned again (a new commit by an
+            # unlinked author) gets a fresh reminder and deadline, while a label a maintainer
+            # removed still leaves the reminder behind as the mark of an exemption.
+            if reminder is not None:
+                delete_comment(comment_id=reminder["databaseId"])
             return "label removed"
         return "signed"
-    reminder = find_reminder(comments=comments, factory_login=factory_login)
     if reminder is None:
         remind(pr_number=pr_number)
         return "reminded"
