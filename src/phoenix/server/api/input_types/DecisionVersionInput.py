@@ -185,11 +185,11 @@ class DecisionVersionInput:
             BadRequest: The state template or questions break a rule, the model name is
                 empty, or the provider offers no decision models.
         """
-        from phoenix.server.api.helpers.saved_decisions import new_decision_version
         from phoenix.server.api.types.GenerativeModelCustomProvider import (
             GenerativeModelCustomProvider,
         )
         from phoenix.server.api.types.node import from_global_id_with_expected_type
+        from phoenix.server.decisions.versions import new_decision_version
 
         if self.metadata is not None and not isinstance(self.metadata, dict):
             raise BadRequest("metadata must be an object")

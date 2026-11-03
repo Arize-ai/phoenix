@@ -921,7 +921,7 @@ class PromptVersionTagData(TypedDict):
 
 class PromptVersionTag(PromptVersionTagData):
     id: str
-    prompt_version_id: str
+    prompt_version_id: NotRequired[str]
 
 
 class PromptVersionUIContext(TypedDict):
@@ -2978,11 +2978,11 @@ class PromptVersionData(TypedDict):
 
 class PromptVersion(PromptVersionData):
     id: str
-    prompt_id: str
-    prompt_name: str
-    version_number: int
-    tag_names: Sequence[str]
     created_at: str
+    prompt_id: NotRequired[str]
+    prompt_name: NotRequired[str]
+    version_number: NotRequired[int]
+    tag_names: NotRequired[Sequence[str]]
 
 
 class SubmitAgentSessionToolApprovalsResponseBody(TypedDict):

@@ -25061,24 +25061,52 @@
             "title": "Id"
           },
           "prompt_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Prompt Id",
             "description": "The GlobalID of the prompt this version belongs to."
           },
           "prompt_name": {
-            "$ref": "#/components/schemas/Identifier",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Identifier"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "The name of the prompt."
           },
           "version_number": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Version Number",
             "description": "The version's position in its prompt's history, from 1. A version numbered 1 is the prompt's first, so a create-or-append that returns 1 created the prompt."
           },
           "tag_names": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Tag Names",
             "description": "The names of the tags pointing at this version."
           },
@@ -25098,10 +25126,6 @@
           "template_format",
           "invocation_parameters",
           "id",
-          "prompt_id",
-          "prompt_name",
-          "version_number",
-          "tag_names",
           "created_at"
         ],
         "title": "PromptVersion"
@@ -25327,16 +25351,22 @@
             "title": "Id"
           },
           "prompt_version_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Prompt Version Id",
-            "description": "The GlobalID of the version the tag points to."
+            "description": "The GlobalID of the version the tag points to. Always sent; optional in the schema for compatibility with types generated before it existed."
           }
         },
         "type": "object",
         "required": [
           "name",
-          "id",
-          "prompt_version_id"
+          "id"
         ],
         "title": "PromptVersionTag"
       },

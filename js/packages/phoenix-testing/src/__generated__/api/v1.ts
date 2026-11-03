@@ -6965,19 +6965,19 @@ export interface components {
              * Prompt Id
              * @description The GlobalID of the prompt this version belongs to.
              */
-            prompt_id: string;
+            prompt_id?: string | null;
             /** @description The name of the prompt. */
-            prompt_name: components["schemas"]["Identifier"];
+            prompt_name?: components["schemas"]["Identifier"] | null;
             /**
              * Version Number
              * @description The version's position in its prompt's history, from 1. A version numbered 1 is the prompt's first, so a create-or-append that returns 1 created the prompt.
              */
-            version_number: number;
+            version_number?: number | null;
             /**
              * Tag Names
              * @description The names of the tags pointing at this version.
              */
-            tag_names: string[];
+            tag_names?: string[] | null;
             /**
              * Created At
              * Format: date-time
@@ -7039,9 +7039,9 @@ export interface components {
             id: string;
             /**
              * Prompt Version Id
-             * @description The GlobalID of the version the tag points to.
+             * @description The GlobalID of the version the tag points to. Always sent; optional in the schema for compatibility with types generated before it existed.
              */
-            prompt_version_id: string;
+            prompt_version_id?: string | null;
         };
         /** PromptVersionTagData */
         PromptVersionTagData: {

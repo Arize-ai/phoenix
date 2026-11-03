@@ -135,14 +135,22 @@ class PromptVersionData(V1RoutesBaseModel):
 
 class PromptVersion(PromptVersionData):
     id: str
-    prompt_id: str = Field(description="The GlobalID of the prompt this version belongs to.")
-    prompt_name: Identifier = Field(description="The name of the prompt.")
-    version_number: int = Field(
+    # The server always sends these. They are optional in the schema so that types
+    # generated from it keep accepting prompt versions built without them, as clients and
+    # their users already do.
+    prompt_id: Optional[str] = Field(
+        default=None, description="The GlobalID of the prompt this version belongs to."
+    )
+    prompt_name: Optional[Identifier] = Field(default=None, description="The name of the prompt.")
+    version_number: Optional[int] = Field(
+        default=None,
         description="The version's position in its prompt's history, from 1. A version "
         "numbered 1 is the prompt's first, so a create-or-append that returns 1 created the "
-        "prompt."
+        "prompt.",
     )
-    tag_names: list[str] = Field(description="The names of the tags pointing at this version.")
+    tag_names: Optional[list[str]] = Field(
+        default=None, description="The names of the tags pointing at this version."
+    )
     created_at: IsoDatetime = Field(description="The creation timestamp of the prompt version.")
 
     @classmethod
@@ -187,4 +195,8 @@ class PromptVersionTagData(V1RoutesBaseModel):
 
 class PromptVersionTag(PromptVersionTagData):
     id: str
-    prompt_version_id: str = Field(description="The GlobalID of the version the tag points to.")
+    prompt_version_id: Optional[str] = Field(
+        default=None,
+        description="The GlobalID of the version the tag points to. Always sent; optional "
+        "in the schema for compatibility with types generated before it existed.",
+    )

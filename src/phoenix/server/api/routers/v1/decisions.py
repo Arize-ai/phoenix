@@ -24,9 +24,7 @@ from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.saved_decisions import (
-    InvalidDecisionVersion,
-    clone_decision,
+from phoenix.server.api.helpers.decision_version_tags import (
     set_decision_version_tag,
     upsert_decision_version_tag,
 )
@@ -59,6 +57,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.decisions.validation import validate_decision_custom_provider
+from phoenix.server.decisions.versions import InvalidDecisionVersion, clone_decision
 
 _IntegrityError = (PostgreSQLIntegrityError, SQLiteIntegrityError)
 
