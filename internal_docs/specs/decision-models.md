@@ -1029,7 +1029,7 @@ name, a version by its GlobalID, and a tag by name within the version's
 decision. Errors are problem details.
 
 - `GET /v1/decisions` (paginated, newest first; filter by `name` substring or
-  `label_id`)
+  `label`, a label name or ID)
 - `POST /v1/decisions` (create a decision with its first version, or add a
   version; an existing decision's description and metadata change only when
   given)

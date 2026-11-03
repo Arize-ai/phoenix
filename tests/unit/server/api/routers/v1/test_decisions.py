@@ -471,14 +471,18 @@ class TestListFilters:
         billing = await create_label(httpx_client, "billing")
         await httpx_client.put(f"v1/decisions/a-decision/labels/{support['id']}")
         await httpx_client.put(f"v1/decisions/b-decision/labels/{billing['id']}")
-        response = await httpx_client.get("v1/decisions", params={"label_id": [support["id"]]})
-        assert [d["name"] for d in response.json()["data"]] == ["a-decision"]
+        for value in (support["id"], "support"):
+            response = await httpx_client.get("v1/decisions", params={"label": [value]})
+            assert [d["name"] for d in response.json()["data"]] == ["a-decision"]
+        # Names and IDs mix, and a decision matching either is listed.
         response = await httpx_client.get(
-            "v1/decisions", params={"label_id": [support["id"], billing["id"]]}
+            "v1/decisions", params={"label": [support["id"], "billing"]}
         )
         assert [d["name"] for d in response.json()["data"]] == ["b-decision", "a-decision"]
-        response = await httpx_client.get("v1/decisions", params={"label_id": ["nope"]})
-        assert response.status_code == 422
+        # A label that doesn't exist matches nothing rather than failing the filter.
+        response = await httpx_client.get("v1/decisions", params={"label": ["nope"]})
+        assert response.status_code == 200
+        assert response.json()["data"] == []
 
 
 class TestDescriptions:

@@ -14547,8 +14547,8 @@ export interface operations {
                 limit?: number;
                 /** @description Only decisions whose name contains this text, ignoring case. */
                 name?: string | null;
-                /** @description Only decisions with any of these labels (DecisionLabel GlobalIDs). Repeat the parameter for more than one. */
-                label_id?: string[] | null;
+                /** @description Only decisions with any of these labels, each given by its name or its DecisionLabel GlobalID. Repeat the parameter for more than one. */
+                label?: string[] | null;
             };
             header?: never;
             path?: never;

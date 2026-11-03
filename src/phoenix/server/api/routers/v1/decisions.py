@@ -9,7 +9,7 @@ from typing import Any, Optional, Sequence, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, ValidationError, model_validator
-from sqlalchemy import String, cast, delete, select
+from sqlalchemy import String, cast, delete, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.exc import StaleDataError
@@ -181,10 +181,10 @@ async def list_decisions(
         default=None,
         description="Only decisions whose name contains this text, ignoring case.",
     ),
-    label_id: Optional[list[str]] = Query(
+    label: Optional[list[str]] = Query(
         default=None,
-        description="Only decisions with any of these labels (DecisionLabel GlobalIDs). "
-        "Repeat the parameter for more than one.",
+        description="Only decisions with any of these labels, each given by its name or its "
+        "DecisionLabel GlobalID. Repeat the parameter for more than one.",
     ),
 ) -> GetDecisionsResponseBody:
     stmt = select(models.Decision).order_by(models.Decision.id.desc())
@@ -192,15 +192,8 @@ async def list_decisions(
         stmt = stmt.where(
             cast(models.Decision.name, String).ilike(f"%{_escape_like(name)}%", escape="\\")
         )
-    if label_id:
-        label_rowids = [parse_decision_label_id(value) for value in label_id]
-        stmt = stmt.where(
-            models.Decision.id.in_(
-                select(models.DecisionDecisionLabel.decision_id).where(
-                    models.DecisionDecisionLabel.decision_label_id.in_(label_rowids)
-                )
-            )
-        )
+    if label:
+        stmt = stmt.where(models.Decision.id.in_(_decisions_with_any_label(label)))
     if cursor:
         stmt = stmt.where(models.Decision.id <= parse_cursor_rowid(cursor, "Decision"))
     async with request.app.state.db() as session:
@@ -864,6 +857,34 @@ def _clean_description(description: Optional[str]) -> Optional[str]:
 
 def _escape_like(text: str) -> str:
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _decisions_with_any_label(labels: list[str]) -> Any:
+    """IDs of decisions with any of the labels, each a name or a DecisionLabel GlobalID.
+
+    Label names are unique, so a name names one label. A value that isn't a DecisionLabel
+    GlobalID is read as a name; one that names no label matches nothing.
+    """
+    label_rowids: list[int] = []
+    label_names: list[str] = []
+    for value in labels:
+        if (rowid := _parse_rowid(value, "DecisionLabel")) is not None:
+            label_rowids.append(rowid)
+        else:
+            label_names.append(value)
+    return (
+        select(models.DecisionDecisionLabel.decision_id)
+        .join(
+            models.DecisionLabel,
+            models.DecisionLabel.id == models.DecisionDecisionLabel.decision_label_id,
+        )
+        .where(
+            or_(
+                models.DecisionLabel.id.in_(label_rowids),
+                models.DecisionLabel.name.in_(label_names),
+            )
+        )
+    )
 
 
 def parse_decision_label_id(decision_label_id: str) -> int:
