@@ -462,8 +462,6 @@ def _provider_error_response(exc: Union[ModelAPIError, UnexpectedModelBehavior])
             provider_status_code if provider_status_is_forwardable else HTTP_502_BAD_GATEWAY
         )
     else:
-        # The provider never answered (DNS failure, refused connection, timeout),
-        # or answered with something that isn't a valid completion.
         response_status_code = HTTP_502_BAD_GATEWAY
     return _error_response(str(exc), status_code=response_status_code)
 
