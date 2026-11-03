@@ -1,10 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from queue import SimpleQueue
 from secrets import token_hex
 from typing import Any, AsyncIterator, Mapping, Optional, Sequence, cast
-from unittest.mock import ANY, AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, call, patch
 
 import httpx
 import pytest
@@ -2681,6 +2682,88 @@ async def test_code_mixed_result_set_writes_nothing(db: DbSessionFactory) -> Non
 
     assert exc_info.value.__cause__ is original_error
     assert await _annotations(db) == []
+
+
+_EVALUATOR_SECONDS = 0.05
+
+
+class _SlowEvaluator(_StubEvaluator):
+    async def evaluate(self, **kwargs: Any) -> list[dict[str, Any]]:
+        await asyncio.sleep(_EVALUATOR_SECONDS)
+        return await super().evaluate(**kwargs)
+
+
+class _SlowRaisingEvaluator:
+    async def evaluate(self, **_: Any) -> Never:
+        await asyncio.sleep(_EVALUATOR_SECONDS)
+        raise RuntimeError("evaluator crashed")
+
+
+class _HangingEvaluator:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+
+    async def evaluate(self, **_: Any) -> Never:
+        self.started.set()
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+
+async def test_evaluator_run_time_is_observed_whatever_its_result(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    duration = Mock()
+    monkeypatch.setattr(executor_module, "get_env_enable_prometheus", lambda: True)
+    monkeypatch.setattr(executor_module, "ONLINE_EVAL_EVALUATOR_DURATION_SECONDS", duration)
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    results = [
+        _evaluation_result("criterion.quality"),
+        _evaluation_result("criterion.relevance"),
+    ]
+    succeeding = replace(
+        _hydrated_stub(
+            results=results,
+            evaluator_kind="CODE",
+            output_configs=[_output_config("quality"), _output_config("relevance")],
+        ),
+        evaluator=cast(Any, _SlowEvaluator(results)),
+    )
+    raising = replace(succeeding, evaluator=cast(Any, _SlowRaisingEvaluator()))
+    hanging_evaluator = _HangingEvaluator()
+    hanging = replace(succeeding, evaluator=cast(Any, hanging_evaluator))
+    executor = _executor(db)
+    duration.labels.reset_mock()  # construction creates every evaluator kind's series
+
+    await executor.evaluate_and_annotate(
+        await _claim_materialized_unit(db, project_id=project.id, span_rowid=span.id),
+        succeeding,
+    )
+    with pytest.raises(RuntimeError, match="evaluator crashed"):
+        await executor.evaluate_and_annotate(
+            await _claim_materialized_unit(db, project_id=project.id, span_rowid=span.id),
+            raising,
+        )
+    # The consumer cancels a run at its execution deadline.
+    cut_off = asyncio.create_task(
+        executor.evaluate_and_annotate(
+            await _claim_materialized_unit(db, project_id=project.id, span_rowid=span.id),
+            hanging,
+        )
+    )
+    await hanging_evaluator.started.wait()
+    await asyncio.sleep(_EVALUATOR_SECONDS)
+    cut_off.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await cut_off
+
+    assert duration.labels.call_args_list == [call(evaluator_kind="CODE")] * 3
+    observed = [args[0] for args, _ in duration.labels.return_value.observe.call_args_list]
+    assert len(observed) == 3
+    # Each value covers the evaluator's whole run, not just the time around it.
+    assert all(seconds >= _EVALUATOR_SECONDS for seconds in observed)
 
 
 async def test_complete_result_set_is_written_atomically(db: DbSessionFactory) -> None:
