@@ -16,8 +16,8 @@ class WaitForChecksTest(unittest.TestCase):
         self.assert_checks_finish(base_branch="version-online-evals", required=False)
 
     def assert_checks_finish(self, *, base_branch: str, required: bool) -> None:
-        pending = [{"name": "CI", "bucket": "pending", "link": ""}]
-        passed = [{"name": "CI", "bucket": "pass", "link": ""}]
+        pending = [{"name": "Python CI Required", "bucket": "pending", "link": ""}]
+        passed = [{"name": "Python CI Required", "bucket": "pass", "link": ""}]
         with (
             patch("dispatch.time.monotonic", return_value=0),
             patch("dispatch.time.sleep") as sleep,
@@ -37,10 +37,10 @@ class WaitForChecksTest(unittest.TestCase):
 
     def test_feature_base_returns_failed_and_cancelled_checks(self) -> None:
         checks = [
-            {"name": "lint", "bucket": "fail", "link": ""},
-            {"name": "tests", "bucket": "cancel", "link": ""},
-            {"name": "build", "bucket": "pass", "link": ""},
-            {"name": "docs", "bucket": "skipping", "link": ""},
+            {"name": "Python CI Required", "bucket": "fail", "link": ""},
+            {"name": "TypeScript CI Required", "bucket": "cancel", "link": ""},
+            {"name": "CLAAssistant", "bucket": "pass", "link": ""},
+            {"name": "Playwright CI Required", "bucket": "skipping", "link": ""},
         ]
         with (
             patch("dispatch.time.monotonic", return_value=0),
@@ -52,6 +52,34 @@ class WaitForChecksTest(unittest.TestCase):
             self.assertEqual(
                 wait_for_checks(pr_number=42, base_branch="feature", deadline=1), checks[:2]
             )
+
+    def test_feature_base_ignores_checks_main_does_not_require(self) -> None:
+        checks = [
+            {"name": "Python CI Required", "bucket": "pass", "link": ""},
+            {"name": "claude-review", "bucket": "pending", "link": ""},
+            {"name": "docs/readthedocs.org:arize-phoenix", "bucket": "fail", "link": ""},
+        ]
+        with (
+            patch("dispatch.time.monotonic", return_value=0),
+            patch(
+                "dispatch.subprocess.run",
+                return_value=subprocess.CompletedProcess([], 1, stdout=json.dumps(checks)),
+            ),
+        ):
+            self.assertEqual(wait_for_checks(pr_number=42, base_branch="feature", deadline=1), [])
+
+    def test_feature_base_waits_when_no_check_main_requires_is_reported(self) -> None:
+        checks = [{"name": "claude-review", "bucket": "pass", "link": ""}]
+        with (
+            patch("dispatch.time.monotonic", side_effect=[0, 2]),
+            patch("dispatch.time.sleep") as sleep,
+            patch(
+                "dispatch.subprocess.run",
+                return_value=subprocess.CompletedProcess([], 0, stdout=json.dumps(checks)),
+            ),
+        ):
+            self.assertIsNone(wait_for_checks(pr_number=42, base_branch="feature", deadline=1))
+        sleep.assert_called_once()
 
     def test_empty_checks_do_not_pass_ci(self) -> None:
         for stdout in ("", "[]"):

@@ -65,6 +65,8 @@ NOT_READY_LABELS = {
 TERMINAL_OUTCOME_RESULTS = {"satisfied", "max_iterations_reached", "failed", "interrupted"}
 # Failing checks the agent can't fix from its branch.
 CONFIGURATION_CHECKS = {"CLAAssistant"}
+# The aggregate checks main's branch protection requires, named by their workflow jobs.
+MERGE_GATE_CHECK_SUFFIX = " CI Required"
 # Rounds of CI failures and review findings sent back to the session.
 MAX_FEEDBACK_ROUNDS = 3
 REVIEW_WORKFLOW_FILE = "claude-code-review.yml"
@@ -394,16 +396,22 @@ def wait_for_session(
     return None, None
 
 
+def gates_merge(check_name: str) -> bool:
+    """Whether a check is one main's branch protection requires."""
+    return check_name in CONFIGURATION_CHECKS or check_name.endswith(MERGE_GATE_CHECK_SUFFIX)
+
+
 def wait_for_checks(
     *, pr_number: int, base_branch: str, deadline: float
 ) -> Optional[list[dict[str, Any]]]:
     """Wait for CI; return failing checks, or None at the deadline.
 
-    Only main has required checks. Other bases wait on all reported checks instead.
+    Only main has required checks. Other bases wait on the checks main requires, picked by
+    name from all reported checks, so external statuses and the review run don't hold the gate.
     An empty list still waits, since GitHub may not have registered the checks yet.
     """
     required_args = ["--required"] if base_branch == "main" else []
-    print(f"Waiting for {'required' if required_args else 'all'} CI checks against {base_branch}")
+    print(f"Waiting for the CI checks main requires against {base_branch}")
     while time.monotonic() < deadline:
         # gh exits non-zero while checks are pending or failing, so read stdout either way.
         completed_process = subprocess.run(
@@ -412,6 +420,8 @@ def wait_for_checks(
             text=True,
         )
         checks = json.loads(completed_process.stdout) if completed_process.stdout.strip() else []
+        if not required_args:
+            checks = [check for check in checks if gates_merge(check["name"])]
         if checks and not any(check["bucket"] == "pending" for check in checks):
             return [check for check in checks if check["bucket"] in ("fail", "cancel")]
         time.sleep(POLL_INTERVAL_SECONDS)
