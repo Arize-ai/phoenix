@@ -73,7 +73,7 @@ sequenceDiagram
   else admitted
     dispatch->>session: create with the lane agent, repo mount and rubric
     dispatch->>github: post the run's status comment with the session link
-    session->>session: bootstrap, reproduce or analyze with an end-to-end probe, implement, rerun the probe, area review
+    session->>session: bootstrap, reproduce or analyze with an acceptance test, implement, rerun the acceptance test, area review
     session->>github: push factory/issue-N, open a draft PR, post the assessment
     session->>grader: end turn
     grader-->>session: needs revision, up to 3 iterations, or satisfied
@@ -99,9 +99,9 @@ Each part does one job, so it can be changed and tested on its own:
 | Issue triage | `claude-issue-triage-on-open.yml` runs the triage job on each issue the moment it is opened, and `claude-issue-triage-sweep.yml` runs it over a slice of the backlog every 2 days; both call `claude-issue-triage.yml`. It labels `factory-candidate` the issues that pass [the factory-candidate policy](../.agents/skills/issue-triage/references/factory-candidate.md): specified, typed, `size:S` or `size:M`, reproducible in the sandbox, and needing no product decision |
 | `factory-candidates.yml` | After each triage run, dispatches up to 3 candidates the factory hasn't run on whose author has write access. Other candidates wait for a maintainer to add `factory` |
 | `dispatch.py start` | Admits the issue: the requester has write access, or for a run a workflow dispatched, the issue's author does, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it |
-| Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, sends it back to the reproducer or analyst to verify, opens the draft PR with both probe outputs in its End to end section, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
-| `bug-reproducer` | Before any fix exists, writes a test that fails for the reported reason and an end-to-end probe that shows the symptom against a server it starts; called back after the fix, reruns both unchanged and reports `FIXED` or `NOT_FIXED`. It verifies the fix because it did not write it |
-| `feature-analyst` | Runs an end-to-end probe showing `main` lacks the behavior, then plans slices, or returns `NEEDS_DECISION`; called back after the implementation, reruns the probe unchanged and reports `IMPLEMENTED` or `NOT_IMPLEMENTED` |
+| Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, sends it back to the reproducer or analyst to verify, opens the draft PR with both acceptance test outputs in its Acceptance test section, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
+| `bug-reproducer` | Before any fix exists, writes a unit test that fails for the reported reason and an acceptance test that shows the symptom against a server it starts; called back after the fix, reruns both unchanged and reports `FIXED` or `NOT_FIXED`. It verifies the fix because it did not write it |
+| `feature-analyst` | Runs an acceptance test showing `main` lacks the behavior, then plans slices, or returns `NEEDS_DECISION`; called back after the implementation, reruns the acceptance test unchanged and reports `IMPLEMENTED` or `NOT_IMPLEMENTED` |
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
