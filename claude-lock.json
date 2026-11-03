@@ -65,9 +65,9 @@
     "./agents/pr-reviewer.md": {
       "kind": "agent",
       "id": "agent_01PjZ8vnrD9MoDyngXbvp2Si",
-      "version": "5",
-      "hash": "4daa97eff587bda62c0a22c93b354da2",
-      "remote_hash": "2b5809897cd32196ff1a9dd6034788bd"
+      "version": "6",
+      "hash": "b43f22b82b9886e3db52171c98a7ae25",
+      "remote_hash": "c677b8a65378ff00c13096ae93875a20"
     },
     "./agents/railway-triage.md": {
       "kind": "agent",
