@@ -27,6 +27,45 @@ export type CustomProviderInfo = {
   modelNames: readonly string[];
 };
 
+type CustomProviderEdge =
+  useModelMenuDataQuery["response"]["generativeModelCustomProviders"]["edges"][number];
+
+/**
+ * The custom providers a model picker lists for a model type.
+ *
+ * Chat pickers list the providers that serve chat models, with their chat
+ * model names, so a provider that serves decision models only (a TypeSafe
+ * endpoint) is left out. The Decision tab lists the providers that serve
+ * decision models, with their decision model names. Their SDK is their
+ * decision client's, which decides the provider a decision is saved with: an
+ * OpenAI-SDK provider that runs System One makes TypeSafe decisions.
+ */
+export function getCustomProviders({
+  edges,
+  modelType,
+}: {
+  edges: readonly CustomProviderEdge[];
+  modelType: ModelType;
+}): CustomProviderInfo[] {
+  return edges
+    .filter((edge) => edge.node.modelTypes.includes(modelType))
+    .map(({ node }) =>
+      modelType === "DECISION"
+        ? {
+            id: node.id,
+            name: node.name,
+            sdk: node.decisionSdk ?? node.sdk,
+            modelNames: node.decisionModelNames ?? [],
+          }
+        : {
+            id: node.id,
+            name: node.name,
+            sdk: node.sdk,
+            modelNames: node.modelNames,
+          }
+    );
+}
+
 export type AvailableBuiltinModel = {
   provider: ModelProvider;
   modelName: string;
@@ -197,33 +236,22 @@ export function useModelMenuData({
     [catalogModels]
   );
 
-  // Chat pickers choose chat models, so a provider that serves decision
-  // models only (a TypeSafe endpoint) is left out.
-  const chatCustomProviders = useMemo((): CustomProviderInfo[] => {
-    return data.generativeModelCustomProviders.edges
-      .filter((edge) => edge.node.modelTypes.includes("LLM"))
-      .map((edge) => ({
-        id: edge.node.id,
-        name: edge.node.name,
-        sdk: edge.node.sdk,
-        modelNames: edge.node.modelNames,
-      }));
-  }, [data.generativeModelCustomProviders]);
-
-  // The Decision tab lists the custom providers that serve decision models,
-  // with their decision model names rather than their chat ones. Their SDK is
-  // their decision client's, which decides the provider a decision is saved
-  // with: an OpenAI-SDK provider that runs System One makes TypeSafe decisions.
-  const decisionCustomProviders = useMemo((): CustomProviderInfo[] => {
-    return data.generativeModelCustomProviders.edges
-      .filter((edge) => edge.node.modelTypes.includes("DECISION"))
-      .map((edge) => ({
-        id: edge.node.id,
-        name: edge.node.name,
-        sdk: edge.node.decisionSdk ?? edge.node.sdk,
-        modelNames: edge.node.decisionModelNames ?? [],
-      }));
-  }, [data.generativeModelCustomProviders]);
+  const chatCustomProviders = useMemo(
+    () =>
+      getCustomProviders({
+        edges: data.generativeModelCustomProviders.edges,
+        modelType: "LLM",
+      }),
+    [data.generativeModelCustomProviders]
+  );
+  const decisionCustomProviders = useMemo(
+    () =>
+      getCustomProviders({
+        edges: data.generativeModelCustomProviders.edges,
+        modelType: "DECISION",
+      }),
+    [data.generativeModelCustomProviders]
+  );
 
   const customProviders =
     modelType === "DECISION" ? decisionCustomProviders : chatCustomProviders;

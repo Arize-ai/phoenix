@@ -1,15 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
-import {
-  Environment,
-  Network,
-  Observable,
-  type RequestParameters,
-  RecordSource,
-  Store,
-  type Variables,
-} from "relay-runtime";
+import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,15 +13,13 @@ import { createDefaultFormData } from "../customProviderFormUtils";
 
 installTestMatchMedia();
 
-type Sent = { name: string; variables: Variables };
-
 describe("CustomProviderForm decision models", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let sent: Sent[];
+  let environment: ReturnType<typeof createMockEnvironment>;
 
   beforeEach(() => {
-    sent = [];
+    environment = createMockEnvironment();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -40,34 +30,13 @@ describe("CustomProviderForm decision models", () => {
     container.remove();
   });
 
-  function environment() {
-    return new Environment({
-      network: Network.create(
-        (request: RequestParameters, variables: Variables) => {
-          sent.push({ name: request.name, variables });
-          return Observable.from(
-            Promise.resolve({
-              data: {
-                testGenerativeModelCustomProviderDecisionEndpoint: {
-                  error: null,
-                  url: "https://api.typesafe.ai/v1/systemone",
-                },
-              },
-            })
-          );
-        }
-      ),
-      store: new Store(new RecordSource()),
-    });
-  }
-
   function render(
     initialValues?: ProviderFormData,
     onSubmit: (data: ProviderFormData) => void = vi.fn()
   ) {
     act(() => {
       root.render(
-        <RelayEnvironmentProvider environment={environment()}>
+        <RelayEnvironmentProvider environment={environment}>
           <ThemeProvider themeMode="light" disableBodyTheme>
             <ProviderForm
               onSubmit={onSubmit}
@@ -173,10 +142,8 @@ describe("CustomProviderForm decision models", () => {
     );
     if (!button) throw new Error("no test button");
     await act(() => user.click(button));
-    const call = sent.find(
-      (request) => request.name === "DecisionModelsSectionTestMutation"
-    );
-    expect(call?.variables.input).toMatchObject({
+    const operation = environment.mock.getMostRecentOperation();
+    expect(operation.request.variables.input).toMatchObject({
       openai: {
         decisionModels: {
           decisionSdk: "TYPESAFE",
@@ -184,7 +151,50 @@ describe("CustomProviderForm decision models", () => {
         },
       },
     });
+    act(() =>
+      environment.mock.resolve(
+        operation,
+        MockPayloadGenerator.generate(operation, {
+          TestGenerativeModelCustomProviderDecisionEndpointResult: () => ({
+            error: null,
+            url: "https://api.typesafe.ai/v1/systemone",
+          }),
+        })
+      )
+    );
     expect(container.textContent).toContain("Decision endpoint works");
+  });
+
+  it("shows why the endpoint test failed", async () => {
+    const user = userEvent.setup();
+    render({
+      ...(createDefaultFormData("OPENAI") as ProviderFormData),
+      name: "proxy",
+      openai_api_key: "sk-test",
+      decision_enabled: true,
+      decision_sdk: "OPENAI",
+    } as ProviderFormData);
+    const button = [...container.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent === "Test decision endpoint"
+    );
+    if (!button) throw new Error("no test button");
+    await act(() => user.click(button));
+    const operation = environment.mock.getMostRecentOperation();
+    act(() =>
+      environment.mock.resolve(
+        operation,
+        MockPayloadGenerator.generate(operation, {
+          TestGenerativeModelCustomProviderDecisionEndpointResult: () => ({
+            error: "HTTP 401 from the endpoint. Check the API key.",
+            url: "https://api.openai.com/v1/decisions",
+          }),
+        })
+      )
+    );
+    expect(container.textContent).toContain("Decision endpoint check failed");
+    expect(container.textContent).toContain(
+      "HTTP 401 from the endpoint. Check the API key."
+    );
   });
 
   it("keeps a TypeSafe provider on System One at its own base URL", () => {
