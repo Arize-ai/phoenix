@@ -571,12 +571,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "phoenix_span_queue_size",
-                    "legendFormat": "Queue Size",
+                    "legendFormat": "Queue Size ({{instance}})",
                     "refId": "A"
                 }
             ],
             "title": "📊 Span Queue Size",
-            "type": "timeseries"
+            "type": "timeseries",
+            "description": "One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -669,12 +670,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "rate(phoenix_span_queue_rejections_total[1m]) * 60",
-                    "legendFormat": "Rejections/min",
+                    "legendFormat": "Rejections/min ({{instance}})",
                     "refId": "A"
                 }
             ],
             "title": "🚨 Span Queue Rejections",
-            "type": "timeseries"
+            "type": "timeseries",
+            "description": "One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -779,7 +781,7 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "histogram_quantile(0.5, rate(phoenix_bulk_loader_span_insertion_time_seconds_bucket[1m]))",
-                    "legendFormat": "Median insertion time",
+                    "legendFormat": "Median insertion time ({{instance}})",
                     "refId": "A"
                 },
                 {
@@ -788,12 +790,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "rate(phoenix_bulk_loader_span_insertion_time_seconds_count[1m]) * 60",
-                    "legendFormat": "Operations/min",
+                    "legendFormat": "Operations/min ({{instance}})",
                     "refId": "B"
                 }
             ],
             "title": "⚡ Bulk Loader Insertion Time",
-            "type": "timeseries"
+            "type": "timeseries",
+            "description": "One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -889,12 +892,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "time() - phoenix_bulk_loader_last_activity_timestamp_seconds",
-                    "legendFormat": "Seconds since last activity",
+                    "legendFormat": "Seconds since last activity ({{instance}})",
                     "refId": "A"
                 }
             ],
             "title": "💓 Bulk Loader Aliveness",
-            "type": "timeseries"
+            "type": "timeseries",
+            "description": "One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -990,7 +994,7 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "histogram_quantile(0.5, rate(phoenix_bulk_loader_span_insertion_time_seconds_bucket[5m]))",
-                    "legendFormat": "P50 (median)",
+                    "legendFormat": "P50 (median) ({{instance}})",
                     "refId": "A"
                 },
                 {
@@ -999,7 +1003,7 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "histogram_quantile(0.95, rate(phoenix_bulk_loader_span_insertion_time_seconds_bucket[5m]))",
-                    "legendFormat": "P95",
+                    "legendFormat": "P95 ({{instance}})",
                     "refId": "B"
                 },
                 {
@@ -1008,12 +1012,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "histogram_quantile(0.99, rate(phoenix_bulk_loader_span_insertion_time_seconds_bucket[5m]))",
-                    "legendFormat": "P99",
+                    "legendFormat": "P99 ({{instance}})",
                     "refId": "C"
                 }
             ],
             "title": "📊 Bulk Loader Insertion Time Percentiles",
-            "type": "timeseries"
+            "type": "timeseries",
+            "description": "One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -1110,12 +1115,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "rate(phoenix_bulk_loader_span_insertion_time_seconds_sum[5m]) / rate(phoenix_bulk_loader_span_insertion_time_seconds_count[5m])",
-                    "legendFormat": "Average insertion time",
+                    "legendFormat": "Average insertion time ({{instance}})",
                     "refId": "A"
                 }
             ],
             "title": "⚡ Bulk Loader Average Insertion Time",
-            "type": "timeseries"
+            "type": "timeseries",
+            "description": "One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "collapsed": false,
@@ -1225,13 +1231,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "rate(phoenix_span_ingestion_unresolved_spans_total[1m]) * 60",
-                    "legendFormat": "unresolved commit",
+                    "legendFormat": "unresolved commit ({{instance}})",
                     "refId": "B"
                 }
             ],
             "title": "🗑️ Dropped Spans (per min)",
             "type": "timeseries",
-            "description": "Accepted spans released without being saved. span_error: individual spans failed to insert. transaction_error: the batch transaction failed. retry_exhausted: the batch kept hitting deadlocks or serialization failures. unresolved commit: the outcome of the commit is unknown, so the spans may be missing or saved without notifications."
+            "description": "Accepted spans released without being saved. span_error: individual spans failed to insert. transaction_error: the batch transaction failed. retry_exhausted: the batch kept hitting deadlocks or serialization failures. unresolved commit: the outcome of the commit is unknown, so the spans may be missing or saved without notifications. One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -1319,13 +1325,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "time() - phoenix_span_ingestion_last_success_timestamp_seconds",
-                    "legendFormat": "seconds since last insert",
+                    "legendFormat": "seconds since last insert ({{instance}})",
                     "refId": "A"
                 }
             ],
             "title": "⏱️ Time Since Last Span Insert",
             "type": "timeseries",
-            "description": "Seconds since a transaction last inserted spans. Unlike Bulk Loader Aliveness, this keeps rising while every insert fails. It also rises when no traces arrive."
+            "description": "Seconds since a transaction last inserted spans. Unlike Bulk Loader Aliveness, this keeps rising while every insert fails. It also rises when no traces arrive. One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -1413,7 +1419,7 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "rate(phoenix_bulk_loader_span_exceptions_total[1m]) * 60",
-                    "legendFormat": "span insertion",
+                    "legendFormat": "span insertion ({{instance}})",
                     "refId": "A"
                 },
                 {
@@ -1422,13 +1428,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "rate(bulk_loader_exceptions_total[1m]) * 60",
-                    "legendFormat": "loader loop",
+                    "legendFormat": "loader loop ({{instance}})",
                     "refId": "B"
                 }
             ],
             "title": "💥 Bulk Loader Exceptions (per min)",
             "type": "timeseries",
-            "description": "Exceptions while inserting individual spans, and exceptions in the bulk loader loop itself."
+            "description": "Exceptions while inserting individual spans, and exceptions in the bulk loader loop itself. One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -1516,13 +1522,13 @@
                         "uid": "PBFA97CFB590B2093"
                     },
                     "expr": "rate(bulk_loader_evaluation_insertions_total[1m]) * 60",
-                    "legendFormat": "evaluations",
+                    "legendFormat": "evaluations ({{instance}})",
                     "refId": "A"
                 }
             ],
             "title": "🧾 Evaluations Inserted (per min)",
             "type": "timeseries",
-            "description": "Evaluations the bulk loader inserted per minute."
+            "description": "Evaluations the bulk loader inserted per minute. One line per Phoenix replica: each replica has its own span queue and bulk loader."
         },
         {
             "datasource": {
@@ -5297,5 +5303,5 @@
     "timezone": "browser",
     "title": "Phoenix Simple Monitoring",
     "uid": "6f8876c6-5f7c-43f3-9c88-65a2d4158e61",
-    "version": 34
+    "version": 35
 }
