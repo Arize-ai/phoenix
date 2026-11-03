@@ -289,9 +289,9 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     f"was disabled when its turn came). {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
-ONLINE_EVAL_LAG_SECONDS = Histogram(
+ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS = Histogram(
     namespace="phoenix",
-    name="online_eval_lag_seconds",
+    name="online_eval_queue_to_result_seconds",
     documentation="Seconds from when an online evaluation was queued to its result, by outcome: "
     "evaluated (DONE), failed (FAILED, out of retries), or expired (EXPIRED). This is the lag "
     "the evaluators pages show; an evaluation queued again for newer spans starts a new lag. "
@@ -299,22 +299,27 @@ ONLINE_EVAL_LAG_SECONDS = Histogram(
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
     buckets=(1, 5, 15, 30, 60, 120, 300, 600, 1_200, 1_800, 3_600, 7_200, 21_600, 86_400),
 )
-ONLINE_EVAL_EVALUATION_DURATION_SECONDS = Histogram(
+ONLINE_EVAL_EVALUATOR_DURATION_SECONDS = Histogram(
     namespace="phoenix",
-    name="online_eval_evaluation_duration_seconds",
-    documentation="Seconds an online evaluation's evaluator ran, whatever its result, including "
-    "runs cut off at the execution deadline. The rate of the sum is the average number of "
-    f"evaluators running at once. {_SUMS_ACROSS_REPLICAS}",
-    labelnames=[*_EVALUATION_TARGET_LABELS, "evaluator_kind"],
-    buckets=(0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 300),
+    name="online_eval_evaluator_duration_seconds",
+    documentation="Seconds spent inside an online evaluation's evaluator call, whatever its "
+    "result, including sandbox queueing and calls cut off at the execution deadline. Claiming, "
+    "loading, and writing results are not included, so this does not show how much of the "
+    "evaluator limit is in use; phoenix_online_eval_evaluator_concurrency_limit says how to "
+    f"read that. {_SUMS_ACROSS_REPLICAS}",
+    labelnames=["evaluator_kind"],
+    # Up to the consumer's 600s execution deadline (EXECUTION_DEADLINE_SECONDS), so runs cut
+    # off there land in a bucket rather than in +Inf.
+    buckets=(0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30, 60, 120, 300, 450, 600),
 )
 ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT = Gauge(
     namespace="phoenix",
     name="online_eval_evaluator_concurrency_limit",
     documentation="How many online evaluations this replica runs at once, shared by span, trace, "
-    "and session work (PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY). Divide the rate of "
-    "phoenix_online_eval_evaluation_duration_seconds_sum by this for how busy evaluators are. "
-    f"{_SUMS_ACROSS_REPLICAS}",
+    "and session work (PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY). A work unit is RUNNING "
+    "from claim to published result, about as long as it holds one of these slots, so the "
+    "share in use is sum(max by (evaluation_target) (phoenix_online_eval_running_work_units)) "
+    f"divided by sum(phoenix_online_eval_evaluator_concurrency_limit). {_SUMS_ACROSS_REPLICAS}",
 )
 
 

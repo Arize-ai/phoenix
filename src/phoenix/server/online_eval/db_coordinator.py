@@ -45,7 +45,10 @@ from phoenix.server.online_eval.coordinator import (
     RetiredWorkStatus,
 )
 from phoenix.server.online_eval.leases import current_database_time
-from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS, ONLINE_EVAL_LAG_SECONDS
+from phoenix.server.prometheus import (
+    ONLINE_EVAL_COMPLETED_WORK_UNITS,
+    ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS,
+)
 from phoenix.server.types import DbSessionFactory
 
 TRANSIENT_RETRY_MAX_AGE_SECONDS = 86_400.0
@@ -59,9 +62,9 @@ _DATABASE_NOW = object()
 _EndedWork = tuple[datetime, datetime]
 
 # The statuses a unit leaves the queue with that the completed-work counter reports. Cleared
-# is DROPPED by either path: a clear, or hydration after the evaluator was disabled. The lag
-# histogram observes the completed ones, as the evaluators pages' lag does; cleared work had
-# no result.
+# is DROPPED by either path: a clear, or hydration after the evaluator was disabled. The
+# queue-to-result histogram observes the completed ones, as the evaluators pages' lag does;
+# cleared work had no result.
 _COMPLETED_OUTCOMES = {
     "DONE": "evaluated",
     "FAILED": "failed",
@@ -181,7 +184,9 @@ class DbEvalWorkCoordinator:
                 evaluation_target=evaluation_target, outcome=outcome
             )
             if status in COMPLETED_EVAL_WORK_STATUSES:
-                ONLINE_EVAL_LAG_SECONDS.labels(evaluation_target=evaluation_target, outcome=outcome)
+                ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS.labels(
+                    evaluation_target=evaluation_target, outcome=outcome
+                )
         if evaluation_target == "SPAN":
             self._work_unit_model: _WorkUnitModel = models.EvalWorkUnit
             self._target_row_column: InstrumentedAttribute[int] = models.EvalWorkUnit.span_rowid
@@ -484,7 +489,7 @@ class DbEvalWorkCoordinator:
         labels = {"evaluation_target": self._evaluation_target, "outcome": outcome}
         ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(**labels).inc(len(ended))
         if status in COMPLETED_EVAL_WORK_STATUSES:
-            lag = ONLINE_EVAL_LAG_SECONDS.labels(**labels)
+            lag = ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS.labels(**labels)
             for created_at, updated_at in ended:
                 lag.observe((updated_at - created_at).total_seconds())
 

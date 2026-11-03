@@ -585,7 +585,9 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
         SimpleNamespace(labels=counter_labels),
     )
     monkeypatch.setattr(
-        db_coordinator_module, "ONLINE_EVAL_LAG_SECONDS", SimpleNamespace(labels=lag_labels)
+        db_coordinator_module,
+        "ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS",
+        SimpleNamespace(labels=lag_labels),
     )
     unit_ids = await _seed_work_units(db, 5)
     queued_seconds_ago = 600

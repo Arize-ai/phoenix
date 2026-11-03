@@ -104,7 +104,7 @@ from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
     persist_evaluator_traces,
 )
-from phoenix.server.prometheus import ONLINE_EVAL_EVALUATION_DURATION_SECONDS
+from phoenix.server.prometheus import ONLINE_EVAL_EVALUATOR_DURATION_SECONDS
 from phoenix.server.sandbox import SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import SandboxRuntimeContext
@@ -657,9 +657,7 @@ class OnlineEvalExecutor:
         self._db_semaphore = db_semaphore
         self._publish_metrics = get_env_enable_prometheus()
         for evaluator_kind in get_args(EvaluatorKind):
-            ONLINE_EVAL_EVALUATION_DURATION_SECONDS.labels(
-                evaluation_target=evaluation_target, evaluator_kind=evaluator_kind
-            )
+            ONLINE_EVAL_EVALUATOR_DURATION_SECONDS.labels(evaluator_kind=evaluator_kind)
 
     async def hydrate(self, unit: ClaimedWorkUnit) -> HydrationOutcome:
         configuration = (await self.hydrate_configuration_snapshots([unit]))[0]
@@ -1150,9 +1148,8 @@ class OnlineEvalExecutor:
             )
         finally:
             if self._publish_metrics:
-                ONLINE_EVAL_EVALUATION_DURATION_SECONDS.labels(
-                    evaluation_target=self._evaluation_target,
-                    evaluator_kind=hydrated.evaluator_kind,
+                ONLINE_EVAL_EVALUATOR_DURATION_SECONDS.labels(
+                    evaluator_kind=hydrated.evaluator_kind
                 ).observe(time.perf_counter() - started_at)
             if tracer is not None:
                 # A failed evaluation is exactly when its trace is worth reading,
