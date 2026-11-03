@@ -79,8 +79,9 @@ Under the scorecard, **Needs attention** explains only what isn't clean, one bul
 - One for Tests when it is Fail, saying which added test passes without the change, or what has no test.
 - One per finding, Blocking first, as a short label linking to `https://github.com/<owner>/<repo>/blob/<reviewed sha>/<path>#L<line>`, followed by `path:line`. Write "no diff line" for a finding that has none; its full text goes under Details.
 - One for Risk when it is Low, Medium or High, naming which of side effects, performance and backwards compatibility rates highest, and why.
+- One for Depth when it is Deep because the change touches a public API, a GraphQL or OpenAPI schema, a migration, auth or permissions, naming which. Depth gets no bullet when another bullet already explains it.
 
-Depth gets no bullet: the Verdict rules derive it from the other columns. When nothing needs attention, leave out the heading and the list, so a clean PR shows only the scorecard. Full sentences go in Details, one per line.
+When nothing needs attention, leave out the heading and the list, so a clean PR shows only the scorecard. Full sentences go in Details, one per line.
 
 ```markdown
 ## Factory review of <short sha>: <Approve, Request changes or Close>

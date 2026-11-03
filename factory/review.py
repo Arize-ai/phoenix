@@ -3,7 +3,7 @@
 `start` checks that the PR is open and that whoever asked has write access, then creates a
 Managed Agents session with the pr-reviewer agent, kicked off with the PR number and the
 commit to review, and posts one status comment on the PR. `watch` waits for the session to
-end, finds the review it posted, and edits that comment into the review's verdict, which it
+end, finds the review it posted, and turns that comment into the review's verdict, which it
 also sets as one of the VERDICT_LABELS. Agent, environment and vault IDs come from
 claude-lock.json, which `ant apply` writes.
 """
@@ -311,7 +311,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         body=(
             f"The factory is reviewing {pr['headRefOid'][:10]} "
             f"(session {format_session_link(session_id=session_id)}). "
-            f"This comment changes to the verdict when the session ends."
+            f"It reports back here when the session ends."
         ),
         token=app_token.refresh(),
     )
@@ -354,11 +354,14 @@ def run_watch(*, args: argparse.Namespace) -> None:
         except Exception as error:
             print(f"::warning::Reporting with GITHUB_TOKEN; the app token failed: {error}")
         try:
+            # A verdict means the factory posted a review, which already notified the PR's
+            # subscribers. Any other report is the only word that the run ended.
             report_on_status_comment(
                 number=args.pr,
                 comment_id=args.status_comment_id,
                 body=report,
                 token=report_token,
+                notify=verdict is None,
             )
             set_verdict_label(pr_number=args.pr, verdict=verdict, token=report_token)
         finally:

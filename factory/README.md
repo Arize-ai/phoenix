@@ -87,7 +87,7 @@ sequenceDiagram
       end
       session->>github: push fixes, reply in review threads
     end
-    dispatch->>github: edit the status comment into the outcome, rubric result and cost, remove the label
+    dispatch->>github: replace the status comment with the outcome, rubric result and cost, remove the label
   end
   maintainer->>github: review at the assessment's depth, then merge
 ```
@@ -119,7 +119,7 @@ Each part does one job, so it can be changed and tested on its own:
 - **Community code in the sandbox.** The review lane checks out a contributor's commit and runs the project's `make` targets and tests on it, so that code runs with the sandbox's access: the factory app's installation token (injected by the vault into GitHub calls, never visible as a value) and the limited network. The agent runs nothing the PR adds except through those targets, and the token's three permissions bound what it can do. The Actions job itself only ever checks out the base branch.
 - **Human gates.** Only someone with write access can start a run, by labeling or dispatching an issue or a PR, or by writing an issue that triage nominates, and only a human merges. The review agent recommends a verdict in the review body but is instructed to submit only `COMMENT` reviews, never to approve or request changes.
 
-A maintainer's part is to label an issue, or a `factory-candidate` someone without write access wrote, answer the questions on a `NEEDS_DECISION` comment, and review PRs once they leave draft, as deeply as the assessment's review depth says. Each run leaves one factory comment: it says the session started, and it changes to the result when the session ends. To run an issue again, re-add the `factory` label. To have the factory review a pull request, label it `factory-review`, then act on the verdict label it leaves.
+A maintainer's part is to label an issue, or a `factory-candidate` someone without write access wrote, answer the questions on a `NEEDS_DECISION` comment, and review PRs once they leave draft, as deeply as the assessment's review depth says. Each run leaves one factory comment. It says the session started, and the result replaces it when the session ends: as a new comment, which notifies, unless the factory posted a review that already did. To run an issue again, re-add the `factory` label. To have the factory review a pull request, label it `factory-review`, then act on the verdict label it leaves.
 
 ## Reviewing a PR
 
@@ -188,7 +188,7 @@ The review's body follows the summary template in `agents/pr-reviewer.md`: a hea
 
 ### When a review has no verdict
 
-Every run ends with one factory comment: the status comment, edited, or a new one when there was none to edit. If no verdict label was added, it says which of these happened:
+Every run ends with one factory comment. If no verdict label was added, the factory posts it as a new comment, so the PR's subscribers are notified, and deletes the status comment. It says which of these happened:
 
 | Comment | Cause | What to do |
 |---|---|---|

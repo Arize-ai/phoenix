@@ -82,10 +82,10 @@ def comment_on_issue(*, issue_number: int, body: str, token: Optional[str]) -> N
 
 
 def post_status_comment(*, number: int, body: str, token: Optional[str]) -> int:
-    """Comment on an issue or PR and return the comment's ID, so the run can edit it later.
+    """Comment on an issue or PR and return the comment's ID, so the run can replace it later.
 
-    A run keeps one status comment: it says the session started, and the watch step edits it
-    into the result. Edits send no notification, so a run notifies once when it starts.
+    The status comment says the session started; the watch step turns it into the result
+    with report_on_status_comment.
     """
     comment_id = run_gh(
         "api",
@@ -101,14 +101,21 @@ def post_status_comment(*, number: int, body: str, token: Optional[str]) -> int:
 
 
 def report_on_status_comment(
-    *, number: int, comment_id: Optional[int], body: str, token: Optional[str]
+    *,
+    number: int,
+    comment_id: Optional[int],
+    body: str,
+    token: Optional[str],
+    notify: bool,
 ) -> None:
-    """Replace the run's status comment with `body`, or post `body` if there is none to edit.
+    """Turn the run's status comment into `body`, so the run leaves one factory comment.
 
-    Every factory comment starts with "The factory": factory-candidates.yml counts them to
-    tell whether the factory already ran on an issue, so one run must leave one comment.
+    An edit sends no notification, so edit only when something else already told the
+    maintainer the run ended, such as the review it posted. With `notify`, post `body` as a
+    new comment and delete the status comment instead. Every report starts with "The
+    factory", which factory-candidates.yml looks for to tell that the factory ran on an issue.
     """
-    if comment_id is not None:
+    if comment_id is not None and not notify:
         try:
             run_gh(
                 "api",
@@ -125,6 +132,18 @@ def report_on_status_comment(
         except subprocess.CalledProcessError as error:
             print(f"::warning::Posting a new comment; editing comment {comment_id} failed: {error}")
     comment_on_issue(issue_number=number, body=body, token=token)
+    if comment_id is not None:
+        try:
+            run_gh(
+                "api",
+                "--method",
+                "DELETE",
+                f"repos/{{owner}}/{{repo}}/issues/comments/{comment_id}",
+                "--silent",
+                token=token,
+            )
+        except subprocess.CalledProcessError as error:
+            print(f"::warning::Deleting status comment {comment_id} failed: {error}")
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -724,7 +743,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         body=(
             f"The factory is running the **{lane}** lane for this issue "
             f"(session {format_session_link(session_id=session_id)}). "
-            f"This comment changes to the result when the session ends."
+            f"It reports back here when the session ends."
         ),
         token=app_token.refresh(),
     )
@@ -763,11 +782,13 @@ def run_watch(*, args: argparse.Namespace) -> None:
             report_token = app_token.refresh() if app_token is not None else None
         except Exception as error:
             print(f"::warning::Reporting with GITHUB_TOKEN; the app token failed: {error}")
+        # The lane's result is what the maintainer waits hours for, so it always notifies.
         report_on_status_comment(
             number=args.issue,
             comment_id=args.status_comment_id,
             body=report,
             token=report_token,
+            notify=True,
         )
         remove_factory_label(issue_number=args.issue, token=report_token)
 
