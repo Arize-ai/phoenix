@@ -1,6 +1,8 @@
+import json
 import re
 from typing import Any
 
+import httpx2
 import pytest
 import sqlalchemy as sa
 from strawberry.relay import GlobalID
@@ -663,6 +665,131 @@ class TestModelMutations:
         assert len(result.errors) == 1
         assert result.errors[0].message == "Cannot delete built-in model"
         assert result.data is None
+
+    @pytest.mark.parametrize("operation_name", ["CreateModelMutation", "UpdateModelMutation"])
+    @pytest.mark.parametrize(
+        "token_type, rate",
+        [
+            pytest.param("input", -1.0, id="negative-input"),
+            pytest.param("output", -0.000001, id="small-negative-output"),
+        ],
+    )
+    async def test_negative_rate_is_rejected(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+        operation_name: str,
+        token_type: str,
+        rate: float,
+    ) -> None:
+        rates = {"input": 1.0, "output": 2.0, token_type: rate}
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_model_input(operation_name, custom_model.id, rates),
+            operation_name=operation_name,
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == (
+            f"Cost per million tokens for '{token_type}' must be zero or more, got {rate}"
+        )
+        assert result.data is None
+        assert await _stored_rates(db) == {
+            "custom-model": {"input": 0.003, "output": 0.004},
+        }
+
+    @pytest.mark.parametrize("operation_name", ["CreateModelMutation", "UpdateModelMutation"])
+    @pytest.mark.parametrize(
+        "rates",
+        [
+            pytest.param({"input": 0.0, "output": 0.0}, id="zero"),
+            pytest.param({"input": 0.0, "output": 2.5}, id="zero-and-positive"),
+            pytest.param({"input": 3.0, "output": 15.0}, id="positive"),
+        ],
+    )
+    async def test_zero_and_positive_rates_are_stored(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+        operation_name: str,
+        rates: dict[str, float],
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_model_input(operation_name, custom_model.id, rates),
+            operation_name=operation_name,
+        )
+        assert not result.errors
+        assert result.data is not None
+        stored = await _stored_rates(db)
+        assert stored["rated-model"] == {
+            token_type: pytest.approx(rate / 1_000_000) for token_type, rate in rates.items()
+        }
+
+    @pytest.mark.parametrize("operation_name", ["CreateModelMutation", "UpdateModelMutation"])
+    @pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity", "1e999"])
+    async def test_non_finite_rate_is_rejected(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx2.AsyncClient,
+        custom_model: models.GenerativeModel,
+        operation_name: str,
+        literal: str,
+    ) -> None:
+        """
+        JSON has no NaN or infinity, but Python's parser reads these literals, so a
+        client can send them. GraphQL's Float type rejects them before the resolver
+        runs, so the request fails and nothing is written.
+        """
+        variables = _model_input(operation_name, custom_model.id, {"input": 1.0, "output": 2.0})
+        variables["input"]["costs"][0]["costPerMillionTokens"] = "__RATE__"
+        body = json.dumps(
+            {"query": self.QUERY, "variables": variables, "operationName": operation_name}
+        ).replace('"__RATE__"', literal)
+        response = await httpx_client.post(
+            "/graphql", content=body, headers={"content-type": "application/json"}
+        )
+        assert len(response.json()["errors"]) == 1
+        assert response.json().get("data") is None
+        assert await _stored_rates(db) == {
+            "custom-model": {"input": 0.003, "output": 0.004},
+        }
+
+
+def _model_input(operation_name: str, model_id: int, rates: dict[str, float]) -> dict[str, Any]:
+    """Variables that create a model named "rated-model", or rename the given model to it."""
+    kinds = {"input": "PROMPT", "output": "COMPLETION"}
+    model_input: dict[str, Any] = {
+        "name": "rated-model",
+        "provider": "anthropic",
+        "namePattern": "^rated-model$",
+        "costs": [
+            {"tokenType": token_type, "kind": kinds[token_type], "costPerMillionTokens": rate}
+            for token_type, rate in rates.items()
+        ],
+    }
+    if operation_name == "UpdateModelMutation":
+        model_input["id"] = str(GlobalID(GenerativeModel.__name__, str(model_id)))
+    return {"input": model_input}
+
+
+async def _stored_rates(db: DbSessionFactory) -> dict[str, dict[str, float]]:
+    """Base rates per token type for each custom model in the database."""
+    async with db() as session:
+        rows = await session.execute(
+            sa.select(
+                models.GenerativeModel.name,
+                models.TokenPrice.token_type,
+                models.TokenPrice.base_rate,
+            )
+            .join(models.TokenPrice)
+            .where(models.GenerativeModel.is_built_in.is_(False))
+        )
+    stored: dict[str, dict[str, float]] = {}
+    for name, token_type, base_rate in rows:
+        stored.setdefault(name, {})[token_type] = base_rate
+    return stored
 
 
 @pytest.fixture

@@ -1,3 +1,4 @@
+import math
 import re
 from datetime import datetime, timezone
 from typing import Optional
@@ -93,6 +94,7 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
+        _check_token_rates(input.costs)
         name_pattern = _compile_regular_expression(input.name_pattern)
         token_prices = [cost.token_prices for cost in input.costs]
         # The database column is non-nullable and the empty string is how a
@@ -143,6 +145,7 @@ class ModelMutationMixin:
             raise BadRequest("input cost is required")
         if "output" not in cost_types:
             raise BadRequest("output cost is required")
+        _check_token_rates(input.costs)
         name_pattern = _compile_regular_expression(input.name_pattern)
         token_prices = [cost.token_prices for cost in input.costs]
         async with info.context.db() as session:
@@ -269,6 +272,19 @@ async def _conflicting_model_error(
         )
     # Some other constraint rejected the write, e.g. duplicate token prices.
     return Conflict(f"Model '{name}' conflicts with an existing model")
+
+
+def _check_token_rates(costs: list[TokenPriceInput]) -> None:
+    """
+    Raises a BadRequest error if any rate is negative or not a finite number.
+    Zero is allowed: it means the tokens are free.
+    """
+    for cost in costs:
+        rate = cost.cost_per_million_tokens
+        if not math.isfinite(rate) or rate < 0:
+            raise BadRequest(
+                f"Cost per million tokens for '{cost.token_type}' must be zero or more, got {rate}"
+            )
 
 
 def _compile_regular_expression(maybe_regex: str) -> re.Pattern[str]:
