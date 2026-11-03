@@ -1,9 +1,10 @@
-from typing import Annotated, Any, Generic, Optional, TypedDict, TypeVar, Union
+from typing import Annotated, Any, Collection, Generic, Optional, TypedDict, TypeVar, Union
 
 from fastapi import HTTPException, Request
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
@@ -245,3 +246,30 @@ async def get_dataset_by_identifier(
 def location_of(request: Request, path: str) -> str:
     """The URL of a created resource, for a 201's Location header."""
     return f"{request.scope.get('root_path', '')}{path}"
+
+
+async def version_numbers(
+    session: AsyncSession,
+    id_column: InstrumentedAttribute[int],
+    parent_column: InstrumentedAttribute[int],
+    ids: Collection[int],
+    parent_ids: Collection[int],
+) -> dict[int, int]:
+    """Each version's 1-based position in its parent's history, by version id.
+
+    ``parent_ids`` are the parents of ``ids``; their versions are numbered in one pass.
+    """
+    numbered = (
+        select(
+            id_column.label("id"),
+            func.row_number().over(partition_by=parent_column, order_by=id_column).label("number"),
+        )
+        .where(parent_column.in_(parent_ids))
+        .subquery()
+    )
+    return {
+        version_id: number
+        for version_id, number in await session.execute(
+            select(numbered.c.id, numbered.c.number).where(numbered.c.id.in_(ids))
+        )
+    }

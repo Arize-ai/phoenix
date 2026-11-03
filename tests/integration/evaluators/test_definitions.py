@@ -292,7 +292,7 @@ def test_llm_definition_reuses_regular_prompt_version(
         "v1/prompts",
         json={"prompt": {"name": f"shared-prompt-{token_hex(8)}"}, "version": prompt_body},
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text
     prompt_version_id = response.json()["data"]["id"]
     response = client.patch(route, json={"type": "llm", "prompt": _pin(prompt_version_id)})
     assert response.status_code == 200, response.text
@@ -346,7 +346,7 @@ def _judge_prompt_version(client: httpx2.Client, prompt_name: str) -> str:
             },
         },
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text
     version_id: str = response.json()["data"]["id"]
     return version_id
 

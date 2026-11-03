@@ -5,10 +5,10 @@ from typing import Any, Optional, Sequence, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, ValidationError, model_validator
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased, joinedload
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
@@ -46,6 +46,7 @@ from phoenix.server.api.routers.v1.utils import (
     ResponseBody,
     Responses,
     location_of,
+    version_numbers,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
@@ -973,28 +974,14 @@ async def _rest_prompt_versions(
     if not versions:
         return []
     ids = [version.id for version in versions]
-    other = aliased(models.PromptVersion)
-    numbers: dict[int, int] = {
-        version_id: count
-        for version_id, count in await session.execute(
-            select(models.PromptVersion.id, func.count(other.id))
-            .join(
-                other,
-                and_(
-                    other.prompt_id == models.PromptVersion.prompt_id,
-                    other.id <= models.PromptVersion.id,
-                ),
-            )
-            .where(models.PromptVersion.id.in_(ids))
-            .group_by(models.PromptVersion.id)
-        )
-    }
+    prompt_ids = {version.prompt_id for version in versions}
+    numbers = await version_numbers(
+        session, models.PromptVersion.id, models.PromptVersion.prompt_id, ids, prompt_ids
+    )
     names: dict[int, Identifier] = {
         prompt_id: name
         for prompt_id, name in await session.execute(
-            select(models.Prompt.id, models.Prompt.name).where(
-                models.Prompt.id.in_({version.prompt_id for version in versions})
-            )
+            select(models.Prompt.id, models.Prompt.name).where(models.Prompt.id.in_(prompt_ids))
         )
     }
     tag_names: dict[int, list[str]] = {version_id: [] for version_id in ids}

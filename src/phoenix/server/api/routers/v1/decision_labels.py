@@ -25,7 +25,6 @@ from phoenix.server.api.routers.v1.decision_models import (
 from phoenix.server.api.routers.v1.decisions import (
     decision_not_found,
     decision_where_clause,
-    parse_cursor,
     parse_decision_label_id,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
@@ -40,6 +39,7 @@ from phoenix.server.api.routers.v1.utils import (
     ResponseBody,
     Responses,
     location_of,
+    parse_cursor_rowid,
 )
 from phoenix.server.authorization import is_not_locked
 
@@ -123,7 +123,7 @@ async def list_decision_labels(
 ) -> GetDecisionLabelsResponseBody:
     stmt = select(models.DecisionLabel).order_by(models.DecisionLabel.id.desc())
     if cursor:
-        stmt = stmt.where(models.DecisionLabel.id <= parse_cursor(cursor, "DecisionLabel"))
+        stmt = stmt.where(models.DecisionLabel.id <= parse_cursor_rowid(cursor, "DecisionLabel"))
     async with request.app.state.db() as session:
         labels = list((await session.scalars(stmt.limit(limit + 1))).all())
     next_cursor = None
@@ -221,6 +221,8 @@ async def patch_decision_label(
                 if request_body.description is not UNDEFINED:
                     label.description = request_body.description
         except _IntegrityError as error:
+            if request_body.name is UNDEFINED:
+                raise  # Only a rename can break the unique constraint.
             raise await _name_taken(session, request_body.name) from error
         data = DecisionLabel.from_orm_decision_label(label)
     return DecisionLabelResponseBody(data=data)

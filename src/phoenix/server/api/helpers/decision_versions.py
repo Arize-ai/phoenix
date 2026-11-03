@@ -61,9 +61,11 @@ def new_decision_version(
         validate_template,
     )
 
-    if GenerativeProviderKey.from_model_provider(model_provider) not in DECISION_CLIENTS:
+    if (provider_key := GenerativeProviderKey.from_model_provider(model_provider)) not in (
+        DECISION_CLIENTS
+    ):
         raise InvalidDecisionVersion(
-            f"{model_provider.value} does not offer decision models.",
+            f"{provider_key.value} does not offer decision models.",
             ("model_provider",),
             "invalid_choice",
         )

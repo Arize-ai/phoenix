@@ -244,6 +244,11 @@ class TestListAndGet:
             (f"v1/decision_versions/{GlobalID('DecisionVersion', '999')}", 404),
             (f"v1/decision_versions/{GlobalID('Prompt', '1')}", 422),
             (f"v1/decision_versions/{GlobalID('DecisionVersion', '999')}/tags", 404),
+            # Rowids wider than 32 bits can't be bound on Postgres.
+            (f"v1/decisions/{GlobalID('Decision', str(2**31))}", 422),
+            (f"v1/decision_versions/{GlobalID('DecisionVersion', str(2**31))}", 422),
+            (f"v1/decision_labels/{GlobalID('DecisionLabel', str(2**31))}", 422),
+            (f"v1/decisions?cursor={GlobalID('Decision', str(2**31))}", 422),
         ],
     )
     async def test_not_found_and_invalid(

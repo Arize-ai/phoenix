@@ -9,10 +9,9 @@ from typing import Any, Optional, Sequence, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field, ValidationError, model_validator
-from sqlalchemy import String, and_, cast, delete, func, select
+from sqlalchemy import String, cast, delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 from sqlalchemy.orm.exc import StaleDataError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
@@ -49,10 +48,13 @@ from phoenix.server.api.routers.v1.problem_details import (
     problem_responses,
 )
 from phoenix.server.api.routers.v1.utils import (
+    MAX_CURSOR_ROWID,
     PaginatedResponseBody,
     ResponseBody,
     Responses,
     location_of,
+    parse_cursor_rowid,
+    version_numbers,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
@@ -200,7 +202,7 @@ async def list_decisions(
             )
         )
     if cursor:
-        stmt = stmt.where(models.Decision.id <= parse_cursor(cursor, "Decision"))
+        stmt = stmt.where(models.Decision.id <= parse_cursor_rowid(cursor, "Decision"))
     async with request.app.state.db() as session:
         decisions = list((await session.scalars(stmt.limit(limit + 1))).all())
     next_cursor = None
@@ -457,7 +459,9 @@ async def list_decision_versions(
             .order_by(models.DecisionVersion.id.desc())
         )
         if cursor:
-            stmt = stmt.where(models.DecisionVersion.id <= parse_cursor(cursor, "DecisionVersion"))
+            stmt = stmt.where(
+                models.DecisionVersion.id <= parse_cursor_rowid(cursor, "DecisionVersion")
+            )
         versions = list((await session.scalars(stmt.limit(limit + 1))).all())
         next_cursor = None
         if len(versions) > limit:
@@ -620,7 +624,7 @@ async def list_decision_version_tags(
     )
     if cursor:
         stmt = stmt.where(
-            models.DecisionVersionTag.id <= parse_cursor(cursor, "DecisionVersionTag")
+            models.DecisionVersionTag.id <= parse_cursor_rowid(cursor, "DecisionVersionTag")
         )
     async with request.app.state.db() as session:
         exists = await session.scalar(
@@ -737,13 +741,19 @@ class _DecisionId(int): ...
 _DecisionIdentifier: TypeAlias = Union[_DecisionId, Identifier]
 
 
-def parse_decision_identifier(decision_identifier: str) -> _DecisionIdentifier:
+def _parse_rowid(global_id: str, type_name: str) -> Optional[int]:
+    """The rowid in a GlobalID of the given type, or None when it isn't one or its rowid
+    can't be bound (rowids are 32-bit on Postgres, so a wider one fails the query)."""
     try:
-        return _DecisionId(
-            from_global_id_with_expected_type(GlobalID.from_id(decision_identifier), "Decision")
-        )
+        rowid = from_global_id_with_expected_type(GlobalID.from_id(global_id), type_name)
     except ValueError:
-        pass
+        return None
+    return rowid if 0 <= rowid <= MAX_CURSOR_ROWID else None
+
+
+def parse_decision_identifier(decision_identifier: str) -> _DecisionIdentifier:
+    if (rowid := _parse_rowid(decision_identifier, "Decision")) is not None:
+        return _DecisionId(rowid)
     try:
         return Identifier.model_validate(decision_identifier)
     except ValidationError:
@@ -760,12 +770,9 @@ def decision_where_clause(decision_identifier: str) -> Any:
 
 
 def _parse_decision_version_id(decision_version_id: str) -> int:
-    try:
-        return from_global_id_with_expected_type(
-            GlobalID.from_id(decision_version_id), "DecisionVersion"
-        )
-    except ValueError:
+    if (rowid := _parse_rowid(decision_version_id, "DecisionVersion")) is None:
         raise HTTPException(422, f"Invalid decision version ID: {decision_version_id}")
+    return rowid
 
 
 def _parse_tag_name(tag_name: str) -> Identifier:
@@ -773,13 +780,6 @@ def _parse_tag_name(tag_name: str) -> Identifier:
         return Identifier.model_validate(tag_name)
     except ValidationError:
         raise HTTPException(422, f"Invalid tag name: {tag_name}")
-
-
-def parse_cursor(cursor: str, type_name: str) -> int:
-    try:
-        return from_global_id_with_expected_type(GlobalID.from_id(cursor), type_name)
-    except ValueError:
-        raise HTTPException(422, f"Invalid cursor format: {cursor}")
 
 
 def decision_not_found(decision_identifier: str) -> HTTPException:
@@ -867,12 +867,9 @@ def _escape_like(text: str) -> str:
 
 
 def parse_decision_label_id(decision_label_id: str) -> int:
-    try:
-        return from_global_id_with_expected_type(
-            GlobalID.from_id(decision_label_id), "DecisionLabel"
-        )
-    except ValueError:
+    if (rowid := _parse_rowid(decision_label_id, "DecisionLabel")) is None:
         raise HTTPException(422, f"Invalid decision label ID: {decision_label_id}")
+    return rowid
 
 
 async def _insert_version(
@@ -927,27 +924,15 @@ async def _rest_versions(
     if not versions:
         return []
     ids = [version.id for version in versions]
-    other = aliased(models.DecisionVersion)
-    numbers: dict[int, int] = {
-        version_id: count
-        for version_id, count in await session.execute(
-            select(models.DecisionVersion.id, func.count(other.id))
-            .join(
-                other,
-                and_(
-                    other.decision_id == models.DecisionVersion.decision_id,
-                    other.id <= models.DecisionVersion.id,
-                ),
-            )
-            .where(models.DecisionVersion.id.in_(ids))
-            .group_by(models.DecisionVersion.id)
-        )
-    }
+    decision_ids = {version.decision_id for version in versions}
+    numbers = await version_numbers(
+        session, models.DecisionVersion.id, models.DecisionVersion.decision_id, ids, decision_ids
+    )
     names: dict[int, Identifier] = {
         decision_id: name
         for decision_id, name in await session.execute(
             select(models.Decision.id, models.Decision.name).where(
-                models.Decision.id.in_({version.decision_id for version in versions})
+                models.Decision.id.in_(decision_ids)
             )
         )
     }

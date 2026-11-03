@@ -170,9 +170,10 @@ _UNION_TAGS = frozenset(
 )
 """Discriminator tag values used by the opted-in routers' `Field(discriminator="type")` unions.
 A tagged union's error `loc` repeats the tag as a path segment (e.g. `body.code.name`) even
-though it names no real field, so `_normalize_field_path` drops it. Some tags are also real
-field names (`version` in `POST /v1/decisions`), so a segment is dropped only where the
-submitted object names it as its `type` rather than holding it as a key."""
+though it names no real field, so `_normalize_field_path` drops it. Where the submitted body
+can be followed, a segment is a tag exactly when the object there names it as its `type`, so a
+real field of the same name (`version` in `POST /v1/decisions`) is kept; this set is the
+fallback where it can't."""
 
 _CODE_BY_ERROR_TYPE: dict[str, str] = {
     "missing": "missing",
@@ -204,11 +205,13 @@ def _field_error_code(error_type: str) -> str:
 
 
 def _is_union_tag(node: Any, part: Union[str, int]) -> bool:
-    if not (isinstance(part, str) and part in _UNION_TAGS):
+    """Whether `part` is the tag of the union value `node`. A submitted object is tagged by
+    its own `type`, whatever the router; without one to read, the known tags are used."""
+    if not isinstance(part, str):
         return False
     if isinstance(node, dict):
-        return part not in node and node.get("type") == part
-    return True
+        return node.get("type") == part
+    return part in _UNION_TAGS
 
 
 def _child(node: Any, part: Union[str, int]) -> Any:
@@ -230,11 +233,16 @@ def _normalize_field_path(loc: tuple[Union[str, int], ...], body: Any = None) ->
     location, *rest = loc
     segments = [str(location)]
     node = body if location == "body" else None
+    # A union value carries one tag segment; a field that repeats the tag's name (as in
+    # `{"type": "openai", "openai": {...}}`) comes after it and is kept.
+    tag_seen = False
     for part in rest:
-        if _is_union_tag(node, part):
+        if not tag_seen and _is_union_tag(node, part):
+            tag_seen = True
             continue
         segments.append(str(part))
         node = _child(node, part)
+        tag_seen = False
     return ".".join(segments)
 
 
