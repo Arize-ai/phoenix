@@ -5,19 +5,11 @@
 #     "PyJWT[crypto]==2.15.1",
 # ]
 # ///
-"""Take one pull request the rest of the way to mergeable.
-
-`start` checks that whoever labeled the PR has write access, that the PR is open and that its
-CLA is signed. A PR from a fork is copied to a `factory/pr-<number>` branch here, reopened as
-a new PR that keeps the contributor's commits, and the original is closed with a pointer. It
-then creates a Managed Agents session with the pr-finisher agent on the PR's branch and posts
-one status comment. `watch` follows the session the way dispatch.py does: CI failures and
-automated review findings go back to it, the PR leaves draft once CI passes, and the status
-comment becomes the outcome.
-"""
 
 import argparse
+import base64
 import json
+import os
 import subprocess
 from typing import Any, Optional
 
@@ -54,7 +46,7 @@ FINISH_OUTCOME = (
 )
 PR_FIELDS = (
     "number,url,state,isDraft,isCrossRepository,baseRefName,headRefName,headRefOid,"
-    "title,body,author,comments,closingIssuesReferences"
+    "title,body,author,comments,closingIssuesReferences,files"
 )
 
 
@@ -78,11 +70,17 @@ def remove_finish_label(*, pr_number: int, token: Optional[str]) -> None:
 
 
 def find_admission_problem(
-    *, pr: dict[str, Any], requester_login: str, requester_permission: str
+    *,
+    pr: dict[str, Any],
+    copy: Optional[dict[str, Any]],
+    requester_login: str,
+    requester_permission: str,
 ) -> Optional[str]:
+    """Why the PR can't start, or None. `copy` is an earlier run's open copy of a fork PR,
+    which makes a closed original admissible: the run continues on the copy."""
     if requester_permission not in STARTING_PERMISSIONS:
         return f"`{requester_login}` needs write access to this repository to start it"
-    if pr["state"] != "OPEN":
+    if pr["state"] != "OPEN" and copy is None:
         return f"the pull request is {pr['state'].lower()}"
     # The CLA Assistant comments only on PRs it has to check, and someone who pushed a
     # branch to this repository has write access, so a same-repo PR passes without one.
@@ -93,7 +91,16 @@ def find_admission_problem(
         return "the CLA Assistant has not checked it yet; try again once it has commented"
     if not cla_signed:
         return "its CLA is not signed; the factory starts once the CLA Assistant says it is"
+    if copy is None and changes_workflows(pr=pr):
+        return (
+            "it changes `.github/workflows/`, which the factory's token cannot push to a "
+            "branch here; a maintainer has to finish it by hand"
+        )
     return None
+
+
+def changes_workflows(*, pr: dict[str, Any]) -> bool:
+    return any(file["path"].startswith(".github/workflows/") for file in pr["files"])
 
 
 def copy_branch_name(*, pr_number: int) -> str:
@@ -117,19 +124,34 @@ def find_copy(*, pr_number: int) -> Optional[dict[str, Any]]:
     return read_pr(pr_number=pr_list[0]["number"]) if pr_list else None
 
 
+def run_git_as_app(*args: str, token: str) -> None:
+    """Run git against github.com with the app token in a header set through the environment,
+    so the token is in neither argv nor the error a failed command raises."""
+    basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    env = {
+        **os.environ,
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
+        "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}",
+    }
+    try:
+        subprocess.run(["git", *args], check=True, env=env)
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(f"git {args[0]} exited with {error.returncode}") from None
+
+
 def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]:
     """Push the fork PR's head to a branch here, open a PR from it, close the original.
 
-    The commits are pushed as they are, so their authorship is the contributor's. Nothing
-    from the PR runs here: the runner only fetches and pushes objects.
+    The commits are pushed as they are, so their authorship is the contributor's. The runner
+    only fetches and pushes objects; the copy's own CI then runs them, so every workflow
+    that holds a secret skips `factory/` branches.
     """
     pr_number = pr["number"]
     branch = copy_branch_name(pr_number=pr_number)
-    remote = f"https://x-access-token:{token}@github.com/{repo}.git"
-    subprocess.run(["git", "fetch", "--quiet", remote, f"pull/{pr_number}/head"], check=True)
-    subprocess.run(
-        ["git", "push", "--quiet", remote, f"FETCH_HEAD:refs/heads/{branch}"], check=True
-    )
+    remote = f"https://github.com/{repo}.git"
+    run_git_as_app("fetch", "--quiet", remote, f"pull/{pr_number}/head", token=token)
+    run_git_as_app("push", "--quiet", remote, f"FETCH_HEAD:refs/heads/{branch}", token=token)
     body = (pr["body"] or "").rstrip() + (
         f"\n\n---\nContinued from #{pr_number} by the factory. The commits are "
         f"@{pr['author']['login']}'s; the factory adds its own on top."
@@ -230,12 +252,16 @@ def run_start(*, args: argparse.Namespace) -> None:
     requester_permission = (
         "none" if requester_login == WORKFLOW_LOGIN else read_repo_permission(login=requester_login)
     )
+    copy = find_copy(pr_number=args.pr) if pr["isCrossRepository"] else None
     admission_problem = find_admission_problem(
-        pr=pr, requester_login=requester_login, requester_permission=requester_permission
+        pr=pr,
+        copy=copy,
+        requester_login=requester_login,
+        requester_permission=requester_permission,
     )
     print(
         f"head_sha={pr['headRefOid']} fork={pr['isCrossRepository']} "
-        f"admission_problem={admission_problem}"
+        f"copy={copy['number'] if copy else None} admission_problem={admission_problem}"
     )
     if args.dry_run:
         return
@@ -254,7 +280,6 @@ def run_start(*, args: argparse.Namespace) -> None:
     # Fail before starting a session that the watch step could not check.
     factory_login = read_factory_login()
     if pr["isCrossRepository"]:
-        copy = find_copy(pr_number=args.pr)
         if copy is None:
             copy = copy_fork_pr(repo=args.repo, pr=pr, token=app_token.refresh())
             print(f"copied to #{copy['number']} on {copy['headRefName']}")
