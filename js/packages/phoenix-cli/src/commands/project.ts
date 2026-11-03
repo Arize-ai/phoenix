@@ -9,7 +9,7 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import { ExitCode, getExitCodeForError, getExitCodeName } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import {
@@ -466,10 +466,13 @@ async function projectRetentionHandler({
     if (error instanceof HttpError) {
       await exitOnRetentionHttpError({ error, action, format: options.format });
     }
-    writeError({
+    const exitCode = getExitCodeForError(error);
+    writeStructuredError({
+      format: options.format,
       message: `Error ${action} project retention policy: ${error instanceof Error ? error.message : String(error)}`,
+      code: getExitCodeName(exitCode),
     });
-    process.exit(getExitCodeForError(error));
+    process.exit(exitCode);
   }
 }
 

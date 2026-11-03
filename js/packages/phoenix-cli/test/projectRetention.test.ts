@@ -392,16 +392,27 @@ describe("project retention errors", () => {
         HttpResponse.error()
       )
     );
-    captureCliOutput();
+    const io = captureCliOutput();
     const exitSpy = mockProcessExit();
 
     await expect(
       createProjectCommand().parseAsync(
-        ["retention", "reset", "support-bot", "--yes", ...BASE_ARGS],
+        [
+          "retention",
+          "reset",
+          "support-bot",
+          "--yes",
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.NETWORK_ERROR}`);
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+    const parsed = JSON.parse(stderrText(io));
+    expect(parsed.code).toBe("NETWORK_ERROR");
+    expect(parsed.error).toContain("Error resetting project retention policy");
   });
 });

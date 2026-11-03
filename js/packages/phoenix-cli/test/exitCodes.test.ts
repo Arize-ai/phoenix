@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { ExitCode, getExitCodeForError } from "../src/exitCodes";
+import {
+  ExitCode,
+  getExitCodeForError,
+  getExitCodeName,
+} from "../src/exitCodes";
 
 describe("ExitCode constants", () => {
   it("SUCCESS is 0", () => {
@@ -59,5 +63,13 @@ describe("getExitCodeForError", () => {
   it("returns FAILURE for a RangeError (not a network failure)", () => {
     const error = new RangeError("out of range");
     expect(getExitCodeForError(error)).toBe(ExitCode.FAILURE);
+  });
+});
+
+describe("getExitCodeName", () => {
+  it("maps every exit code back to its constant name", () => {
+    for (const [name, code] of Object.entries(ExitCode)) {
+      expect(getExitCodeName(code)).toBe(name);
+    }
   });
 });
