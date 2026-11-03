@@ -10,6 +10,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 from typing import Any, Optional
 
@@ -37,6 +38,11 @@ from github_app import GitHubAppToken
 from review import comment_on_pr, read_factory_login
 
 FINISH_LABEL = "factory-finish"
+# Stays on a PR the factory pushed to, so the secret-bearing CI jobs and Factory Guard treat
+# every later head as factory work; `github.actor` would only cover the app's own pushes.
+FINISHED_LABEL = "factory-finished"
+FINISHED_LABEL_COLOR = "5319E7"
+FINISHED_LABEL_DESCRIPTION = "The factory pushed commits to this PR; run secret-bearing CI by hand"
 FINISH_AGENT_LOCK_KEY = "./agents/pr-finisher.md"
 FINISH_OUTCOME = (
     "Pull request #{pr_number} links an issue, has every review finding fixed, passes the "
@@ -65,6 +71,21 @@ def find_open_pr(*, pr_number: int) -> Optional[dict[str, Any]]:
     return pr if pr["state"] == "OPEN" else None
 
 
+def add_finished_label(*, pr_number: int, token: Optional[str]) -> None:
+    run_gh(
+        "label",
+        "create",
+        FINISHED_LABEL,
+        "--color",
+        FINISHED_LABEL_COLOR,
+        "--description",
+        FINISHED_LABEL_DESCRIPTION,
+        "--force",
+        token=token,
+    )
+    run_gh("pr", "edit", str(pr_number), "--add-label", FINISHED_LABEL, token=token)
+
+
 def remove_finish_label(*, pr_number: int, token: Optional[str]) -> None:
     run_gh("pr", "edit", str(pr_number), "--remove-label", FINISH_LABEL, token=token)
 
@@ -91,15 +112,23 @@ def find_admission_problem(
         return "the CLA Assistant has not checked it yet; try again once it has commented"
     if not cla_signed:
         return "its CLA is not signed; the factory starts once the CLA Assistant says it is"
-    if copy is None and changes_workflows(pr=pr):
+    if copy is None and changes_guarded_paths(pr=pr):
         return (
-            "it changes `.github/workflows/`, which the factory's token cannot push to a "
-            "branch here; a maintainer has to finish it by hand"
+            "it changes automation or agent-instruction files, which Factory Guard fails on a "
+            "factory branch; a maintainer has to finish it by hand"
         )
     return None
 
 
-def changes_workflows(*, pr: dict[str, Any]) -> bool:
+# The paths factory-guard.yml fails a factory PR for. Copying a fork PR that changes one of
+# them would only open a PR that can never pass that check, and would hand fork-written
+# factory config to factory-sync.yml's plan job, which holds the workspace's API key.
+GUARDED_PATH_PATTERN = re.compile(
+    r"^(\.github|\.cursor|\.claude|\.agents|factory|plugins)/|(^|/)(AGENTS|CLAUDE)\.md$"
+)
+
+
+def changes_guarded_paths(*, pr: dict[str, Any]) -> bool:
     # Paged through the REST API: `gh pr view --json files` stops at 100 files.
     paths = run_gh(
         "api",
@@ -108,7 +137,7 @@ def changes_workflows(*, pr: dict[str, Any]) -> bool:
         "--jq",
         ".[] | .filename, (.previous_filename // empty)",
     ).split()
-    return any(path.startswith(".github/workflows/") for path in paths)
+    return any(GUARDED_PATH_PATTERN.search(path) for path in paths)
 
 
 def copy_branch_name(*, pr_number: int) -> str:
@@ -296,6 +325,8 @@ def run_start(*, args: argparse.Namespace) -> None:
         # The run reports on the copy, so the label on the original has done its job.
         remove_finish_label(pr_number=args.pr, token=app_token.refresh())
         pr = copy
+    # Before the session can push, so no head of the PR is ever CI'd as a human's work.
+    add_finished_label(pr_number=pr["number"], token=app_token.refresh())
     session_id = start_session(
         client=client,
         repo=args.repo,
