@@ -517,7 +517,8 @@ check_image_freshness() {
         log_warning "Could not read compose config; skipping image freshness check"
         return 0
     fi
-    COMPOSE_JSON="$config" PROJECT_NAME="$PROJECT_NAME" python3 - <<'PY' || DOCTOR_WARNED=1
+    # PROJECT_NAME is readonly, and assigning to it as a command prefix aborts the script.
+    COMPOSE_JSON="$config" DEVOPS_PROJECT="$PROJECT_NAME" python3 - <<'PY' || DOCTOR_WARNED=1
 import json, os, subprocess, sys
 from datetime import datetime
 
@@ -531,7 +532,7 @@ def parse_time(value):
     return datetime.fromisoformat(f"{head}.{(frac or '0')[:6]}+00:00").timestamp()
 
 config = json.loads(os.environ["COMPOSE_JSON"])
-project = config.get("name") or os.environ["PROJECT_NAME"]
+project = config.get("name") or os.environ["DEVOPS_PROJECT"]
 stale = False
 for name, service in sorted(config.get("services", {}).items()):
     build = service.get("build")
