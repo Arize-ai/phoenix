@@ -1,4 +1,4 @@
-"""Runs routing evals and gates on recall and false loads.
+"""Runs the loading evals in the routing files and gates on recall and false loads.
 
 Exit codes:
 

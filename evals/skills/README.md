@@ -10,14 +10,16 @@ This folder holds the cases that test the public skills in `skills/`. Cases live
 Replace `SKILL_NAME` with the skill's folder name in `skills/`, for example
 `phoenix-evals`.
 
+## Minimum case set
+
+Every public skill needs a routing file with at least 8 `load` cases and 8 `no-load`
+cases. At least 3 of the `no-load` cases have `kind: sibling`.
+
 ## Routing file
 
 A routing file lists queries and whether each one loads the skill. The runner sends each
 query to each channel, stops at the first skill load or after 3 turns, and repeats each
 query up to 3 times.
-
-Every public skill needs a routing file with at least 8 `load` cases and 8 `no-load`
-cases. At least 3 of the `no-load` cases have `kind: sibling`.
 
 ```yaml
 skill: phoenix-evals
@@ -81,7 +83,7 @@ on a channel when its `load` recall falls below `min_recall`, or when the share 
 loads with `harbor_verifiers.skills.loaded_skills`, the same parser the Harbor skill scores
 use.
 
-## Run the routing evals
+## Run the loading evals
 
 The runner records each suite, one skill on one channel, as a Phoenix experiment on the
 `skill-routing-SKILL_NAME` dataset. The experiment name holds the branch and commit, and
@@ -136,7 +138,7 @@ uv run --package harbor-verifiers python -m pytest evals/skills/tests
 
 ## Continuous integration
 
-The `Skill routing evals` workflow in `.github/workflows/skill-routing-evals.yml` runs on
+The `Skill loading evals` workflow in `.github/workflows/skill-loading-evals.yml` runs on
 pull requests that change a skill's `SKILL.md`, the MCP skill instructions, a routing file,
 or the runner. `python -m evals.skills.runner.affected` picks the suites to run:
 

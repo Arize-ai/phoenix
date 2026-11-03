@@ -24,7 +24,7 @@ import yaml
 
 from evals.skills.runner.cases import REPO_ROOT, RoutingFile, routing_files
 
-WORKFLOW = ".github/workflows/skill-routing-evals.yml"
+WORKFLOW = ".github/workflows/skill-loading-evals.yml"
 MCP_INSTRUCTIONS = (
     "src/phoenix/server/mcp/skills/__init__.py",
     "src/phoenix/server/agents/prompts/skills/SKILLS_INSTRUCTIONS.xml.j2",

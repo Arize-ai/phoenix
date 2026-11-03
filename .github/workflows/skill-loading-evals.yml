@@ -1,4 +1,4 @@
-name: Skill routing evals
+name: Skill loading evals
 
 # Checks that each public skill loads for the requests it covers and stays unloaded for the
 # requests it doesn't. See evals/skills/README.md for the routing files and the runner.
@@ -14,11 +14,11 @@ on:
       - "src/phoenix/server/mcp/skills/__init__.py"
       - "src/phoenix/server/agents/prompts/skills/SKILLS_INSTRUCTIONS.xml.j2"
       - "evals/skills/**"
-      - ".github/workflows/skill-routing-evals.yml"
+      - ".github/workflows/skill-loading-evals.yml"
   workflow_dispatch:
 
 concurrency:
-  group: skill-routing-evals-${{ github.event.pull_request.number || github.ref }}
+  group: skill-loading-evals-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   routing:
-    name: Skill routing evals
+    name: Skill loading evals
     # This job runs pull request code with an API key. Fork pull requests get no secrets.
     # Factory pull requests are written by an agent that reads public issue text, so a
     # maintainer runs this workflow by hand on them after reading the diff.
@@ -94,7 +94,7 @@ jobs:
         if: steps.affected.outputs.skills != ''
         run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
 
-      - name: Run routing evals
+      - name: Run loading evals
         if: steps.affected.outputs.skills != ''
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
