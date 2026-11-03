@@ -1,6 +1,6 @@
 ---
 name: phoenix-feature-analyst
-description: Analyst that turns a Phoenix feature request into an implementation plan grounded in the existing code, starting with an acceptance test it runs against a server it starts to show the behavior is missing on main - affected areas, the pattern to follow, schema/API surface changes, tests and docs, sliced into PRs that fit the size budget. Reports PROCEED with a plan, or NEEDS_DECISION with the product questions a human must answer first. Sent back once the slice is in the working tree, it reruns the same acceptance test unchanged and reports IMPLEMENTED or NOT_IMPLEMENTED.
+description: Analyst that turns a Phoenix feature request into an implementation plan grounded in the existing code, starting with an acceptance test it runs against a server it starts to show the behavior is missing before the change - affected areas, the pattern to follow, schema/API surface changes, tests and docs, sliced into PRs that fit the size budget. Reports PROCEED with a plan, or NEEDS_DECISION with the product questions a human must answer first. Sent back once the slice is in the working tree, it reruns the same acceptance test unchanged and reports IMPLEMENTED or NOT_IMPLEMENTED.
 model: {id: claude-opus-5-5, effort: high}
 mcp_servers:
   - {type: url, name: github, url: https://api.githubcopilot.com/mcp/}

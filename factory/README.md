@@ -73,7 +73,7 @@ sequenceDiagram
   else admitted
     dispatch->>session: create with the lane agent, repo mount and rubric
     dispatch->>github: post the run's status comment with the session link
-    session->>session: bootstrap, reproduce or analyze with an acceptance test, implement, rerun the acceptance test, area review
+    session->>session: bootstrap, reproduce or analyze with an acceptance test, implement, area review, rerun the acceptance test
     session->>github: push factory/issue-N, open a draft PR, post the assessment
     session->>grader: end turn
     grader-->>session: needs revision, up to 3 iterations, or satisfied
