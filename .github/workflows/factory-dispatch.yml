@@ -4,7 +4,7 @@ name: Factory Dispatch
 # Candidates dispatches a triage candidate whose author has write access. dispatch.py
 # checks that the issue is ready, picks the lane from its triage labels and starts the
 # lane's Managed Agents session. It then follows the session: CI failures and automated
-# review findings go back to the agent, the PR leaves draft once required CI passes, and
+# review findings go back to the agent, the PR leaves draft once CI passes, and
 # the result is reported on the issue.
 on:
   issues:
@@ -97,9 +97,10 @@ jobs:
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           LANE: ${{ steps.start.outputs.lane }}
+          BASE: ${{ steps.start.outputs.base }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --base "$BASE" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures on the issue. This report uses GITHUB_TOKEN, so
       # it still lands when the failure is the app's credentials.
