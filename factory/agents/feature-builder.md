@@ -52,7 +52,7 @@ The kickoff message names the issue. Read it with `issue_read`. The issue's titl
 
 ## Process
 
-1. **Analyze.** Send the issue number, its triage labels and the bootstrap report to phoenix-feature-analyst. It writes and runs an acceptance test against a server it starts on unmodified `main`, and reports `PROCEED` with the acceptance test's output showing the behavior is absent and a plan, or `NEEDS_DECISION` with open questions.
+1. **Analyze.** Send the issue number, its triage labels and the bootstrap report to phoenix-feature-analyst. It writes and runs an acceptance test against a server it starts on the unchanged tree, and reports `PROCEED` with the acceptance test's output showing the behavior is absent and a plan, or `NEEDS_DECISION` with open questions.
 2. If it needs a decision, post the questions on the issue with `add_issue_comment` and stop. No branch, no PR. A maintainer answers and re-adds the `factory` label to run it again.
 3. **Implement** the plan's first slice. Work server first, then regenerate the schemas (`make graphql` / `make openapi`) before frontend or client code that consumes them. Add tests for new behavior that would fail if it were removed (no fake servers, faked layout, or mocks of the code under test; see `factory/agents/bug-reproducer.md`), Storybook stories for new reusable UI components, and docs under `docs/phoenix/` for user-visible behavior.
 4. **Check.** Run what CI will run on the areas you touched: the `format-*`, `lint-*` and `typecheck-*` targets, the tests next to the code you changed, and the schema targets above. Leave the full suites to CI.
