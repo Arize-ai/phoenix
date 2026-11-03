@@ -5,18 +5,38 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Literal, Optional, Union
 from urllib.request import urlopen
 
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator, BaseModel, Field
+from typing_extensions import TypeGuard
 
+from phoenix.db.models import GenerativeModelType
 from phoenix.server.cost_tracking.manifest import (
     BUNDLED_MANIFEST_PATH,
     SUPPORTED_SCHEMA_VERSION,
     compute_models_sha256,
 )
 
-PROMPT_TOKEN_ATTRIBUTE = "llm.token_count.prompt"
+# The span attribute that LiteLLM's whole-prompt tiers (``..._above_NNNk_tokens``) are keyed on,
+# by model type: decision spans report their input tokens under their own attribute.
+PROMPT_TOKEN_ATTRIBUTES: dict[GenerativeModelType, str] = {
+    "LLM": "llm.token_count.prompt",
+    "DECISION": "decision.token_count.input",
+}
+
+# LiteLLM's ``mode`` values that aren't priced as LLMs. Every other mode (chat, responses,
+# completion, realtime, image_generation, ...) is synced as an LLM, as before types existed.
+MODEL_TYPES_BY_MODE: dict[str, GenerativeModelType] = {
+    "decisions": "DECISION",
+    # TypeSafe's Jev, which is called through the Decisions API.
+    "evaluation": "DECISION",
+    "embedding": "EMBEDDING",
+}
+
+# Suffix of the LiteLLM fields that price a chat model's calls to the Decisions API, such as
+# gpt-6-luna's ``input_cost_per_token_decisions``. Such a model gets a second, DECISION entry.
+DECISIONS_FIELD_SUFFIX = "_decisions"
 
 
 class ThresholdBasedTokenPriceCustomization(BaseModel):
@@ -56,7 +76,13 @@ class ModelConfig(BaseModel):
     name_pattern: Annotated[str, AfterValidator(validate_regular_expression)]
     source: ModelSource
     provider: str | None = None
+    # Left out for LLMs, which is what every entry in ``models`` is.
+    type: Optional[GenerativeModelType] = None
     token_prices: list[TokenPrice]
+
+    @property
+    def key(self) -> tuple[str, GenerativeModelType]:
+        return self.name, self.type or "LLM"
 
 
 class ModelCostManifest(BaseModel):
@@ -65,6 +91,12 @@ class ModelCostManifest(BaseModel):
     # Digest of the models as of generated_at; see compute_models_sha256().
     models_sha256: Optional[str] = None
     models: list[ModelConfig]
+    # Models of every other type. They are kept out of ``models`` because servers released
+    # before types existed read every entry there as an LLM (see manifest.py).
+    non_llm_models: list[ModelConfig] = Field(default_factory=list)
+
+    def section(self, model_type: GenerativeModelType) -> list[ModelConfig]:
+        return self.models if model_type == "LLM" else self.non_llm_models
 
 
 PROVIDER_PREFIXES: dict[str, str | None] = {
@@ -77,6 +109,7 @@ PROVIDER_PREFIXES: dict[str, str | None] = {
     "together_ai/": "together",
     "zai/": "zai",
     "meta/": "meta",
+    "typesafe/": "typesafe",
 }
 
 
@@ -94,6 +127,7 @@ class LiteLLMPricingEntry:
     provider: str | None  # Phoenix provider string (e.g., "groq") or None
     name_pattern: str  # Stripped name for regex (e.g., "llama-3.3-70b-versatile")
     token_prices: list[TokenPrice]
+    type: GenerativeModelType = "LLM"
 
 
 def filter_models(model_ids: list[str]) -> list[str]:
@@ -164,6 +198,7 @@ def fetch_data(url: str) -> dict[str, Any]:
 def _tier_customization(
     model_info: dict[str, Any],
     base_field: str,
+    prompt_token_attribute: str = PROMPT_TOKEN_ATTRIBUTES["LLM"],
 ) -> Optional[ThresholdBasedTokenPriceCustomization]:
     """
     LiteLLM publishes whole-prompt tier rates as ``<base_field>_above_NNNk_tokens`` variants
@@ -187,7 +222,7 @@ def _tier_customization(
         return None
     lowest_threshold = min(rates_by_threshold)
     return ThresholdBasedTokenPriceCustomization(
-        key=PROMPT_TOKEN_ATTRIBUTE,
+        key=prompt_token_attribute,
         threshold=lowest_threshold,
         new_rate=rates_by_threshold[lowest_threshold],
     )
@@ -272,11 +307,11 @@ def _to_finite_float(value: Any) -> Optional[float]:
     return number if math.isfinite(number) else None
 
 
-def _is_positive_number(value: Any) -> bool:
+def _is_positive_number(value: Any) -> TypeGuard[Union[float, int, str]]:
     return (number := _to_finite_float(value)) is not None and number > 0
 
 
-def _is_non_negative_number(value: Any) -> bool:
+def _is_non_negative_number(value: Any) -> TypeGuard[Union[float, int, str]]:
     return (number := _to_finite_float(value)) is not None and number >= 0
 
 
@@ -303,15 +338,38 @@ def next_generated_at(
     return candidate
 
 
+def move_to_their_lists(manifest: ModelCostManifest) -> None:
+    """
+    Moves entries edited by hand into the list for their type, and sorts both lists. Servers
+    that predate types read every entry in ``models`` as an LLM, and newer ones skip an entry
+    in the wrong list.
+    """
+    entries = [*manifest.models, *manifest.non_llm_models]
+    for model in entries:
+        if model.type == "LLM":
+            model.type = None
+    moved = [model.name for model in manifest.models if model.type is not None]
+    moved += [model.name for model in manifest.non_llm_models if model.type is None]
+    for name in moved:
+        print(f"Moved model to the list for its type: {name}")
+    manifest.models = [model for model in entries if model.type is None]
+    manifest.non_llm_models = [model for model in entries if model.type is not None]
+    for models in (manifest.models, manifest.non_llm_models):
+        models.sort(key=lambda model: ("/" in model.name, model.name, model.type or ""))
+
+
 def stamp(manifest: ModelCostManifest, previous: ModelCostManifest) -> None:
     """Sets the schema version, ``generated_at`` and ``models_sha256`` for the models."""
+    move_to_their_lists(manifest)
     manifest.schema_version = SUPPORTED_SCHEMA_VERSION
     manifest.generated_at = next_generated_at(previous, manifest)
     manifest.models_sha256 = compute_models_sha256(_dump_models(manifest))
 
 
 def _dump_models(manifest: ModelCostManifest) -> list[dict[str, Any]]:
-    models: list[dict[str, Any]] = manifest.model_dump(mode="json", exclude_none=True)["models"]
+    """The entries of every type: ``models`` followed by ``non_llm_models``."""
+    dumped = manifest.model_dump(mode="json", exclude_none=True)
+    models: list[dict[str, Any]] = [*dumped["models"], *dumped["non_llm_models"]]
     return models
 
 
@@ -319,15 +377,37 @@ def serialize_manifest(manifest: ModelCostManifest) -> str:
     return manifest.model_dump_json(indent=2, exclude_none=True)
 
 
+def _has_pricing(model_info: dict[str, Any]) -> bool:
+    """Both an input and an output rate are required for pricing."""
+    return (
+        _is_non_negative_number(model_info.get("input_cost_per_token"))
+        and _output_rate_field(model_info) is not None
+    )
+
+
+def model_type_for_mode(mode: Any) -> GenerativeModelType:
+    return MODEL_TYPES_BY_MODE.get(mode, "LLM") if isinstance(mode, str) else "LLM"
+
+
+def _decisions_pricing(model_info: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """
+    The prices of a chat model's calls to the Decisions API, under the plain field names
+    (``input_cost_per_token_decisions`` becomes ``input_cost_per_token``), or None if it has
+    none. Only the ``_decisions`` fields are used, so a rate LiteLLM doesn't publish for
+    decisions isn't borrowed from chat.
+    """
+    pricing = {
+        field.removesuffix(DECISIONS_FIELD_SUFFIX): value
+        for field, value in model_info.items()
+        if field.endswith(DECISIONS_FIELD_SUFFIX)
+    }
+    return pricing if _has_pricing(pricing) else None
+
+
 def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
-    models_with_pricing = []
-    for model_id, model_info in data.items():
-        # Both an input and an output rate are required for pricing.
-        if (
-            _is_non_negative_number(model_info.get("input_cost_per_token"))
-            and _output_rate_field(model_info) is not None
-        ):
-            models_with_pricing.append(model_id)
+    models_with_pricing = [
+        model_id for model_id, model_info in data.items() if _has_pricing(model_info)
+    ]
 
     filtered_model_ids = filter_models(models_with_pricing)
     print(f"Total models with pricing: {len(models_with_pricing)}")
@@ -340,149 +420,166 @@ def extract_litellm_entries(data: dict[str, Any]) -> list[LiteLLMPricingEntry]:
 
     for model_id in filtered_model_ids:
         model_info = data[model_id]
-
-        token_prices: list[TokenPrice] = []
-
-        if _is_non_negative_number(raw_input_cost := model_info.get("input_cost_per_token")):
-            token_prices.append(
-                TokenPrice(
-                    token_type="input",
-                    base_rate=float(raw_input_cost),
-                    is_prompt=True,
-                    customization=_tier_customization(model_info, "input_cost_per_token"),
+        model_type = model_type_for_mode(model_info.get("mode"))
+        if model_type == "EMBEDDING":
+            # Embedding spans aren't priced yet (#17305).
+            continue
+        pricings: list[tuple[GenerativeModelType, dict[str, Any]]] = [(model_type, model_info)]
+        if model_type == "LLM" and (decisions := _decisions_pricing(model_info)) is not None:
+            pricings.append(("DECISION", decisions))
+        _, provider, stripped_name = parse_provider_prefix(model_id)
+        for priced_type, pricing in pricings:
+            if token_prices := _token_prices(pricing, PROMPT_TOKEN_ATTRIBUTES[priced_type]):
+                pricing_entries.append(
+                    LiteLLMPricingEntry(
+                        name=model_id,
+                        provider=provider,
+                        name_pattern=stripped_name,
+                        token_prices=token_prices,
+                        type=priced_type,
+                    )
                 )
-            )
-
-        if (output_field := _output_rate_field(model_info)) is not None:
-            token_prices.append(
-                TokenPrice(
-                    token_type="output",
-                    base_rate=float(model_info[output_field]),
-                    is_prompt=False,
-                    customization=_tier_customization(model_info, output_field),
-                )
-            )
-
-        if _is_non_negative_number(
-            raw_cache_read_cost := model_info.get("cache_read_input_token_cost")
-        ):
-            token_prices.append(
-                TokenPrice(
-                    token_type="cache_read",
-                    base_rate=float(raw_cache_read_cost),
-                    is_prompt=True,
-                    customization=_tier_customization(model_info, "cache_read_input_token_cost"),
-                )
-            )
-
-        if _is_non_negative_number(
-            raw_cache_creation_cost := model_info.get("cache_creation_input_token_cost")
-        ):
-            token_prices.append(
-                TokenPrice(
-                    token_type="cache_write",
-                    base_rate=float(raw_cache_creation_cost),
-                    is_prompt=True,
-                    customization=_tier_customization(
-                        model_info, "cache_creation_input_token_cost"
-                    ),
-                )
-            )
-
-        if _is_non_negative_number(
-            raw_input_audio_cost := model_info.get("input_cost_per_audio_token")
-        ):
-            token_prices.append(
-                TokenPrice(
-                    token_type="audio",
-                    base_rate=float(raw_input_audio_cost),
-                    is_prompt=True,
-                )
-            )
-
-        if _is_non_negative_number(
-            raw_output_audio_cost := model_info.get("output_cost_per_audio_token")
-        ):
-            token_prices.append(
-                TokenPrice(
-                    token_type="audio",
-                    base_rate=float(raw_output_audio_cost),
-                    is_prompt=False,
-                )
-            )
-
-        if _is_non_negative_number(
-            raw_input_image_cost := model_info.get("input_cost_per_image_token")
-        ):
-            token_prices.append(
-                TokenPrice(
-                    token_type="image",
-                    base_rate=float(raw_input_image_cost),
-                    is_prompt=True,
-                )
-            )
-
-        if _is_non_negative_number(
-            raw_output_image_cost := model_info.get("output_cost_per_image_token")
-        ):
-            token_prices.append(
-                TokenPrice(
-                    token_type="image",
-                    base_rate=float(raw_output_image_cost),
-                    is_prompt=False,
-                )
-            )
-
-        if _is_non_negative_number(
-            raw_reasoning_cost := model_info.get("output_cost_per_reasoning_token")
-        ):
-            token_prices.append(
-                TokenPrice(
-                    token_type="reasoning",
-                    base_rate=float(raw_reasoning_cost),
-                    is_prompt=False,
-                )
-            )
-
-        if token_prices:
-            _, provider, stripped_name = parse_provider_prefix(model_id)
-            pricing_entries.append(
-                LiteLLMPricingEntry(
-                    name=model_id,
-                    provider=provider,
-                    name_pattern=stripped_name,
-                    token_prices=token_prices,
-                )
-            )
 
     return pricing_entries
+
+
+def _token_prices(model_info: dict[str, Any], prompt_token_attribute: str) -> list[TokenPrice]:
+    token_prices: list[TokenPrice] = []
+
+    if _is_non_negative_number(raw_input_cost := model_info.get("input_cost_per_token")):
+        token_prices.append(
+            TokenPrice(
+                token_type="input",
+                base_rate=float(raw_input_cost),
+                is_prompt=True,
+                customization=_tier_customization(
+                    model_info, "input_cost_per_token", prompt_token_attribute
+                ),
+            )
+        )
+
+    if (output_field := _output_rate_field(model_info)) is not None:
+        token_prices.append(
+            TokenPrice(
+                token_type="output",
+                base_rate=float(model_info[output_field]),
+                is_prompt=False,
+                customization=_tier_customization(model_info, output_field, prompt_token_attribute),
+            )
+        )
+
+    if _is_non_negative_number(
+        raw_cache_read_cost := model_info.get("cache_read_input_token_cost")
+    ):
+        token_prices.append(
+            TokenPrice(
+                token_type="cache_read",
+                base_rate=float(raw_cache_read_cost),
+                is_prompt=True,
+                customization=_tier_customization(
+                    model_info, "cache_read_input_token_cost", prompt_token_attribute
+                ),
+            )
+        )
+
+    if _is_non_negative_number(
+        raw_cache_creation_cost := model_info.get("cache_creation_input_token_cost")
+    ):
+        token_prices.append(
+            TokenPrice(
+                token_type="cache_write",
+                base_rate=float(raw_cache_creation_cost),
+                is_prompt=True,
+                customization=_tier_customization(
+                    model_info, "cache_creation_input_token_cost", prompt_token_attribute
+                ),
+            )
+        )
+
+    if _is_non_negative_number(
+        raw_input_audio_cost := model_info.get("input_cost_per_audio_token")
+    ):
+        token_prices.append(
+            TokenPrice(
+                token_type="audio",
+                base_rate=float(raw_input_audio_cost),
+                is_prompt=True,
+            )
+        )
+
+    if _is_non_negative_number(
+        raw_output_audio_cost := model_info.get("output_cost_per_audio_token")
+    ):
+        token_prices.append(
+            TokenPrice(
+                token_type="audio",
+                base_rate=float(raw_output_audio_cost),
+                is_prompt=False,
+            )
+        )
+
+    if _is_non_negative_number(
+        raw_input_image_cost := model_info.get("input_cost_per_image_token")
+    ):
+        token_prices.append(
+            TokenPrice(
+                token_type="image",
+                base_rate=float(raw_input_image_cost),
+                is_prompt=True,
+            )
+        )
+
+    if _is_non_negative_number(
+        raw_output_image_cost := model_info.get("output_cost_per_image_token")
+    ):
+        token_prices.append(
+            TokenPrice(
+                token_type="image",
+                base_rate=float(raw_output_image_cost),
+                is_prompt=False,
+            )
+        )
+
+    if _is_non_negative_number(
+        raw_reasoning_cost := model_info.get("output_cost_per_reasoning_token")
+    ):
+        token_prices.append(
+            TokenPrice(
+                token_type="reasoning",
+                base_rate=float(raw_reasoning_cost),
+                is_prompt=False,
+            )
+        )
+
+    return token_prices
 
 
 def update_manifest(
     manifest: ModelCostManifest,
     litellm_entries: list[LiteLLMPricingEntry],
 ) -> ModelCostManifest:
-    entries_by_name: dict[str, LiteLLMPricingEntry] = {
-        entry.name: entry for entry in litellm_entries
+    entries_by_key: dict[tuple[str, GenerativeModelType], LiteLLMPricingEntry] = {
+        (entry.name, entry.type): entry for entry in litellm_entries
     }
 
     # Remove LiteLLM models that are no longer in the remote data
-    for index in reversed(range(len(manifest.models))):
-        model = manifest.models[index]
-        if model.source == ModelSource.LITELLM and model.name not in entries_by_name:
-            removed_model = manifest.models.pop(index)
-            print(f"Removed LiteLLM model no longer in remote data: {removed_model.name}")
+    for models in (manifest.models, manifest.non_llm_models):
+        for index in reversed(range(len(models))):
+            model = models[index]
+            if model.source == ModelSource.LITELLM and model.key not in entries_by_key:
+                removed_model = models.pop(index)
+                print(
+                    "Removed LiteLLM model no longer in remote data: "
+                    f"{removed_model.name} ({model.key[1]})"
+                )
 
-    model_name_to_index: dict[str, int] = {}
-    for index, model in enumerate(manifest.models):
-        model_name_to_index[model.name] = index
+    existing_models = {model.key: model for model in (*manifest.models, *manifest.non_llm_models)}
 
     num_updated = 0
     for entry in litellm_entries:
-        if entry.name in model_name_to_index:
-            index = model_name_to_index[entry.name]
-            manifest.models[index].token_prices = entry.token_prices
-            manifest.models[index].provider = entry.provider
+        if (existing_model := existing_models.get((entry.name, entry.type))) is not None:
+            existing_model.token_prices = entry.token_prices
+            existing_model.provider = entry.provider
             num_updated += 1
         else:
             escaped_name_pattern = re.escape(entry.name_pattern).replace("\\-", "-")
@@ -491,11 +588,12 @@ def update_manifest(
                 name_pattern=escaped_name_pattern,
                 source=ModelSource.LITELLM,
                 provider=entry.provider,
+                type=None if entry.type == "LLM" else entry.type,
                 token_prices=entry.token_prices,
             )
-            manifest.models.append(new_model)
+            manifest.section(entry.type).append(new_model)
 
-    manifest.models.sort(key=lambda model: ("/" in model.name, model.name))
+    move_to_their_lists(manifest)
     print(f"Updated {num_updated} models from LiteLLM")
     return manifest
 
@@ -540,7 +638,10 @@ def main() -> int:
     else:
         print("No changes detected")
 
-    print(f"Total models in file: {len(updated_manifest.models)}")
+    print(
+        f"Total models in file: {len(updated_manifest.models)} LLM, "
+        f"{len(updated_manifest.non_llm_models)} other types"
+    )
     if litellm_entries is not None:
         print(f"Models from this sync: {len(litellm_entries)}")
 

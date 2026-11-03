@@ -310,9 +310,23 @@ def test_checked_in_manifest_parses_without_skipping_entries(
     # would be rejected or skipped by every running server too.
     parsed = parse_manifest(MANIFEST_PATH.read_bytes())
     assert parsed.schema_version == SUPPORTED_SCHEMA_VERSION
-    assert [model.name for model in parsed.models] == [
-        model["name"] for model in manifest["models"]
+    assert [model.key for model in parsed.models] == [
+        *((model["name"], "LLM") for model in manifest["models"]),
+        *((model["name"], model["type"]) for model in manifest["non_llm_models"]),
     ]
+
+
+def test_checked_in_manifest_reads_the_same_on_servers_that_predate_types(
+    manifest: dict[str, Any],
+) -> None:
+    # Servers released before model types (such as 21.0.0) fetch this same file. They ignore
+    # non_llm_models and price every entry in models as an LLM, keyed by name alone, so models
+    # must hold only LLMs. Removing non_llm_models must leave exactly the LLMs.
+    assert all("type" not in model for model in manifest["models"])
+    without_types = {key: value for key, value in manifest.items() if key != "non_llm_models"}
+    parsed_without_types = parse_manifest(json.dumps(without_types))
+    parsed = parse_manifest(MANIFEST_PATH.read_bytes())
+    assert parsed_without_types.models == [model for model in parsed.models if model.type == "LLM"]
 
 
 def test_bundled_manifest_is_the_one_servers_fetch() -> None:
@@ -325,7 +339,8 @@ def test_bundled_manifest_is_the_one_servers_fetch() -> None:
 
 
 def test_models_are_not_changed_without_bumping_generated_at(manifest: dict[str, Any]) -> None:
-    assert manifest.get("models_sha256") == compute_models_sha256(manifest["models"]), (
+    models = [*manifest["models"], *manifest.get("non_llm_models", [])]
+    assert manifest.get("models_sha256") == compute_models_sha256(models), (
         "The manifest's models changed without generated_at. Servers would skip the change, "
         "since they apply only a newer manifest. Run "
         "`uv run python scripts/cost_tracking/sync_models.py --bump-generated-at`."
