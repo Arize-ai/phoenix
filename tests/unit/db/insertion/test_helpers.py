@@ -321,6 +321,14 @@ class TestShouldCalculateSpanCost:
             ),
             pytest.param(
                 {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": 123},
+                },
+                False,
+                id="decision_span_with_non_string_model_name",
+            ),
+            pytest.param(
+                {
                     "openinference": {"span": {"kind": "LLM"}},
                     "decision": {"model_name": "jev-1.13.0"},
                 },

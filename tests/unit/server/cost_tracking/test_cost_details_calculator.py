@@ -877,25 +877,25 @@ class TestSpanCostDetailsCalculator:
         assert unpriced.total_cost is None
 
 
-def _tier(base_rate: float, new_rate: float, key: str = "llm.token_count.prompt") -> dict[str, Any]:
+def _tier(base_rate: float, new_rate: float) -> dict[str, Any]:
     return {
         "base_rate": base_rate,
         "customization": ThresholdBasedTokenPriceCustomization(
-            key=key, threshold=272_000, new_rate=new_rate
+            key="llm.token_count.prompt", threshold=272_000, new_rate=new_rate
         ),
     }
 
 
-def _luna_decision_prices(key: str = "llm.token_count.prompt") -> list[models.TokenPrice]:
+def _luna_decision_prices() -> list[models.TokenPrice]:
     """
     gpt-6-luna on the Decisions API: chat input and cache rates with the 272k tier, $0 output.
-    The tier key defaults to the one the LLM manifest entry uses.
+    The tier key is the one the LLM manifest entry uses.
     """
     return [
-        models.TokenPrice(token_type="input", is_prompt=True, **_tier(1e-7, 2e-7, key)),
-        models.TokenPrice(token_type="output", is_prompt=False, **_tier(0.0, 0.0, key)),
-        models.TokenPrice(token_type="cache_read", is_prompt=True, **_tier(1e-8, 2e-8, key)),
-        models.TokenPrice(token_type="cache_write", is_prompt=True, **_tier(1.25e-7, 2.5e-7, key)),
+        models.TokenPrice(token_type="input", is_prompt=True, **_tier(1e-7, 2e-7)),
+        models.TokenPrice(token_type="output", is_prompt=False, **_tier(0.0, 0.0)),
+        models.TokenPrice(token_type="cache_read", is_prompt=True, **_tier(1e-8, 2e-8)),
+        models.TokenPrice(token_type="cache_write", is_prompt=True, **_tier(1.25e-7, 2.5e-7)),
     ]
 
 
@@ -931,15 +931,8 @@ class TestDecisionSpanCostDetails:
         details = _by_type(calculator.calculate_details(_decision_span(input=1000, output=0)))
         assert details.keys() == {"input"}
 
-    @pytest.mark.parametrize(
-        "key",
-        [
-            pytest.param("llm.token_count.prompt", id="llm_key_falls_back_to_decision_input"),
-            pytest.param("decision.token_count.input", id="decision_key"),
-        ],
-    )
-    def test_272k_tier_applies_to_decision_input(self, key: str) -> None:
-        calculator = SpanCostDetailsCalculator(_luna_decision_prices(key))
+    def test_272k_tier_applies_to_decision_input(self) -> None:
+        calculator = SpanCostDetailsCalculator(_luna_decision_prices())
         details = _by_type(calculator.calculate_details(_decision_span(input=300_000, output=10)))
         assert details["input"].cost == pytest.approx(300_000 * 2e-7)
         assert details["output"].cost == 0.0

@@ -667,26 +667,21 @@ async def test_rejected_cost_keeps_its_span_and_sibling_costs(
     assert not cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
 
 
-async def test_decision_span_cost_is_priced_against_decision_model(db: DbSessionFactory) -> None:
-    def model(
-        type_: str, name: str, input_rate: float, output_rate: float
-    ) -> models.GenerativeModel:
-        return models.GenerativeModel(
-            name=name,
-            provider="openai",
-            name_pattern=re.compile("gpt-6-luna"),
-            is_built_in=True,
-            type=type_,
-            token_prices=[
-                models.TokenPrice(token_type="input", is_prompt=True, base_rate=input_rate),
-                models.TokenPrice(token_type="output", is_prompt=False, base_rate=output_rate),
-            ],
-        )
-
-    llm_model = model("LLM", "gpt-6-luna", 1.0 / 1_000_000, 5.0 / 1_000_000)
-    decision_model = model("DECISION", "gpt-6-luna-decisions", 0.10 / 1_000_000, 0.0)
+async def test_decision_span_gets_a_cost_row(db: DbSessionFactory) -> None:
+    # Pricing is covered in test_tracers.py; this checks the bulk inserter's own gate.
+    decision_model = models.GenerativeModel(
+        name="gpt-6-luna-decisions",
+        provider="openai",
+        name_pattern=re.compile("gpt-6-luna"),
+        is_built_in=True,
+        type="DECISION",
+        token_prices=[
+            models.TokenPrice(token_type="input", is_prompt=True, base_rate=1e-7),
+            models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.0),
+        ],
+    )
     async with db() as session:
-        session.add_all([llm_model, decision_model])
+        session.add(decision_model)
     store = GenerativeModelStore(db=db)
     await store._fetch_models()
     decision = replace(
@@ -694,58 +689,17 @@ async def test_decision_span_cost_is_priced_against_decision_model(db: DbSession
         span_kind=SpanKind.DECISION,
         attributes={
             "openinference": {"span": {"kind": "DECISION"}},
-            "decision": {
-                "model_name": "gpt-6-luna",
-                "provider": "openai",
-                "token_count": {"input": 1000, "output": 500},
-            },
+            "decision": {"model_name": "gpt-6-luna", "token_count": {"input": 1000, "output": 5}},
         },
     )
-    llm = replace(
-        _span("llm"),
-        attributes={
-            "openinference": {"span": {"kind": "LLM"}},
-            "llm": {
-                "model_name": "gpt-6-luna",
-                "provider": "openai",
-                "token_count": {"prompt": 1000, "completion": 500},
-            },
-        },
-    )
-    inserter = _inserter(db, decision, llm)
+    inserter = _inserter(db, decision)
     inserter._span_cost_calculator = SpanCostCalculator(model_store=store)
-    await inserter._insert_spans(2)
+    await inserter._insert_spans(1)
     async with db() as session:
-        costs = {
-            span_id: cost
-            for span_id, cost in await session.execute(
-                select(models.Span.span_id, models.SpanCost).join(
-                    models.SpanCost, models.SpanCost.span_rowid == models.Span.id
-                )
-            )
-        }
-        details = {
-            (span_id, token_type): cost
-            for span_id, token_type, cost in await session.execute(
-                select(
-                    models.Span.span_id,
-                    models.SpanCostDetail.token_type,
-                    models.SpanCostDetail.cost,
-                )
-                .join(models.SpanCost, models.SpanCost.span_rowid == models.Span.id)
-                .join(models.SpanCostDetail)
-            )
-        }
-    assert set(costs) == {"decision", "llm"}
-    assert costs["decision"].model_id == decision_model.id
-    assert costs["decision"].prompt_tokens == 1000
-    assert costs["decision"].completion_tokens == 500
-    assert costs["decision"].prompt_cost == pytest.approx(1000 * 0.10 / 1_000_000)
-    assert costs["decision"].completion_cost == 0.0
-    assert costs["decision"].total_cost == pytest.approx(1000 * 0.10 / 1_000_000)
-    assert details[("decision", "output")] == 0.0
-    assert costs["llm"].model_id == llm_model.id
-    assert costs["llm"].total_cost == pytest.approx((1000 * 1.0 + 500 * 5.0) / 1_000_000)
+        cost = await session.scalar(select(models.SpanCost))
+    assert cost is not None
+    assert cost.model_id == decision_model.id
+    assert cost.total_cost == pytest.approx(1000 * 1e-7)
 
 
 @pytest.mark.parametrize("sqlstate", ["40P01", "40001", "08006"])

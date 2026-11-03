@@ -15,6 +15,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, truncate_name
 from phoenix.db.models import Base
+from phoenix.server.cost_tracking.helpers import get_model_name
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -115,25 +116,19 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
         yield k, v
 
 
-_COST_MODEL_NAME_KEYS: Mapping[str, tuple[str, ...]] = {
-    OpenInferenceSpanKindValues.LLM.value: (SpanAttributes.LLM_MODEL_NAME,),
-    # `llm.model_name` on DECISION spans is from TypeSafe instrumentor releases that predate the
-    # `decision.*` attributes (OpenInference `spec/decision_spans.md`, "Transition Note").
-    OpenInferenceSpanKindValues.DECISION.value: (
-        SpanAttributes.DECISION_MODEL_NAME,
-        SpanAttributes.LLM_MODEL_NAME,
-    ),
-}
+_COST_SPAN_KINDS = frozenset(
+    (OpenInferenceSpanKindValues.LLM.value, OpenInferenceSpanKindValues.DECISION.value)
+)
 
 
 def should_calculate_span_cost(
     attributes: Optional[Mapping[str, Any]],
 ) -> bool:
-    """Whether the span is an LLM or DECISION span with a model name to price it by."""
+    """
+    Whether the span is an LLM or DECISION span with a model name to price it by. The name is
+    picked the same way the cost lookup picks it: `decision.model_name`, then the legacy
+    `llm.model_name` (OpenInference `spec/decision_spans.md`, "Transition Note"), on DECISION
+    spans, and `llm.model_name` on LLM spans.
+    """
     span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
-    if not isinstance(span_kind, str) or span_kind not in _COST_MODEL_NAME_KEYS:
-        return False
-    return any(
-        isinstance(model_name := get_attribute_value(attributes, key), str) and model_name.strip()
-        for key in _COST_MODEL_NAME_KEYS[span_kind]
-    )
+    return span_kind in _COST_SPAN_KINDS and bool(get_model_name(attributes))

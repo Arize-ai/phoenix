@@ -38,19 +38,29 @@ def _get_str(attributes: Optional[Mapping[str, Any]], *keys: str) -> str:
     return ""
 
 
+def _get_name(attributes: Optional[Mapping[str, Any]], *keys: str) -> str:
+    """Return the first non-blank string among `keys`, stripped, or "". Non-strings are skipped."""
+    for key in keys:
+        value = get_attribute_value(attributes, key)
+        if isinstance(value, str) and (value := value.strip()):
+            return value
+    return ""
+
+
 def get_model_name(attributes: Optional[Mapping[str, Any]]) -> str:
     """
-    Return the model name used for cost lookup, or "" if the span has none.
+    Return the model name used for cost lookup, or "" if the span has none. Only string values
+    count. `should_calculate_span_cost` uses this too, so the gate and the lookup agree on the name.
 
     DECISION spans read `decision.model_name`, falling back to `llm.model_name`, which TypeSafe
     instrumentor releases from before the `decision.*` attributes still set (OpenInference
     `spec/decision_spans.md`, "Transition Note"). Other spans read `llm.model_name`.
     """
     if get_priced_model_type(attributes) == "DECISION":
-        return _get_str(
+        return _get_name(
             attributes, SpanAttributes.DECISION_MODEL_NAME, SpanAttributes.LLM_MODEL_NAME
         )
-    return _get_str(attributes, SpanAttributes.LLM_MODEL_NAME)
+    return _get_name(attributes, SpanAttributes.LLM_MODEL_NAME)
 
 
 def get_provider(attributes: Optional[Mapping[str, Any]]) -> str:
@@ -75,8 +85,11 @@ def uses_decision_token_counts(attributes: Optional[Mapping[str, Any]]) -> bool:
     """
     Whether the span's token counts come from `decision.token_count.*`.
 
-    True for a DECISION span that sets `decision.token_count.input` or `.output`. A DECISION
-    span that sets neither falls back to the legacy `llm.token_count.*` attributes.
+    True for a DECISION span that sets a numeric `decision.token_count.input` or `.output`. A
+    DECISION span that sets neither falls back to the legacy `llm.token_count.*` attributes.
+    The two families are never mixed (the spec keeps decision usage in its own namespace): a
+    span with `decision.token_count.input` and only `llm.token_count.completion` has 0 output
+    tokens.
     `decision.token_count.*` has no detail (cache, audio, ...) keys, so when this is True the
     `llm.token_count.*_details` attributes are ignored too: they would describe a different set
     of counts.
@@ -84,7 +97,7 @@ def uses_decision_token_counts(attributes: Optional[Mapping[str, Any]]) -> bool:
     if get_priced_model_type(attributes) != "DECISION":
         return False
     return any(
-        get_attribute_value(attributes, key) is not None
+        isinstance(get_attribute_value(attributes, key), (int, float))
         for key in (
             SpanAttributes.DECISION_TOKEN_COUNT_INPUT,
             SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT,

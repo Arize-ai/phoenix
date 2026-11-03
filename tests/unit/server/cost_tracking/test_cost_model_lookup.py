@@ -1381,6 +1381,15 @@ class TestCostModelLookupByType:
                 None,
                 id="blank_decision_model_name",
             ),
+            pytest.param(
+                [
+                    _model(1, "DECISION", name_pattern="123"),
+                    _model(2, "DECISION", name_pattern="jev"),
+                ],
+                {**_decision(model_name=123), "llm": {"model_name": "jev"}},
+                2,
+                id="non_string_decision_model_name_falls_back_to_llm_model_name",
+            ),
         ],
     )
     def test_find_model(
