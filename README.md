@@ -156,7 +156,6 @@ The `arize-phoenix` package includes the entire Phoenix platform. However, if yo
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Client for the Arize Phoenix API                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript evaluation library for LLM applications (alpha release)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](./js/packages/phoenix-mcp/README.md)                                               | Standalone stdio MCP server for older Phoenix versions (maintenance mode — superseded by the [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) built into Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI for fetching traces, datasets, and experiments for use with Claude Code, Cursor, and other coding agents |
 
 ## Tracing Integrations
@@ -280,19 +279,23 @@ Run Phoenix [code evaluators](https://arize.com/docs/phoenix/evaluation/server-e
 
 ## For Humans and Coding Agents
 
-Phoenix is built to be driven by people and by AI coding agents alike. Three surfaces let agents (Claude Code, Codex, Cursor, and others) work with your traces, datasets, and experiments:
+People and coding agents such as Claude Code, Codex, and Cursor can both work with Phoenix. To give an agent access to your traces, datasets, and experiments, connect it in one of these ways:
 
-- **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` fetches traces, datasets, and experiments and instruments your app (`setup`), so an agent can pull context and act on it from the terminal.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](.agents/skills/) packages workflows that teach agents how to debug, evaluate, and trace with Phoenix.
-- **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — connect any MCP client to your instance's `/mcp` endpoint to query Phoenix directly.
+- **Claude Code or Codex.** Install the Arize Phoenix plugin. It registers the Phoenix MCP server and installs the Phoenix skills.
+- **Any other agent.** Add the [Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) at your instance's `/mcp` endpoint. It serves your Phoenix data and the Phoenix skills, which match your server version.
+- **Optional CLI.** The [Phoenix CLI](https://arize.com/docs/phoenix/integrations/developer-tools/cli), `npx @arizeai/phoenix-cli`, runs Phoenix commands in a terminal, and `px setup` instruments your app through your coding agent.
 
-See the [coding agents documentation](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for setup and usage.
+See [Connect Your Coding Agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) for setup steps.
 
-| Skill                                              | Description                                                                                                                |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](skills/phoenix-cli/)                 | Debug LLM applications using the Phoenix CLI — fetch traces, analyze errors, review experiments, and query the GraphQL API |
-| [phoenix-evals](skills/phoenix-evals/)             | Build, run, and validate evaluators for AI/LLM applications using Phoenix                                                  |
-| [phoenix-tracing](skills/phoenix-tracing/)         | OpenInference semantic conventions and instrumentation for tracing LLM applications                                        |
+The **[skills](https://arize.com/docs/phoenix/integrations/developer-tools/skills)** live in [`skills/`](skills/) and teach agents how to trace, evaluate, and debug with Phoenix:
+
+| Skill                                                    | Description                                                                                                                |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [phoenix-cli](skills/phoenix-cli/)                       | Debug LLM applications with the Phoenix CLI. Fetch traces, analyze errors, review experiments, and query the GraphQL API  |
+| [phoenix-error-analysis](skills/phoenix-error-analysis/) | Read sampled traces, write notes, and group them into failure categories that pick eval targets and fix priorities         |
+| [phoenix-evals](skills/phoenix-evals/)                   | Build, run, and validate evaluators for AI/LLM applications using Phoenix                                                  |
+| [phoenix-harbor](skills/phoenix-harbor/)                 | Configure and interpret the Phoenix plugin for Harbor agent evaluations                                                    |
+| [phoenix-tracing](skills/phoenix-tracing/)               | OpenInference semantic conventions and instrumentation for tracing LLM applications                                        |
 
 ## Security & Privacy
 

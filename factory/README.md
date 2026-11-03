@@ -73,7 +73,7 @@ sequenceDiagram
   else admitted
     dispatch->>session: create with the lane agent, repo mount and rubric
     dispatch->>github: post the run's status comment with the session link
-    session->>session: bootstrap, reproduce or analyze, implement, area review
+    session->>session: bootstrap, reproduce or analyze with an acceptance test, implement, area review, rerun the acceptance test
     session->>github: push factory/issue-N, open a draft PR, post the assessment
     session->>grader: end turn
     grader-->>session: needs revision, up to 3 iterations, or satisfied
@@ -99,9 +99,9 @@ Each part does one job, so it can be changed and tested on its own:
 | Issue triage | `claude-issue-triage-on-open.yml` runs the triage job on each issue the moment it is opened, and `claude-issue-triage-sweep.yml` runs it over a slice of the backlog every 2 days; both call `claude-issue-triage.yml`. It labels `factory-candidate` the issues that pass [the factory-candidate policy](../.agents/skills/issue-triage/references/factory-candidate.md): specified, typed, `size:S` or `size:M`, reproducible in the sandbox, and needing no product decision |
 | `factory-candidates.yml` | After each triage run, dispatches up to 3 candidates the factory hasn't run on whose author has write access. Other candidates wait for a maintainer to add `factory` |
 | `dispatch.py start` | Admits the issue: the requester has write access, or for a run a workflow dispatched, the issue's author does, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it |
-| Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, opens the draft PR, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
-| `bug-reproducer` | Writes a test that fails for the reported reason before any fix exists, or reports `NEEDS_BROWSER` with the cause when only a browser or running server can show it |
-| `feature-analyst` | Runs a probe showing `main` lacks the behavior, then plans slices, or returns `NEEDS_DECISION` |
+| Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, sends it back to the reproducer or analyst to verify, opens the draft PR with both acceptance test outputs in its Acceptance test section, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
+| `bug-reproducer` | Before any fix exists, writes a unit test that fails for the reported reason and an acceptance test that shows the symptom against a server it starts; called back after the fix, reruns both unchanged and reports `FIXED` or `NOT_FIXED`. It verifies the fix because it did not write it |
+| `feature-analyst` | Runs an acceptance test showing the target branch lacks the behavior, then plans slices, or returns `NEEDS_DECISION`; called back after the implementation, reruns the acceptance test unchanged and reports `IMPLEMENTED` or `NOT_IMPLEMENTED` |
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
@@ -139,7 +139,7 @@ Claude Code Review runs on the `pull_request` event, which carries no secrets fo
    | `factory-request-changes` | **Request changes** | Check the **Blocking** findings. Then request changes in GitHub, linking the factory's review, or fix the PR yourself. |
    | `factory-close` | **Close** | Read the sentence under the review's heading, which gives the reason, such as a duplicate PR or a declined approach. Then close the PR with a comment to the author. |
 
-5. **Review again after new commits.** Re-add `factory-review`. The new run removes the old verdict label when it starts, and adds the new one when it ends.
+5. **Review again after new commits.** Re-add `factory-review`. The new run removes the old verdict label when it starts, and adds the new one when it ends. The new review re-checks the threads earlier rounds left open: `review.py` resolves the ones the review names as fixed or no longer applicable, and a finding that still holds keeps its thread instead of being posted again.
 
 Saved searches for the queue:
 
@@ -214,11 +214,11 @@ Every report on the issue names how the run ended. Only `success` asks for a hum
 
 ```
 agents/          one file per agent: frontmatter = config, body = system prompt; the triage agents' procedure is in .agents/skills/
-environments/    the sandbox (uv, tox, pnpm, limited networking)
+environments/    the sandbox (uv, tox, pnpm, agent-browser, limited networking)
 vaults/          the vault containers (GitHub, Grafana, Datadog); the Grafana and Datadog credentials are added by hand
 rubrics/         outcome rubrics, inlined by dispatch.py and log_scan.py (not ant resources)
 assessment.md    the fit-and-risk comment coordinators post on their PR
-bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a capability report
+bootstrap.sh     run by each coordinator first: Node from .nvmrc, `make setup`, a PostgreSQL instance, a headless browser check, a gh that attaches screenshots, a capability report
 dispatch.py      admits an issue, starts its session, and follows it to a reviewable PR
 github_app.py    mints the GitHub App's installation tokens and keeps sessions and the vault supplied
 review.py        admits a pull request, starts its pr-reviewer session, and reports and labels the review's verdict
@@ -303,7 +303,7 @@ The agent does the work a regex can't. It reads the window's lines through mcp-g
 
 The cloud scan sees every tenant at once, so one bug shows up as many lines from many servers; the `cloud-triage` agent counts the tenants in the issue's impact without naming them, and distinguishes a platform event every tenant hit for the same minutes (not a bug) from an error one tenant keeps hitting (a bug). A background daemon's line carries no `trace_id`, so grouping there goes by the innermost Phoenix frame of the stack trace.
 
-The session files and comments as the factory app through the GitHub MCP server. The Railway agent never adds the `factory` label, so an agent reading untrusted log lines is not what starts spend; the cloud agent may add it to an issue that is ready for the bug lane. After the session, `log_scan.py` labels every issue it created as the app, oldest first; each label starts a bug-lane session at once with its own budget, and the step summary lists them. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and `dispatch.py` accepts the app, `FACTORY_GITHUB_LOGIN`, as a requester. Dispatch is on by default; set the repository variable `FACTORY_LOG_SCAN_DISPATCH` (or `FACTORY_CLOUD_LOG_SCAN_DISPATCH` for the cloud scan) to `false` to pause it for the schedule, or untick `dispatch` on a manual run. If the repository secret `SLACK_WEBHOOK_URL` holds a Slack incoming webhook, the scan posts the issues it filed to that channel once the session ends. This is the same webhook the other workflows use for CI notifications, so the posts land in that channel rather than `#p-factory`.
+The session files and comments as the factory app through the GitHub MCP server. The Railway agent never adds the `factory` label, so an agent reading untrusted log lines is not what starts spend; the cloud agent may add it to an issue that is ready for the bug lane. After the session, `log_scan.py` labels every issue it created as the app, oldest first; each label starts a bug-lane session at once with its own budget, and the step summary lists them. A `factory` label applied with `GITHUB_TOKEN` would not start `factory-dispatch.yml`, and `dispatch.py` accepts the app, `FACTORY_GITHUB_LOGIN`, as a requester. Dispatch is on by default; set the repository variable `FACTORY_LOG_SCAN_DISPATCH` (or `FACTORY_CLOUD_LOG_SCAN_DISPATCH` for the cloud scan) to `false` to pause it for the schedule, or untick `dispatch` on a manual run. If the repository secret `SLACK_BOT_TOKEN` and the repository variable `SLACK_CHANNEL_ID` are set, the scan posts the issues it filed to that channel as the CI Slack app once the session ends. This is the same channel the other workflows use for CI notifications, so the posts land there rather than in `#p-factory`.
 
 ### Log scan bootstrap
 

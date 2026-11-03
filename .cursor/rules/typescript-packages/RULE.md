@@ -31,7 +31,6 @@ Located in `js/packages/`:
 - `phoenix-otel` - OpenTelemetry instrumentation
 - `phoenix-client` - TypeScript client for Phoenix API
 - `phoenix-evals` - Evaluation framework
-- `phoenix-mcp` - Model Context Protocol integration
 - `phoenix-cli` - Command-line interface
 - `phoenix-config` - Configuration utilities
 

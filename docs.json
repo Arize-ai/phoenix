@@ -1191,7 +1191,6 @@
                 ]
               },
               "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
-              "docs/phoenix/sdk-api-reference/typescript/mcp-server",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"
             ]
           },
@@ -1952,6 +1951,10 @@
     },
     {
       "source": "/docs/phoenix/integrations/phoenix-mcp-server",
+      "destination": "/docs/phoenix/integrations/mcp"
+    },
+    {
+      "source": "/docs/phoenix/sdk-api-reference/typescript/mcp-server",
       "destination": "/docs/phoenix/integrations/mcp"
     },
     {
