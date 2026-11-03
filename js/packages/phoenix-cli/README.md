@@ -570,6 +570,52 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 
 ---
 
+### `px decision list`
+
+List saved decisions, newest first.
+
+```bash
+px decision list --name triage --format raw --no-progress | jq '.[].name'
+```
+
+| Option              | Description                                       | Default  |
+| ------------------- | ------------------------------------------------- | -------- |
+| `--name <text>`     | Only decisions whose name contains this, any case | —        |
+| `--label-id <id>`   | Only decisions with this label (repeatable)       | —        |
+| `--limit <number>`  | Maximum number of decisions to fetch              | all      |
+| `--format <format>` | `pretty`, `json`, or `raw`                        | `pretty` |
+
+---
+
+### `px decision get <decision-identifier>`
+
+Show a version of a saved decision: its state template, questions, variables, model, and tags. Without `--tag` or `--version`, shows the latest version.
+
+```bash
+px decision get ticket-triage --tag production
+px decision get ticket-triage --tag production --format raw --no-progress | jq -r '.variables[]'
+```
+
+| Option              | Description                                             | Default  |
+| ------------------- | ------------------------------------------------------- | -------- |
+| `--tag <name>`      | Show the version this tag points to                     | —        |
+| `--version <id>`    | Show this version; it must belong to the named decision | latest   |
+| `--format <format>` | `pretty`, `json`, or `raw`                              | `pretty` |
+
+`--tag` and `--version` are mutually exclusive.
+
+---
+
+### `px decision delete <decision-identifier>`
+
+Delete a saved decision with its versions, tags, and labels. Requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`; `--yes` skips the confirmation. A decision an evaluator runs is refused (409, `problem_reason: referenced_by_evaluator`); delete the evaluator first.
+
+```bash
+px decision delete ticket-triage --yes
+```
+
+---
+
 ### `px evaluator list`
 
 List shared evaluator definitions, newest first. Every definition is listed whether or not a project or dataset uses it. Requires Phoenix server >= 21.0.0.
