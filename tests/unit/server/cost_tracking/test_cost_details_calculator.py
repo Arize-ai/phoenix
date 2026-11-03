@@ -992,3 +992,27 @@ class TestDecisionSpanCostDetails:
             "input": _Cost(tokens=412, cost=None, cost_per_token=None),
             "output": _Cost(tokens=2, cost=None, cost_per_token=None),
         }
+
+    def test_tier_reads_the_counts_being_priced(self) -> None:
+        # With decision counts present, a tier keyed on llm.token_count.prompt is decided by
+        # decision.token_count.input, not by a stray llm.* count.
+        calculator = SpanCostDetailsCalculator(_luna_decision_prices())
+        attributes = _decision_span(input=300_000, output=1)
+        attributes["llm"] = {"token_count": {"prompt": 0}}
+        details = _by_type(calculator.calculate_details(attributes))
+        assert details["input"].cost == pytest.approx(300_000 * 2e-7)
+
+        attributes = _decision_span(input=1000, output=1)
+        attributes["llm"] = {"token_count": {"prompt": 300_000}}
+        details = _by_type(calculator.calculate_details(attributes))
+        assert details["input"].cost == pytest.approx(1000 * 1e-7)
+
+    def test_llm_span_tier_ignores_decision_counts(self) -> None:
+        calculator = SpanCostDetailsCalculator(_luna_decision_prices())
+        attributes = {
+            "openinference": {"span": {"kind": "LLM"}},
+            "llm": {"token_count": {"completion": 10, "total": 1010}},
+            "decision": {"token_count": {"input": 300_000}},
+        }
+        details = _by_type(calculator.calculate_details(attributes))
+        assert details["input"].cost == pytest.approx(1000 * 1e-7)
