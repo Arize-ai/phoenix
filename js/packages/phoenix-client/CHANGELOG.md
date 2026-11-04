@@ -1,5 +1,12 @@
 # @arizeai/phoenix-client
 
+## 7.18.1
+
+### Patch Changes
+
+- 6a60c71: fix(phoenix-client): preserve the error status of failed experiment task spans
+- 491ae7a: fix(phoenix-client): preserve system and developer instructions when converting prompts to Anthropic, omitting empty text blocks from the system array
+
 ## 7.18.0
 
 ### Minor Changes
