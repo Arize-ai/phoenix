@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a17b0609bad6ea019c8abc05e493c934>>
+ * @generated SignedSource<<dade6be2d28acb7e105934a3a5387256>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,10 @@ export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | 
 export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_row$data = {
+  readonly dataset: {
+    readonly id: string;
+    readonly name: string;
+  };
   readonly description: string | null;
   readonly evaluator: {
     readonly createdAt: string;
@@ -70,6 +74,6 @@ const node: ReaderInlineDataFragment = {
   "name": "DatasetEvaluatorsTable_row"
 };
 
-(node as any).hash = "2f06cda3aa19562896660bf067e321db";
+(node as any).hash = "4fe4b5c879c70917e67aa9df2a4db801";
 
 export default node;
