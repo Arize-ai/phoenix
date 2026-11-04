@@ -55,12 +55,7 @@ _HELP_FLAGS = ("-h", "--help")
 
 # Commands that fail today, keyed by their arguments. Each entry is a bug in a skill; fix the
 # skill and delete its entry. The tests are strict, so a fixed command fails until its entry goes.
-KNOWN_BROKEN = {
-    "trace list --profile staging --limit 10 --format raw --no-progress": (
-        "only `px auth` and `px setup mcp` take --profile"
-    ),
-    "span get '<span-id>'": "px span has no get subcommand",
-}
+KNOWN_BROKEN: dict[str, str] = {}
 
 _FENCE = re.compile(r"^[ \t]*```(\w*)[^\n]*\n(.*?)^[ \t]*```", re.DOTALL | re.MULTILINE)
 _SHELL_LANGUAGES = frozenset({"", "bash", "sh", "shell", "console"})
