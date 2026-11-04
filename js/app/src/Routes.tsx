@@ -28,11 +28,11 @@ import {
 } from "@phoenix/pages/decisions/decisionLoader";
 import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
 import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
-import { AllEvaluatorsPage } from "@phoenix/pages/evaluators/allEvaluators/AllEvaluatorsPage";
-import { serverDatasetEvaluatorsLoader } from "@phoenix/pages/evaluators/datasetEvaluators/serverDatasetEvaluatorsLoader";
-import { ServerDatasetEvaluatorsPage } from "@phoenix/pages/evaluators/datasetEvaluators/ServerDatasetEvaluatorsPage";
+import { AllEvaluatorsTab } from "@phoenix/pages/evaluators/all/AllEvaluatorsTab";
+import { DatasetEvaluatorsTab } from "@phoenix/pages/evaluators/dataset-evaluators/DatasetEvaluatorsTab";
+import { datasetEvaluatorsTabLoader } from "@phoenix/pages/evaluators/dataset-evaluators/datasetEvaluatorsTabLoader";
 import { EvaluatorsLayout } from "@phoenix/pages/evaluators/EvaluatorsLayout";
-import { ServerProjectEvaluatorsPage } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsPage";
+import { ProjectEvaluatorsTab } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTab";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
 import {
   projectEvaluatorCompareLoader,
@@ -1064,7 +1064,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route element={<EvaluatorsLayout />}>
             <Route
               path="project-evaluators"
-              element={<ServerProjectEvaluatorsPage />}
+              element={<ProjectEvaluatorsTab />}
               handle={{
                 agentRoute: {
                   label: "Project Evaluators",
@@ -1075,8 +1075,8 @@ export const appRouteObjects = createRoutesFromElements(
             />
             <Route
               path="dataset-evaluators"
-              element={<ServerDatasetEvaluatorsPage />}
-              loader={serverDatasetEvaluatorsLoader}
+              element={<DatasetEvaluatorsTab />}
+              loader={datasetEvaluatorsTabLoader}
               handle={{
                 agentRoute: {
                   label: "Dataset Evaluators",
@@ -1087,7 +1087,7 @@ export const appRouteObjects = createRoutesFromElements(
             />
             <Route
               path="all"
-              element={<AllEvaluatorsPage />}
+              element={<AllEvaluatorsTab />}
               handle={{
                 agentRoute: {
                   label: "All Evaluators",

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<58a0a9acbd79381c07dec3e249503b66>>
+ * @generated SignedSource<<d509000811d9477135a1c0383465d0d6>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ServerDatasetEvaluatorsTable_datasetEvaluators$data = {
+export type DatasetEvaluatorsTabTable_datasetEvaluators$data = {
   readonly datasetEvaluators: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -17,14 +17,14 @@ export type ServerDatasetEvaluatorsTable_datasetEvaluators$data = {
       };
     }>;
   };
-  readonly " $fragmentType": "ServerDatasetEvaluatorsTable_datasetEvaluators";
+  readonly " $fragmentType": "DatasetEvaluatorsTabTable_datasetEvaluators";
 };
-export type ServerDatasetEvaluatorsTable_datasetEvaluators$key = {
-  readonly " $data"?: ServerDatasetEvaluatorsTable_datasetEvaluators$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ServerDatasetEvaluatorsTable_datasetEvaluators">;
+export type DatasetEvaluatorsTabTable_datasetEvaluators$key = {
+  readonly " $data"?: DatasetEvaluatorsTabTable_datasetEvaluators$data;
+  readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTabTable_datasetEvaluators">;
 };
 
-import ServerDatasetEvaluatorsTableQuery_graphql from './ServerDatasetEvaluatorsTableQuery.graphql';
+import DatasetEvaluatorsTabTableQuery_graphql from './DatasetEvaluatorsTabTableQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -115,10 +115,10 @@ return {
         "path": (v0/*:: as any*/)
       },
       "fragmentPathInResult": [],
-      "operation": ServerDatasetEvaluatorsTableQuery_graphql
+      "operation": DatasetEvaluatorsTabTableQuery_graphql
     }
   },
-  "name": "ServerDatasetEvaluatorsTable_datasetEvaluators",
+  "name": "DatasetEvaluatorsTabTable_datasetEvaluators",
   "selections": [
     {
       "alias": "datasetEvaluators",
@@ -136,7 +136,7 @@ return {
       ],
       "concreteType": "DatasetEvaluatorConnection",
       "kind": "LinkedField",
-      "name": "__ServerDatasetEvaluatorsTable_datasetEvaluators_connection",
+      "name": "__DatasetEvaluatorsTabTable_datasetEvaluators_connection",
       "plural": false,
       "selections": [
         {
@@ -413,6 +413,6 @@ return {
 };
 })();
 
-(node as any).hash = "51f526430cb1dce6f3144af154f2cbc6";
+(node as any).hash = "d8a4a516e40f8786f49cf73cc8883633";
 
 export default node;

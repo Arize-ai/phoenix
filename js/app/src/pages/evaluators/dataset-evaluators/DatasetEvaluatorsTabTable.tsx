@@ -2,7 +2,7 @@ import { usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 
-import type { ServerDatasetEvaluatorsTable_datasetEvaluators$key } from "@phoenix/pages/evaluators/datasetEvaluators/__generated__/ServerDatasetEvaluatorsTable_datasetEvaluators.graphql";
+import type { DatasetEvaluatorsTabTable_datasetEvaluators$key } from "@phoenix/pages/evaluators/dataset-evaluators/__generated__/DatasetEvaluatorsTabTable_datasetEvaluators.graphql";
 import { DatasetEvaluatorsTable } from "@phoenix/pages/evaluators/DatasetEvaluatorsTable";
 
 const PAGE_SIZE = 100;
@@ -10,10 +10,10 @@ const PAGE_SIZE = 100;
 /**
  * Every dataset evaluator on the server, across datasets.
  */
-export function ServerDatasetEvaluatorsTable({
+export function DatasetEvaluatorsTabTable({
   query,
 }: {
-  query: ServerDatasetEvaluatorsTable_datasetEvaluators$key;
+  query: DatasetEvaluatorsTabTable_datasetEvaluators$key;
 }) {
   const navigate = useNavigate();
   const {
@@ -24,8 +24,8 @@ export function ServerDatasetEvaluatorsTable({
     refetch: _refetch,
   } = usePaginationFragment(
     graphql`
-      fragment ServerDatasetEvaluatorsTable_datasetEvaluators on Query
-      @refetchable(queryName: "ServerDatasetEvaluatorsTableQuery")
+      fragment DatasetEvaluatorsTabTable_datasetEvaluators on Query
+      @refetchable(queryName: "DatasetEvaluatorsTabTableQuery")
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 100 }
@@ -37,7 +37,7 @@ export function ServerDatasetEvaluatorsTable({
           after: $after
           sort: $sort
           filter: $filter
-        ) @connection(key: "ServerDatasetEvaluatorsTable_datasetEvaluators") {
+        ) @connection(key: "DatasetEvaluatorsTabTable_datasetEvaluators") {
           edges {
             node {
               ...DatasetEvaluatorsTable_row

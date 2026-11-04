@@ -1,20 +1,21 @@
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { Icon, Icons, Link, Text } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DatasetLink } from "@phoenix/components/dataset/DatasetLink";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
-import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { ProjectLink } from "@phoenix/components/project/ProjectLink";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
-import type { AllEvaluatorsTableQuery } from "@phoenix/pages/evaluators/allEvaluators/__generated__/AllEvaluatorsTableQuery.graphql";
+import type { AllEvaluatorsTableQuery } from "@phoenix/pages/evaluators/all/__generated__/AllEvaluatorsTableQuery.graphql";
 import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 
@@ -47,11 +48,6 @@ type TableRow = {
   runSummary: ProjectEvaluatorNode["runSummary"] | null;
 };
 
-const ATTACHED_TO_ICONS = {
-  project: <Icons.Trace />,
-  dataset: <Icons.Database />,
-};
-
 const columns: ColumnDef<TableRow>[] = [
   {
     id: "name",
@@ -59,35 +55,24 @@ const columns: ColumnDef<TableRow>[] = [
     size: 220,
     accessorFn: (row) => row.name,
     cell: ({ row }) => (
-      <StopPropagation>
-        <Link to={row.original.detailsPath}>
-          <Truncate maxWidth="100%">{row.original.name}</Truncate>
-        </Link>
-      </StopPropagation>
+      <Link to={row.original.detailsPath}>
+        <Truncate maxWidth="100%">{row.original.name}</Truncate>
+      </Link>
     ),
-  },
-  {
-    id: "type",
-    header: "type",
-    size: 90,
-    accessorFn: (row) => row.attachedTo.type,
-    cell: ({ row }) => <Text>{row.original.attachedTo.type}</Text>,
   },
   {
     id: "attachedTo",
     header: "attached to",
     size: 220,
     accessorFn: (row) => row.attachedTo.name,
-    cell: ({ row }) => (
-      <StopPropagation>
-        <Link to={row.original.attachedTo.path}>
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <Icon svg={ATTACHED_TO_ICONS[row.original.attachedTo.type]} />
-            <Truncate maxWidth="100%">{row.original.attachedTo.name}</Truncate>
-          </Flex>
-        </Link>
-      </StopPropagation>
-    ),
+    cell: ({ row }) => {
+      const { type, name, path } = row.original.attachedTo;
+      return type === "project" ? (
+        <ProjectLink name={name} to={path} />
+      ) : (
+        <DatasetLink name={name} to={path} />
+      );
+    },
   },
   {
     id: "kind",

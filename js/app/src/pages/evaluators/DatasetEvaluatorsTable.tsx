@@ -24,6 +24,7 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DatasetLink } from "@phoenix/components/dataset/DatasetLink";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -275,14 +276,10 @@ const datasetColumn: ColumnDef<TableRow> = {
   size: 180,
   enableSorting: false,
   cell: ({ row }) => (
-    <StopPropagation>
-      <Link to={`/datasets/${row.original.dataset.id}`}>
-        <Flex direction="row" gap="size-50" alignItems="center">
-          <Icon svg={<Icons.Database />} />
-          <Truncate maxWidth="100%">{row.original.dataset.name}</Truncate>
-        </Flex>
-      </Link>
-    </StopPropagation>
+    <DatasetLink
+      name={row.original.dataset.name}
+      to={`/datasets/${row.original.dataset.id}`}
+    />
   ),
 };
 

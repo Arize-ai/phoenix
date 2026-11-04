@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<41ea54c046d9f715ed6c1b758b445695>>
+ * @generated SignedSource<<dcc98bca3029977c57336aa5cde11d5b>>
  * @lightSyntaxTransform
  */
 
@@ -9,120 +9,67 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DatasetEvaluatorColumn = "createdAt" | "kind" | "name" | "updatedAt";
-export type DatasetEvaluatorFilterColumn = "name";
-export type SortDir = "asc" | "desc";
-export type DatasetEvaluatorFilter = {
-  col: DatasetEvaluatorFilterColumn;
-  value: string;
+export type datasetEvaluatorsTabLoaderQuery$variables = Record<PropertyKey, never>;
+export type datasetEvaluatorsTabLoaderQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTabTable_datasetEvaluators">;
 };
-export type DatasetEvaluatorSort = {
-  col: DatasetEvaluatorColumn;
-  dir: SortDir;
-};
-export type ServerDatasetEvaluatorsTableQuery$variables = {
-  after?: string | null;
-  filter?: DatasetEvaluatorFilter | null;
-  first?: number | null;
-  sort?: DatasetEvaluatorSort | null;
-};
-export type ServerDatasetEvaluatorsTableQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ServerDatasetEvaluatorsTable_datasetEvaluators">;
-};
-export type ServerDatasetEvaluatorsTableQuery = {
-  response: ServerDatasetEvaluatorsTableQuery$data;
-  variables: ServerDatasetEvaluatorsTableQuery$variables;
+export type datasetEvaluatorsTabLoaderQuery = {
+  response: datasetEvaluatorsTabLoaderQuery$data;
+  variables: datasetEvaluatorsTabLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "after"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "filter"
-  },
-  {
-    "defaultValue": 100,
-    "kind": "LocalArgument",
-    "name": "first"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "sort"
-  }
-],
-v1 = [
-  {
-    "kind": "Variable",
-    "name": "after",
-    "variableName": "after"
-  },
-  {
-    "kind": "Variable",
-    "name": "filter",
-    "variableName": "filter"
-  },
-  {
-    "kind": "Variable",
+    "kind": "Literal",
     "name": "first",
-    "variableName": "first"
-  },
-  {
-    "kind": "Variable",
-    "name": "sort",
-    "variableName": "sort"
+    "value": 100
   }
 ],
-v2 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
   "storageKey": null
 },
-v5 = [
-  (v2/*:: as any*/),
-  (v3/*:: as any*/)
+v4 = [
+  (v1/*:: as any*/),
+  (v2/*:: as any*/)
 ],
-v6 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v7 = [
-  (v3/*:: as any*/),
-  (v2/*:: as any*/)
+v6 = [
+  (v2/*:: as any*/),
+  (v1/*:: as any*/)
 ],
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "modelName",
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -131,15 +78,15 @@ v9 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ServerDatasetEvaluatorsTableQuery",
+    "name": "datasetEvaluatorsTabLoaderQuery",
     "selections": [
       {
-        "args": (v1/*:: as any*/),
+        "args": null,
         "kind": "FragmentSpread",
-        "name": "ServerDatasetEvaluatorsTable_datasetEvaluators"
+        "name": "DatasetEvaluatorsTabTable_datasetEvaluators"
       }
     ],
     "type": "Query",
@@ -147,13 +94,13 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "ServerDatasetEvaluatorsTableQuery",
+    "name": "datasetEvaluatorsTabLoaderQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v0/*:: as any*/),
         "concreteType": "DatasetEvaluatorConnection",
         "kind": "LinkedField",
         "name": "datasetEvaluators",
@@ -175,8 +122,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
+                  (v1/*:: as any*/),
                   (v2/*:: as any*/),
-                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -184,7 +131,7 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v4/*:: as any*/),
+                  (v3/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -207,7 +154,7 @@ return {
                         "name": "profilePictureUrl",
                         "storageKey": null
                       },
-                      (v2/*:: as any*/)
+                      (v1/*:: as any*/)
                     ],
                     "storageKey": null
                   },
@@ -218,7 +165,7 @@ return {
                     "kind": "LinkedField",
                     "name": "dataset",
                     "plural": false,
-                    "selections": (v5/*:: as any*/),
+                    "selections": (v4/*:: as any*/),
                     "storageKey": null
                   },
                   {
@@ -229,9 +176,9 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v6/*:: as any*/),
+                      (v5/*:: as any*/),
+                      (v1/*:: as any*/),
                       (v2/*:: as any*/),
-                      (v3/*:: as any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -246,7 +193,7 @@ return {
                         "name": "createdAt",
                         "storageKey": null
                       },
-                      (v4/*:: as any*/),
+                      (v3/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -257,7 +204,7 @@ return {
                             "kind": "LinkedField",
                             "name": "prompt",
                             "plural": false,
-                            "selections": (v5/*:: as any*/),
+                            "selections": (v4/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -267,7 +214,7 @@ return {
                             "kind": "LinkedField",
                             "name": "promptVersionTag",
                             "plural": false,
-                            "selections": (v7/*:: as any*/),
+                            "selections": (v6/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -278,9 +225,9 @@ return {
                             "name": "promptVersion",
                             "plural": false,
                             "selections": [
+                              (v7/*:: as any*/),
                               (v8/*:: as any*/),
-                              (v9/*:: as any*/),
-                              (v2/*:: as any*/)
+                              (v1/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -299,7 +246,7 @@ return {
                             "name": "decisionVersion",
                             "plural": false,
                             "selections": [
-                              (v2/*:: as any*/),
+                              (v1/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -314,11 +261,11 @@ return {
                                 "kind": "LinkedField",
                                 "name": "decision",
                                 "plural": false,
-                                "selections": (v7/*:: as any*/),
+                                "selections": (v6/*:: as any*/),
                                 "storageKey": null
                               },
-                              (v8/*:: as any*/),
-                              (v9/*:: as any*/)
+                              (v7/*:: as any*/),
+                              (v8/*:: as any*/)
                             ],
                             "storageKey": null
                           }
@@ -344,8 +291,8 @@ return {
                             "name": "sandboxConfig",
                             "plural": false,
                             "selections": [
+                              (v1/*:: as any*/),
                               (v2/*:: as any*/),
-                              (v3/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -361,7 +308,7 @@ return {
                                     "name": "backendType",
                                     "storageKey": null
                                   },
-                                  (v2/*:: as any*/)
+                                  (v1/*:: as any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -375,7 +322,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v6/*:: as any*/)
+                  (v5/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -415,33 +362,33 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": null
+        "storageKey": "datasetEvaluators(first:100)"
       },
       {
         "alias": null,
-        "args": (v1/*:: as any*/),
+        "args": (v0/*:: as any*/),
         "filters": [
           "sort",
           "filter"
         ],
         "handle": "connection",
-        "key": "ServerDatasetEvaluatorsTable_datasetEvaluators",
+        "key": "DatasetEvaluatorsTabTable_datasetEvaluators",
         "kind": "LinkedHandle",
         "name": "datasetEvaluators"
       }
     ]
   },
   "params": {
-    "cacheID": "8feb7ab5da387dd95e1f524bfd82fcd2",
+    "cacheID": "142cdd16c650ae2603fdff919261d39f",
     "id": null,
     "metadata": {},
-    "name": "ServerDatasetEvaluatorsTableQuery",
+    "name": "datasetEvaluatorsTabLoaderQuery",
     "operationKind": "query",
-    "text": "query ServerDatasetEvaluatorsTableQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n) {\n  ...ServerDatasetEvaluatorsTable_datasetEvaluators_3JsJJ3\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment ServerDatasetEvaluatorsTable_datasetEvaluators_3JsJJ3 on Query {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query datasetEvaluatorsTabLoaderQuery {\n  ...DatasetEvaluatorsTabTable_datasetEvaluators\n}\n\nfragment DatasetEvaluatorsTabTable_datasetEvaluators on Query {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "51f526430cb1dce6f3144af154f2cbc6";
+(node as any).hash = "5eb2ff551201e8e4faf6eb29db68ffec";
 
 export default node;

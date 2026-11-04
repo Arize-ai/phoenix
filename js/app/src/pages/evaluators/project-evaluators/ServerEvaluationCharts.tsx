@@ -47,15 +47,15 @@ import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
-} from "@phoenix/pages/evaluators/projectEvaluators/__generated__/ServerEvaluationChartsQuery.graphql";
+} from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationChartsQuery.graphql";
 import type {
   ProjectSeries,
   ServerProjectSeries,
-} from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
+} from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import {
   getServerProjectSeries,
   OTHER_PROJECTS_KEY,
-} from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
+} from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import {
   costFormatter,

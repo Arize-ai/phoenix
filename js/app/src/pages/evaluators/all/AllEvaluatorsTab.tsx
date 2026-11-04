@@ -7,7 +7,7 @@ import { TableSkeleton } from "@phoenix/components/table";
 import {
   ALL_EVALUATORS_DEFAULT_SORTING,
   AllEvaluatorsTable,
-} from "@phoenix/pages/evaluators/allEvaluators/AllEvaluatorsTable";
+} from "@phoenix/pages/evaluators/all/AllEvaluatorsTable";
 
 const pageCSS = css`
   flex: 1 1 auto;
@@ -26,14 +26,19 @@ const tableScrollCSS = css`
  * The Evaluators page's All tab: every project evaluator and every dataset
  * evaluator in one list.
  */
-export function AllEvaluatorsPage() {
+export function AllEvaluatorsTab() {
   const [filter, setFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>(
     ALL_EVALUATORS_DEFAULT_SORTING
   );
   return (
     <div css={pageCSS}>
-      <View padding="size-100" flex="none">
+      <View
+        padding="size-100"
+        flex="none"
+        borderBottomWidth="thin"
+        borderBottomColor="default"
+      >
         <DebouncedSearch
           aria-label="Search evaluators, projects, or datasets"
           placeholder="Search evaluators, projects, or datasets"

@@ -1712,7 +1712,7 @@ class Query:
     async def dataset_evaluators(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: Optional[int] = 100,
         after: Optional[CursorString] = UNSET,
         sort: Optional[DatasetEvaluatorSort] = UNSET,
         filter: Optional[DatasetEvaluatorFilter] = UNSET,
@@ -2230,7 +2230,12 @@ class Query:
         async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.Prompt.id))) or 0
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "Number of library evaluators. Built-in evaluators count only once attached to a "
+            "dataset. Project and dataset evaluators are counted separately."
+        )
+    )  # type: ignore
     async def evaluator_count(self, info: Info[Context, None]) -> int:
         has_dataset_association = exists(
             select(models.DatasetEvaluators.id).where(
@@ -2246,12 +2251,12 @@ class Query:
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
-    @strawberry.field
+    @strawberry.field(description="Number of project evaluators across all projects.")  # type: ignore
     async def project_evaluator_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.ProjectEvaluator.id))) or 0
 
-    @strawberry.field
+    @strawberry.field(description="Number of dataset evaluators across all datasets.")  # type: ignore
     async def dataset_evaluator_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.DatasetEvaluators.id))) or 0
