@@ -86,15 +86,12 @@ const QUEUE_STATUS_BADGE: Record<
 
 export function getQueueStatusDetail(queue: {
   status: EvaluationQueueStatusValue;
-  atCapacity: boolean;
 }): string | null {
   switch (queue.status) {
     case "HEALTHY":
       return null;
     case "DEGRADED":
-      return queue.atCapacity
-        ? "Queue is full; new evaluations wait to be queued"
-        : "Evaluations are waiting more than 10 minutes";
+      return "Evaluations are waiting more than 10 minutes";
     default:
       return assertUnreachable(queue.status);
   }

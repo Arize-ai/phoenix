@@ -276,6 +276,7 @@ export type ProjectEvaluatorRunSummary = {
   failedCount: number;
   droppedCount: number;
   oldestQueuedAt?: string | null;
+  countsAreLowerBounds?: boolean;
 };
 
 export type ProjectEvaluatorStatus = {
@@ -402,15 +403,33 @@ export function formatProjectEvaluatorRunCounts(
 ): string {
   const parts = (
     [
-      [runSummary.evaluatedCount, "evaluated"],
-      [runSummary.failedCount, "failed"],
-      [runSummary.droppedCount, "cleared"],
-      [runSummary.queuedCount, "queued"],
+      [runSummary.evaluatedCount, "evaluated", false],
+      [runSummary.failedCount, "failed", false],
+      [runSummary.droppedCount, "cleared", false],
+      [
+        runSummary.queuedCount,
+        "queued",
+        runSummary.countsAreLowerBounds ?? false,
+      ],
     ] as const
   )
     .filter(([count]) => count > 0)
-    .map(([count, label]) => `${countFormatter.format(count)} ${label}`);
+    .map(
+      ([count, label, isLowerBound]) =>
+        `${formatLowerBound(countFormatter.format(count), isLowerBound)} ${label}`
+    );
   return parts.join(" · ");
+}
+
+/**
+ * A formatted queue count or rate, marked "N+" when the server stopped
+ * counting at its read bound.
+ */
+export function formatLowerBound(
+  formatted: string,
+  isLowerBound: boolean
+): string {
+  return isLowerBound ? `${formatted}+` : formatted;
 }
 
 export type ProjectEvaluatorMappingDiagnostic = {

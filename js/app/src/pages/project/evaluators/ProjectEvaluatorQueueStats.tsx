@@ -37,6 +37,7 @@ import {
 import {
   formatElapsedShort,
   formatLag,
+  formatLowerBound,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -68,8 +69,8 @@ type QueueRates = Pick<
 /**
  * The evaluators table's aside: this project's share of the server's
  * evaluation queue, with the queue-wide figures behind the status. Span,
- * trace, and session evaluations of all projects share one queue and one
- * limit, so another project's backlog can slow this one.
+ * trace, and session evaluations of all projects share one queue, so another
+ * project's backlog can slow this one.
  */
 export function ProjectEvaluatorQueueAside({
   projectId,
@@ -135,20 +136,20 @@ function ProjectEvaluatorQueueStatsContent({
       ) {
         evaluationQueue {
           status
-          atCapacity
           queuedCount
-          queuedLimit
           retryingCount
           oldestQueuedAt
           queuedPerMinute
           evaluationsPerMinute
           runningCount
+          countsAreLowerBounds
           projects(first: 5) {
             project {
               id
               name
             }
             queuedCount
+            countsAreLowerBounds
           }
           targets {
             evaluationTarget
@@ -172,9 +173,11 @@ function ProjectEvaluatorQueueStatsContent({
               oldestQueuedAt
               queuedPerMinute
               evaluationsPerMinute
+              countsAreLowerBounds
               targets {
                 evaluationTarget
                 queuedCount
+                countsAreLowerBounds
               }
             }
             # Keeps the evaluators table's status and queued columns as fresh
@@ -189,6 +192,7 @@ function ProjectEvaluatorQueueStatsContent({
                     queuedCount
                     runningCount
                     oldestQueuedAt
+                    countsAreLowerBounds
                   }
                 }
               }
@@ -219,6 +223,9 @@ function ProjectEvaluatorQueueStatsContent({
         projectId={projectId}
         projectTargets={projectQueue?.targets ?? []}
         projectQueuedCount={projectQueuedCount}
+        projectCountsAreLowerBounds={
+          projectQueue?.countsAreLowerBounds ?? false
+        }
         projectRunningCount={projectQueue?.runningCount ?? 0}
       />
       <Flex direction="row" gap="size-400">
@@ -226,6 +233,7 @@ function ProjectEvaluatorQueueStatsContent({
           label="Queued / hr"
           project={projectQueue}
           getPerMinute={(rates) => rates.queuedPerMinute}
+          isLowerBound={projectQueue?.countsAreLowerBounds ?? false}
           description="This project's evaluations queued in the last hour"
         />
         <QueueRateStat
@@ -280,7 +288,7 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
           <>
             {detail != null ? <Text size="S">{detail}</Text> : null}
             <Text size="S">
-              {`All projects, per hour: ${formatPerHour(queue.queuedPerMinute)} queued · ${formatPerHour(queue.evaluationsPerMinute)} completed`}
+              {`All projects, per hour: ${formatLowerBound(formatPerHour(queue.queuedPerMinute), queue.countsAreLowerBounds)} queued · ${formatPerHour(queue.evaluationsPerMinute)} completed`}
             </Text>
             {queue.oldestQueuedAt != null ? (
               <Text size="S">{`All projects, longest wait: ${formatElapsedShort(queue.oldestQueuedAt)}`}</Text>
@@ -297,11 +305,48 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
 /** Other projects' share of the queue, one neutral section of the meter. */
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
 
+/** How many of the busiest projects the stats read. */
+const BUSIEST_PROJECT_COUNT = 5;
+
+/**
+ * Other projects' queued evaluations. Once counts stop at the server's read
+ * bound, the queue's total and this project's are read differently and their
+ * difference means nothing, so the busiest other projects are summed instead.
+ */
+function getOtherProjectsQueued({
+  queue,
+  projectId,
+  projectQueuedCount,
+  projectCountsAreLowerBounds,
+}: {
+  queue: EvaluationQueue;
+  projectId: string;
+  projectQueuedCount: number;
+  projectCountsAreLowerBounds: boolean;
+}): { count: number; isLowerBound: boolean } {
+  if (!queue.countsAreLowerBounds && !projectCountsAreLowerBounds) {
+    return {
+      count: Math.max(0, queue.queuedCount - projectQueuedCount),
+      isLowerBound: false,
+    };
+  }
+  const others = queue.projects.filter(
+    ({ project }) => project.id !== projectId
+  );
+  return {
+    count: others.reduce((sum, { queuedCount }) => sum + queuedCount, 0),
+    isLowerBound:
+      queue.projects.length >= BUSIEST_PROJECT_COUNT ||
+      others.some(({ countsAreLowerBounds }) => countsAreLowerBounds),
+  };
+}
+
 function QueuedStat({
   queue,
   projectId,
   projectTargets,
   projectQueuedCount,
+  projectCountsAreLowerBounds,
   projectRunningCount,
 }: {
   queue: EvaluationQueue;
@@ -310,16 +355,20 @@ function QueuedStat({
   projectTargets: ReadonlyArray<{
     evaluationTarget: string;
     queuedCount: number;
+    countsAreLowerBounds: boolean;
   }>;
   projectQueuedCount: number;
+  projectCountsAreLowerBounds: boolean;
   /** Running now, so clearing keeps them. */
   projectRunningCount: number;
 }) {
   const colors = useCategoryChartColors();
-  const otherProjectsCount = Math.max(
-    0,
-    queue.queuedCount - projectQueuedCount
-  );
+  const otherProjects = getOtherProjectsQueued({
+    queue,
+    projectId,
+    projectQueuedCount,
+    projectCountsAreLowerBounds,
+  });
   const segments = [
     ...projectTargets.map((target) => {
       const color =
@@ -330,43 +379,47 @@ function QueuedStat({
         id: target.evaluationTarget,
         label: getQueueLabel(target),
         count: target.queuedCount,
+        isLowerBound: target.countsAreLowerBounds,
         color: colors[color],
       };
     }),
     {
       id: "OTHER_PROJECTS",
       label: "Other projects",
-      count: otherProjectsCount,
+      count: otherProjects.count,
+      isLowerBound: otherProjects.isLowerBound,
       color: OTHER_PROJECTS_COLOR,
     },
   ];
   return (
     <StatItem label="In queue">
       <Flex direction="column" gap="size-100" width="100%">
-        <Flex direction="row" gap="size-75" alignItems="baseline">
-          <StatValue>{intFormatter(projectQueuedCount)}</StatValue>
-          <HoverDetail
-            detail={
-              queue.projects.length > 0 ? (
-                <>
-                  <Text size="S" color="text-700">
-                    Most queued
-                  </Text>
-                  {queue.projects.map(({ project, queuedCount }) => (
+        <HoverDetail
+          detail={
+            queue.projects.length > 0 ? (
+              <>
+                <Text size="S" color="text-700">
+                  Most queued
+                </Text>
+                {queue.projects.map(
+                  ({ project, queuedCount, countsAreLowerBounds }) => (
                     <Text key={project.id} size="S">
-                      {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${intFormatter(queuedCount)}`}
+                      {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${formatLowerBound(intFormatter(queuedCount), countsAreLowerBounds)}`}
                     </Text>
-                  ))}
-                </>
-              ) : null
-            }
-          >
-            <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
-              {`of ${intFormatter(queue.queuedCount)} / ${intFormatter(queue.queuedLimit)} max`}
-            </Text>
-          </HoverDetail>
-        </Flex>
-        <EvaluationQueueMeter segments={segments} limit={queue.queuedLimit} />
+                  )
+                )}
+              </>
+            ) : null
+          }
+        >
+          <StatValue>
+            {formatLowerBound(
+              intFormatter(projectQueuedCount),
+              projectCountsAreLowerBounds
+            )}
+          </StatValue>
+        </HoverDetail>
+        <EvaluationQueueMeter segments={segments} />
         <dl css={legendCSS}>
           {segments
             .filter((segment) => segment.count > 0)
@@ -380,7 +433,10 @@ function QueuedStat({
                 </dt>
                 <dd>
                   <Text size="XS" fontFamily="mono">
-                    {intFormatter(segment.count)}
+                    {formatLowerBound(
+                      intFormatter(segment.count),
+                      segment.isLowerBound
+                    )}
                   </Text>
                 </dd>
               </div>
@@ -409,12 +465,14 @@ function QueueRateStat({
   label,
   project,
   getPerMinute,
+  isLowerBound = false,
   description,
 }: {
   label: string;
   /** This project's rates, or null if the project couldn't be read. */
   project: QueueRates | null;
   getPerMinute: (rates: QueueRates) => number;
+  isLowerBound?: boolean;
   description: string;
 }) {
   return (
@@ -427,7 +485,12 @@ function QueueRateStat({
         }
       >
         <StatValue>
-          {project != null ? formatPerHour(getPerMinute(project)) : "--"}
+          {project != null
+            ? formatLowerBound(
+                formatPerHour(getPerMinute(project)),
+                isLowerBound
+              )
+            : "--"}
         </StatValue>
       </HoverDetail>
     </StatItem>

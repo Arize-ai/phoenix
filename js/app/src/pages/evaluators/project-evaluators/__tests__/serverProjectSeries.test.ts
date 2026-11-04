@@ -15,13 +15,20 @@ describe("rankProjects", () => {
   it("puts the projects holding the most of the queue first, then the busiest", () => {
     const ranked = rankProjects({
       groups: [group("busy", 900), group("stuck", 10), group("idle", 0)],
-      queued: [{ project: { id: "stuck" }, queuedCount: 5000 }],
+      queued: [
+        {
+          project: { id: "stuck" },
+          queuedCount: 5000,
+          countsAreLowerBounds: true,
+        },
+      ],
     });
     expect(ranked.map((project) => project.id)).toEqual([
       "stuck",
       "busy",
       "idle",
     ]);
+    expect(ranked[0].queuedCountIsLowerBound).toBe(true);
   });
 });
 

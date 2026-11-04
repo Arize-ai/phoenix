@@ -25,6 +25,7 @@ import {
 import {
   formatElapsedShort,
   formatLag,
+  formatLowerBound,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -114,13 +115,12 @@ function ServerEvaluationQueueStripContent({
       ) {
         evaluationQueue {
           status
-          atCapacity
           queuedCount
-          queuedLimit
           runningCount
           oldestQueuedAt
           queuedPerMinute
           evaluationsPerMinute
+          countsAreLowerBounds
           targets {
             evaluationTarget
             queuedCount
@@ -131,6 +131,7 @@ function ServerEvaluationQueueStripContent({
               name
             }
             queuedCount
+            countsAreLowerBounds
           }
         }
         lastHourActivity: evaluationActivity(timeRange: $lastHour) {
@@ -170,6 +171,7 @@ function ServerEvaluationQueueStripContent({
   const isWaitingTooLong =
     queue.oldestQueuedAt != null && hasWaitedTooLong(queue.oldestQueuedAt);
   const isLagging = lag != null && lag.p95Seconds * 1000 > DEGRADED_WAIT_MS;
+  const isLowerBound = queue.countsAreLowerBounds;
   const clearableCount = queue.queuedCount - queue.runningCount;
   useEffect(() => {
     onClearableCount(clearableCount);
@@ -188,37 +190,41 @@ function ServerEvaluationQueueStripContent({
         </StatItem>
         <StatItem label="In queue">
           <Flex direction="column" gap="size-50" minWidth="size-2400">
-            <Flex direction="row" gap="size-75" alignItems="baseline">
-              <HoverDetail
-                detail={
-                  queue.projects.length > 0 ? (
-                    <>
-                      <Text size="S" color="text-700">
-                        Most queued
-                      </Text>
-                      {queue.projects.map(({ project, queuedCount }) => (
+            <HoverDetail
+              detail={
+                queue.projects.length > 0 ? (
+                  <>
+                    <Text size="S" color="text-700">
+                      Most queued
+                    </Text>
+                    {queue.projects.map(
+                      ({ project, queuedCount, countsAreLowerBounds }) => (
                         <Text key={project.id} size="S">
-                          {`${project.name}: ${intFormatter(queuedCount)}`}
+                          {`${project.name}: ${formatLowerBound(intFormatter(queuedCount), countsAreLowerBounds)}`}
                         </Text>
-                      ))}
-                    </>
-                  ) : null
-                }
-              >
-                <StatValue>{intFormatter(queue.queuedCount)}</StatValue>
-              </HoverDetail>
-              <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
-                {`/ ${intFormatter(queue.queuedLimit)}`}
-              </Text>
-            </Flex>
-            <EvaluationQueueMeter
-              segments={segments}
-              limit={queue.queuedLimit}
-            />
+                      )
+                    )}
+                  </>
+                ) : null
+              }
+            >
+              <StatValue>
+                {formatLowerBound(
+                  intFormatter(queue.queuedCount),
+                  isLowerBound
+                )}
+              </StatValue>
+            </HoverDetail>
+            <EvaluationQueueMeter segments={segments} />
           </Flex>
         </StatItem>
         <StatItem label="Queued / hr">
-          <StatValue>{formatPerHour(queue.queuedPerMinute)}</StatValue>
+          <StatValue>
+            {formatLowerBound(
+              formatPerHour(queue.queuedPerMinute),
+              isLowerBound
+            )}
+          </StatValue>
         </StatItem>
         <StatItem label="Completed / hr">
           <StatValue>{formatPerHour(queue.evaluationsPerMinute)}</StatValue>
@@ -232,9 +238,12 @@ function ServerEvaluationQueueStripContent({
             }
           >
             <StatValue color={netPerHour > 0 ? "warning" : null}>
-              {netPerHour > 0
-                ? `+${intFormatter(netPerHour)}`
-                : intFormatter(netPerHour)}
+              {formatLowerBound(
+                netPerHour > 0
+                  ? `+${intFormatter(netPerHour)}`
+                  : intFormatter(netPerHour),
+                isLowerBound
+              )}
             </StatValue>
           </HoverDetail>
         </StatItem>

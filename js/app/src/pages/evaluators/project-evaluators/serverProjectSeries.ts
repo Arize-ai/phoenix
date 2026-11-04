@@ -11,6 +11,8 @@ export type RankedProject = {
   name: string;
   /** Evaluations of this project in the queue now. */
   queuedCount: number;
+  /** Whether the server stopped counting this project's queue at its read bound. */
+  queuedCountIsLowerBound: boolean;
   /** Evaluations completed in the time range, evaluated or failed. */
   evaluationCount: number;
 };
@@ -28,16 +30,20 @@ export function rankProjects({
     evaluatedCount: number;
     failedCount: number;
   }>;
-  queued: ReadonlyArray<{ project: { id: string }; queuedCount: number }>;
+  queued: ReadonlyArray<{
+    project: { id: string };
+    queuedCount: number;
+    countsAreLowerBounds: boolean;
+  }>;
 }): RankedProject[] {
-  const queuedById = new Map(
-    queued.map(({ project, queuedCount }) => [project.id, queuedCount])
-  );
+  const queuedById = new Map(queued.map((entry) => [entry.project.id, entry]));
   return groups
     .map(({ project, evaluatedCount, failedCount }) => ({
       id: project.id,
       name: project.name,
-      queuedCount: queuedById.get(project.id) ?? 0,
+      queuedCount: queuedById.get(project.id)?.queuedCount ?? 0,
+      queuedCountIsLowerBound:
+        queuedById.get(project.id)?.countsAreLowerBounds ?? false,
       evaluationCount: evaluatedCount + failedCount,
     }))
     .sort(

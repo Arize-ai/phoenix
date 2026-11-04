@@ -6,14 +6,17 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
-import { formatElapsedShort } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  formatElapsedShort,
+  formatLowerBound,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 export type ProjectEvaluatorQueuedWork = {
   queuedCount: number;
   oldestQueuedAt: string | null;
+  countsAreLowerBounds: boolean;
 };
-
-const countFormatter = new Intl.NumberFormat();
 
 /**
  * The evaluators table's queued cell: how many of the evaluator's evaluations
@@ -24,7 +27,7 @@ export function ProjectEvaluatorQueueCell({
 }: {
   queuedWork: ProjectEvaluatorQueuedWork;
 }) {
-  const { queuedCount, oldestQueuedAt } = queuedWork;
+  const { queuedCount, oldestQueuedAt, countsAreLowerBounds } = queuedWork;
   if (queuedCount === 0) {
     return (
       <Text fontFamily="mono" color="text-700">
@@ -32,9 +35,11 @@ export function ProjectEvaluatorQueueCell({
       </Text>
     );
   }
-  const count = (
-    <Text fontFamily="mono">{countFormatter.format(queuedCount)}</Text>
+  const formattedCount = formatLowerBound(
+    intFormatter(queuedCount),
+    countsAreLowerBounds
   );
+  const count = <Text fontFamily="mono">{formattedCount}</Text>;
   // Only running evaluations are queued, so nothing is waiting.
   if (oldestQueuedAt == null) {
     return count;
@@ -43,7 +48,7 @@ export function ProjectEvaluatorQueueCell({
     <TooltipTrigger delay={0}>
       <TriggerWrap>
         <Text fontFamily="mono">
-          {countFormatter.format(queuedCount)}
+          {formattedCount}
           <Text fontFamily="mono" color="text-700">
             {` · ${formatElapsedShort(oldestQueuedAt)}`}
           </Text>

@@ -177,6 +177,7 @@ export function ProjectEvaluatorsTabTable({
                 failedCount
                 droppedCount
                 oldestQueuedAt
+                countsAreLowerBounds
               }
               evaluationLoad {
                 evaluationCount

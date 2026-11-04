@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dc6d609c6bdfe8406cb1185d6ee96b27>>
+ * @generated SignedSource<<98bb78289eba9e3217c9132eddbf0a93>>
  * @lightSyntaxTransform
  */
 
@@ -332,6 +332,13 @@ return {
                           "kind": "ScalarField",
                           "name": "oldestQueuedAt",
                           "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "countsAreLowerBounds",
+                          "storageKey": null
                         }
                       ],
                       "storageKey": null
@@ -510,16 +517,6 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "DecisionVersionTag",
-                              "kind": "LinkedField",
-                              "name": "decisionVersionTag",
-                              "plural": false,
-                              "selections": (v13/*:: as any*/),
-                              "storageKey": null
-                            },
                             {
                               "alias": null,
                               "args": null,

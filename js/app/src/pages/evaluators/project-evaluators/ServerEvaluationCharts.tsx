@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -94,13 +93,13 @@ export function useServerEvaluationActivity({
         $timeBinConfig: TimeBinConfig!
       ) {
         evaluationQueue {
-          queuedLimit
           queuedCount
           projects(first: 1000) {
             project {
               id
             }
             queuedCount
+            countsAreLowerBounds
           }
         }
         evaluationActivity(
@@ -220,7 +219,6 @@ export function ServerEvaluationCharts({
           <QueueSizeChart
             activity={activity}
             projectSeries={projectSeries}
-            queuedLimit={data.evaluationQueue.queuedLimit}
             xAxisProps={xAxisProps}
           />
         </ChartPanel>
@@ -282,12 +280,10 @@ function TimeTooltipContent({ active, payload, label }: TooltipContentProps) {
 function QueueSizeChart({
   activity,
   projectSeries,
-  queuedLimit,
   xAxisProps,
 }: {
   activity: Activity;
   projectSeries: ServerProjectSeries;
-  queuedLimit: number;
   xAxisProps: XAxisOverrides;
 }) {
   const { series, getKey } = projectSeries;
@@ -324,20 +320,6 @@ function QueueSizeChart({
             tickFormatter={(y) => intShortFormatter(y)}
           />
           <Tooltip content={TimeTooltipContent} {...defaultTooltipProps} />
-          <ReferenceLine
-            y={queuedLimit}
-            stroke="var(--global-color-gray-500)"
-            strokeDasharray="4 4"
-            // Shown once the queue's own scale reaches the limit; extending the
-            // axis to it would flatten a normal queue against the baseline.
-            ifOverflow="discard"
-            label={{
-              value: `Limit ${intShortFormatter(queuedLimit)}`,
-              position: "insideTopLeft",
-              fontSize: 11,
-              fill: "var(--global-text-color-700)",
-            }}
-          />
           {series.map(({ key, name, color }) => (
             <Area
               key={key}

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<436e3242192a699c730446f3abf715e2>>
+ * @generated SignedSource<<831a09e0c681946d719216bbca2712c6>>
  * @lightSyntaxTransform
  */
 
@@ -20,10 +20,11 @@ export type ServerEvaluationQueueStripQuery$variables = {
 };
 export type ServerEvaluationQueueStripQuery$data = {
   readonly evaluationQueue: {
-    readonly atCapacity: boolean;
+    readonly countsAreLowerBounds: boolean;
     readonly evaluationsPerMinute: number;
     readonly oldestQueuedAt: string | null;
     readonly projects: ReadonlyArray<{
+      readonly countsAreLowerBounds: boolean;
       readonly project: {
         readonly id: string;
         readonly name: string;
@@ -31,7 +32,6 @@ export type ServerEvaluationQueueStripQuery$data = {
       readonly queuedCount: number;
     }>;
     readonly queuedCount: number;
-    readonly queuedLimit: number;
     readonly queuedPerMinute: number;
     readonly runningCount: number;
     readonly status: EvaluationQueueStatus;
@@ -78,7 +78,14 @@ v1 = {
   "name": "queuedCount",
   "storageKey": null
 },
-v2 = [
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "countsAreLowerBounds",
+  "storageKey": null
+},
+v3 = [
   {
     "alias": null,
     "args": null,
@@ -94,21 +101,7 @@ v2 = [
         "name": "status",
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "atCapacity",
-        "storageKey": null
-      },
       (v1/*:: as any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "queuedLimit",
-        "storageKey": null
-      },
       {
         "alias": null,
         "args": null,
@@ -137,6 +130,7 @@ v2 = [
         "name": "evaluationsPerMinute",
         "storageKey": null
       },
+      (v2/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -195,7 +189,8 @@ v2 = [
             ],
             "storageKey": null
           },
-          (v1/*:: as any*/)
+          (v1/*:: as any*/),
+          (v2/*:: as any*/)
         ],
         "storageKey": "projects(first:5)"
       }
@@ -296,7 +291,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ServerEvaluationQueueStripQuery",
-    "selections": (v2/*:: as any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -305,19 +300,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "ServerEvaluationQueueStripQuery",
-    "selections": (v2/*:: as any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "8efff75f481d5ea990ffeafd8a505d3e",
+    "cacheID": "1d286c972fe404c2919f0852b4ccf703",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationQueueStripQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationQueueStripQuery(\n  $lastHour: TimeRange!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    atCapacity\n    queuedCount\n    queuedLimit\n    runningCount\n    oldestQueuedAt\n    queuedPerMinute\n    evaluationsPerMinute\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n  }\n  lastHourActivity: evaluationActivity(timeRange: $lastHour) {\n    lag {\n      p50Seconds\n      p95Seconds\n      p99Seconds\n    }\n  }\n  rangeActivity: evaluationActivity(timeRange: $timeRange) {\n    evaluatedCount\n    failedCount\n    cost\n  }\n}\n"
+    "text": "query ServerEvaluationQueueStripQuery(\n  $lastHour: TimeRange!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n    runningCount\n    oldestQueuedAt\n    queuedPerMinute\n    evaluationsPerMinute\n    countsAreLowerBounds\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n      countsAreLowerBounds\n    }\n  }\n  lastHourActivity: evaluationActivity(timeRange: $lastHour) {\n    lag {\n      p50Seconds\n      p95Seconds\n      p99Seconds\n    }\n  }\n  rangeActivity: evaluationActivity(timeRange: $timeRange) {\n    evaluatedCount\n    failedCount\n    cost\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8e77445255749472bf52f8783d2ef7bb";
+(node as any).hash = "dd5c802641aa3e6a9727e8f675a71632";
 
 export default node;

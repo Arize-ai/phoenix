@@ -91,6 +91,16 @@ describe("formatProjectEvaluatorRunCounts", () => {
       formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
     ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
   });
+
+  it("marks a queued count read to the server's bound as a lower bound", () => {
+    expect(
+      formatProjectEvaluatorRunCounts({
+        ...runSummary,
+        queuedCount: 5000,
+        countsAreLowerBounds: true,
+      })
+    ).toBe("118 evaluated · 2 failed · 5,000+ queued");
+  });
 });
 
 describe("formatElapsedShort", () => {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b6edbe6e6ba202c0c6c2aed9e04482c2>>
+ * @generated SignedSource<<c605abe20458d019e1fd935e77555305>>
  * @lightSyntaxTransform
  */
 
@@ -36,9 +36,6 @@ export type ProjectEvaluatorsTable_row$data = {
       readonly modelName: string;
       readonly modelProvider: GenerativeProviderKey;
     };
-    readonly decisionVersionTag?: {
-      readonly name: string;
-    } | null;
     readonly id: string;
     readonly kind: EvaluatorKind;
     readonly language?: Language;
@@ -77,6 +74,7 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly id: string;
   readonly name: string;
   readonly runSummary: {
+    readonly countsAreLowerBounds: boolean;
     readonly droppedCount: number;
     readonly evaluatedCount: number;
     readonly failedCount: number;
@@ -100,6 +98,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "06885532cb01263e449fe3276f42dd6c";
+(node as any).hash = "7ca39a8546ed41ce4893bae9c6d0cc45";
 
 export default node;
