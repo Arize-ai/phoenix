@@ -1,10 +1,12 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
@@ -31,9 +33,7 @@ from phoenix.server.api.routers.agents import (
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.evaluators.runtime.builtin import ContainsEvaluator
-from phoenix.server.online_eval import admission
 from phoenix.server.online_eval import producer as producer_module
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import ResolvedProjectEvaluator, config_fingerprint
 from phoenix.server.online_eval.leases import MATERIALIZER_LEASE_TTL_SECONDS
 from phoenix.server.online_eval.producer import OnlineEvalProducer
@@ -575,9 +575,8 @@ async def test_future_targets_are_not_loaded_by_span_producer(
 
 
 async def test_tick_advances_at_most_one_id_chunk(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    db: DbSessionFactory,
 ) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK", "2")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -592,8 +591,8 @@ async def test_tick_advances_at_most_one_id_chunk(
         observed_at=observed_at,
     )
 
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
+    producer = OnlineEvalProducer(db, max_span_ids_per_tick=2)
+    assert await producer._tick() is True
 
     cursor = await _get_cursor(db)
     assert cursor.produced_through_id == low_exclusive + 2
@@ -601,137 +600,59 @@ async def test_tick_advances_at_most_one_id_chunk(
     assert cursor.observed_at == observed_at
     assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:2]]
 
-    await producer._tick()
+    assert await producer._tick() is True
 
     cursor = await _get_cursor(db)
     assert cursor.produced_through_id == low_exclusive + 4
     assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans[:4]]
 
-
-async def test_materialization_budget_truncates_without_advancing(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "3")
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace) for _ in range(2)]
-    await _seed_criteria(db, project.id)
-    await _seed_criteria(db, project.id)
-    low_exclusive = spans[0].id - 1
-    await _seed_cursor(
-        db,
-        produced_through_id=low_exclusive,
-        observed_high_water_id=spans[-1].id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
-
-    async with db() as session:
-        unit_count = await session.scalar(select(func.count()).select_from(models.EvalWorkUnit))
-    assert unit_count == 3
-    cursor = await _get_cursor(db)
-    assert cursor.produced_through_id == low_exclusive
-    assert await producer._admission_budget() == 0
-
-    coordinator = DbEvalWorkCoordinator(db)
-    admitted = await coordinator.claim(claimed_by="consumer", limit=3)
-    assert len(admitted) == 3
-
-    async def _write_nothing(_: Any) -> None:
-        return None
-
-    for unit in admitted:
-        await coordinator.publish(
-            work_unit_id=unit.work_unit_id,
-            claimed_by="consumer",
-            write=_write_nothing,
-        )
-
-    await producer._tick()
-
-    async with db() as session:
-        units = list(await session.scalars(select(models.EvalWorkUnit)))
-    assert len(units) == 4
-    assert sum(unit.status == "DONE" for unit in units) == 3
-    assert sum(unit.status == "PENDING" for unit in units) == 1
+    assert await producer._tick() is False
     assert (await _get_cursor(db)).produced_through_id == spans[-1].id
 
 
-async def test_admission_scans_only_until_the_room_is_found(
+async def test_cut_span_window_starts_the_next_tick_without_the_interval(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace) for _ in range(5)]
-    for _ in range(3):
-        await _seed_criteria(db, project.id)
-    producer = OnlineEvalProducer(db)
-    active = await producer._load_active_project_evaluators()
-    scanned: list[int] = []
-    scan = producer._scan
+        spans = [await _add_span(session, trace) for _ in range(3)]
+    await _seed_criteria(db, project.id)
+    await _seed_cursor(
+        db,
+        produced_through_id=spans[0].id - 1,
+        observed_high_water_id=spans[-1].id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+    producer = OnlineEvalProducer(db, tick_interval_seconds=3600, max_span_ids_per_tick=1)
+    sleeps = _stop_at_the_first_interval_sleep(producer, monkeypatch, producer_module)
 
-    async def _counting_scan(
-        session: Any, project_evaluator: Any, low_exclusive: int, high_inclusive: int
-    ) -> list[int]:
-        scanned.append(project_evaluator.project_evaluator_id)
-        return await scan(session, project_evaluator, low_exclusive, high_inclusive)
+    producer._running = True
+    await producer._run()
 
-    monkeypatch.setattr(producer, "_scan", _counting_scan)
-    async with db() as session:
-        admitted = await producer._admit(session, active, spans[0].id - 1, spans[-1].id)
-
-    assert len(active) == 3
-    assert len(scanned) == 1
-    assert admitted == (0, 1, True)
-    assert len(await _work_unit_span_rowids(db)) == 1
+    assert sleeps == [0, 0, 3600]
+    assert sorted(await _work_unit_span_rowids(db)) == [span.id for span in spans]
 
 
-async def test_admission_queues_only_the_room_left_under_the_lock(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "3")
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace) for _ in range(5)]
-    _, project_evaluator_id = await _seed_criteria(db, project.id)
-    earlier_spans, window_spans = spans[:2], spans[2:]
-    producer = OnlineEvalProducer(db)
-    active = await producer._load_active_project_evaluators()
-    lock_room = admission.lock_room
+def _stop_at_the_first_interval_sleep(
+    daemon: Any, monkeypatch: pytest.MonkeyPatch, module: Any
+) -> list[float]:
+    """Record the delays a daemon's loop sleeps between ticks, stopping it at the first
+    delay that is not zero."""
+    sleeps: list[float] = []
 
-    async def _another_admission_then_lock_room(session: Any, dialect: Any) -> int:
-        session.add_all(
-            models.EvalWorkUnit(span_rowid=span.id, project_evaluator_id=project_evaluator_id)
-            for span in earlier_spans
-        )
-        await session.flush()
-        return await lock_room(session, dialect)
+    async def sleep(delay: float) -> None:
+        sleeps.append(delay)
+        if delay:
+            daemon._running = False
+        await asyncio.sleep(0)
 
-    monkeypatch.setattr(admission, "lock_room", _another_admission_then_lock_room)
-    async with db() as session:
-        admitted = await producer._admit(
-            session, active, window_spans[0].id - 1, window_spans[-1].id
-        )
-
-    assert admitted == (0, 1, True)
-    queued = set(await _work_unit_span_rowids(db))
-    assert len(queued & {span.id for span in window_spans}) == 1
-
-
-@pytest.mark.parametrize("value", ["0", "-1"])
-async def test_max_span_ids_per_tick_must_be_positive(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch, value: str
-) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SPAN_IDS_PER_TICK", value)
-
-    with pytest.raises(ValueError, match="Value must be a positive integer"):
-        OnlineEvalProducer(db)
+    monkeypatch.setattr(
+        module,
+        "asyncio",
+        SimpleNamespace(sleep=sleep, shield=asyncio.shield, ensure_future=asyncio.ensure_future),
+    )
+    return sleeps
 
 
 async def test_cursor_regresses_to_live_span_high_water(db: DbSessionFactory) -> None:
@@ -810,25 +731,6 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
     assert by_span[expired_span.id].status == "EXPIRED"
 
 
-async def test_backstop_stops_at_insertion_budget(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "2")
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace) for _ in range(3)]
-    await _seed_criteria(db, project.id)
-
-    producer = OnlineEvalProducer(db)
-    await _seed_cursor(db, produced_through_id=spans[-1].id)
-    active = await producer._load_active_project_evaluators()
-    remaining = await producer._backstop_sweep(active, spans[-1].id)
-
-    assert remaining == 0
-    assert len(await _work_unit_span_rowids(db)) == 2
-
-
 async def test_editing_a_span_evaluator_does_not_requeue_evaluated_spans(
     db: DbSessionFactory,
 ) -> None:
@@ -866,9 +768,8 @@ async def test_editing_a_span_evaluator_does_not_requeue_evaluated_spans(
 
 
 async def test_reaper_deletes_aged_terminal_work_outside_the_lookback(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    db: DbSessionFactory,
 ) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS", "2")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -920,7 +821,7 @@ async def test_reaper_deletes_aged_terminal_work_outside_the_lookback(
         }
 
     await _seed_cursor(db, produced_through_id=produced_through)
-    producer = OnlineEvalProducer(db)
+    producer = OnlineEvalProducer(db, backstop_lookback_span_ids=2)
     await producer._reap(now)
 
     async with db() as session:
@@ -933,126 +834,6 @@ async def test_reaper_deletes_aged_terminal_work_outside_the_lookback(
     assert remaining.get(ids["done_inside"]) == ("DONE", None)
     assert ids["exhausted_error_outside"] not in remaining
     assert remaining.get(ids["retryable_error_outside"]) == ("ERROR", None)
-
-
-async def test_admission_gate_skips_materialization(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-        backlog_spans = [await _add_span(session, trace) for _ in range(2)]
-    _, project_evaluator_id = await _seed_criteria(db, project.id)
-    async with db() as session:
-        session.add_all(
-            [
-                models.EvalWorkUnit(
-                    span_rowid=backlog_span.id,
-                    project_evaluator_id=project_evaluator_id,
-                )
-                for backlog_span in backlog_spans
-            ]
-        )
-    await _seed_cursor(
-        db,
-        observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
-    )
-
-    producer = OnlineEvalProducer(db)
-    await producer._tick()
-
-    async with db() as session:
-        unit_count = await session.scalar(select(func.count()).select_from(models.EvalWorkUnit))
-    assert unit_count == 2
-    cursor = await _get_cursor(db)
-    assert cursor.produced_through_id == 0
-
-
-async def test_admission_budget_counts_nonterminal_backlog(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The gate bounds all backlog that will eventually demand consumer
-    capacity: RUNNING and retryable-ERROR rows count alongside PENDING (under
-    a provider outage the pending population migrates into retryable ERROR),
-    while exhausted ERROR is terminal and must not hold the gate closed."""
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = iter([await _add_span(session, trace) for _ in range(3)])
-    _, project_evaluator_id = await _seed_criteria(db, project.id)
-
-    def _unit(status: str, **kwargs: Any) -> models.EvalWorkUnit:
-        return models.EvalWorkUnit(
-            span_rowid=next(spans).id,
-            project_evaluator_id=project_evaluator_id,
-            status=status,
-            **kwargs,
-        )
-
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
-    producer = OnlineEvalProducer(db)
-    assert await producer._admission_budget() == 1
-
-    async with db() as session:
-        session.add(_unit("FAILED", attempts=MAX_ATTEMPTS))
-    assert await producer._admission_budget() == 1
-
-    async with db() as session:
-        session.add(_unit("RUNNING", claimed_by="consumer-1", claimed_at=_now()))
-        await session.flush()
-        running_id = (
-            await session.scalars(
-                select(models.EvalWorkUnit.id).order_by(models.EvalWorkUnit.id.desc()).limit(1)
-            )
-        ).one()
-    assert await producer._admission_budget() == 0
-
-    async with db() as session:
-        await session.execute(
-            update(models.EvalWorkUnit)
-            .where(models.EvalWorkUnit.id == running_id)
-            .values(status="DONE")
-        )
-    assert await producer._admission_budget() == 1
-
-    async with db() as session:
-        session.add(_unit("ERROR", attempts=1))
-    assert await producer._admission_budget() == 0
-
-
-@pytest.mark.parametrize(
-    ("outstanding_count", "expected_budget"),
-    [(2, 1), (3, 0), (4, 0)],
-)
-async def test_admission_budget_count_is_bounded_at_ceiling(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-    outstanding_count: int,
-    expected_budget: int,
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        spans = [await _add_span(session, trace) for _ in range(outstanding_count)]
-    _, project_evaluator_id = await _seed_criteria(db, project.id)
-    async with db() as session:
-        session.add_all(
-            [
-                models.EvalWorkUnit(
-                    span_rowid=span.id,
-                    project_evaluator_id=project_evaluator_id,
-                )
-                for span in spans
-            ]
-        )
-
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "3")
-    producer = OnlineEvalProducer(db)
-
-    assert await producer._admission_budget() == expected_budget
 
 
 async def test_unexpected_criteria_load_error_fails_closed(
@@ -1194,13 +975,12 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
     assert sorted(await _work_unit_span_rowids(db)) == [span.id]
 
 
-@pytest.mark.parametrize("span_count", [1, 2], ids=["advanced", "truncated"])
+@pytest.mark.parametrize("span_count", [1, 2], ids=["consumed", "cut"])
 async def test_stale_frontier_rolls_back_and_never_moves_the_cursor_backwards(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
     span_count: int,
 ) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -1214,7 +994,7 @@ async def test_stale_frontier_rolls_back_and_never_moves_the_cursor_backwards(
     )
     rival_position = spans[-1].id + 5
 
-    producer = OnlineEvalProducer(db)
+    producer = OnlineEvalProducer(db, max_span_ids_per_tick=1)
     load_active = producer._load_active_project_evaluators
 
     async def _load_then_rival_advances() -> list[producer_module._ActiveProjectEvaluator]:
@@ -1226,7 +1006,7 @@ async def test_stale_frontier_rolls_back_and_never_moves_the_cursor_backwards(
         return active
 
     monkeypatch.setattr(producer, "_load_active_project_evaluators", _load_then_rival_advances)
-    await producer._tick()
+    assert await producer._tick() is False
 
     assert await _work_unit_span_rowids(db) == []
     assert (await _get_cursor(db)).produced_through_id == rival_position
@@ -1335,8 +1115,7 @@ async def test_producer_publishes_its_own_frontier_and_ingest_gauges(
         await _add_span(session, trace)
     await _seed_criteria(db, project.id)
 
-    producer = OnlineEvalProducer(db)
-    producer._frontier_lag_seconds = 0.0
+    producer = OnlineEvalProducer(db, frontier_lag_seconds=0.0)
 
     # Cold start pins the watermark at the current high water, so nothing is behind.
     await producer._tick()
@@ -1389,11 +1168,10 @@ async def test_producer_counts_the_work_it_queues(
     materialized_counter.labels.return_value.inc.assert_called_once_with(2)
 
 
-async def test_frontier_gauges_keep_updating_while_the_admission_gate_is_closed(
+async def test_frontier_gauges_keep_updating_while_the_observation_ages(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "1")
     monkeypatch.setattr(producer_module, "get_env_enable_prometheus", lambda: True)
     frontier_gap = Mock()
     monkeypatch.setattr(producer_module, "ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS", frontier_gap)
@@ -1406,9 +1184,9 @@ async def test_frontier_gauges_keep_updating_while_the_admission_gate_is_closed(
         db,
         produced_through_id=span.id - 1,
         observed_high_water_id=span.id,
-        observed_at=_now() - timedelta(seconds=120),
+        observed_at=_now(),
     )
-    producer = OnlineEvalProducer(db)
+    producer = OnlineEvalProducer(db, frontier_lag_seconds=3600)
     ingest_samples: list[int] = []
     publish_ingest_rate = producer._publish_ingest_rate
 
@@ -1423,14 +1201,15 @@ async def test_frontier_gauges_keep_updating_while_the_admission_gate_is_closed(
             for _ in range(count):
                 await _add_span(session, await session.get(models.Trace, trace.id))
 
-    # The one work unit the gate admits closes it.
     await producer._tick()
+    assert frontier_gap.set.call_args.args[0] == 1
     await _add_spans(2)
     await producer._tick()
-    assert frontier_gap.set.call_args.args[0] == 2
+    assert frontier_gap.set.call_args.args[0] == 3
     assert ingest_samples[-1] == span.id + 2
 
     await _add_spans(3)
     await producer._tick()
-    assert frontier_gap.set.call_args.args[0] == 5
+    assert frontier_gap.set.call_args.args[0] == 6
     assert ingest_samples[-1] == span.id + 5
+    assert (await _get_cursor(db)).produced_through_id == span.id - 1

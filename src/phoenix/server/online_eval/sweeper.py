@@ -35,20 +35,17 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql.selectable import ScalarSelect, Subquery
 from typing_extensions import assert_never
 
-from phoenix.config import (
-    get_env_enable_prometheus,
-    get_env_online_eval_frontier_lag_seconds,
-)
+from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import (
     SESSION_REOFFERED_STATUSES,
     terminal_eval_session_work_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.derivation import sample_key
 from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
+from phoenix.server.online_eval.producer import FRONTIER_LAG_SECONDS
 from phoenix.server.online_eval.project_evaluator_resolution import (
     load_enabled_project_evaluator_pairs,
     resolve_project_evaluators_bulk,
@@ -148,6 +145,15 @@ _SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
         lease_name="trace-sweep",
     ),
 }
+
+
+@dataclass(frozen=True)
+class _SweepOutcome:
+    queued_count: int
+    eligible_pair_count: Optional[int]
+    full_page_decided: bool
+    """The page reached the per-tick limit and wrote at least one decision, so more pairs
+    may already be due."""
 
 
 @dataclass(frozen=True)
@@ -356,7 +362,7 @@ class EvalSweeper(DaemonTask):
         ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
         self._tick_interval_seconds = tick_interval_seconds
-        self._late_commit_margin = timedelta(seconds=get_env_online_eval_frontier_lag_seconds())
+        self._late_commit_margin = timedelta(seconds=FRONTIER_LAG_SECONDS)
         self._publish_metrics = get_env_enable_prometheus()
         self._lease = MaterializerLease(
             db,
@@ -367,8 +373,9 @@ class EvalSweeper(DaemonTask):
     async def _run(self) -> None:
         try:
             while self._running:
+                full_page_decided = False
                 try:
-                    await self._tick()
+                    full_page_decided = await self._tick()
                 except _PageRowDeletedError as error:
                     logger.warning(
                         f"{self._evaluation_target} evaluation sweep rolled back: a project "
@@ -382,20 +389,23 @@ class EvalSweeper(DaemonTask):
                     )
                 except Exception:
                     logger.exception(f"{self._evaluation_target} evaluation sweep failed")
-                await asyncio.sleep(self._tick_interval_seconds)
+                await asyncio.sleep(0 if full_page_decided else self._tick_interval_seconds)
         finally:
             # A second cancellation while stop() drains would abort the release and leave the
             # lease held until its 90 s TTL expires; the shield keeps the release running.
             await asyncio.shield(asyncio.ensure_future(self._lease.release()))
 
-    async def _tick(self) -> None:
+    async def _tick(self) -> bool:
+        """Run one tick, returning whether it decided a full page and still holds the lease,
+        so the next tick can start at once."""
         if not await self._lease.acquire():
-            return
+            return False
+        full_page_decided = False
         if not self._db.should_not_insert_or_update:
-            await self._materialize()
-        await self._lease.renew()
+            full_page_decided = await self._materialize()
+        return await self._lease.renew() and full_page_decided
 
-    async def _materialize(self) -> None:
+    async def _materialize(self) -> bool:
         started_at = time.monotonic()
         labels = self._metric_labels
         if self._publish_metrics:
@@ -409,9 +419,7 @@ class EvalSweeper(DaemonTask):
                         text(f"SET LOCAL lock_timeout = '{_LOCK_TIMEOUT_MILLISECONDS}ms'")
                     )
                 database_now = await current_database_time(session, self._db.dialect)
-                materialized_work_count, eligible_pair_count = await self._sweep(
-                    session, database_now
-                )
+                outcome = await self._sweep(session, database_now)
         except Exception as error:
             if self._publish_metrics:
                 ONLINE_EVAL_SWEEP_FAILURES.labels(**labels).inc()
@@ -425,8 +433,9 @@ class EvalSweeper(DaemonTask):
                 )
         if self._publish_metrics:
             ONLINE_EVAL_SWEEP_SUCCESSES.labels(**labels).inc()
-            ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**labels).inc(materialized_work_count)
-            await self._publish_eligibility_metrics(eligible_pair_count)
+            ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**labels).inc(outcome.queued_count)
+            await self._publish_eligibility_metrics(outcome.eligible_pair_count)
+        return outcome.full_page_decided
 
     async def _load_evaluators(self, session: AsyncSession) -> list[_SweepProjectEvaluator]:
         project_evaluator_pairs = await load_enabled_project_evaluator_pairs(
@@ -482,21 +491,14 @@ class EvalSweeper(DaemonTask):
         self,
         session: AsyncSession,
         database_now: datetime,
-    ) -> tuple[int, Optional[int]]:
-        """Materialize this tick's work, returning (work created, pairs found eligible)."""
-        work_budget = await admission.room(session)
-        if work_budget == 0:
-            logger.warning(
-                f"{self._evaluation_target} evaluation admission gate closed: the queue holds "
-                f"{admission.max_queued()} evaluations"
-            )
-            return 0, None
+    ) -> _SweepOutcome:
+        """Materialize this tick's work."""
         project_evaluators = await self._load_evaluators(session)
         return await self._load_eligible_pairs(
             session,
             database_now,
             project_evaluators,
-            limit=min(work_budget, _MAX_ELIGIBLE_PAIRS_PER_TICK),
+            limit=_MAX_ELIGIBLE_PAIRS_PER_TICK,
         )
 
     async def _load_eligible_pairs(
@@ -506,9 +508,13 @@ class EvalSweeper(DaemonTask):
         project_evaluators: Sequence[_SweepProjectEvaluator],
         *,
         limit: int,
-    ) -> tuple[int, Optional[int]]:
+    ) -> _SweepOutcome:
         if not project_evaluators:
-            return 0, 0 if self._publish_metrics else None
+            return _SweepOutcome(
+                queued_count=0,
+                eligible_pair_count=0 if self._publish_metrics else None,
+                full_page_decided=False,
+            )
         target = self._target
         relation = _eligible_pairs_relation(
             target,
@@ -527,7 +533,8 @@ class EvalSweeper(DaemonTask):
                 .limit(limit)
             )
         ).all()
-        if len(rows) < limit:
+        page_full = len(rows) >= limit
+        if not page_full:
             await self._advance_watermarks_to_due_horizon(
                 session,
                 project_evaluators,
@@ -557,17 +564,11 @@ class EvalSweeper(DaemonTask):
             )
         eligible_pair_count = sum(filter_verdicts.values()) if self._publish_metrics else None
         if not decisions:
-            return 0, eligible_pair_count
-        queueing_count = sum(decision["status"] == "PENDING" for decision in decisions)
-        if queueing_count and queueing_count > await admission.lock_room(session, self._db.dialect):
-            # Another producer took the room after the page was sized: leave the page, and
-            # the watermarks it advanced, to a later tick.
-            await session.rollback()
-            logger.warning(
-                f"{self._evaluation_target} evaluation sweep deferred its page: the queue has "
-                f"no room for its {queueing_count} evaluations"
+            return _SweepOutcome(
+                queued_count=0,
+                eligible_pair_count=eligible_pair_count,
+                full_page_decided=False,
             )
-            return 0, eligible_pair_count
         try:
             written_statuses = (
                 await session.scalars(
@@ -580,7 +581,11 @@ class EvalSweeper(DaemonTask):
             ).all()
         except IntegrityError as error:
             raise _PageRowDeletedError(str(error.orig)) from error
-        return written_statuses.count("PENDING"), eligible_pair_count
+        return _SweepOutcome(
+            queued_count=written_statuses.count("PENDING"),
+            eligible_pair_count=eligible_pair_count,
+            full_page_decided=page_full and bool(written_statuses),
+        )
 
     async def _read_filter_verdicts(
         self,

@@ -14,7 +14,6 @@ from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
-from phoenix.server.online_eval import admission
 from phoenix.server.online_eval import sweeper as sweeper_module
 from phoenix.server.online_eval.derivation import (
     ResolvedProjectEvaluator,
@@ -30,6 +29,7 @@ from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from .test_producer import _seed_criteria as _seed_criteria_raw
+from .test_producer import _stop_at_the_first_interval_sleep
 
 
 def _now() -> datetime:
@@ -78,26 +78,26 @@ async def test_materialization_rechecks_eligibility_at_write_time(
             .where(models.ProjectSession.id == project_session_id)
             .values(last_span_ingested_at=database_now)
         )
-        inserted_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+        outcome = await sweeper._load_eligible_pairs(
             session,
             database_now,
             [criterion],
             limit=1,
         )
-        assert inserted_count == 0
-        assert eligible_pair_count is None
+        assert outcome.queued_count == 0
+        assert outcome.eligible_pair_count is None
         await session.execute(
             update(models.ProjectSession)
             .where(models.ProjectSession.id == project_session_id)
             .values(last_span_ingested_at=last_span_ingested_at)
         )
-        inserted_count, _ = await sweeper._load_eligible_pairs(
+        outcome = await sweeper._load_eligible_pairs(
             session,
             database_now,
             [criterion],
             limit=1,
         )
-        assert inserted_count == 1
+        assert outcome.queued_count == 1
 
 
 async def _add_session_liveness(
@@ -251,9 +251,9 @@ def _run_one_tick(sweeper: EvalSweeper, monkeypatch: pytest.MonkeyPatch) -> asyn
     """Run the sweeper's loop, which logs a failed tick, for a single tick."""
     tick = sweeper._tick
 
-    async def tick_once() -> None:
+    async def tick_once() -> bool:
         sweeper._running = False
-        await tick()
+        return await tick()
 
     monkeypatch.setattr(sweeper, "_tick", tick_once)
     sweeper._running = True
@@ -541,6 +541,45 @@ async def test_retained_long_delay_pairs_do_not_block_later_due_pair(
     }
 
 
+async def test_full_sweeper_page_starts_the_next_tick_without_the_interval(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sweeper_module, "_MAX_ELIGIBLE_PAIRS_PER_TICK", 1)
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    for _ in range(2):
+        await _add_session_liveness(db, age_seconds=600, project_id=project_id)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = EvalSweeper(db, evaluation_target="SESSION", tick_interval_seconds=3600)
+    sleeps = _stop_at_the_first_interval_sleep(sweeper, monkeypatch, sweeper_module)
+
+    sweeper._running = True
+    await sweeper._run()
+
+    # Three full pages that each decided a session, then a short page.
+    assert sleeps == [0, 0, 0, 3600]
+    assert await _work_statuses(db) == ["PENDING"] * 3
+
+
+async def test_full_sweeper_page_that_decides_nothing_waits_the_interval(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sweeper_module, "_MAX_ELIGIBLE_PAIRS_PER_TICK", 1)
+    project_id, _, _ = await _add_session_liveness(db, age_seconds=600)
+    await _add_session_liveness(db, age_seconds=600, project_id=project_id)
+    await _seed_criteria(db, project_id, evaluation_target="SESSION")
+    sweeper = EvalSweeper(db, evaluation_target="SESSION")
+
+    async def every_entity_moved_on(*_: object) -> dict[tuple[int, int], bool]:
+        return {}
+
+    monkeypatch.setattr(sweeper, "_read_filter_verdicts", every_entity_moved_on)
+
+    assert await sweeper._tick() is False
+    assert await _work_statuses(db) == []
+
+
 async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -609,22 +648,6 @@ async def test_disabled_and_unresolved_criteria_preserve_future_eligibility(
             await session.scalars(select(models.EvalSessionWorkUnit.project_session_rowid))
         )
     assert session_ids == {disabled_session_id, unresolved_session_id}
-
-
-async def test_closed_admission_gate_skips_evaluator_resolution(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    sweeper = EvalSweeper(db, evaluation_target="SESSION")
-    monkeypatch.setattr(admission, "max_queued", lambda: 0)
-
-    async def unexpected_resolution(*_: object) -> list[ResolvedProjectEvaluator | None]:
-        pytest.fail("project_evaluator resolution must follow admission")
-
-    monkeypatch.setattr(sweeper_module, "resolve_project_evaluators_bulk", unexpected_resolution)
-    async with db() as session:
-        database_now = await current_database_time(session, db.dialect)
-        assert await sweeper._sweep(session, database_now) == (0, None)
 
 
 async def test_successful_work_closes_evaluate_once_key(
@@ -952,28 +975,6 @@ async def test_session_without_liveness_becomes_live_after_new_activity(
     assert scheduled_session_id == project_session_id
 
 
-async def test_outstanding_work_ceiling_defers_eligible_pair(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    project_id, project_session_id, _ = await _add_session_liveness(db, age_seconds=600)
-    await _seed_criteria(db, project_id, evaluation_target="SESSION")
-    sweeper = EvalSweeper(db, evaluation_target="SESSION")
-    monkeypatch.setattr(admission, "max_queued", lambda: 0)
-
-    await sweeper._tick()
-    async with db() as session:
-        assert (
-            await session.scalar(select(func.count()).select_from(models.EvalSessionWorkUnit)) == 0
-        )
-
-    monkeypatch.setattr(admission, "max_queued", lambda: 1)
-    await sweeper._tick()
-    async with db() as session:
-        session_id = await session.scalar(select(models.EvalSessionWorkUnit.project_session_rowid))
-    assert session_id == project_session_id
-
-
 async def test_sweep_is_kept_when_the_lease_is_lost_mid_tick(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -1094,7 +1095,7 @@ async def test_session_filter_is_evaluated_against_page_rowids_before_sampling(
         async with db() as session:
             project_evaluator = await sweeper._load_evaluators(session)
             database_now = await current_database_time(session, db.dialect)
-            materialized_count, eligible_pair_count = await sweeper._load_eligible_pairs(
+            outcome = await sweeper._load_eligible_pairs(
                 session,
                 database_now,
                 project_evaluator,
@@ -1115,8 +1116,8 @@ async def test_session_filter_is_evaluated_against_page_rowids_before_sampling(
                 )
             ).all()
         }
-    assert materialized_count == 1
-    assert eligible_pair_count == 1
+    assert outcome.queued_count == 1
+    assert outcome.eligible_pair_count == 1
     assert statuses == {
         matching_session_id: "PENDING",
         declined_session_id: "FILTERED_OUT",
@@ -1572,9 +1573,8 @@ async def test_sweep_metrics_cover_eligibility_watermark_and_outcomes(
     metrics["ONLINE_EVAL_SWEEP_FAILURES"].inc.assert_not_called()
     metrics["ONLINE_EVAL_MATERIALIZED_WORK_UNITS"].inc.assert_called_once_with(1)
 
-    monkeypatch.setattr(admission, "max_queued", lambda: 0)
     await sweeper._tick()
-    metrics["ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_once_with(1)
+    metrics["ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG"].set.assert_called_with(0)
     assert metrics["ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS"].set.call_count == 2
 
     async def fail_sweep(session: AsyncSession, database_now: datetime) -> int:
