@@ -24,10 +24,14 @@ import { ModelTokenTypeComboBox } from "@phoenix/pages/settings/ModelTokenTypeCo
 const DUPLICATE_TOKEN_TYPE_ERROR = "Duplicate token type";
 
 /**
- * Token types that trim and case-fold to the same value are duplicates, as the
- * server compares them.
+ * Trims and lowercases a token type for duplicate detection. The server treats
+ * token types that differ only in case or surrounding whitespace as the same
+ * token type. Unlike `normalizeTokenType`, this lowercases custom token types
+ * too, so it is only for comparison and is never stored.
  */
-function toDuplicateKey(tokenType: string | null | undefined): string {
+function normalizeTokenTypeForComparison(
+  tokenType: string | null | undefined
+): string {
   return (tokenType ?? "").trim().toLowerCase();
 }
 
@@ -133,14 +137,16 @@ export function ModelTokenCostControlTable({
                   control={control}
                   rules={{
                     validate: (value, formValues) => {
-                      const tokenType = toDuplicateKey(value);
+                      const tokenType = normalizeTokenTypeForComparison(value);
                       if (!tokenType) {
                         return "Token type is required";
                       }
                       const isDuplicate = formValues[namePrefix]
                         .slice(0, index)
                         .some(
-                          (cost) => toDuplicateKey(cost.tokenType) === tokenType
+                          (cost) =>
+                            normalizeTokenTypeForComparison(cost.tokenType) ===
+                            tokenType
                         );
                       return !isDuplicate || DUPLICATE_TOKEN_TYPE_ERROR;
                     },
