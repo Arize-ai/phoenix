@@ -338,6 +338,21 @@ describe("decision get", () => {
     expect(requests).toEqual([]);
   });
 
+  it.each([["--tag"], ["--version"]])(
+    "rejects an empty %s instead of showing the latest version",
+    async (flag) => {
+      const requests = recordRequests(mock.server);
+      mockProcessExit();
+      const io = captureCliOutput();
+      await expect(
+        run(["get", "ticket-triage", ...BASE_ARGS, flag, "", "--format", "raw"])
+      ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+      expect(stderrJson(io).code).toBe("INVALID_ARGUMENT");
+      expect(io.stdout).not.toHaveBeenCalled();
+      expect(requests).toEqual([]);
+    }
+  );
+
   it("exits FAILURE with the server's explanation for an unknown tag", async () => {
     mock.server.use(
       http.get(
@@ -377,6 +392,9 @@ describe("decision delete", () => {
   beforeEach(() => {
     originalEnv = process.env[ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES];
     process.env[ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES] = "true";
+    // restoreAllMocks leaves vi.fn() call history alone; clear it so each
+    // test's confirmOrExit assertions see only its own calls.
+    vi.mocked(confirmOrExit).mockClear();
   });
 
   afterEach(() => {
@@ -415,6 +433,7 @@ describe("decision delete", () => {
       run(["delete", "ticket-triage", ...BASE_ARGS, "--yes"])
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
     expect(requests).toEqual([]);
+    expect(confirmOrExit).not.toHaveBeenCalled();
   });
 
   it("does not delete when the confirmation is declined", async () => {
@@ -454,6 +473,8 @@ describe("decision delete", () => {
     expect(error.problem_code).toBe("conflict");
     expect(error.problem_reason).toBe("referenced_by_evaluator");
     expect(error.problem?.detail).toContain("native-judge");
+    // The refusal names the evaluators; the hint shows where their IDs are.
+    expect(error.hint).toContain("px evaluator list");
   });
 
   it("exits FAILURE for a decision that does not exist", async () => {
@@ -483,6 +504,19 @@ describe("decision formatters", () => {
     expect(output).toContain("true: Customer is blocked");
     expect(output).toContain("- technical: Bugs and outages");
     expect(output).toContain("2. high");
+    expect(output).not.toContain("Custom Provider");
+  });
+
+  it("names a custom provider instead of passing it off as the built-in one", () => {
+    const output = formatDecisionOutput({
+      decisionVersion: {
+        ...VERSION,
+        custom_provider_id: "R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ==",
+      },
+    });
+    expect(output).toContain(
+      "Custom Provider: R2VuZXJhdGl2ZU1vZGVsQ3VzdG9tUHJvdmlkZXI6MQ=="
+    );
   });
 
   it("names a question type it does not know instead of dropping it", () => {
@@ -513,5 +547,16 @@ describe("decision formatters", () => {
     const output = formatDecisionsOutput({ decisions: [decision(1)] });
     expect(output).toContain("decision-1");
     expect(output).toContain("Routes support tickets");
+  });
+
+  it("keeps a multi-line description on its row", () => {
+    const output = formatDecisionsOutput({
+      decisions: [
+        { ...decision(1), description: "Routes tickets\nand ranks them" },
+      ],
+    });
+    // top border, header, separator, one row, bottom border
+    expect(output.split("\n")).toHaveLength(5);
+    expect(output).toContain("Routes tickets and ranks them");
   });
 });

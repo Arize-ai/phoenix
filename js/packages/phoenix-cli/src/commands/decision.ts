@@ -16,13 +16,22 @@ import {
   parsePositiveIntOption,
 } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
-import { exitWithError, requireValidLimitOrExit } from "./evaluatorErrors";
+import {
+  describeFailure,
+  exitWithError,
+  requireValidLimitOrExit,
+} from "./evaluatorErrors";
 import { formatDecisionOutput, type OutputFormat } from "./formatDecision";
 import { formatDecisionsOutput } from "./formatDecisions";
 import type { CommonOptions, DeleteOptions } from "./options";
 
 type Decision = componentsV1["schemas"]["Decision"];
 type DecisionVersion = componentsV1["schemas"]["DecisionVersion"];
+
+/** Where to find the IDs of the decision evaluators that block a delete. */
+const REFERENCED_BY_EVALUATOR_HINT =
+  `px evaluator list --format raw --no-progress | jq -r '.[] | select(.type == "decision") | "\\(.id) \\(.name)"'` +
+  " # then: px evaluator delete <evaluator-id> --yes";
 
 /**
  * Options for `px decision list`.
@@ -157,7 +166,7 @@ async function fetchDecisionVersion({
   tag?: string;
   versionId?: string;
 }): Promise<DecisionVersion> {
-  if (versionId) {
+  if (versionId !== undefined) {
     const response = await client.GET(
       "/v1/decision_versions/{decision_version_id}",
       { params: { path: { decision_version_id: versionId } } }
@@ -181,7 +190,7 @@ async function fetchDecisionVersion({
     }
     return version;
   }
-  if (tag) {
+  if (tag !== undefined) {
     const response = await client.GET(
       "/v1/decisions/{decision_identifier}/tags/{tag_name}",
       {
@@ -247,7 +256,7 @@ async function decisionGetHandler(
   decisionIdentifier: string,
   options: DecisionGetOptions
 ): Promise<void> {
-  if (options.tag && options.version) {
+  if (options.tag !== undefined && options.version !== undefined) {
     writeStructuredError({
       format: options.format,
       message: "Specify either --tag or --version, not both",
@@ -255,6 +264,22 @@ async function decisionGetHandler(
       hint: `px decision get ${decisionIdentifier} --tag ${options.tag}`,
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  // An empty value (e.g. `--tag "$UNSET_VAR"`) must not fall back to the
+  // latest version: a script asking for a tag would silently get another one.
+  for (const [flag, value] of [
+    ["--tag", options.tag],
+    ["--version", options.version],
+  ] as const) {
+    if (value !== undefined && value.trim() === "") {
+      writeStructuredError({
+        format: options.format,
+        message: `${flag} must not be empty; omit it to show the latest version`,
+        code: "INVALID_ARGUMENT",
+        hint: `px decision get ${decisionIdentifier}`,
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
   }
   try {
     const client = createClientOrExit(options);
@@ -313,6 +338,11 @@ async function decisionDeleteHandler(
       verb: "deleting decision",
       error,
       format: options.format,
+      // The refusal names the evaluators, but `px evaluator delete` takes an ID.
+      hint:
+        describeFailure(error).problemReason === "referenced_by_evaluator"
+          ? REFERENCED_BY_EVALUATOR_HINT
+          : undefined,
     });
   }
 }
@@ -407,7 +437,7 @@ export function createDecisionDeleteCommand(): Command {
       "\nExamples:\n" +
         "  # Delete a decision; deletes are gated by PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true\n" +
         "  px decision delete ticket-triage --yes\n\n" +
-        "  # Find the evaluators that block a delete (agent-friendly)\n" +
+        "  # Delete; if an evaluator still runs the decision, print the refusal (agent-friendly)\n" +
         "  px decision delete ticket-triage --yes --format raw --no-progress 2>&1 | jq -r '.problem.detail'\n"
     )
     .action(decisionDeleteHandler);

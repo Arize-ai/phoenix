@@ -36,8 +36,12 @@ function formatDecisionPretty(decisionVersion: DecisionVersion): string {
     `│`,
     `│  Version ID: ${decisionVersion.id}`,
     `│  Model: ${decisionVersion.model_provider} / ${decisionVersion.model_name}`,
-    `│  Template Format: ${decisionVersion.template_format}`,
   ];
+  if (decisionVersion.custom_provider_id) {
+    // Without this, a custom provider reads as the built-in one it speaks for.
+    lines.push(`│  Custom Provider: ${decisionVersion.custom_provider_id}`);
+  }
+  lines.push(`│  Template Format: ${decisionVersion.template_format}`);
   if (decisionVersion.tag_names.length > 0) {
     lines.push(`│  Tags: ${decisionVersion.tag_names.join(", ")}`);
   }
