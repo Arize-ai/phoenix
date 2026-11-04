@@ -24,8 +24,8 @@ import { SearchIcon } from "@phoenix/components/core/field";
 import {
   useServerEvaluationActivity,
   useServerProjectSeries,
-} from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationCharts";
-import { MAX_PICKED_PROJECTS } from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
+} from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
+import { MAX_PICKED_PROJECTS } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { EvaluationQueueSwatch } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 

@@ -804,6 +804,153 @@ async def test_project_evaluators(
         ("toxicity", first),
         ("toxicity", second),
     ]
+    count = await gql_client.execute("query { projectEvaluatorCount }")
+    assert count.data == {"projectEvaluatorCount": 3}
+
+
+async def test_dataset_evaluators(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        builtin = models.BuiltinEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            kind="BUILTIN",
+            key=uuid.uuid4().hex,
+            input_schema={},
+            output_configs=[],
+        )
+        prompt = models.Prompt(name=Identifier(f"prompt-{uuid.uuid4().hex[:8]}"), metadata_={})
+        session.add_all([builtin, prompt])
+        await session.flush()
+        llm = models.LLMEvaluator(
+            name=Identifier(f"evaluator-{uuid.uuid4().hex[:8]}"),
+            metadata_={},
+            prompt_id=prompt.id,
+            output_configs=[],
+        )
+        alpha = models.Dataset(name="alpha", metadata_={})
+        beta = models.Dataset(name="beta", metadata_={})
+        session.add_all([llm, alpha, beta])
+        await session.flush()
+        created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        # Inserted in descending id order, so PostgreSQL scans ties in the
+        # opposite order from the id tiebreak and the assertions below fail
+        # without it. SQLite always scans in id order.
+        for row_id, dataset, evaluator, name in (
+            (4, beta, builtin, "accuracy"),
+            (3, beta, llm, "relevance"),
+            (2, alpha, llm, "toxicity"),
+            (1, alpha, builtin, "relevance"),
+        ):
+            session.add(
+                models.DatasetEvaluators(
+                    id=row_id,
+                    dataset_id=dataset.id,
+                    evaluator_id=evaluator.id,
+                    name=Identifier(name),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project=models.Project(name=f"dataset-evaluator-{uuid.uuid4().hex}"),
+                    created_at=created_at + timedelta(minutes=row_id),
+                )
+            )
+            await session.flush()
+
+    query = """query (
+        $first: Int, $after: String, $sort: DatasetEvaluatorSort, $filter: DatasetEvaluatorFilter
+    ) {
+        datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {
+            edges { node { name dataset { name } } }
+            pageInfo { hasNextPage endCursor }
+        }
+    }"""
+
+    async def page(**variables: Any) -> tuple[list[tuple[str, str]], dict[str, Any]]:
+        response = await gql_client.execute(query, variables)
+        assert not response.errors and response.data
+        connection = response.data["datasetEvaluators"]
+        return [
+            (edge["node"]["name"], edge["node"]["dataset"]["name"]) for edge in connection["edges"]
+        ], connection["pageInfo"]
+
+    by_name = [
+        ("accuracy", "beta"),
+        ("relevance", "alpha"),
+        ("relevance", "beta"),
+        ("toxicity", "alpha"),
+    ]
+    assert (await page())[0] == by_name
+
+    paged: list[tuple[str, str]] = []
+    after = None
+    while True:
+        rows, page_info = await page(first=1, after=after)
+        paged.extend(rows)
+        if not page_info["hasNextPage"]:
+            break
+        after = page_info["endCursor"]
+    assert paged == by_name
+
+    assert (await page(filter={"col": "name", "value": "TOX"}))[0] == [("toxicity", "alpha")]
+    assert (await page(filter={"col": "name", "value": "BETA"}))[0] == [
+        ("accuracy", "beta"),
+        ("relevance", "beta"),
+    ]
+    assert (await page(sort={"col": "kind", "dir": "asc"}))[0] == [
+        ("relevance", "alpha"),
+        ("accuracy", "beta"),
+        ("toxicity", "alpha"),
+        ("relevance", "beta"),
+    ]
+    assert (await page(sort={"col": "name", "dir": "desc"}))[0] == [
+        ("toxicity", "alpha"),
+        ("relevance", "alpha"),
+        ("relevance", "beta"),
+        ("accuracy", "beta"),
+    ]
+    count = await gql_client.execute("query { datasetEvaluatorCount }")
+    assert count.data == {"datasetEvaluatorCount": 4}
+
+    newest = await gql_client.execute(
+        """query {
+            datasetEvaluators(sort: {col: createdAt, dir: desc}) {
+                edges { node { name createdAt } }
+            }
+        }"""
+    )
+    assert not newest.errors and newest.data
+    assert [
+        (edge["node"]["name"], datetime.fromisoformat(edge["node"]["createdAt"]))
+        for edge in newest.data["datasetEvaluators"]["edges"]
+    ] == [
+        ("accuracy", created_at + timedelta(minutes=4)),
+        ("relevance", created_at + timedelta(minutes=3)),
+        ("toxicity", created_at + timedelta(minutes=2)),
+        ("relevance", created_at + timedelta(minutes=1)),
+    ]
+
+    # A dataset's own field lists only that dataset's evaluators, and its name
+    # filter does not match the dataset's name.
+    dataset_query = """query ($id: ID!, $filter: DatasetEvaluatorFilter) {
+        node(id: $id) {
+            ... on Dataset {
+                datasetEvaluators(filter: $filter) { edges { node { name } } }
+            }
+        }
+    }"""
+
+    async def dataset_page(dataset: models.Dataset, **variables: Any) -> list[str]:
+        response = await gql_client.execute(
+            dataset_query, {"id": str(GlobalID("Dataset", str(dataset.id))), **variables}
+        )
+        assert not response.errors and response.data
+        return [
+            edge["node"]["name"] for edge in response.data["node"]["datasetEvaluators"]["edges"]
+        ]
+
+    assert await dataset_page(alpha) == ["relevance", "toxicity"]
+    assert await dataset_page(beta) == ["accuracy", "relevance"]
+    assert await dataset_page(alpha, filter={"col": "name", "value": "alpha"}) == []
 
 
 async def test_agents_config_returns_env_values(
