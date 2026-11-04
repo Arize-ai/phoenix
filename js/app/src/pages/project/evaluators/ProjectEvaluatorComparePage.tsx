@@ -12,7 +12,6 @@ import {
   IconButton,
   Icons,
   Link,
-  Loading,
   PageHeader,
   Text,
   View,
@@ -28,7 +27,10 @@ import { TopNavActions } from "@phoenix/components/nav";
 import type { OwnedPreloadedQueryRef } from "@phoenix/hooks";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorCompareLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorCompareLoaderQuery.graphql";
-import { ProjectEvaluatorCompareContent } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareContent";
+import {
+  ProjectEvaluatorCompareContent,
+  ProjectEvaluatorCompareContentSkeleton,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareContent";
 import type {
   projectEvaluatorCompareLoader,
   ProjectEvaluatorCompareInvalidReason,
@@ -165,7 +167,14 @@ function ProjectEvaluatorComparePageLoaded({
       <div css={scrollCSS}>
         <div css={gutterCSS}>
           <div css={contentCSS}>
-            <Suspense key={pairKey} fallback={<Loading />}>
+            <Suspense
+              key={pairKey}
+              fallback={
+                <ProjectEvaluatorCompareContentSkeleton
+                  target={evaluatorA.evaluationTarget}
+                />
+              }
+            >
               <ErrorBoundary
                 resetKey={comparisonKey}
                 fallback={ProjectEvaluatorCompareErrorFallback}
@@ -181,7 +190,7 @@ function ProjectEvaluatorComparePageLoaded({
           </div>
         </div>
       </div>
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={null}>
         <Outlet />
       </Suspense>
     </main>
