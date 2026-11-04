@@ -67,11 +67,15 @@ type AutoAssignmentResult = ColumnAssignerValue & {
  * Auto-assign columns based on name matching heuristics. In create mode an
  * ID-named column holding DatasetExample node IDs is not auto-selected.
  */
-function computeAutoAssignment(
-  columns: string[],
-  previewRows: PreviewData,
-  mode: "create" | "append"
-): AutoAssignmentResult {
+function computeAutoAssignment({
+  columns,
+  previewRows,
+  mode,
+}: {
+  columns: string[];
+  previewRows: PreviewData;
+  mode: "create" | "append";
+}): AutoAssignmentResult {
   const result: AutoAssignmentResult = {
     input: [],
     output: [],
@@ -87,7 +91,7 @@ function computeAutoAssignment(
       isAutoIdColumn(column) &&
       !(
         mode === "create" &&
-        holdsDatasetExampleIds(column, columns, previewRows)
+        holdsDatasetExampleIds({ column, columns, rows: previewRows })
       )
     ) {
       result.exampleIdKey ??= column; // first match wins
@@ -116,11 +120,15 @@ type PreviewData = string[][] | Record<string, unknown>[];
  * Only the preview rows are checked: a column whose node IDs start after
  * the preview still gets auto-selected (the server's 422 detail then says why).
  */
-function holdsDatasetExampleIds(
-  column: string,
-  columns: string[],
-  rows: PreviewData
-): boolean {
+function holdsDatasetExampleIds({
+  column,
+  columns,
+  rows,
+}: {
+  column: string;
+  columns: string[];
+  rows: PreviewData;
+}): boolean {
   const index = columns.indexOf(column);
   return rows.some((row) => {
     const value = Array.isArray(row) ? row[index] : row[column];
@@ -466,11 +474,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             setCollapsibleKeys(result.collapsibleColumns);
             setCollapseKeys(result.collapsibleColumns.length > 0);
             // Auto-assign columns based on name heuristics
-            const autoAssigned = computeAutoAssignment(
-              result.columns,
-              result.previewRows,
-              mode
-            );
+            const autoAssigned = computeAutoAssignment({
+              columns: result.columns,
+              previewRows: result.previewRows,
+              mode,
+            });
             setValue("input_keys", autoAssigned.input, {
               shouldDirty: true,
               shouldValidate: true,
@@ -496,11 +504,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               setCollapsibleKeys(result.collapsibleKeys);
               setCollapseKeys(result.collapsibleKeys.length > 0);
               // Auto-assign columns based on name heuristics
-              const autoAssigned = computeAutoAssignment(
-                result.keys,
-                result.previewRows,
-                mode
-              );
+              const autoAssigned = computeAutoAssignment({
+                columns: result.keys,
+                previewRows: result.previewRows,
+                mode,
+              });
               setValue("input_keys", autoAssigned.input, {
                 shouldDirty: true,
                 shouldValidate: true,
@@ -593,7 +601,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   }, [setValue]);
 
   const handleColumnAssignerAuto = useCallback(() => {
-    const autoAssigned = computeAutoAssignment(columns, previewRows, mode);
+    const autoAssigned = computeAutoAssignment({ columns, previewRows, mode });
     setValue("input_keys", autoAssigned.input, {
       shouldDirty: true,
       shouldValidate: true,
