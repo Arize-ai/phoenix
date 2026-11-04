@@ -95,6 +95,27 @@ describe("toAnthropic type compatibility", () => {
     // it will fail in pnpm type:check if the types break in the future
   });
 
+  it("sends extra_body fields as top-level request parameters", () => {
+    const mockPrompt = {
+      ...BASE_MOCK_PROMPT_VERSION,
+      invocation_parameters: {
+        type: "anthropic",
+        anthropic: {
+          max_tokens: 256,
+          extra_body: { top_k: 5 },
+        },
+      },
+    } satisfies PromptVersion;
+
+    const result = toAnthropic({ prompt: mockPrompt });
+
+    expect(result).not.toBeNull();
+    invariant(result, "Expected non-null result");
+
+    expect(result).not.toHaveProperty("extra_body");
+    expect(result).toMatchObject({ max_tokens: 256, top_k: 5 });
+  });
+
   it("should handle complex message types", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
