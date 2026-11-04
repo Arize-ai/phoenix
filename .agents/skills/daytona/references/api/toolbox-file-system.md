@@ -105,8 +105,8 @@ Upload multiple files with their destination paths
 
 | Status | Description | Schema |
 |--------|-------------|--------|
-| 200 | OK |  |
-| 400 | Bad Request | ErrorResponse |
+| 200 | OK | UploadFilesResponse |
+| 400 | Bad Request | UploadFilesResponse |
 
 ---
 

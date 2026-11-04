@@ -193,6 +193,8 @@ Manage resource leaks with PTY sessions, allowing you to always clean up PTY ses
 
 ```python
 # Python: Use try/finally
+from daytona import PtySize
+
 pty_handle = None
 try:
     pty_handle = sandbox.process.create_pty_session(id="session", pty_size=PtySize(cols=120, rows=30))

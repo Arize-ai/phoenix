@@ -124,7 +124,7 @@ The SDK supports the following environment variables:
 
 The Ruby SDK reference documents the following modules:
 
-- [Chart](./charts.md)
+- [Chart](https://www.daytona.io/docs/en/ruby-sdk/charts)
 - [ComputerUse](./computer-use.md)
 - [Config](./config.md)
 - [Daytona](./daytona.md)
