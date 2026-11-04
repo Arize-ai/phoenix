@@ -26,7 +26,10 @@ export function DatasetEvaluatorsTab() {
   return (
     <DatasetEvaluatorsFilterProvider>
       <Flex direction="column" height="100%">
-        <DatasetEvaluatorsFilterBar placeholder="Search evaluators or datasets" />
+        <DatasetEvaluatorsFilterBar
+          padding="size-100"
+          placeholder="Search evaluators or datasets"
+        />
         <Suspense fallback={<TableSkeleton rowCount="fill" />}>
           <DatasetEvaluatorsTabTable query={query} />
         </Suspense>

@@ -269,6 +269,10 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
 
 export type TableRow = ReturnType<typeof readRow>;
 
+// TODO: support opening a decision evaluator as a playground evaluator task.
+const canOpenInPlayground = (kind: EvaluatorKind) =>
+  kind !== "BUILTIN" && kind !== "DECISION";
+
 const datasetColumn: ColumnDef<TableRow> = {
   id: "dataset",
   header: "dataset",
@@ -364,6 +368,11 @@ export const DatasetEvaluatorsTable = ({
   const tableData = useMemo(() => {
     return rowReferences.map(readRow);
   }, [rowReferences]);
+  // Across datasets the column holds only Playground buttons, so it is left
+  // out when no loaded row has one.
+  const hasActionsColumn =
+    datasetId != null ||
+    tableData.some((row) => canOpenInPlayground(row.evaluator.kind));
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
       {
@@ -509,6 +518,9 @@ export const DatasetEvaluatorsTable = ({
         cell: TimestampCell,
       },
     ];
+    if (!hasActionsColumn) {
+      return cols;
+    }
     // Pinned to the right edge like the prompts table's actions column.
     cols.push({
       header: "",
@@ -517,9 +529,7 @@ export const DatasetEvaluatorsTable = ({
       enableSorting: false,
       cell: ({ row }) => (
         <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
-          {/* TODO: support opening a decision evaluator as a playground evaluator task. */}
-          {row.original.evaluator.kind !== "BUILTIN" &&
-          row.original.evaluator.kind !== "DECISION" ? (
+          {canOpenInPlayground(row.original.evaluator.kind) ? (
             <StopPropagation>
               <LinkButton
                 leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
@@ -547,7 +557,7 @@ export const DatasetEvaluatorsTable = ({
       ),
     });
     return cols;
-  }, [datasetId, updateConnectionIds]);
+  }, [datasetId, hasActionsColumn, updateConnectionIds]);
 
   const table = useTable({
     features: appTableFeatures,
