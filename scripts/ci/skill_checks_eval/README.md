@@ -1,7 +1,9 @@
 # Skill example checks: evaluation
 
 This folder measures whether the skill example checks in Arize-ai/phoenix#17589 catch the API
-drift they exist to catch. Those checks are `test_skill_python_examples.py`,
+drift they exist to catch. It also reviews the lint warnings in that PR and the example fixes in
+Arize-ai/phoenix#17594. The static checks are judged on their own, not on how other eval layers
+would cover their gaps. Those checks are `test_skill_python_examples.py`,
 `test_skill_typescript_examples.py` and `test_skill_px_commands.py`. The scripts import the
 checks themselves, so every number below comes from the real fence parsing, fragment rules and
 error filters, not from a reimplementation. None of the scripts makes a model call.
@@ -18,7 +20,8 @@ client change affects, it flags 35%. Most misses come from fragments that use `c
 `register` or `LLM` without defining them. The rest come from two typing problems in
 `phoenix.evals` that hide its API from pyright. Fixing both raises Python recall to 70% and
 name coverage to 95%, with no new false flags. Almost all of the remaining misses are APIs
-that take `**kwargs`, which no static check can see.
+that take `**kwargs`, which a type checker can't see today. Typing those keyword arguments in
+the packages, for example with `**kwargs: Unpack[SomeTypedDict]`, would make them checkable.
 
 ## How to run
 
@@ -173,6 +176,45 @@ other four are code that runs or is only notation:
 - **A lighter import-existence check.** This catches only function renames, which are 33 of
   the 130 affected examples, and nothing about arguments. It's strictly weaker than the
   prelude, which costs about as much code.
+
+### Lint warnings in `scripts/sync_skills.py`
+
+The lint works as designed:
+
+- Deleting a reference file makes it warn in 69 of 72 cases. The other three files have
+  nothing linking to them: two READMEs and
+  `skills/phoenix-evals/references/experiments-overview.md`. That last one can't be reached
+  from `SKILL.md`, and the lint doesn't warn about reference files that nothing links to.
+- Description budgets have room. The `agents` target uses 2,004 of 4,096 bytes and `mcp` uses
+  1,568. The longest description is `phoenix-error-analysis` at 806 characters.
+- One warning fires today: `skills/phoenix-cli/SKILL.md` has a 535-line body.
+
+The lint only prints warnings and never fails, so a warning in CI goes unread unless someone
+looks at the log. Either make the warnings fail CI once the CLI skill is under 500 lines, or
+drop them.
+
+### Example fixes in #17594
+
+With #17594 applied on top of `d34ca8d0f3`, the checks give these results:
+
+- Python: 147 passed, 4 xfailed.
+- `px`: 204 passed.
+- TypeScript: 106 passed, 7 xfailed.
+- `skills-check`: passes, so the plugin, MCP and PXI copies are in sync.
+
+The new `--profile` text is right: only `px auth login`, `px auth logout`, `px auth status` and
+`px setup mcp` take `--profile`. Two of its four fixes satisfy the checker rather than fix a
+bug, because the original code worked. These are the `python no-check` tag on the ATIF
+signature and the `list[v1.Span]` annotation for `log_spans`. Both are harmless.
+
+#17594 doesn't fix two things outside `phoenix-evals`, which isn't covered by the rewrite
+exemption:
+
+- The TypeScript `KNOWN_BROKEN` entry for
+  `skills/phoenix-tracing/references/projects-typescript.md#0`, where `register()` needs
+  `register({})`.
+- The two Python bugs the prelude finds. Both are in `phoenix-evals`, so they should be
+  `KNOWN_BROKEN` entries rather than fixes.
 
 ## Why this stays on a branch
 
