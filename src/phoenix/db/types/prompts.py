@@ -259,6 +259,10 @@ class PromptTogetherInvocationParametersContent(PromptOpenAIInvocationParameters
     pass
 
 
+class PromptMistralInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
 class PromptZAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
     pass
 
@@ -315,6 +319,11 @@ class PromptPerplexityInvocationParameters(DBBaseModel):
 class PromptTogetherInvocationParameters(DBBaseModel):
     type: Literal["together"]
     together: PromptTogetherInvocationParametersContent
+
+
+class PromptMistralInvocationParameters(DBBaseModel):
+    type: Literal["mistral"]
+    mistral: PromptMistralInvocationParametersContent
 
 
 class PromptZAIInvocationParameters(DBBaseModel):
@@ -435,6 +444,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptMoonshotInvocationParameters,
         PromptPerplexityInvocationParameters,
         PromptTogetherInvocationParameters,
+        PromptMistralInvocationParameters,
         PromptZAIInvocationParameters,
         PromptMetaInvocationParameters,
     ],
@@ -490,6 +500,10 @@ def openai_family_content_from_invocation_parameters(
         return PromptOpenAIInvocationParametersContent.model_validate(
             invocation_parameters.together.model_dump(mode="python")
         )
+    if isinstance(invocation_parameters, PromptMistralInvocationParameters):
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.mistral.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptZAIInvocationParameters):
         return PromptOpenAIInvocationParametersContent.model_validate(
             invocation_parameters.zai.model_dump(mode="python")
@@ -537,6 +551,7 @@ def is_prompt_invocation_parameters(
             PromptMoonshotInvocationParameters,
             PromptPerplexityInvocationParameters,
             PromptTogetherInvocationParameters,
+            PromptMistralInvocationParameters,
             PromptZAIInvocationParameters,
             PromptMetaInvocationParameters,
         ),

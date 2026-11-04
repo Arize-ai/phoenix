@@ -172,6 +172,7 @@ const OPENAI_COMPATIBLE_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
   "MINIMAX",
   "PERPLEXITY",
   "TOGETHER",
+  "MISTRAL",
   "ZAI",
   "META",
 ]);
@@ -391,6 +392,10 @@ export function openInferenceModelProviderToPhoenixModelProvider(
       return "GOOGLE";
     case "azure":
       return "AZURE_OPENAI";
+    case "mistralai":
+      return "MISTRAL";
+    case "ollama":
+      return "OLLAMA";
     default:
       return null;
   }
@@ -1455,6 +1460,7 @@ export const createToolCallForProvider = (
     case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
+    case "MISTRAL":
     case "ZAI":
     case "META":
       return createOpenAIToolCall();
@@ -1927,7 +1933,7 @@ export function getToolDefinitionDisplay(
     };
   }
   // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
-  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META
+  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, MISTRAL, ZAI, META
   return {
     type: "function",
     function: {

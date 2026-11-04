@@ -28,6 +28,7 @@ export const BUILT_IN_PROVIDERS = [
   "PERPLEXITY",
   "TOGETHER",
   "XAI",
+  "MISTRAL",
   "ZAI",
   "META",
 ] as const satisfies readonly BuiltInProvider[];

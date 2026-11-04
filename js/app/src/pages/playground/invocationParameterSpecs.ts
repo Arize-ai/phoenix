@@ -73,6 +73,7 @@ export function getInvocationFamilyForProvider(
     case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
+    case "MISTRAL":
     case "ZAI":
     case "META":
       return InvocationFamily.OPENAI;

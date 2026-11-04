@@ -36,6 +36,7 @@ class GenerativeProviderKey(str, Enum):
     MINIMAX = "MINIMAX"
     PERPLEXITY = "PERPLEXITY"
     TOGETHER = "TOGETHER"
+    MISTRAL = "MISTRAL"
     ZAI = "ZAI"
     META = "META"
 
