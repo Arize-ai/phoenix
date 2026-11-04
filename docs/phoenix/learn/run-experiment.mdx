@@ -52,7 +52,9 @@ Keep the model, tools, dataset version, and budget judge the same for both runs 
 
 ## Step 2: Understand how the experiment runs
 
-Open [`academy/evaluations/run_experiment.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/run_experiment.py). We'll walk through the functions already in this file before running it. In `main`, the script prepares the agent and loads your dataset. It also reuses the judge from [`budget_judge.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/budget_judge.py), which we explored in the previous lesson.
+Open [`academy/evaluations/run_experiment.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/run_experiment.py). It runs the supplied agent in [`phoenix/langchain-py`](https://github.com/Arize-ai/project-rosetta-stone/tree/main/phoenix/langchain-py) directly, so edits to your practice app in `no-observability/langchain-py` aren't included.
+
+In `main`, the script prepares the agent and loads your dataset. It also reuses the judge from [`budget_judge.py`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/budget_judge.py), which we explored in the previous lesson.
 
 First, find the `task` function inside `main`:
 

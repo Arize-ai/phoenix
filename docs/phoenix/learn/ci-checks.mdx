@@ -78,11 +78,13 @@ After the command finishes, open **Datasets & Experiments → wonder-toys-ci →
 
 The local run gives you a working test. Open the supplied [GitHub Actions workflow](https://github.com/Arize-ai/project-rosetta-stone/blob/main/.github/workflows/academy-checks.yml) to see how it runs on code changes:
 
-- **Trigger:** A pull request changes the evaluation files, Python backend, or workflow itself.
+- **Trigger:** A pull request changes `academy/**`, `phoenix/langchain-py/**`, the shared evaluation files, or the workflow itself.
 - **Execution:** It runs the unit suite and the marked purchase evaluation test.
 - **Result:** A failed test produces a failed workflow check. When recording is configured, Phoenix also receives the marked run.
 
-To use it in your repository, add the workflow under `.github/workflows/` and configure [`PHOENIX_ENDPOINT`](/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint) and, if needed, `PHOENIX_API_KEY` as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions). The runner must be able to reach that endpoint; its `localhost` is the runner itself.
+These checks cover the supplied [`phoenix/langchain-py`](https://github.com/Arize-ai/project-rosetta-stone/tree/main/phoenix/langchain-py) backend. To cover your practice app in `no-observability/langchain-py`, update both the tests and the workflow's `paths`.
+
+Add the workflow under `.github/workflows/` in your repository and configure [`PHOENIX_ENDPOINT`](/docs/phoenix/sdk-api-reference#environment-variables) and, if needed, `PHOENIX_API_KEY` as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions). The runner must be able to reach that endpoint; its `localhost` is the runner itself.
 
 Without a configured endpoint, this workflow sets [`PHOENIX_TEST_TRACKING=0`](/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest#configuring-with-environment-variables). The tests still run and can fail CI, but nothing is sent to Phoenix. Upload problems are reported as warnings; test assertions determine the CI result.
 
