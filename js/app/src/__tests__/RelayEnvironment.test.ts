@@ -72,3 +72,40 @@ describe("fetchRelay", () => {
     });
   });
 });
+
+describe("fetchRelay request cancellation", () => {
+  it("does not abort the request signal after the request completes", async () => {
+    authFetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ data: { __typename: "Query" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    await executeRequest();
+
+    const init: RequestInit | undefined = authFetchMock.mock.calls[0]?.[1];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    // Aborting a finished request still rejects any promise tied to its
+    // signal with an AbortError, which surfaces as an unhandled rejection.
+    expect(init?.signal?.aborted).toBe(false);
+  });
+});
+
+describe("fetchRelay in-flight cancellation", () => {
+  it("aborts the request signal when unsubscribed before the response", () => {
+    authFetchMock.mockReturnValue(new Promise<Response>(() => {}));
+
+    const result = fetchRelay(REQUEST, {}, {});
+    if (!(result instanceof Observable)) {
+      throw new TypeError(
+        "Expected the Relay fetch function to return an Observable"
+      );
+    }
+    const subscription = result.subscribe({});
+    subscription.unsubscribe();
+
+    const init: RequestInit | undefined = authFetchMock.mock.calls[0]?.[1];
+    expect(init?.signal?.aborted).toBe(true);
+  });
+});
