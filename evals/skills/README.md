@@ -79,14 +79,12 @@ These scores don't affect the reward.
 
 ### Verifier rules
 
-The verifier decides the reward from what the agent did, not from how its reply reads:
+Follow the general rules in
+[Write a Harbor task](../harbor/tasks/skills/README.md#write-a-harbor-task). For Phoenix
+tasks, they mean:
 
 - Query Phoenix state after the agent finishes: spans, datasets, experiments, and
   annotations.
-- When the agent writes code, run that code against the server.
-- For diagnosis tasks, have the agent write `answer.json` with named fields, such as
-  `failing_span_id` and `root_cause`, and seed the trace into Phoenix instead of pasting it
-  into the instruction.
-- The reference solution in `solution/` must pass. Check it with `-a oracle`.
-- An agent that does nothing must fail.
-- Use an LLM judge only when Phoenix state can't decide the result.
+- For diagnosis tasks, seed the trace into Phoenix instead of pasting it into the
+  instruction, and have the agent write `answer.json` with named fields, such as
+  `failing_span_id` and `root_cause`.
