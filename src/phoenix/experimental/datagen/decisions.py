@@ -178,6 +178,17 @@ def _find_decision(http: httpx.Client, name: str) -> dict[str, Any] | None:
         after = connection["pageInfo"]["endCursor"]
 
 
+def _model_selection(saved: Mapping[str, Any] | None) -> dict[str, Any]:
+    """The model fields of a saved version, in the shape a version input takes."""
+    if saved is None:
+        return {}
+    return {
+        "modelProvider": saved["modelProvider"],
+        "modelName": saved["modelName"],
+        "customProviderId": saved["customProvider"]["id"] if saved["customProvider"] else None,
+    }
+
+
 def _same_decision(saved: Mapping[str, Any] | None, desired: Mapping[str, Any]) -> bool:
     if saved is None:
         return False
@@ -252,8 +263,16 @@ def seed_workflow_decisions(
 def seed_decision(
     http: httpx.Client, *, name: str, version: dict[str, Any], metadata: Mapping[str, Any]
 ) -> str:
-    """Save a datagen-owned decision, adding a version only when its content changes."""
+    """Save a datagen-owned decision, adding a version only when its content changes.
+
+    Datagen owns the questions, state, and template, and repairs them when they drift. The
+    model a decision runs on is left to the user: an existing decision keeps the provider,
+    model, and custom provider of its latest version, so choosing a custom provider in the
+    UI survives a restart.
+    """
     decision = _find_decision(http, name)
+    if decision is not None:
+        version = {**version, **_model_selection(decision["version"])}
     if decision is None:
         saved = _graphql(
             http,

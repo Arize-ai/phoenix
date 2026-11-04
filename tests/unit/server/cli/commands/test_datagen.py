@@ -45,14 +45,14 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
             events.append(("export", request))
             return True
 
-    def sleep(seconds: float) -> None:
-        events.append(("sleep", seconds))
+    def wait(self: object, seconds: float) -> bool:
+        events.append(("wait", round(seconds)))
         raise KeyboardInterrupt
 
     monkeypatch.setattr("phoenix.experimental.datagen.load_corpus", lambda corpus: corpus)
     monkeypatch.setattr("phoenix.experimental.datagen.Replayer", FakeReplayer)
     monkeypatch.setattr("phoenix.experimental.datagen.OTLPHTTPExporter", FakeExporter)
-    monkeypatch.setattr(time, "sleep", sleep)
+    monkeypatch.setattr("phoenix.experimental.datagen.control.ReplayControl.wait", wait)
     monkeypatch.setattr(datagen, "_seed_when_ready", lambda config: events.append("seed"))
     monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://env.example")
     monkeypatch.setenv("PHOENIX_API_KEY", "env-key")
@@ -94,7 +94,7 @@ def test_datagen_run_loop_applies_cli_flags_over_environment(
         ("emit", {}),
         ("export", "request"),
         ("interarrival", {"rate": 30.0, "burstiness": 0.8}),
-        ("sleep", 2.0),
+        ("wait", 2),
     ]
     assert capsys.readouterr().err == "Replaying into projects: cli-project\n"
 
