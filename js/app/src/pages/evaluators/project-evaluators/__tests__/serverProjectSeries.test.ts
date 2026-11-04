@@ -5,7 +5,7 @@ import {
   normalizePickedProjectIds,
   OTHER_PROJECTS_KEY,
   rankProjects,
-} from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
+} from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 
 function group(id: string, evaluatedCount: number, failedCount = 0) {
   return { project: { id, name: id }, evaluatedCount, failedCount };

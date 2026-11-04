@@ -24,6 +24,7 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DatasetLink } from "@phoenix/components/dataset/DatasetLink";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -117,27 +118,27 @@ const DatasetEvaluatorsEmpty = ({
   onSelectCodeEvaluator,
   hasActiveFilter,
 }: {
-  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  builtInEvaluators?: DatasetEvaluatorsPage_builtInEvaluators$data;
   onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
   hasActiveFilter: boolean;
 }) => {
-  const codeEvaluators = builtInEvaluators.builtInEvaluators;
-  const llmEvaluatorTemplates =
-    builtInEvaluators.classificationEvaluatorConfigs;
-
-  // If there's an active filter, show a simple "no results" message
-  if (hasActiveFilter) {
+  if (hasActiveFilter || !builtInEvaluators) {
     return (
       <TableEmptyWrap>
         <CompactEmptyState
           icon={<Icon svg={<Icons.Scale />} />}
-          description="No evaluators"
-          isFiltered
+          description={
+            builtInEvaluators ? "No evaluators" : "No dataset evaluators"
+          }
+          isFiltered={hasActiveFilter}
         />
       </TableEmptyWrap>
     );
   }
+  const codeEvaluators = builtInEvaluators.builtInEvaluators;
+  const llmEvaluatorTemplates =
+    builtInEvaluators.classificationEvaluatorConfigs;
 
   // Otherwise, show the template selection grid
   return (
@@ -215,6 +216,10 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           username
           profilePictureUrl
         }
+        dataset {
+          id
+          name
+        }
         evaluator {
           id
           name
@@ -264,6 +269,24 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
 
 export type TableRow = ReturnType<typeof readRow>;
 
+// TODO: support opening a decision evaluator as a playground evaluator task.
+const canOpenInPlayground = (kind: EvaluatorKind) =>
+  kind !== "BUILTIN" && kind !== "DECISION";
+
+const datasetColumn: ColumnDef<TableRow> = {
+  id: "dataset",
+  header: "dataset",
+  accessorFn: (row) => row.dataset.name,
+  size: 180,
+  enableSorting: false,
+  cell: ({ row }) => (
+    <DatasetLink
+      name={row.original.dataset.name}
+      to={`/datasets/${row.original.dataset.id}`}
+    />
+  ),
+};
+
 type DatasetEvaluatorsTableProps = {
   /**
    * Relay fragment references for the evaluator rows to display in the table.
@@ -273,9 +296,10 @@ type DatasetEvaluatorsTableProps = {
    */
   rowReferences: DatasetEvaluatorsTable_row$key[];
   /**
-   * Built-in evaluators data to display in the empty state.
+   * Built-in evaluators to offer in the empty state. Without them the empty
+   * state is a plain message.
    */
-  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  builtInEvaluators?: DatasetEvaluatorsPage_builtInEvaluators$data;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
@@ -287,7 +311,12 @@ type DatasetEvaluatorsTableProps = {
     filter?: DatasetEvaluatorFilter | null;
   }) => void;
   onRowClick?: (row: TableRow) => void;
-  datasetId: string;
+  /**
+   * The dataset every row belongs to. Without it, rows may come from any
+   * dataset: a dataset column shows each row's dataset and rows have no
+   * edit or delete menu.
+   */
+  datasetId?: string;
   /**
    * If provided, these connections will be updated when a row is edited or deleted.
    */
@@ -339,6 +368,11 @@ export const DatasetEvaluatorsTable = ({
   const tableData = useMemo(() => {
     return rowReferences.map(readRow);
   }, [rowReferences]);
+  // Across datasets the column holds only Playground buttons, so it is left
+  // out when no loaded row has one.
+  const hasActionsColumn =
+    datasetId != null ||
+    tableData.some((row) => canOpenInPlayground(row.evaluator.kind));
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
       {
@@ -347,12 +381,15 @@ export const DatasetEvaluatorsTable = ({
         size: 200,
         cell: ({ getValue, row }) => {
           return (
-            <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
+            <Link
+              to={`/datasets/${row.original.dataset.id}/evaluators/${row.original.id}`}
+            >
               <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
           );
         },
       },
+      ...(datasetId ? [] : [datasetColumn]),
       {
         header: "kind",
         accessorKey: "kind", // special case for sorting that's handled by the backend
@@ -481,37 +518,33 @@ export const DatasetEvaluatorsTable = ({
         cell: TimestampCell,
       },
     ];
-    if (datasetId) {
-      // Pinned to the right edge like the prompts table's actions column.
-      cols.push({
-        header: "",
-        id: ACTIONS_COLUMN_ID,
-        size: 150,
-        enableSorting: false,
-        cell: ({ row }) => (
-          <Flex
-            direction="row"
-            gap="size-100"
-            justifyContent="end"
-            width="100%"
-          >
-            {/* TODO: support opening a decision evaluator as a playground evaluator task. */}
-            {row.original.evaluator.kind !== "BUILTIN" &&
-            row.original.evaluator.kind !== "DECISION" ? (
-              <StopPropagation>
-                <LinkButton
-                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                  size="S"
-                  aria-label="Open in playground"
-                  to={`/playground?${new URLSearchParams({
-                    datasetId,
-                    datasetEvaluator0: row.original.id,
-                  })}`}
-                >
-                  Playground
-                </LinkButton>
-              </StopPropagation>
-            ) : null}
+    if (!hasActionsColumn) {
+      return cols;
+    }
+    // Pinned to the right edge like the prompts table's actions column.
+    cols.push({
+      header: "",
+      id: ACTIONS_COLUMN_ID,
+      size: datasetId ? 150 : 130,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
+          {canOpenInPlayground(row.original.evaluator.kind) ? (
+            <StopPropagation>
+              <LinkButton
+                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                size="S"
+                aria-label="Open in playground"
+                to={`/playground?${new URLSearchParams({
+                  datasetId: row.original.dataset.id,
+                  datasetEvaluator0: row.original.id,
+                })}`}
+              >
+                Playground
+              </LinkButton>
+            </StopPropagation>
+          ) : null}
+          {datasetId ? (
             <DatasetEvaluatorActionMenu
               datasetEvaluatorId={row.original.id}
               datasetId={datasetId}
@@ -519,12 +552,12 @@ export const DatasetEvaluatorsTable = ({
               evaluatorName={row.original.name}
               updateConnectionIds={updateConnectionIds}
             />
-          </Flex>
-        ),
-      });
-    }
+          ) : null}
+        </Flex>
+      ),
+    });
     return cols;
-  }, [datasetId, updateConnectionIds]);
+  }, [datasetId, hasActionsColumn, updateConnectionIds]);
 
   const table = useTable({
     features: appTableFeatures,
