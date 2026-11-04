@@ -76,7 +76,7 @@ function findSelectButton(container: HTMLElement, label: string) {
   return button;
 }
 
-describe("DatasetFromFileForm (create mode) re-uploading an export", () => {
+describe("DatasetFromFileForm re-uploading an export", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -100,15 +100,27 @@ describe("DatasetFromFileForm (create mode) re-uploading an export", () => {
     vi.unstubAllGlobals();
   });
 
-  async function renderAndSelect(file: File) {
+  async function renderAndSelect(
+    file: File,
+    mode: "create" | "append" = "create"
+  ) {
     await act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
-          <DatasetFromFileForm
-            mode="create"
-            onCancel={() => {}}
-            onDatasetCreated={() => {}}
-          />
+          {mode === "create" ? (
+            <DatasetFromFileForm
+              mode="create"
+              onCancel={() => {}}
+              onDatasetCreated={() => {}}
+            />
+          ) : (
+            <DatasetFromFileForm
+              mode="append"
+              datasetName="my-dataset"
+              onCancel={() => {}}
+              onExamplesAdded={() => {}}
+            />
+          )}
         </ThemeProvider>
       );
     });
@@ -155,10 +167,22 @@ describe("DatasetFromFileForm (create mode) re-uploading an export", () => {
       file: () => exportedJsonl(["ext-1", "ext-2", "ext-3"]),
       expectedExampleId: "id",
     },
+    {
+      mode: "append" as const,
+      scenario: "CSV id column holds Phoenix DatasetExample node IDs (append)",
+      file: () => exportedCsv([nodeId(1), nodeId(2), nodeId(3)]),
+      expectedExampleId: "id",
+    },
+    {
+      mode: "append" as const,
+      scenario: "JSONL id field holds Phoenix DatasetExample node IDs (append)",
+      file: () => exportedJsonl([nodeId(1), nodeId(2), nodeId(3)]),
+      expectedExampleId: "id",
+    },
   ])(
     "auto-selects Example ID = $expectedExampleId when the $scenario",
-    async ({ file, expectedExampleId }) => {
-      await renderAndSelect(file());
+    async ({ file, expectedExampleId, mode }) => {
+      await renderAndSelect(file(), mode);
       expect(
         findSelectButton(container, EXAMPLE_ID_LABEL).textContent
       ).toContain(expectedExampleId);
