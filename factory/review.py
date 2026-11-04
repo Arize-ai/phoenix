@@ -23,6 +23,7 @@ import re
 import subprocess
 import time
 from datetime import datetime, timezone
+from enum import StrEnum
 from typing import Any, NamedTuple, Optional
 
 import anthropic
@@ -47,27 +48,66 @@ from github_app import GitHubAppToken
 
 REVIEW_LABEL = "factory-review"
 REVIEW_AGENT_LOCK_KEY = "./agents/pr-reviewer.md"
-# The verdict in the review summary's heading, its first line, per agents/pr-reviewer.md.
-VERDICT_PATTERN = re.compile(r"## Factory review of \S+: (Approve|Request changes|Close)")
+
+
+class Marker(StrEnum):
+    """The emoji that starts each scorecard cell, Needs attention bullet and the heading of a
+    review summary, per agents/pr-reviewer.md § Review summary. Each differs from the others
+    in shape and color, and always sits next to a word that says the same thing."""
+
+    CLEAN = "✅"
+    ATTENTION = "⚠️"
+    FIX = "❌"
+    CLOSE = "🚫"
+
+
+# The marker each scorecard Result takes. Blocking and Non-blocking hold counts, so they are
+# keyed by whether the count is zero.
+SCORECARD_MARKERS: dict[str, dict[str, Marker]] = {
+    "Fit": {"Pass": Marker.CLEAN, "Partial": Marker.FIX, "Fail": Marker.FIX},
+    "Checks": {"Pass": Marker.CLEAN, "Not run": Marker.ATTENTION, "Fail": Marker.FIX},
+    "Tests": {"Pass": Marker.CLEAN, "Not needed": Marker.CLEAN, "Fail": Marker.FIX},
+    "Blocking": {"0": Marker.CLEAN, "1+": Marker.FIX},
+    "Non-blocking": {"0": Marker.CLEAN, "1+": Marker.ATTENTION},
+    "Risk": {
+        "None": Marker.CLEAN,
+        "Low": Marker.ATTENTION,
+        "Medium": Marker.ATTENTION,
+        "High": Marker.ATTENTION,
+    },
+    "Depth": {"Glance": Marker.CLEAN, "Focused": Marker.CLEAN, "Deep": Marker.ATTENTION},
+}
 
 
 class VerdictLabel(NamedTuple):
     name: str
     color: str
     description: str
+    marker: Marker
 
 
 # The label each verdict leaves on the PR, so maintainers can filter the review queue by it.
 # A PR carries at most one of them, for the factory's latest review.
 VERDICT_LABELS = {
     "Approve": VerdictLabel(
-        "factory-approved", "0E8A16", "The factory review recommends approving"
+        "factory-approved", "0E8A16", "The factory review recommends approving", Marker.CLEAN
     ),
     "Request changes": VerdictLabel(
-        "factory-request-changes", "D93F0B", "The factory review recommends requesting changes"
+        "factory-request-changes",
+        "D93F0B",
+        "The factory review recommends requesting changes",
+        Marker.FIX,
     ),
-    "Close": VerdictLabel("factory-close", "B60205", "The factory review recommends closing"),
+    "Close": VerdictLabel(
+        "factory-close", "B60205", "The factory review recommends closing", Marker.CLOSE
+    ),
 }
+# The verdict in the review summary's heading, its first line, per agents/pr-reviewer.md.
+# The marker is optional so reviews posted before markers existed still parse.
+VERDICT_PATTERN = re.compile(
+    rf"## (?:(?P<marker>{'|'.join(re.escape(marker) for marker in Marker)}) )?"
+    rf"Factory review of \S+: (?P<verdict>{'|'.join(VERDICT_LABELS)})"
+)
 
 
 def read_pr(*, pr_number: int) -> dict[str, Any]:
@@ -370,10 +410,56 @@ def resolve_reported_threads(
     return len(resolvable_threads)
 
 
+def normalize_markers(text: str) -> str:
+    """Add the emoji variation selector models sometimes drop, so "⚠" reads as "⚠️"."""
+    return text.replace(Marker.ATTENTION, "⚠").replace("⚠", Marker.ATTENTION)
+
+
 def read_verdict(*, review_body: str) -> Optional[str]:
-    heading = review_body.lstrip().split("\n", 1)[0].rstrip()
+    heading = normalize_markers(review_body.lstrip().split("\n", 1)[0].rstrip())
     verdict_match = VERDICT_PATTERN.fullmatch(heading)
-    return verdict_match.group(1) if verdict_match else None
+    return verdict_match.group("verdict") if verdict_match else None
+
+
+def expected_marker(*, column: str, result: str) -> Optional[Marker]:
+    markers = SCORECARD_MARKERS.get(column)
+    if markers is None:
+        return None
+    if column in ("Blocking", "Non-blocking"):
+        return markers["0" if result == "0" else "1+"] if result.isdigit() else None
+    return markers.get(result)
+
+
+def find_marker_mismatches(*, review_body: str) -> list[str]:
+    """Describe each place the summary's markers disagree with SCORECARD_MARKERS and
+    VERDICT_LABELS, so the job log shows when the reviewer drifted from the template."""
+    lines = normalize_markers(review_body).strip().splitlines()
+    mismatches: list[str] = []
+    heading_match = VERDICT_PATTERN.fullmatch(lines[0].rstrip()) if lines else None
+    if heading_match:
+        verdict_marker = VERDICT_LABELS[heading_match.group("verdict")].marker
+        if heading_match.group("marker") != verdict_marker:
+            mismatches.append(
+                f"heading: want {verdict_marker}, got {heading_match.group('marker')}"
+            )
+    columns = list(SCORECARD_MARKERS)
+    header = "| " + " | ".join(columns) + " |"
+    if header not in lines or lines.index(header) + 2 >= len(lines):
+        return mismatches + ["scorecard: not found"]
+    row = lines[lines.index(header) + 2]
+    cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+    if len(cells) != len(columns):
+        return mismatches + [f"scorecard: want {len(columns)} cells, got {len(cells)}"]
+    for column, cell in zip(columns, cells):
+        marker, _, result = cell.partition(" ")
+        if marker not in tuple(Marker):
+            marker, result = "", cell
+        wanted = expected_marker(column=column, result=result)
+        if wanted is None:
+            mismatches.append(f"{column}: unknown result {cell!r}")
+        elif marker != wanted:
+            mismatches.append(f"{column}: want {wanted} {result}, got {cell!r}")
+    return mismatches
 
 
 def watch_session(
@@ -429,13 +515,16 @@ def watch_session(
     reviewed_sha = review["commit_id"][:10]
     session_link = format_session_link(session_id=session_id)
     verdict = read_verdict(review_body=review["body"] or "")
+    for mismatch in find_marker_mismatches(review_body=review["body"] or ""):
+        print(f"::warning::Review summary marker mismatch: {mismatch}")
     if verdict is None:
         return (
             f"The factory posted [its review of {reviewed_sha}]({review['html_url']}), but the "
             f"review's heading names no verdict (session {session_link})."
         ), None
     return (
-        f"The factory recommends **{verdict}** for {reviewed_sha} and labeled this pull "
+        f"The factory recommends {VERDICT_LABELS[verdict].marker} **{verdict}** for "
+        f"{reviewed_sha} and labeled this pull "
         f"request `{VERDICT_LABELS[verdict].name}`. [Read the review]({review['html_url']}) "
         f"· session {session_link}"
     ), verdict
