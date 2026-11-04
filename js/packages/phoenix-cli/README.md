@@ -780,6 +780,22 @@ px annotation-config get response-quality --format raw --no-progress | jq -r '.i
 
 ---
 
+### `px model-provider list`
+
+List the built-in model providers the connected Phoenix deployment allows. When the server sets `PHOENIX_ALLOWED_PROVIDERS`, only those providers are listed. Each record has the provider key (`provider`, e.g. `OPENAI`) and its display name (`name`).
+
+```bash
+px model-provider list                                   # pretty output
+px model-provider list --format raw --no-progress | jq -r '.[].provider'
+```
+
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress`     | Suppress progress output   | —        |
+
+---
+
 ### `px auth login`
 
 Log in with the browser-based OAuth flow and store tokens on the selected profile. The URL is always printed to stderr, so SSH and headless users can open it manually. OAuth CLI sessions act with the permissions of the user who logged in.
