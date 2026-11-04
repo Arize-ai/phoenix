@@ -9,6 +9,7 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.online_eval import evaluation_activity
+from phoenix.server.online_eval.queue_health import MAX_QUEUED_ROWS_READ
 
 if TYPE_CHECKING:
     from .Evaluator import ProjectEvaluator
@@ -135,7 +136,11 @@ class EvaluationActivityBinGroup:
         return self.group.cost
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Evaluations queued or running at the end of the bin."
+        description=(
+            "Evaluations queued or running at the end of the bin. Counts at most the "
+            f"{MAX_QUEUED_ROWS_READ:,} newest of each evaluation target's queued evaluations "
+            "in each status."
+        )
     )
     def queue_size(self) -> int:
         return self.group.queue_size

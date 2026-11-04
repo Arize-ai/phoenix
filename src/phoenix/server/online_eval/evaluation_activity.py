@@ -37,6 +37,7 @@ from phoenix.db.eval_work import (
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import LatencyMs
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
+from phoenix.server.online_eval import queue_health
 from phoenix.server.types import DbSessionFactory
 
 _WorkUnitModel: TypeAlias = Union[
@@ -77,7 +78,8 @@ class ActivityGroup:
 @dataclass(frozen=True)
 class ActivityBinGroup:
     """One group's activity in one time bin. ``queue_size`` is how many of its evaluations
-    were queued or running at the bin's end."""
+    were queued or running at the bin's end, counting at most ``MAX_QUEUED_ROWS_READ`` of
+    each target's still-queued evaluations in each status."""
 
     project_id: int
     project_evaluator_id: Optional[int]
@@ -402,21 +404,33 @@ def _queued(
     """Evaluations queued before ``end`` and still queued, or queued before ``end`` that left
     the queue at or after ``start``, with when each entered and left.
 
-    Still-queued rows are read through ``ix_*_claimable``, which the queue's limit bounds, and
-    rows that left through ``ix_*_terminal`` from ``start``. The evaluator is matched as an
-    expression so neither dialect reads each evaluator's whole history by its index instead.
-    Rows inserted already declined never entered the queue, and no branch reads them.
+    Still-queued rows are read newest first through ``ix_*_claimable``, at most
+    ``MAX_QUEUED_ROWS_READ`` per status, and rows that left through ``ix_*_terminal`` from
+    ``start``. The evaluator is matched as an expression so neither dialect reads each
+    evaluator's whole history by its index instead. Rows inserted already declined never
+    entered the queue, and no branch reads them.
     """
     branches: list[sa.Select[*tuple[Any, ...]]] = []
     for model, terminal_statuses in _WORK_TABLES:
         in_scope = (model.project_evaluator_id + sa.literal_column("0")).in_(project_evaluator_ids)
-        branches.append(
-            sa.select(
-                model.project_evaluator_id.label("project_evaluator_id"),
-                model.created_at.label("entered_at"),
-                sa.null().label("exited_at"),
-            ).where(_status_in(model, LIVE_EVAL_WORK_STATUSES), in_scope, model.created_at < end)
-        )
+        for status in LIVE_EVAL_WORK_STATUSES:
+            newest = (
+                sa.select(model.project_evaluator_id, model.created_at)
+                .where(_status_in(model, LIVE_EVAL_WORK_STATUSES), model.status == status)
+                .order_by(model.id.desc())
+                .limit(queue_health.MAX_QUEUED_ROWS_READ)
+                .subquery()
+            )
+            branches.append(
+                sa.select(
+                    newest.c.project_evaluator_id.label("project_evaluator_id"),
+                    newest.c.created_at.label("entered_at"),
+                    sa.cast(sa.null(), models.UtcTimeStamp).label("exited_at"),
+                ).where(
+                    newest.c.project_evaluator_id.in_(project_evaluator_ids),
+                    newest.c.created_at < end,
+                )
+            )
         branches.append(
             sa.select(
                 model.project_evaluator_id.label("project_evaluator_id"),

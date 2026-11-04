@@ -1,16 +1,19 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Sequence
 
 import pytest
 
 from phoenix.db import models
+from phoenix.server.online_eval import queue_health
 from phoenix.server.online_eval.queue_health import (
     ProjectEvaluatorRunStatus,
+    ProjectQueuedCount,
     QueuedWork,
     load_evaluation_queue,
     load_project_evaluator_queues,
     load_project_queues,
     load_queue_throughput,
+    load_queued_by_project,
     project_evaluator_run_status,
 )
 from phoenix.server.types import DbSessionFactory
@@ -76,12 +79,89 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
     assert spans.waiting.oldest_queued_at == now - timedelta(minutes=20)
     assert queue.waiting == spans.waiting
     assert (queue.queued_count, queue.running_count, queue.retrying_count) == (4, 1, 1)
-    assert not queue.at_capacity
+    assert not queue.counts_are_lower_bounds
     # The head of the line has waited 20 minutes.
     assert queue.status == "DEGRADED"
     assert throughput.target("SPAN").evaluations_per_minute == pytest.approx(3 / 60)
     assert throughput.target("SPAN").queued_per_minute == pytest.approx(6 / 60)
     assert throughput.queued_per_minute == pytest.approx(6 / 60)
+
+
+async def _seed_pending_spans(
+    db: DbSessionFactory, project: models.Project, queued_ago: Sequence[timedelta]
+) -> int:
+    """A span evaluator of ``project`` with one PENDING evaluation per ``queued_ago``."""
+    now = datetime.now(timezone.utc)
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        for ago in queued_ago:
+            session.add(
+                models.EvalWorkUnit(
+                    span_rowid=(await _add_span(session, trace)).id,
+                    project_evaluator_id=project_evaluator_id,
+                    created_at=now - ago,
+                )
+            )
+            await session.flush()
+    return project_evaluator_id
+
+
+async def test_queue_reads_stop_at_the_bound_and_report_lower_bounds(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    async with db() as session:
+        project = await _add_project(session)
+    busy = await _seed_pending_spans(db, project, [timedelta(minutes=1)] * 3)
+    # Queued after the busy evaluator's work, so past the head of the shared line.
+    stuck = await _seed_pending_spans(db, project, [timedelta(minutes=20)])
+
+    queue = await load_evaluation_queue(db)
+    assert queue.target("SPAN").waiting.queued_count == 2
+    assert queue.target("SPAN").counts_are_lower_bounds
+    assert queue.counts_are_lower_bounds
+
+    evaluators = await load_project_evaluator_queues(db, [busy, stuck])
+    assert (evaluators[busy].queued_count, evaluators[busy].counts_are_lower_bounds) == (2, True)
+    assert (evaluators[stuck].queued_count, evaluators[stuck].counts_are_lower_bounds) == (1, False)
+    assert evaluators[stuck].oldest_queued_at is not None
+    assert (
+        project_evaluator_run_status(
+            enabled=True,
+            last_evaluated_at=None,
+            last_failed_at=None,
+            queued=evaluators[stuck],
+            now=datetime.now(timezone.utc),
+        )
+        == "DEGRADED"
+    )
+
+    project_queue = (await load_project_queues(db, [project.id]))[project.id]
+    assert (project_queue.queued_count, project_queue.counts_are_lower_bounds) == (3, True)
+    assert await load_queued_by_project(db, 5) == [
+        ProjectQueuedCount(project_id=project.id, queued_count=3, counts_are_lower_bounds=True)
+    ]
+
+    throughput = await load_queue_throughput(db, queue)
+    assert throughput.target("SPAN").queued_per_minute == pytest.approx(2 / 60)
+    assert throughput.queued_per_minute_is_lower_bound
+
+
+async def test_queued_rate_read_that_reaches_past_the_window_is_exact(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    async with db() as session:
+        project = await _add_project(session)
+    await _seed_pending_spans(db, project, [timedelta(hours=2)] * 3)
+
+    queue = await load_evaluation_queue(db)
+    throughput = await load_queue_throughput(db, queue)
+
+    assert queue.counts_are_lower_bounds
+    assert throughput.queued_per_minute == 0
+    assert not throughput.queued_per_minute_is_lower_bound
 
 
 async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(

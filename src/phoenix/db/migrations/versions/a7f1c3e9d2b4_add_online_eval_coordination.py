@@ -126,6 +126,14 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_evaluator_id"],
     )
+    # Each evaluator's queued work in queue order, read without walking its history.
+    op.create_index(
+        "ix_eval_session_work_units_project_evaluator_live",
+        "eval_session_work_units",
+        ["project_evaluator_id", "id", "status", "created_at"],
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+    )
     # Each evaluator's newest success and newest failure, found without walking its history.
     op.create_index(
         "ix_eval_session_work_units_project_evaluator_done",
@@ -208,6 +216,14 @@ def _create_trace_work_units_table() -> None:
         "ix_eval_trace_work_units_project_evaluator_id",
         "eval_trace_work_units",
         ["project_evaluator_id"],
+    )
+    # Each evaluator's queued work in queue order, read without walking its history.
+    op.create_index(
+        "ix_eval_trace_work_units_project_evaluator_live",
+        "eval_trace_work_units",
+        ["project_evaluator_id", "id", "status", "created_at"],
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
     )
     # Each evaluator's newest success and newest failure, found without walking its history.
     op.create_index(
@@ -469,6 +485,14 @@ def upgrade() -> None:
         "eval_work_units",
         ["project_evaluator_id"],
     )
+    # Each evaluator's queued work in queue order, read without walking its history.
+    op.create_index(
+        "ix_eval_work_units_project_evaluator_live",
+        "eval_work_units",
+        ["project_evaluator_id", "id", "status", "created_at"],
+        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+    )
     # Each evaluator's newest success and newest failure, found without walking its history.
     op.create_index(
         "ix_eval_work_units_project_evaluator_done",
@@ -561,6 +585,9 @@ def downgrade() -> None:
         "ix_eval_trace_work_units_project_evaluator_done", table_name="eval_trace_work_units"
     )
     op.drop_index(
+        "ix_eval_trace_work_units_project_evaluator_live", table_name="eval_trace_work_units"
+    )
+    op.drop_index(
         "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
     )
     op.drop_index("ix_eval_trace_work_units_terminal", table_name="eval_trace_work_units")
@@ -574,6 +601,9 @@ def downgrade() -> None:
         "ix_eval_session_work_units_project_evaluator_done", table_name="eval_session_work_units"
     )
     op.drop_index(
+        "ix_eval_session_work_units_project_evaluator_live", table_name="eval_session_work_units"
+    )
+    op.drop_index(
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
     )
     op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
@@ -582,6 +612,7 @@ def downgrade() -> None:
 
     op.drop_index("ix_eval_work_units_project_evaluator_failed", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_project_evaluator_done", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_project_evaluator_live", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")

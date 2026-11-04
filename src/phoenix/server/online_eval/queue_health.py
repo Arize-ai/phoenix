@@ -1,18 +1,22 @@
 """How well online evaluation keeps up with what arrives.
 
-Span, trace, and session evaluations wait in one queue, shared by every project, under one
-limit. This module is the one definition of what is queued, how long it has waited, how
-fast it fills and drains, and whether it is healthy, for the queue and for each evaluation
-target's and each project's share of it; GraphQL, project evaluator statuses, and
-Prometheus all read it.
+Span, trace, and session evaluations wait in one queue, shared by every project. This module
+is the one definition of what is queued, how long it has waited, how fast it fills and
+drains, and whether it is healthy, for the queue and for each evaluation target's, each
+project's and each project evaluator's share of it; GraphQL, project evaluator statuses,
+and Prometheus all read it.
 Every measure is read from the database, so replicas agree.
+
+The queue has no limit, so every read of queued evaluations stops after
+``MAX_QUEUED_ROWS_READ`` rows: per project evaluator, or per evaluation target and status.
+A count built from a read that stopped there is a lower bound, and is marked as one.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Iterable, Literal, Optional, Sequence, Union
+from typing import Any, Iterable, Literal, Mapping, Optional, Sequence, Union
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,9 +28,9 @@ from phoenix.db.eval_work import (
     TERMINAL_EVAL_SESSION_WORK_STATUSES,
     TERMINAL_EVAL_WORK_STATUSES,
 )
-from phoenix.server.online_eval import admission
 from phoenix.server.types import DbSessionFactory
 
+MAX_QUEUED_ROWS_READ = 5_000
 RATE_WINDOW = timedelta(hours=1)
 DEGRADED_QUEUE_WAIT = timedelta(minutes=10)
 EVALUATION_LOAD_WINDOW = timedelta(hours=1)
@@ -70,12 +74,14 @@ _QUEUES: dict[models.EvaluationTarget, _Queue] = {
 @dataclass(frozen=True)
 class QueuedWork:
     """Some queued evaluations: how many, how many of those are running, and when the oldest
-    of those waiting to start was queued.
+    of those waiting to start was queued, retries included, and the oldest PENDING.
     """
 
     queued_count: int = 0
     running_count: int = 0
     oldest_queued_at: Optional[datetime] = None
+    oldest_pending_at: Optional[datetime] = None
+    counts_are_lower_bounds: bool = False
 
 
 @dataclass(frozen=True)
@@ -93,17 +99,17 @@ class TargetQueue:
     waiting: QueuedWork
     running_count: int
     retrying_count: int
+    counts_are_lower_bounds: bool = False
 
 
 @dataclass(frozen=True)
 class EvaluationQueue:
     """The queue, as measured at ``measured_at``: what it holds of each evaluation target,
-    in ``EVALUATION_TARGETS`` order, and whether it is full. Everything a status needs, and
-    nothing that costs more than reading the queued evaluations.
+    in ``EVALUATION_TARGETS`` order. Everything a status needs, and nothing that costs more
+    than reading the oldest queued evaluations.
     """
 
     measured_at: datetime
-    queued_limit: int
     targets: tuple[TargetQueue, ...]
 
     @property
@@ -134,13 +140,12 @@ class EvaluationQueue:
         )
 
     @property
-    def at_capacity(self) -> bool:
-        return self.queued_count >= self.queued_limit
+    def counts_are_lower_bounds(self) -> bool:
+        return any(target.counts_are_lower_bounds for target in self.targets)
 
     @property
     def status(self) -> QueueStatus:
-        degraded = self.at_capacity or _waited_too_long(self.waiting, self.measured_at)
-        return "DEGRADED" if degraded else "HEALTHY"
+        return "DEGRADED" if _waited_too_long(self.waiting, self.measured_at) else "HEALTHY"
 
     def target(self, evaluation_target: models.EvaluationTarget) -> TargetQueue:
         return self.targets[EVALUATION_TARGETS.index(evaluation_target)]
@@ -157,6 +162,7 @@ class ProjectTargetQueue:
     evaluation_target: models.EvaluationTarget
     queued_count: int = 0
     running_count: int = 0
+    counts_are_lower_bounds: bool = False
 
 
 @dataclass(frozen=True)
@@ -180,6 +186,17 @@ class ProjectQueue:
     def running_count(self) -> int:
         return sum(target.running_count for target in self.targets)
 
+    @property
+    def counts_are_lower_bounds(self) -> bool:
+        return any(target.counts_are_lower_bounds for target in self.targets)
+
+
+@dataclass(frozen=True)
+class ProjectQueuedCount:
+    project_id: int
+    queued_count: int
+    counts_are_lower_bounds: bool
+
 
 @dataclass(frozen=True)
 class Throughput:
@@ -190,6 +207,7 @@ class Throughput:
 
     evaluations_per_minute: float
     queued_per_minute: float
+    queued_per_minute_is_lower_bound: bool = False
 
 
 @dataclass(frozen=True)
@@ -198,14 +216,21 @@ class QueueThroughput:
     target, in ``EVALUATION_TARGETS`` order, each project evaluator's evaluations queued, and
     those that left the queue evaluated or failed, over the trailing ``RATE_WINDOW``. The
     queue's, each target's, and each project's rates are sums of these, so they agree.
+    ``queued_lower_bounds`` marks the targets whose queued counts stopped at the read bound.
     """
 
     queue: EvaluationQueue
     project_evaluator_rates: tuple[dict[int, tuple[int, int]], ...]
+    queued_lower_bounds: tuple[bool, ...]
 
     @property
     def targets(self) -> tuple[Throughput, ...]:
-        return tuple(_throughput(rates.values()) for rates in self.project_evaluator_rates)
+        return tuple(
+            _throughput(rates.values(), queued_is_lower_bound=lower_bound)
+            for rates, lower_bound in zip(
+                self.project_evaluator_rates, self.queued_lower_bounds, strict=True
+            )
+        )
 
     @property
     def evaluations_per_minute(self) -> float:
@@ -215,6 +240,10 @@ class QueueThroughput:
     def queued_per_minute(self) -> float:
         return sum(target.queued_per_minute for target in self.targets)
 
+    @property
+    def queued_per_minute_is_lower_bound(self) -> bool:
+        return any(self.queued_lower_bounds)
+
     def target(self, evaluation_target: models.EvaluationTarget) -> Throughput:
         return self.targets[EVALUATION_TARGETS.index(evaluation_target)]
 
@@ -222,10 +251,13 @@ class QueueThroughput:
         """One project's rates, of every evaluation target: the queue's, restricted to the
         project's evaluators."""
         return _throughput(
-            rates[project_evaluator_id]
-            for rates in self.project_evaluator_rates
-            for project_evaluator_id in queue.project_evaluator_ids
-            if project_evaluator_id in rates
+            (
+                rates[project_evaluator_id]
+                for rates in self.project_evaluator_rates
+                for project_evaluator_id in queue.project_evaluator_ids
+                if project_evaluator_id in rates
+            ),
+            queued_is_lower_bound=self.queued_per_minute_is_lower_bound,
         )
 
 
@@ -301,71 +333,90 @@ async def load_evaluation_queue(db: DbSessionFactory) -> EvaluationQueue:
                 for evaluation_target in EVALUATION_TARGETS
             ]
         )
-    return EvaluationQueue(
-        measured_at=measured_at,
-        queued_limit=admission.max_queued(),
-        targets=targets,
-    )
+    return EvaluationQueue(measured_at=measured_at, targets=targets)
 
 
 async def _load_target_queue(
     session: AsyncSession,
     evaluation_target: models.EvaluationTarget,
 ) -> TargetQueue:
-    queue = _QUEUES[evaluation_target]
-    model = queue.work_unit_model
-    by_status: dict[str, tuple[int, Optional[datetime]]] = {
-        status: (count, oldest_queued_at)
-        for status, count, oldest_queued_at in await session.execute(
-            sa.select(model.status, sa.func.count(), sa.func.min(model.created_at))
-            .where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
-            .group_by(model.status)
-        )
-    }
-    pending_count, oldest_pending_at = by_status.get("PENDING", (0, None))
+    """One target's queued evaluations, from the oldest of each status: the head of the line,
+    where the longest wait is."""
+    model = _QUEUES[evaluation_target].work_unit_model
+    by_status: dict[str, tuple[int, Optional[datetime]]] = {}
+    for status in LIVE_EVAL_WORK_STATUSES:
+        head = _live_rows(model, status, model.created_at, newest=False)
+        count, oldest_queued_at = (
+            await session.execute(sa.select(sa.func.count(), sa.func.min(head.c.created_at)))
+        ).one()
+        by_status[status] = (count, oldest_queued_at)
+    pending_count, oldest_pending_at = by_status["PENDING"]
+    lower_bound = any(count >= MAX_QUEUED_ROWS_READ for count, _ in by_status.values())
     return TargetQueue(
         evaluation_target=evaluation_target,
         queued_count=sum(count for count, _ in by_status.values()),
-        waiting=QueuedWork(queued_count=pending_count, oldest_queued_at=oldest_pending_at),
-        running_count=by_status.get("RUNNING", (0, None))[0],
-        retrying_count=by_status.get("ERROR", (0, None))[0],
+        waiting=QueuedWork(
+            queued_count=pending_count,
+            oldest_queued_at=oldest_pending_at,
+            counts_are_lower_bounds=pending_count >= MAX_QUEUED_ROWS_READ,
+        ),
+        running_count=by_status["RUNNING"][0],
+        retrying_count=by_status["ERROR"][0],
+        counts_are_lower_bounds=lower_bound,
     )
 
 
 async def load_queue_throughput(db: DbSessionFactory, queue: EvaluationQueue) -> QueueThroughput:
     since = queue.measured_at - RATE_WINDOW
     async with db.read() as session:
-        project_evaluator_rates = tuple(
-            [
-                await _load_rates_by_project_evaluator(session, _QUEUES[evaluation_target], since)
-                for evaluation_target in EVALUATION_TARGETS
-            ]
-        )
-    return QueueThroughput(queue=queue, project_evaluator_rates=project_evaluator_rates)
+        target_rates = [
+            await _load_rates_by_project_evaluator(session, _QUEUES[evaluation_target], since)
+            for evaluation_target in EVALUATION_TARGETS
+        ]
+    return QueueThroughput(
+        queue=queue,
+        project_evaluator_rates=tuple(rates for rates, _ in target_rates),
+        queued_lower_bounds=tuple(lower_bound for _, lower_bound in target_rates),
+    )
 
 
 async def _load_rates_by_project_evaluator(
     session: AsyncSession,
     table: _Queue,
     since: datetime,
-) -> dict[int, tuple[int, int]]:
+) -> tuple[dict[int, tuple[int, int]], bool]:
     """Per project evaluator, of one target: the evaluations queued since ``since``, and
-    those that left the queue evaluated or failed since then."""
+    those that left the queue evaluated or failed since then. Still-queued evaluations are
+    read newest first, where the window's are; the flag says whether that read stopped at
+    the bound before it reached the window's start."""
     model = table.work_unit_model
-    # Grouped by an expression, not the column, so SQLite reads through the status indexes
+    rates: dict[int, tuple[int, int]] = {}
+    queued_is_lower_bound = False
+    for status in LIVE_EVAL_WORK_STATUSES:
+        tail = _live_rows(model, status, model.project_evaluator_id, model.created_at, newest=True)
+        in_window = sa.func.sum(sa.case((tail.c.created_at >= since, 1), else_=0))
+        read_count = 0
+        oldest_read: Optional[datetime] = None
+        for evaluator_id, count, queued, oldest in await session.execute(
+            sa.select(
+                tail.c.project_evaluator_id,
+                sa.func.count(),
+                in_window,
+                sa.func.min(tail.c.created_at),
+            ).group_by(tail.c.project_evaluator_id)
+        ):
+            live_queued, _ = rates.get(evaluator_id, (0, 0))
+            rates[evaluator_id] = (live_queued + (queued or 0), 0)
+            read_count += count
+            oldest_read = oldest if oldest_read is None else min(oldest_read, oldest)
+        if read_count >= MAX_QUEUED_ROWS_READ and oldest_read is not None:
+            queued_is_lower_bound |= oldest_read >= since
+    # Grouped by an expression, not the column, so SQLite reads through the terminal index
     # rather than walking every row in the order of the project evaluator index.
     project_evaluator_id = (model.project_evaluator_id + sa.literal_column("0")).label(
         "project_evaluator_id"
     )
     queued_in_window = sa.func.sum(sa.case((model.created_at >= since, 1), else_=0))
-    rates: dict[int, tuple[int, int]] = {
-        evaluator_id: (queued or 0, 0)
-        for evaluator_id, queued in await session.execute(
-            sa.select(project_evaluator_id, queued_in_window)
-            .where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
-            .group_by(project_evaluator_id)
-        )
-    }
     # Evaluations queued within the window that already ended also ended within it, so
     # the terminal index finds them.
     for evaluator_id, completed, queued in await session.execute(
@@ -382,10 +433,12 @@ async def _load_rates_by_project_evaluator(
     ):
         live_queued, _ = rates.get(evaluator_id, (0, 0))
         rates[evaluator_id] = (live_queued + (queued or 0), completed or 0)
-    return rates
+    return rates, queued_is_lower_bound
 
 
-def _throughput(rates: Iterable[tuple[int, int]]) -> Throughput:
+def _throughput(
+    rates: Iterable[tuple[int, int]], *, queued_is_lower_bound: bool = False
+) -> Throughput:
     queued = completed = 0
     for queued_in_window, completed_in_window in rates:
         queued += queued_in_window
@@ -394,6 +447,7 @@ def _throughput(rates: Iterable[tuple[int, int]]) -> Throughput:
     return Throughput(
         evaluations_per_minute=completed / window_minutes,
         queued_per_minute=queued / window_minutes,
+        queued_per_minute_is_lower_bound=queued_is_lower_bound,
     )
 
 
@@ -436,143 +490,216 @@ async def load_evaluation_loads(
     }
 
 
+@dataclass(frozen=True)
+class ProjectEvaluatorTarget:
+    """Which project a project evaluator belongs to, and the target whose queue holds its
+    work."""
+
+    id: int
+    project_id: int
+    evaluation_target: models.EvaluationTarget
+
+
+async def load_project_evaluator_targets(
+    db: DbSessionFactory,
+    project_ids: Optional[Sequence[int]] = None,
+) -> list[ProjectEvaluatorTarget]:
+    """The project evaluators of ``project_ids``, or of every project."""
+    async with db.read() as session:
+        return await _load_project_evaluator_targets(
+            session,
+            sa.true()
+            if project_ids is None
+            else models.ProjectEvaluator.project_id.in_(project_ids),
+        )
+
+
 async def load_project_evaluator_queues(
     db: DbSessionFactory,
     project_evaluator_ids: Sequence[int],
 ) -> dict[int, QueuedWork]:
     """Each project evaluator's queued evaluations; evaluators with none are absent. The
     oldest is the earliest queued of those waiting to start, PENDING or awaiting a retry.
-
-    Reads every queued evaluation of each target, which the queue's limit bounds, rather
-    than each evaluator's history.
-    """
-    requested = set(project_evaluator_ids)
-    result: dict[int, QueuedWork] = {}
+    Each evaluator's read takes at most ``MAX_QUEUED_ROWS_READ`` of its oldest, through its
+    target's per-evaluator live index."""
     async with db.read() as session:
-        for queue in _QUEUES.values():
-            for project_evaluator_id, evaluator in (
-                await _load_queued_by_project_evaluator(session, queue)
-            ).items():
-                if project_evaluator_id in requested:
+        evaluators = await _load_project_evaluator_targets(
+            session, models.ProjectEvaluator.id.in_(project_evaluator_ids)
+        )
+        result: dict[int, QueuedWork] = {}
+        for start in range(0, len(evaluators), _EVALUATORS_PER_READ):
+            reads = [
+                _evaluator_queued_stmt(evaluator)
+                for evaluator in evaluators[start : start + _EVALUATORS_PER_READ]
+            ]
+            for (
+                project_evaluator_id,
+                count,
+                running_count,
+                oldest_queued_at,
+                oldest_pending_at,
+            ) in await session.execute(sa.union_all(*reads) if len(reads) > 1 else reads[0]):
+                if count:
                     result[project_evaluator_id] = QueuedWork(
-                        queued_count=evaluator.queued_count,
-                        running_count=evaluator.running_count,
-                        oldest_queued_at=evaluator.oldest_queued_at,
+                        queued_count=count,
+                        running_count=running_count,
+                        oldest_queued_at=oldest_queued_at,
+                        oldest_pending_at=oldest_pending_at,
+                        counts_are_lower_bounds=count >= MAX_QUEUED_ROWS_READ,
                     )
     return result
 
 
-async def load_project_queues(
-    db: DbSessionFactory,
+def project_queues(
     project_ids: Sequence[int],
+    evaluators: Sequence[ProjectEvaluatorTarget],
+    queued: Mapping[int, QueuedWork],
 ) -> dict[int, ProjectQueue]:
-    """Each project's part of the queue, of every evaluator and evaluation target.
-
-    Like ``load_project_evaluator_queues``, reads every queued evaluation of each target,
-    which the queue's limit bounds, rather than each evaluator's history.
-    """
+    """Each project's part of the queue, of every evaluator and evaluation target: the sums
+    of its evaluators' queued evaluations, from ``load_project_evaluator_queues``."""
     measured_at = datetime.now(timezone.utc)
     project_evaluator_ids: dict[int, set[int]] = {project_id: set() for project_id in project_ids}
-    targets: dict[int, list[ProjectTargetQueue]] = {project_id: [] for project_id in project_ids}
+    by_target: dict[tuple[int, models.EvaluationTarget], list[QueuedWork]] = {}
     oldest_queued_at: dict[int, datetime] = {}
-    async with db.read() as session:
-        for project_evaluator_id, project_id in await session.execute(
-            sa.select(models.ProjectEvaluator.id, models.ProjectEvaluator.project_id).where(
-                models.ProjectEvaluator.project_id.in_(project_ids)
+    for evaluator in evaluators:
+        if evaluator.project_id not in project_evaluator_ids:
+            continue
+        project_evaluator_ids[evaluator.project_id].add(evaluator.id)
+        if (evaluator_queued := queued.get(evaluator.id)) is None:
+            continue
+        by_target.setdefault((evaluator.project_id, evaluator.evaluation_target), []).append(
+            evaluator_queued
+        )
+        if (oldest := evaluator_queued.oldest_pending_at) is not None:
+            oldest_queued_at[evaluator.project_id] = min(
+                oldest, oldest_queued_at.get(evaluator.project_id, oldest)
             )
-        ):
-            project_evaluator_ids[project_id].add(project_evaluator_id)
-        for evaluation_target in EVALUATION_TARGETS:
-            queue = _QUEUES[evaluation_target]
-            by_project_evaluator = await _load_queued_by_project_evaluator(session, queue)
-            for project_id, ids in project_evaluator_ids.items():
-                evaluators = [by_project_evaluator[i] for i in ids if i in by_project_evaluator]
-                targets[project_id].append(
-                    ProjectTargetQueue(
-                        evaluation_target=evaluation_target,
-                        queued_count=sum(evaluator.queued_count for evaluator in evaluators),
-                        running_count=sum(evaluator.running_count for evaluator in evaluators),
-                    )
-                )
-                for evaluator in evaluators:
-                    if (oldest := evaluator.oldest_pending_at) is not None:
-                        oldest_queued_at[project_id] = min(
-                            oldest, oldest_queued_at.get(project_id, oldest)
-                        )
     return {
         project_id: ProjectQueue(
             measured_at=measured_at,
             project_evaluator_ids=frozenset(ids),
-            targets=tuple(targets[project_id]),
+            targets=tuple(
+                _project_target_queue(
+                    evaluation_target, by_target.get((project_id, evaluation_target), [])
+                )
+                for evaluation_target in EVALUATION_TARGETS
+            ),
             oldest_queued_at=oldest_queued_at.get(project_id),
         )
         for project_id, ids in project_evaluator_ids.items()
     }
 
 
-async def load_queued_by_project(db: DbSessionFactory, limit: int) -> list[tuple[int, int]]:
-    """The ``limit`` projects with the most queued evaluations, most first, as
-    ``(project_id, queued_count)``. One read of every queued evaluation of each target, which
-    the queue's limit bounds."""
-    queued = sa.union_all(
-        *(
-            sa.select(queue.work_unit_model.project_evaluator_id).where(
-                _status_in(queue.work_unit_model, LIVE_EVAL_WORK_STATUSES)
-            )
-            for queue in _QUEUES.values()
+def queued_by_project(
+    evaluators: Sequence[ProjectEvaluatorTarget],
+    queued: Mapping[int, QueuedWork],
+    limit: int,
+) -> list[ProjectQueuedCount]:
+    """The ``limit`` projects with the most queued evaluations, most first: the sums of
+    their evaluators' queued evaluations, from ``load_project_evaluator_queues``."""
+    by_project: dict[int, list[QueuedWork]] = {}
+    for evaluator in evaluators:
+        if (evaluator_queued := queued.get(evaluator.id)) is not None and (
+            evaluator_queued.queued_count
+        ):
+            by_project.setdefault(evaluator.project_id, []).append(evaluator_queued)
+    projects = [
+        ProjectQueuedCount(
+            project_id=project_id,
+            queued_count=sum(evaluator.queued_count for evaluator in project_evaluators),
+            counts_are_lower_bounds=any(
+                evaluator.counts_are_lower_bounds for evaluator in project_evaluators
+            ),
         )
-    ).subquery()
-    by_project = models.ProjectEvaluator.project_id
-    queued_count = sa.func.count()
-    async with db.read() as session:
-        rows = await session.execute(
-            sa.select(by_project, queued_count)
-            .select_from(queued)
-            .join(
-                models.ProjectEvaluator, models.ProjectEvaluator.id == queued.c.project_evaluator_id
-            )
-            .group_by(by_project)
-            .order_by(queued_count.desc(), by_project)
-            .limit(limit)
-        )
-        return [(project_id, count) for project_id, count in rows]
+        for project_id, project_evaluators in by_project.items()
+    ]
+    projects.sort(key=lambda project: (-project.queued_count, project.project_id))
+    return projects[:limit]
 
 
-@dataclass(frozen=True)
-class _EvaluatorQueued:
-    queued_count: int
-    running_count: int
-    # When the oldest PENDING or awaiting a retry was queued, and the oldest PENDING.
-    oldest_queued_at: Optional[datetime]
-    oldest_pending_at: Optional[datetime]
+async def load_project_queues(
+    db: DbSessionFactory,
+    project_ids: Sequence[int],
+) -> dict[int, ProjectQueue]:
+    evaluators = await load_project_evaluator_targets(db, project_ids)
+    queued = await load_project_evaluator_queues(db, [evaluator.id for evaluator in evaluators])
+    return project_queues(project_ids, evaluators, queued)
 
 
-async def _load_queued_by_project_evaluator(
-    session: AsyncSession,
-    queue: _Queue,
-) -> dict[int, _EvaluatorQueued]:
-    """The queued evaluations of one target, per project evaluator with any."""
-    model = queue.work_unit_model
-    rows = await session.execute(
-        sa.select(
-            model.project_evaluator_id,
-            sa.func.count(),
-            sa.func.count(sa.case((model.status == "RUNNING", model.id))),
-            sa.func.min(sa.case((model.status.in_(("PENDING", "ERROR")), model.created_at))),
-            sa.func.min(sa.case((model.status == "PENDING", model.created_at))),
-        )
-        .where(_status_in(model, LIVE_EVAL_WORK_STATUSES))
-        .group_by(model.project_evaluator_id)
+async def load_queued_by_project(db: DbSessionFactory, limit: int) -> list[ProjectQueuedCount]:
+    evaluators = await load_project_evaluator_targets(db)
+    queued = await load_project_evaluator_queues(db, [evaluator.id for evaluator in evaluators])
+    return queued_by_project(evaluators, queued, limit)
+
+
+def _project_target_queue(
+    evaluation_target: models.EvaluationTarget,
+    evaluators: Sequence[QueuedWork],
+) -> ProjectTargetQueue:
+    return ProjectTargetQueue(
+        evaluation_target=evaluation_target,
+        queued_count=sum(evaluator.queued_count for evaluator in evaluators),
+        running_count=sum(evaluator.running_count for evaluator in evaluators),
+        counts_are_lower_bounds=any(evaluator.counts_are_lower_bounds for evaluator in evaluators),
     )
-    return {
-        project_evaluator_id: _EvaluatorQueued(
-            queued_count=count,
-            running_count=running_count,
-            oldest_queued_at=oldest_queued_at,
-            oldest_pending_at=oldest_pending_at,
+
+
+async def _load_project_evaluator_targets(
+    session: AsyncSession, condition: sa.ColumnElement[bool]
+) -> list[ProjectEvaluatorTarget]:
+    pe = models.ProjectEvaluator
+    return [
+        ProjectEvaluatorTarget(
+            id=project_evaluator_id, project_id=project_id, evaluation_target=evaluation_target
         )
-        for project_evaluator_id, count, running_count, oldest_queued_at, oldest_pending_at in rows
-    }
+        for project_evaluator_id, project_id, evaluation_target in await session.execute(
+            sa.select(pe.id, pe.project_id, pe.evaluation_target).where(condition)
+        )
+    ]
+
+
+# SQLite allows at most 500 terms in one compound select.
+_EVALUATORS_PER_READ = 250
+
+
+def _evaluator_queued_stmt(
+    evaluator: ProjectEvaluatorTarget,
+) -> sa.Select[*tuple[Any, ...]]:
+    model = _QUEUES[evaluator.evaluation_target].work_unit_model
+    head = (
+        sa.select(model.status, model.created_at)
+        .where(
+            model.project_evaluator_id == evaluator.id,
+            _status_in(model, LIVE_EVAL_WORK_STATUSES),
+        )
+        .order_by(model.id)
+        .limit(MAX_QUEUED_ROWS_READ)
+        .subquery()
+    )
+    return sa.select(
+        sa.literal(evaluator.id, sa.Integer).label("project_evaluator_id"),
+        sa.func.count(),
+        sa.func.count(sa.case((head.c.status == "RUNNING", 1))),
+        sa.func.min(sa.case((head.c.status.in_(("PENDING", "ERROR")), head.c.created_at))),
+        sa.func.min(sa.case((head.c.status == "PENDING", head.c.created_at))),
+    ).select_from(head)
+
+
+def _live_rows(
+    model: _WorkUnitModel,
+    status: str,
+    *columns: sa.orm.InstrumentedAttribute[Any],
+    newest: bool,
+) -> sa.Subquery:
+    """At most the bound of one target's queued evaluations in ``status``, the oldest or the
+    newest, read through its ``ix_*_claimable`` index."""
+    return (
+        sa.select(*columns)
+        .where(_status_in(model, LIVE_EVAL_WORK_STATUSES), model.status == status)
+        .order_by(model.id.desc() if newest else model.id)
+        .limit(MAX_QUEUED_ROWS_READ)
+        .subquery()
+    )
 
 
 def _status_in(model: _WorkUnitModel, statuses: tuple[str, ...]) -> sa.ColumnElement[bool]:

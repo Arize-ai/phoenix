@@ -290,6 +290,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_work_units_project_evaluator_done",
             "ix_eval_work_units_project_evaluator_failed",
             "ix_eval_work_units_project_evaluator_id",
+            "ix_eval_work_units_project_evaluator_live",
             "ix_eval_work_units_terminal",
         }
         constraint_names = {
@@ -332,6 +333,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_session_work_units_project_evaluator_done",
             "ix_eval_session_work_units_project_evaluator_failed",
             "ix_eval_session_work_units_project_evaluator_id",
+            "ix_eval_session_work_units_project_evaluator_live",
             "ix_eval_session_work_units_terminal",
         }
         unique_key = _constraint_name(
@@ -399,6 +401,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_trace_work_units_project_evaluator_done",
             "ix_eval_trace_work_units_project_evaluator_failed",
             "ix_eval_trace_work_units_project_evaluator_id",
+            "ix_eval_trace_work_units_project_evaluator_live",
             "ix_eval_trace_work_units_terminal",
         }
         unique_key = _constraint_name(

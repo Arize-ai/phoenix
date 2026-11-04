@@ -24,12 +24,17 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
+from phoenix.server.api.dataloaders import (
+    project_evaluator_queues as project_evaluator_queues_module,
+)
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.online_eval import queue_health
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
+from tests.unit.server.online_eval.test_producer import _seed_criteria
 
 
 async def test_evaluator_gallery_configs_contract(
@@ -542,10 +547,7 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient, dialect: str) -> N
 async def test_evaluation_queue(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # One evaluation of each target, and a running span evaluation, fill the queue.
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING", "4")
     now = datetime.now(timezone.utc)
     async with db() as session:
         project = await _add_project(session)
@@ -614,12 +616,11 @@ async def test_evaluation_queue(
                 status
                 queuedCount
                 runningCount
-                queuedLimit
-                atCapacity
                 retryingCount
                 oldestQueuedAt
                 queuedPerMinute
                 evaluationsPerMinute
+                countsAreLowerBounds
                 targets {
                     evaluationTarget
                     queuedCount
@@ -636,17 +637,16 @@ async def test_evaluation_queue(
     assert not response.errors and response.data
     queue = response.data["evaluationQueue"]
     targets = queue.pop("targets")
-    # Full: the queue is at capacity across every target, so it is degraded.
+    # The longest wait in line is 5 minutes; the 30-minute evaluation is awaiting a retry.
     assert queue == {
-        "status": "DEGRADED",
+        "status": "HEALTHY",
         "queuedCount": 4,
         "runningCount": 1,
-        "queuedLimit": 4,
-        "atCapacity": True,
         "retryingCount": 1,
         "oldestQueuedAt": queue["oldestQueuedAt"],
         "queuedPerMinute": pytest.approx(4 / 60),
         "evaluationsPerMinute": 0,
+        "countsAreLowerBounds": False,
     }
     assert datetime.fromisoformat(queue["oldestQueuedAt"]) == now - timedelta(minutes=5)
     assert [target["evaluationTarget"] for target in targets] == ["SPAN", "TRACE", "SESSION"]
@@ -666,6 +666,102 @@ async def test_evaluation_queue(
     oldest = [target["oldestQueuedAt"] for target in targets]
     assert oldest[1] is None
     assert datetime.fromisoformat(oldest[2]) == now - timedelta(minutes=1)
+
+
+async def test_evaluation_queue_counts_at_the_read_bound_are_lower_bounds(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    async with db() as session:
+        project = await _add_project(session)
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        for _ in range(3):
+            session.add(
+                models.EvalWorkUnit(
+                    span_rowid=(await _add_span(session, trace)).id,
+                    project_evaluator_id=project_evaluator_id,
+                )
+            )
+
+    response = await gql_client.execute(
+        """query ($project: ID!, $projectEvaluator: ID!) {
+            evaluationQueue {
+                queuedCount
+                countsAreLowerBounds
+                targets { queuedCount countsAreLowerBounds }
+                projects { queuedCount countsAreLowerBounds }
+            }
+            project: node(id: $project) {
+                ... on Project {
+                    evaluationQueue {
+                        queuedCount
+                        countsAreLowerBounds
+                        targets { queuedCount countsAreLowerBounds }
+                    }
+                }
+            }
+            projectEvaluator: node(id: $projectEvaluator) {
+                ... on ProjectEvaluator { runSummary { queuedCount countsAreLowerBounds } }
+            }
+        }""",
+        variables={
+            "project": str(GlobalID("Project", str(project.id))),
+            "projectEvaluator": str(GlobalID("ProjectEvaluator", str(project_evaluator_id))),
+        },
+    )
+
+    assert not response.errors and response.data
+    capped = {"queuedCount": 2, "countsAreLowerBounds": True}
+    empty = {"queuedCount": 0, "countsAreLowerBounds": False}
+    assert response.data["evaluationQueue"] == {
+        **capped,
+        "targets": [capped, empty, empty],
+        "projects": [capped],
+    }
+    assert response.data["project"]["evaluationQueue"] == {
+        **capped,
+        "targets": [capped, empty, empty],
+    }
+    assert response.data["projectEvaluator"]["runSummary"] == capped
+
+
+async def test_evaluation_queue_reads_each_evaluators_queue_once_per_request(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    project_evaluator_ids = [(await _seed_criteria(db, project.id))[1] for _ in range(3)]
+    load_queues = queue_health.load_project_evaluator_queues
+    requested: list[int] = []
+
+    async def counting_load_queues(db: DbSessionFactory, ids: list[int]) -> Any:
+        requested.extend(ids)
+        return await load_queues(db, ids)
+
+    for module in (project_evaluator_queues_module, queue_health):
+        monkeypatch.setattr(module, "load_project_evaluator_queues", counting_load_queues)
+
+    response = await gql_client.execute(
+        """query ($project: ID!) {
+            evaluationQueue { projects { queuedCount } }
+            project: node(id: $project) {
+                ... on Project {
+                    evaluationQueue { queuedCount }
+                    evaluators(first: 100) { edges { node { runSummary { queuedCount } } } }
+                }
+            }
+        }""",
+        variables={"project": str(GlobalID("Project", str(project.id)))},
+    )
+
+    assert not response.errors and response.data
+    assert sorted(requested) == sorted(project_evaluator_ids)
 
 
 async def test_evaluation_queue_projects(
@@ -726,8 +822,8 @@ async def test_evaluation_queue_projects(
     response = await gql_client.execute(
         """query {
             evaluationQueue {
-                projects { project { name } queuedCount }
-                top: projects(first: 1) { project { name } queuedCount }
+                projects { project { name } queuedCount countsAreLowerBounds }
+                top: projects(first: 1) { project { name } queuedCount countsAreLowerBounds }
             }
         }"""
     )
@@ -735,10 +831,10 @@ async def test_evaluation_queue_projects(
     assert not response.errors and response.data
     queue = response.data["evaluationQueue"]
     assert queue["projects"] == [
-        {"project": {"name": more_queued}, "queuedCount": 3},
-        {"project": {"name": fewer_queued}, "queuedCount": 1},
+        {"project": {"name": more_queued}, "queuedCount": 3, "countsAreLowerBounds": False},
+        {"project": {"name": fewer_queued}, "queuedCount": 1, "countsAreLowerBounds": False},
     ]
-    assert queue["top"] == [{"project": {"name": more_queued}, "queuedCount": 3}]
+    assert queue["top"] == queue["projects"][:1]
 
 
 async def test_project_evaluators(

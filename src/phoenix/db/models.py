@@ -4257,6 +4257,18 @@ class EvalWorkUnit(HasId):
             postgresql_where=text(live_eval_work_index_predicate()),
             sqlite_where=text(live_eval_work_index_predicate()),
         ),
+        # Each evaluator's queued work in queue order, read without walking its history. It
+        # covers the read, which is also what makes SQLite pick it over the full
+        # project_evaluator_id index.
+        Index(
+            "ix_eval_work_units_project_evaluator_live",
+            "project_evaluator_id",
+            "id",
+            "status",
+            "created_at",
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
+        ),
         Index(
             "ix_eval_work_units_terminal",
             "updated_at",
@@ -4317,6 +4329,18 @@ class EvalSessionWorkUnit(HasId):
             "ix_eval_session_work_units_claimable",
             "status",
             "id",
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
+        ),
+        # Each evaluator's queued work in queue order, read without walking its history. It
+        # covers the read, which is also what makes SQLite pick it over the full
+        # project_evaluator_id index.
+        Index(
+            "ix_eval_session_work_units_project_evaluator_live",
+            "project_evaluator_id",
+            "id",
+            "status",
+            "created_at",
             postgresql_where=text(live_eval_work_index_predicate()),
             sqlite_where=text(live_eval_work_index_predicate()),
         ),
@@ -4382,6 +4406,18 @@ class EvalTraceWorkUnit(HasId):
             "ix_eval_trace_work_units_claimable",
             "status",
             "id",
+            postgresql_where=text(live_eval_work_index_predicate()),
+            sqlite_where=text(live_eval_work_index_predicate()),
+        ),
+        # Each evaluator's queued work in queue order, read without walking its history. It
+        # covers the read, which is also what makes SQLite pick it over the full
+        # project_evaluator_id index.
+        Index(
+            "ix_eval_trace_work_units_project_evaluator_live",
+            "project_evaluator_id",
+            "id",
+            "status",
+            "created_at",
             postgresql_where=text(live_eval_work_index_predicate()),
             sqlite_where=text(live_eval_work_index_predicate()),
         ),

@@ -1870,6 +1870,7 @@ async def test_project_evaluator_run_summary(
                         queuedCount
                         runningCount
                         oldestQueuedAt
+                        countsAreLowerBounds
                         evaluatedCount
                         failedCount
                         droppedCount
@@ -1892,6 +1893,7 @@ async def test_project_evaluator_run_summary(
     # Queued: the PENDING unit, the RUNNING one, and the ERROR with attempts remaining.
     assert run_summary["queuedCount"] == 3
     assert run_summary["runningCount"] == 1
+    assert run_summary["countsAreLowerBounds"] is False
     # The oldest waiting is the PENDING unit, not the earlier-queued RUNNING one.
     assert datetime.fromisoformat(run_summary["oldestQueuedAt"]) == now - timedelta(minutes=3)
     # The newest FAILED unit's error — not the retrying unit's, which is newer but

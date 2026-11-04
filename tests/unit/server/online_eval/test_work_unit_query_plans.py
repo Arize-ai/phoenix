@@ -11,7 +11,6 @@ from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
     ProjectEvaluatorLatestOutcomesDataLoader,
 )
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
-from phoenix.server.online_eval import admission
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.evaluation_activity import (
     load_evaluation_activity,
@@ -28,6 +27,9 @@ from phoenix.server.online_eval.queue_health import (
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
 
+from ..._helpers import _add_project
+from .test_producer import _seed_criteria
+
 
 async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
     db: DbSessionFactory,
@@ -36,6 +38,12 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
     if db.dialect is not SupportedSQLDialect.SQLITE:
         pytest.skip("asserts SQLite query plans")
     connection: AsyncConnection = request.getfixturevalue("_sqlite_test_conn")
+    async with db() as session:
+        project = await _add_project(session)
+    project_evaluator_ids = [
+        (await _seed_criteria(db, project.id, evaluation_target=evaluation_target))[1]
+        for evaluation_target in ("SPAN", "TRACE", "SESSION")
+    ]
     plans: list[tuple[str, list[str]]] = []
 
     def explain(
@@ -54,8 +62,6 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
     try:
         producer = OnlineEvalProducer(db)
         await producer._reap(datetime.now(timezone.utc))
-        async with db() as session:
-            await admission.lock_room(session, db.dialect)
         for sweep_target in ("SESSION", "TRACE"):
             sweeper = EvalSweeper(db, evaluation_target=sweep_target)
             async with db() as session:
@@ -66,16 +72,18 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
             await coordinator.claim(claimed_by="query-plan", limit=1)
         queue = await load_evaluation_queue(db)
         await load_queue_throughput(db, queue)
-        await load_project_evaluator_queues(db, [1])
-        await load_project_queues(db, [1])
+        first_evaluator_queue_plan = len(plans)
+        await load_project_evaluator_queues(db, project_evaluator_ids)
+        await load_project_queues(db, [project.id])
         await load_queued_by_project(db, 5)
+        evaluator_queue_plans = plans[first_evaluator_queue_plan:]
         first_latest_outcome_plan = len(plans)
         await ProjectEvaluatorLatestOutcomesDataLoader(db).load(1)
         latest_outcome_plans = plans[first_latest_outcome_plan:]
         first_activity_plan = len(plans)
         now = datetime.now(timezone.utc)
-        await load_evaluation_lags(db, [1], now - timedelta(hours=1), now)
-        for project_id in (1, None):
+        await load_evaluation_lags(db, project_evaluator_ids, now - timedelta(hours=1), now)
+        for project_id in (project.id, None):
             await load_evaluation_activity(
                 db,
                 project_id=project_id,
@@ -114,6 +122,16 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         for outcome in ("done", "failed")
     }
     assert [step for step in latest_outcome_steps if "TEMP B-TREE" in step] == []
+    evaluator_queue_steps = [step for _, steps in evaluator_queue_plans for step in steps]
+    assert {
+        match.group(1)
+        for step in evaluator_queue_steps
+        if (match := re.match(r"SEARCH eval_\w*work_units USING (?:COVERING )?INDEX (\S+)", step))
+    } == {
+        f"ix_{table}_project_evaluator_live"
+        for table in ("eval_work_units", "eval_session_work_units", "eval_trace_work_units")
+    }
+    assert [step for step in evaluator_queue_steps if "TEMP B-TREE" in step] == []
     activity_indexes = {
         match.group(1)
         for _, steps in activity_plans

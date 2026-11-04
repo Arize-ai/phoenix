@@ -1598,7 +1598,6 @@ async def test_consumer_publishes_queue_health_gauges(
             "ONLINE_EVAL_RUNNING_WORK_UNITS",
             "ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS",
             "ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS",
-            "ONLINE_EVAL_AT_CAPACITY",
             "ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS",
             "ONLINE_EVAL_EXPIRED_WORK_UNITS",
             "ONLINE_EVAL_CLEARED_WORK_UNITS",
@@ -1615,9 +1614,6 @@ async def test_consumer_publishes_queue_health_gauges(
 
     await OnlineEvalConsumer(db, decrypt=lambda value: value)._publish_queue_metrics()
 
-    queue_wide = gauges.pop("ONLINE_EVAL_AT_CAPACITY")
-    queue_wide.labels.assert_not_called()
-    queue_wide.set.assert_called_once_with(0)
     for gauge in gauges.values():
         gauge.labels.assert_called_once_with(evaluation_target="SPAN")
         gauge.labels.return_value.set.assert_called_once()

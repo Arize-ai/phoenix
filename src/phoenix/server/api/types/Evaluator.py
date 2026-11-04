@@ -72,6 +72,7 @@ from phoenix.server.evaluators.schemas import (
 from phoenix.server.online_eval.queue_health import (
     DEGRADED_QUEUE_WAIT,
     EVALUATION_LOAD_WINDOW,
+    MAX_QUEUED_ROWS_READ,
     QueuedWork,
     project_evaluator_run_status,
 )
@@ -192,6 +193,12 @@ class ProjectEvaluatorRunSummary:
             "retry, was queued, or null if none is waiting. Running evaluations are not waiting."
         )
     )
+    counts_are_lower_bounds: bool = strawberry.field(
+        description=(
+            "Whether the queued and running counts are lower bounds: the read of this "
+            f"evaluator's queued evaluations stops at {MAX_QUEUED_ROWS_READ:,} rows."
+        )
+    )
     project_evaluator_id: strawberry.Private[int]
 
     @strawberry.field(  # type: ignore[untyped-decorator]
@@ -249,6 +256,7 @@ def _project_evaluator_run_summary(
         queued_count=queued.queued_count,
         running_count=queued.running_count,
         oldest_queued_at=queued.oldest_queued_at,
+        counts_are_lower_bounds=queued.counts_are_lower_bounds,
         project_evaluator_id=project_evaluator_id,
     )
 

@@ -2738,7 +2738,9 @@ type EvaluationActivityBinGroup {
   """
   cost: Float
 
-  """Evaluations queued or running at the end of the bin."""
+  """
+  Evaluations queued or running at the end of the bin. Counts at most the 5,000 newest of each evaluation target's queued evaluations in each status.
+  """
   queueSize: Int!
 }
 
@@ -2793,7 +2795,7 @@ type EvaluationLag {
 }
 
 """
-The online evaluation queue. Span, trace, and session evaluations of every project on the server share it and its limit. Rates are per minute over the last 60 minutes.
+The online evaluation queue. Span, trace, and session evaluations of every project on the server share it. Rates are per minute over the last 60 minutes.
 """
 type EvaluationQueue {
   status: EvaluationQueueStatus!
@@ -2807,14 +2809,6 @@ type EvaluationQueue {
   runningCount: Int!
 
   """
-  How many evaluations the queue holds before new ones wait to be queued.
-  """
-  queuedLimit: Int!
-
-  """Whether the queue is full, so new evaluations are not being queued."""
-  atCapacity: Boolean!
-
-  """
   Queued evaluations awaiting a retry after an attempt that did not finish.
   """
   retryingCount: Int!
@@ -2824,13 +2818,16 @@ type EvaluationQueue {
   """
   oldestQueuedAt: DateTime
 
-  """
-  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
-  """
+  """Evaluations queued per minute."""
   queuedPerMinute: Float!
 
   """Evaluations completed per minute, whether evaluated or failed."""
   evaluationsPerMinute: Float!
+
+  """
+  Whether the counts and queued rate are lower bounds: each read of queued evaluations stops at 5,000 rows.
+  """
+  countsAreLowerBounds: Boolean!
 
   """
   The queue's evaluations of each evaluation target: span, trace, session.
@@ -2848,19 +2845,20 @@ type EvaluationQueue {
 type EvaluationQueueProject {
   """Evaluations queued or running, including ones awaiting a retry."""
   queuedCount: Int!
+
+  """
+  Whether the counts are lower bounds: each read of queued evaluations stops at 5,000 rows.
+  """
+  countsAreLowerBounds: Boolean!
   project: Project!
 }
 
 """Whether queued evaluations are running without long waits."""
 enum EvaluationQueueStatus {
-  """
-  Evaluations not yet started have waited 10 minutes or less, and new ones are being queued.
-  """
+  """Evaluations not yet started have waited 10 minutes or less."""
   HEALTHY
 
-  """
-  The oldest evaluation not yet started has waited over 10 minutes, or the queue is at capacity.
-  """
+  """The oldest evaluation not yet started has waited over 10 minutes."""
   DEGRADED
 }
 
@@ -2888,13 +2886,16 @@ type EvaluationQueueTarget {
   """
   oldestQueuedAt: DateTime
 
-  """
-  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
-  """
+  """Evaluations queued per minute."""
   queuedPerMinute: Float!
 
   """Evaluations completed per minute, whether evaluated or failed."""
   evaluationsPerMinute: Float!
+
+  """
+  Whether the counts and queued rate are lower bounds: each read of queued evaluations stops at 5,000 rows.
+  """
+  countsAreLowerBounds: Boolean!
 }
 
 type EvaluationResult {
@@ -4911,13 +4912,16 @@ type ProjectEvaluationQueue {
   """
   oldestQueuedAt: DateTime
 
-  """
-  Evaluations queued per minute. While the queue is at capacity, this follows the rate evaluations leave it, not the rate they are owed.
-  """
+  """Evaluations queued per minute."""
   queuedPerMinute: Float!
 
   """Evaluations completed per minute, whether evaluated or failed."""
   evaluationsPerMinute: Float!
+
+  """
+  Whether the counts and queued rate are lower bounds: each read of queued evaluations stops at 5,000 rows.
+  """
+  countsAreLowerBounds: Boolean!
 
   """
   This project's evaluations of each evaluation target: span, trace, session.
@@ -4931,6 +4935,11 @@ type ProjectEvaluationQueueTarget {
 
   """Evaluations queued or running, including ones awaiting a retry."""
   queuedCount: Int!
+
+  """
+  Whether the counts are lower bounds: each read of queued evaluations stops at 5,000 rows.
+  """
+  countsAreLowerBounds: Boolean!
 }
 
 type ProjectEvaluator implements Node {
@@ -5142,6 +5151,11 @@ type ProjectEvaluatorRunSummary {
   When this evaluator's longest-waiting evaluation, including ones awaiting a retry, was queued, or null if none is waiting. Running evaluations are not waiting.
   """
   oldestQueuedAt: DateTime
+
+  """
+  Whether the queued and running counts are lower bounds: the read of this evaluator's queued evaluations stops at 5,000 rows.
+  """
+  countsAreLowerBounds: Boolean!
 
   """Evaluations that produced an annotation."""
   evaluatedCount: Int!

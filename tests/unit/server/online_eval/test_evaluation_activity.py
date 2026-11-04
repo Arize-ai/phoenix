@@ -7,6 +7,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
+from phoenix.server.online_eval import queue_health
 from phoenix.server.online_eval.evaluation_activity import (
     ActivityBinGroup,
     ActivityGroup,
@@ -264,6 +265,32 @@ async def test_activity_bins_follow_the_time_bin_config(
     assert {
         group.project_evaluator_id: group.queue_size for group in activity.series[-1].groups
     } == {seeded.span_evaluator_id: 2, seeded.trace_evaluator_id: 1}
+
+
+async def test_queue_size_counts_at_most_the_bound_of_each_status(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    async with db() as session:
+        project = await _add_project(session)
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        for status in ("PENDING", "PENDING", "PENDING", "RUNNING"):
+            session.add(
+                models.EvalWorkUnit(
+                    span_rowid=(await _add_span(session, trace)).id,
+                    project_evaluator_id=project_evaluator_id,
+                    status=status,
+                    created_at=_at(12, 30),
+                )
+            )
+
+    activity = await load_evaluation_activity(
+        db, project_id=project.id, start=_at(12), end=_at(13), time_bins=_HOURLY
+    )
+
+    assert [group.queue_size for group in activity.series[-1].groups] == [3]
 
 
 async def test_activity_over_an_empty_range(db: DbSessionFactory) -> None:

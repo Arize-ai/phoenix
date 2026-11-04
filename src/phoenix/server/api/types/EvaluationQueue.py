@@ -15,6 +15,14 @@ if TYPE_CHECKING:
 
 _DEGRADED_QUEUE_WAIT_MINUTES = int(queue_health.DEGRADED_QUEUE_WAIT.total_seconds() // 60)
 _RATE_WINDOW_MINUTES = int(queue_health.RATE_WINDOW.total_seconds() // 60)
+_LOWER_BOUNDS_DESCRIPTION = (
+    "Whether the counts and queued rate are lower bounds: each read of queued evaluations "
+    f"stops at {queue_health.MAX_QUEUED_ROWS_READ:,} rows."
+)
+_COUNT_LOWER_BOUNDS_DESCRIPTION = (
+    "Whether the counts are lower bounds: each read of queued evaluations stops at "
+    f"{queue_health.MAX_QUEUED_ROWS_READ:,} rows."
+)
 
 
 @strawberry.enum(description="Whether queued evaluations are running without long waits.")
@@ -23,14 +31,14 @@ class EvaluationQueueStatus(Enum):
         "HEALTHY",
         description=(
             f"Evaluations not yet started have waited {_DEGRADED_QUEUE_WAIT_MINUTES} minutes "
-            "or less, and new ones are being queued."
+            "or less."
         ),
     )
     DEGRADED = strawberry.enum_value(
         "DEGRADED",
         description=(
             f"The oldest evaluation not yet started has waited over "
-            f"{_DEGRADED_QUEUE_WAIT_MINUTES} minutes, or the queue is at capacity."
+            f"{_DEGRADED_QUEUE_WAIT_MINUTES} minutes."
         ),
     )
 
@@ -93,10 +101,7 @@ class EvaluationQueueTarget:
         return self.target.waiting.oldest_queued_at
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "Evaluations queued per minute. While the queue is at capacity, this follows the "
-            "rate evaluations leave it, not the rate they are owed."
-        )
+        description="Evaluations queued per minute."
     )
     async def queued_per_minute(self, info: Info[Context, None]) -> float:
         throughput = await _throughput(info, self.queue)
@@ -109,6 +114,13 @@ class EvaluationQueueTarget:
         throughput = await _throughput(info, self.queue)
         return throughput.target(self.target.evaluation_target).evaluations_per_minute
 
+    @strawberry.field(description=_LOWER_BOUNDS_DESCRIPTION)  # type: ignore[untyped-decorator]
+    async def counts_are_lower_bounds(self, info: Info[Context, None]) -> bool:
+        if self.target.counts_are_lower_bounds:
+            return True
+        throughput = await _throughput(info, self.queue)
+        return throughput.target(self.target.evaluation_target).queued_per_minute_is_lower_bound
+
 
 @strawberry.type(description="One project's evaluations in the online evaluation queue.")
 class EvaluationQueueProject:
@@ -116,6 +128,7 @@ class EvaluationQueueProject:
     queued_count: int = strawberry.field(
         description="Evaluations queued or running, including ones awaiting a retry."
     )
+    counts_are_lower_bounds: bool = strawberry.field(description=_COUNT_LOWER_BOUNDS_DESCRIPTION)
 
     @strawberry.field
     def project(self) -> Annotated["Project", strawberry.lazy(".Project")]:
@@ -127,7 +140,7 @@ class EvaluationQueueProject:
 @strawberry.type(
     description=(
         "The online evaluation queue. Span, trace, and session evaluations of every project "
-        "on the server share it and its limit. Rates are per minute over the last "
+        "on the server share it. Rates are per minute over the last "
         f"{_RATE_WINDOW_MINUTES} minutes."
     )
 )
@@ -154,18 +167,6 @@ class EvaluationQueue:
         return self.queue.running_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="How many evaluations the queue holds before new ones wait to be queued."
-    )
-    def queued_limit(self) -> int:
-        return self.queue.queued_limit
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Whether the queue is full, so new evaluations are not being queued."
-    )
-    def at_capacity(self) -> bool:
-        return self.queue.at_capacity
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
         description="Queued evaluations awaiting a retry after an attempt that did not finish."
     )
     def retrying_count(self) -> int:
@@ -181,10 +182,7 @@ class EvaluationQueue:
         return self.queue.waiting.oldest_queued_at
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "Evaluations queued per minute. While the queue is at capacity, this follows the "
-            "rate evaluations leave it, not the rate they are owed."
-        )
+        description="Evaluations queued per minute."
     )
     async def queued_per_minute(self, info: Info[Context, None]) -> float:
         return (await _throughput(info, self.queue)).queued_per_minute
@@ -194,6 +192,12 @@ class EvaluationQueue:
     )
     async def evaluations_per_minute(self, info: Info[Context, None]) -> float:
         return (await _throughput(info, self.queue)).evaluations_per_minute
+
+    @strawberry.field(description=_LOWER_BOUNDS_DESCRIPTION)  # type: ignore[untyped-decorator]
+    async def counts_are_lower_bounds(self, info: Info[Context, None]) -> bool:
+        if self.queue.counts_are_lower_bounds:
+            return True
+        return (await _throughput(info, self.queue)).queued_per_minute_is_lower_bound
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="The queue's evaluations of each evaluation target: span, trace, session."
@@ -215,8 +219,12 @@ class EvaluationQueue:
             raise BadRequest("first must not be negative")
         queued = await info.context.data_loaders.evaluation_queue_projects.load(first)
         return [
-            EvaluationQueueProject(project_id=project_id, queued_count=queued_count)
-            for project_id, queued_count in queued
+            EvaluationQueueProject(
+                project_id=project.project_id,
+                queued_count=project.queued_count,
+                counts_are_lower_bounds=project.counts_are_lower_bounds,
+            )
+            for project in queued
         ]
 
 
@@ -233,6 +241,10 @@ class ProjectEvaluationQueueTarget:
     )
     def queued_count(self) -> int:
         return self.target.queued_count
+
+    @strawberry.field(description=_COUNT_LOWER_BOUNDS_DESCRIPTION)  # type: ignore[untyped-decorator]
+    def counts_are_lower_bounds(self) -> bool:
+        return self.target.counts_are_lower_bounds
 
 
 @strawberry.type(
@@ -270,10 +282,7 @@ class ProjectEvaluationQueue:
         return self.queue.oldest_queued_at
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "Evaluations queued per minute. While the queue is at capacity, this follows the "
-            "rate evaluations leave it, not the rate they are owed."
-        )
+        description="Evaluations queued per minute."
     )
     async def queued_per_minute(self, info: Info[Context, None]) -> float:
         return (await _project_throughput(info, self.queue)).queued_per_minute
@@ -283,6 +292,12 @@ class ProjectEvaluationQueue:
     )
     async def evaluations_per_minute(self, info: Info[Context, None]) -> float:
         return (await _project_throughput(info, self.queue)).evaluations_per_minute
+
+    @strawberry.field(description=_LOWER_BOUNDS_DESCRIPTION)  # type: ignore[untyped-decorator]
+    async def counts_are_lower_bounds(self, info: Info[Context, None]) -> bool:
+        if self.queue.counts_are_lower_bounds:
+            return True
+        return (await _project_throughput(info, self.queue)).queued_per_minute_is_lower_bound
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="This project's evaluations of each evaluation target: span, trace, session."

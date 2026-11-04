@@ -166,22 +166,22 @@ _SUMS_ACROSS_REPLICAS = "Each replica counts only its own work, so aggregate wit
 ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_pending_work_units",
-    documentation="Current number of online-eval work units in PENDING status. "
-    f"{_SAME_ON_EVERY_REPLICA}",
+    documentation="Current number of online-eval work units in PENDING status, counted up to "
+    f"a fixed bound. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RUNNING_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_running_work_units",
-    documentation="Current number of online-eval work units in RUNNING status. "
-    f"{_SAME_ON_EVERY_REPLICA}",
+    documentation="Current number of online-eval work units in RUNNING status, counted up to "
+    f"a fixed bound. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_retryable_error_work_units",
-    documentation="Current number of retryable online-eval work units in ERROR status. "
-    f"{_SAME_ON_EVERY_REPLICA}",
+    documentation="Current number of retryable online-eval work units in ERROR status, counted "
+    f"up to a fixed bound. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
@@ -212,12 +212,6 @@ ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
     documentation="Seconds the oldest PENDING online-eval work unit has waited to start "
     f"(0 when none is pending). {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
-)
-ONLINE_EVAL_AT_CAPACITY = Gauge(
-    namespace="phoenix",
-    name="online_eval_at_capacity",
-    documentation="1 when the online-eval queue, shared by span, trace, and session work, is "
-    f"full and new work is not being queued, else 0. {_SAME_ON_EVERY_REPLICA}",
 )
 ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
     namespace="phoenix",

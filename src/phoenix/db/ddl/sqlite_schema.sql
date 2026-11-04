@@ -1600,6 +1600,9 @@ CREATE INDEX ix_eval_session_work_units_project_evaluator_failed ON eval_session
     WHERE status IN ('FAILED', 'EXPIRED');
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
     (project_evaluator_id);
+CREATE INDEX ix_eval_session_work_units_project_evaluator_live ON eval_session_work_units
+    (project_evaluator_id, id, status, created_at)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
 
@@ -1655,6 +1658,9 @@ CREATE INDEX ix_eval_trace_work_units_project_evaluator_failed ON eval_trace_wor
     WHERE status IN ('FAILED', 'EXPIRED');
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON eval_trace_work_units
     (project_evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_live ON eval_trace_work_units
+    (project_evaluator_id, id, status, created_at)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_trace_work_units_terminal ON eval_trace_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
 
@@ -1706,6 +1712,9 @@ CREATE INDEX ix_eval_work_units_project_evaluator_failed ON eval_work_units
     WHERE status IN ('FAILED', 'EXPIRED');
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON eval_work_units
     (project_evaluator_id);
+CREATE INDEX ix_eval_work_units_project_evaluator_live ON eval_work_units
+    (project_evaluator_id, id, status, created_at)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED');
 
