@@ -102,8 +102,15 @@ describe("toAnthropic type compatibility", () => {
         type: "anthropic",
         anthropic: {
           max_tokens: 256,
-          extra_body: { top_k: 5 },
+          extra_body: { top_k: 5, system: "Answer in French." },
         },
+      },
+      template: {
+        type: "chat",
+        messages: [
+          { role: "system", content: "Answer in English." },
+          { role: "user", content: "Hello" },
+        ],
       },
     } satisfies PromptVersion;
 
@@ -113,7 +120,11 @@ describe("toAnthropic type compatibility", () => {
     invariant(result, "Expected non-null result");
 
     expect(result).not.toHaveProperty("extra_body");
-    expect(result).toMatchObject({ max_tokens: 256, top_k: 5 });
+    expect(result).toMatchObject({
+      max_tokens: 256,
+      top_k: 5,
+      system: "Answer in French.",
+    });
   });
 
   it("should handle complex message types", () => {

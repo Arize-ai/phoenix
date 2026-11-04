@@ -332,11 +332,15 @@ describe("toOpenAI type compatibility", () => {
   it("sends extra_body fields as top-level request parameters", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
+      ...BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
       invocation_parameters: {
         type: "openai",
         openai: {
           temperature: 0.2,
-          extra_body: { chat_template_kwargs: { enable_thinking: false } },
+          extra_body: {
+            chat_template_kwargs: { enable_thinking: false },
+            response_format: { type: "json_object" },
+          },
         },
       },
     } satisfies PromptVersion;
@@ -351,5 +355,6 @@ describe("toOpenAI type compatibility", () => {
       temperature: 0.2,
       chat_template_kwargs: { enable_thinking: false },
     });
+    expect(result.response_format).toEqual({ type: "json_object" });
   });
 });
