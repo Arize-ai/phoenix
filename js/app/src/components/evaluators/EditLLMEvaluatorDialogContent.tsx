@@ -2,11 +2,14 @@ import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { Alert } from "@phoenix/components/core/alert";
 import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
+import {
+  EVALUATOR_VALIDATION_MESSAGE,
+  EvaluatorValidationBanner,
+} from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators/useLlmEvaluatorDraftRegistration";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
@@ -62,7 +65,7 @@ export const EditLLMEvaluatorDialogContent = ({
       setShowValidationError(true);
       return {
         ok: false,
-        error: "Please fix the highlighted errors before submitting.",
+        error: EVALUATOR_VALIDATION_MESSAGE,
       };
     }
     setShowValidationError(false);
@@ -95,14 +98,7 @@ export const EditLLMEvaluatorDialogContent = ({
           ? "Failed to create evaluator"
           : "Failed to update evaluator"
       }
-      banner={
-        showValidationError ? (
-          <Alert
-            variant="danger"
-            title="Please fix the highlighted errors before submitting."
-          />
-        ) : null
-      }
+      banner={showValidationError ? <EvaluatorValidationBanner /> : null}
       submitButtonProps={{
         "data-testid": "llm-evaluator-form-submit-button",
         "data-mode": mode,

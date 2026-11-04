@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Flex } from "@phoenix/components";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
 import { DecisionEvaluatorForm } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
 import {
@@ -9,7 +8,10 @@ import {
   type DecisionEvaluatorData,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useDecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
-import { useDecisionEvaluatorSave } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
+import {
+  DecisionEvaluatorValidationError,
+  useDecisionEvaluatorSave,
+} from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
 import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
@@ -18,6 +20,7 @@ import {
   EvaluatorPreviewSection,
   getEvaluatorPreviewHelpText,
 } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
+import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import { useEvaluatorPreview } from "@phoenix/components/evaluators/useEvaluatorPreview";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
@@ -63,6 +66,7 @@ function DecisionDatasetEvaluatorFormContent({
     useDecisionEvaluatorSave(draft);
   const preview = useEvaluatorPreview();
   const [submitError, setSubmitError] = useState<string | undefined>();
+  const [showValidationError, setShowValidationError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditing = !!initialEvaluator;
 
@@ -122,6 +126,7 @@ function DecisionDatasetEvaluatorFormContent({
   const onSubmit = async () => {
     if (!isDraftReady) return;
     setSubmitError(undefined);
+    setShowValidationError(false);
     try {
       let id: string;
       if (datasetEvaluatorId) {
@@ -146,7 +151,11 @@ function DecisionDatasetEvaluatorFormContent({
       onSaved?.(id);
       onClose();
     } catch (error) {
-      setSubmitError(getMutationErrorMessage(error));
+      if (error instanceof DecisionEvaluatorValidationError) {
+        setShowValidationError(true);
+      } else {
+        setSubmitError(getMutationErrorMessage(error));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -162,17 +171,20 @@ function DecisionDatasetEvaluatorFormContent({
       isSubmitting={isSubmitting}
       isSubmitDisabled={!isDraftReady}
       error={submitError ?? draft.loadError}
-      errorTitle="Failed to save evaluator"
+      errorTitle={
+        isEditing ? "Failed to update evaluator" : "Failed to create evaluator"
+      }
+      banner={showValidationError ? <EvaluatorValidationBanner /> : null}
       left={
-        <Flex direction="column" gap="size-200">
+        <>
           <EvaluatorNameAndDescriptionFields isNameRequired />
           <DecisionEvaluatorForm
             draft={draft}
             isDisabled={isSubmitting}
-            scoringDescription="Turn each answer into the score this dataset records."
+            scoringDescription="Turn each answer into the score this dataset records, and whether higher or lower is better."
             sharedEvaluatorNote={`${otherBindingCount > 0 ? `${otherBindingCount} other dataset evaluators use it. ` : ""}Input mappings apply only to this dataset.`}
           />
-        </Flex>
+        </>
       }
       right={
         <EvaluatorDatasetTestPanel
@@ -181,7 +193,7 @@ function DecisionDatasetEvaluatorFormContent({
               preview={preview}
               onTest={onTest}
               helpText={getEvaluatorPreviewHelpText("DECISION")}
-              isDisabled={!isDraftReady || isSubmitting}
+              isDisabled={isSubmitting}
             />
           }
         />

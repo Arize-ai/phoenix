@@ -37,6 +37,61 @@ const getOptimizationDirectionLabel = (
   );
 };
 
+export type OptimizationDirectionSelectProps = {
+  value: EvaluatorOptimizationDirection;
+  onChange: (value: EvaluatorOptimizationDirection) => void;
+  isDisabled?: boolean;
+  size?: "S" | "M" | "L";
+  /** Helper text rendered beneath the field via the `description` slot. */
+  description?: string;
+  "aria-label"?: string;
+  "data-testid"?: string;
+};
+
+/**
+ * The optimization direction select every evaluator annotation editor draws:
+ * a labelled `Select` of the three directions that fills its row.
+ */
+export function OptimizationDirectionSelect({
+  value,
+  onChange,
+  isDisabled,
+  size,
+  description,
+  "aria-label": ariaLabel = "Optimization direction",
+  "data-testid": testId = "optimization-direction-picker",
+}: OptimizationDirectionSelectProps) {
+  return (
+    <Select
+      data-testid={testId}
+      value={value}
+      onChange={(key) => onChange(key as EvaluatorOptimizationDirection)}
+      isDisabled={isDisabled}
+      size={size}
+      aria-label={ariaLabel}
+      css={css`
+        width: 100%;
+      `}
+    >
+      <Label>Optimization direction</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {optimizationDirectionOptions.map((option) => (
+            <SelectItem key={option.value} id={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+      {description ? <Text slot="description">{description}</Text> : null}
+    </Select>
+  );
+}
+
 export type OptimizationDirectionFieldProps = {
   isReadOnly?: boolean;
   isDisabled?: boolean;
@@ -80,37 +135,14 @@ export const OptimizationDirectionField = ({
   }
 
   return (
-    <Select
+    <OptimizationDirectionSelect
       value={optimizationDirection}
-      onChange={(e) => {
+      onChange={(direction) => {
         onChange?.();
-        setOutputConfigOptimizationDirectionAtIndex(
-          0,
-          e as EvaluatorOptimizationDirection
-        );
+        setOutputConfigOptimizationDirectionAtIndex(0, direction);
       }}
       isDisabled={isDisabled}
-      aria-label="Optimization direction"
-      data-testid="optimization-direction-picker"
-      css={css`
-        width: 100%;
-      `}
-    >
-      <Label>Optimization direction</Label>
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover>
-        <ListBox>
-          {optimizationDirectionOptions.map((option) => (
-            <SelectItem key={option.value} id={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </ListBox>
-      </Popover>
-      {description ? <Text slot="description">{description}</Text> : null}
-    </Select>
+      description={description}
+    />
   );
 };

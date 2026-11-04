@@ -30,6 +30,10 @@ import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 import type { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
+import {
+  sourceMenuContainerCSS,
+  sourceMenuTriggerCSS,
+} from "@phoenix/pages/playground/searchablePickerStyles";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 export type PromptVersion = {
@@ -177,7 +181,7 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
 
   if (selectedPrompt) {
     return (
-      <div css={promptMenuContainerCSS}>
+      <div css={sourceMenuContainerCSS}>
         <CompositeField>
           <PromptSelector
             prompts={prompts}
@@ -197,7 +201,7 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
   }
 
   return (
-    <div css={promptMenuContainerCSS}>
+    <div css={sourceMenuContainerCSS}>
       <PromptSelector
         prompts={prompts}
         selectedPrompt={selectedPrompt}
@@ -206,30 +210,6 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
     </div>
   );
 };
-
-const promptMenuContainerCSS = css`
-  min-width: 0;
-  flex: 0 1 auto;
-  overflow: hidden;
-  display: flex;
-`;
-
-/**
- * Width strategy for PromptSelector:
- *
- * The button width is controlled by these factors:
- * - min-width: Ensures the button is always usably wide
- * - max-width (placeholder): Prevents "Select prompt" from stretching too wide
- * - max-width (selected): Uncapped, allows button to use available space
- * - text max-width: Truncates long prompt names with ellipsis
- *
- * The button uses flex: 1 1 auto so it grows/shrinks within these bounds.
- */
-const promptSelectorWidthCSS = css`
-  --button-min-width: var(--global-dimension-size-1800);
-  --button-max-width-placeholder: var(--global-dimension-size-2400);
-  --text-max-width: 30ch;
-`;
 
 /**
  * Left dropdown: Searchable prompt selector.
@@ -263,19 +243,7 @@ export function PromptSelector({
         className="left-child"
         isDisabled={!hasPrompts}
         data-has-selection={selectedPrompt ? true : undefined}
-        css={css(
-          promptSelectorWidthCSS,
-          css`
-            justify-content: space-between;
-            flex: 1 1 auto;
-            min-width: var(--button-min-width);
-            max-width: var(--button-max-width-placeholder);
-            overflow: hidden;
-            &[data-has-selection] {
-              max-width: none;
-            }
-          `
-        )}
+        css={sourceMenuTriggerCSS}
       >
         <Truncate maxWidth="var(--text-max-width)" title={selectedPrompt?.name}>
           {selectedPrompt?.name ?? (

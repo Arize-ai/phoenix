@@ -208,9 +208,8 @@ describe("Project decision evaluator forms", () => {
       </>
     );
 
-  it("creates the evaluator and binds it to the project's spans", async () => {
+  it("creates the evaluator on the default model and binds it to the project's spans", async () => {
     await renderCreate();
-    await click("Pick model");
     await click("Create");
 
     const [[operation, { variables }]] = commit.mock.calls;
@@ -237,7 +236,7 @@ describe("Project decision evaluator forms", () => {
 
     expect(commit).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain(
-      "Fix the highlighted fields before saving."
+      "Please fix the highlighted errors before submitting."
     );
   });
 
@@ -285,7 +284,7 @@ describe("Project decision evaluator forms", () => {
       />
     );
     expect(document.body.textContent).toContain("saved-decision");
-    await click("Create");
+    await click("Attach evaluator");
 
     const [[operation, { variables }]] = commit.mock.calls;
     expect(operation).toBe(
