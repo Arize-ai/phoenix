@@ -3,7 +3,7 @@ title: "Sandboxes"
 description: "Configure the sandbox backends that execute code evaluators and other server-side code workloads."
 ---
 
-![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/sandboxes_banner.png)
+![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/banners/settings-sandboxes.avif)
 
 A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) — short Python or TypeScript functions that you write to score or judge your LLM outputs server-side, without exposing the rest of your deployment.
 
@@ -13,7 +13,9 @@ The **Settings → Sandboxes** page is where administrators pick which sandbox p
 - **Sandbox Configurations** — named runtime profiles you create once and re-use. Each one bundles a provider with a timeout and, for hosted providers, environment variables, optional internet access, and any dependencies that should be pre-installed.
 
 <Note>
-Only users with the **Admin** role can view or edit this page. Non-admin users are routed away from the tab.
+When authentication is enabled, users with the **Member** role can view this page, but only **Admins** can manage providers, credentials, and configurations. Users with the **Viewer** role cannot access this page.
+
+When authentication is disabled, users can view and manage sandbox settings.
 </Note>
 
 ## Local vs. hosted sandboxes

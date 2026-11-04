@@ -335,7 +335,9 @@ async function experimentExportHandler(
         noProgress: !options.progress,
       });
     } else {
-      writeOutput({ message: data });
+      // Write the body exactly as the server returned it (no trailing newline
+      // added) so `export --format csv > out.csv` matches `--output out.csv`.
+      process.stdout.write(data);
     }
   } catch (error) {
     writeError({

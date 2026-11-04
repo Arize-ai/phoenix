@@ -3,19 +3,19 @@ title: "OpenAI Node.js SDK"
 description: Instrument and observe OpenAI calls
 ---
 
-This module provides automatic instrumentation for the [OpenAI Node.js SDK](https://github.com/openai/openai-node). which may be used in conjunction with [@opentelemetry/sdk-trace-node](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-node).
+This module provides automatic instrumentation for the [OpenAI Node.js SDK](https://github.com/openai/openai-node), used with [@opentelemetry/sdk-trace-node](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-node).
 
 ## Install
 
 ```bash
 npm install --save @arizeai/openinference-instrumentation-openai openai
 
-npm install --save @opentelemetry/api @opentelemetry/sdk-trace-node \
-  @opentelemetry/sdk-trace-base \
-  @opentelemetry/resources \
+npm install --save @opentelemetry/api@~1.9.0 @opentelemetry/sdk-trace-node@2.12.0 \
+  @opentelemetry/sdk-trace-base@2.12.0 \
+  @opentelemetry/resources@2.12.0 \
   @opentelemetry/semantic-conventions \
-  @opentelemetry/instrumentation \
-  @opentelemetry/exporter-trace-otlp-proto \
+  @opentelemetry/instrumentation@0.212.0 \
+  @opentelemetry/exporter-trace-otlp-proto@0.212.0 \
   @arizeai/openinference-semantic-conventions
 ```
 
@@ -37,10 +37,12 @@ import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import OpenAI from "openai";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 
-const COLLECTOR_ENDPOINT = "your-phoenix-collector-endpoint";
-const SERVICE_NAME = "openai-app";
+const COLLECTOR_ENDPOINT = (
+  process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006"
+).replace(/\/$/, "");
+const SERVICE_NAME = process.env.PHOENIX_PROJECT_NAME ?? "openai-app";
 
-const provider = new NodeTracerProvider({
+export const provider = new NodeTracerProvider({
   resource: resourceFromAttributes({
     [ATTR_SERVICE_NAME]: SERVICE_NAME,
     [SEMRESATTRS_PROJECT_NAME]: SERVICE_NAME,
@@ -50,7 +52,9 @@ const provider = new NodeTracerProvider({
       new OTLPTraceExporter({
         url: `${COLLECTOR_ENDPOINT}/v1/traces`,
         // (optional) if connecting to Phoenix with Authentication enabled
-        headers: { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
+        headers: process.env.PHOENIX_API_KEY
+          ? { Authorization: `Bearer ${process.env.PHOENIX_API_KEY}` }
+          : {},
       })
     ),
   ],
@@ -74,22 +78,20 @@ console.log("OpenAI instrumentation registered");
 Import the `instrumentation.js` file first, then use OpenAI as usual.
 
 ```javascript expandable
-import "./instrumentation.js";
+import { provider } from "./instrumentation.js";
 import OpenAI from "openai";
 
-// set OPENAI_API_KEY in environment, or pass it in arguments
-const openai = new OpenAI({
-    apiKey: 'your-openai-api-key'
+// The client reads OPENAI_API_KEY from the environment.
+const openai = new OpenAI();
+
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Write a haiku." }],
 });
 
-openai.chat.completions
-  .create({
-    model: "gpt-4o",
-    messages: [{ role: "user", content: "Write a haiku."}],
-  })
-  .then((response) => {
-    console.log(response.choices[0].message.content);
-  });
+console.log(response.choices[0].message.content);
+await provider.forceFlush();
+await provider.shutdown();
 ```
 
 ## Observe

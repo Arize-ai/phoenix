@@ -272,7 +272,10 @@ describe("experiment export", () => {
         }
       )
     );
-    const io = captureCliOutput();
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
 
     await createExperimentCommand().parseAsync(
       ["export", "exp-001", ...BASE_ARGS],
@@ -281,7 +284,8 @@ describe("experiment export", () => {
 
     expect(captured.count).toBe(1);
     expect(captured.experimentId).toBe("exp-001");
-    expect(io.stdout).toHaveBeenCalledWith(RUNS_JSON);
+    // Body is emitted verbatim (no added newline).
+    expect(stdout).toHaveBeenCalledWith(RUNS_JSON);
   });
 
   it("hits the CSV endpoint with --format csv (case-insensitive)", async () => {
@@ -292,7 +296,10 @@ describe("experiment export", () => {
         return response(200).text(RUNS_CSV);
       })
     );
-    const io = captureCliOutput();
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
 
     await createExperimentCommand().parseAsync(
       ["export", "exp-001", "--format", "CSV", ...BASE_ARGS],
@@ -300,7 +307,7 @@ describe("experiment export", () => {
     );
 
     expect(captured.count).toBe(1);
-    expect(io.stdout).toHaveBeenCalledWith(RUNS_CSV);
+    expect(stdout).toHaveBeenCalledWith(RUNS_CSV);
   });
 
   it("writes to a file with --output and prints nothing to stdout", async () => {
@@ -309,7 +316,10 @@ describe("experiment export", () => {
         response(200).text(RUNS_CSV)
       )
     );
-    const io = captureCliOutput();
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "px-experiment-export-"));
     const outPath = path.join(dir, "out.csv");
 
@@ -328,7 +338,7 @@ describe("experiment export", () => {
       );
 
       expect(fs.readFileSync(outPath, "utf-8")).toBe(RUNS_CSV);
-      expect(io.stdout).not.toHaveBeenCalled();
+      expect(stdout).not.toHaveBeenCalled();
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

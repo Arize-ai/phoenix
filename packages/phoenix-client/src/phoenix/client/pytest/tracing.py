@@ -4,7 +4,7 @@ import json
 import logging
 from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import Any, Callable, ContextManager, Iterator, Optional
+from typing import Any, Callable, ContextManager, Generator, Optional
 
 from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode
@@ -75,7 +75,7 @@ class SuiteTracer:
         input_value: Any,
         output_getter: Callable[[], Any],
         error_getter: Optional[Callable[[], Optional[BaseException]]] = None,
-    ) -> Iterator[SpanHandle]:
+    ) -> Generator[SpanHandle, None, None]:
         """Open a CHAIN span around a test body. ``output_getter`` is read on close so the
         span reflects ``record.output`` set during the test. ``error_getter`` is also read on
         close: pytest's ``hookwrapper`` captures a failing test's exception into the call
@@ -87,7 +87,7 @@ class SuiteTracer:
             yield handle
 
     @contextmanager
-    def evaluator_span(self, name: str, *, input_value: Any) -> Iterator[SpanHandle]:
+    def evaluator_span(self, name: str, *, input_value: Any) -> Generator[SpanHandle, None, None]:
         """Open an EVALUATOR span around a genuine evaluator invocation. The evaluator is a
         direct call, so a failure propagates through the body and needs no ``error_getter``."""
         attachment: ContextManager[None] = (
@@ -118,7 +118,7 @@ class SuiteTracer:
         error_getter: Optional[Callable[[], Optional[BaseException]]],
         *,
         flush_provider: bool = False,
-    ) -> Iterator[SpanHandle]:
+    ) -> Generator[SpanHandle, None, None]:
         """Run the body inside a span, swallowing every tracing error so the body always runs
         and its own exception (if any) propagates. The body yields exactly once regardless.
 

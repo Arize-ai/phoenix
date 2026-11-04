@@ -15,7 +15,7 @@ The SMTP server runs automatically with the Phoenix development environment:
 
 ```bash
 # Start Phoenix dev environment (includes SMTP server)
-tox r -e docker_devops
+./dev.sh up
 
 # View emails at:
 # http://localhost:18273/mail

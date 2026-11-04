@@ -23,7 +23,7 @@ tests/
 `tests/test.sh`:
 ```bash
 #!/bin/bash
-uvx --from 'harbor-rewardkit==0.2.*' rewardkit /tests
+uvx --python '>=3.12,<3.14' --from 'harbor-rewardkit==0.2.*' rewardkit /tests
 ```
 
 This runs all criteria in `/tests/` against the workspace at `/app` and writes 
@@ -200,7 +200,9 @@ reference solution), `atif-trajectory` (evaluate the agent's trajectory), `weigh
 `prompt_template` (custom prompt with `{criteria}` placeholder), `samples` (run the judge 
 N times and score each criterion with its median sample), `guard` (protects the judge 
 from instructions the agent wrote into the graded files; `"flag"` reports them under `guard` 
-in the details, `"penalize"` also scores a flagged submission 0), `isolated` (agent judges 
+in the details, `"penalize"` also scores a flagged submission 0), `on-error` (`"fail"`, the 
+default, stops the run without a reward when a criterion has no valid judge sample; `"drop"` 
+scores it 0 instead), `isolated` (agent judges 
 only: read-only overlayfs copy of the workspace). More than one agent run in a task (several agent judges, `samples` above 1, or 
 individual mode with several criteria) requires `isolated = true` on each agent judge, which needs a separate verifier with `fuse-overlayfs` 
 and mount privileges; `--yolo` skips the check.

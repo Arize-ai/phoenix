@@ -3,7 +3,7 @@ title: "@arizeai/phoenix-cli"
 description: Command-line interface for retrieving trace data from Arize Phoenix projects.
 ---
 
-<a href="https://www.npmjs.com/package/@arizeai/phoenix-cli"><img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli" className='inline'/></a>
+<a href="https://www.npmjs.com/package/@arizeai/phoenix-cli"><img src="https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli" className='inline' alt="Phoenix CLI npm package version"/></a>
 
 <Card
   horizontal
@@ -715,6 +715,24 @@ px experiment get RXhwZXJpbWVudDox --format json     # JSON output
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
+
+### `px experiment export <experiment-id>`
+
+Export an experiment's runs as JSON or CSV, to stdout or a file.
+
+```bash
+px experiment export RXhwZXJpbWVudDox                       # JSON to stdout
+px experiment export RXhwZXJpbWVudDox --format csv          # CSV to stdout
+px experiment export RXhwZXJpbWVudDox --format csv --output exp.csv   # Write to file
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | `csv` or `json` | `json` |
+| `--output <path>` | Write to file instead of stdout | stdout |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | off |
 
 ### `px prompt list`
 

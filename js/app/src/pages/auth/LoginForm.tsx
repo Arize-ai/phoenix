@@ -28,6 +28,17 @@ type LoginFormParams = {
   password: string;
 };
 
+function readPasswordResetToken(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
+  if (!("password_reset_token" in body)) {
+    return null;
+  }
+  const token = body.password_reset_token;
+  return typeof token === "string" ? token : null;
+}
+
 type LoginFormProps = {
   initialError: string | null;
   /**
@@ -61,11 +72,23 @@ export function LoginForm(props: LoginFormProps) {
           body: JSON.stringify(sanitizedParams),
         });
         if (!response.ok) {
-          const errorMessage =
-            response.status === 429
-              ? "Too many requests. Please try again later."
-              : "Invalid login";
-          setError(errorMessage);
+          if (response.status === 429) {
+            setError("Too many requests. Please try again later.");
+            return;
+          }
+          let passwordResetToken: string | null = null;
+          try {
+            passwordResetToken = readPasswordResetToken(await response.json());
+          } catch {
+            passwordResetToken = null;
+          }
+          if (passwordResetToken !== null) {
+            navigate(
+              `/reset-password-with-token?token=${encodeURIComponent(passwordResetToken)}`
+            );
+            return;
+          }
+          setError("Invalid login");
           return;
         }
       } catch (_error) {
