@@ -161,6 +161,16 @@ def _join_paths(prefix: str, path: str) -> str:
     return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
 
 
+def _root_relative_path(scope: Scope) -> str:
+    """The request path without the ASGI ``root_path``, which ``scope["path"]`` includes
+    when the app is served under a host root path."""
+    path: str = scope["path"]
+    root_path: str = scope.get("root_path", "")
+    if root_path and path.startswith(root_path):
+        return path[len(root_path) :]
+    return path
+
+
 def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[str]:
     """Resolve the templated path of the route matching ``scope``."""
     for route in routes:
@@ -169,8 +179,8 @@ def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[s
             continue
         if isinstance(route, _IncludedRouter):
             prefix = route.include_context.prefix or ""
-            stripped_path = scope["path"][len(prefix) :]
-            sub_scope = {**scope, "path": stripped_path} if prefix else scope
+            stripped_path = _root_relative_path(scope)[len(prefix) :]
+            sub_scope = {**scope, "path": stripped_path, "root_path": ""} if prefix else scope
             sub_path = _resolve_route_path(route.original_router.routes, sub_scope)
             if sub_path is not None:
                 return _join_paths(prefix, sub_path)
