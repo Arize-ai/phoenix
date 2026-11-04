@@ -4,7 +4,6 @@ from typing import Optional
 
 import sqlalchemy as sa
 import strawberry
-from openinference.semconv.trace import OpenInferenceLLMProviderValues
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,8 +18,14 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeProvider import KNOWN_LLM_PROVIDER_STRINGS
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TokenPrice import TokenKind
+from phoenix.server.cost_tracking.token_types import (
+    INPUT_TOKEN_TYPE,
+    KNOWN_TOKEN_TYPES,
+    OUTPUT_TOKEN_TYPE,
+)
 
 
 @strawberry.input
@@ -269,21 +274,6 @@ async def _conflicting_model_error(
     return Conflict(f"Model '{name}' conflicts with an existing model")
 
 
-# Instrumentors emit these values in lowercase, and cost lookup matches them
-# exactly. The explicit names mirror PROVIDER_OPTIONS in
-# js/app/src/pages/settings/ModelForm.tsx, since older semantic conventions
-# releases do not include all of them.
-_KNOWN_PROVIDERS = frozenset(
-    {provider.value for provider in OpenInferenceLLMProviderValues}
-    | {"openai", "azure", "anthropic", "google", "aws", "deepseek", "xai", "zai", "meta"}
-)
-
-# Mirrors the options in js/app/src/pages/settings/ModelTokenTypeComboBox.tsx.
-_KNOWN_TOKEN_TYPES = frozenset(
-    {"input", "output", "audio", "cache_read", "cache_write", "reasoning"}
-)
-
-
 def _normalize_provider(provider: Optional[str]) -> str:
     """
     Trim the provider and snap known providers to their canonical lowercase
@@ -291,12 +281,12 @@ def _normalize_provider(provider: Optional[str]) -> str:
     provider-agnostic model is stored.
     """
     provider = (provider or "").strip()
-    return provider.lower() if provider.lower() in _KNOWN_PROVIDERS else provider
+    return provider.lower() if provider.lower() in KNOWN_LLM_PROVIDER_STRINGS else provider
 
 
 def _normalize_token_type(token_type: str) -> str:
     token_type = token_type.strip()
-    return token_type.lower() if token_type.lower() in _KNOWN_TOKEN_TYPES else token_type
+    return token_type.lower() if token_type.lower() in KNOWN_TOKEN_TYPES else token_type
 
 
 def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenPrice]:
@@ -311,9 +301,9 @@ def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenP
             raise BadRequest(f"Duplicate {kind} token type '{token_price.token_type}'")
         seen.add(key)
     token_types = {token_price.token_type for token_price in token_prices}
-    if "input" not in token_types:
+    if INPUT_TOKEN_TYPE not in token_types:
         raise BadRequest("input cost is required")
-    if "output" not in token_types:
+    if OUTPUT_TOKEN_TYPE not in token_types:
         raise BadRequest("output cost is required")
     return token_prices
 

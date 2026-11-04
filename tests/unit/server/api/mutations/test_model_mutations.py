@@ -671,6 +671,7 @@ class TestModelMutations:
             pytest.param("OpenAI", "openai", id="known-provider-is-lowercased"),
             pytest.param("Meta", "meta", id="form-preset-meta"),
             pytest.param("ZAI", "zai", id="form-preset-zai"),
+            pytest.param("Groq", "groq", id="playground-provider-is-lowercased"),
             pytest.param(" AcmeAI  ", "AcmeAI", id="custom-provider-keeps-case-and-is-trimmed"),
             pytest.param("   ", "", id="whitespace-only-provider-is-provider-agnostic"),
         ],
