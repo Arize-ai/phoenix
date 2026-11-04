@@ -829,7 +829,7 @@ async def test_quiet_session_predating_criterion_creation_is_not_live(
         )
 
 
-async def test_reenabled_criterion_reaches_back_to_creation(
+async def test_disabled_criterion_neither_sweeps_nor_moves_its_floor(
     db: DbSessionFactory,
 ) -> None:
     project_id, project_session_id, activity_at = await _add_session_liveness(

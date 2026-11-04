@@ -1617,6 +1617,7 @@ CREATE TABLE public.project_evaluators (
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
     swept_through_at TIMESTAMP WITH TIME ZONE,
+    span_rowid_floor BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),

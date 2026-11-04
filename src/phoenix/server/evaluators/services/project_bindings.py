@@ -5,7 +5,7 @@ from secrets import token_hex
 from typing import Any, Optional, TypedDict, cast
 
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, event, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -15,6 +15,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import (
+    SupportedSQLDialect,
     code_evaluator_with_latest_version,
     delete_projects_and_evaluator_trace_projects,
 )
@@ -69,6 +70,8 @@ from phoenix.server.online_eval.db_coordinator import (
     drop_all_queued_work,
     drop_queued_work,
 )
+from phoenix.server.online_eval.leases import current_database_time
+from phoenix.server.online_eval.producer import current_span_rowid_floor
 
 
 @dataclass(kw_only=True)
@@ -265,6 +268,7 @@ async def create_project_llm_evaluator(
                 input_mapping=input.input_mapping,
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
+                span_rowid_floor=await span_rowid_floor_for(session, input.evaluation_target),
             )
             session.add(project_evaluator)
             await session.flush()
@@ -467,6 +471,7 @@ async def bind_project_evaluator(
             settings.evaluation_delay_seconds, settings.evaluation_target
         ),
         enabled=settings.enabled,
+        span_rowid_floor=await span_rowid_floor_for(session, settings.evaluation_target),
     )
     session.add(project_evaluator)
     await session.flush()
@@ -624,6 +629,7 @@ async def create_project_code_evaluator(
                 input_mapping=(input.input_mapping if input.input_mapping is not None else None),
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
+                span_rowid_floor=await span_rowid_floor_for(session, input.evaluation_target),
             )
             session.add(project_evaluator)
             await session.flush()
@@ -864,21 +870,62 @@ async def update_project_code_evaluator(
     return project_evaluator
 
 
+async def span_rowid_floor_for(
+    session: AsyncSession, evaluation_target: models.EvaluationTarget
+) -> Optional[int]:
+    """Where a new evaluator's span scans start, so it evaluates only spans that arrive after
+    it is created. Trace and session evaluators start at their creation time instead."""
+    return await current_span_rowid_floor(session) if evaluation_target == "SPAN" else None
+
+
 async def write_project_evaluator(
     session: AsyncSession, project_evaluator_id: int, values: ProjectEvaluatorWriteValues
 ) -> models.ProjectEvaluator:
     """Update binding columns and return the row as the database stored it.
 
+    An evaluator evaluates only what arrives after it is turned on. Enabling one drops its
+    queued work and starts it at now, and a span evaluator also starts at now when its
+    filter or sampling rate changes.
+
     The row is handed to resolvers after the session closes, so server-generated values
     such as updated_at must come back with the write instead of being loaded lazily.
     """
+    project_evaluator = models.ProjectEvaluator
+    enabled, filter_condition, sampling_rate, evaluation_target = (
+        await session.execute(
+            select(
+                project_evaluator.enabled,
+                project_evaluator.filter_condition,
+                project_evaluator.sampling_rate,
+                project_evaluator.evaluation_target,
+            ).where(project_evaluator.id == project_evaluator_id)
+        )
+    ).one()
+    enabling = not enabled and values.get("enabled", enabled)
+    selection_changed = (
+        values.get("filter_condition", filter_condition) != filter_condition
+        or values.get("sampling_rate", sampling_rate) != sampling_rate
+    )
+    start_values: dict[str, Any] = {}
+    if evaluation_target == "SPAN":
+        if enabling or selection_changed:
+            start_values["span_rowid_floor"] = await current_span_rowid_floor(session)
+    elif enabling:
+        start_values["swept_through_at"] = await current_database_time(
+            session, SupportedSQLDialect(session.get_bind().dialect.name)
+        )
     row: models.ProjectEvaluator | None = await session.scalar(
-        update(models.ProjectEvaluator)
-        .where(models.ProjectEvaluator.id == project_evaluator_id)
-        .values(**values)
-        .returning(models.ProjectEvaluator)
+        update(project_evaluator)
+        .where(project_evaluator.id == project_evaluator_id)
+        .values(**values, **start_values)
+        .returning(project_evaluator)
     )
     assert row is not None
+    if enabling:
+        dropped = await drop_queued_work(session, [project_evaluator_id])
+        event.listen(
+            session.sync_session, "after_commit", lambda _: count_cleared_work(dropped), once=True
+        )
     return row
 
 
@@ -887,8 +934,9 @@ async def set_project_evaluator_enabled(
 ) -> models.ProjectEvaluator:
     """Enable or disable a binding without changing its other settings.
 
-    Its queued evaluations stay queued; a disabled evaluator's are dropped, not run, when
-    their turn comes. Clear them now with ``clear_project_evaluator_queued_evaluations``.
+    Disabling leaves its queued evaluations in place; a disabled evaluator's are dropped,
+    not run, when their turn comes, and enabling it again drops any still queued. Clear them
+    now with ``clear_project_evaluator_queued_evaluations``.
     """
     try:
         project_evaluator_id = from_global_id_with_expected_type(

@@ -1524,6 +1524,7 @@ CREATE TABLE project_evaluators (
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
     swept_through_at TIMESTAMP,
+    span_rowid_floor INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),

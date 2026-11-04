@@ -68,14 +68,30 @@ _WORK_UNIT_UNIQUE_BY = ("span_rowid", "project_evaluator_id")
 _CURSOR_ID = 1
 
 
+async def current_span_rowid_floor(session: AsyncSession) -> int:
+    """The span floor for a span evaluator that starts now: the producer's position, or the
+    newest span before the producer has run."""
+    produced_through_id = await session.scalar(
+        select(models.EvalSpanCursor.produced_through_id).where(
+            models.EvalSpanCursor.id == _CURSOR_ID
+        )
+    )
+    if produced_through_id is not None:
+        return produced_through_id
+    return await session.scalar(select(func.max(models.Span.id))) or 0
+
+
 @dataclass(frozen=True)
 class _ActiveProjectEvaluator:
     project_evaluator_id: int
     project_id: int
     sampling_rate: float
     span_filter: SpanFilter
+    span_rowid_floor: Optional[int] = None
 
     def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[int]:
+        if self.span_rowid_floor is not None:
+            low_exclusive = max(low_exclusive, self.span_rowid_floor)
         stmt = (
             select(models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
@@ -103,9 +119,10 @@ class OnlineEvalProducer(DaemonTask):
 
     ``produced_through_id`` is a scan position in that log: spans above it are still to be
     scanned, and spans at or below it were scanned for the SPAN project evaluators active
-    when the position passed them. It starts at the newest span, so older spans, and spans
-    an evaluator missed because it was enabled later, are reached only by the backstop's
-    lookback (``backstop_lookback_span_ids``). Session and trace work are
+    when the position passed them. It starts at the newest span, so older spans are reached
+    only by the backstop's lookback (``backstop_lookback_span_ids``), and no scan reaches an
+    evaluator's ``span_rowid_floor``: an evaluator evaluates only spans that arrive after it
+    is created, enabled, or given a new filter or sampling rate. Session and trace work are
     materialized from entity state instead, by ``EvalSweeper`` — a session or trace
     becomes eligible when it goes quiet, which no position in an arrival log can express.
     """
@@ -318,6 +335,7 @@ class OnlineEvalProducer(DaemonTask):
                         project_id=project_evaluator.project_id,
                         sampling_rate=project_evaluator.sampling_rate,
                         span_filter=span_filter,
+                        span_rowid_floor=project_evaluator.span_rowid_floor,
                     )
                 )
         return active

@@ -4160,6 +4160,9 @@ class ProjectEvaluator(HasId):
     )
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     swept_through_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    # Span evaluators queue only spans above this id; set when one is created, enabled, or
+    # has its filter or sampling rate changed.
+    span_rowid_floor: Mapped[Optional[int]] = mapped_column(_Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

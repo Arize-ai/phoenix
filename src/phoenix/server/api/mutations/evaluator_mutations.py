@@ -632,10 +632,11 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Enable or disable a project evaluator, leaving the underlying evaluator "
-            "untouched. This changes only whether the evaluator runs: its queued evaluations "
-            "stay queued, and a disabled evaluator's queued evaluations are dropped, not run, "
-            "when their turn comes. To remove them now, clear them with "
-            "clearProjectEvaluatorQueuedEvaluations. Works for both LLM and CODE evaluators."
+            "untouched. A disabled evaluator's queued evaluations are dropped, not run, when "
+            "their turn comes; to remove them now, clear them with "
+            "clearProjectEvaluatorQueuedEvaluations. Enabling drops any still queued, and the "
+            "evaluator evaluates only what arrives after it is enabled. Works for both LLM "
+            "and CODE evaluators."
         ),
     )  # type: ignore
     async def set_project_evaluator_enabled(

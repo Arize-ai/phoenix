@@ -392,6 +392,7 @@ def upgrade() -> None:
             sa.TIMESTAMP(timezone=True),
             nullable=True,
         ),
+        sa.Column("span_rowid_floor", _Integer, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

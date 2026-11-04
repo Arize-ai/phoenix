@@ -228,6 +228,7 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             "input_mapping",
             "enabled",
             "swept_through_at",
+            "span_rowid_floor",
             "created_at",
             "updated_at",
         }
@@ -262,7 +263,9 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping", "swept_through_at"]),
+            nullable_column_names=frozenset(
+                ["input_mapping", "swept_through_at", "span_rowid_floor"]
+            ),
         )
 
 

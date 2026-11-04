@@ -4,12 +4,14 @@ from secrets import token_hex
 from typing import Any
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_span, _add_trace
 
 
 async def _binding_count(db: DbSessionFactory, project_id: int) -> int:
@@ -309,3 +311,58 @@ async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
 
     # none of the refused calls above touched the binding created before them
     assert (await httpx_client.get(binding_route)).status_code == 200
+
+
+async def test_patch_reenabling_drops_queued_work_and_skips_earlier_spans(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    project = await _project(db)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(3)]
+        session.add(models.EvalSpanCursor(id=1, produced_through_id=spans[-1].id))
+    created = (
+        await httpx_client.post(
+            f"v1/projects/{GlobalID('Project', str(project.id))}/evaluators",
+            json={
+                "name": "reenabled",
+                "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+                "evaluation_target": "SPAN",
+                "sampling_rate": 1.0,
+            },
+        )
+    ).json()["data"]
+    project_evaluator_id = int(GlobalID.from_id(created["id"]).node_id)
+    response = await httpx_client.patch(
+        f"v1/project_evaluators/{created['id']}", json={"enabled": False}
+    )
+    assert response.status_code == 200, response.text
+    async with db() as session:
+        # Started before these spans, with one of them queued before the disable.
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
+            .values(span_rowid_floor=spans[0].id - 1)
+        )
+        session.add(
+            models.EvalWorkUnit(span_rowid=spans[0].id, project_evaluator_id=project_evaluator_id)
+        )
+
+    response = await httpx_client.patch(
+        f"v1/project_evaluators/{created['id']}", json={"enabled": True}
+    )
+    assert response.status_code == 200, response.text
+    await OnlineEvalProducer(db, backstop_interval_seconds=0)._tick()
+
+    async with db() as session:
+        work = {
+            unit.span_rowid: unit.status
+            for unit in await session.scalars(
+                select(models.EvalWorkUnit).where(
+                    models.EvalWorkUnit.project_evaluator_id == project_evaluator_id
+                )
+            )
+        }
+    assert work == {spans[0].id: "DROPPED"}

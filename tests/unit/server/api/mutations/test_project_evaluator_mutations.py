@@ -1,17 +1,19 @@
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from types import SimpleNamespace
 from typing import Any, Optional, Sequence
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.evaluators.services import project_bindings
 from phoenix.server.online_eval import db_coordinator as db_coordinator_module
+from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
@@ -875,7 +877,8 @@ async def test_project_llm_evaluator_create_update_delete(
     await _queue_work(db, created["id"], ["PENDING"])
     clear_result = await gql_client.execute(_UPDATE_LLM, {"input": clear_input})
     assert clear_result.data and not clear_result.errors
-    assert await _work_statuses(db, created["id"]) == ["PENDING"]
+    # The update enables the disabled evaluator, which drops what was queued before.
+    assert await _work_statuses(db, created["id"]) == ["DROPPED"]
     cleared = clear_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert cleared["evaluationDelaySeconds"] == 300
 
@@ -1216,7 +1219,7 @@ async def test_set_project_evaluator_enabled_toggles_only_enabled(
     assert disabled["samplingRate"] == created["samplingRate"]
 
 
-async def test_toggling_enabled_leaves_queued_evaluations_in_place(
+async def test_reenabling_drops_evaluations_queued_before_the_disable(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -1230,15 +1233,169 @@ async def test_toggling_enabled_leaves_queued_evaluations_in_place(
     await _queue_work(db, toggled, ["PENDING", "ERROR", "RUNNING"])
     completed = _count_completed_work(monkeypatch)
 
-    for enabled in (False, True):
+    assert (await _set_enabled(gql_client, toggled, False))["enabled"] is False
+    assert await _work_statuses(db, toggled) == ["PENDING", "ERROR", "RUNNING"]
+
+    assert (await _set_enabled(gql_client, toggled, True))["enabled"] is True
+    assert await _work_statuses(db, toggled) == ["DROPPED", "DROPPED", "RUNNING"]
+    assert completed == {("TRACE", "cleared"): 2}
+
+
+async def _set_enabled(
+    gql_client: AsyncGraphQLClient, project_evaluator_id: str, enabled: bool
+) -> dict[str, Any]:
+    result = await gql_client.execute(
+        _SET_ENABLED, {"input": {"projectEvaluatorId": project_evaluator_id, "enabled": enabled}}
+    )
+    assert result.data and not result.errors
+    evaluator: dict[str, Any] = result.data["setProjectEvaluatorEnabled"]["evaluator"]
+    return evaluator
+
+
+def _llm_update_input(
+    project: models.Project, project_evaluator_id: str, **overrides: Any
+) -> dict[str, Any]:
+    update_input = _llm_input(project, name="span-llm", text="{{input}}")
+    update_input.pop("projectId")
+    update_input.pop("enabled")
+    update_input.update(projectEvaluatorId=project_evaluator_id, evaluationTarget="SPAN")
+    update_input.update(overrides)
+    return update_input
+
+
+@pytest.mark.parametrize(
+    "start",
+    ["create", "add", "enable", "re_enable", "filter_edit", "sampling_edit"],
+)
+async def test_span_evaluator_skips_spans_that_arrived_before_it_started(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    start: str,
+) -> None:
+    project = await _add_project(db)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        old_spans = [await _add_span(session, trace) for _ in range(4)]
+        session.add(models.EvalSpanCursor(id=1, produced_through_id=old_spans[-1].id))
+
+    if start == "add":
+        created = await gql_client.execute(
+            _CREATE_CODE, {"input": _code_create_input(await _add_project(db), sandbox_config)}
+        )
+        assert created.data and not created.errors
+        core_id = created.data["createProjectCodeEvaluator"]["evaluator"]["evaluator"]["id"]
+        add_input = {
+            **_code_add_input(project, core_id),
+            "evaluationTarget": "SPAN",
+            "filterCondition": "",
+            "samplingRate": 1.0,
+            "enabled": True,
+        }
+        add_input.pop("evaluationDelaySeconds")
+        added = await gql_client.execute(_ADD_CODE, {"input": add_input})
+        assert added.data and not added.errors
+        project_evaluator_id = added.data["addProjectCodeEvaluator"]["evaluator"]["id"]
+    else:
+        create_input = {
+            **_llm_input(project, name="span-llm", text="{{input}}"),
+            "evaluationTarget": "SPAN",
+            "enabled": start != "enable",
+            "samplingRate": 0.5 if start == "sampling_edit" else 1.0,
+            "filterCondition": "span_kind == 'TOOL'" if start == "filter_edit" else "",
+        }
+        created = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+        assert created.data and not created.errors
+        project_evaluator_id = created.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    if start not in ("create", "add"):
+        # Started before these spans, as if the producer had passed them while it was off.
+        async with db() as session:
+            await session.execute(
+                update(models.ProjectEvaluator)
+                .where(
+                    models.ProjectEvaluator.id
+                    == int(GlobalID.from_id(project_evaluator_id).node_id)
+                )
+                .values(span_rowid_floor=old_spans[0].id - 1)
+            )
+    if start == "re_enable":
+        await _set_enabled(gql_client, project_evaluator_id, False)
+    if start in ("enable", "re_enable"):
+        await _set_enabled(gql_client, project_evaluator_id, True)
+    if start in ("filter_edit", "sampling_edit"):
         result = await gql_client.execute(
-            _SET_ENABLED,
-            {"input": {"projectEvaluatorId": toggled, "enabled": enabled}},
+            _UPDATE_LLM,
+            {
+                "input": _llm_update_input(
+                    project, project_evaluator_id, samplingRate=1.0, filterCondition=""
+                )
+            },
         )
         assert result.data and not result.errors
-        assert result.data["setProjectEvaluatorEnabled"]["evaluator"]["enabled"] is enabled
-        assert await _work_statuses(db, toggled) == ["PENDING", "ERROR", "RUNNING"]
-    assert completed == {}
+    async with db() as session:
+        new_span = await _add_span(session, await session.get_one(models.Trace, trace.id))
+
+    producer = OnlineEvalProducer(db, frontier_lag_seconds=0, backstop_interval_seconds=0)
+    await producer._tick()
+    await producer._tick()
+
+    async with db() as session:
+        queued = set(
+            await session.scalars(
+                select(models.EvalWorkUnit.span_rowid).where(
+                    models.EvalWorkUnit.project_evaluator_id
+                    == int(GlobalID.from_id(project_evaluator_id).node_id)
+                )
+            )
+        )
+    assert queued == {new_span.id}
+
+
+async def _add_quiet_trace(db: DbSessionFactory, project: models.Project) -> None:
+    """A trace, in a session, both last active an hour ago."""
+    quiet_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    async with db() as session:
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+        trace.last_span_ingested_at = quiet_since
+        project_session.last_span_ingested_at = quiet_since
+
+
+@pytest.mark.parametrize("start", ["enable", "re_enable"])
+@pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
+async def test_trace_and_session_evaluators_skip_activity_from_before_they_started(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+    start: str,
+) -> None:
+    project = await _add_project(db)
+    create_input = {
+        **_llm_input(project, name="quiet", text="{{input}}"),
+        "evaluationTarget": evaluation_target,
+        "enabled": start == "re_enable",
+    }
+    created = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    assert created.data and not created.errors
+    project_evaluator_id = created.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    async with db() as session:
+        # Created long before the activity, so only the start of evaluation can skip it.
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(
+                models.ProjectEvaluator.id == int(GlobalID.from_id(project_evaluator_id).node_id)
+            )
+            .values(created_at=datetime.now(timezone.utc) - timedelta(days=1))
+        )
+    if start == "re_enable":
+        await _set_enabled(gql_client, project_evaluator_id, False)
+    await _add_quiet_trace(db, project)
+
+    await _set_enabled(gql_client, project_evaluator_id, True)
+    await EvalSweeper(db, evaluation_target=evaluation_target)._tick()
+
+    assert await _work_statuses(db, project_evaluator_id) == []
 
 
 async def test_clear_project_evaluator_queued_evaluations_drops_only_its_queued_work(
