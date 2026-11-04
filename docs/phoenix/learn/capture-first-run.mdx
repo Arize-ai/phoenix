@@ -7,9 +7,13 @@ When you ask the [Wonder Toys](https://github.com/Arize-ai/project-rosetta-stone
 
 We'll start with the [uninstrumented Wonder Toys agent](https://github.com/Arize-ai/project-rosetta-stone/tree/main/no-observability/langchain-py), add tracing, and send a shopping request. Then we'll open its trace in Phoenix to see what happened.
 
+<Note>
+  Follow along with Wonder Toys, or use your own agent. For your own agent, use the [integration guide for your framework](/docs/phoenix/integrations) to enable tracing, then send a request and inspect its trace in Phoenix. The setup commands and file paths below are for Wonder Toys.
+</Note>
+
 ## Before you start
 
-You'll need:
+For the Wonder Toys walkthrough, you'll need:
 
 - [Git](https://git-scm.com/downloads) and [Node.js 22](https://nodejs.org/en/download) installed.
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) to run Phoenix and the Python backend.
@@ -92,7 +96,7 @@ With the app configured, let's enable [**auto instrumentation**](/docs/phoenix/i
   <Tab title="Add the code yourself">
     Add these packages to [`backend/requirements.txt`](https://github.com/Arize-ai/project-rosetta-stone/blob/main/no-observability/langchain-py/backend/requirements.txt) to record calls and send them to Phoenix:
 
-    ```text
+    ```text wrap
     arize-phoenix-otel
     openinference-instrumentation-langchain
     ```
@@ -178,10 +182,6 @@ In Phoenix:
 </Frame>
 
 You've completed this lesson when you can find your request in a model span and inspect the recorded calls.
-
-<Note>
-  To apply this to your own app, use the [integration guide for your framework](/docs/phoenix/integrations). The same pattern applies: initialize tracing before the framework runs, then send a request.
-</Note>
 
 ## Next: Make the complete interaction easier to review
 
