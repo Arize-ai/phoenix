@@ -69,11 +69,12 @@ def main() -> None:
     checks, facts = grade()
     loaded = skills.loaded_skills(read_trajectory(Path("/logs/agent/trajectory.json")))
     details = {"checks": checks, **facts}
+    components: dict[str, Any] = {"loaded_skills": loaded}
+    components.update(skills.skill_scores(loaded, EXPECTED))
     scores = write_reward(
         float(all(checks.values())),
         details,
-        loaded_skills=loaded,
-        **skills.skill_scores(loaded, EXPECTED),
+        **components,
     )
     print(json.dumps({**details, "scores": scores}, default=str))
 

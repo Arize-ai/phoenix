@@ -109,11 +109,12 @@ def main() -> None:
         "exit_code": run.returncode,
         "stderr": run.stderr[-2000:],
     }
+    components: dict[str, Any] = {"loaded_skills": loaded}
+    components.update(skills.skill_scores(loaded, EXPECTED))
     scores = write_reward(
         float(all(checks.values())),
         details,
-        loaded_skills=loaded,
-        **skills.skill_scores(loaded, EXPECTED),
+        **components,
     )
     print(json.dumps({**details, "scores": scores}))
 

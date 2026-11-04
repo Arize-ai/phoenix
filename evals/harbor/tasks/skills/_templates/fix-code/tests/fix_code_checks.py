@@ -10,6 +10,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from harbor_verifiers import phoenix_api, skills
 from harbor_verifiers.verify import read_trajectory, write_reward
@@ -45,9 +46,9 @@ def main() -> None:
     else:
         details["error"] = f"{SCRIPT} doesn't exist"
     loaded = skills.loaded_skills(read_trajectory(Path("/logs/agent/trajectory.json")))
-    scores = write_reward(
-        reward, details, loaded_skills=loaded, **skills.skill_scores(loaded, EXPECTED)
-    )
+    components: dict[str, Any] = {"loaded_skills": loaded}
+    components.update(skills.skill_scores(loaded, EXPECTED))
+    scores = write_reward(reward, details, **components)
     print(json.dumps({**details, "scores": scores}))
 
 

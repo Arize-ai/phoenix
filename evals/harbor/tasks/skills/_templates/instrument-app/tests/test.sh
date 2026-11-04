@@ -1,3 +1,3 @@
 #!/bin/sh
 set -eu
-exec python /tests/check.py
+exec python /tests/instrument_app_checks.py

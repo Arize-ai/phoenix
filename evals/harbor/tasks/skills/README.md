@@ -12,7 +12,9 @@ with its traces. See that fixture's README for what it seeds.
 
 Copy the template that matches the task's shape into `SKILL_NAME/TASK_NAME/`, then change
 `instruction.md`, the `[task]` and `[metadata]` tables in `task.toml`, the solution, and
-the checks in `tests/check.py`.
+the checks in `tests/TEMPLATE_checks.py`. Rename that file to `TASK_NAME_checks.py`, with
+underscores, and update `tests/test.sh` to match. Mypy type-checks every verifier and
+rejects two modules with the same name.
 
 | Template | The agent | The verifier |
 | --- | --- | --- |

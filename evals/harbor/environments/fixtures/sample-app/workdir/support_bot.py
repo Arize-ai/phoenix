@@ -14,9 +14,10 @@ import json
 import os
 import sqlite3
 import uuid
-from typing import Any
+from typing import cast
 
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam, ChatCompletionToolParam
 
 MODEL = "gpt-4o-mini"
 GATEWAY_URL = os.environ.get("ACME_LLM_GATEWAY_URL", "http://127.0.0.1:8100/v1")
@@ -27,7 +28,7 @@ SYSTEM_PROMPT = (
     "orders, and get_policy for store policies. Answer only from tool results."
 )
 
-TOOLS: list[dict[str, Any]] = [
+TOOLS: list[ChatCompletionToolParam] = [
     {
         "type": "function",
         "function": {
@@ -125,7 +126,7 @@ class SupportBot:
             return self.get_policy(args["topic"])
         return f"Unknown tool {name}."
 
-    def answer(self, question: str, history: list[dict[str, Any]]) -> str:
+    def answer(self, question: str, history: list[ChatCompletionMessageParam]) -> str:
         """Returns the bot's reply to a question and appends the turn to the history."""
         history.append({"role": "user", "content": question})
         for _ in range(MAX_TOOL_ROUNDS):
@@ -135,17 +136,19 @@ class SupportBot:
                 tools=TOOLS,
             )
             message = response.choices[0].message
-            history.append(message.model_dump(exclude_none=True))
+            history.append(cast(ChatCompletionMessageParam, message.model_dump(exclude_none=True)))
             if not message.tool_calls:
                 return message.content or ""
             for call in message.tool_calls:
+                if call.type != "function":
+                    continue
                 output = self.call_tool(call.function.name, call.function.arguments)
                 history.append({"role": "tool", "tool_call_id": call.id, "content": output})
         return "Sorry, I couldn't finish that request."
 
     def chat(self, conversation_id: str, questions: list[str]) -> list[str]:
         """Answers each question in order as one conversation."""
-        history: list[dict[str, Any]] = []
+        history: list[ChatCompletionMessageParam] = []
         replies = []
         for question in questions:
             try:

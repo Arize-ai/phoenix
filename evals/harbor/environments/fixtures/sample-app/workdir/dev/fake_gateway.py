@@ -51,8 +51,8 @@ def plan_tool_call(question: str, messages: list[dict[str, Any]]) -> dict[str, A
         return tool_call("run_sql", {"query": query})
     if "arrive" in text and (order := last_order_id(messages)):
         return tool_call("run_sql", {"query": f"SELECT eta FROM orders WHERE id = {order}"})
-    if order := re.search(r"order (\d+)", text):
-        query = f"SELECT status FROM orders WHERE id = {order.group(1)}"
+    if match := re.search(r"order (\d+)", text):
+        query = f"SELECT status FROM orders WHERE id = {match.group(1)}"
         return tool_call("run_sql", {"query": query})
     if "every" in text and "polic" in text:
         return tool_call("get_policy", {"topic": "all"})

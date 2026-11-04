@@ -9,7 +9,7 @@ instrumentor adds an LLM span per model call, and each tool call becomes a TOOL 
 from __future__ import annotations
 
 from types import ModuleType
-from typing import Any
+from typing import Any, Callable
 
 from openinference.instrumentation import using_session
 from openinference.instrumentation.openai import OpenAIInstrumentor
@@ -24,7 +24,9 @@ def instrument(module: ModuleType, project_name: str, endpoint: str) -> TracerPr
     OpenAIInstrumentor().instrument(tracer_provider=provider)
     tracer = provider.get_tracer("support_bot")
     bot = module.SupportBot
-    answer, call_tool, chat = bot.answer, bot.call_tool, bot.chat
+    answer: Callable[..., str] = bot.answer
+    call_tool: Callable[..., str] = bot.call_tool
+    chat: Callable[..., list[str]] = bot.chat
 
     def traced_answer(self: Any, question: str, history: list[dict[str, Any]]) -> str:
         with tracer.start_as_current_span(
@@ -56,7 +58,7 @@ def instrument(module: ModuleType, project_name: str, endpoint: str) -> TracerPr
         with using_session(conversation_id):
             return chat(self, conversation_id, questions)
 
-    bot.answer = traced_answer  # type: ignore[method-assign]
-    bot.call_tool = traced_call_tool  # type: ignore[method-assign]
-    bot.chat = traced_chat  # type: ignore[method-assign]
+    bot.answer = traced_answer
+    bot.call_tool = traced_call_tool
+    bot.chat = traced_chat
     return provider
