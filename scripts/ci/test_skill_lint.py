@@ -1,4 +1,4 @@
-"""The warn-only skill lint in ``scripts/sync_skills.py`` flags what it should."""
+"""The skill lint in ``scripts/sync_skills.py`` flags what it should."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def test_clean_skill_has_no_warnings(
     monkeypatch.setattr(sync_skills, "REPO_ROOT", tmp_path)
     body = "See [present](references/present.md#top) and `references/present.md`.\n"
     skill = _skill(sync_skills, tmp_path, "Does one thing.", body)
-    assert sync_skills.lint([skill]) == []
+    assert sync_skills.lint([skill]) == ([], [])
 
 
 def test_lint_flags_each_rule(
@@ -52,10 +52,10 @@ def test_lint_flags_each_rule(
     monkeypatch.setattr(sync_skills, "MAX_DESCRIPTION_BYTES_PER_TARGET", 10)
     body = "line\n" * 501 + "[gone](references/gone.md) and `references/also-gone.md`\n"
     skill = _skill(sync_skills, tmp_path, "x" * 1025, body)
-    warnings = sync_skills.lint([skill])
-    assert any("description is 1025 characters" in warning for warning in warnings)
-    assert any("body is 502 lines" in warning for warning in warnings)
-    assert any("link to missing file references/gone.md" in warning for warning in warnings)
-    assert any("mentions missing file references/also-gone.md" in warning for warning in warnings)
-    assert any("target 'agents' total 1025 bytes" in warning for warning in warnings)
-    assert any("target 'mcp' total 1025 bytes" in warning for warning in warnings)
+    errors, warnings = sync_skills.lint([skill])
+    assert any("description is 1025 characters" in error for error in errors)
+    assert any("link to missing file references/gone.md" in error for error in errors)
+    assert any("mentions missing file references/also-gone.md" in error for error in errors)
+    assert any("target 'agents' total 1025 bytes" in error for error in errors)
+    assert any("target 'mcp' total 1025 bytes" in error for error in errors)
+    assert len(warnings) == 1 and "body is 502 lines" in warnings[0]

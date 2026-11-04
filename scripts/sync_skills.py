@@ -26,15 +26,17 @@ Run with no arguments to write every copy (``make skills``):
 Run with ``--check`` to change nothing and exit non-zero listing every copy that
 is out of date and every rule a skill breaks (``make skills-check``).
 
-Both modes also print lint warnings, which don't change the exit code yet:
+Both modes also lint the public skills, and fail on:
 
 - a ``description`` longer than 1,024 characters, the Agent Skills limit;
 - descriptions for one target that add up to more than 4,096 bytes. Agents load
   every description into context, and Codex caps the whole skill list at 2% of
   the context window, so Phoenix's share stays small;
-- a ``SKILL.md`` body longer than 500 lines;
 - a relative Markdown link, or a ``references/...`` path in code font, that
-  points at a file the skill doesn't have. Add
+  points at a file the skill doesn't have.
+
+A ``SKILL.md`` body longer than 500 lines is only a warning, because
+``phoenix-cli`` is over the limit today. Add
 ``--npx`` to also run ``npx skills add . --list`` and fail unless it lists
 exactly the public skills.
 
@@ -329,15 +331,16 @@ def _broken_references(skill: Skill) -> Iterator[str]:
                 yield f"{_rel(markdown)}: mentions missing file {target}"
 
 
-def lint(skills: list[Skill]) -> list[str]:
-    """Returns size and link warnings for the public skills."""
+def lint(skills: list[Skill]) -> tuple[list[str], list[str]]:
+    """Returns the size and link errors and the warnings for the public skills."""
+    errors = []
     warnings = []
     description_bytes = dict.fromkeys(sorted(TARGETS), 0)
     for skill in skills:
         skill_file = skill.path / SKILL_FILE
         description = _metadata(skill_file)[0].get("description", "")
         if len(description) > MAX_DESCRIPTION_CHARS:
-            warnings.append(
+            errors.append(
                 f"{_rel(skill_file)}: description is {len(description)} characters; "
                 f"keep it to {MAX_DESCRIPTION_CHARS}"
             )
@@ -351,14 +354,14 @@ def lint(skills: list[Skill]) -> list[str]:
                 f"{_rel(skill_file)}: body is {body_lines} lines; keep it to {MAX_BODY_LINES} "
                 "and move detail into references/"
             )
-        warnings.extend(_broken_references(skill))
+        errors.extend(_broken_references(skill))
     for target, total in description_bytes.items():
         if total > MAX_DESCRIPTION_BYTES_PER_TARGET:
-            warnings.append(
+            errors.append(
                 f"skills/: descriptions for target {target!r} total {total} bytes; "
                 f"keep them to {MAX_DESCRIPTION_BYTES_PER_TARGET}"
             )
-    return warnings
+    return errors, warnings
 
 
 def npx_listed_skills() -> set[str]:
@@ -381,7 +384,9 @@ def main() -> int:
 
     errors: list[str] = []
     changes = build(errors)
-    for warning in lint(load_public_skills([])):
+    lint_errors, warnings = lint(load_public_skills([]))
+    errors += lint_errors
+    for warning in warnings:
         print(f"warning: {warning}", file=sys.stderr)
     if args.check:
         errors += [f"out of date: {change.message}" for change in changes]

@@ -9,8 +9,10 @@ commands in two places:
 - inline code spans that start with ``px``, such as `px trace get <trace-id>`.
 
 Each command must name existing subcommands and flags, and pass no more positional arguments
-than the command takes. A placeholder in a subcommand position, such as
-``px <resource> <action>``, ends the check for that command.
+than the command takes. A placeholder that stands for a subcommand, such as
+``px <resource> <action>`` or ``px <entity>-annotations``, ends the check for that command.
+Any other placeholder counts as a positional argument, so ``px trace <trace-id>`` fails
+because ``px trace`` needs a subcommand.
 
 Lives outside tests/ so CI runs it only when a skill or the CLI changes. It needs
 ``pnpm install`` in ``js/`` and the CLI's workspace dependencies built;
@@ -141,8 +143,15 @@ def px_commands() -> list[PxCommand]:
     return commands
 
 
-def _is_placeholder(token: str) -> bool:
-    return token.startswith(("<", "[")) or "<" in token
+_SUBCOMMAND_PLACEHOLDER = re.compile(
+    r"^[<\[](command|subcommand|resource|action|noun|verb)s?(\.\.\.)?[>\]]$"
+)
+
+
+def _is_subcommand_placeholder(token: str) -> bool:
+    """Checks whether a token stands for a subcommand, like ``<entity>-annotations``."""
+    is_template = "<" in token and not re.fullmatch(r"<[^<>]+>", token)
+    return is_template or bool(_SUBCOMMAND_PLACEHOLDER.match(token))
 
 
 def problems(tokens: Sequence[str], tree: dict[str, Any]) -> list[str]:
@@ -152,7 +161,7 @@ def problems(tokens: Sequence[str], tree: dict[str, Any]) -> list[str]:
     index = 0
     while index < len(tokens) and not tokens[index].startswith("-") and node["commands"]:
         token = tokens[index]
-        if _is_placeholder(token):
+        if _is_subcommand_placeholder(token):
             return []
         subcommand = next(
             (child for child in node["commands"] if token in (child["name"], *child["aliases"])),
@@ -228,6 +237,7 @@ def test_finds_commands() -> None:
         ("px trace list --limit 5 --format raw", []),
         ("px span list --span-id a b --limit 1", []),
         ("px <resource> <action>", []),
+        ("px trace <trace-id>", ["`px trace` has no subcommand '<trace-id>'"]),
         ("px trace lst", ["`px trace` has no subcommand 'lst'"]),
         ("px trace list --limt 5", ["`px trace list` has no option --limt"]),
         ("px dataset get a b", ["`px dataset get` takes 1 positional arguments, got 2"]),

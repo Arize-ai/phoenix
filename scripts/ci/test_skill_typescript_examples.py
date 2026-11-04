@@ -8,7 +8,9 @@ built ``exports``, so renaming a client function fails every skill example that 
 The check handles fragments the way ``test_skill_python_examples.py`` does:
 
 - An undefined name isn't an error. TypeScript treats it as ``any``, so calls on it go
-  unchecked, while every name imported from Phoenix is still checked.
+  unchecked, while every name imported from Phoenix is still checked. A block that calls
+  ``register`` or ``getSpans`` without importing it gets the import, so those calls are
+  checked too.
 - An import that doesn't resolve is an error only for ``@arizeai/phoenix-*`` modules. Other
   packages resolve when one of the three Phoenix packages depends on them, such as
   ``@arizeai/openinference-core``; the rest are the reader's to install.
@@ -66,6 +68,11 @@ _MODULE_NAME = re.compile(r"(?:module|import of) '([^']+)'")
 _OMITTED_ARGUMENTS = re.compile(r"\(\s*\.\.\.\s*\)")
 _OMITTED_ARGUMENT_LINE = re.compile(r"^(\s*)\.\.\.,?\s*$", re.MULTILINE)
 _SPREAD_ANYTHING = "...([] as any[])"
+# Phoenix functions that fragments often call without importing them, and where they live.
+_PRELUDE_IMPORTS = {
+    "register": "@arizeai/phoenix-otel",
+    "getSpans": "@arizeai/phoenix-client/spans",
+}
 
 # Examples that fail today, keyed by test ID. Each entry is a bug in the skill; fix the skill
 # and delete its entry. The tests are strict, so a fixed example fails until its entry goes.
@@ -80,7 +87,7 @@ KNOWN_BROKEN = {
         "test.each names a case with a function that can return undefined"
     ),
     "skills/phoenix-evals/references/observe-sampling-typescript.md#2": (
-        "the span passed to groupBy is typed unknown"
+        "groupBy returns an attribute typed {}, not a string"
     ),
     "skills/phoenix-evals/references/observe-tracing-setup.md#0": (
         "@arizeai/phoenix-otel has no registerPhoenix; use register"
@@ -148,12 +155,25 @@ def _link_node_modules(node_modules: Path) -> None:
                 link(entry.name, entry)
 
 
-def checkable_source(example: Example) -> str:
-    """Returns the code tsc checks, with omitted arguments filled in."""
+def _prelude(source: str) -> str:
+    """Returns imports for the Phoenix functions a fragment calls without importing them."""
+    lines = []
+    for name, module in _PRELUDE_IMPORTS.items():
+        calls = re.search(rf"(?<![.\w]){name}\s*\(", source)
+        imports = re.search(rf"\bimport\b[^;]*?\b{name}\b[^;]*?\bfrom\b", source, re.DOTALL)
+        declares = re.search(rf"\b(function|const|let|var)\s+{name}\b", source)
+        if calls and not (imports or declares):
+            lines.append(f'import {{ {name} }} from "{module}";\n')
+    return "".join(lines)
+
+
+def checkable_source(example: Example) -> tuple[str, int]:
+    """Returns the code tsc checks and how many lines it adds before the example."""
     source = _OMITTED_ARGUMENTS.sub(f"({_SPREAD_ANYTHING})", example.source)
     source = _OMITTED_ARGUMENT_LINE.sub(rf"\1{_SPREAD_ANYTHING},", source)
+    prelude = _prelude(source)
     # The trailing export makes each block a module, so top-level await is allowed.
-    return source + "\nexport {};\n"
+    return prelude + source + "\nexport {};\n", prelude.count("\n")
 
 
 def _is_syntax_error(code: str) -> bool:
@@ -203,11 +223,12 @@ def errors_by_example(tmp_path_factory: pytest.TempPathFactory) -> dict[str, lis
     _link_node_modules(root / "node_modules")
     examples_dir = root / "examples"
     examples_dir.mkdir()
-    files: dict[str, Example] = {}
+    files: dict[str, tuple[Example, int]] = {}
     for number, example in enumerate(EXAMPLES):
         file = examples_dir / f"example_{number}.ts"
-        file.write_text(checkable_source(example), encoding="utf-8")
-        files[f"examples/{file.name}"] = example
+        source, offset = checkable_source(example)
+        file.write_text(source, encoding="utf-8")
+        files[f"examples/{file.name}"] = (example, offset)
 
     errors: dict[str, list[str]] = defaultdict(list)
     remaining = sorted(files)
@@ -221,13 +242,13 @@ def errors_by_example(tmp_path_factory: pytest.TempPathFactory) -> dict[str, lis
             if _is_syntax_error(code) and file in remaining:
                 remaining.remove(file)
                 syntax_errors = True
-            example = files[file]
-            markdown_line = example.first_line + line - 1
+            example, offset = files[file]
+            markdown_line = example.first_line + line - 1 - offset
             errors[example.id].append(f"{example.id.split('#')[0]}:{markdown_line}: {message}")
         if not syntax_errors:
             break
         for file in remaining:
-            errors.pop(files[file].id, None)  # Rerun with the files that parse.
+            errors.pop(files[file][0].id, None)  # Rerun with the files that parse.
     return errors
 
 
