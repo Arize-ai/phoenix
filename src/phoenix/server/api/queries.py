@@ -56,6 +56,8 @@ from phoenix.server.api.helpers.playground_clients import (
     initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
+from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.DecisionFilter import DecisionFilter
@@ -81,7 +83,7 @@ from phoenix.server.api.types.ClassificationEvaluatorConfig import (
     EvaluatorInputDescriptor,
     EvaluatorScope,
 )
-from phoenix.server.api.types.Dataset import Dataset
+from phoenix.server.api.types.Dataset import Dataset, dataset_evaluator_connection
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetLabel import DatasetLabel
 from phoenix.server.api.types.DatasetSplit import DatasetSplit
@@ -1703,6 +1705,32 @@ class Query:
 
     @strawberry.field(
         description=(
+            "Every dataset evaluator on the server, across datasets, ordered by name unless "
+            "sorted. The name filter matches the dataset evaluator's name or its dataset's name."
+        ),
+    )  # type: ignore
+    async def dataset_evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        after: Optional[CursorString] = UNSET,
+        sort: Optional[DatasetEvaluatorSort] = UNSET,
+        filter: Optional[DatasetEvaluatorFilter] = UNSET,
+    ) -> Connection[DatasetEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+        )
+        return await dataset_evaluator_connection(
+            info,
+            dataset_id=None,
+            sort=sort if isinstance(sort, DatasetEvaluatorSort) else None,
+            filter=filter if isinstance(filter, DatasetEvaluatorFilter) else None,
+            args=args,
+        )
+
+    @strawberry.field(
+        description=(
             "Every project evaluator on the server, across projects, newest first. "
             "projectId narrows to one project."
         ),
@@ -2202,7 +2230,12 @@ class Query:
         async with info.context.db.read() as session:
             return await session.scalar(select(func.count(models.Prompt.id))) or 0
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "Number of library evaluators. Built-in evaluators count only once attached to a "
+            "dataset. Project and dataset evaluators are counted separately."
+        )
+    )  # type: ignore
     async def evaluator_count(self, info: Info[Context, None]) -> int:
         has_dataset_association = exists(
             select(models.DatasetEvaluators.id).where(
@@ -2217,6 +2250,16 @@ class Query:
         )
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
+
+    @strawberry.field(description="Number of project evaluators across all projects.")  # type: ignore
+    async def project_evaluator_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.ProjectEvaluator.id))) or 0
+
+    @strawberry.field(description="Number of dataset evaluators across all datasets.")  # type: ignore
+    async def dataset_evaluator_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.DatasetEvaluators.id))) or 0
 
     @strawberry.field
     async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:

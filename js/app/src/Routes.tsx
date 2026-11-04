@@ -28,10 +28,11 @@ import {
 } from "@phoenix/pages/decisions/decisionLoader";
 import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
 import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
+import { AllEvaluatorsTab } from "@phoenix/pages/evaluators/all/AllEvaluatorsTab";
+import { DatasetEvaluatorsTab } from "@phoenix/pages/evaluators/dataset-evaluators/DatasetEvaluatorsTab";
+import { datasetEvaluatorsTabLoader } from "@phoenix/pages/evaluators/dataset-evaluators/datasetEvaluatorsTabLoader";
 import { EvaluatorsLayout } from "@phoenix/pages/evaluators/EvaluatorsLayout";
-import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
-import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
-import { ServerProjectEvaluatorsPage } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsPage";
+import { ProjectEvaluatorsTab } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTab";
 import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
 import {
   projectEvaluatorCompareLoader,
@@ -1046,7 +1047,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Evaluators",
               description:
-                "Browse and manage evaluators, evals, and evaluation metrics.",
+                "Browse and manage evaluators, evals, and evaluation metrics, each on its own tab: project evaluators running online across projects, dataset evaluators across datasets, and both in one list.",
             },
             navigation: {
               section: "Pages",
@@ -1056,27 +1057,42 @@ export const appRouteObjects = createRoutesFromElements(
             },
           }}
         >
+          <Route
+            index
+            element={<Navigate to="/evaluators/project-evaluators" replace />}
+          />
           <Route element={<EvaluatorsLayout />}>
             <Route
-              index
-              element={<EvaluatorsPage />}
-              loader={evaluatorsPageLoader}
-              handle={{
-                agentRoute: {
-                  label: "Evaluators",
-                  description:
-                    "Browse and manage evaluators, evals, and evaluation metrics.",
-                },
-              }}
-            />
-            <Route
               path="project-evaluators"
-              element={<ServerProjectEvaluatorsPage />}
+              element={<ProjectEvaluatorsTab />}
               handle={{
                 agentRoute: {
                   label: "Project Evaluators",
                   description:
                     "Every project evaluator running online across all projects: the shared evaluation queue, each evaluator's status, queued evaluations, lag, load, failure rate and cost, and clearing every project's queue.",
+                },
+              }}
+            />
+            <Route
+              path="dataset-evaluators"
+              element={<DatasetEvaluatorsTab />}
+              loader={datasetEvaluatorsTabLoader}
+              handle={{
+                agentRoute: {
+                  label: "Dataset Evaluators",
+                  description:
+                    "Every dataset evaluator across all datasets: its dataset, kind, prompt or decision, model, and last update. Search matches evaluator or dataset names.",
+                },
+              }}
+            />
+            <Route
+              path="all"
+              element={<AllEvaluatorsTab />}
+              handle={{
+                agentRoute: {
+                  label: "All Evaluators",
+                  description:
+                    "Every project evaluator and dataset evaluator in one list, newest first: the project or dataset each is attached to, its kind, and its status. Search matches evaluator, project, or dataset names.",
                 },
               }}
             />

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a0de101c8d9e3c6255199f958a6118fe>>
+ * @generated SignedSource<<234daeaccf72b5f841e4898f8ad739e2>>
  * @lightSyntaxTransform
  */
 
@@ -15,11 +15,11 @@ export type TimeRange = {
   end?: string | null;
   start?: string | null;
 };
-export type ServerProjectEvaluatorsTableQuery$variables = {
+export type ProjectEvaluatorsTabTableQuery$variables = {
   first: number;
   timeRange: TimeRange;
 };
-export type ServerProjectEvaluatorsTableQuery$data = {
+export type ProjectEvaluatorsTabTableQuery$data = {
   readonly evaluationQueue: {
     readonly queuedCount: number;
     readonly status: EvaluationQueueStatus;
@@ -83,9 +83,9 @@ export type ServerProjectEvaluatorsTableQuery$data = {
     }>;
   };
 };
-export type ServerProjectEvaluatorsTableQuery = {
-  response: ServerProjectEvaluatorsTableQuery$data;
-  variables: ServerProjectEvaluatorsTableQuery$variables;
+export type ProjectEvaluatorsTabTableQuery = {
+  response: ProjectEvaluatorsTabTableQuery$data;
+  variables: ProjectEvaluatorsTabTableQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -412,7 +412,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ServerProjectEvaluatorsTableQuery",
+    "name": "ProjectEvaluatorsTabTableQuery",
     "selections": [
       (v3/*:: as any*/),
       {
@@ -477,7 +477,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "ServerProjectEvaluatorsTableQuery",
+    "name": "ProjectEvaluatorsTabTableQuery",
     "selections": [
       (v3/*:: as any*/),
       {
@@ -545,16 +545,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "888baabc8309105909c41f7d74c0b9f7",
+    "cacheID": "544543d1aefc22a77b38eb969858143a",
     "id": null,
     "metadata": {},
-    "name": "ServerProjectEvaluatorsTableQuery",
+    "name": "ProjectEvaluatorsTabTableQuery",
     "operationKind": "query",
-    "text": "query ServerProjectEvaluatorsTableQuery(\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n  }\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        enabled\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          runningCount\n          evaluatedCount\n          failedCount\n          droppedCount\n          oldestQueuedAt\n        }\n        evaluationLoad {\n          evaluationCount\n          meanEvaluationSeconds\n          shareOfEvaluationTime\n        }\n        failureSummary(timeRange: $timeRange) {\n          failedCount\n          evaluatedCount\n          failureRate\n          lastFailedAt\n          lastError\n        }\n        lag(timeRange: $timeRange) {\n          p50Seconds\n          p95Seconds\n          p99Seconds\n        }\n        traceProject {\n          id\n          traceCount(timeRange: $timeRange)\n          costSummary(timeRange: $timeRange) {\n            total {\n              cost\n            }\n            prompt {\n              cost\n            }\n            completion {\n              cost\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectEvaluatorsTabTableQuery(\n  $first: Int!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n  }\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        enabled\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          runningCount\n          evaluatedCount\n          failedCount\n          droppedCount\n          oldestQueuedAt\n        }\n        evaluationLoad {\n          evaluationCount\n          meanEvaluationSeconds\n          shareOfEvaluationTime\n        }\n        failureSummary(timeRange: $timeRange) {\n          failedCount\n          evaluatedCount\n          failureRate\n          lastFailedAt\n          lastError\n        }\n        lag(timeRange: $timeRange) {\n          p50Seconds\n          p95Seconds\n          p99Seconds\n        }\n        traceProject {\n          id\n          traceCount(timeRange: $timeRange)\n          costSummary(timeRange: $timeRange) {\n            total {\n              cost\n            }\n            prompt {\n              cost\n            }\n            completion {\n              cost\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "876ea0f7995168c42a74967953d04962";
+(node as any).hash = "c25feee89b930e17b75f6df025d30100";
 
 export default node;

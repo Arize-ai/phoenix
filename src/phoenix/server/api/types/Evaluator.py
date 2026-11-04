@@ -1283,6 +1283,14 @@ class DatasetEvaluator(Node):
         return Identifier(record.name.root)
 
     @strawberry.field
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        record = await self._get_record(info)
+        return record.created_at
+
+    @strawberry.field
     async def updated_at(
         self,
         info: Info[Context, None],

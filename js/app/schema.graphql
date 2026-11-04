@@ -1475,6 +1475,7 @@ type DatasetEvaluator implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
   name: Identifier!
+  createdAt: DateTime!
   updatedAt: DateTime!
   dataset: Dataset!
   evaluator: Evaluator!
@@ -5914,6 +5915,11 @@ type Query {
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID): EvaluatorConnection!
 
   """
+  Every dataset evaluator on the server, across datasets, ordered by name unless sorted. The name filter matches the dataset evaluator's name or its dataset's name.
+  """
+  datasetEvaluators(first: Int = 100, after: String, sort: DatasetEvaluatorSort, filter: DatasetEvaluatorFilter): DatasetEvaluatorConnection!
+
+  """
   Every project evaluator on the server, across projects, newest first. projectId narrows to one project.
   """
   projectEvaluators(first: Int = 100, after: String, filter: ProjectEvaluatorFilter, projectId: ID): ProjectEvaluatorConnection!
@@ -5957,7 +5963,17 @@ type Query {
   datasetCount: Int!
   decisionCount: Int!
   promptCount: Int!
+
+  """
+  Number of library evaluators. Built-in evaluators count only once attached to a dataset. Project and dataset evaluators are counted separately.
+  """
   evaluatorCount: Int!
+
+  """Number of project evaluators across all projects."""
+  projectEvaluatorCount: Int!
+
+  """Number of dataset evaluators across all datasets."""
+  datasetEvaluatorCount: Int!
   sandboxBackends: [SandboxBackendInfo!]!
   sandboxProviders: [SandboxProvider!]!
 }

@@ -11,11 +11,11 @@ import {
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
-import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationCharts";
-import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/projectEvaluators/ServerEvaluationQueueStrip";
-import { ServerProjectEvaluatorsTable } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectEvaluatorsTable";
-import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/projectEvaluators/serverProjectSeries";
-import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/projectEvaluators/ServerProjectsFilterButton";
+import { ProjectEvaluatorsTabTable } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
+import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
+import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
+import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
+import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
 /** The projects picked to show, repeated once per project. */
@@ -38,15 +38,15 @@ const tableScrollCSS = css`
  * The Evaluators page's Project evaluators tab: every project evaluator
  * running online, across all projects, with the queue they share.
  */
-export function ServerProjectEvaluatorsPage() {
+export function ProjectEvaluatorsTab() {
   return (
     <TimeRangeProvider>
-      <ServerProjectEvaluatorsPageContent />
+      <ProjectEvaluatorsTabContent />
     </TimeRangeProvider>
   );
 }
 
-function ServerProjectEvaluatorsPageContent() {
+function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
   // Bumped when something on this page changes the queue, so the strip and
   // the table refetch at once instead of on their next poll.
@@ -107,7 +107,7 @@ function ServerProjectEvaluatorsPageContent() {
         </View>
         <div css={tableScrollCSS}>
           <Suspense fallback={<TableSkeleton rowCount="fill" />}>
-            <ServerProjectEvaluatorsTable
+            <ProjectEvaluatorsTabTable
               filter={filter}
               projectIds={pickedProjectIds}
               fetchKey={refreshKey}
