@@ -42,7 +42,10 @@ Data wrangling and corpus building (LangChain / LlamaIndex / HaluEval / MS MARCO
 - `compare_schemas.py` — assert both dialects describe the same tables, columns, explicitly created indexes, and CHECK/UNIQUE/FOREIGN KEY constraint names; each generator only validates against its own database, so nothing else catches the two files drifting apart. Names are normalized for PostgreSQL's 63-byte identifier cap, which SQLite does not share. Constraint-backed indexes and PRIMARY KEY names are excluded because the dialects legitimately differ there. PEP 723 script.
 
 ### `docker/devops/`
-Local docker-compose stack for development: Phoenix, OIDC, LDAP, SMTP, Grafana, Prometheus, Toxiproxy, Vite dev server, k8s manifests. See `docker/devops/README.md`.
+Local docker-compose stack for development: Phoenix, OIDC, LDAP, SMTP, mock LLM server, Grafana, Prometheus, Toxiproxy, Vite dev server, k8s manifests. See `docker/devops/README.md`.
+
+### `docker/devops/mock-llm-server/`
+TypeScript mock for OpenAI / Anthropic / Google GenAI / TypeSafe APIs with a real-time dashboard. Run it with `make dev-mock-llm`, or in the devops stack with `./dev.sh up --profile mock-llm`. See `docker/devops/mock-llm-server/README.md`.
 
 ### `evaluators/`
 GraphQL smoke tests for the chat / playground / evaluator surface.
@@ -71,9 +74,6 @@ PL/pgSQL-backed bulk data generation for performance testing. See `generate_data
 
 ### `llm_token_pricing_tables/`
 - `litellm_model_prices.py` — fetch LiteLLM model pricing JSON, output `model_prices.csv` and `model_prices_by_token_type.csv`.
-
-### `mock-llm-server/`
-TypeScript mock for OpenAI / Anthropic / Google GenAI APIs with a real-time dashboard. See `mock-llm-server/README.md`.
 
 ### `perf/`
 - `get_spans_dataframe_for_random_conversation_id.py` — sample a random `conversation_id` from PG, then time `Client.spans.get_spans_dataframe`.
