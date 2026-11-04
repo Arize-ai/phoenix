@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Runs Codex and stops ``codex exec --json`` at its first action that isn't a skill load.
+"""Runs Codex and stops ``codex exec --json`` once it does something besides loading skills.
 
 The image installs this file as ``codex`` and the real CLI as ``codex-real``. The wrapper
-acts only when ``SKILL_LOADING_STOP=1``. It passes every event through, and when Codex starts
-any item other than reasoning or a message, such as a shell command, it checks the item with
-:func:`stop_after_skill_load.is_skill_load` and stops Codex if it isn't a skill load.
-Harbor then copies the session and builds the trajectory as it would after a normal exit.
+acts only when ``SKILL_LOADING_STOP=1``. It passes every event through and checks each action
+Codex starts, such as a shell command, with :func:`stop_after_skill_load.is_skill_load`.
+
+Codex often starts several actions from one model response, for example a ``SKILL.md`` read
+next to a file listing, and writes them to its session only after they finish. So after an
+action that isn't a skill load, the wrapper lets the open actions finish and stops Codex when
+its next model response begins. Harbor then copies the session and builds the trajectory as
+it would after a normal exit.
 """
 
 import json
@@ -30,6 +34,8 @@ codex = subprocess.Popen(
     [REAL_CODEX, *args], stdout=subprocess.PIPE, text=True, start_new_session=True
 )
 assert codex.stdout is not None
+open_actions: set[str] = set()
+stop = False
 for line in codex.stdout:
     sys.stdout.write(line)
     sys.stdout.flush()
@@ -38,13 +44,21 @@ for line in codex.stdout:
     except ValueError:
         continue
     item = event.get("item") or {}
-    if event.get("type") != "item.started" or item.get("type") in _NOT_ACTIONS:
-        continue
-    if not is_skill_load(str(item.get("tool") or item.get("type")), json.dumps(item)):
-        os.killpg(codex.pid, signal.SIGTERM)
-        break
-try:
-    codex.wait(timeout=5)
-except subprocess.TimeoutExpired:
-    os.killpg(codex.pid, signal.SIGKILL)
-    codex.wait()
+    is_action = item.get("type") not in _NOT_ACTIONS
+    if event.get("type") == "item.started" and is_action:
+        loads_skill = is_skill_load(str(item.get("tool") or item.get("type")), json.dumps(item))
+        if stop and not open_actions and not loads_skill:
+            break  # The next model response started another batch.
+        open_actions.add(str(item.get("id")))
+        stop = stop or not loads_skill
+    elif event.get("type") == "item.completed":
+        open_actions.discard(str(item.get("id")))
+        if stop and not open_actions and not is_action:
+            break  # The next model response started with a message.
+if codex.poll() is None:
+    os.killpg(codex.pid, signal.SIGTERM)
+    try:
+        codex.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        os.killpg(codex.pid, signal.SIGKILL)
+        codex.wait()
