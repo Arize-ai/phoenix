@@ -1,0 +1,26 @@
+schema_version = "1.3"
+
+[task]
+name = "arize/skill-loading-phoenix-tracing-categorize-agent-failures"
+description = "Read through a sample of my agent's traces and sort what it gets wrong into categories"
+
+[metadata]
+skill = "phoenix-tracing"
+tags = ["sibling"]
+
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
+[environment]
+os = "linux"
+cpus = 1
+memory_mb = 2048
+network_mode = "public"
+
+[agent]
+user = "agent"
+# A fallback. The stop hook and the Codex wrapper end the session before this.
+timeout_sec = 30.0
+
+[verifier]
+timeout_sec = 60.0

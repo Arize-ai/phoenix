@@ -1,0 +1,26 @@
+schema_version = "1.3"
+
+[task]
+name = "arize/skill-loading-phoenix-tracing-agent-llm-and-tool-calls"
+description = "I want to see every LLM call and tool call my agent makes, with token counts. Set that up."
+
+[metadata]
+skill = "phoenix-tracing"
+tags = ["implicit"]
+
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
+[environment]
+os = "linux"
+cpus = 1
+memory_mb = 2048
+network_mode = "public"
+
+[agent]
+user = "agent"
+# A fallback. The stop hook and the Codex wrapper end the session before this.
+timeout_sec = 30.0
+
+[verifier]
+timeout_sec = 60.0
