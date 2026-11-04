@@ -11,8 +11,6 @@ import pytest
 from sqlalchemy import select, update
 
 from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
-    ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
@@ -20,7 +18,11 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
-from phoenix.server.online_eval.consumer import OnlineEvalConsumer
+from phoenix.server.online_eval.consumer import (
+    CLAIM_BATCH_SIZE,
+    MAX_DB_CONCURRENCY,
+    OnlineEvalConsumer,
+)
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
@@ -108,9 +110,7 @@ async def test_app_validates_session_byte_limits_at_startup(
 async def test_app_runs_seeded_criteria_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE, "3")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, "4")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, "5")
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
@@ -133,9 +133,9 @@ async def test_app_runs_seeded_criteria_end_to_end(
         assert trace_consumer._evaluation_target == "TRACE"
         assert consumer._db_semaphore is not None
         assert consumer._evaluator_semaphore._value == 4
-        assert consumer._db_semaphore._value == 5
+        assert consumer._db_semaphore._value == MAX_DB_CONCURRENCY
         for target_consumer in consumers:
-            assert target_consumer._claim_batch_size == 3
+            assert target_consumer._claim_batch_size == CLAIM_BATCH_SIZE
             assert target_consumer._evaluator_semaphore is consumer._evaluator_semaphore
             assert target_consumer._db_semaphore is consumer._db_semaphore
             assert target_consumer._executor._db_semaphore is consumer._db_semaphore

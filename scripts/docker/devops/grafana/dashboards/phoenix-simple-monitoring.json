@@ -2418,8 +2418,7 @@
                             }
                         ]
                     },
-                    "unit": "short",
-                    "max": 1
+                    "unit": "short"
                 },
                 "overrides": []
             },
@@ -2450,14 +2449,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_at_capacity)",
-                    "legendFormat": "at capacity",
+                    "expr": "sum(max by (evaluation_target) (phoenix_online_eval_pending_work_units)) + sum(max by (evaluation_target) (phoenix_online_eval_running_work_units)) + sum(max by (evaluation_target) (phoenix_online_eval_retryable_error_work_units))",
+                    "legendFormat": "queued",
                     "refId": "A"
                 }
             ],
-            "title": "🚧 Online Eval Queue At Capacity",
+            "title": "🧮 Online Eval Queue Size",
             "type": "timeseries",
-            "description": "1 when the online-eval queue, shared by span, trace, and session work, is full and new work is not being queued."
+            "description": "Online evaluations queued across span, trace, and session work: pending, running, and awaiting a retry. The queue has no size limit, so overload shows as growth here. Each count stops at a fixed bound per target and status."
         },
         {
             "datasource": {
@@ -3419,7 +3418,7 @@
             ],
             "title": "🌊 Span Producer Lag & Ingest Rate",
             "type": "timeseries",
-            "description": "Producer frontier lag (left axis): roughly how far, in seconds of ingest, the span producer trails the newest span, computed as the frontier gap in span ids divided by the ingest rate. The producer waits PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS (default 60) before scanning newly observed spans, so 60 to 140 seconds is normal. It jumps while the ingest rate changes quickly and shows no data while nothing is ingested. Ingest rate (right axis): growth of the highest span id between producer ticks, which is the rate spans are stored, across all projects."
+            "description": "Producer frontier lag (left axis): roughly how far, in seconds of ingest, the span producer trails the newest span, computed as the frontier gap in span ids divided by the ingest rate. The producer waits 60 seconds before scanning newly observed spans, so 60 to 140 seconds is normal. It jumps while the ingest rate changes quickly and shows no data while nothing is ingested. Ingest rate (right axis): growth of the highest span id between producer ticks, which is the rate spans are stored, across all projects."
         },
         {
             "collapsed": false,
@@ -4256,7 +4255,7 @@
             ],
             "title": "📥 Trace Eligible Backlog",
             "type": "timeseries",
-            "description": "Trace and evaluator pairs on the latest sweep page that pass their filter. A page holds at most one tick's work limit, and the value is not updated while the queue is full."
+            "description": "Trace and evaluator pairs on the latest sweep page that pass their filter. A page holds at most 1,000 pairs."
         },
         {
             "datasource": {
@@ -5187,7 +5186,7 @@
             ],
             "title": "📥 Session Eligible Backlog",
             "type": "timeseries",
-            "description": "Session and evaluator pairs on the latest sweep page that pass their filter. A page holds at most one tick's work limit, and the value is not updated while the queue is full."
+            "description": "Session and evaluator pairs on the latest sweep page that pass their filter. A page holds at most 1,000 pairs."
         },
         {
             "datasource": {

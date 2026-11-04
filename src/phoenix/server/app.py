@@ -81,9 +81,6 @@ from phoenix.config import (
     get_env_max_spans_queue_size,
     get_env_mcp_code_mode,
     get_env_model_cost_manifest_url,
-    get_env_online_eval_claim_batch_size,
-    get_env_online_eval_consumer_tick_interval_seconds,
-    get_env_online_eval_max_db_concurrency,
     get_env_online_eval_max_evaluator_concurrency,
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
@@ -173,6 +170,7 @@ from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMi
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
+from phoenix.server.online_eval.consumer import MAX_DB_CONCURRENCY as ONLINE_EVAL_MAX_DB_CONCURRENCY
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
@@ -1158,15 +1156,13 @@ def create_app(
     online_eval_session_sweeper: Optional[EvalSweeper] = None
     online_eval_trace_sweeper: Optional[EvalSweeper] = None
     if not read_only:
-        claim_batch_size = get_env_online_eval_claim_batch_size()
-        tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
         get_env_online_eval_max_llm_message_bytes()
         get_env_online_eval_max_sandbox_payload_bytes()
         max_evaluator_concurrency = get_env_online_eval_max_evaluator_concurrency()
         if enable_prometheus:
             ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT.set(max_evaluator_concurrency)
         evaluator_semaphore = asyncio.Semaphore(max_evaluator_concurrency)
-        db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())
+        db_semaphore = asyncio.Semaphore(ONLINE_EVAL_MAX_DB_CONCURRENCY)
         online_eval_producer = OnlineEvalProducer(db)
         online_eval_consumer = OnlineEvalConsumer(
             db,
@@ -1174,8 +1170,6 @@ def create_app(
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
             event_queue=dml_event_handler,
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
@@ -1187,8 +1181,6 @@ def create_app(
             sandbox_runtime=sandbox_runtime,
             event_queue=dml_event_handler,
             evaluation_target="SESSION",
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
@@ -1200,8 +1192,6 @@ def create_app(
             sandbox_runtime=sandbox_runtime,
             event_queue=dml_event_handler,
             evaluation_target="TRACE",
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),

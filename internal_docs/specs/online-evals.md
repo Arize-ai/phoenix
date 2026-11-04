@@ -220,11 +220,18 @@ Design questions include:
 
 Project evaluators run after ingestion. They must never delay or fail ingestion.
 
-The live path uses project-evaluator creation as its boundary: an artifact's latest activity must
-be at or after the criterion's `created_at`. Older quiet artifacts belong to backfill. Disabling
-and later re-enabling a criterion deliberately retains that creation boundary, so activity after
-creation can still become eligible. If re-enablement should reset the live boundary, that requires
-a dedicated enablement timestamp and is future work rather than an inference from `enabled`.
+A project evaluator evaluates only what arrives after it is turned on. Creating one starts it at
+now, and so does enabling one again: spans, traces, and sessions that arrived or went quiet while
+it was off are never evaluated, and enabling it drops the work it still had queued from before it
+was disabled. A span evaluator also starts again at now when its filter or sampling rate changes,
+so a widened selection does not reach back over spans already passed. Trace and session work
+already declined (filtered out or sampled out) is final, so their selection edits need nothing.
+Older artifacts belong to backfill, which is a separate feature.
+
+Spans carry the start as `project_evaluators.span_rowid_floor`, a span id no scan reaches for
+that evaluator; traces and sessions carry it as `swept_through_at`, set to the database's time on
+enable. Both are set in the one write path every binding update shares, so GraphQL, REST and the
+CLI behave alike.
 
 ### Spans
 
@@ -419,28 +426,27 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
 - Disabling a project evaluator stops new runs immediately.
 - **Clearing the queue.** A user can clear the queued evaluations of one project evaluator, one
   project, or every project. Turning a project evaluator off doesn't clear its queued
-  evaluations: they are dropped, not run, when their turn comes, and the evaluators page clears
-  them right after turning one off. Cleared evaluations are recorded as dropped, not failed, so
-  clearing never turns an evaluator to Error. Evaluations already running are not cleared.
+  evaluations, so a large clear can never fail the toggle: they are dropped, not run, when their
+  turn comes, the evaluators page clears them right after turning one off, and turning it on
+  again drops any still queued. So work queued before a disable never runs, whatever path
+  disabled it. Cleared evaluations are recorded as dropped, not failed, so clearing never turns
+  an evaluator to Error. Evaluations already running are not cleared.
 - **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
-  rate, the queue must not blow up. Span, trace, and session evaluations wait in one queue under
-  one limit: once it holds that many, Phoenix stops queueing new evaluations of any kind until the
-  queue drains, then resumes from where it stopped. A full queue therefore delays evaluations
-  rather than dropping them — sampled spans are evaluated late, not skipped, unless trace
-  retention deletes a span (and any work already queued for it) before its turn comes. One limit
-  is simpler to size and reason about than one per kind, at a cost: a flood of one kind fills the
-  room the others would use, and delays them too. The limit (`PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING`,
-  30,000 by default) bounds how many evaluations wait, not how long: the newest evaluation in a
-  full queue waits roughly the limit divided by the rate evaluations complete. Lower it to keep
-  results current; raise it to absorb bursts. The span producer and the trace and session
-  sweepers take turns at admission, under a lock that holds across replicas, so two of them never
-  both fill the same room.
-  Overload shows up in three places: the producer and sweepers log a warning each time they find
-  the queue full, the `phoenix_online_eval_frontier_gap_span_ids` gauge, which counts spans
-  ingested but not yet offered to evaluators, keeps growing while it stays full, and the
-  evaluators pages show the queue as Degraded while it is full. Only the queue's own status shows
-  this: each evaluator's status reflects its own evaluations, so an evaluator reads Degraded only
-  when its own oldest waiting evaluation has waited over 10 minutes.
+  rate, the queue grows: the queue has no size limit. The span producer and the trace and session
+  sweepers queue everything they find, and start their next pass at once after a full page that
+  made progress, so the span cursor and the sweep watermarks keep up with ingest and overload is
+  never a delay before work is queued. The queue's status reports it: Degraded once the oldest
+  waiting evaluation has waited over 10 minutes. Each evaluator's status reflects its own
+  evaluations, so an evaluator reads Degraded only when its own oldest waiting evaluation has.
+  Clearing the queue is how a user sheds a backlog.
+  Queue counts stay cheap to read because every read of queued rows stops at a fixed number
+  (`MAX_QUEUED_ROWS_READ` in `queue_health.py`): per project evaluator, through a per-evaluator
+  index of queued rows, and per evaluation target and status for the queue's totals, rates and
+  chart. A count from a read that stopped there is a lower bound; GraphQL marks it with
+  `countsAreLowerBounds` and the evaluators pages show it as "N+".
+  A future overload policy (a size or lag limit that drops work) needs no migration: trace and
+  session work can be dropped as DROPPED rows behind the sweep watermarks, and span work by
+  raising an evaluator's `span_rowid_floor`. Neither needs a new status.
 - **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
   recursively enqueue the same class of project evaluations. This largely falls out of the
   architecture: if evaluator traces live in a dedicated project (as

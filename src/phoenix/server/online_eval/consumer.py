@@ -61,6 +61,9 @@ _T = TypeVar("_T")
 
 TICK_INTERVAL_SECONDS = 5.0
 CLAIM_BATCH_SIZE = 10
+MAX_DB_CONCURRENCY = 5
+"""How many consumer database phases (claim, hydrate, publish, evaluator trace) a replica
+runs at once, across its consumers."""
 ERROR_COOLDOWN_SECONDS = 60.0
 DRAIN_TIMEOUT_SECONDS = 10.0
 EXECUTION_DEADLINE_SECONDS = 600.0
