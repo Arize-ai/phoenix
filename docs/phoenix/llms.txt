@@ -225,7 +225,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Connect Your Coding Agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Connect Claude Code, Codex, Cursor, or any coding agent to Phoenix with a plugin or the MCP server. The CLI is optional
 - [Phoenix CLI Guide](https://arize.com/docs/phoenix/integrations/developer-tools/cli): Read traces, datasets, experiments, and prompts and record annotations from a shell with px; px setup wires an app to Phoenix through a coding agent
 - [MCP Servers](https://arize.com/docs/phoenix/integrations/mcp): Connect an MCP client to your Phoenix data at /mcp, or to the Phoenix documentation
-- [Skills](https://arize.com/docs/phoenix/integrations/developer-tools/skills): The five Phoenix skills for tracing, evals, error analysis, Harbor, and the CLI. The MCP server serves four that match its version. The plugins and npx skills add install all five
+- [Skills](https://arize.com/docs/phoenix/integrations/developer-tools/skills): Install the Phoenix agent skills for tracing, evals, error analysis, Harbor, and the CLI via plugins, npx, or MCP
 
 ### Coding Agents
 
@@ -260,6 +260,8 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
 - [Ollama Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-tracing): Instrument the Ollama Python client with openinference-instrumentation-ollama
+- [Ollama with the OpenAI Node.js SDK](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk): Trace Node.js OpenAI SDK calls to local Ollama models with @arizeai/openinference-instrumentation-openai
+- [Ollama with the OpenAI Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk): Trace Go OpenAI SDK calls to local Ollama models with openinference-instrumentation-openai-go
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [Cloudflare AI Gateway Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing): Configure Cloudflare AI Gateway to export OpenTelemetry gen_ai spans to Phoenix over OTLP
@@ -914,6 +916,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [10.13.2026: Docker Sandboxes and MCP GraphQL Tools](https://arize.com/docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools): Run code evaluators in Docker Cloud Sandboxes and let MCP clients query Phoenix data through GraphQL
 - [10.16.2026: Claude Managed Agents Tracing and Gemini 4 Argon](https://arize.com/docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon): Trace Claude Managed Agents and Atomic Agents, try Gemini 4 Argon in the Playground, and export server logs over OTLP
 - [10.27.2026: Decision-Model Evaluators and Project Onboarding](https://arize.com/docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding): Run TypeScript classification evaluators on AI SDK decision models and get setup guides in empty projects
+- [11.02.2026: Breaking Change: Authentication by Default](https://arize.com/docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations): Upgrade to Phoenix 21 loopback binding and default auth; record DECISION and AGENT annotator kinds
 
 ### 2025
 
