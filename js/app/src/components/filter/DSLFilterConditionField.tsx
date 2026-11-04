@@ -51,6 +51,7 @@ import {
   ValidationBadge,
   ValidationTooltip,
 } from "@phoenix/components/core/alert";
+import { useOverlayFrame } from "@phoenix/components/core/overlay";
 import type { SeverityLevel } from "@phoenix/components/core/types";
 import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
@@ -576,15 +577,18 @@ export function DSLFilterConditionField<
     [ariaLabel]
   );
 
-  // A centered modal transforms and overflow-clips its dialog. That makes
-  // CodeMirror's fixed tooltip relative to the dialog and hides the
-  // completion menu outside the input's row. Reparent all editor tooltips to
-  // the modal overlay: they stay in the modal's interaction subtree while
-  // escaping the dialog's clip. The parent is discovered once the editor
-  // mounts (see onCreateEditor) and lives in the extensions array — an
-  // appended config would be silently dropped by the root reconfigure that
-  // any extensions change dispatches.
-  const [tooltipParent, setTooltipParent] = useState<HTMLElement | null>(null);
+  // Keep tooltips outside the editor's clipped toolbar and AI outline. Page
+  // tooltips share the drawer plane: the menu clears the drawer, while the
+  // field stays beneath it and viewport modals still cover the menu. A modal
+  // field keeps its tooltip inside the modal's interaction subtree.
+  const frame = useOverlayFrame();
+  const [modalTooltipParent, setModalTooltipParent] =
+    useState<HTMLElement | null>(null);
+  const tooltipParent = modalTooltipParent ?? frame?.drawerHostElement ?? null;
+
+  useEffect(() => {
+    tooltipParent?.classList.add("dsl-filter-tooltip-root");
+  }, [tooltipParent]);
 
   // The extensions must be referentially stable across renders — a new
   // array causes a CodeMirror reconfigure, which resets the in-flight
@@ -867,12 +871,11 @@ export function DSLFilterConditionField<
           readOnly={isReadOnly}
           onCreateEditor={(editorView) => {
             editorViewRef.current = editorView;
-            const overlay = editorView.dom.closest<HTMLElement>(
+            const modal = editorView.dom.closest<HTMLElement>(
               '[data-overlay-container="modal"]'
             );
-            if (overlay) {
-              overlay.classList.add("dsl-filter-tooltip-root");
-              setTooltipParent(overlay);
+            if (modal) {
+              setModalTooltipParent(modal);
             }
           }}
           onFocus={() => {
