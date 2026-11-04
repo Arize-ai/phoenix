@@ -11,7 +11,7 @@
       "source": "daytona/skills",
       "sourceType": "github",
       "skillPath": "skills/daytona/SKILL.md",
-      "computedHash": "d8dd2ff2edb38d2db403b9d342449753be6815e4d99f39a043634f997abdeb98"
+      "computedHash": "2d869388d88e3ed7241ea1e0fe274f2efbb809eb90412e73a2b50ab5c8422448"
     },
     "gh-stack": {
       "source": "github/gh-stack",
@@ -36,7 +36,7 @@
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/rewardkit/SKILL.md",
-      "computedHash": "b502e8f6053cbba4f0d29d409537b38e5ff7b1a0936b00c452d256ddf371b980"
+      "computedHash": "b51a29fdbc029f55c684126a9dca340f0963133c75aad43eda9152bc84a5b42a"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",

@@ -28,6 +28,8 @@ Declarative images are cached for 24 hours, and are automatically reused when ru
 Create a container sandbox from a declarative image.
 
 ```typescript
+import { Image } from '@daytona/sdk'
+
 // Define a declarative image with python packages
 const declarativeImage = Image.debianSlim('3.12')
   .pipInstall(['requests', 'pytest'])
@@ -50,6 +52,8 @@ const sandbox = await daytona.create(
 Create a GPU sandbox from a declarative image.
 
 ```typescript
+import { Image } from '@daytona/sdk'
+
 // Define a declarative image with python packages
 const declarativeImage = Image.debianSlim('3.12')
   .pipInstall(['requests', 'pytest'])
@@ -79,6 +83,8 @@ Create a pre-built snapshot by building a declarative image and registering it a
 2. Create a sandbox from that snapshot
 
 ```typescript
+import { Image } from '@daytona/sdk'
+
 // Define the declarative image for the snapshot
 const image = Image.debianSlim('3.12')
   .pipInstall(['numpy', 'pandas'])
@@ -105,6 +111,8 @@ const sandbox = await daytona.create({ snapshot: 'my-snapshot' })
 2. Create a sandbox from that snapshot
 
 ```typescript
+import { Image } from '@daytona/sdk'
+
 // Define the declarative image for the GPU snapshot
 const image = Image.debianSlim('3.12')
   .pipInstall(['numpy', 'pandas'])
@@ -166,6 +174,8 @@ Daytona provides an option to define images programmatically. Chain the methods 
     Set the container entrypoint and default command with `entrypoint()` and `cmd()`.
 
 ```typescript
+import { Image } from '@daytona/sdk'
+
 // 1. Base image
 const image = Image.debianSlim('3.12')
   // 2. Python packages
@@ -206,14 +216,16 @@ const image = Image.debianSlim('3.12')
 Integrate Dockerfiles and custom Dockerfile commands.
 
 ```typescript
+import { Image } from '@daytona/sdk'
+
 // Add custom Dockerfile commands
-const image = Image.debianSlim('3.12').dockerfileCommands(['RUN echo "Hello, world!"'])
+let image = Image.debianSlim('3.12').dockerfileCommands(['RUN echo "Hello, world!"'])
 
 // Use an existing Dockerfile
-const image = Image.fromDockerfile('Dockerfile')
+image = Image.fromDockerfile('Dockerfile')
 
 // Extend an existing Dockerfile
-const image = Image.fromDockerfile("app/Dockerfile").pipInstall(['numpy'])
+image = Image.fromDockerfile('app/Dockerfile').pipInstall(['numpy'])
 ```
 
 ## See Also

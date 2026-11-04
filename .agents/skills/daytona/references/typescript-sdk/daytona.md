@@ -423,8 +423,10 @@ Base parameters for creating a new Sandbox.
 - `otelEndpointOverride?` _string_ - OTel collector endpoint override for the Sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector and will not be available in the Daytona analytics API or dashboard.
 - `outboundProxyUrl?` _string_ - Outbound proxy URL to route the Sandbox HTTP(S) traffic through. Applied via the HTTP(S)_PROXY environment variables (convenience routing, not a security boundary on its own); combine with domainAllowList for unbypassable network-layer enforcement.
 - `public?` _boolean_ - Is the Sandbox port preview public
+- `queueTimeout?` _number_ - Minutes to wait for runner assignment before the API destroys an unassigned sandbox. Omit to use the organization default.
 - `secrets?` _Record\<string, string\>_ - Optional map of environment variable name to the name of an existing organization Secret to mount into the Sandbox. The env var is set to the Secret's opaque placeholder; the real value is substituted transparently on outbound requests to the Secret's allowed hosts. Every referenced Secret name must already exist in the organization.
 - `spot?` _boolean_ - GPU-only. When true, the Sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU Sandbox. Rejected when the Sandbox requests no GPUs.
+- `target?` _string_ - Target (region) where the Sandbox is created. Overrides the client-level `target` for this call. When omitted, the client-level `target` is used if configured; otherwise the organization's default region.
 - `ttlMinutes?` _number_ - Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the Sandbox is destroyed, even if it is stopped, paused, or archived.
 - `user?` _string_ - Optional os user to use for the Sandbox
 - `volumes?` _VolumeMount\[\]_ - Optional array of volumes to mount to the Sandbox
@@ -453,10 +455,12 @@ Parameters for creating a new Sandbox.
 - `otelEndpointOverride?` _string_
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
+- `queueTimeout?` _number_
 - `resources?` _Resources_ - Resource allocation for the Sandbox. If not provided, sandbox will
     have default resources.
 - `secrets?` _Record\<string, string\>_
 - `spot?` _boolean_
+- `target?` _string_
 - `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_
@@ -483,9 +487,11 @@ Parameters for creating a new Sandbox from a snapshot.
 - `otelEndpointOverride?` _string_
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
+- `queueTimeout?` _number_
 - `secrets?` _Record\<string, string\>_
 - `snapshot?` _string_ - Name of the snapshot to use for the Sandbox.
 - `spot?` _boolean_
+- `target?` _string_
 - `ttlMinutes?` _number_
 - `user?` _string_
 - `volumes?` _VolumeMount\[\]_
@@ -516,7 +522,7 @@ Configuration options for initializing the Daytona client.
     `process.codeRun`) are not capped by this value; their HTTP wait is
     bounded by that per-call timeout instead.
 - ~~`serverUrl?`~~ _string_ - **_Deprecated_** - Use `apiUrl` instead. This property will be removed in future versions.
-- `target?` _string_ - Target location for Sandboxes
+- `target?` _string_ - Default region for Sandboxes and Snapshots. A per-call `target` / `regionId` overrides it
 - ~~`useDeprecatedPolling?`~~ _boolean_ - Observe sandbox state by legacy polling instead of WebSocket event streaming.
     Defaults to `false`, where state changes are streamed over WebSocket. Can also
     be enabled via the `DAYTONA_USE_DEPRECATED_POLLING` environment variable.
