@@ -132,6 +132,12 @@ class PhoenixRecorder:
         """Return the latest dataset, or None when this name is not on the server."""
         try:
             return await self._client.datasets.get_dataset(dataset=name)
+        except httpx.HTTPStatusError as error:
+            # A dataset created in the UI has a name and no version yet. The
+            # examples route answers that with 404, and the upload creates version 1.
+            if error.response.status_code == 404:
+                return None
+            raise
         except ValueError as error:
             if str(error).startswith("Dataset not found:"):
                 return None

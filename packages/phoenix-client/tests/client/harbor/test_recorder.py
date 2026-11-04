@@ -100,7 +100,7 @@ class FakeDatasets:
     def __init__(
         self,
         dataset: FakeDataset | Exception,
-        current: FakeDataset | None = None,
+        current: FakeDataset | Exception | None = None,
     ) -> None:
         self._dataset = dataset
         self._current = current
@@ -110,6 +110,8 @@ class FakeDatasets:
     async def get_dataset(self, *, dataset: str, **kwargs: Any) -> FakeDataset:
         del kwargs
         self.lookups.append(dataset)
+        if isinstance(self._current, Exception):
+            raise self._current
         if self._current is None:
             raise ValueError(f"Dataset not found: {dataset}")
         return self._current
@@ -352,6 +354,22 @@ class TestSyncDataset:
             "version-2",
             {"task-a": "node-a", "task-b": "node-b"},
         )
+
+    async def test_dataset_with_no_versions_still_uploads(self) -> None:
+        request = httpx.Request("GET", "https://phoenix.example/v1/datasets/empty/examples")
+        response = httpx.Response(404, request=request, text="Dataset has no versions.")
+        missing_version = httpx.HTTPStatusError(
+            "Dataset has no versions.", request=request, response=response
+        )
+        datasets = FakeDatasets(
+            FakeDataset([example_row("task-a", "node-a")]),
+            current=missing_version,
+        )
+        snapshot = await recorder(FakeClient(datasets)).sync_dataset(plan())
+
+        (call,) = datasets.calls
+        assert call["examples"] == [task("task-a").to_example()]
+        assert snapshot == DatasetSnapshot("dataset-1", "version-1", {"task-a": "node-a"})
 
     async def test_uploads_the_full_task_snapshot(self) -> None:
         datasets = FakeDatasets(FakeDataset([example_row("task-a", "node-a")]))
