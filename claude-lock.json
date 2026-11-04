@@ -62,6 +62,13 @@
       "hash": "8d07692ba0af57493acce5e3386791f0",
       "remote_hash": "6d07d79d1eff5edb25fd0cda797d1f16"
     },
+    "./agents/pr-finisher.md": {
+      "kind": "agent",
+      "id": "agent_016wWcHQdD25th5D8v7gGH83",
+      "version": "1",
+      "hash": "c528e798ae41225a1988357bf9447a60",
+      "remote_hash": "ce81b0e3f697b7316c3c2d9059e3d620"
+    },
     "./agents/pr-reviewer.md": {
       "kind": "agent",
       "id": "agent_01PjZ8vnrD9MoDyngXbvp2Si",
