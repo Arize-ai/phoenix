@@ -7,7 +7,7 @@ import {
 } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Dialog, Drawer, Flex, Loading } from "@phoenix/components";
+import { Dialog, Drawer, Flex } from "@phoenix/components";
 import {
   DialogCloseButton,
   DialogContent,
@@ -20,8 +20,14 @@ import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaul
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import type { projectEvaluatorCompareLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
-import { SessionDetails } from "@phoenix/pages/trace/SessionDetails";
-import { TraceDetails } from "@phoenix/pages/trace/TraceDetails";
+import {
+  SessionDetails,
+  SessionDetailsSkeleton,
+} from "@phoenix/pages/trace/SessionDetails";
+import {
+  TraceDetails,
+  TraceDetailsSkeleton,
+} from "@phoenix/pages/trace/TraceDetails";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 export const PROJECT_EVALUATOR_COMPARE_ROUTE_ID = "projectEvaluatorCompare";
@@ -74,7 +80,16 @@ export function ProjectEvaluatorCompareTargetPage() {
               </DialogTitleExtra>
             </DialogHeader>
             <ErrorBoundary>
-              <Suspense key={targetId} fallback={<Loading />}>
+              <Suspense
+                key={targetId}
+                fallback={
+                  isSession ? (
+                    <SessionDetailsSkeleton />
+                  ) : (
+                    <TraceDetailsSkeleton />
+                  )
+                }
+              >
                 {isSession ? (
                   <SessionDetails sessionId={targetId} />
                 ) : (
