@@ -1045,6 +1045,97 @@ async def test_post_dataset_upload_jsonl_preserves_explicit_null(
     assert revisions[1].input == {"b": "y"}
 
 
+async def test_post_dataset_upload_csv_with_utf8_bom(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Excel's "CSV UTF-8" export starts the file with a byte order mark.
+
+    The key may come with or without the BOM: phoenix-client infers keys from a header
+    read without utf-8-sig, so it sends "\\ufeffquestion".
+    """
+    for suffix, input_key in (("", "question"), ("_inferred", "\ufeffquestion")):
+        name = inspect.stack()[0][3] + suffix
+        response = await httpx_client.post(
+            url="v1/datasets/upload?sync=true",
+            files={"file": (" ", b"\xef\xbb\xbfquestion,answer\r\nhi,there\r\n", "text/csv")},
+            data={
+                "action": "create",
+                "name": name,
+                "input_keys[]": [input_key],
+                "output_keys[]": ["answer"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        async with db() as session:
+            revisions = list(
+                await session.scalars(
+                    select(models.DatasetExampleRevision)
+                    .join(models.DatasetExample)
+                    .join_from(models.DatasetExample, models.Dataset)
+                    .where(models.Dataset.name == name)
+                )
+            )
+        assert len(revisions) == 1
+        assert revisions[0].input == {"question": "hi"}
+        assert revisions[0].output == {"answer": "there"}
+
+
+async def test_post_dataset_upload_jsonl_with_bom_blank_lines_and_line_separators(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Rows the UI preview accepts: BOM, blank lines, and U+2028 / U+0085 inside strings."""
+    name = inspect.stack()[0][3]
+    rows = [{"q": "a\u2028b", "r": "1"}, {"q": "c\x85d", "r": "2"}]
+    lines = [json.dumps(row, ensure_ascii=False) for row in rows]
+    jsonl_content = ("\ufeff" + lines[0] + "\r\n\n" + lines[1] + "\n\n").encode()
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", jsonl_content, "application/jsonl")},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["q"],
+            "output_keys[]": ["r"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert [r.input for r in revisions] == [{"q": "a\u2028b"}, {"q": "c\x85d"}]
+    assert [r.output for r in revisions] == [{"r": "1"}, {"r": "2"}]
+
+
+async def test_post_dataset_upload_jsonl_reimports_jsonl_export_with_line_separator(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    """The JSONL export writes U+2028 unescaped (ensure_ascii=False); it must upload again."""
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={"action": "create", "name": name, "inputs": [{"q": "a\u2028b"}], "outputs": [{}]},
+    )
+    assert response.status_code == 200, response.text
+    dataset_id = response.json()["data"]["dataset_id"]
+    export = await httpx_client.get(f"v1/datasets/{dataset_id}/jsonl")
+    assert export.status_code == 200
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", export.content, "application/jsonl")},
+        data={"action": "create", "name": name + "_copy", "input_keys[]": ["input"]},
+    )
+    assert response.status_code == 200, response.text
+
+
 async def test_post_dataset_upload_pyarrow_create_then_append(
     httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,

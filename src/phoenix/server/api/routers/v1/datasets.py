@@ -980,7 +980,9 @@ async def _process_csv(
         content = await run_in_threadpool(zlib.decompress, content)
     elif content_encoding is not FileContentEncoding.NONE:
         assert_never(content_encoding)
-    reader = await run_in_threadpool(lambda c: csv.DictReader(io.StringIO(c.decode())), content)
+    reader = await run_in_threadpool(
+        lambda c: csv.DictReader(io.StringIO(c.decode("utf-8-sig"))), content
+    )
     if reader.fieldnames is None:
         raise ValueError("Missing CSV column header")
     (header, freq), *_ = Counter(reader.fieldnames).most_common(1)
@@ -1124,7 +1126,10 @@ async def _process_jsonl(
         assert_never(encoding)
 
     def parse_and_process(c: bytes) -> list[ExampleContent]:
-        rows = [json.loads(line) for line in c.decode().splitlines()]
+        # Split on "\n" only: str.splitlines() also splits on U+2028, U+0085 and other
+        # characters that JSON allows unescaped inside strings.
+        lines = c.decode("utf-8-sig").split("\n")
+        rows = [json.loads(line) for line in lines if line.strip()]
 
         input_plan, output_plan, metadata_plan = _build_flatten_plans(
             input_keys=input_keys,
@@ -1235,6 +1240,16 @@ def _get_example_id(row: Mapping[Any, Any], example_id_key: ExampleIdKey) -> Opt
     return str_value
 
 
+def _form_key(form: FormData, name: str) -> Optional[str]:
+    # A client that reads the CSV header without utf-8-sig sends the BOM in the first key.
+    return cast(str, form.get(name) or "").removeprefix("\ufeff") or None
+
+
+def _form_keys(form: FormData, name: str) -> frozenset[str]:
+    keys = (key.removeprefix("\ufeff") for key in cast(list[str], form.getlist(name)))
+    return frozenset(filter(bool, keys))
+
+
 async def _parse_form_data(
     form: FormData,
 ) -> tuple[
@@ -1259,19 +1274,19 @@ async def _parse_form_data(
     if not isinstance(file, UploadFile):
         raise ValueError("Malformed file in form data.")
     description = cast(Optional[str], form.get("description")) or file.filename
-    input_keys = frozenset(filter(bool, cast(list[str], form.getlist("input_keys[]"))))
-    output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
-    metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
-    split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
-    split_key = cast(Optional[str], form.get("split_key")) or None
+    input_keys = _form_keys(form, "input_keys[]")
+    output_keys = _form_keys(form, "output_keys[]")
+    metadata_keys = _form_keys(form, "metadata_keys[]")
+    split_keys = _form_keys(form, "split_keys[]")
+    split_key = _form_key(form, "split_key")
     if split_keys and split_key:
         raise ValueError(
             "Cannot specify both 'split_keys[]' and 'split_key'. "
             "Use 'split_key' for a single column with JSON-encoded split lists."
         )
-    span_id_key = cast(Optional[str], form.get("span_id_key")) or None
-    example_id_key = cast(Optional[str], form.get("example_id_key")) or None
-    flatten_keys = frozenset(filter(bool, cast(list[str], form.getlist("flatten_keys[]"))))
+    span_id_key = _form_key(form, "span_id_key")
+    example_id_key = _form_key(form, "example_id_key")
+    flatten_keys = _form_keys(form, "flatten_keys[]")
     return (
         action,
         name,
