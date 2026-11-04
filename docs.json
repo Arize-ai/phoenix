@@ -1558,6 +1558,12 @@
         "pages": [
           "docs/phoenix/release-notes",
           {
+            "group": "11.2026",
+            "pages": [
+              "docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations"
+            ]
+          },
+          {
             "group": "10.2026",
             "pages": [
               "docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding",
