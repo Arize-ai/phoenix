@@ -1,0 +1,47 @@
+name: Kustomize CI
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - "kustomize/**"
+      - ".github/workflows/kustomize-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "kustomize/**"
+  workflow_dispatch:
+
+concurrency:
+  group: kustomize-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  kustomize-build:
+    name: Kustomize Overlays Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # kubectl ships with the ubuntu-latest runner image and embeds kustomize,
+      # so this matches what `kubectl apply -k` does for a user.
+      - name: Build every overlay
+        run: |
+          set -euo pipefail
+          rc=0
+          for dir in kustomize/*/; do
+            [ -f "${dir}kustomization.yaml" ] || continue
+            echo "::group::kubectl kustomize ${dir}"
+            if ! kubectl kustomize "${dir}"; then
+              echo "::error file=${dir}kustomization.yaml::overlay failed to build"
+              rc=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $rc
