@@ -19,7 +19,7 @@ from .evaluators import (
     evaluate_dataframe,
 )
 from .llm import LLM, phoenix_prompt_to_prompt_template
-from .utils import download_benchmark_dataset
+from .utils import download_benchmark_dataset, format_messages, normalize_messages
 
 __version__ = version("arize-phoenix-evals")
 
@@ -55,4 +55,6 @@ __all__ = [
     "tracing",
     "utils",
     "download_benchmark_dataset",
+    "format_messages",
+    "normalize_messages",
 ]
