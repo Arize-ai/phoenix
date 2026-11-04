@@ -19,6 +19,7 @@ from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 from phoenix.evals.metrics.pii_detection import PiiDetectionEvaluator
 from phoenix.evals.metrics.refusal import RefusalEvaluator
 from phoenix.evals.metrics.retrieval_relevance import RetrievalRelevanceEvaluator
+from phoenix.evals.metrics.sentiment import SentimentEvaluator
 from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
 from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
 from phoenix.evals.metrics.tool_selection import ToolSelectionEvaluator
@@ -119,6 +120,14 @@ ALL_EVALUATORS = [
         HallucinationEvaluator,
         {"input": "User: Q\nAssistant: A", "output": "A"},
         id="HallucinationEvaluator",
+    ),
+    pytest.param(
+        SentimentEvaluator,
+        {
+            "conversation": "User: My order still hasn't arrived.\nAssistant: Let me check.",
+            "user_message": "This is the third time I've had to ask.",
+        },
+        id="SentimentEvaluator",
     ),
 ]
 
