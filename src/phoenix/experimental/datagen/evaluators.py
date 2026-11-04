@@ -59,6 +59,13 @@ ONLINE_JUDGE_BINDINGS: dict[str, dict[str, Any]] = {
 }
 
 
+# Settings users tune while testing online evals. Seeding sets them on a new binding and
+# leaves them alone afterward, as it does `enabled`.
+_USER_TUNED_BINDING_SETTINGS = frozenset(
+    {"filter_condition", "sampling_rate", "evaluation_delay_seconds"}
+)
+
+
 def _list(http: httpx.Client, path: str, **filters: str) -> Iterator[dict[str, Any]]:
     cursor = None
     while True:
@@ -165,7 +172,8 @@ def seed_online_decision_judge(
     """Bind one response judge to the support chatbot's LLM spans, traces, and sessions.
 
     Bindings are created disabled so seeding never queues a model call. A re-run leaves
-    their enabled state alone and repairs their other settings and the judge's version.
+    their enabled state, filter, sampling rate, and evaluation delay alone, keeps the
+    judge's model choice, and repairs the judge's questions and the bindings' input mapping.
     """
     metadata = {"datagen": True, "project_name": ONLINE_JUDGE_PROJECT_NAME}
     version_id = seed_decision(
@@ -217,7 +225,9 @@ def seed_online_decision_judge(
         elif drift := {
             key: value
             for key, value in settings.items()
-            if key != "evaluation_target" and binding[key] != value
+            if key != "evaluation_target"
+            and key not in _USER_TUNED_BINDING_SETTINGS
+            and binding[key] != value
         }:
             response = http.patch(
                 f"v1/project_evaluators/{quote(binding['id'], safe='')}", json=drift

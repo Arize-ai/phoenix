@@ -207,22 +207,21 @@ async def test_seed_reuses_judge_and_binding_and_repairs_drift(
         binding.input_mapping = InputMapping(
             literal_mapping={"reference": {}}, path_mapping={"output": "output"}
         )
+    # Re-seeding keeps the user's model and version, and repairs only the input mapping.
     assert await anyio.to_thread.run_sync(seed) == first
-    assert len(writes) == 6
+    assert len(writes) == 4
     async with db() as session:
         evaluator = await session.scalar(select(models.DecisionEvaluator))
         assert evaluator is not None
-        assert evaluator.selected_version.id not in {
-            original_version_id,
-            int(GlobalID.from_id(drifted_id).node_id),
-        }
-        assert evaluator.selected_version.model_name == "jev-latest"
+        assert evaluator.selected_version.id == int(GlobalID.from_id(drifted_id).node_id)
+        assert evaluator.selected_version.id != original_version_id
+        assert evaluator.selected_version.model_name == "changed-model"
         binding = await session.get(
             models.DatasetEvaluators, int(GlobalID.from_id(first[0][1]).node_id)
         )
         assert binding is not None and binding.input_mapping == mapping
     assert await anyio.to_thread.run_sync(seed) == first
-    assert len(writes) == 6
+    assert len(writes) == 4
 
 
 async def test_seed_online_judge_binds_each_grain_disabled_once(
@@ -269,13 +268,35 @@ async def test_seed_online_judge_binds_each_grain_disabled_once(
         }
         for binding in bindings:
             binding.enabled = True
+            binding.sampling_rate = 0.05
+            binding.filter_condition = "latency_ms > 100"
+            if binding.evaluation_target != "SPAN":
+                binding.evaluation_delay_seconds = 120
+        drifted = next(binding for binding in bindings if binding.evaluation_target == "SPAN")
+        drifted.input_mapping = InputMapping(literal_mapping={}, path_mapping={"request": "input"})
 
+    # Re-seeding repairs the input mapping and leaves the settings a user tunes alone.
     assert await anyio.to_thread.run_sync(seed) == first
-    assert len(writes) == 6
+    assert len(writes) == 7
     async with db() as session:
+        bindings = (await session.scalars(select(models.ProjectEvaluator))).all()
         assert all(
-            binding.enabled for binding in await session.scalars(select(models.ProjectEvaluator))
+            (
+                binding.enabled,
+                binding.sampling_rate,
+                binding.evaluation_delay_seconds,
+                binding.filter_condition,
+            )
+            == (True, 0.05, 0 if binding.evaluation_target == "SPAN" else 120, "latency_ms > 100")
+            for binding in bindings
         )
+        assert {
+            binding.name.root: binding.input_mapping.path_mapping if binding.input_mapping else None
+            for binding in bindings
+        } == {
+            name: settings["input_mapping"]["path_mapping"]
+            for name, settings in ONLINE_JUDGE_BINDINGS.items()
+        }
 
 
 async def test_other_datasets_do_not_receive_an_accuracy_judge() -> None:

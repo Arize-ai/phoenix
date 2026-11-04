@@ -54,8 +54,11 @@ def _dataset(*workflows: str) -> MagicMock:
 
 def _saved_version(version: dict[str, Any], version_id: str) -> dict[str, Any]:
     saved = deepcopy(version)
-    saved.update(id=version_id, customProvider=None)
-    saved.pop("customProviderId")
+    custom_provider_id = saved.pop("customProviderId")
+    saved.update(
+        id=version_id,
+        customProvider=None if custom_provider_id is None else {"id": custom_provider_id},
+    )
     saved["state"] = {"__typename": "DecisionJsonState", "json": "{{state}}"}
     type_names = {
         "predicate": "DecisionPredicateQuestion",
@@ -153,11 +156,21 @@ def test_seed_creates_four_decisions_then_only_changed_versions() -> None:
         assert len(mutations) == 5
         assert updated[0][1] != first[0][1]
         assert updated[1:] == first[1:]
-        # Fingerprints alone cannot hide a changed definition copied by a user.
-        stored[first[1][0]]["version"]["modelName"] = "user-changed-model"
+        # A user's model choice is theirs: re-seeding keeps it instead of writing a version.
+        user_version = stored[first[1][0]]["version"]
+        user_version.update(modelName="user-changed-model", customProvider={"id": "provider-1"})
+        assert seed_workflow_decisions(http, [dataset]) == updated
+        assert len(mutations) == 5
+        # A changed definition still gets a new version, which carries the user's model.
+        for example in dataset.examples:
+            if example["metadata"]["workflow"] == _WORKFLOWS[1]:
+                example["input"]["questions"]["action"]["instructions"] = "Another instruction."
         seed_workflow_decisions(http, [dataset])
         assert len(mutations) == 6
         assert all("DatagenCreateDecisionVersion" in query for query in mutations[4:])
+        repaired = stored[first[1][0]]["version"]
+        assert repaired["modelName"] == "user-changed-model"
+        assert repaired["customProvider"] == {"id": "provider-1"}
 
 
 @pytest.mark.parametrize("change", ["questions", "workflow", "empty", "unsupported", "count"])
