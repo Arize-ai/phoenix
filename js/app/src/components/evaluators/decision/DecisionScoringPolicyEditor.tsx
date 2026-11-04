@@ -56,20 +56,6 @@ const questionCSS = css`
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
 `;
-// Fields wrap rather than shrink: the direction select starts from the width
-// of its longest label, so a row too narrow for all three never squeezes it.
-const fieldRowCSS = css`
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--global-dimension-size-200);
-  align-items: flex-start;
-  > * {
-    flex: 1 1 var(--global-dimension-size-1600);
-  }
-  > .decision-policy-question__direction {
-    flex: 1 1 auto;
-  }
-`;
 const scoreGridCSS = css`
   width: 100%;
   display: grid;
@@ -119,25 +105,23 @@ export function DecisionScoringPolicyEditor({
             data-testid={`decision-policy-question-${name}`}
           >
             <Flex direction="column" gap="size-200">
-              <div css={fieldRowCSS}>
+              <Flex direction="row" gap="size-200" alignItems="start">
                 <TextField isDisabled value={name}>
                   <Label>{KIND_LABELS[definition.type]}</Label>
                   <Input />
                 </TextField>
-                <div className="decision-policy-question__direction">
-                  <OptimizationDirectionSelect
-                    data-testid={`decision-policy-${name}-direction-picker`}
-                    aria-label={`${name} optimization direction`}
-                    value={getDirection(question)}
-                    isDisabled={isDisabled}
-                    onChange={(optimizationDirection) =>
-                      updateQuestion(
-                        index,
-                        withDirection(question, optimizationDirection)
-                      )
-                    }
-                  />
-                </div>
+                <OptimizationDirectionSelect
+                  data-testid={`decision-policy-${name}-direction-picker`}
+                  aria-label={`${name} optimization direction`}
+                  value={getDirection(question)}
+                  isDisabled={isDisabled}
+                  onChange={(optimizationDirection) =>
+                    updateQuestion(
+                      index,
+                      withDirection(question, optimizationDirection)
+                    )
+                  }
+                />
                 {"predicate" in question ? (
                   <ThresholdField
                     predicate={question.predicate}
@@ -148,7 +132,7 @@ export function DecisionScoringPolicyEditor({
                     }
                   />
                 ) : null}
-              </div>
+              </Flex>
               {"predicate" in question ? null : (
                 <QuestionFields
                   definition={definition}

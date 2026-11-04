@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { useRef } from "react";
 
 import {
@@ -63,16 +63,28 @@ const criteriaCSS = css`
 
 const optionRowCSS = css`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
   gap: var(--global-dimension-size-100);
   align-items: start;
 `;
 
 const levelRowCSS = css`
   display: grid;
-  grid-template-columns: 2ch minmax(6em, 0.8fr) minmax(0, 1.6fr) auto;
+  grid-template-columns: 2ch minmax(6em, 0.8fr) minmax(0, 1.6fr);
   gap: var(--global-dimension-size-100);
   align-items: start;
+`;
+
+/** The last cell of a row: its field, then the row's buttons beside it. */
+const trailingCellCSS = css`
+  display: flex;
+  gap: var(--global-dimension-size-100);
+  align-items: start;
+  min-width: 0;
+  > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 `;
 
 const twoUpCSS = css`
@@ -285,6 +297,33 @@ type CriteriaProps = Pick<
   | "onChange"
 >;
 
+function AddRowButton({
+  label,
+  isDisabled,
+  onPress,
+  ref,
+}: {
+  label: string;
+  isDisabled: boolean;
+  onPress: () => void;
+  ref: Ref<HTMLButtonElement>;
+}) {
+  return (
+    <Flex direction="row" justifyContent="end">
+      <Button
+        ref={ref}
+        size="S"
+        variant="quiet"
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
+        isDisabled={isDisabled}
+        onPress={onPress}
+      >
+        {label}
+      </Button>
+    </Flex>
+  );
+}
+
 function CriteriaHeading({
   title,
   action,
@@ -325,30 +364,14 @@ function ChoiceCriteriaEditor({
       ),
     });
   const canAddOption = question.choices.length < MAX_CHOICE_OPTIONS;
-  const canRemoveOption = question.choices.length > MIN_CHOICE_OPTIONS;
-  // Removing an option removes the focused button; focus moves to "Option".
+  // Removing an option removes the focused button; focus moves to "Add option".
   const addOptionButtonRef = useRef<HTMLButtonElement>(null);
   return (
     <Flex direction="column" gap="size-100">
-      <CriteriaHeading
-        title="Options"
-        action={
-          <Button
-            ref={addOptionButtonRef}
-            size="S"
-            variant="quiet"
-            leadingVisual={<Icon svg={<Icons.Plus />} />}
-            isDisabled={isDisabled || !canAddOption}
-            onPress={() =>
-              onChange({
-                choices: [...question.choices, createChoiceOption()],
-              })
-            }
-          >
-            Option
-          </Button>
-        }
-      />
+      <div css={optionRowCSS}>
+        <Text>Option</Text>
+        <Text>Description</Text>
+      </div>
       {errors?.choices ? (
         <Alert variant="danger">{errors.choices}</Alert>
       ) : null}
@@ -369,35 +392,47 @@ function ChoiceCriteriaEditor({
                 <Input placeholder="value" />
                 {optionError ? <FieldError>{optionError}</FieldError> : null}
               </TextField>
-              <TemplateInput
-                key={option.id}
-                aria-label={`Option ${optionIndex + 1} description`}
-                templateFormat={templateFormat}
-                defaultValue={option.description}
-                placeholder="when to pick this (optional)"
-                readOnly={isDisabled}
-                onChange={(description) =>
-                  updateOption(option.id, { description })
-                }
-              />
-              <Button
-                size="S"
-                aria-label={`Remove option ${optionIndex + 1}`}
-                leadingVisual={<Icon svg={<Icons.Trash />} />}
-                isDisabled={isDisabled || !canRemoveOption}
-                onPress={() => {
-                  onChange({
-                    choices: question.choices.filter(
-                      (candidate) => candidate.id !== option.id
-                    ),
-                  });
-                  addOptionButtonRef.current?.focus();
-                }}
-              />
+              <div css={trailingCellCSS}>
+                <TemplateInput
+                  key={option.id}
+                  aria-label={`Option ${optionIndex + 1} description`}
+                  templateFormat={templateFormat}
+                  defaultValue={option.description}
+                  placeholder="when to pick this (optional)"
+                  readOnly={isDisabled}
+                  onChange={(description) =>
+                    updateOption(option.id, { description })
+                  }
+                />
+                {optionIndex >= MIN_CHOICE_OPTIONS ? (
+                  <Button
+                    size="S"
+                    aria-label={`Remove option ${optionIndex + 1}`}
+                    leadingVisual={<Icon svg={<Icons.Trash />} />}
+                    isDisabled={isDisabled}
+                    onPress={() => {
+                      onChange({
+                        choices: question.choices.filter(
+                          (candidate) => candidate.id !== option.id
+                        ),
+                      });
+                      addOptionButtonRef.current?.focus();
+                    }}
+                  />
+                ) : null}
+              </div>
             </li>
           );
         })}
       </ul>
+      <AddRowButton
+        ref={addOptionButtonRef}
+        label="Add option"
+        isDisabled={isDisabled || !canAddOption}
+        onPress={() =>
+          onChange({ choices: [...question.choices, createChoiceOption()] })
+        }
+      />
     </Flex>
   );
 }
@@ -418,28 +453,15 @@ function ScaleCriteriaEditor({
     onChange({ levels });
   };
   const canAddLevel = question.levels.length < MAX_SCALE_LEVELS;
-  const canRemoveLevel = question.levels.length > MIN_SCALE_LEVELS;
-  // Removing a level removes the focused button; focus moves to "Level".
+  // Removing a level removes the focused button; focus moves to "Add level".
   const addLevelButtonRef = useRef<HTMLButtonElement>(null);
   return (
     <Flex direction="column" gap="size-100">
-      <CriteriaHeading
-        title="Levels, low to high"
-        action={
-          <Button
-            ref={addLevelButtonRef}
-            size="S"
-            variant="quiet"
-            leadingVisual={<Icon svg={<Icons.Plus />} />}
-            isDisabled={isDisabled || !canAddLevel}
-            onPress={() =>
-              onChange({ levels: [...question.levels, createScaleLevel()] })
-            }
-          >
-            Level
-          </Button>
-        }
-      />
+      <div css={levelRowCSS}>
+        <span />
+        <Text>Level, low to high</Text>
+        <Text>Rubric</Text>
+      </div>
       {errors?.levels ? <Alert variant="danger">{errors.levels}</Alert> : null}
       <ol css={listCSS} aria-label="Scale levels">
         {question.levels.map((level, levelIndex) => {
@@ -477,24 +499,24 @@ function ScaleCriteriaEditor({
                 />
                 {levelError ? <FieldError>{levelError}</FieldError> : null}
               </TextField>
-              <TemplateInput
-                key={level.id}
-                aria-label={`Level ${levelIndex} description`}
-                templateFormat={templateFormat}
-                defaultValue={level.description}
-                placeholder="Rubric (optional)"
-                readOnly={isDisabled}
-                onChange={(description) =>
-                  onChange({
-                    levels: question.levels.map((candidate) =>
-                      candidate.id === level.id
-                        ? { ...candidate, description }
-                        : candidate
-                    ),
-                  })
-                }
-              />
-              <Flex direction="row" gap="size-50">
+              <div css={trailingCellCSS}>
+                <TemplateInput
+                  key={level.id}
+                  aria-label={`Level ${levelIndex} description`}
+                  templateFormat={templateFormat}
+                  defaultValue={level.description}
+                  placeholder="Rubric (optional)"
+                  readOnly={isDisabled}
+                  onChange={(description) =>
+                    onChange({
+                      levels: question.levels.map((candidate) =>
+                        candidate.id === level.id
+                          ? { ...candidate, description }
+                          : candidate
+                      ),
+                    })
+                  }
+                />
                 <Button
                   size="S"
                   aria-label={`Move level ${levelIndex} up`}
@@ -511,25 +533,35 @@ function ScaleCriteriaEditor({
                   }
                   onPress={() => moveLevel(levelIndex, levelIndex + 1)}
                 />
-                <Button
-                  size="S"
-                  aria-label={`Remove level ${levelIndex}`}
-                  leadingVisual={<Icon svg={<Icons.Trash />} />}
-                  isDisabled={isDisabled || !canRemoveLevel}
-                  onPress={() => {
-                    onChange({
-                      levels: question.levels.filter(
-                        (candidate) => candidate.id !== level.id
-                      ),
-                    });
-                    addLevelButtonRef.current?.focus();
-                  }}
-                />
-              </Flex>
+                {levelIndex >= MIN_SCALE_LEVELS ? (
+                  <Button
+                    size="S"
+                    aria-label={`Remove level ${levelIndex}`}
+                    leadingVisual={<Icon svg={<Icons.Trash />} />}
+                    isDisabled={isDisabled}
+                    onPress={() => {
+                      onChange({
+                        levels: question.levels.filter(
+                          (candidate) => candidate.id !== level.id
+                        ),
+                      });
+                      addLevelButtonRef.current?.focus();
+                    }}
+                  />
+                ) : null}
+              </div>
             </li>
           );
         })}
       </ol>
+      <AddRowButton
+        ref={addLevelButtonRef}
+        label="Add level"
+        isDisabled={isDisabled || !canAddLevel}
+        onPress={() =>
+          onChange({ levels: [...question.levels, createScaleLevel()] })
+        }
+      />
     </Flex>
   );
 }
