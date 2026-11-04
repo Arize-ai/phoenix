@@ -208,6 +208,21 @@ class TestAnswerConsistencyEvaluator:
         )
         assert "Q?" in llm.prompts[0]
 
+    def test_unmapped_input_passes_through(self):
+        # Only "outputs" is mapped; the optional top-level "input" still reaches the prompt.
+        llm = FakeLLM()
+        AnswerConsistencyEvaluator(llm).evaluate(
+            {"input": "Q?", "answers": ["a", "b"]}, input_mapping={"outputs": "answers"}
+        )
+        assert "Q?" in llm.prompts[0]
+
+    async def test_bound_mapping(self):
+        llm = FakeLLM()
+        evaluator = AnswerConsistencyEvaluator(llm)
+        evaluator.bind({"input": "question", "outputs": "answers"})
+        await evaluator.async_evaluate({"question": "Q?", "answers": ["a", "b"]})
+        assert "Q?" in llm.prompts[0]
+
     def test_all_identical_makes_no_calls(self):
         llm = FakeLLM()
         [score] = AnswerConsistencyEvaluator(llm).evaluate({"outputs": ["Same", "same", "SAME"]})

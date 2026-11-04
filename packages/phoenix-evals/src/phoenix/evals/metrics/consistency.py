@@ -17,7 +17,6 @@ import random
 import re
 from typing import (
     Any,
-    Dict,
     Hashable,
     Iterable,
     Iterator,
@@ -33,7 +32,7 @@ from typing import (
 
 from pydantic import BaseModel, Field
 
-from ..evaluators import EvalInput, Evaluator, InputMappingType, Score
+from ..evaluators import EvalInput, Evaluator, Score
 from ..llm import LLM
 
 Pair = Tuple[int, int]
@@ -390,9 +389,6 @@ class AnswerConsistencyEvaluator(Evaluator):
         outputs: List[str] = Field(..., description="Outputs of repeated runs for one input.")
         input: Optional[str] = Field(default=None, description="The input the outputs answer.")
 
-    # Optional fields are only passed through when mapped, so always map "input" by default.
-    _DEFAULT_INPUT_MAPPING: Dict[str, str] = {"input": "input", "outputs": "outputs"}
-
     def __init__(self, llm: LLM, *, budget: Optional[int] = None, seed: int = 0) -> None:
         super().__init__(
             name="answer_consistency",
@@ -405,19 +401,6 @@ class AnswerConsistencyEvaluator(Evaluator):
         self.llm = llm
         self.budget = budget
         self.seed = seed
-
-    def evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
-    ) -> List[Score]:
-        return super().evaluate(eval_input, self._with_default_mapping(input_mapping))
-
-    async def async_evaluate(
-        self, eval_input: EvalInput, input_mapping: Optional[InputMappingType] = None
-    ) -> List[Score]:
-        return await super().async_evaluate(eval_input, self._with_default_mapping(input_mapping))
-
-    def _with_default_mapping(self, input_mapping: Optional[InputMappingType]) -> InputMappingType:
-        return {**self._DEFAULT_INPUT_MAPPING, **(input_mapping or self._input_mapping or {})}
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         outputs: List[str] = eval_input["outputs"]
