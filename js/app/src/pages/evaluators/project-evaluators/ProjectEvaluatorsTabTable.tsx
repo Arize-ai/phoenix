@@ -2,9 +2,8 @@ import { css } from "@emotion/react";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Link } from "react-router";
 
-import { Icon, Icons, Text } from "@phoenix/components";
+import { Icon, Icons, Link, Text } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -12,13 +11,14 @@ import {
   EvaluatorAverageCost,
   EvaluatorCost,
 } from "@phoenix/components/evaluators/EvaluatorCost";
+import { ProjectLink } from "@phoenix/components/project/ProjectLink";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
-import type { ServerProjectEvaluatorsTableQuery } from "@phoenix/pages/evaluators/projectEvaluators/__generated__/ServerProjectEvaluatorsTableQuery.graphql";
+import type { ProjectEvaluatorsTabTableQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ProjectEvaluatorsTabTableQuery.graphql";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
@@ -26,7 +26,7 @@ import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/Proj
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
 
-type QueryData = ServerProjectEvaluatorsTableQuery["response"];
+type QueryData = ProjectEvaluatorsTabTableQuery["response"];
 type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
 
 /** Every project evaluator on the server is loaded; sorting happens here. */
@@ -126,7 +126,7 @@ function getProjectEvaluatorDetailsPath(row: TableRow): string {
  * Every project evaluator on the server, across projects, so the ones taking
  * the shared queue's bandwidth can be found and turned off from one place.
  */
-export function ServerProjectEvaluatorsTable({
+export function ProjectEvaluatorsTabTable({
   filter,
   projectIds,
   fetchKey,
@@ -143,9 +143,9 @@ export function ServerProjectEvaluatorsTable({
   onSortingChange: OnChangeFn<SortingState>;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
-  const data = useLazyLoadQuery<ServerProjectEvaluatorsTableQuery>(
+  const data = useLazyLoadQuery<ProjectEvaluatorsTabTableQuery>(
     graphql`
-      query ServerProjectEvaluatorsTableQuery(
+      query ProjectEvaluatorsTabTableQuery(
         $first: Int!
         $timeRange: TimeRange!
       ) {
@@ -278,11 +278,10 @@ export function ServerProjectEvaluatorsTable({
       size: 180,
       accessorFn: (row) => row.project.name,
       cell: ({ row }) => (
-        <Link
+        <ProjectLink
+          name={row.original.project.name}
           to={`/projects/${encodeURIComponent(row.original.project.id)}/evaluators`}
-        >
-          <Truncate maxWidth="100%">{row.original.project.name}</Truncate>
-        </Link>
+        />
       ),
     },
     {
