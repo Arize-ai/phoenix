@@ -63,7 +63,9 @@ async def _seed_reference_trace(
             llm_token_count_completion=reference_span.llm_token_count_completion,
         )
         span.name = reference_span.name
-        span.status_code = reference_span.status_code.upper()
+        # Fixtures store the normalized spelling the writers produce, so the seeder
+        # writes it through unchanged.
+        span.status_code = reference_span.status_code
         if reference_span.parent == "missing-parent":
             span.parent_id = "missing-parent"
         if reference_span.parent is None and root_span is None:
@@ -236,6 +238,47 @@ async def test_error_count_agrees_with_errored_span_comprehension(
             lowering,
         )
         assert by_count == by_members
+
+
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_span_kind_spellings_agree_on_normalized_data(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+) -> None:
+    """The aggregate and comprehension spellings agree on normalized span-kind storage.
+
+    Mirrors the session grain's test of the same name. The column is compared bare
+    now, so this pins the behaviour that makes that safe: writers normalize
+    ``span_kind`` through ``SpanKind`` before storing it, and the literal side is
+    uppercased by ``uppercase_names``, so a lowercase literal still matches.
+    """
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        root_span = await _add_span(session, trace, span_kind="LLM")
+        for _ in range(3):
+            await _add_span(session, parent_span=root_span, span_kind="TOOL")
+        await session.flush()
+
+        expected = {trace.id}
+        for condition in (
+            'any(span.span_kind == "TOOL" for span in spans)',
+            'any(span.span_kind == "tool" for span in spans)',
+            'any(span.span_kind == "LLM" for span in spans)',
+            'any(span.span_kind == "llm" for span in spans)',
+        ):
+            assert await _matched_rowids(session, TraceFilter(condition), project, lowering) == (
+                expected
+            ), condition
+
+        # A kind no span carries must not match under either spelling.
+        for condition in (
+            'any(span.span_kind == "AGENT" for span in spans)',
+            'any(span.span_kind == "agent" for span in spans)',
+        ):
+            assert (
+                await _matched_rowids(session, TraceFilter(condition), project, lowering) == set()
+            ), condition
 
 
 @pytest.mark.parametrize(
