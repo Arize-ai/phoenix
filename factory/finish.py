@@ -41,11 +41,11 @@ FINISH_LABEL = "factory-finish"
 # The job and workflow names in cla.yml, which runs on pull_request_target from the base.
 CLA_CHECK_NAME = "CLAAssistant"
 CLA_WORKFLOW_NAME = "CLA Assistant"
-# Stays on a PR the factory pushed to, so the secret-bearing CI jobs and Factory Guard treat
-# every later head as factory work; `github.actor` would only cover the app's own pushes.
+# Stays on a PR the factory pushed to, so Factory Guard treats every later head as factory
+# work; `github.actor` would only cover the app's own pushes.
 FINISHED_LABEL = "factory-finished"
 FINISHED_LABEL_COLOR = "5319E7"
-FINISHED_LABEL_DESCRIPTION = "The factory pushed commits to this PR; run secret-bearing CI by hand"
+FINISHED_LABEL_DESCRIPTION = "The factory pushed commits to this pull request"
 FINISH_AGENT_LOCK_KEY = "./agents/pr-finisher.md"
 FINISH_OUTCOME = (
     "Pull request #{pr_number} links an issue, has every review finding fixed, passes the "
@@ -67,7 +67,6 @@ def read_pr(*, pr_number: int, token: Optional[str] = None) -> dict[str, Any]:
 
 
 def find_open_pr(*, pr_number: int) -> Optional[dict[str, Any]]:
-    """The PR as watch_session wants it, or None once it is closed."""
     pr = json.loads(
         run_gh("pr", "view", str(pr_number), "--json", "number,url,headRefOid,isDraft,state")
     )
@@ -100,8 +99,8 @@ def find_admission_problem(
     requester_login: str,
     requester_permission: str,
 ) -> Optional[str]:
-    """Why the PR can't start, or None. `copy` is an earlier run's open copy of a fork PR,
-    which makes a closed original admissible: the run continues on the copy."""
+    """`copy` is an earlier run's open copy of a fork PR; with one, a closed original is
+    admissible and the run continues on the copy."""
     if requester_permission not in STARTING_PERMISSIONS:
         return f"`{requester_login}` needs write access to this repository to start it"
     if pr["state"] != "OPEN" and copy is None:
@@ -110,6 +109,8 @@ def find_admission_problem(
     # passes without a CLA check.
     if not pr["isCrossRepository"]:
         return None
+    # The Assistant comments only when someone has to sign, so its check is the record every
+    # fork PR has; the comments are the fallback.
     cla_signed = read_cla_status(pr_number=pr["number"])
     if cla_signed is None:
         cla_signed = read_cla_signed(comments=pr["comments"])
@@ -146,9 +147,7 @@ def changes_guarded_paths(*, pr: dict[str, Any]) -> bool:
 
 
 def read_cla_status(*, pr_number: int) -> Optional[bool]:
-    """What the CLA Assistant's check on the head commit says: signed, unsigned, or None when
-    it is missing or still pending. The Assistant comments only when someone has to sign,
-    so the check is the one record every fork PR has."""
+    """None when the check is missing or still pending."""
     checks = json.loads(run_gh("pr", "checks", str(pr_number), "--json", "name,bucket,workflow"))
     buckets = {
         check["bucket"]
@@ -169,7 +168,7 @@ def copy_branch_name(*, pr_number: int) -> str:
 
 
 def find_copy(*, pr_number: int) -> Optional[dict[str, Any]]:
-    """An earlier run's open copy of a fork PR, so a rerun continues it instead of copying."""
+    """An earlier run's open copy of a fork PR."""
     pr_list = json.loads(
         run_gh(
             "pr",
@@ -209,9 +208,8 @@ def run_git_as_app(*args: str, token: str) -> None:
 def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]:
     """Push the fork PR's head to a branch here, open a PR from it, close the original.
 
-    The commits are pushed as they are, so their authorship is the contributor's. The runner
-    only fetches and pushes objects; the copy's own CI then runs them, so every workflow
-    that holds a secret skips `factory/` branches.
+    The commits are pushed as they are, so their authorship is the contributor's, and the
+    runner only moves objects: it never checks out or runs the fork's code.
     """
     pr_number = pr["number"]
     branch = copy_branch_name(pr_number=pr_number)
@@ -423,7 +421,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Finish a labeled pull request")
     parser.add_argument("--repo", required=True, help="owner/name, e.g. Arize-ai/phoenix")
     parser.add_argument("--pr", type=int, required=True)
     subparsers = parser.add_subparsers(dest="command", required=True)

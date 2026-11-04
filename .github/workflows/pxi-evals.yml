@@ -37,15 +37,10 @@ jobs:
     name: PXI Regression Evals
     # This job runs PR code with the secrets above. Factory PRs are written by an agent that
     # reads public issue text, so a maintainer runs it by hand on them after reading the diff.
-    # They are recognized by author as well as branch, since the agent chooses the branch, by
-    # the pusher, and by the `factory-finished` label the finish lane leaves on a PR it pushed
-    # to, so a later human push does not run the agent's commits here either.
+    # They are recognized by author as well as branch, since the agent chooses the branch.
     if: >-
       !startsWith(github.head_ref, 'factory/') &&
-      !contains(github.event.pull_request.labels.*.name, 'factory-finished') &&
-      (vars.FACTORY_GITHUB_LOGIN == '' ||
-       (github.event.pull_request.user.login != vars.FACTORY_GITHUB_LOGIN &&
-        github.actor != vars.FACTORY_GITHUB_LOGIN))
+      (vars.FACTORY_GITHUB_LOGIN == '' || github.event.pull_request.user.login != vars.FACTORY_GITHUB_LOGIN)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

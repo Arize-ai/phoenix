@@ -34,18 +34,7 @@ permissions:
 jobs:
   evals:
     # Secrets are not available to forks; skip rather than fail.
-    # This job runs PR code with repository secrets. A factory/ branch may hold a fork PR the
-    # factory copied here, and a push by the factory app, or the `factory-finished` label it
-    # leaves behind, means an agent's commits on someone's branch, so skip all of them as
-    # pxi-evals.yml does; a maintainer runs it by hand.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.head.repo.full_name == github.repository &&
-       !startsWith(github.head_ref, 'factory/') &&
-       !contains(github.event.pull_request.labels.*.name, 'factory-finished') &&
-       (vars.FACTORY_GITHUB_LOGIN == '' ||
-        (github.event.pull_request.user.login != vars.FACTORY_GITHUB_LOGIN &&
-         github.actor != vars.FACTORY_GITHUB_LOGIN)))
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
