@@ -3,7 +3,7 @@ from openai import OpenAI
 client = OpenAI()
 
 
-def lookup_order(order_id: str) -> dict:
+def lookup_order(order_id: str) -> dict[str, str]:
     return {"order_id": order_id, "status": "shipped"}
 
 
@@ -15,7 +15,7 @@ def answer(question: str) -> str:
             {"role": "user", "content": question},
         ],
     )
-    return response.choices[0].message.content
+    return response.choices[0].message.content or ""
 
 
 if __name__ == "__main__":

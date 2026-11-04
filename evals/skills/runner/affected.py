@@ -50,7 +50,7 @@ def _description(ref: Optional[str], path: str) -> Optional[str]:
 
 def affected(base: str, changed: list[str], files: list[RoutingFile]) -> dict[str, list[str]]:
     by_skill = {routing.skill: routing for routing in files}
-    every_channel = sorted({c for routing in files for c in routing.resolved_channels()})
+    every_channel: list[str] = sorted({c for routing in files for c in routing.resolved_channels()})
     if WORKFLOW in changed or any(path.startswith("evals/skills/runner/") for path in changed):
         return {"skills": sorted(by_skill), "channels": every_channel}
 
@@ -67,10 +67,9 @@ def affected(base: str, changed: list[str], files: list[RoutingFile]) -> dict[st
             skill = parts[1]
             if _description(base, path) == _description(None, path):
                 continue
-            changed_channels = (
+            changed_channels: set[str] = (
                 set(by_skill[skill].resolved_channels()) if skill in by_skill else set()
-            )
-            changed_channels = changed_channels or set(every_channel)
+            ) or set(every_channel)
             channels.update(changed_channels)
             skills.update(
                 name

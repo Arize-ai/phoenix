@@ -66,9 +66,9 @@ def routed_correctly(output: dict[str, Any]) -> dict[str, Any]:
     return {"score": float(correct), "label": "correct" if correct else "wrong"}
 
 
-def load_rate(output: dict[str, Any]) -> Optional[float]:
+def load_rate(output: dict[str, Any]) -> dict[str, Any]:
     valid = output.get("valid_runs") or 0
-    return output["loads"] / valid if valid else None
+    return {"score": output["loads"] / valid if valid else None}
 
 
 def suite_metadata(suite: SuiteResult, run_metadata: dict[str, Any]) -> dict[str, Any]:
@@ -100,7 +100,7 @@ def record_suite(summary: dict[str, Any], client: Optional[Any] = None) -> str:
     client = client or Client()
     skill = summary["skill"]
     metadata = summary["metadata"]
-    cases = {case["query"]: case for case in summary["cases"]}
+    cases: dict[str, dict[str, Any]] = {case["query"]: case for case in summary["cases"]}
     examples = [
         {
             "id": case["id"],

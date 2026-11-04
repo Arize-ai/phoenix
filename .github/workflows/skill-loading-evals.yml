@@ -62,7 +62,7 @@ jobs:
           resolution-strategy: "lowest"
 
       - name: Sync dependencies
-        run: uv sync --frozen --package harbor-verifiers
+        run: uv sync --frozen --all-packages
 
       - name: Test the runner and check the routing files
         run: uv run --package harbor-verifiers python -m pytest evals/skills/tests
