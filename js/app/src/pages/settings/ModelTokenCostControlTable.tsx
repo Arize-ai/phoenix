@@ -19,12 +19,17 @@ import {
 } from "@phoenix/components";
 import type { ModelFormParams } from "@phoenix/pages/settings/ModelForm";
 import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
-import {
-  ModelTokenTypeComboBox,
-  normalizeTokenType,
-} from "@phoenix/pages/settings/ModelTokenTypeComboBox";
+import { ModelTokenTypeComboBox } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 
 const DUPLICATE_TOKEN_TYPE_ERROR = "Duplicate token type";
+
+/**
+ * Token types that trim and case-fold to the same value are duplicates, as the
+ * server compares them.
+ */
+function toDuplicateKey(tokenType: string | null | undefined): string {
+  return (tokenType ?? "").trim().toLowerCase();
+}
 
 export function ModelTokenCostControlTable({
   title,
@@ -128,17 +133,14 @@ export function ModelTokenCostControlTable({
                   control={control}
                   rules={{
                     validate: (value, formValues) => {
-                      const tokenType = normalizeTokenType(value ?? "");
+                      const tokenType = toDuplicateKey(value);
                       if (!tokenType) {
                         return "Token type is required";
                       }
                       const isDuplicate = formValues[namePrefix]
                         .slice(0, index)
                         .some(
-                          (cost) =>
-                            normalizeTokenType(
-                              cost.tokenType ?? ""
-                            ).toLowerCase() === tokenType.toLowerCase()
+                          (cost) => toDuplicateKey(cost.tokenType) === tokenType
                         );
                       return !isDuplicate || DUPLICATE_TOKEN_TYPE_ERROR;
                     },
@@ -191,6 +193,7 @@ export function ModelTokenCostControlTable({
               </td>
               <td>
                 <Button
+                  aria-label="Remove token type"
                   leadingVisual={<Icon svg={<Icons.Trash />} />}
                   onPress={() => {
                     onRemove(index);

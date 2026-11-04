@@ -280,13 +280,18 @@ def _normalize_provider(provider: Optional[str]) -> str:
     value, keeping custom providers as typed. The empty string is how a
     provider-agnostic model is stored.
     """
-    provider = (provider or "").strip()
-    return provider.lower() if provider.lower() in KNOWN_LLM_PROVIDER_STRINGS else provider
+    return _trim_and_snap_to_known(provider or "", KNOWN_LLM_PROVIDER_STRINGS)
 
 
 def _normalize_token_type(token_type: str) -> str:
-    token_type = token_type.strip()
-    return token_type.lower() if token_type.lower() in KNOWN_TOKEN_TYPES else token_type
+    return _trim_and_snap_to_known(token_type, KNOWN_TOKEN_TYPES)
+
+
+def _trim_and_snap_to_known(value: str, known_values: frozenset[str]) -> str:
+    """Trim the value and lowercase it if that makes it one of the known values."""
+    value = value.strip()
+    lowered = value.lower()
+    return lowered if lowered in known_values else value
 
 
 def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenPrice]:

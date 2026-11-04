@@ -84,7 +84,10 @@ export function ModelTokenTypeComboBox<
   invalid: boolean;
   isRequired?: boolean;
 }) {
-  const selectedOption = options.find((option) => option.tokenType === value);
+  const normalizedValue = normalizeTokenType(value ?? "");
+  const selectedOption = options.find(
+    (option) => option.tokenType === normalizedValue
+  );
   return (
     <ComboBox
       aria-label="Token type"
