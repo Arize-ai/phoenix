@@ -15,7 +15,8 @@ reference_output_path = "tests/expected.json"
 os = "linux"
 cpus = 1
 memory_mb = 2048
-network_mode = "public"
+# Agents reach their model provider through hosts in job.yaml. The verifier needs none.
+network_mode = "allowlist"
 
 [agent]
 user = "agent"

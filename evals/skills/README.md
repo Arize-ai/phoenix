@@ -118,7 +118,7 @@ should-not-load case.
 
    ```bash
    uv run --script evals/harbor/scripts/subset_job.py evals/harbor/skill-loading/job.yaml \
-     --agents codex --out evals/harbor/.cache/skill-loading-codex.yaml
+     --agents codex-loading --out evals/harbor/.cache/skill-loading-codex.yaml
    ```
 
 4. Run the job on local Docker and record it to phoenix-devs. Name the job after the
@@ -129,7 +129,7 @@ should-not-load case.
      'PHOENIX_COLLECTOR_ENDPOINT="$PHOENIX_AGENTS_COLLECTOR_ENDPOINT" exec \
      uvx --python 3.13 --from "harbor[daytona]==0.21.0" --with "$(ls dist/phoenix-client/*.whl)" \
      harbor run -c evals/harbor/.cache/skill-loading-codex.yaml \
-     --job-name "skill-loading-$(git rev-parse --short HEAD)-codex" \
+     --job-name "skill-loading-$(git rev-parse --short HEAD)-codex-loading" \
      --plugin arize-phoenix --plugin-kwarg dataset=skill-loading-SKILL_NAME --yes'
    ```
 

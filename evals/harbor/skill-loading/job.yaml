@@ -7,11 +7,17 @@
 datasets:
   - path: evals/harbor/skill-loading/tasks/phoenix-tracing
 agents:
+  # Harbor resolves a built-in agent name, such as `codex`, before `import_path`, so each
+  # condition needs a name of its own. `version` matches the image, so Harbor fails instead
+  # of installing another version.
+  #
   # Needs a workspace-scoped ANTHROPIC_API_KEY.
-  - name: claude-code
+  - name: claude-code-loading
     import_path: evals.harbor.agents.coding_agents:PreinstalledClaudeCode
     model_name: anthropic/claude-sonnet-5-5
+    extra_allowed_hosts: [api.anthropic.com]
     kwargs:
+      version: "2.1.287"
       max_turns: 3
       disallowed_tools: "WebSearch,WebFetch"
       config:
@@ -27,10 +33,12 @@ agents:
       - skills/phoenix-evals
       - skills/phoenix-harbor
       - skills/phoenix-tracing
-  - name: codex
+  - name: codex-loading
     import_path: evals.harbor.agents.coding_agents:PreinstalledCodex
     model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
     kwargs:
+      version: "0.154.0"
       reasoning_effort: medium
       web_search: disabled
     env:
