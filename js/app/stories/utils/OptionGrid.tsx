@@ -34,6 +34,12 @@ export type OptionGridProps<
   alignRows?: "start" | "center";
 };
 
+const cellCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+`;
+
 function Heading({ label, code }: OptionGridLabel) {
   return (
     <Text size="S" color="text-700" fontFamily={code ? "mono" : "default"}>
@@ -95,9 +101,12 @@ export function OptionGrid<
             </span>
           ) : null}
           {cellColumns.map((column) => (
-            <Fragment key={column?.label ?? ""}>
+            // A component that renders nothing, such as a tag group whose
+            // last tag was removed, must still hold its grid slot, or every
+            // later cell shifts back one place.
+            <div key={column?.label ?? ""} css={cellCSS}>
               {renderCell(row, column)}
-            </Fragment>
+            </div>
           ))}
         </Fragment>
       ))}
