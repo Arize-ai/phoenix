@@ -103,12 +103,6 @@ KNOWN_BROKEN = {
     "skills/phoenix-evals/references/experiments-datasets-python.md#2": (
         "datasets.get_dataset takes dataset=, not name="
     ),
-    "skills/phoenix-evals/references/experiments-running-python.md#3": (
-        "RanExperiment has no aggregate_scores or runs"
-    ),
-    "skills/phoenix-evals/references/experiments-running-python.md#0": (
-        "datasets.get_dataset takes dataset=, not name="
-    ),
 }
 
 

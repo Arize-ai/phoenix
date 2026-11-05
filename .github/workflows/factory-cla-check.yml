@@ -23,11 +23,15 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-          sparse-checkout: factory/cla_check.py
+          sparse-checkout: |
+            factory/cla_check.py
+            pyproject.toml
           sparse-checkout-cone-mode: false
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           python-version: "3.12"
 
       # The label is created and applied through the issues API, so the token needs Issues
@@ -47,4 +51,4 @@ jobs:
           GH_TOKEN: ${{ steps.factory-token.outputs.token }}
           # The reminder counts only when the app wrote it, so the sweep must know its login.
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
-        run: python factory/cla_check.py --repo "$GH_REPO"
+        run: uv run --script factory/cla_check.py --repo "$GH_REPO"

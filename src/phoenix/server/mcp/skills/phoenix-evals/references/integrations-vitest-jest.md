@@ -59,7 +59,7 @@ Use `px.test.each(rows)` for larger datasets. To run against an existing Phoenix
 ## Logging helpers
 
 - `px.logOutput(value)` — records the run output (`ExperimentRun.output`).
-- `px.logAnnotation({ name, score, label?, explanation?, metadata?, annotatorKind? })` — inline named score. `score` may be number or boolean (bools stored as 0/1); `annotatorKind` is `"LLM" | "CODE" | "HUMAN"` (default `"CODE"`).
+- `px.logAnnotation({ name, score, label?, explanation?, metadata?, annotatorKind? })` — inline named score. `score` may be number or boolean (bools stored as 0/1); `annotatorKind` is `"LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT"` (default `"CODE"`).
 - `px.evaluate(evaluator, params?)` — runs an `@arizeai/phoenix-evals` evaluator, records an annotation + linked evaluator trace. Omit `params` to auto-supply the test's `input`/`output`/`expected`/`metadata`/`traceId`.
 - `px.traceEvaluator(fn, options?)` — wrap a plain grading fn; runs in its own evaluator span and captures a returned `{ name, score }` as an annotation. Passes through your args (no auto-supply).
 

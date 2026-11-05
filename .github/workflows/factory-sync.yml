@@ -4,11 +4,14 @@ name: Factory Sync
 # Pull requests print the plan; a merge to main applies it. claude-lock.json is state that
 # `ant apply` writes, not config, so it lives on the factory-state branch, never on main.
 on:
+  # Agents attach skills from .agents/skills/ (`skills:` in factory/agents/), which is outside
+  # factory/, so a change to any skill plans and applies too. ant uploads only the skills an
+  # agent references; a change to any other skill plans nothing.
   pull_request:
-    paths: [factory/**]
+    paths: [factory/**, .agents/skills/**]
   push:
     branches: [main]
-    paths: [factory/**]
+    paths: [factory/**, .agents/skills/**]
   # Applies main by hand, e.g. after deleting factory-state to switch workspaces.
   workflow_dispatch:
 

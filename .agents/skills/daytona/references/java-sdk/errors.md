@@ -29,12 +29,14 @@
 - DaytonaNotFoundException
 - DaytonaProcessExecutionTimeoutException
 - DaytonaProcessNotFoundException
+- DaytonaQueueTimeoutException
 - DaytonaRateLimitException
 - DaytonaRecordingFfmpegNotFoundException
 - DaytonaRecordingStillActiveException
 - DaytonaServerException
 - DaytonaServiceUnavailableException
 - DaytonaSessionEndedException
+- DaytonaSpotEvictedException
 - DaytonaTimeoutException
 - DaytonaUnprocessableEntityException
 - DaytonaValidationException
@@ -1733,6 +1735,80 @@ public DaytonaProcessNotFoundException(String message, Throwable cause, String c
 - `code` _String_ -
 - `source` _String_ -
 
+## DaytonaQueueTimeoutException
+
+Thrown when a Sandbox was destroyed by the API because it waited longer than its queue timeout
+for a runner.
+
+### Constructors
+
+#### new DaytonaQueueTimeoutException()
+```java
+public DaytonaQueueTimeoutException(String message)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+
+#### new DaytonaQueueTimeoutException()
+```java
+public DaytonaQueueTimeoutException(String message, Throwable cause)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+- `cause` _Throwable_ -
+
+#### new DaytonaQueueTimeoutException()
+```java
+public DaytonaQueueTimeoutException(int statusCode, String message, String code, String source)
+```
+
+**Parameters**:
+
+- `statusCode` _int_ -
+- `message` _String_ -
+- `code` _String_ -
+- `source` _String_ -
+
+#### new DaytonaQueueTimeoutException()
+```java
+public DaytonaQueueTimeoutException(int statusCode, String message, Throwable cause, String code, String source)
+```
+
+**Parameters**:
+
+- `statusCode` _int_ -
+- `message` _String_ -
+- `cause` _Throwable_ -
+- `code` _String_ -
+- `source` _String_ -
+
+#### new DaytonaQueueTimeoutException()
+```java
+public DaytonaQueueTimeoutException(String message, String code, String source)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+- `code` _String_ -
+- `source` _String_ -
+
+#### new DaytonaQueueTimeoutException()
+```java
+public DaytonaQueueTimeoutException(String message, Throwable cause, String code, String source)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+- `cause` _Throwable_ -
+- `code` _String_ -
+- `source` _String_ -
+
 ## DaytonaRateLimitException
 
 Raised when API rate limits are exceeded (HTTP 429).
@@ -2051,6 +2127,33 @@ public DaytonaSessionEndedException(String message, Throwable cause, String code
 - `cause` _Throwable_ -
 - `code` _String_ -
 - `source` _String_ -
+
+## DaytonaSpotEvictedException
+
+Thrown when a Sandbox was destroyed by spot preemption.
+
+Detected client-side while waiting for a sandbox state; subclass of `DaytonaException`.
+
+### Constructors
+
+#### new DaytonaSpotEvictedException()
+```java
+public DaytonaSpotEvictedException(String message)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+
+#### new DaytonaSpotEvictedException()
+```java
+public DaytonaSpotEvictedException(String message, Throwable cause)
+```
+
+**Parameters**:
+
+- `message` _String_ -
+- `cause` _Throwable_ -
 
 ## DaytonaTimeoutException
 
