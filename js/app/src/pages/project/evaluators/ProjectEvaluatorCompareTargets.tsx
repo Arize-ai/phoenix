@@ -41,7 +41,9 @@ import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectEvaluatorCompareTargets_comparison$key } from "./__generated__/ProjectEvaluatorCompareTargets_comparison.graphql";
 import type { ProjectEvaluatorCompareTargets_evaluator$key } from "./__generated__/ProjectEvaluatorCompareTargets_evaluator.graphql";
-import type { ProjectEvaluatorCompareTargetsQuery } from "./__generated__/ProjectEvaluatorCompareTargetsQuery.graphql";
+import type { ProjectEvaluatorCompareTargetsSessionsQuery } from "./__generated__/ProjectEvaluatorCompareTargetsSessionsQuery.graphql";
+import type { ProjectEvaluatorCompareTargetsSpansQuery } from "./__generated__/ProjectEvaluatorCompareTargetsSpansQuery.graphql";
+import type { ProjectEvaluatorCompareTargetsTracesQuery } from "./__generated__/ProjectEvaluatorCompareTargetsTracesQuery.graphql";
 import {
   buildCompareFilterCondition,
   type CompareTarget,
@@ -393,23 +395,19 @@ type TargetsProps = {
   onFilterConditionApplied: (condition: string) => void;
 };
 
-type TargetsTableProps = Omit<TargetsProps, "target"> &
-  (
-    | { target: "SPAN"; seed: SettledSpanFilterSeed }
-    | { target: "TRACE" | "SESSION" }
-  );
+type TargetsTableProps = Omit<TargetsProps, "target">;
 
 function CompareTargetsFilters(props: TargetsProps) {
   if (props.target === "SPAN") return <CompareSpanTargets {...props} />;
   if (props.target === "TRACE")
     return (
       <TraceFiltersProvider initialFilterCondition={props.condition}>
-        <CompareTargetsTable {...props} target="TRACE" />
+        <CompareTraceTargetsTable {...props} />
       </TraceFiltersProvider>
     );
   return (
     <SessionFiltersProvider initialFilterCondition={props.condition}>
-      <CompareTargetsTable {...props} target="SESSION" />
+      <CompareSessionTargetsTable {...props} />
     </SessionFiltersProvider>
   );
 }
@@ -440,9 +438,8 @@ function CompareSpanTargets(props: TargetsProps) {
           />
         )}
       >
-        <CompareTargetsTable
+        <CompareSpanTargetsTable
           {...props}
-          target="SPAN"
           condition={seed.condition}
           seed={seed}
         />
@@ -451,20 +448,38 @@ function CompareSpanTargets(props: TargetsProps) {
   );
 }
 
-function CompareTargetsTable(props: TargetsTableProps) {
-  const { projectId, target, condition, timeRange } = props;
-  const seed = props.target === "SPAN" ? props.seed : null;
+function toTimeRangeInput(timeRange: TimeRange) {
+  return {
+    start: timeRange.start.toISOString(),
+    end: timeRange.end.toISOString(),
+  };
+}
+
+function CompareTargetsEmptyState({ target }: { target: CompareTarget }) {
+  return (
+    <TableEmptyWrap>
+      <EmptyState
+        title={`No matching ${target.toLowerCase()}s`}
+        description="Try a different comparison selection or time range."
+      />
+    </TableEmptyWrap>
+  );
+}
+
+// Each target loads in its own query: the server's alias limit counts every
+// fragment in a document, including ones skipped by @include.
+function CompareSpanTargetsTable(
+  props: TargetsTableProps & { seed: SettledSpanFilterSeed }
+) {
+  const { projectId, condition, timeRange, seed } = props;
   const { targetId } = useParams();
-  const data = useLazyLoadQuery<ProjectEvaluatorCompareTargetsQuery>(
+  const data = useLazyLoadQuery<ProjectEvaluatorCompareTargetsSpansQuery>(
     graphql`
-      query ProjectEvaluatorCompareTargetsQuery(
+      query ProjectEvaluatorCompareTargetsSpansQuery(
         $id: ID!
         $timeRange: TimeRange!
         $condition: String!
         $rootSpansOnly: Boolean!
-        $isSpan: Boolean!
-        $isTrace: Boolean!
-        $isSession: Boolean!
       ) {
         project: node(id: $id) {
           ... on Project {
@@ -473,64 +488,87 @@ function CompareTargetsTable(props: TargetsTableProps) {
                 filterCondition: $condition
                 rootSpansOnly: $rootSpansOnly
               )
-              @include(if: $isSpan)
-            ...TracesTable_spans
-              @arguments(traceFilterCondition: $condition)
-              @include(if: $isTrace)
-            ...SessionsTable_sessions
-              @arguments(sessionFilterCondition: $condition)
-              @include(if: $isSession)
           }
         }
       }
     `,
     {
       id: projectId,
-      timeRange: {
-        start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
-      },
+      timeRange: toTimeRangeInput(timeRange),
       condition,
-      rootSpansOnly: seed?.rootSpansOnly ?? false,
-      isSpan: target === "SPAN",
-      isTrace: target === "TRACE",
-      isSession: target === "SESSION",
+      rootSpansOnly: seed.rootSpansOnly,
     },
     // Refresh cached rows when a selection is revisited.
     { fetchPolicy: "store-and-network" }
   );
-  const emptyState = (
-    <TableEmptyWrap>
-      <EmptyState
-        title={`No matching ${target.toLowerCase()}s`}
-        description="Try a different comparison selection or time range."
-      />
-    </TableEmptyWrap>
+  return (
+    <SpansTable
+      project={data.project}
+      seed={seed}
+      emptyState={<CompareTargetsEmptyState target="SPAN" />}
+      selectedRowId={targetId}
+      onFilterConditionApplied={props.onFilterConditionApplied}
+    />
   );
-  if (props.target === "SPAN") {
-    return (
-      <SpansTable
-        project={data.project}
-        seed={props.seed}
-        emptyState={emptyState}
-        selectedRowId={targetId}
-        onFilterConditionApplied={props.onFilterConditionApplied}
-      />
-    );
-  }
-  if (target === "TRACE")
-    return (
-      <TracesTable
-        project={data.project}
-        emptyState={emptyState}
-        selectedRowId={targetId}
-        onFilterConditionApplied={props.onFilterConditionApplied}
-      />
-    );
+}
+
+function CompareTraceTargetsTable(props: TargetsTableProps) {
+  const { projectId, condition, timeRange } = props;
+  const { targetId } = useParams();
+  const data = useLazyLoadQuery<ProjectEvaluatorCompareTargetsTracesQuery>(
+    graphql`
+      query ProjectEvaluatorCompareTargetsTracesQuery(
+        $id: ID!
+        $timeRange: TimeRange!
+        $condition: String!
+      ) {
+        project: node(id: $id) {
+          ... on Project {
+            ...TracesTable_spans @arguments(traceFilterCondition: $condition)
+          }
+        }
+      }
+    `,
+    { id: projectId, timeRange: toTimeRangeInput(timeRange), condition },
+    // Refresh cached rows when a selection is revisited.
+    { fetchPolicy: "store-and-network" }
+  );
+  return (
+    <TracesTable
+      project={data.project}
+      emptyState={<CompareTargetsEmptyState target="TRACE" />}
+      selectedRowId={targetId}
+      onFilterConditionApplied={props.onFilterConditionApplied}
+    />
+  );
+}
+
+function CompareSessionTargetsTable(props: TargetsTableProps) {
+  const { projectId, condition, timeRange } = props;
+  const { targetId } = useParams();
+  const data = useLazyLoadQuery<ProjectEvaluatorCompareTargetsSessionsQuery>(
+    graphql`
+      query ProjectEvaluatorCompareTargetsSessionsQuery(
+        $id: ID!
+        $timeRange: TimeRange!
+        $condition: String!
+      ) {
+        project: node(id: $id) {
+          ... on Project {
+            ...SessionsTable_sessions
+              @arguments(sessionFilterCondition: $condition)
+          }
+        }
+      }
+    `,
+    { id: projectId, timeRange: toTimeRangeInput(timeRange), condition },
+    // Refresh cached rows when a selection is revisited.
+    { fetchPolicy: "store-and-network" }
+  );
   return (
     <SessionsTable
       project={data.project}
-      emptyState={emptyState}
+      emptyState={<CompareTargetsEmptyState target="SESSION" />}
       selectedRowId={targetId}
       onFilterConditionApplied={props.onFilterConditionApplied}
     />
