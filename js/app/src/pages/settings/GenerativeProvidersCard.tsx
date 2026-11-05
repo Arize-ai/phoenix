@@ -253,7 +253,7 @@ export function getProviderCredentialsStatus(
   hasLocalCredentials: boolean
 ): { category: StatusCategory; label: string; detail?: string } {
   if (!provider.dependenciesInstalled) {
-    return { category: "off", label: "Not installed" };
+    return { category: "unavailable", label: "Not installed" };
   }
   if (!isModelProvider(provider.key)) {
     return { category: "failed", label: "Unknown provider" };

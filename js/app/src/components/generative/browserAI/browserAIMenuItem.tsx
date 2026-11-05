@@ -41,7 +41,10 @@ export function BrowserModelAvailabilityStatus({
       );
     default:
       return (
-        <StatusIndicator category="off" label="Not supported in this browser" />
+        <StatusIndicator
+          category="unavailable"
+          label="Not supported in this browser"
+        />
       );
   }
 }

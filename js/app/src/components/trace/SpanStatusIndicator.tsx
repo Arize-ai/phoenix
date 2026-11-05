@@ -9,7 +9,7 @@ const SPAN_STATUSES: Record<
 > = {
   OK: { category: "succeeded", label: "OK" },
   ERROR: { category: "failed", label: "Error" },
-  UNSET: { category: "unknown", label: "Unset" },
+  UNSET: { category: "unset", label: "Unset" },
 };
 
 export function SpanStatusIndicator({

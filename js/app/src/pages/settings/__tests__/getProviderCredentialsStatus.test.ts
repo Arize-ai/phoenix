@@ -25,7 +25,7 @@ describe("getProviderCredentialsStatus", () => {
         provider({ dependenciesInstalled: false }),
         false
       )
-    ).toEqual({ category: "off", label: "Not installed" });
+    ).toEqual({ category: "unavailable", label: "Not installed" });
   });
 
   it("reports a provider that needs no credentials as ready", () => {

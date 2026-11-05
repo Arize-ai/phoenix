@@ -29,8 +29,9 @@ export const STATUS_CATEGORIES = [
   "stopped",
   "warning",
   "needs-credentials",
-  "off",
-  "unknown",
+  "disabled",
+  "unavailable",
+  "unset",
 ] as const;
 
 export type StatusCategory = (typeof STATUS_CATEGORIES)[number];
@@ -64,8 +65,9 @@ const GLYPHS: Record<StatusCategory, () => ReactNode> = {
   stopped: StopFilled,
   warning: AlertTriangleFilled,
   "needs-credentials": Key,
-  off: Ban,
-  unknown: Minus,
+  disabled: Ban,
+  unavailable: Minus,
+  unset: Minus,
 };
 
 const statusIndicatorCSS = css`
@@ -95,7 +97,9 @@ const statusIndicatorCSS = css`
   &[data-category="failed"] {
     --status-indicator-tone: var(--global-color-danger);
   }
-  &[data-category="off"] {
+  &[data-category="disabled"],
+  &[data-category="unavailable"],
+  &[data-category="unset"] {
     --status-indicator-tone: var(--global-text-color-300);
     color: var(--global-text-color-500);
   }
@@ -143,7 +147,9 @@ const statusIndicatorCSS = css`
  *
  * The glyph carries the category and its tone reinforces it, so the status
  * still reads in grayscale: there are fewer tones than categories, and many
- * categories are neutral.
+ * categories are neutral. Two categories share a glyph only when a reader
+ * would respond to them the same way, as `unavailable` and `unset` do; the
+ * label tells them apart.
  *
  * - **Under way**: `pending` (accepted, not started), `active` (in progress),
  *   `needs-input` (halted partway until a person answers: an approval, a
@@ -154,8 +160,10 @@ const statusIndicatorCSS = css`
  *   good: cancelled, denied, skipped)
  * - **No outcome**: `warning` (works, but needs attention),
  *   `needs-credentials` (cannot be used until someone supplies credentials:
- *   an API key, a token), `off` (disabled, not installed, or does not
- *   apply), `unknown` (no value was reported)
+ *   an API key, a token), `disabled` (turned off by a person or a policy),
+ *   `unavailable` (does not exist here, and nobody chose that: not
+ *   installed, not supported in this browser), `unset` (nothing has been
+ *   set or recorded)
  *
  * Categories are shared vocabulary, not a closed list. Add one when a
  * meaning recurs in more than one domain, asks the same of the reader each
