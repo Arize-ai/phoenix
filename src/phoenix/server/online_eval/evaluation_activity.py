@@ -405,10 +405,10 @@ def _queued(
     the queue at or after ``start``, with when each entered and left.
 
     Still-queued rows are read newest first through ``ix_*_claimable``, at most
-    ``MAX_QUEUED_ROWS_READ`` per status, and rows that left through ``ix_*_terminal`` from
-    ``start``. The evaluator is matched as an expression so neither dialect reads each
-    evaluator's whole history by its index instead. Rows inserted already declined never
-    entered the queue, and no branch reads them.
+    ``MAX_QUEUED_ROWS_READ`` of the scope's per status, and rows that left through
+    ``ix_*_terminal`` from ``start``. The evaluator is matched as an expression so neither
+    dialect reads each evaluator's whole history by its index instead. Rows inserted already
+    declined never entered the queue, and no branch reads them.
     """
     branches: list[sa.Select[*tuple[Any, ...]]] = []
     for model, terminal_statuses in _WORK_TABLES:
@@ -416,7 +416,12 @@ def _queued(
         for status in LIVE_EVAL_WORK_STATUSES:
             newest = (
                 sa.select(model.project_evaluator_id, model.created_at)
-                .where(_status_in(model, LIVE_EVAL_WORK_STATUSES), model.status == status)
+                .where(
+                    _status_in(model, LIVE_EVAL_WORK_STATUSES),
+                    model.status == status,
+                    in_scope,
+                    model.created_at < end,
+                )
                 .order_by(model.id.desc())
                 .limit(queue_health.MAX_QUEUED_ROWS_READ)
                 .subquery()
@@ -426,9 +431,6 @@ def _queued(
                     newest.c.project_evaluator_id.label("project_evaluator_id"),
                     newest.c.created_at.label("entered_at"),
                     sa.cast(sa.null(), models.UtcTimeStamp).label("exited_at"),
-                ).where(
-                    newest.c.project_evaluator_id.in_(project_evaluator_ids),
-                    newest.c.created_at < end,
                 )
             )
         branches.append(

@@ -293,6 +293,54 @@ async def test_queue_size_counts_at_most_the_bound_of_each_status(
     assert [group.queue_size for group in activity.series[-1].groups] == [3]
 
 
+async def _seed_pending(
+    db: DbSessionFactory, project: models.Project, created_at: list[datetime]
+) -> int:
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        for at in created_at:
+            session.add(
+                models.EvalWorkUnit(
+                    span_rowid=(await _add_span(session, trace)).id,
+                    project_evaluator_id=project_evaluator_id,
+                    created_at=at,
+                )
+            )
+    return project_evaluator_id
+
+
+async def test_queue_size_bound_counts_only_the_projects_own_work(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    async with db() as session:
+        project, other_project = await _add_project(session), await _add_project(session)
+    await _seed_pending(db, project, [_at(12, 10)])
+    await _seed_pending(db, other_project, [_at(12, 20)] * 2)
+
+    activity = await load_evaluation_activity(
+        db, project_id=project.id, start=_at(12), end=_at(13), time_bins=_HOURLY
+    )
+
+    assert [group.queue_size for group in activity.series[-1].groups] == [1]
+
+
+async def test_queue_size_bound_counts_only_work_queued_before_the_range_end(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    async with db() as session:
+        project = await _add_project(session)
+    await _seed_pending(db, project, [_at(12, 10), _at(14), _at(14)])
+
+    activity = await load_evaluation_activity(
+        db, project_id=project.id, start=_at(12), end=_at(13), time_bins=_HOURLY
+    )
+
+    assert [group.queue_size for group in activity.series[-1].groups] == [1]
+
+
 async def test_activity_over_an_empty_range(db: DbSessionFactory) -> None:
     seeded = await _seed(db)
     activity = await load_evaluation_activity(
