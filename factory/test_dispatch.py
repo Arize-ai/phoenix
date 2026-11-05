@@ -1,11 +1,17 @@
 """Regression tests for the dispatch CI gate; run with unittest discovery in factory/."""
 
+import itertools
 import json
 import subprocess
 import unittest
 from unittest.mock import patch
 
 from dispatch import main, wait_for_checks
+
+
+def clock_reaching_deadline(*, polls: int) -> itertools.chain[int]:
+    """A monotonic clock that allows the given polls, then passes a deadline of 1."""
+    return itertools.chain([0] * polls, itertools.repeat(2))
 
 
 class WaitForChecksTest(unittest.TestCase):
@@ -19,7 +25,7 @@ class WaitForChecksTest(unittest.TestCase):
         pending = [{"name": "Python CI Required", "bucket": "pending", "link": ""}]
         passed = [{"name": "Python CI Required", "bucket": "pass", "link": ""}]
         with (
-            patch("dispatch.time.monotonic", return_value=0),
+            patch("dispatch.time.monotonic", side_effect=clock_reaching_deadline(polls=2)),
             patch("dispatch.time.sleep") as sleep,
             patch(
                 "dispatch.subprocess.run",
@@ -43,7 +49,8 @@ class WaitForChecksTest(unittest.TestCase):
             {"name": "Playwright CI Required", "bucket": "skipping", "link": ""},
         ]
         with (
-            patch("dispatch.time.monotonic", return_value=0),
+            patch("dispatch.time.monotonic", side_effect=clock_reaching_deadline(polls=1)),
+            patch("dispatch.time.sleep"),
             patch(
                 "dispatch.subprocess.run",
                 return_value=subprocess.CompletedProcess([], 1, stdout=json.dumps(checks)),
@@ -60,7 +67,8 @@ class WaitForChecksTest(unittest.TestCase):
             {"name": "docs/readthedocs.org:arize-phoenix", "bucket": "fail", "link": ""},
         ]
         with (
-            patch("dispatch.time.monotonic", return_value=0),
+            patch("dispatch.time.monotonic", side_effect=clock_reaching_deadline(polls=1)),
+            patch("dispatch.time.sleep"),
             patch(
                 "dispatch.subprocess.run",
                 return_value=subprocess.CompletedProcess([], 1, stdout=json.dumps(checks)),
@@ -71,7 +79,7 @@ class WaitForChecksTest(unittest.TestCase):
     def test_feature_base_waits_when_no_check_main_requires_is_reported(self) -> None:
         checks = [{"name": "claude-review", "bucket": "pass", "link": ""}]
         with (
-            patch("dispatch.time.monotonic", side_effect=[0, 2]),
+            patch("dispatch.time.monotonic", side_effect=clock_reaching_deadline(polls=1)),
             patch("dispatch.time.sleep") as sleep,
             patch(
                 "dispatch.subprocess.run",
@@ -85,7 +93,7 @@ class WaitForChecksTest(unittest.TestCase):
         for stdout in ("", "[]"):
             with (
                 self.subTest(stdout=stdout),
-                patch("dispatch.time.monotonic", side_effect=[0, 2]),
+                patch("dispatch.time.monotonic", side_effect=clock_reaching_deadline(polls=1)),
                 patch("dispatch.time.sleep") as sleep,
                 patch(
                     "dispatch.subprocess.run",
