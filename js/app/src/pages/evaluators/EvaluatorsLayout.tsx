@@ -4,8 +4,11 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet, useMatch, useNavigate } from "react-router";
 
 import { Counter, LazyTabPanel, Tab, TabList, Tabs } from "@phoenix/components";
-import { TableSkeleton } from "@phoenix/components/table";
+import { Skeleton } from "@phoenix/components/core/loading";
 import type { EvaluatorsLayoutCountsQuery } from "@phoenix/pages/evaluators/__generated__/EvaluatorsLayoutCountsQuery.graphql";
+import { AllEvaluatorsTabSkeleton } from "@phoenix/pages/evaluators/all/AllEvaluatorsTab";
+import { DatasetEvaluatorsTabSkeleton } from "@phoenix/pages/evaluators/dataset-evaluators/DatasetEvaluatorsTab";
+import { ProjectEvaluatorsTabSkeleton } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTab";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -46,6 +49,22 @@ function isTabName(name: unknown): name is TabName {
   return typeof name === "string" && name in TAB_PATHS;
 }
 
+const tabCountSkeletonCSS = css`
+  display: inline-block;
+  vertical-align: middle;
+`;
+
+/** A tab's count while it loads, in the space a one-digit count takes. */
+function TabCountSkeleton() {
+  return (
+    <Skeleton
+      css={tabCountSkeletonCSS}
+      width="calc(var(--global-dimension-size-150) + 2 * var(--global-dimension-size-50))"
+      height="var(--global-line-height-xs)"
+    />
+  );
+}
+
 /**
  * How many evaluators a tab lists. Fetched on every visit, since evaluators
  * are created and deleted on project and dataset pages.
@@ -68,7 +87,7 @@ function TabCount({ tab }: { tab: TabName }) {
       : tab === "dataset-evaluators"
         ? datasetEvaluatorCount
         : projectEvaluatorCount + datasetEvaluatorCount;
-  return <Counter>{count}</Counter>;
+  return <Counter variant="quiet">{count}</Counter>;
 }
 
 /**
@@ -99,35 +118,35 @@ export function EvaluatorsLayout() {
         <TabList>
           <Tab id="project-evaluators">
             Project evaluators{" "}
-            <Suspense fallback={null}>
+            <Suspense fallback={<TabCountSkeleton />}>
               <TabCount tab="project-evaluators" />
             </Suspense>
           </Tab>
           <Tab id="dataset-evaluators">
             Dataset evaluators{" "}
-            <Suspense fallback={null}>
+            <Suspense fallback={<TabCountSkeleton />}>
               <TabCount tab="dataset-evaluators" />
             </Suspense>
           </Tab>
           <Tab id="all">
-            All{" "}
-            <Suspense fallback={null}>
+            All evaluators{" "}
+            <Suspense fallback={<TabCountSkeleton />}>
               <TabCount tab="all" />
             </Suspense>
           </Tab>
         </TabList>
         <LazyTabPanel id="project-evaluators">
-          <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
+          <Suspense fallback={<ProjectEvaluatorsTabSkeleton />}>
             <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="dataset-evaluators">
-          <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
+          <Suspense fallback={<DatasetEvaluatorsTabSkeleton />}>
             <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel id="all">
-          <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
+          <Suspense fallback={<AllEvaluatorsTabSkeleton />}>
             <Outlet />
           </Suspense>
         </LazyTabPanel>

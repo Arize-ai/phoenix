@@ -50,6 +50,13 @@ type TableRow = {
 
 const columns: ColumnDef<TableRow>[] = [
   {
+    id: "kind",
+    header: "kind",
+    size: 80,
+    accessorFn: (row) => row.kind,
+    cell: ({ row }) => <EvaluatorKindToken kind={row.original.kind} />,
+  },
+  {
     id: "name",
     header: "name",
     size: 220,
@@ -73,13 +80,6 @@ const columns: ColumnDef<TableRow>[] = [
         <DatasetLink name={name} to={path} />
       );
     },
-  },
-  {
-    id: "kind",
-    header: "kind",
-    size: 100,
-    accessorFn: (row) => row.kind,
-    cell: ({ row }) => <EvaluatorKindToken kind={row.original.kind} />,
   },
   {
     id: "status",

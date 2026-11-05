@@ -11,8 +11,10 @@ import {
   EvaluatorAverageCost,
   EvaluatorCost,
 } from "@phoenix/components/evaluators/EvaluatorCost";
+import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { ProjectLink } from "@phoenix/components/project/ProjectLink";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { ColumnHeaderWithHelp } from "@phoenix/components/table/ColumnHeaderWithHelp";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -262,6 +264,15 @@ export function ProjectEvaluatorsTabTable({
       ),
     },
     {
+      id: "kind",
+      header: "kind",
+      size: 80,
+      accessorFn: (row) => row.evaluator.kind,
+      cell: ({ row }) => (
+        <EvaluatorKindToken kind={row.original.evaluator.kind} />
+      ),
+    },
+    {
       id: "name",
       header: "name",
       size: 200,
@@ -295,7 +306,11 @@ export function ProjectEvaluatorsTabTable({
     },
     {
       id: "queue",
-      header: "queued",
+      header: () => (
+        <ColumnHeaderWithHelp help="Evaluations waiting to run, including retries, or running now, and how long the longest-waiting one has waited.">
+          queued
+        </ColumnHeaderWithHelp>
+      ),
       size: 110,
       meta: { textAlign: "right" },
       sortDescFirst: true,
@@ -306,7 +321,11 @@ export function ProjectEvaluatorsTabTable({
     },
     {
       id: "share",
-      header: "queue share",
+      header: () => (
+        <ColumnHeaderWithHelp help="This evaluator's part of everything queued on the server. Highlighted when the queue is degraded and this evaluator is one of the few holding most of it.">
+          queue share
+        </ColumnHeaderWithHelp>
+      ),
       size: 150,
       meta: { textAlign: "right" },
       sortDescFirst: true,
@@ -321,8 +340,12 @@ export function ProjectEvaluatorsTabTable({
     },
     {
       id: "lag",
-      header: "lag p95",
-      size: 96,
+      header: () => (
+        <ColumnHeaderWithHelp help="95% of evaluations that finished in the time range, failures included, did so within this long of being queued. Hover a value for p50 and p99.">
+          lag p95
+        </ColumnHeaderWithHelp>
+      ),
+      size: 120,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
@@ -331,8 +354,12 @@ export function ProjectEvaluatorsTabTable({
     },
     {
       id: "load",
-      header: "load",
-      size: 80,
+      header: () => (
+        <ColumnHeaderWithHelp help="Share of the server's evaluation time this evaluator used over the last hour, whatever the time range.">
+          load
+        </ColumnHeaderWithHelp>
+      ),
+      size: 100,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
@@ -346,8 +373,12 @@ export function ProjectEvaluatorsTabTable({
     },
     {
       id: "failures",
-      header: "failure rate",
-      size: 110,
+      header: () => (
+        <ColumnHeaderWithHelp help="Share of evaluations that finished in the time range and were given up on, because retries ran out or the error is not retried.">
+          failure rate
+        </ColumnHeaderWithHelp>
+      ),
+      size: 130,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
@@ -360,8 +391,12 @@ export function ProjectEvaluatorsTabTable({
     },
     {
       id: "cost",
-      header: "total cost",
-      size: 110,
+      header: () => (
+        <ColumnHeaderWithHelp help="Token cost of this evaluator's LLM calls in the time range. Evaluators that make no LLM calls have no cost.">
+          total cost
+        </ColumnHeaderWithHelp>
+      ),
+      size: 120,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
@@ -375,7 +410,11 @@ export function ProjectEvaluatorsTabTable({
     },
     {
       id: "averageCost",
-      header: "avg cost / run",
+      header: () => (
+        <ColumnHeaderWithHelp help="Total cost divided by the number of evaluations traced in the time range.">
+          avg cost / run
+        </ColumnHeaderWithHelp>
+      ),
       size: 130,
       meta: { textAlign: "right" },
       sortDescFirst: true,
