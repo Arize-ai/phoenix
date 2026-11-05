@@ -46,14 +46,21 @@ export type ProviderCredentialStatus = {
  * OpenAI. The server cannot detect these, so absence of explicit credentials
  * does not mean the provider is unusable.
  *
- * Each maps to a description of where its ambient credentials come from, so
- * a provider can't be added here without one.
+ * Each maps to where its ambient credentials come from, in a sentence and as
+ * the credential's short name, so a provider can't be added here without both.
  */
-const DEFAULT_CREDENTIAL_CHAIN_SOURCES: Partial<Record<ModelProvider, string>> =
-  {
-    AWS: "the AWS credential chain, such as an IAM role",
-    AZURE_OPENAI: "an Azure managed identity",
-  };
+const DEFAULT_CREDENTIAL_CHAINS: Partial<
+  Record<ModelProvider, { source: string; credential: string }>
+> = {
+  AWS: {
+    source: "the AWS credential chain, such as an IAM role",
+    credential: "an IAM role",
+  },
+  AZURE_OPENAI: {
+    source: "an Azure managed identity",
+    credential: "a managed identity",
+  },
+};
 
 /**
  * Where a provider's ambient default credentials come from, or null if it
@@ -67,7 +74,43 @@ export function getDefaultCredentialChainSource({
   if (!isModelProvider(providerKey)) {
     return null;
   }
-  return DEFAULT_CREDENTIAL_CHAIN_SOURCES[providerKey] ?? null;
+  return DEFAULT_CREDENTIAL_CHAINS[providerKey]?.source ?? null;
+}
+
+/**
+ * The short name of the ambient credential a provider can use instead of
+ * credentials configured in Phoenix, such as "an IAM role", or null if it has
+ * no default credential chain.
+ */
+function getDefaultCredentialChainCredential({
+  providerKey,
+}: {
+  providerKey: string;
+}): string | null {
+  if (!isModelProvider(providerKey)) {
+    return null;
+  }
+  return DEFAULT_CREDENTIAL_CHAINS[providerKey]?.credential ?? null;
+}
+
+/**
+ * The status of a provider whose required credentials are not configured in
+ * Phoenix. A provider with a default credential chain may still work, so the
+ * detail names the ambient credential it can use instead.
+ */
+export function getMissingCredentialsStatus({
+  providerKey,
+}: {
+  providerKey: string;
+}): { category: "needs-credentials"; label: string; detail?: string } {
+  const credential = getDefaultCredentialChainCredential({ providerKey });
+  return credential
+    ? {
+        category: "needs-credentials",
+        label: "Needs credentials",
+        detail: `Or ${credential}`,
+      }
+    : { category: "needs-credentials", label: "Needs credentials" };
 }
 
 export function providerSupportsDefaultCredentialChain({

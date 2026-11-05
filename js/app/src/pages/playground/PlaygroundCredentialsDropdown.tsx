@@ -19,10 +19,12 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Skeleton,
+  StatusIndicator,
   Text,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { getMissingCredentialsStatus } from "@phoenix/components/generative/modelProviderUtils";
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -243,19 +245,13 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
                     </Heading>
                   </Flex>
                   {credentialsSet ? (
-                    <Flex direction="row" gap="size-50" alignItems="center">
-                      <Text color="success" size="S">
-                        Configured
-                      </Text>
-                      <Icon color="success" svg={<Icons.CheckmarkCircle />} />
-                    </Flex>
+                    <StatusIndicator category="succeeded" label="Configured" />
                   ) : (
-                    <Flex direction="row" gap="size-50" alignItems="center">
-                      <Text color="text-700" size="S">
-                        Not Configured
-                      </Text>
-                      <Icon svg={<Icons.MinusCircle />} />
-                    </Flex>
+                    <StatusIndicator
+                      {...getMissingCredentialsStatus({
+                        providerKey: provider,
+                      })}
+                    />
                   )}
                 </Flex>
                 <View paddingTop="size-100">
