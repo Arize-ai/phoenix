@@ -7,6 +7,7 @@ import {
   Checkmark,
   CircleDashed,
   Close,
+  Key,
   LoaderCircle,
   MessageCircleQuestionMark,
   Minus,
@@ -15,8 +16,8 @@ import {
 } from "@phoenix/components/core/icon/Icons";
 
 /**
- * The ten categories every status value in Phoenix maps to. The design system
- * owns each category's glyph and tone; a domain owns the words.
+ * The categories status values in Phoenix map to. The design system owns
+ * each category's glyph and tone; a domain owns the words.
  */
 export const STATUS_CATEGORIES = [
   "pending",
@@ -27,6 +28,7 @@ export const STATUS_CATEGORIES = [
   "failed",
   "stopped",
   "warning",
+  "needs-credentials",
   "off",
   "unknown",
 ] as const;
@@ -61,6 +63,7 @@ const GLYPHS: Record<StatusCategory, () => ReactNode> = {
   failed: Close,
   stopped: StopFilled,
   warning: AlertTriangleFilled,
+  "needs-credentials": Key,
   off: Ban,
   unknown: Minus,
 };
@@ -135,27 +138,44 @@ const statusIndicatorCSS = css`
 `;
 
 /**
- * A Status: the lifecycle or health of a thing, from a closed set. Drawn as a
- * glyph and a word with no container, on every surface, headers included.
+ * A Status: the lifecycle or health of a thing. Drawn as a glyph and a word
+ * with no container, on every surface, headers included.
  *
  * The glyph carries the category and its tone reinforces it, so the status
- * still reads in grayscale: five tones cannot tell ten categories apart, and
- * five of the categories are neutral.
+ * still reads in grayscale: there are fewer tones than categories, and many
+ * categories are neutral.
  *
  * - **Under way**: `pending` (accepted, not started), `active` (in progress),
- *   `needs-input` (halted by the system until a person acts: an approval, an
- *   answer, credentials), `paused` (held by a person on purpose and
- *   resumable; nothing is required)
+ *   `needs-input` (halted partway until a person answers: an approval, a
+ *   question), `paused` (held by a person on purpose and resumable; nothing
+ *   is required)
  * - **Settled**: `succeeded` (finished, or ready), `failed` (ended
  *   abnormally, or cannot be used), `stopped` (ended early on purpose, for
  *   good: cancelled, denied, skipped)
- * - **No outcome**: `warning` (works, but needs attention), `off` (disabled,
- *   not installed, or does not apply), `unknown` (no value was reported)
+ * - **No outcome**: `warning` (works, but needs attention),
+ *   `needs-credentials` (cannot be used until someone supplies credentials:
+ *   an API key, a token), `off` (disabled, not installed, or does not
+ *   apply), `unknown` (no value was reported)
+ *
+ * Categories are shared vocabulary, not a closed list. Add one when a
+ * meaning recurs in more than one domain, asks the same of the reader each
+ * time, and would be misdescribed by every existing category. One domain's
+ * vocabulary is a label, not a category. Name a category for what is true of
+ * the thing, and give it a glyph whose metaphor holds in every use. A value
+ * that fits no category is often two axes, such as a lifecycle and an
+ * outcome, each in its own slot; extra facts go in `detail`.
+ *
+ * Tone belongs to the category and matches how the status reads in a list
+ * of everything. `needs-credentials` is gray, because a page of providers
+ * nobody has set up is not an alarm. `needs-input` is warning, because it
+ * only arises inside a task that is under way. When a status stands between
+ * the viewer and what they are trying to do, the task's own surface says so
+ * — an alert beside the action, a disabled action with its reason, a
+ * trigger that opens the fix — rather than a recolored status.
  *
  * A status is never its own hit target. One that must explain itself (why
  * a provider is unavailable) or open detail goes inside a `MarkerTrigger`,
- * which underlines the label to show it. A value that fits no category is
- * usually two axes, such as a lifecycle and an outcome, each in its own slot.
+ * which underlines the label to show it.
  *
  * Where space is tight, show only the statuses worth noticing rather than
  * dropping the word: a trace tree row marks a failed span and leaves an
