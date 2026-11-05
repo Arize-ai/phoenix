@@ -3,7 +3,18 @@
 # Toxiproxy Network Scenario Manager for Docker Compose
 # Usage: ./scripts/toxiproxy-scenario.sh [scenario]
 
-TOXIPROXY_API="http://localhost:8474"
+# The admin API, through Traefik. The toxiproxy-ui service forwards /api/ to it.
+TOXIPROXY_API="${TOXIPROXY_API:-http://localhost:18273/toxiproxy/api}"
+
+# toxiproxy-ui accepts API requests only with this header.
+curl() {
+    command curl -H "X-Requested-With: toxiproxy-ui" "$@"
+}
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo "❌ jq is required (it lists the toxics to remove before a scenario is applied)" >&2
+    exit 1
+fi
 
 remove_all_toxics() {
     echo "🧹 Removing existing toxics..."
@@ -87,7 +98,7 @@ scenario_bad_network() {
 }
 
 scenario_aurora() {
-    echo "🌟 Setting up: AWS AURORA (same-AZ with connection pooling)"
+    echo "🌟 Setting up: AWS AURORA (same AZ, slow connection close)"
     remove_all_toxics
     curl -s -X POST "$TOXIPROXY_API/proxies/postgres/toxics" \
         -H "Content-Type: application/json" \
@@ -108,7 +119,7 @@ scenario_aurora() {
                 "delay": 100
             }
         }'
-    echo "✅ Added 3ms ±2ms latency + connection pooling simulation"
+    echo "✅ Added 3ms ±2ms latency + 100ms delay on connection close"
 }
 
 show_status() {
@@ -147,7 +158,7 @@ case "${1:-help}" in
         echo "  localhost    - No latency (baseline measurement)"
         echo "  same-region  - AWS same region (2ms ±1ms)"
         echo "  cross-region - AWS cross region (75ms ±15ms + bandwidth limit)"
-        echo "  aurora       - AWS Aurora (3ms ±2ms + connection pooling)"
+        echo "  aurora       - AWS Aurora (3ms ±2ms + 100ms delay on connection close)"
         echo "  bad-network  - Mobile/unstable (200ms ±100ms + 1MB/s limit)"
         echo "  status       - Show current configuration"
         echo ""
