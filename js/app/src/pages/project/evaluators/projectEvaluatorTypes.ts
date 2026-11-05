@@ -276,7 +276,6 @@ export type ProjectEvaluatorRunSummary = {
   failedCount: number;
   droppedCount: number;
   oldestQueuedAt?: string | null;
-  countsAreLowerBounds?: boolean;
 };
 
 export type ProjectEvaluatorStatus = {
@@ -401,35 +400,37 @@ export function formatElapsedShort(
 export function formatProjectEvaluatorRunCounts(
   runSummary: ProjectEvaluatorRunSummary
 ): string {
-  const parts = (
-    [
-      [runSummary.evaluatedCount, "evaluated", false],
-      [runSummary.failedCount, "failed", false],
-      [runSummary.droppedCount, "cleared", false],
-      [
-        runSummary.queuedCount,
-        "queued",
-        runSummary.countsAreLowerBounds ?? false,
-      ],
-    ] as const
-  )
-    .filter(([count]) => count > 0)
-    .map(
-      ([count, label, isLowerBound]) =>
-        `${formatLowerBound(countFormatter.format(count), isLowerBound)} ${label}`
-    );
-  return parts.join(" · ");
+  const { evaluatedCount, failedCount, droppedCount, queuedCount } = runSummary;
+  return [
+    evaluatedCount > 0 && `${countFormatter.format(evaluatedCount)} evaluated`,
+    failedCount > 0 && `${countFormatter.format(failedCount)} failed`,
+    droppedCount > 0 && `${countFormatter.format(droppedCount)} cleared`,
+    queuedCount > 0 && `${formatQueueCount(queuedCount)} queued`,
+  ]
+    .filter((part): part is string => part !== false)
+    .join(" · ");
 }
 
-/**
- * A formatted queue count or rate, marked "N+" when the server stopped
- * counting at its read bound.
- */
-export function formatLowerBound(
-  formatted: string,
-  isLowerBound: boolean
-): string {
-  return isLowerBound ? `${formatted}+` : formatted;
+/** Queue counts from the server stop at this many. */
+export const MAX_QUEUE_COUNT = 1_000_000;
+
+/** A queue count, shown as "1,000,000+" once it reaches the server's limit. */
+export function formatQueueCount(count: number): string {
+  return count >= MAX_QUEUE_COUNT
+    ? `${countFormatter.format(MAX_QUEUE_COUNT)}+`
+    : countFormatter.format(count);
+}
+
+/** Queued evaluations that clearing removes: running ones finish. */
+export function getClearableCount(
+  counts: { queuedCount: number; runningCount: number } | null | undefined
+): number {
+  if (counts == null) {
+    return 0;
+  }
+  return counts.queuedCount >= MAX_QUEUE_COUNT
+    ? MAX_QUEUE_COUNT
+    : counts.queuedCount - counts.runningCount;
 }
 
 export type ProjectEvaluatorMappingDiagnostic = {

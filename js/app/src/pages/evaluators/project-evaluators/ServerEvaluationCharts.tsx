@@ -57,6 +57,7 @@ import {
   getServerProjectSeries,
   OTHER_PROJECTS_KEY,
 } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import {
   costFormatter,
@@ -99,7 +100,6 @@ export function useServerEvaluationActivity({
               id
             }
             queuedCount
-            countsAreLowerBounds
           }
         }
         evaluationActivity(
@@ -252,7 +252,12 @@ type XAxisOverrides = {
   tickFormatter: (x: number) => string;
 };
 
-function TimeTooltipContent({ active, payload, label }: TooltipContentProps) {
+function TimeTooltipContent({
+  active,
+  payload,
+  label,
+  formatValue = intFormatter,
+}: TooltipContentProps & { formatValue?: (value: number) => string }) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (!active || !payload || payload.length === 0) {
     return null;
@@ -270,11 +275,15 @@ function TimeTooltipContent({ active, payload, label }: TooltipContentProps) {
           color={entry.color ?? "transparent"}
           shape="circle"
           name={String(entry.name ?? entry.dataKey)}
-          value={intFormatter(Number(entry.value))}
+          value={formatValue(Number(entry.value))}
         />
       ))}
     </ChartTooltip>
   );
+}
+
+function QueueSizeTooltipContent(props: TooltipContentProps) {
+  return <TimeTooltipContent {...props} formatValue={formatQueueCount} />;
 }
 
 function QueueSizeChart({
@@ -319,7 +328,7 @@ function QueueSizeChart({
             {...compactYAxisProps}
             tickFormatter={(y) => intShortFormatter(y)}
           />
-          <Tooltip content={TimeTooltipContent} {...defaultTooltipProps} />
+          <Tooltip content={QueueSizeTooltipContent} {...defaultTooltipProps} />
           {series.map(({ key, name, color }) => (
             <Area
               key={key}

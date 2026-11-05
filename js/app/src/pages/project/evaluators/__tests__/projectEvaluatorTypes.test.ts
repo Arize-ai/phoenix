@@ -6,6 +6,7 @@ import {
   formatElapsedShort,
   formatMissingBindingMessage,
   formatProjectEvaluatorRunCounts,
+  formatQueueCount,
   getDefaultProjectEvaluatorFilterCondition,
   getProjectEvaluatorMappingDiagnostics,
   getProjectEvaluatorStatus,
@@ -91,15 +92,12 @@ describe("formatProjectEvaluatorRunCounts", () => {
       formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
     ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
   });
+});
 
-  it("marks a queued count read to the server's bound as a lower bound", () => {
-    expect(
-      formatProjectEvaluatorRunCounts({
-        ...runSummary,
-        queuedCount: 5000,
-        countsAreLowerBounds: true,
-      })
-    ).toBe("118 evaluated · 2 failed · 5,000+ queued");
+describe("formatQueueCount", () => {
+  it("shows a count at the server's limit as at least the limit", () => {
+    expect(formatQueueCount(999_999)).toBe("999,999");
+    expect(formatQueueCount(1_000_000)).toBe("1,000,000+");
   });
 });
 

@@ -620,7 +620,6 @@ async def test_evaluation_queue(
                 oldestQueuedAt
                 queuedPerMinute
                 evaluationsPerMinute
-                countsAreLowerBounds
                 targets {
                     evaluationTarget
                     queuedCount
@@ -646,7 +645,6 @@ async def test_evaluation_queue(
         "oldestQueuedAt": queue["oldestQueuedAt"],
         "queuedPerMinute": pytest.approx(4 / 60),
         "evaluationsPerMinute": 0,
-        "countsAreLowerBounds": False,
     }
     assert datetime.fromisoformat(queue["oldestQueuedAt"]) == now - timedelta(minutes=5)
     assert [target["evaluationTarget"] for target in targets] == ["SPAN", "TRACE", "SESSION"]
@@ -668,22 +666,23 @@ async def test_evaluation_queue(
     assert datetime.fromisoformat(oldest[2]) == now - timedelta(minutes=1)
 
 
-async def test_evaluation_queue_counts_at_the_read_bound_are_lower_bounds(
+async def test_evaluation_queue_counts_stop_at_the_limit(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project = await _add_project(session)
     _, project_evaluator_id = await _seed_criteria(db, project.id)
+    _, other_project_evaluator_id = await _seed_criteria(db, project.id)
     async with db() as session:
         trace = await _add_trace(session, project)
-        for _ in range(3):
+        for evaluator_id in (project_evaluator_id,) * 3 + (other_project_evaluator_id,):
             session.add(
                 models.EvalWorkUnit(
                     span_rowid=(await _add_span(session, trace)).id,
-                    project_evaluator_id=project_evaluator_id,
+                    project_evaluator_id=evaluator_id,
                 )
             )
 
@@ -691,21 +690,19 @@ async def test_evaluation_queue_counts_at_the_read_bound_are_lower_bounds(
         """query ($project: ID!, $projectEvaluator: ID!) {
             evaluationQueue {
                 queuedCount
-                countsAreLowerBounds
-                targets { queuedCount countsAreLowerBounds }
-                projects { queuedCount countsAreLowerBounds }
+                targets { queuedCount }
+                projects { queuedCount }
             }
             project: node(id: $project) {
                 ... on Project {
                     evaluationQueue {
                         queuedCount
-                        countsAreLowerBounds
-                        targets { queuedCount countsAreLowerBounds }
+                        targets { queuedCount }
                     }
                 }
             }
             projectEvaluator: node(id: $projectEvaluator) {
-                ... on ProjectEvaluator { runSummary { queuedCount countsAreLowerBounds } }
+                ... on ProjectEvaluator { runSummary { queuedCount } }
             }
         }""",
         variables={
@@ -715,8 +712,8 @@ async def test_evaluation_queue_counts_at_the_read_bound_are_lower_bounds(
     )
 
     assert not response.errors and response.data
-    capped = {"queuedCount": 2, "countsAreLowerBounds": True}
-    empty = {"queuedCount": 0, "countsAreLowerBounds": False}
+    capped = {"queuedCount": 2}
+    empty = {"queuedCount": 0}
     assert response.data["evaluationQueue"] == {
         **capped,
         "targets": [capped, empty, empty],
@@ -822,8 +819,8 @@ async def test_evaluation_queue_projects(
     response = await gql_client.execute(
         """query {
             evaluationQueue {
-                projects { project { name } queuedCount countsAreLowerBounds }
-                top: projects(first: 1) { project { name } queuedCount countsAreLowerBounds }
+                projects { project { name } queuedCount }
+                top: projects(first: 1) { project { name } queuedCount }
             }
         }"""
     )
@@ -831,8 +828,8 @@ async def test_evaluation_queue_projects(
     assert not response.errors and response.data
     queue = response.data["evaluationQueue"]
     assert queue["projects"] == [
-        {"project": {"name": more_queued}, "queuedCount": 3, "countsAreLowerBounds": False},
-        {"project": {"name": fewer_queued}, "queuedCount": 1, "countsAreLowerBounds": False},
+        {"project": {"name": more_queued}, "queuedCount": 3},
+        {"project": {"name": fewer_queued}, "queuedCount": 1},
     ]
     assert queue["top"] == queue["projects"][:1]
 

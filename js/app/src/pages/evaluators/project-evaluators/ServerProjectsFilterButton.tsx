@@ -27,8 +27,7 @@ import {
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import { MAX_PICKED_PROJECTS } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { EvaluationQueueSwatch } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
-import { formatLowerBound } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
  * Picks which projects the charts and table show. With none picked, the
@@ -129,7 +128,7 @@ function ServerProjectsFilterContent({
             />
           )}
         >
-          {({ id, name, queuedCount, queuedCountIsLowerBound }) => (
+          {({ id, name, queuedCount }) => (
             <MenuItem
               id={id}
               textValue={name}
@@ -141,7 +140,7 @@ function ServerProjectsFilterContent({
               trailingContent={
                 queuedCount > 0 && totalQueued > 0 ? (
                   <Text size="S" fontFamily="mono" color="text-700">
-                    {`${formatLowerBound(intFormatter(queuedCount), queuedCountIsLowerBound)} queued`}
+                    {`${formatQueueCount(queuedCount)} queued`}
                   </Text>
                 ) : undefined
               }

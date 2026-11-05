@@ -25,6 +25,7 @@ import {
 import {
   DEGRADED_WAIT_MS,
   formatPerHour,
+  formatQueuedPerHour,
   getQueueLabel,
   getQueueStatusDetail,
   hasWaitedTooLong,
@@ -37,10 +38,11 @@ import {
 import {
   formatElapsedShort,
   formatLag,
-  formatLowerBound,
+  formatQueueCount,
+  getClearableCount,
+  MAX_QUEUE_COUNT,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { StatItem } from "@phoenix/pages/project/TableAside";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /**
  * Refetches the queue stats at once. Provided by the evaluators page, and
@@ -142,14 +144,12 @@ function ProjectEvaluatorQueueStatsContent({
           queuedPerMinute
           evaluationsPerMinute
           runningCount
-          countsAreLowerBounds
           projects(first: 5) {
             project {
               id
               name
             }
             queuedCount
-            countsAreLowerBounds
           }
           targets {
             evaluationTarget
@@ -173,11 +173,9 @@ function ProjectEvaluatorQueueStatsContent({
               oldestQueuedAt
               queuedPerMinute
               evaluationsPerMinute
-              countsAreLowerBounds
               targets {
                 evaluationTarget
                 queuedCount
-                countsAreLowerBounds
               }
             }
             # Keeps the evaluators table's status and queued columns as fresh
@@ -192,7 +190,6 @@ function ProjectEvaluatorQueueStatsContent({
                     queuedCount
                     runningCount
                     oldestQueuedAt
-                    countsAreLowerBounds
                   }
                 }
               }
@@ -209,9 +206,7 @@ function ProjectEvaluatorQueueStatsContent({
   const projectQueuedCount = projectQueue?.queuedCount ?? 0;
   // Clearing keeps running evaluations, so they are not counted as clearable.
   const clearableCount =
-    projectQueue == null
-      ? null
-      : projectQueue.queuedCount - projectQueue.runningCount;
+    projectQueue == null ? null : getClearableCount(projectQueue);
   useEffect(() => {
     onClearableCount(clearableCount);
   }, [clearableCount, onClearableCount]);
@@ -223,23 +218,19 @@ function ProjectEvaluatorQueueStatsContent({
         projectId={projectId}
         projectTargets={projectQueue?.targets ?? []}
         projectQueuedCount={projectQueuedCount}
-        projectCountsAreLowerBounds={
-          projectQueue?.countsAreLowerBounds ?? false
-        }
         projectRunningCount={projectQueue?.runningCount ?? 0}
       />
       <Flex direction="row" gap="size-400">
         <QueueRateStat
           label="Queued / hr"
           project={projectQueue}
-          getPerMinute={(rates) => rates.queuedPerMinute}
-          isLowerBound={projectQueue?.countsAreLowerBounds ?? false}
+          formatRate={(rates) => formatQueuedPerHour(rates.queuedPerMinute)}
           description="This project's evaluations queued in the last hour"
         />
         <QueueRateStat
           label="Completed / hr"
           project={projectQueue}
-          getPerMinute={(rates) => rates.evaluationsPerMinute}
+          formatRate={(rates) => formatPerHour(rates.evaluationsPerMinute)}
           description="This project's evaluations evaluated or failed in the last hour"
         />
       </Flex>
@@ -288,7 +279,7 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
           <>
             {detail != null ? <Text size="S">{detail}</Text> : null}
             <Text size="S">
-              {`All projects, per hour: ${formatLowerBound(formatPerHour(queue.queuedPerMinute), queue.countsAreLowerBounds)} queued · ${formatPerHour(queue.evaluationsPerMinute)} completed`}
+              {`All projects, per hour: ${formatQueuedPerHour(queue.queuedPerMinute)} queued · ${formatPerHour(queue.evaluationsPerMinute)} completed`}
             </Text>
             {queue.oldestQueuedAt != null ? (
               <Text size="S">{`All projects, longest wait: ${formatElapsedShort(queue.oldestQueuedAt)}`}</Text>
@@ -305,40 +296,25 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
 /** Other projects' share of the queue, one neutral section of the meter. */
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
 
-/** How many of the busiest projects the stats read. */
-const BUSIEST_PROJECT_COUNT = 5;
-
 /**
- * Other projects' queued evaluations. Once counts stop at the server's read
- * bound, the queue's total and this project's are read differently and their
- * difference means nothing, so the busiest other projects are summed instead.
+ * Other projects' queued evaluations. At the server's limit the queue's total
+ * no longer says how much is theirs, so the busiest other projects are summed.
  */
 function getOtherProjectsQueued({
   queue,
   projectId,
   projectQueuedCount,
-  projectCountsAreLowerBounds,
 }: {
   queue: EvaluationQueue;
   projectId: string;
   projectQueuedCount: number;
-  projectCountsAreLowerBounds: boolean;
-}): { count: number; isLowerBound: boolean } {
-  if (!queue.countsAreLowerBounds && !projectCountsAreLowerBounds) {
-    return {
-      count: Math.max(0, queue.queuedCount - projectQueuedCount),
-      isLowerBound: false,
-    };
+}): number {
+  if (queue.queuedCount < MAX_QUEUE_COUNT) {
+    return Math.max(0, queue.queuedCount - projectQueuedCount);
   }
-  const others = queue.projects.filter(
-    ({ project }) => project.id !== projectId
-  );
-  return {
-    count: others.reduce((sum, { queuedCount }) => sum + queuedCount, 0),
-    isLowerBound:
-      queue.projects.length >= BUSIEST_PROJECT_COUNT ||
-      others.some(({ countsAreLowerBounds }) => countsAreLowerBounds),
-  };
+  return queue.projects
+    .filter(({ project }) => project.id !== projectId)
+    .reduce((sum, { queuedCount }) => sum + queuedCount, 0);
 }
 
 function QueuedStat({
@@ -346,7 +322,6 @@ function QueuedStat({
   projectId,
   projectTargets,
   projectQueuedCount,
-  projectCountsAreLowerBounds,
   projectRunningCount,
 }: {
   queue: EvaluationQueue;
@@ -355,19 +330,16 @@ function QueuedStat({
   projectTargets: ReadonlyArray<{
     evaluationTarget: string;
     queuedCount: number;
-    countsAreLowerBounds: boolean;
   }>;
   projectQueuedCount: number;
-  projectCountsAreLowerBounds: boolean;
   /** Running now, so clearing keeps them. */
   projectRunningCount: number;
 }) {
   const colors = useCategoryChartColors();
-  const otherProjects = getOtherProjectsQueued({
+  const otherProjectsQueued = getOtherProjectsQueued({
     queue,
     projectId,
     projectQueuedCount,
-    projectCountsAreLowerBounds,
   });
   const segments = [
     ...projectTargets.map((target) => {
@@ -379,15 +351,13 @@ function QueuedStat({
         id: target.evaluationTarget,
         label: getQueueLabel(target),
         count: target.queuedCount,
-        isLowerBound: target.countsAreLowerBounds,
         color: colors[color],
       };
     }),
     {
       id: "OTHER_PROJECTS",
       label: "Other projects",
-      count: otherProjects.count,
-      isLowerBound: otherProjects.isLowerBound,
+      count: otherProjectsQueued,
       color: OTHER_PROJECTS_COLOR,
     },
   ];
@@ -401,23 +371,16 @@ function QueuedStat({
                 <Text size="S" color="text-700">
                   Most queued
                 </Text>
-                {queue.projects.map(
-                  ({ project, queuedCount, countsAreLowerBounds }) => (
-                    <Text key={project.id} size="S">
-                      {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${formatLowerBound(intFormatter(queuedCount), countsAreLowerBounds)}`}
-                    </Text>
-                  )
-                )}
+                {queue.projects.map(({ project, queuedCount }) => (
+                  <Text key={project.id} size="S">
+                    {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${formatQueueCount(queuedCount)}`}
+                  </Text>
+                ))}
               </>
             ) : null
           }
         >
-          <StatValue>
-            {formatLowerBound(
-              intFormatter(projectQueuedCount),
-              projectCountsAreLowerBounds
-            )}
-          </StatValue>
+          <StatValue>{formatQueueCount(projectQueuedCount)}</StatValue>
         </HoverDetail>
         <EvaluationQueueMeter segments={segments} />
         <dl css={legendCSS}>
@@ -433,10 +396,7 @@ function QueuedStat({
                 </dt>
                 <dd>
                   <Text size="XS" fontFamily="mono">
-                    {formatLowerBound(
-                      intFormatter(segment.count),
-                      segment.isLowerBound
-                    )}
+                    {formatQueueCount(segment.count)}
                   </Text>
                 </dd>
               </div>
@@ -450,7 +410,7 @@ function QueuedStat({
               </dt>
               <dd>
                 <Text size="XS" fontFamily="mono">
-                  {intFormatter(projectRunningCount)}
+                  {formatQueueCount(projectRunningCount)}
                 </Text>
               </dd>
             </div>
@@ -464,15 +424,13 @@ function QueuedStat({
 function QueueRateStat({
   label,
   project,
-  getPerMinute,
-  isLowerBound = false,
+  formatRate,
   description,
 }: {
   label: string;
   /** This project's rates, or null if the project couldn't be read. */
   project: QueueRates | null;
-  getPerMinute: (rates: QueueRates) => number;
-  isLowerBound?: boolean;
+  formatRate: (rates: QueueRates) => string;
   description: string;
 }) {
   return (
@@ -484,14 +442,7 @@ function QueueRateStat({
           </Text>
         }
       >
-        <StatValue>
-          {project != null
-            ? formatLowerBound(
-                formatPerHour(getPerMinute(project)),
-                isLowerBound
-              )
-            : "--"}
-        </StatValue>
+        <StatValue>{project != null ? formatRate(project) : "--"}</StatValue>
       </HoverDetail>
     </StatItem>
   );

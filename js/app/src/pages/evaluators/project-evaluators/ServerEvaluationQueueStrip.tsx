@@ -13,6 +13,7 @@ import { EvaluationQueueMeter } from "@phoenix/pages/project/evaluators/Evaluati
 import {
   DEGRADED_WAIT_MS,
   formatPerHour,
+  formatQueuedPerHour,
   getQueueLabel,
   getQueueStatusDetail,
   hasWaitedTooLong,
@@ -25,7 +26,9 @@ import {
 import {
   formatElapsedShort,
   formatLag,
-  formatLowerBound,
+  formatQueueCount,
+  getClearableCount,
+  MAX_QUEUE_COUNT,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -120,7 +123,6 @@ function ServerEvaluationQueueStripContent({
           oldestQueuedAt
           queuedPerMinute
           evaluationsPerMinute
-          countsAreLowerBounds
           targets {
             evaluationTarget
             queuedCount
@@ -131,7 +133,6 @@ function ServerEvaluationQueueStripContent({
               name
             }
             queuedCount
-            countsAreLowerBounds
           }
         }
         lastHourActivity: evaluationActivity(timeRange: $lastHour) {
@@ -165,14 +166,16 @@ function ServerEvaluationQueueStripContent({
       ],
   }));
   const statusDetail = getQueueStatusDetail(queue);
-  const netPerMinute = queue.queuedPerMinute - queue.evaluationsPerMinute;
-  const netPerHour = Math.round(netPerMinute * 60);
+  const queuedPerHour = Math.round(queue.queuedPerMinute * 60);
+  const netPerHour =
+    queuedPerHour >= MAX_QUEUE_COUNT
+      ? MAX_QUEUE_COUNT
+      : queuedPerHour - Math.round(queue.evaluationsPerMinute * 60);
   const lag = data.lastHourActivity.lag;
   const isWaitingTooLong =
     queue.oldestQueuedAt != null && hasWaitedTooLong(queue.oldestQueuedAt);
   const isLagging = lag != null && lag.p95Seconds * 1000 > DEGRADED_WAIT_MS;
-  const isLowerBound = queue.countsAreLowerBounds;
-  const clearableCount = queue.queuedCount - queue.runningCount;
+  const clearableCount = getClearableCount(queue);
   useEffect(() => {
     onClearableCount(clearableCount);
   }, [clearableCount, onClearableCount]);
@@ -197,34 +200,22 @@ function ServerEvaluationQueueStripContent({
                     <Text size="S" color="text-700">
                       Most queued
                     </Text>
-                    {queue.projects.map(
-                      ({ project, queuedCount, countsAreLowerBounds }) => (
-                        <Text key={project.id} size="S">
-                          {`${project.name}: ${formatLowerBound(intFormatter(queuedCount), countsAreLowerBounds)}`}
-                        </Text>
-                      )
-                    )}
+                    {queue.projects.map(({ project, queuedCount }) => (
+                      <Text key={project.id} size="S">
+                        {`${project.name}: ${formatQueueCount(queuedCount)}`}
+                      </Text>
+                    ))}
                   </>
                 ) : null
               }
             >
-              <StatValue>
-                {formatLowerBound(
-                  intFormatter(queue.queuedCount),
-                  isLowerBound
-                )}
-              </StatValue>
+              <StatValue>{formatQueueCount(queue.queuedCount)}</StatValue>
             </HoverDetail>
             <EvaluationQueueMeter segments={segments} />
           </Flex>
         </StatItem>
         <StatItem label="Queued / hr">
-          <StatValue>
-            {formatLowerBound(
-              formatPerHour(queue.queuedPerMinute),
-              isLowerBound
-            )}
-          </StatValue>
+          <StatValue>{formatQueuedPerHour(queue.queuedPerMinute)}</StatValue>
         </StatItem>
         <StatItem label="Completed / hr">
           <StatValue>{formatPerHour(queue.evaluationsPerMinute)}</StatValue>
@@ -238,12 +229,9 @@ function ServerEvaluationQueueStripContent({
             }
           >
             <StatValue color={netPerHour > 0 ? "warning" : null}>
-              {formatLowerBound(
-                netPerHour > 0
-                  ? `+${intFormatter(netPerHour)}`
-                  : intFormatter(netPerHour),
-                isLowerBound
-              )}
+              {netPerHour > 0
+                ? `+${formatQueueCount(netPerHour)}`
+                : formatQueueCount(netPerHour)}
             </StatValue>
           </HoverDetail>
         </StatItem>

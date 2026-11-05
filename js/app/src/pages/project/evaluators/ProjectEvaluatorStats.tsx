@@ -35,10 +35,10 @@ import {
 import {
   formatElapsedShort,
   formatLastRun,
+  formatQueueCount,
   getAnnotationLevel,
   getProjectEvaluatorStatus,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /** Matches the height of the metric chart strips above the tables. */
 const stripCSS = css`
@@ -182,7 +182,7 @@ function ProjectEvaluatorActivityPanel({
         </StatField>
         <StatField label="queued">
           <Text size="S">
-            {intFormatter(runSummary.queuedCount)}
+            {formatQueueCount(runSummary.queuedCount)}
             {runSummary.oldestQueuedAt != null
               ? ` · ${formatElapsedShort(runSummary.oldestQueuedAt)} waiting`
               : ""}

@@ -439,11 +439,11 @@ didn't this run" — which this spec calls a v1 priority — is unanswerable, an
   waiting evaluation has waited over 10 minutes. Each evaluator's status reflects its own
   evaluations, so an evaluator reads Degraded only when its own oldest waiting evaluation has.
   Clearing the queue is how a user sheds a backlog.
-  Queue counts stay cheap to read because every read of queued rows stops at a fixed number
-  (`MAX_QUEUED_ROWS_READ` in `queue_health.py`): per project evaluator, through a per-evaluator
-  index of queued rows, and per evaluation target and status for the queue's totals, rates and
-  chart. A count from a read that stopped there is a lower bound; GraphQL marks it with
-  `countsAreLowerBounds` and the evaluators pages show it as "N+".
+  Queue counts are exact up to 1,000,000 (`MAX_QUEUE_COUNT` in `queue_health.py`). Every read
+  of queued rows stops there: per project evaluator, through a per-evaluator index of queued
+  rows, and per evaluation target and status for the queue's totals, rates and chart. Every
+  count and the queued rate is capped at that number after any summing, so a value there means
+  at least that many, and the evaluators pages show it as "1,000,000+".
   A future overload policy (a size or lag limit that drops work) needs no migration: trace and
   session work can be dropped as DROPPED rows behind the sweep watermarks, and span work by
   raising an evaluator's `span_rowid_floor`. Neither needs a new status.

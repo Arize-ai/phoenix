@@ -27,6 +27,7 @@ import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/Proje
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 type QueryData = ProjectEvaluatorsTabTableQuery["response"];
 type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
@@ -41,6 +42,17 @@ const PROJECT_EVALUATORS_LIMIT = 1000;
 const DRIVERS_CUMULATIVE_SHARE = 0.8;
 const DRIVER_MIN_SHARE = 0.1;
 
+/** An evaluator's part of the queue, at most all of it. */
+function getQueueShare({
+  queuedCount,
+  totalQueued,
+}: {
+  queuedCount: number;
+  totalQueued: number;
+}): number {
+  return totalQueued > 0 ? Math.min(1, queuedCount / totalQueued) : 0;
+}
+
 function getQueueDriverIds(
   rows: ReadonlyArray<{ id: string; runSummary: { queuedCount: number } }>,
   totalQueued: number
@@ -54,7 +66,10 @@ function getQueueDriverIds(
   );
   let cumulative = 0;
   for (const row of ranked) {
-    const share = row.runSummary.queuedCount / totalQueued;
+    const share = getQueueShare({
+      queuedCount: row.runSummary.queuedCount,
+      totalQueued,
+    });
     if (cumulative >= DRIVERS_CUMULATIVE_SHARE || share < DRIVER_MIN_SHARE) {
       break;
     }
@@ -177,7 +192,6 @@ export function ProjectEvaluatorsTabTable({
                 failedCount
                 droppedCount
                 oldestQueuedAt
-                countsAreLowerBounds
               }
               evaluationLoad {
                 evaluationCount
@@ -256,10 +270,7 @@ export function ProjectEvaluatorsTabTable({
             projectEvaluatorId={row.original.id}
             name={row.original.name}
             enabled={row.original.enabled}
-            clearableCount={
-              row.original.runSummary.queuedCount -
-              row.original.runSummary.runningCount
-            }
+            clearableCount={getClearableCount(row.original.runSummary)}
           />
         </StopPropagation>
       ),
@@ -331,7 +342,7 @@ export function ProjectEvaluatorsTabTable({
       meta: { textAlign: "right" },
       sortDescFirst: true,
       accessorFn: (row) =>
-        totalQueued > 0 ? row.runSummary.queuedCount / totalQueued : 0,
+        getQueueShare({ queuedCount: row.runSummary.queuedCount, totalQueued }),
       cell: ({ row, getValue }) => (
         <QueueShareCell
           share={getValue() as number}

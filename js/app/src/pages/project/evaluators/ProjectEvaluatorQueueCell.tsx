@@ -8,14 +8,12 @@ import {
 } from "@phoenix/components";
 import {
   formatElapsedShort,
-  formatLowerBound,
+  formatQueueCount,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 export type ProjectEvaluatorQueuedWork = {
   queuedCount: number;
   oldestQueuedAt: string | null;
-  countsAreLowerBounds: boolean;
 };
 
 /**
@@ -27,7 +25,7 @@ export function ProjectEvaluatorQueueCell({
 }: {
   queuedWork: ProjectEvaluatorQueuedWork;
 }) {
-  const { queuedCount, oldestQueuedAt, countsAreLowerBounds } = queuedWork;
+  const { queuedCount, oldestQueuedAt } = queuedWork;
   if (queuedCount === 0) {
     return (
       <Text fontFamily="mono" color="text-700">
@@ -35,10 +33,7 @@ export function ProjectEvaluatorQueueCell({
       </Text>
     );
   }
-  const formattedCount = formatLowerBound(
-    intFormatter(queuedCount),
-    countsAreLowerBounds
-  );
+  const formattedCount = formatQueueCount(queuedCount);
   const count = <Text fontFamily="mono">{formattedCount}</Text>;
   // Only running evaluations are queued, so nothing is waiting.
   if (oldestQueuedAt == null) {

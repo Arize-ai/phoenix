@@ -67,6 +67,7 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
 import { ProjectEvaluatorStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStats";
 import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import { isServerUnreachableError } from "@phoenix/pages/redirects/notFound";
 
@@ -283,10 +284,7 @@ function ProjectEvaluatorDetailsPageContent({
                 projectEvaluatorId={projectEvaluator.id}
                 name={projectEvaluator.name}
                 enabled={projectEvaluator.enabled}
-                clearableCount={
-                  projectEvaluator.runSummary.queuedCount -
-                  projectEvaluator.runSummary.runningCount
-                }
+                clearableCount={getClearableCount(projectEvaluator.runSummary)}
               />
             </Flex>
             {canEdit && (

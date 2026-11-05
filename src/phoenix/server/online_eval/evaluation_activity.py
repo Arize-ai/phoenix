@@ -78,8 +78,7 @@ class ActivityGroup:
 @dataclass(frozen=True)
 class ActivityBinGroup:
     """One group's activity in one time bin. ``queue_size`` is how many of its evaluations
-    were queued or running at the bin's end, counting at most ``MAX_QUEUED_ROWS_READ`` of
-    each target's still-queued evaluations in each status."""
+    were queued or running at the bin's end, at most ``MAX_QUEUE_COUNT``."""
 
     project_id: int
     project_evaluator_id: Optional[int]
@@ -318,7 +317,7 @@ class _ActivityReader:
             size = 0
             for i in range(bin_count):
                 size += deltas[i]
-                groups[key].queue_sizes[i] = size
+                groups[key].queue_sizes[i] = min(size, queue_health.MAX_QUEUE_COUNT)
 
     async def _read_cost(
         self,
@@ -405,7 +404,7 @@ def _queued(
     the queue at or after ``start``, with when each entered and left.
 
     Still-queued rows are read newest first through ``ix_*_claimable``, at most
-    ``MAX_QUEUED_ROWS_READ`` of the scope's per status, and rows that left through
+    ``MAX_QUEUE_COUNT`` of the scope's per status, and rows that left through
     ``ix_*_terminal`` from ``start``. The evaluator is matched as an expression so neither
     dialect reads each evaluator's whole history by its index instead. Rows inserted already
     declined never entered the queue, and no branch reads them.
@@ -423,7 +422,7 @@ def _queued(
                     model.created_at < end,
                 )
                 .order_by(model.id.desc())
-                .limit(queue_health.MAX_QUEUED_ROWS_READ)
+                .limit(queue_health.MAX_QUEUE_COUNT)
                 .subquery()
             )
             branches.append(

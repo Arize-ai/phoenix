@@ -267,10 +267,10 @@ async def test_activity_bins_follow_the_time_bin_config(
     } == {seeded.span_evaluator_id: 2, seeded.trace_evaluator_id: 1}
 
 
-async def test_queue_size_counts_at_most_the_bound_of_each_status(
+async def test_queue_size_stops_at_the_limit(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project = await _add_project(session)
     _, project_evaluator_id = await _seed_criteria(db, project.id)
@@ -290,7 +290,7 @@ async def test_queue_size_counts_at_most_the_bound_of_each_status(
         db, project_id=project.id, start=_at(12), end=_at(13), time_bins=_HOURLY
     )
 
-    assert [group.queue_size for group in activity.series[-1].groups] == [3]
+    assert [group.queue_size for group in activity.series[-1].groups] == [2]
 
 
 async def _seed_pending(
@@ -313,7 +313,7 @@ async def _seed_pending(
 async def test_queue_size_bound_counts_only_the_projects_own_work(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project, other_project = await _add_project(session), await _add_project(session)
     await _seed_pending(db, project, [_at(12, 10)])
@@ -329,7 +329,7 @@ async def test_queue_size_bound_counts_only_the_projects_own_work(
 async def test_queue_size_bound_counts_only_work_queued_before_the_range_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUED_ROWS_READ", 2)
+    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project = await _add_project(session)
     await _seed_pending(db, project, [_at(12, 10), _at(14), _at(14)])

@@ -9,8 +9,8 @@ import type { ProjectEvaluatorEnabledSwitchMutation } from "@phoenix/pages/proje
 import type { ProjectEvaluatorEnabledSwitchRunSummaryQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchRunSummaryQuery.graphql";
 import { ClearQueueConfirmDialog } from "@phoenix/pages/project/evaluators/ClearQueueConfirmDialog";
 import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 export function ProjectEvaluatorEnabledSwitch({
   projectEvaluatorId,
@@ -219,7 +219,7 @@ export function ProjectEvaluatorEnabledSwitch({
         <Text>
           {clearableCount === 1
             ? `Disabling “${name}” clears its 1 queued evaluation.`
-            : `Disabling “${name}” clears its ${intFormatter(clearableCount)} queued evaluations.`}
+            : `Disabling “${name}” clears its ${formatQueueCount(clearableCount)} queued evaluations.`}
         </Text>
       </ClearQueueConfirmDialog>
     </>

@@ -12,6 +12,7 @@ import {
 } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { Badge } from "@phoenix/components/core/badge";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -113,6 +114,11 @@ export function QueueStatusBadge({
 /** A per-minute rate as a whole number per hour. */
 export function formatPerHour(perMinute: number): string {
   return intFormatter(Math.round(perMinute * 60));
+}
+
+/** The queued rate as evaluations queued per hour, a queue count. */
+export function formatQueuedPerHour(perMinute: number): string {
+  return formatQueueCount(Math.round(perMinute * 60));
 }
 
 /** How long an evaluation may wait before its queue counts as Degraded. */

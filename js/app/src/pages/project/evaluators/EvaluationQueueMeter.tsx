@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 import { SegmentChart } from "@phoenix/components/chart";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export type EvaluationQueueMeterSegment = {
   /** Stable key, e.g. the evaluation target. */
@@ -39,7 +39,7 @@ export function EvaluationQueueMeter({
   const description =
     segments
       .filter((segment) => segment.count > 0)
-      .map((segment) => `${segment.label} ${intFormatter(segment.count)}`)
+      .map((segment) => `${segment.label} ${formatQueueCount(segment.count)}`)
       .join(", ") || "Empty";
   return (
     <div css={meterCSS} role="img" aria-label={description}>

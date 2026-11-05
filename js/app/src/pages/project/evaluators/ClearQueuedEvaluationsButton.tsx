@@ -15,6 +15,10 @@ import type { ClearQueuedEvaluationsButtonCountsQuery } from "@phoenix/pages/pro
 import type { ClearQueuedEvaluationsButtonMutation } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonMutation.graphql";
 import { ClearQueueConfirmDialog } from "@phoenix/pages/project/evaluators/ClearQueueConfirmDialog";
 import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
+import {
+  formatQueueCount,
+  getClearableCount,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -267,13 +271,6 @@ function ClearAllSummaryWithCount() {
   );
 }
 
-/** Clearing keeps running evaluations, so they are not counted. */
-function getClearableCount(
-  counts: { queuedCount: number; runningCount: number } | null | undefined
-): number {
-  return counts == null ? 0 : counts.queuedCount - counts.runningCount;
-}
-
 function ClearSummary({
   scope,
   count,
@@ -291,7 +288,7 @@ function ClearSummary({
     <Text>
       {count === 1
         ? `Clears 1 queued evaluation ${where}.`
-        : `Clears ${intFormatter(count)} queued evaluations ${where}.`}
+        : `Clears ${formatQueueCount(count)} queued evaluations ${where}.`}
     </Text>
   );
 }

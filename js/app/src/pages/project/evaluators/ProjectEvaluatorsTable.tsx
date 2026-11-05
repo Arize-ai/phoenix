@@ -89,6 +89,7 @@ import {
   formatEvaluationTarget,
   formatEvaluationTargetPlural,
   formatSamplingRate,
+  getClearableCount,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -130,7 +131,6 @@ const readRow = (
           failedCount
           droppedCount
           oldestQueuedAt
-          countsAreLowerBounds
         }
         evaluationLoad {
           evaluationCount
@@ -519,10 +519,7 @@ export function ProjectEvaluatorsTable({
               projectEvaluatorId={row.original.id}
               name={row.original.name}
               enabled={row.original.enabled}
-              clearableCount={
-                row.original.runSummary.queuedCount -
-                row.original.runSummary.runningCount
-              }
+              clearableCount={getClearableCount(row.original.runSummary)}
             />
           </StopPropagation>
         ),
