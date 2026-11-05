@@ -37,7 +37,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	mcp-skills codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples sync-docs-snippets check-docs-snippets gen-otel-models \
+	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets gen-otel-models \
 	test-integration-docs \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
@@ -59,7 +59,8 @@ help: ## Show this help message
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
 	@echo -e "  codegen-harbor-graphql - Compile the Harbor verifiers' GraphQL queries into typed Python models"
-	@echo -e "  mcp-skills             - Compile the MCP server's shared skills from .agents/skills"
+	@echo -e "  skills                 - Build every shipped copy of the public skills in skills/"
+	@echo -e "  skills-check           - Ensure the skill copies are current and npx offers only skills/"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -103,6 +104,9 @@ help: ## Show this help message
 	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
 	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
 	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
+	@echo -e "  check-skill-python-examples - Ensure Python examples in public skills type-check against the client packages"
+	@echo -e "  check-skill-typescript-examples - Ensure TypeScript examples in public skills type-check against the client packages"
+	@echo -e "  check-skill-px-commands - Ensure px commands in public skills match the CLI's commands and flags"
 	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
 	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
 	@echo -e ""
@@ -180,16 +184,16 @@ setup-remote-export: ## Configure PXI remote trace export
 # Schema Generation
 #=============================================================================
 
-mcp-skills: ## Compile the MCP server's shared skills from .agents/skills
-	@echo -e "$(CYAN)Compiling MCP skills from src/phoenix/server/mcp/skills-lock.json...$(NC)"
-	@# The skills CLI can only install into <cwd>/.agents/skills, so alias that to skills/ for the compile.
-	@cd src/phoenix/server/mcp \
-		&& mkdir -p .agents && ln -sfn ../skills .agents/skills \
-		&& trap 'rm -rf .agents' EXIT \
-		&& for source in $$(python3 -c 'import json; print(" ".join(e["source"] for e in json.load(open("skills-lock.json"))["skills"].values()))'); do \
-			npx --yes skills add "$$source" --project --agent universal --yes || exit 1; \
-		done
-	@echo -e "$(GREEN)✓ src/phoenix/server/mcp/skills$(NC)"
+skills: ## Build every shipped copy of the public skills in skills/
+	@echo -e "$(CYAN)Building skill copies from skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_skills.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+skills-check: ## Ensure the skill copies are current and npx offers only skills/
+	@echo -e "$(CYAN)Checking skill copies against skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/test_sync_skills.py
+	@python3 $(CURDIR)/scripts/sync_skills.py --check --npx
+	@echo -e "$(GREEN)✓ Done$(NC)"
 
 schema-graphql: ## Generate GraphQL schema from Python
 	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
@@ -478,6 +482,25 @@ check-skill-graphql-examples: ## Ensure fenced GraphQL examples in shipped skill
 check-skill-filter-examples: ## Ensure span/trace/session filter conditions in shipped skills compile under the Python filters
 	@echo -e "$(CYAN)Checking skill filter conditions against the Python filters...$(NC)"
 	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_filter_dsl_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-python-examples: ## Ensure Python examples in public skills type-check against the workspace client packages
+	@echo -e "$(CYAN)Type-checking skill Python examples with pyright...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_python_examples.py $(CURDIR)/scripts/ci/test_skill_lint.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-typescript-examples: ## Ensure TypeScript examples in public skills type-check against the workspace client packages (needs pnpm install in js/)
+	@echo -e "$(CYAN)Building the TypeScript client packages...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) --filter "@arizeai/phoenix-client..." --filter "@arizeai/phoenix-evals..." --filter "@arizeai/phoenix-otel..." run build >/dev/null
+	@echo -e "$(CYAN)Type-checking skill TypeScript examples with tsc...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_typescript_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-px-commands: ## Ensure px commands in public skills match the CLI's commands and flags (needs pnpm install in js/)
+	@echo -e "$(CYAN)Building the px CLI's workspace dependencies...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) --filter "@arizeai/phoenix-cli^..." run build >/dev/null
+	@echo -e "$(CYAN)Checking skill px commands against the CLI...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_px_commands.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 # These two call python3 directly: the script is stdlib-only and its CI job has no uv.

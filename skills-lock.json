@@ -11,7 +11,7 @@
       "source": "daytona/skills",
       "sourceType": "github",
       "skillPath": "skills/daytona/SKILL.md",
-      "computedHash": "d8dd2ff2edb38d2db403b9d342449753be6815e4d99f39a043634f997abdeb98"
+      "computedHash": "2d869388d88e3ed7241ea1e0fe274f2efbb809eb90412e73a2b50ab5c8422448"
     },
     "gh-stack": {
       "source": "github/gh-stack",
@@ -29,20 +29,20 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "cc7a86b3011268a9ba843bd6400e07385e5258a28864be605c8d604023618502",
-      "wellKnownDigest": "sha256:ee3947fea79c625796718c74a98eb162031da2aeba11a252474f29a43ac6d1bd"
+      "computedHash": "87622db935f9aa21710aff22b7e7d5ca8c0810e7ce4fcff3af5f4d28714b716b",
+      "wellKnownDigest": "sha256:d7de9ea1caf3f169593851387153d150a25347427baa8d3160c3f131b64e5380"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/rewardkit/SKILL.md",
-      "computedHash": "b502e8f6053cbba4f0d29d409537b38e5ff7b1a0936b00c452d256ddf371b980"
+      "computedHash": "b51a29fdbc029f55c684126a9dca340f0963133c75aad43eda9152bc84a5b42a"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-best-practices/SKILL.md",
-      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
     }
   }
 }

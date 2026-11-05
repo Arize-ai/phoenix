@@ -59,6 +59,7 @@ See [Authentication](../../SKILL.md#authentication) for how to obtain an API key
 | `GET` | `/organizations` | [List organizations](./organizations.md#daytona/tag/organizations/GET/organizations) | [organizations](./organizations.md) |
 | `POST` | `/organizations` | [Create organization](./organizations.md#daytona/tag/organizations/POST/organizations) | [organizations](./organizations.md) |
 | `PATCH` | `/organizations/{organizationId}/default-region` | [Set default region for organization](./organizations.md#daytona/tag/organizations/PATCH/organizations/{organizationId}/default-region) | [organizations](./organizations.md) |
+| `PATCH` | `/organizations/{organizationId}/default-queue-timeout` | [Set organization default queue timeout](./organizations.md#daytona/tag/organizations/PATCH/organizations/{organizationId}/default-queue-timeout) | [organizations](./organizations.md) |
 | `GET` | `/organizations/{organizationId}` | [Get organization by ID](./organizations.md#daytona/tag/organizations/GET/organizations/{organizationId}) | [organizations](./organizations.md) |
 | `DELETE` | `/organizations/{organizationId}` | [Delete organization](./organizations.md#daytona/tag/organizations/DELETE/organizations/{organizationId}) | [organizations](./organizations.md) |
 | `GET` | `/organizations/{organizationId}/usage` | [Get organization current usage overview](./organizations.md#daytona/tag/organizations/GET/organizations/{organizationId}/usage) | [organizations](./organizations.md) |
@@ -208,7 +209,7 @@ See [Authentication](../../SKILL.md#authentication) for how to obtain an API key
 - [docker-registry](./docker-registry.md) (6 endpoints) {#daytona/tag/docker-registry}
 - [jobs](./jobs.md) (4 endpoints) {#daytona/tag/jobs}
 - [object-storage](./object-storage.md) (1 endpoints) {#daytona/tag/object-storage}
-- [organizations](./organizations.md) (46 endpoints) {#daytona/tag/organizations}
+- [organizations](./organizations.md) (47 endpoints) {#daytona/tag/organizations}
 - [preview](./preview.md) (6 endpoints) {#daytona/tag/preview}
 - [regions](./regions.md) (1 endpoints) {#daytona/tag/regions}
 - [runners](./runners.md) (12 endpoints) {#daytona/tag/runners}
@@ -235,14 +236,18 @@ The Toolbox API runs inside sandboxes and provides file system, git, process, an
 | `GET` | `/computeruse/a11y/tree` | [Get accessibility tree](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/GET/computeruse/a11y/tree) | [computer-use](./toolbox-computer-use.md) |
 | `GET` | `/computeruse/display/info` | [Get display information](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/GET/computeruse/display/info) | [computer-use](./toolbox-computer-use.md) |
 | `GET` | `/computeruse/display/windows` | [Get windows information](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/GET/computeruse/display/windows) | [computer-use](./toolbox-computer-use.md) |
+| `POST` | `/computeruse/keyboard/down` | [Press and hold a keyboard key](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/down) | [computer-use](./toolbox-computer-use.md) |
 | `POST` | `/computeruse/keyboard/hotkey` | [Press hotkey](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/hotkey) | [computer-use](./toolbox-computer-use.md) |
 | `POST` | `/computeruse/keyboard/key` | [Press key](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/key) | [computer-use](./toolbox-computer-use.md) |
 | `POST` | `/computeruse/keyboard/type` | [Type text](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/type) | [computer-use](./toolbox-computer-use.md) |
+| `POST` | `/computeruse/keyboard/up` | [Release a held keyboard key](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/up) | [computer-use](./toolbox-computer-use.md) |
 | `POST` | `/computeruse/mouse/click` | [Click mouse button](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/click) | [computer-use](./toolbox-computer-use.md) |
+| `POST` | `/computeruse/mouse/down` | [Press mouse button](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/down) | [computer-use](./toolbox-computer-use.md) |
 | `POST` | `/computeruse/mouse/drag` | [Drag mouse](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/drag) | [computer-use](./toolbox-computer-use.md) |
 | `POST` | `/computeruse/mouse/move` | [Move mouse cursor](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/move) | [computer-use](./toolbox-computer-use.md) |
 | `GET` | `/computeruse/mouse/position` | [Get mouse position](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/GET/computeruse/mouse/position) | [computer-use](./toolbox-computer-use.md) |
 | `POST` | `/computeruse/mouse/scroll` | [Scroll mouse wheel](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/scroll) | [computer-use](./toolbox-computer-use.md) |
+| `POST` | `/computeruse/mouse/up` | [Release mouse button](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/up) | [computer-use](./toolbox-computer-use.md) |
 | `GET` | `/computeruse/process-status` | [Get computer use process status](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/GET/computeruse/process-status) | [computer-use](./toolbox-computer-use.md) |
 | `GET` | `/computeruse/process/{processName}/errors` | [Get process errors](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/GET/computeruse/process/{processName}/errors) | [computer-use](./toolbox-computer-use.md) |
 | `GET` | `/computeruse/process/{processName}/logs` | [Get process logs](./toolbox-computer-use.md#daytona-toolbox/tag/computer-use/GET/computeruse/process/{processName}/logs) | [computer-use](./toolbox-computer-use.md) |
@@ -334,7 +339,7 @@ The Toolbox API runs inside sandboxes and provides file system, git, process, an
 
 ### Tags
 
-- [computer-use](./toolbox-computer-use.md) (33 endpoints) {#daytona-toolbox/tag/computer-use}
+- [computer-use](./toolbox-computer-use.md) (37 endpoints) {#daytona-toolbox/tag/computer-use}
 - [file-system](./toolbox-file-system.md) (13 endpoints) {#daytona-toolbox/tag/file-system}
 - [git](./toolbox-git.md) (20 endpoints) {#daytona-toolbox/tag/git}
 - [info](./toolbox-info.md) (3 endpoints) {#daytona-toolbox/tag/info}

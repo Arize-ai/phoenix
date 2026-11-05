@@ -47,7 +47,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
+from starlette.requests import ClientDisconnect, Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -947,6 +947,18 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
+async def client_disconnect_handler(request: Request, exc: ClientDisconnect) -> Response:
+    """
+    Ends a request quietly when the client hangs up before its body is read,
+    e.g. an OTLP exporter timing out mid-upload or a browser cancelling a
+    GraphQL request. Nobody is left to receive the response, so this only keeps
+    the disconnect from surfacing as an unhandled exception and a 500.
+    """
+    logger.debug("Client disconnected before the request body was read: %s", request.url.path)
+    # 499 (Client Closed Request) is the nginx convention for this case.
+    return Response(status_code=499)
+
+
 class _HasDbStatus(Protocol):
     @property
     def should_not_insert_or_update(self) -> bool: ...
@@ -1188,6 +1200,7 @@ def create_app(
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
             AgentSessionConflict: agent_session_conflict_handler,
+            ClientDisconnect: client_disconnect_handler,
         },
         debug=debug,
         telemetry=_native_telemetry_config(

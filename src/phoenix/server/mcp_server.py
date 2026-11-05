@@ -57,7 +57,7 @@ from phoenix.server.bearer_auth import (
     token_audience_permits,
 )
 from phoenix.server.mcp.skills import (
-    SHARED_SKILLS_ROOT,
+    MCP_SKILLS_ROOT,
     SKILL_TOOL_NAMES,
     SKILL_TOOLS_TAG,
     Skill,
@@ -585,7 +585,7 @@ def create_phoenix_mcp_app(
         # registering the tool means a client is told so before it composes a
         # mutation rather than after.
         graphql_mutations=not read_only,
-        skills_roots=(SHARED_SKILLS_ROOT,),
+        skills_roots=(MCP_SKILLS_ROOT,),
         external_skills=external_skills,
     )
     # path="/" because the app is mounted at MCP_MOUNT_PATH; the endpoint then

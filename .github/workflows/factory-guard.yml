@@ -13,11 +13,16 @@ permissions:
 
 jobs:
   guard:
-    # A factory PR is one on a `factory/` branch or one the factory's app opened, since the
-    # agent chooses the branch.
+    # A factory PR is one on a `factory/` branch, one the factory's app opened, since the
+    # agent chooses the branch, or one labeled `factory-finished`, which the finish lane adds
+    # before it appends commits to someone's branch and which stays on through later pushes.
+    # The app also opens the automation PRs; the one whose branch changes guarded paths
+    # (daily-skills-update.yml) is exempt by its exact branch name.
     if: >-
       startsWith(github.head_ref, 'factory/') ||
-      (vars.FACTORY_GITHUB_LOGIN != '' && github.event.pull_request.user.login == vars.FACTORY_GITHUB_LOGIN)
+      contains(github.event.pull_request.labels.*.name, 'factory-finished') ||
+      (vars.FACTORY_GITHUB_LOGIN != '' && github.head_ref != 'update-skills' &&
+       github.event.pull_request.user.login == vars.FACTORY_GITHUB_LOGIN)
     runs-on: ubuntu-latest
     steps:
       - name: Reject changes to protected paths

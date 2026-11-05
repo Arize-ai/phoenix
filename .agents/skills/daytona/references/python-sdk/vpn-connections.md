@@ -33,7 +33,7 @@ This integration makes your sandbox appear as a device within your Tailscale net
 
 ### Tailscale browser login
 
-The browser login method initiates an interactive authentication flow where Tailscale generates a unique login URL that you visit in your web browser to authenticate the Dayona sandbox.
+The browser login method initiates an interactive authentication flow where Tailscale generates a unique login URL that you visit in your web browser to authenticate the Daytona sandbox.
 
 The process involves installing Tailscale, starting the daemon, initiating the login process, and then polling for the authentication status until the connection is established.
 
@@ -181,56 +181,56 @@ daytona = Daytona(config)
 
 
 def setup_tailscale_vpn(auth_key: str):
-"""
-Connect a Daytona sandbox to a Tailscale network using the Python SDK.
-Uses auth-key for non-interactive authentication.
-"""
-# Create the sandbox
-print("Creating sandbox...")
-sandbox = daytona.create()
-print(f"Sandbox created: {sandbox.id}")
+    """
+    Connect a Daytona sandbox to a Tailscale network using the Python SDK.
+    Uses auth-key for non-interactive authentication.
+    """
+    # Create the sandbox
+    print("Creating sandbox...")
+    sandbox = daytona.create()
+    print(f"Sandbox created: {sandbox.id}")
 
-# Step 1: Install Tailscale
-print("\nInstalling Tailscale (this may take a few minutes)...")
-response = sandbox.process.exec(
-    "curl -fsSL https://tailscale.com/install.sh | sh",
-    timeout=300
-)
-if response.exit_code != 0:
-    print(f"Error installing Tailscale: {response.result}")
+    # Step 1: Install Tailscale
+    print("\nInstalling Tailscale (this may take a few minutes)...")
+    response = sandbox.process.exec(
+        "curl -fsSL https://tailscale.com/install.sh | sh",
+        timeout=300
+    )
+    if response.exit_code != 0:
+        print(f"Error installing Tailscale: {response.result}")
+        return sandbox
+    print("Tailscale installed successfully.")
+
+    # Step 2: Start tailscaled daemon manually (systemd doesn't auto-start in sandboxes)
+    print("\nStarting tailscaled daemon...")
+    sandbox.process.exec("nohup sudo tailscaled > /dev/null 2>&1 &", timeout=10)
+
+    # Wait for daemon to initialize
+    time.sleep(3)
+
+    # Step 3: Connect with auth key
+    print("\nConnecting to Tailscale network...")
+    response = sandbox.process.exec(
+        f"sudo tailscale up --auth-key={auth_key}",
+        timeout=60
+    )
+
+    if response.exit_code != 0:
+        print(f"Error connecting: {response.result}")
+        return sandbox
+
+    print("Connected to Tailscale network.")
+
+    # Verify connection status
+    print("\nChecking Tailscale status...")
+    response = sandbox.process.exec("tailscale status", timeout=30)
+    print(f"Status:\n{response.result}")
+
     return sandbox
-print("Tailscale installed successfully.")
-
-# Step 2: Start tailscaled daemon manually (systemd doesn't auto-start in sandboxes)
-print("\nStarting tailscaled daemon...")
-sandbox.process.exec("nohup sudo tailscaled > /dev/null 2>&1 &", timeout=10)
-
-# Wait for daemon to initialize
-time.sleep(3)
-
-  # Step 3: Connect with auth key
-  print("\nConnecting to Tailscale network...")
-  response = sandbox.process.exec(
-      f"sudo tailscale up --auth-key={auth_key}",
-      timeout=60
-  )
-
-  if response.exit_code != 0:
-      print(f"Error connecting: {response.result}")
-      return sandbox
-
-  print("Connected to Tailscale network.")
-
-  # Verify connection status
-  print("\nChecking Tailscale status...")
-  response = sandbox.process.exec("tailscale status", timeout=30)
-  print(f"Status:\n{response.result}")
-
-  return sandbox
 
 
 if __name__ == "__main__":
-  sandbox = setup_tailscale_vpn(TAILSCALE_AUTH_KEY)
+    sandbox = setup_tailscale_vpn(TAILSCALE_AUTH_KEY)
 
 ```
 
@@ -356,6 +356,8 @@ verb 3
 
 The following snippets demonstrate connecting to an OpenVPN network using a client configuration file.
 
+**Python:**
+
 ```python
 from daytona import Daytona, DaytonaConfig
 import time
@@ -437,7 +439,125 @@ def setup_openvpn(ovpn_config: str):
 if __name__ == "__main__":
     sandbox = setup_openvpn(OPENVPN_CONFIG)
 
-    ```
+```
+
+**TypeScript:**
+
+```typescript
+import { Daytona } from '@daytona/sdk';
+
+// Configuration
+const DAYTONA_API_KEY = "YOUR_API_KEY"; // Replace with your API key
+
+// OpenVPN client configuration (paste your .ovpn config here)
+const OPENVPN_CONFIG = `
+`.trim();
+
+// Initialize the Daytona client
+const daytona = new Daytona({
+  apiKey: DAYTONA_API_KEY,
+});
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function setupOpenvpn(ovpnConfig: string): Promise<void> {
+  /**
+   * Connect a Daytona sandbox to an OpenVPN network using the TypeScript SDK.
+   */
+
+  // Create the sandbox
+  console.log("Creating sandbox...");
+  const sandbox = await daytona.create();
+  console.log(`Sandbox created: ${sandbox.id}`);
+
+  // Step 1: Install OpenVPN
+  console.log("\nInstalling OpenVPN...");
+  let response = await sandbox.process.executeCommand(
+    "sudo apt update && sudo apt install -y openvpn",
+    undefined,  // cwd
+    undefined,  // env
+    120         // timeout
+  );
+  if (response.exitCode !== 0) {
+    console.log(`Error installing OpenVPN: ${response.result}`);
+    return;
+  }
+  console.log("OpenVPN installed successfully.");
+
+  // Step 2: Write the OpenVPN config file
+  console.log("\nWriting OpenVPN configuration...");
+  // Use heredoc to write the config file
+  await sandbox.process.executeCommand(
+    `cat << 'OVPNEOF' > /home/daytona/client.ovpn
+${ovpnConfig}
+OVPNEOF`,
+    undefined,
+    undefined,
+    30
+  );
+  console.log("Configuration written to /home/daytona/client.ovpn");
+
+  // Step 3: Start OpenVPN in background
+  console.log("\nStarting OpenVPN tunnel...");
+  await sandbox.process.executeCommand(
+    "nohup sudo openvpn /home/daytona/client.ovpn > /tmp/openvpn.log 2>&1 &",
+    undefined,  // cwd
+    undefined,  // env
+    10          // timeout
+  );
+
+  // Wait for connection to establish
+  console.log("Waiting for VPN connection to establish...");
+  await sleep(10000);
+
+  // Step 4: Verify connection
+  console.log("\nVerifying OpenVPN connection...");
+
+  // Check if tun interface exists
+  response = await sandbox.process.executeCommand(
+    "ip addr show tun0",
+    undefined,  // cwd
+    undefined,  // env
+    10          // timeout
+  );
+  if (response.exitCode === 0) {
+    console.log("VPN tunnel interface (tun0) is up:");
+    console.log(response.result);
+  } else {
+    console.log("Warning: tun0 interface not found. Checking OpenVPN logs...");
+    const logResponse = await sandbox.process.executeCommand(
+      "cat /tmp/openvpn.log",
+      undefined,  // cwd
+      undefined,  // env
+      10          // timeout
+    );
+    console.log(`OpenVPN log:\n${logResponse.result}`);
+    return;
+  }
+
+  // Get public IP through VPN
+  console.log("\nChecking public IP (should be VPN server IP)...");
+  response = await sandbox.process.executeCommand(
+    "curl -s ifconfig.me",
+    undefined,  // cwd
+    undefined,  // env
+    30          // timeout
+  );
+  if (response.exitCode === 0) {
+    console.log(`Public IP: ${response.result}`);
+  } else {
+    console.log(`Could not determine public IP: ${response.result}`);
+  }
+
+  console.log("\nOpenVPN connection established successfully.");
+}
+
+// Run the main function
+setupOpenvpn(OPENVPN_CONFIG).catch(console.error);
+
+```
 
 ### OpenVPN web terminal
 
