@@ -6,7 +6,10 @@ description: >-
   its branch is deleted. Does nothing when this run opened no pull request.
 inputs:
   branch-prefix:
-    description: Head-branch prefix shared by the workflow's pull requests, such as claude/llms-txt-.
+    description: >-
+      Head-branch prefix the workflow puts before the run's date, such as claude/llms-txt-.
+      Only branches named exactly <prefix>YYYY-MM-DD are superseded, so a maintainer's
+      branch that merely starts with the prefix is never touched.
     required: true
   branch:
     description: Head branch of the pull request this run opened.
@@ -30,14 +33,17 @@ runs:
           echo "No open pull request for '$BRANCH'; nothing to supersede."
           exit 0
         fi
-        # Only this repo's branches: a fork may use the same names.
+        # Only this repo's dated branches: a fork may use the same names, and a
+        # maintainer's branch may start with the same prefix.
         SUPERSEDED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
           | jq -r --arg repo "$GITHUB_REPOSITORY" --arg prefix "$PREFIX" --arg branch "$BRANCH" '
               .[]
-              | select(.head.repo.full_name == $repo and (.head.ref | startswith($prefix)) and .head.ref != $branch)
+              | select(.head.repo.full_name == $repo)
+              | select(.head.ref | startswith($prefix) and (.[($prefix | length):] | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")))
+              | select(.head.ref != $branch)
               | .number')
         if [[ -z "$SUPERSEDED" ]]; then
-          echo "No other open pull requests on '$PREFIX' branches."
+          echo "No other open pull requests on '$PREFIX<date>' branches."
           exit 0
         fi
         for NUMBER in $SUPERSEDED; do
