@@ -1,0 +1,73 @@
+name: Factory Finish
+
+on:
+  # zizmor: ignore[dangerous-triggers]
+  pull_request_target:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to finish
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  finish:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'factory-finish'
+    concurrency:
+      group: factory-finish-${{ github.event.pull_request.number || inputs.pr }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+
+      - name: Pull claude-lock.json
+        run: |
+          git fetch --quiet --depth=1 origin factory-state
+          git show FETCH_HEAD:claude-lock.json > factory/claude-lock.json
+
+      - name: Start session
+        id: start
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+          REQUESTED_BY: ${{ github.event.sender.login }}
+        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
+
+      - name: Watch session
+        if: steps.start.outputs.started == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.FACTORY_ANTHROPIC_API_KEY }}
+          FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+          FINISHED_PR: ${{ steps.start.outputs.pr }}
+          SESSION_ID: ${{ steps.start.outputs.session_id }}
+          STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
+        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$FINISHED_PR" watch --session-id "$SESSION_ID" --status-comment-id "$STATUS_COMMENT_ID"
+
+      - name: Report a failed start
+        if: failure() && steps.start.outcome != 'success'
+        run: |
+          gh pr comment "$PR_NUMBER" --body "The factory hit an error before it could report; see the [workflow run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."

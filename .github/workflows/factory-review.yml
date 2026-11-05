@@ -43,12 +43,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           python-version: "3.12"
-
-      - name: Install the Anthropic SDK and PyJWT
-        run: pip install --quiet "anthropic==1.12.1" "PyJWT[crypto]==2.15.1"
 
       # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
       - name: Pull claude-lock.json
@@ -65,7 +64,7 @@ jobs:
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           REQUESTED_BY: ${{ github.event.sender.login }}
-        run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
+        run: uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" start --requested-by "$REQUESTED_BY"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'
@@ -78,7 +77,7 @@ jobs:
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STARTED_AT: ${{ steps.start.outputs.started_at }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: python factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures. This uses GITHUB_TOKEN, so it lands even when
       # the app's credentials are what failed.

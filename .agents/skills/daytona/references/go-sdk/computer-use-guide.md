@@ -22,9 +22,9 @@ Computer Use enables programmatic control of desktop environments within sandbox
 
 Computer Use and [VNC](./vnc-access.md) work together to enable both manual and automated desktop interactions. VNC provides the visual interface for users to manually interact with the desktop, while Computer Use provides the programmatic API for AI agents to automate operations.
 
-Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, use [use.computer ↗](https://use.computer).
-> **Note: macOS sandboxes**
-> macOS sandboxes are available at [use.computer ↗](https://use.computer). See the [use.computer API documentation ↗](https://use.computer/docs) to create and control a macOS sandbox.
+Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, see [macOS sandboxes](./sandboxes.md#macos-sandboxes).
+> **Note: Custom snapshots**
+> Default snapshots include the packages required for Computer Use. Sandboxes created from custom images or custom snapshots, including custom [Linux VM snapshots](./snapshots.md#vm-snapshots), need the [VNC and desktop packages](./vnc-access.md#required-packages) installed in the image.
 
 ## Start Computer Use
 
@@ -134,6 +134,33 @@ if err != nil {
 fmt.Printf("Dragged to %v, %v\n", result["x"], result["y"])
 ```
 
+### Hold and release button
+
+Press and hold a mouse button, then release it. The button stays held until a matching release call, which lets you compose press-move-release gestures such as marquee selection or drawing strokes. When X and Y coordinates are provided, the cursor moves to that position before the button is pressed or released; when omitted, the action happens at the current cursor position. Button is one of left (default), right, or middle.
+
+To hold a modifier key during the gesture, wrap it with the keyboard [hold and release](#hold-and-release-key) calls.
+
+```go
+// Press the left button at (100, 200) and release it at (300, 400)
+startX, startY := 100, 200
+if _, err := sandbox.ComputerUse.Mouse().Down(ctx, nil, &startX, &startY); err != nil {
+	log.Fatal(err)
+}
+
+endX, endY := 300, 400
+result, err := sandbox.ComputerUse.Mouse().Up(ctx, nil, &endX, &endY)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Released at %v, %v\n", result["x"], result["y"])
+
+// Press and release the right button at the current cursor position
+rightButton := "right"
+_, err = sandbox.ComputerUse.Mouse().Down(ctx, &rightButton, nil, nil)
+_, err = sandbox.ComputerUse.Mouse().Up(ctx, &rightButton, nil, nil)
+```
+
 ### Scroll
 
 Scroll the mouse wheel at the specified coordinates. `direction` is `up` or `down` (other values return an error). `amount` is the number of scroll wheel ticks to send — one tick is roughly one notch of a physical mouse wheel, which moves a few lines in most apps. Defaults to 1 if omitted.
@@ -217,9 +244,29 @@ err = sandbox.ComputerUse.Keyboard().Hotkey(ctx, "ctrl+v")
 err = sandbox.ComputerUse.Keyboard().Hotkey(ctx, "alt+tab")
 ```
 
+### Hold and release key
+
+Press and hold a key, then release it. The key stays held until a matching release call, which lets you hold a modifier such as shift across several mouse or keyboard actions. Keys use the same names as [press](#press), listed in [supported keys](#supported-keys). Release the key in a finally block (or the language equivalent) so a failed action does not leave the key held.
+
+```go
+// Hold Shift while clicking two points, then release it
+keyboard := sandbox.ComputerUse.Keyboard()
+if err := keyboard.KeyDown(ctx, "shift"); err != nil {
+	log.Fatal(err)
+}
+defer keyboard.KeyUp(ctx, "shift")
+
+if _, err := sandbox.ComputerUse.Mouse().Click(ctx, 100, 200, nil, nil); err != nil {
+	log.Fatal(err)
+}
+if _, err := sandbox.ComputerUse.Mouse().Click(ctx, 100, 300, nil, nil); err != nil {
+	log.Fatal(err)
+}
+```
+
 ### Supported keys
 
-`keyboard.press()` and `keyboard.hotkey()` are case-insensitive for named keys. The following are supported:
+`keyboard.press()`, `keyboard.hotkey()`, `keyboard.down()`, and `keyboard.up()` are case-insensitive for named keys. The following are supported:
 
 | Category           | Keys                                                                                                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -380,7 +427,7 @@ if err != nil {
 	log.Fatal(err)
 }
 
-fmt.Printf("Screenshot captured, size: %d bytes\n", *screenshot.SizeBytes)
+fmt.Printf("Screenshot captured, base64 length: %d\n", len(screenshot.Image))
 
 // With cursor visible
 showCursor := true
@@ -446,18 +493,18 @@ if err != nil {
 
 ### Start Recording
 
-Start a new screen recording session with an optional name identifier:
+Start a new screen recording session with an optional label:
 
 ```go
-// Start recording with a custom name
-name := "test-1"
-recording, err := sandbox.ComputerUse.Recording().Start(ctx, &name)
+// Start recording with a custom label
+label := "test-1"
+recording, err := sandbox.ComputerUse.Recording().Start(ctx, &label)
 if err != nil {
 	log.Fatal(err)
 }
 
-fmt.Printf("Recording started: %s\n", *recording.Id)
-fmt.Printf("File path: %s\n", *recording.FilePath)
+fmt.Printf("Recording started: %s\n", recording.Id)
+fmt.Printf("File path: %s\n", recording.FilePath)
 ```
 
 ### Stop Recording
@@ -466,13 +513,13 @@ Stop an active recording session by providing the recording ID:
 
 ```go
 // Stop the recording
-stoppedRecording, err := sandbox.ComputerUse.Recording().Stop(ctx, *recording.Id)
+stoppedRecording, err := sandbox.ComputerUse.Recording().Stop(ctx, recording.Id)
 if err != nil {
 	log.Fatal(err)
 }
 
 fmt.Printf("Recording stopped: %f seconds\n", *stoppedRecording.DurationSeconds)
-fmt.Printf("Saved to: %s\n", *stoppedRecording.FilePath)
+fmt.Printf("Saved to: %s\n", stoppedRecording.FilePath)
 ```
 
 ### List Recordings
@@ -487,7 +534,7 @@ if err != nil {
 
 fmt.Printf("Total recordings: %d\n", len(recordingsList.Recordings))
 for _, rec := range recordingsList.Recordings {
-	fmt.Printf("- %s: %.2fs (%d bytes)\n", *rec.Name, *rec.DurationSeconds, *rec.FileSizeBytes)
+	fmt.Printf("- %s: %.2fs (%d bytes)\n", rec.FileName, rec.GetDurationSeconds(), rec.GetSizeBytes())
 }
 ```
 
@@ -501,8 +548,8 @@ if err != nil {
 	log.Fatal(err)
 }
 
-fmt.Printf("Recording: %s\n", *recordingDetail.Name)
-fmt.Printf("Status: %s\n", *recordingDetail.Status)
+fmt.Printf("Recording: %s\n", recordingDetail.FileName)
+fmt.Printf("Status: %s\n", recordingDetail.Status)
 fmt.Printf("Duration: %.2fs\n", *recordingDetail.DurationSeconds)
 ```
 

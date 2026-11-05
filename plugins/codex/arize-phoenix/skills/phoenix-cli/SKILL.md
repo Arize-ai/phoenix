@@ -303,7 +303,8 @@ px span list --attribute llm.model_name:gpt-4 --attribute session.id:abc --limit
 px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 px span annotate <span-id> --name reviewer --label pass
-px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
+px span annotate <span-id> --name checker --score 1 --annotator-kind CODE  # HUMAN (default), LLM, CODE, DECISION, AGENT
+px span annotate <span-id> --name reviewer --label pass --annotator-kind AGENT     # an agent is recording the verdict (server >= 21.0.0)
 px span annotate <span-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px span add-note <span-id> --text "verified by agent"
 px span add-note <span-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier

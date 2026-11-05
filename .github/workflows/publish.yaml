@@ -168,7 +168,7 @@ jobs:
         with:
           name: phoenix-dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
 
   build-packages:
     name: Build Python packages
@@ -279,7 +279,7 @@ jobs:
         with:
           name: ${{ matrix.package_name }}-dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         if: steps.check.outputs.needed == 'true'
 
   # arize-phoenix-sqlean is a vendored C extension (fork of nalgeon/sqlean.py),
@@ -386,7 +386,7 @@ jobs:
           path: dist/
           merge-multiple: true
       # skip-existing: completing a partial release uploads only what PyPI lacks.
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           skip-existing: true
 
@@ -599,7 +599,7 @@ jobs:
           PY
       - name: Build distribution
         run: rm -rf dist && uv build
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           skip-existing: true
 
@@ -676,7 +676,7 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         working-directory: ${{ matrix.path }}
         run: uv build
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         if: steps.check.outputs.needed == 'true'
         with:
           skip-existing: true
