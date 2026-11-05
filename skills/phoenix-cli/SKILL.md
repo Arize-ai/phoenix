@@ -47,6 +47,9 @@ px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
 px prompt delete <prompt-identifier>
+px decision list
+px decision get <decision-identifier>
+px decision delete <decision-identifier>
 px project list
 px project get <name>
 px project delete <project-identifier>
@@ -405,6 +408,9 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px decision list --name triage --format raw --no-progress | jq '.[].name'
+px decision list --label support --format raw --no-progress   # --label takes a label name or ID
+px decision get <name> --tag production --format raw --no-progress | jq '{version_number, variables, questions: [.questions[].name]}'
 ```
 
 ## Annotation Configs
