@@ -17,20 +17,35 @@ import { OptionGrid } from "../../utils/OptionGrid";
  * grayscale.
  *
  * - **Under way**: `pending` (accepted, not started), `active` (in
- *   progress), `needs-input` (halted by the system until a person acts: an
- *   approval, an answer, credentials), `paused` (held by a person on purpose
- *   and resumable; nothing is required)
+ *   progress), `needs-input` (halted partway until a person answers: an
+ *   approval, a question), `paused` (held by a person on purpose and
+ *   resumable; nothing is required)
  * - **Settled**: `succeeded` (finished, or ready), `failed` (ended
  *   abnormally, or cannot be used), `stopped` (ended early on purpose, for
  *   good: cancelled, denied, skipped)
- * - **No outcome**: `warning` (works, but needs attention), `off` (disabled,
- *   not installed, or does not apply), `unknown` (no value was reported)
+ * - **No outcome**: `warning` (works, but needs attention),
+ *   `needs-credentials` (cannot be used until someone supplies credentials:
+ *   an API key, a token), `off` (disabled, not installed, or does not
+ *   apply), `unknown` (no value was reported)
  *
- * `paused` and `needs-input` both stand still, but only `needs-input` waits
- * on someone, so only it takes the warning tone. Categories are closed and
- * labels are open: a new domain adds words, never a glyph. A value that fits
- * no category is usually two axes, such as a lifecycle and an outcome, each
- * in its own slot. Extra facts go in `detail`, never in a new category.
+ * **Adding a category.** Categories are shared vocabulary, not a closed
+ * list. Add one when a meaning recurs in more than one domain, asks the
+ * same of the reader each time, and would be misdescribed by every existing
+ * category. One domain's vocabulary is a label, not a category. Name the
+ * category for what is true of the thing, and give it a glyph whose
+ * metaphor holds in every use: a key fits missing credentials everywhere,
+ * but would not fit setup in general. A value that fits no category is
+ * often two axes, such as a lifecycle and an outcome, each in its own slot;
+ * extra facts go in `detail`.
+ *
+ * **Tone.** Tone belongs to the category and matches how the status reads
+ * in a list of everything. `needs-credentials` is gray, because a page of
+ * providers nobody has set up is not an alarm. `needs-input` is warning,
+ * because an approval or a question only arises inside a task under way.
+ * When a status stands between the viewer and what they are trying to do,
+ * the task's own surface says so — an alert beside the action, a disabled
+ * action with its reason, a trigger that opens the fix — rather than a
+ * recolored status.
  *
  * The word is never hidden: the glyphs alone do not tell the categories
  * apart. Where space is tight, mark only the statuses worth noticing, as a
@@ -62,12 +77,13 @@ const CATEGORIES: {
 }[] = [
   { label: "pending", code: true, text: "Queued" },
   { label: "active", code: true, text: "Running" },
-  { label: "needs-input", code: true, text: "Authentication required" },
+  { label: "needs-input", code: true, text: "Awaiting approval" },
   { label: "paused", code: true, text: "Paused" },
   { label: "succeeded", code: true, text: "Completed" },
   { label: "failed", code: true, text: "Error" },
   { label: "stopped", code: true, text: "Stopped" },
   { label: "warning", code: true, text: "Degraded" },
+  { label: "needs-credentials", code: true, text: "Needs credentials" },
   { label: "off", code: true, text: "Not installed" },
   { label: "unknown", code: true, text: "Unset" },
 ];
@@ -97,8 +113,8 @@ const LENGTHS: {
   { label: "Regular", category: "needs-input", text: "Awaiting approval" },
   {
     label: "Long",
-    category: "needs-input",
-    text: "Authentication required",
+    category: "needs-credentials",
+    text: "Needs credentials",
     detail: "Missing an API key for the sandbox provider",
   },
 ];

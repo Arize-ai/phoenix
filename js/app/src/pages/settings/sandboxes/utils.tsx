@@ -26,7 +26,7 @@ type Language = SandboxProvider["supportedLanguages"][number];
 
 const STATUS_CATEGORIES: Record<BackendInfo["status"], StatusCategory> = {
   AVAILABLE: "succeeded",
-  MISSING_CREDENTIALS: "needs-input",
+  MISSING_CREDENTIALS: "needs-credentials",
   UNAVAILABLE: "failed",
   NOT_INSTALLED: "off",
   DISABLED: "off",
@@ -124,7 +124,7 @@ export function statusLabel(status: BackendInfo["status"]) {
     case "AVAILABLE":
       return "Available";
     case "MISSING_CREDENTIALS":
-      return "Authentication required";
+      return "Needs credentials";
     case "UNAVAILABLE":
       return "Unavailable";
     case "NOT_INSTALLED":
