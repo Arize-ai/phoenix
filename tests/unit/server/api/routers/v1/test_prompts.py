@@ -152,7 +152,7 @@ class TestPrompts:
         response = await httpx_client.post(
             "v1/prompts", json={"prompt": {"name": prompt_name}, "version": version_body}
         )
-        assert response.status_code == 200, response.text
+        assert response.status_code == 201, response.text
         first_version = response.json()["data"]
         assert first_version["custom_provider_id"] == provider_id
 
@@ -823,6 +823,12 @@ class TestPrompts:
         )
         assert id_ == prompt_version.id
         assert data.pop("created_at") == prompt_version.created_at.isoformat()
+        assert data.pop("prompt_id") == str(
+            GlobalID(Prompt.__name__, str(prompt_version.prompt_id))
+        )
+        assert isinstance(data.pop("prompt_name"), str)
+        assert data.pop("version_number") >= 1
+        assert isinstance(data.pop("tag_names"), list)
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),
@@ -1019,3 +1025,83 @@ class _UI(BaseModel):
 
 
 _UI.model_rebuild()
+
+
+class TestPromptRestContract:
+    """Prompts follow the same REST contract as decisions: 201 with Location for every
+    create, versions that name their prompt, number, and tags, tag writes that return the
+    tag, and rule errors that name the field."""
+
+    @staticmethod
+    def _version() -> dict[str, Any]:
+        return {
+            "model_provider": "OPENAI",
+            "model_name": "gpt-4o",
+            "template": {"type": "chat", "messages": [{"role": "user", "content": "{{q}}"}]},
+            "template_type": "CHAT",
+            "template_format": "MUSTACHE",
+            "invocation_parameters": {"type": "openai", "openai": {}},
+        }
+
+    async def test_create_numbers_versions_and_sets_location(
+        self, httpx_client: httpx2.AsyncClient
+    ) -> None:
+        body = {"prompt": {"name": "qa"}, "version": self._version()}
+        response = await httpx_client.post("v1/prompts", json=body)
+        assert response.status_code == 201, response.text
+        first = response.json()["data"]
+        assert response.headers["location"] == f"/v1/prompt_versions/{first['id']}"
+        assert (first["prompt_name"], first["version_number"], first["tag_names"]) == ("qa", 1, [])
+        # The same name appends; version_number tells the caller the prompt already existed.
+        response = await httpx_client.post("v1/prompts", json=body)
+        assert response.status_code == 201
+        second = response.json()["data"]
+        assert (second["prompt_id"], second["version_number"]) == (first["prompt_id"], 2)
+        response = await httpx_client.post(
+            "v1/prompts/qa/versions", json={"version": self._version(), "tags": [{"name": "prod"}]}
+        )
+        assert response.status_code == 201
+        third = response.json()["data"]
+        assert response.headers["location"] == f"/v1/prompt_versions/{third['id']}"
+        assert (third["version_number"], third["tag_names"]) == (3, ["prod"])
+        listed = (await httpx_client.get("v1/prompts/qa/versions")).json()["data"]
+        assert [v["version_number"] for v in listed] == [3, 2, 1]
+
+    async def test_tag_writes_return_the_tag(self, httpx_client: httpx2.AsyncClient) -> None:
+        body = {"prompt": {"name": "qa"}, "version": self._version()}
+        first = (await httpx_client.post("v1/prompts", json=body)).json()["data"]
+        second = (await httpx_client.post("v1/prompts", json=body)).json()["data"]
+        response = await httpx_client.post(
+            f"v1/prompt_versions/{first['id']}/tags", json={"name": "prod", "description": "live"}
+        )
+        assert response.status_code == 201, response.text
+        created = response.json()["data"]
+        assert (created["name"], created["description"]) == ("prod", "live")
+        assert created["prompt_version_id"] == first["id"]
+        assert response.headers["location"] == f"/v1/prompts/{first['prompt_id']}/tags/prod"
+        response = await httpx_client.post(
+            f"v1/prompt_versions/{second['id']}/tags", json={"name": "prod"}
+        )
+        assert response.status_code == 200, response.text
+        moved = response.json()["data"]
+        assert moved["id"] == created["id"]
+        assert moved["prompt_version_id"] == second["id"]
+        tags = (await httpx_client.get(f"v1/prompt_versions/{second['id']}/tags")).json()["data"]
+        assert [(t["name"], t["prompt_version_id"]) for t in tags] == [("prod", second["id"])]
+
+    async def test_errors_are_problem_details_naming_the_field(
+        self, httpx_client: httpx2.AsyncClient
+    ) -> None:
+        version = self._version()
+        version["invocation_parameters"] = {"type": "anthropic", "anthropic": {"max_tokens": 1}}
+        response = await httpx_client.post(
+            "v1/prompts", json={"prompt": {"name": "qa"}, "version": version}
+        )
+        assert response.status_code == 422, response.text
+        assert response.headers["content-type"].startswith("application/problem+json")
+        problem = response.json()
+        assert problem["code"] == "invalid_argument"
+        assert [e["field"] for e in problem["errors"]] == ["body.version.invocation_parameters"]
+        response = await httpx_client.get("v1/prompts/missing/latest")
+        assert response.status_code == 404
+        assert response.json()["code"] == "not_found"
