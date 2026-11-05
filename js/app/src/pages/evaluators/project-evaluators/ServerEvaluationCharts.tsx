@@ -27,6 +27,7 @@ import {
   ChartEmptyStateOverlay,
   ChartPanel,
   ChartPanelStrip,
+  ChartPanelStripSkeleton,
   ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
@@ -170,6 +171,15 @@ export function useServerProjectSeries(
     ],
     otherColor: OTHER_PROJECTS_COLOR,
   });
+}
+
+/** {@link ServerEvaluationCharts} while its data loads. */
+export function ServerEvaluationChartsSkeleton() {
+  return (
+    <View height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS} flex="none">
+      <ChartPanelStripSkeleton />
+    </View>
+  );
 }
 
 /**

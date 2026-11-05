@@ -4,7 +4,6 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
-import { ChartPanelStripSkeleton } from "@phoenix/components/chart";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
@@ -12,7 +11,10 @@ import {
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
 import { ProjectEvaluatorsTabTable } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
-import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
+import {
+  ServerEvaluationCharts,
+  ServerEvaluationChartsSkeleton,
+} from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
 import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
@@ -81,7 +83,7 @@ function ProjectEvaluatorsTabContent() {
           refreshKey={refreshKey}
           onQueueCleared={refresh}
         />
-        <Suspense fallback={<ChartPanelStripSkeleton />}>
+        <Suspense fallback={<ServerEvaluationChartsSkeleton />}>
           <ServerEvaluationCharts
             fetchKey={refreshKey}
             pickedProjectIds={pickedProjectIds}

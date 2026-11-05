@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { SegmentChart } from "@phoenix/components/chart";
+import { SegmentChart, SegmentChartSkeleton } from "@phoenix/components/chart";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 export type EvaluationQueueMeterSegment = {
@@ -62,6 +62,15 @@ export function EvaluationQueueMeter({
           color: segment.color,
         }))}
       />
+    </div>
+  );
+}
+
+/** An {@link EvaluationQueueMeter} whose queue has yet to load. */
+export function EvaluationQueueMeterSkeleton() {
+  return (
+    <div css={meterCSS}>
+      <SegmentChartSkeleton showTrack />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { Suspense, useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -8,7 +9,10 @@ import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
 import { ClearAllQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
-import { EvaluationQueueMeter } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
+import {
+  EvaluationQueueMeter,
+  EvaluationQueueMeterSkeleton,
+} from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import {
   DEGRADED_WAIT_MS,
   formatPerHour,
@@ -185,37 +189,36 @@ function ServerEvaluationQueueStripContent({
             <QueueStatusBadge status={queue.status} />
           </HoverDetail>
         </StatItem>
-        <StatItem label="In queue">
-          <Flex direction="column" gap="size-50" minWidth="size-2400">
-            <Flex direction="row" gap="size-75" alignItems="baseline">
-              <HoverDetail
-                detail={
-                  queue.projects.length > 0 ? (
-                    <>
-                      <Text size="S" color="text-700">
-                        Most queued
-                      </Text>
-                      {queue.projects.map(({ project, queuedCount }) => (
-                        <Text key={project.id} size="S">
-                          {`${project.name}: ${intFormatter(queuedCount)}`}
-                        </Text>
-                      ))}
-                    </>
-                  ) : null
-                }
-              >
-                <StatValue>{intFormatter(queue.queuedCount)}</StatValue>
-              </HoverDetail>
-              <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
-                {`/ ${intFormatter(queue.queuedLimit)}`}
-              </Text>
-            </Flex>
+        <InQueueStat
+          meter={
             <EvaluationQueueMeter
               segments={segments}
               limit={queue.queuedLimit}
             />
-          </Flex>
-        </StatItem>
+          }
+        >
+          <HoverDetail
+            detail={
+              queue.projects.length > 0 ? (
+                <>
+                  <Text size="S" color="text-700">
+                    Most queued
+                  </Text>
+                  {queue.projects.map(({ project, queuedCount }) => (
+                    <Text key={project.id} size="S">
+                      {`${project.name}: ${intFormatter(queuedCount)}`}
+                    </Text>
+                  ))}
+                </>
+              ) : null
+            }
+          >
+            <StatValue>{intFormatter(queue.queuedCount)}</StatValue>
+          </HoverDetail>
+          <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
+            {`/ ${intFormatter(queue.queuedLimit)}`}
+          </Text>
+        </InQueueStat>
         <StatItem label="Queued / hr">
           <StatValue>{formatPerHour(queue.queuedPerMinute)}</StatValue>
         </StatItem>
@@ -276,13 +279,37 @@ function ServerEvaluationQueueStripContent({
   );
 }
 
+/** The In queue stat: its count above the queue meter. */
+function InQueueStat({
+  meter,
+  children,
+}: {
+  meter: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <StatItem label="In queue">
+      <Flex direction="column" gap="size-50" minWidth="size-2400">
+        <Flex direction="row" gap="size-75" alignItems="baseline">
+          {children}
+        </Flex>
+        {meter}
+      </Flex>
+    </StatItem>
+  );
+}
+
 /** The strip's shape while it loads, so the page doesn't shift. */
 function StripPlaceholder() {
   return (
     <div css={stripCSS}>
+      <StatItem label="Status">
+        <StatValue>--</StatValue>
+      </StatItem>
+      <InQueueStat meter={<EvaluationQueueMeterSkeleton />}>
+        <StatValue>--</StatValue>
+      </InQueueStat>
       {[
-        "Status",
-        "In queue",
         "Queued / hr",
         "Completed / hr",
         "Net / hr",
