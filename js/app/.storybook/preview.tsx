@@ -653,7 +653,21 @@ const preview: Preview = {
             "Overlays",
             ["Overview"],
             "Badges",
-            ["Overview"],
+            [
+              "Overview",
+              "*",
+              "V2",
+              [
+                "Overview",
+                "Status Indicator",
+                "Swatched Name",
+                "Badge",
+                "Counter",
+                "Tag",
+                "Tag Group",
+                "Identifier",
+              ],
+            ],
             "Feedback",
             [
               "Overview",

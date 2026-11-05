@@ -1,0 +1,23 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+import { SubjectOverview } from "../../../utils/SubjectOverview";
+
+<Meta title="Design System/Badges/V2/Overview" name="V2" />
+
+# V2
+
+Replacements for the badge family, imported from
+`@phoenix/components/core/v2`. They sit beside the current components until
+each call site moves over. Pick one by the role the element plays, not by
+how it looks.
+
+A `Status Indicator` shows a thing's lifecycle or health, a `Badge` its
+kind, and a `Counter` how many of something it holds. These are never
+focusable; to open detail from one, wrap it in a `MarkerTrigger`. A `Tag`
+is a separate object attached to the thing and may be operable, and a
+`Tag Group` lays out a set of them. A `Swatched Name` is a name led by a
+color swatch that matches it to its other appearances on the page. An
+`Identifier` is a thing's ID in monospace, optionally copyable, and names a
+`Tag` for an object with no name of its own, such as a trace.
+
+<SubjectOverview title="Design System/Badges/V2" />
