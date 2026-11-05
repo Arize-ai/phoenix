@@ -32,7 +32,7 @@ export function LatencyControls({
               label="Response Delay"
               value={values.responseDelayMs ?? 0}
               min={0}
-              max={5000}
+              max={10000}
               step={50}
               unit="ms"
               onChange={(value) => onUpdate({ responseDelayMs: value })}

@@ -22,6 +22,21 @@ describe("Google GenAI (Gemini) API", () => {
     await stopServer();
   });
 
+  describe("Models", () => {
+    it("should list available Gemini models", async () => {
+      const ai = getGeminiClient();
+
+      const pager = await ai.models.list();
+      const models = [];
+      for await (const model of pager) {
+        models.push(model);
+      }
+
+      expect(models.length).toBeGreaterThan(0);
+      expect(models.map((m) => m.name)).toContain("models/gemini-2.0-flash");
+    });
+  });
+
   describe("Non-streaming", () => {
     it("should return a valid generateContent response", async () => {
       const ai = getGeminiClient();
