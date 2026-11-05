@@ -1,10 +1,12 @@
 # Check which skills Claude Code and Codex load for each request in tasks/.
-# See evals/skills/README.md to build the image and run the job.
+# See README.md in this folder to build the image and run the job.
 #
 # Each agent stops at its first action that isn't a skill load. Claude Code runs
 # image/stop_after_skill_load.py as a PreToolUse hook, and the Codex wrapper in the image
 # does the same check on Codex's event stream. The verifier records every skill loaded.
 datasets:
+  - path: evals/harbor/skill-loading/tasks/phoenix-cli
+  - path: evals/harbor/skill-loading/tasks/phoenix-evals
   - path: evals/harbor/skill-loading/tasks/phoenix-tracing
 agents:
   # Harbor resolves a built-in agent name, such as `codex`, before `import_path`, so each
