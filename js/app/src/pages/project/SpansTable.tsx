@@ -614,12 +614,6 @@ export function SpansTable(props: SpansTableProps) {
       },
     },
     {
-      header: "model",
-      accessorKey: "modelName",
-      enableSorting: false,
-      cell: ModelNameCell,
-    },
-    {
       header: "name",
       accessorKey: "name",
       enableSorting: false,
@@ -684,6 +678,12 @@ export function SpansTable(props: SpansTableProps) {
         />
       ),
       enableSorting: false,
+    },
+    {
+      header: "model",
+      accessorKey: "modelName",
+      enableSorting: false,
+      cell: ModelNameCell,
     },
     {
       header: () => (
