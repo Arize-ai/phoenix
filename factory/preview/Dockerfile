@@ -7,9 +7,10 @@
 #   STATIC_SOURCE  `base` to keep the base image's frontend build, `checkout` to use the
 #                  one the workflow built into src/phoenix/server/static
 #
-# Build contexts besides the checkout: `seed`, a directory that holds seed.py, and
-# `static`, the built frontend when STATIC_SOURCE is checkout (.dockerignore keeps
-# src/phoenix/server/static out of the main context, so it has to arrive this way).
+# Build contexts besides the PR checkout: `preview`, this directory from the base branch,
+# for the launcher; `seed`, a directory that holds seed.py; and `static-context`, the built
+# frontend when STATIC_SOURCE is checkout (.dockerignore keeps src/phoenix/server/static
+# out of the main context, so it has to arrive this way).
 ARG BASE_IMAGE
 ARG STATIC_SOURCE=base
 
@@ -25,7 +26,7 @@ FROM ${BASE_IMAGE}
 # deletes disappear too. The base image's PYTHONPATH keeps dependencies resolvable.
 COPY src/phoenix /phoenix/overlay/phoenix
 COPY --from=static /phoenix/.venv/lib/python3.13/site-packages/phoenix/server/static /phoenix/overlay/phoenix/server/static
-COPY factory/preview/launch.py /phoenix/preview/launch.py
+COPY --from=preview launch.py /phoenix/preview/launch.py
 COPY --from=seed seed.py /phoenix/preview/seed.py
 ENV PYTHONPATH="/phoenix/overlay:${PYTHONPATH}"
 # Phoenix turns auth on when it binds a non-loopback host, as it does here. A preview has

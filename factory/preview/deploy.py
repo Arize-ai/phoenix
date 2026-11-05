@@ -4,10 +4,11 @@
 """Deploy one PR's preview image to Railway, or tear it down.
 
 `deploy` creates or updates the service named for the PR in the project the token is
-scoped to, points it at the image, waits for the deployment, and leaves one comment on
-the PR with the URL and how to run the image locally. `teardown` deletes the service and
-says so on the same comment. The Railway public API is used directly, so the workflow
-needs no CLI and the token's reach is one project.
+scoped to, points it at the image, waits for the deployment and then for the seed's
+outcome in the container log, and leaves one comment on the PR with the URL, the seed's
+output and how to run the image locally. `teardown` deletes the service and the PR's image
+tags from GHCR, and says so on the same comment. The Railway public API is used directly,
+so the workflow needs no CLI and the token's reach is one project.
 """
 
 import argparse
@@ -23,7 +24,20 @@ from typing import Any, Optional
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
-DEPLOYMENT_FINAL_STATUSES = {"SUCCESS", "FAILED", "CRASHED", "REMOVED"}
+SEED_TIMEOUT_SECONDS = 10 * 60
+# SKIPPED means Railway superseded the deployment with one it queued itself, for example
+# from the service's creation; the service's latest deployment is then the one to follow.
+DEPLOYMENT_FINAL_STATUSES = {
+    "SUCCESS",
+    "FAILED",
+    "CRASHED",
+    "REMOVED",
+    "SKIPPED",
+    "SLEEPING",
+    "NEEDS_APPROVAL",
+}
+SEED_START_PREFIX = "preview: running"
+SEED_OUTCOME_PREFIXES = ("preview: seed finished", "preview: seed failed", "preview: no seed")
 COMMENT_MARKER = "<!-- factory-preview -->"
 
 
@@ -80,7 +94,22 @@ def create_service(*, project_id: str, environment_id: str, name: str, image: st
     return str(data["serviceCreate"]["id"])
 
 
-def configure_service(*, project_id: str, environment_id: str, service_id: str, image: str) -> None:
+def set_variables(*, project_id: str, environment_id: str, service_id: str) -> None:
+    """Once, on creation; skipDeploys keeps this from queuing a deployment of its own."""
+    railway(
+        "mutation($input: VariableCollectionUpsertInput!) {"
+        " variableCollectionUpsert(input: $input) }",
+        input={
+            "projectId": project_id,
+            "environmentId": environment_id,
+            "serviceId": service_id,
+            "variables": {"PORT": str(PHOENIX_PORT), "PHOENIX_PORT": str(PHOENIX_PORT)},
+            "skipDeploys": True,
+        },
+    )
+
+
+def set_image(*, environment_id: str, service_id: str, image: str) -> None:
     railway(
         "mutation($serviceId: String!, $environmentId: String!,"
         " $input: ServiceInstanceUpdateInput!) {"
@@ -93,16 +122,6 @@ def configure_service(*, project_id: str, environment_id: str, service_id: str, 
             "healthcheckPath": "/healthz",
             "restartPolicyType": "ON_FAILURE",
             "restartPolicyMaxRetries": 3,
-        },
-    )
-    railway(
-        "mutation($input: VariableCollectionUpsertInput!) {"
-        " variableCollectionUpsert(input: $input) }",
-        input={
-            "projectId": project_id,
-            "environmentId": environment_id,
-            "serviceId": service_id,
-            "variables": {"PORT": str(PHOENIX_PORT), "PHOENIX_PORT": str(PHOENIX_PORT)},
         },
     )
 
@@ -140,17 +159,40 @@ def deploy_service(*, environment_id: str, service_id: str) -> str:
     return str(data["serviceInstanceDeployV2"])
 
 
-def wait_for_deployment(deployment_id: str) -> str:
+def latest_deployment_id(*, environment_id: str, service_id: str) -> str:
+    data = railway(
+        "query($input: DeploymentListInput!) {"
+        " deployments(input: $input, first: 1) { edges { node { id } } } }",
+        input={"environmentId": environment_id, "serviceId": service_id},
+    )
+    edges = data["deployments"]["edges"]
+    return str(edges[0]["node"]["id"]) if edges else ""
+
+
+def wait_for_deployment(
+    *, deployment_id: str, environment_id: str, service_id: str
+) -> tuple[str, str]:
+    """Follow the deployment to a final status; return (deployment id, status).
+
+    A deployment Railway skips in favor of one it queued itself hands over to the service's
+    latest deployment. The deployment can also read as absent for a moment after it is
+    requested, which counts as pending.
+    """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
-    status = "UNKNOWN"
+    status = "PENDING"
     while time.monotonic() < deadline:
         data = railway("query($id: String!) { deployment(id: $id) { status } }", id=deployment_id)
-        status = str(data["deployment"]["status"])
+        status = str(data["deployment"]["status"]) if data.get("deployment") else "PENDING"
         print(f"deployment {deployment_id}: {status}", flush=True)
+        if status == "SKIPPED":
+            latest = latest_deployment_id(environment_id=environment_id, service_id=service_id)
+            if latest and latest != deployment_id:
+                deployment_id = latest
+                continue
         if status in DEPLOYMENT_FINAL_STATUSES:
-            return status
+            return deployment_id, status
         time.sleep(10)
-    return f"TIMEOUT after {status}"
+    return deployment_id, f"TIMEOUT after {status}"
 
 
 def read_deployment_logs(deployment_id: str, *, limit: int = 60) -> str:
@@ -166,6 +208,24 @@ def read_deployment_logs(deployment_id: str, *, limit: int = 60) -> str:
     return "\n".join(entry["message"] for entry in data["deploymentLogs"])
 
 
+def wait_for_seed(deployment_id: str) -> tuple[str, str]:
+    """Return the launcher's seed outcome line and the seed's own output.
+
+    Railway reports SUCCESS once /healthz answers, which launch.py reaches before the seed
+    runs, so the comment waits for the launcher's outcome line rather than trusting SUCCESS.
+    """
+    deadline = time.monotonic() + SEED_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        lines = read_deployment_logs(deployment_id, limit=500).splitlines()
+        for index, line in enumerate(lines):
+            if line.startswith(SEED_OUTCOME_PREFIXES):
+                starts = [i for i in range(index) if lines[i].startswith(SEED_START_PREFIX)]
+                output = lines[starts[-1] + 1 : index] if starts else []
+                return line, "\n".join(output)
+        time.sleep(10)
+    return "preview: the seed had not finished when the run stopped waiting", ""
+
+
 def delete_service(service_id: str) -> None:
     railway("mutation($id: String!) { serviceDelete(id: $id) }", id=service_id)
 
@@ -174,6 +234,30 @@ def run_gh(*args: str, input_text: Optional[str] = None) -> str:
     return subprocess.run(
         ["gh", *args], capture_output=True, text=True, check=True, input=input_text
     ).stdout
+
+
+def delete_image_tags(*, image: str, pr_number: int) -> int:
+    """Delete every GHCR version tagged for this PR (pr-N and pr-N-*); return how many."""
+    org, _, package = image.removeprefix("ghcr.io/").partition("/")
+    tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
+    version_ids = set(
+        run_gh(
+            "api",
+            "--paginate",
+            f"orgs/{org}/packages/container/{package}/versions?per_page=100",
+            "--jq",
+            f".[] | select(.metadata.container.tags[]? | {tag_filter}) | .id",
+        ).split()
+    )
+    for version_id in version_ids:
+        run_gh(
+            "api",
+            "--method",
+            "DELETE",
+            f"orgs/{org}/packages/container/{package}/versions/{version_id}",
+            "--silent",
+        )
+    return len(version_ids)
 
 
 def upsert_comment(*, pr_number: int, body: str) -> None:
@@ -209,19 +293,26 @@ def upsert_comment(*, pr_number: int, body: str) -> None:
 
 
 def format_deploy_comment(
-    *, image: str, url: str, status: str, seed: str, head_sha: str, run_url: str, logs: str
+    *,
+    image: str,
+    url: str,
+    status: str,
+    seed: str,
+    seed_outcome: str,
+    seed_output: str,
+    head_sha: str,
+    run_url: str,
+    logs: str,
 ) -> str:
-    lines = [
-        f"### Preview of {head_sha[:7]}",
-        "",
-    ]
+    lines = [f"### Preview of {head_sha[:7]}", ""]
     if status == "SUCCESS":
-        lines += [f"Running at **{url}**. The database is fresh and the seed ran on startup."]
+        lines += [f"Running at **{url}** on a fresh database."]
     else:
         lines += [f"The deployment ended with status `{status}`; see the [run]({run_url})."]
+    lines += ["", f"Seed: {seed}. {seed_outcome.removeprefix('preview: ').capitalize()}."]
+    if seed_output:
+        lines += ["", "```", seed_output, "```"]
     lines += [
-        "",
-        f"Seed: {seed}.",
         "",
         "Run the same image locally:",
         "",
@@ -251,19 +342,23 @@ def run_deploy(args: argparse.Namespace) -> int:
         service_id = create_service(
             project_id=project_id, environment_id=environment_id, name=name, image=args.image
         )
+        set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
         print(f"created service {name} ({service_id})")
-    configure_service(
-        project_id=project_id,
-        environment_id=environment_id,
-        service_id=service_id,
-        image=args.image,
-    )
+    set_image(environment_id=environment_id, service_id=service_id, image=args.image)
     domain = ensure_domain(
         project_id=project_id, environment_id=environment_id, service_id=service_id
     )
-    deployment_id = deploy_service(environment_id=environment_id, service_id=service_id)
-    status = wait_for_deployment(deployment_id)
-    logs = "" if status == "SUCCESS" else read_deployment_logs(deployment_id)
+    deployment_id, status = wait_for_deployment(
+        deployment_id=deploy_service(environment_id=environment_id, service_id=service_id),
+        environment_id=environment_id,
+        service_id=service_id,
+    )
+    if status == "SUCCESS":
+        seed_outcome, seed_output = wait_for_seed(deployment_id)
+        logs = ""
+    else:
+        seed_outcome, seed_output = "preview: the seed did not run", ""
+        logs = read_deployment_logs(deployment_id)
     url = f"https://{domain}"
     upsert_comment(
         pr_number=args.pr,
@@ -272,13 +367,16 @@ def run_deploy(args: argparse.Namespace) -> int:
             url=url,
             status=status,
             seed=args.seed,
+            seed_outcome=seed_outcome,
+            seed_output=seed_output,
             head_sha=args.head_sha,
             run_url=args.run_url,
             logs=logs,
         ),
     )
-    print(f"url={url}\nstatus={status}")
-    return 0 if status == "SUCCESS" else 1
+    print(f"url={url}\nstatus={status}\n{seed_outcome}")
+    seed_failed = seed_outcome.startswith("preview: seed failed")
+    return 0 if status == "SUCCESS" and not seed_failed else 1
 
 
 def run_teardown(args: argparse.Namespace) -> int:
@@ -286,10 +384,12 @@ def run_teardown(args: argparse.Namespace) -> int:
     service_id = find_service(project_id=project_id, name=f"pr-{args.pr}")
     if service_id is None:
         print("no preview service to delete")
-        return 0
-    delete_service(service_id)
+    else:
+        delete_service(service_id)
+        print(f"deleted service pr-{args.pr}")
+    deleted_tags = delete_image_tags(image=args.image, pr_number=args.pr)
+    print(f"deleted {deleted_tags} image versions")
     upsert_comment(pr_number=args.pr, body="The preview for this PR has been torn down.")
-    print(f"deleted service pr-{args.pr}")
     return 0
 
 
@@ -307,6 +407,7 @@ def main() -> int:
     deploy_parser.set_defaults(run=run_deploy)
     teardown_parser = subparsers.add_parser("teardown")
     teardown_parser.add_argument("--pr", type=int, required=True)
+    teardown_parser.add_argument("--image", required=True, help="GHCR image, without a tag")
     teardown_parser.set_defaults(run=run_teardown)
     args = parser.parse_args()
     try:
