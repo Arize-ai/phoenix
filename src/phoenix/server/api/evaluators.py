@@ -221,11 +221,10 @@ class BaseEvaluator(ABC):
 
 
 def _enables_extended_thinking(invocation_parameters: PromptInvocationParameters) -> bool:
-    """Checks whether Anthropic invocation parameters enable extended thinking.
+    """Checks whether Anthropic extended thinking is on, which rules out a forced tool choice.
 
-    Anthropic rejects a forced tool choice with extended thinking but accepts it with
-    adaptive thinking. `extra_body` is merged into the request last, so its `thinking`
-    key wins.
+    Adaptive thinking allows a forced tool choice. A `thinking` key in `extra_body`
+    wins because the client merges `extra_body` into the request last.
     """
     if not isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
         return False
@@ -455,9 +454,11 @@ class LLMEvaluator(BaseEvaluator):
                     prompt_span.set_status(Status(StatusCode.OK))
 
                 tools = self._tools
-                if not self._llm_client.supports_forced_tool_choice or _enables_extended_thinking(
-                    self._invocation_parameters
-                ):
+                forced_tool_choice_allowed = (
+                    self._llm_client.supports_forced_tool_choice
+                    and not _enables_extended_thinking(self._invocation_parameters)
+                )
+                if not forced_tool_choice_allowed:
                     tools, messages = _request_tool_call_in_prompt(tools, messages)
 
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
