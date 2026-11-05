@@ -165,10 +165,15 @@ def problem_response(exc: ProblemException) -> Response:
     )
 
 
-_UNION_TAGS = frozenset({"llm", "code", "version", "latest"})
+_UNION_TAGS = frozenset(
+    {"llm", "code", "version", "latest", "text", "json", "predicate", "choice", "scale"}
+)
 """Discriminator tag values used by the opted-in routers' `Field(discriminator="type")` unions.
 A tagged union's error `loc` repeats the tag as a path segment (e.g. `body.code.name`) even
-though it names no real field, so `_normalize_field_path` drops it."""
+though it names no real field, so `_normalize_field_path` drops it. Where the submitted body
+can be followed, a segment is a tag exactly when the object there names it as its `type`, so a
+real field of the same name (`version` in `POST /v1/decisions`) is kept; this set is the
+fallback where it can't."""
 
 _CODE_BY_ERROR_TYPE: dict[str, str] = {
     "missing": "missing",
@@ -199,23 +204,52 @@ def _field_error_code(error_type: str) -> str:
     return "invalid"
 
 
-def _normalize_field_path(loc: tuple[Union[str, int], ...]) -> str:
+def _is_union_tag(node: Any, part: Union[str, int]) -> bool:
+    """Whether `part` is the tag of the union value `node`. A submitted object is tagged by
+    its own `type`, whatever the router; without one to read, the known tags are used."""
+    if not isinstance(part, str):
+        return False
+    if isinstance(node, dict):
+        return node.get("type") == part
+    return part in _UNION_TAGS
+
+
+def _child(node: Any, part: Union[str, int]) -> Any:
+    if isinstance(node, dict):
+        return node.get(part)
+    if isinstance(node, list) and isinstance(part, int) and 0 <= part < len(node):
+        return node[part]
+    return None
+
+
+def _normalize_field_path(loc: tuple[Union[str, int], ...], body: Any = None) -> str:
     """`("body", "code", "name")` becomes `body.name`: the location prefix (body, query, or
-    path) stays, but a discriminated union's tag value along the way names no real field."""
+    path) stays, but a discriminated union's tag value along the way names no real field.
+
+    `body` is the submitted request body, used to tell a tag from a real field of that name.
+    """
     if not loc:
         return ""
     location, *rest = loc
     segments = [str(location)]
-    segments.extend(
-        str(part) for part in rest if not (isinstance(part, str) and part in _UNION_TAGS)
-    )
+    node = body if location == "body" else None
+    # A union value carries one tag segment; a field that repeats the tag's name (as in
+    # `{"type": "openai", "openai": {...}}`) comes after it and is kept.
+    tag_seen = False
+    for part in rest:
+        if not tag_seen and _is_union_tag(node, part):
+            tag_seen = True
+            continue
+        segments.append(str(part))
+        node = _child(node, part)
+        tag_seen = False
     return ".".join(segments)
 
 
 def _validation_problem(exc: RequestValidationError) -> ProblemException:
     errors = [
         ProblemFieldError(
-            field=_normalize_field_path(tuple(error.get("loc", ()))),
+            field=_normalize_field_path(tuple(error.get("loc", ())), exc.body),
             code=_field_error_code(str(error.get("type", ""))),
             message=str(error.get("msg", "")),
         )
@@ -266,3 +300,16 @@ def problem_responses(status_codes: list[int]) -> Responses:
         }
         for status in status_codes
     }
+
+
+def invalid_field(
+    message: str, path: tuple[Union[str, int], ...], code: str = "invalid"
+) -> ProblemException:
+    """A 422 for input that passed the schema but broke a rule, naming the field."""
+    field = ".".join(str(part) for part in path)
+    return ProblemException(
+        422,
+        "invalid_argument",
+        message,
+        errors=[ProblemFieldError(field=field, code=code, message=message)],
+    )

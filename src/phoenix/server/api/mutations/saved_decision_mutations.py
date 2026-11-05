@@ -17,6 +17,8 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.decision_version_tags import upsert_decision_version_tag
+from phoenix.server.api.helpers.decision_versions import clone_decision
 from phoenix.server.api.input_types.DecisionVersionInput import DecisionVersionInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Decision import Decision, DecisionVersion, DecisionVersionTag
@@ -102,39 +104,6 @@ def _metadata(metadata: Optional[JSON]) -> dict[str, object]:
     return dict(metadata)
 
 
-async def _upsert_tag(
-    session: AsyncSession,
-    *,
-    decision_id: int,
-    decision_version_id: int,
-    name: Identifier,
-    description: Optional[str],
-    user_id: Optional[int],
-) -> models.DecisionVersionTag:
-    """Create the tag, or move it to the version if the decision already has it."""
-    tag = await session.scalar(
-        select(models.DecisionVersionTag).where(
-            models.DecisionVersionTag.decision_id == decision_id,
-            models.DecisionVersionTag.name == name,
-        )
-    )
-    if tag is None:
-        tag = models.DecisionVersionTag(
-            name=name,
-            description=description,
-            decision_id=decision_id,
-            decision_version_id=decision_version_id,
-            user_id=user_id,
-        )
-        session.add(tag)
-    else:
-        tag.decision_version_id = decision_version_id
-        if description is not None:
-            tag.description = description
-    await session.flush()
-    return tag
-
-
 async def _get_decision(session: AsyncSession, decision_id: GlobalID) -> models.Decision:
     row_id = from_global_id_with_expected_type(decision_id, Decision.__name__)
     decision = await session.get(models.Decision, row_id)
@@ -166,7 +135,7 @@ class SavedDecisionMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A decision named '{input.name}' already exists")
             for tag in input.tags or ():
-                await _upsert_tag(
+                await upsert_decision_version_tag(
                     session,
                     decision_id=decision.id,
                     decision_version_id=version.id,
@@ -183,46 +152,14 @@ class SavedDecisionMutationMixin:
         """Clone a saved decision and its version history, retaining author provenance."""
         async with info.context.db() as session:
             source = await _get_decision(session, input.decision_id)
-            versions = (
-                await session.scalars(
-                    select(models.DecisionVersion)
-                    .where(models.DecisionVersion.decision_id == source.id)
-                    .order_by(models.DecisionVersion.id)
-                )
-            ).all()
-            decision = models.Decision(
+            decision = await clone_decision(
+                session,
+                source,
                 name=input.name,
-                source_decision_id=source.id,
                 description=source.description if input.description is UNSET else input.description,
-                metadata_=source.metadata_
-                if input.metadata is UNSET
-                else _metadata(input.metadata),
+                metadata=source.metadata_ if input.metadata is UNSET else _metadata(input.metadata),
                 user_id=_user_id(info),
-                decision_versions=[
-                    models.DecisionVersion(
-                        **{
-                            field: getattr(version, field)
-                            for field in (
-                                "description",
-                                "user_id",
-                                "template_format",
-                                "state",
-                                "questions",
-                                "model_provider",
-                                "model_name",
-                                "custom_provider_id",
-                                "metadata_",
-                            )
-                        }
-                    )
-                    for version in versions
-                ],
             )
-            session.add(decision)
-            try:
-                await session.flush()
-            except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
-                raise Conflict(f"A decision named '{input.name}' already exists") from error
         return Decision(id=decision.id, db_record=decision)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -238,7 +175,7 @@ class SavedDecisionMutationMixin:
             session.add(version)
             await session.flush()
             for tag in input.tags or ():
-                await _upsert_tag(
+                await upsert_decision_version_tag(
                     session,
                     decision_id=decision.id,
                     decision_version_id=version.id,
@@ -302,7 +239,7 @@ class SavedDecisionMutationMixin:
             version = await session.get(models.DecisionVersion, version_id)
             if version is None:
                 raise NotFound(f"Decision version not found: {input.decision_version_id}")
-            tag = await _upsert_tag(
+            tag = await upsert_decision_version_tag(
                 session,
                 decision_id=version.decision_id,
                 decision_version_id=version.id,
