@@ -1085,11 +1085,12 @@ async def test_post_dataset_upload_jsonl_with_bom_blank_lines_and_line_separator
     httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
-    """Rows the UI preview accepts: BOM, blank lines, and U+2028 / U+0085 inside strings."""
+    """Rows the UI preview accepts: BOM, blank lines, padding the preview trims, and
+    U+2028 / U+0085 inside strings."""
     name = inspect.stack()[0][3]
     rows = [{"q": "a\u2028b", "r": "1"}, {"q": "c\x85d", "r": "2"}]
     lines = [json.dumps(row, ensure_ascii=False) for row in rows]
-    jsonl_content = ("\ufeff" + lines[0] + "\r\n\n" + lines[1] + "\n\n").encode()
+    jsonl_content = ("\ufeff" + lines[0] + "\r\n\n" + lines[1] + "\u00a0\n\n").encode()
     response = await httpx_client.post(
         url="v1/datasets/upload?sync=true",
         files={"file": (" ", jsonl_content, "application/jsonl")},
@@ -1134,6 +1135,39 @@ async def test_post_dataset_upload_jsonl_reimports_jsonl_export_with_line_separa
         data={"action": "create", "name": name + "_copy", "input_keys[]": ["input"]},
     )
     assert response.status_code == 200, response.text
+
+
+async def test_post_dataset_upload_pyarrow_keeps_bom_in_column_name(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Only CSV decoding drops a BOM, so a pyarrow column named with one still matches."""
+    name = inspect.stack()[0][3]
+    table = pa.Table.from_pydict({"\ufeffq": ["x"], "r": ["y"]})
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", sink.getvalue().to_pybytes(), "application/x-pandas-pyarrow")},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["\ufeffq"],
+            "output_keys[]": ["r"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert [r.input for r in revisions] == [{"\ufeffq": "x"}]
 
 
 async def test_post_dataset_upload_pyarrow_create_then_append(

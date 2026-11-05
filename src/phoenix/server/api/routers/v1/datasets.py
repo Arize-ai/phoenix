@@ -989,6 +989,20 @@ async def _process_csv(
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     column_headers = frozenset(reader.fieldnames)
+
+    def match_header(key: str) -> str:
+        # utf-8-sig drops the BOM from the first header, but a client that read the header
+        # without it (phoenix-client inferring keys) sends that key with the BOM attached.
+        return key if key in column_headers else key.removeprefix("\ufeff")
+
+    input_keys = frozenset(map(match_header, input_keys))
+    output_keys = frozenset(map(match_header, output_keys))
+    metadata_keys = frozenset(map(match_header, metadata_keys))
+    split_keys = frozenset(map(match_header, split_keys))
+    flatten_keys = frozenset(map(match_header, flatten_keys))
+    span_id_key = span_id_key and match_header(span_id_key)
+    example_id_key = example_id_key and match_header(example_id_key)
+    split_key = split_key and match_header(split_key)
     _check_keys_exist(
         column_headers,
         input_keys,
@@ -1128,8 +1142,8 @@ async def _process_jsonl(
     def parse_and_process(c: bytes) -> list[ExampleContent]:
         # Split on "\n" only: str.splitlines() also splits on U+2028, U+0085 and other
         # characters that JSON allows unescaped inside strings.
-        lines = c.decode("utf-8-sig").split("\n")
-        rows = [json.loads(line) for line in lines if line.strip()]
+        lines = (line.strip() for line in c.decode("utf-8-sig").split("\n"))
+        rows = [json.loads(line) for line in lines if line]
 
         input_plan, output_plan, metadata_plan = _build_flatten_plans(
             input_keys=input_keys,
@@ -1240,16 +1254,6 @@ def _get_example_id(row: Mapping[Any, Any], example_id_key: ExampleIdKey) -> Opt
     return str_value
 
 
-def _form_key(form: FormData, name: str) -> Optional[str]:
-    # A client that reads the CSV header without utf-8-sig sends the BOM in the first key.
-    return cast(str, form.get(name) or "").removeprefix("\ufeff") or None
-
-
-def _form_keys(form: FormData, name: str) -> frozenset[str]:
-    keys = (key.removeprefix("\ufeff") for key in cast(list[str], form.getlist(name)))
-    return frozenset(filter(bool, keys))
-
-
 async def _parse_form_data(
     form: FormData,
 ) -> tuple[
@@ -1274,19 +1278,19 @@ async def _parse_form_data(
     if not isinstance(file, UploadFile):
         raise ValueError("Malformed file in form data.")
     description = cast(Optional[str], form.get("description")) or file.filename
-    input_keys = _form_keys(form, "input_keys[]")
-    output_keys = _form_keys(form, "output_keys[]")
-    metadata_keys = _form_keys(form, "metadata_keys[]")
-    split_keys = _form_keys(form, "split_keys[]")
-    split_key = _form_key(form, "split_key")
+    input_keys = frozenset(filter(bool, cast(list[str], form.getlist("input_keys[]"))))
+    output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
+    metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
+    split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
+    split_key = cast(Optional[str], form.get("split_key")) or None
     if split_keys and split_key:
         raise ValueError(
             "Cannot specify both 'split_keys[]' and 'split_key'. "
             "Use 'split_key' for a single column with JSON-encoded split lists."
         )
-    span_id_key = _form_key(form, "span_id_key")
-    example_id_key = _form_key(form, "example_id_key")
-    flatten_keys = _form_keys(form, "flatten_keys[]")
+    span_id_key = cast(Optional[str], form.get("span_id_key")) or None
+    example_id_key = cast(Optional[str], form.get("example_id_key")) or None
+    flatten_keys = frozenset(filter(bool, cast(list[str], form.getlist("flatten_keys[]"))))
     return (
         action,
         name,
