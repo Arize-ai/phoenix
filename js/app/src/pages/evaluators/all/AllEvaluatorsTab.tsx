@@ -8,6 +8,7 @@ import {
   ALL_EVALUATORS_DEFAULT_SORTING,
   AllEvaluatorsTable,
 } from "@phoenix/pages/evaluators/all/AllEvaluatorsTable";
+import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 
 const pageCSS = css`
   flex: 1 1 auto;
@@ -23,7 +24,7 @@ const tableScrollCSS = css`
 `;
 
 /**
- * The Evaluators page's All tab: every project evaluator and every dataset
+ * The Evaluators page's All evaluators tab: every project evaluator and every dataset
  * evaluator in one list.
  */
 export function AllEvaluatorsTab() {
@@ -54,6 +55,21 @@ export function AllEvaluatorsTab() {
             onSortingChange={setSorting}
           />
         </Suspense>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The tab while the page loads, laid out as the loaded tab is: the search
+ * bar over the table.
+ */
+export function AllEvaluatorsTabSkeleton() {
+  return (
+    <div css={pageCSS}>
+      <SearchBarSkeleton hasDivider />
+      <div css={tableScrollCSS}>
+        <TableSkeleton rowCount="fill" />
       </div>
     </div>
   );

@@ -27,6 +27,7 @@ import {
   ChartEmptyStateOverlay,
   ChartPanel,
   ChartPanelStrip,
+  ChartPanelStripSkeleton,
   ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
@@ -40,6 +41,7 @@ import {
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
+  useSemanticChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -66,6 +68,9 @@ import {
 type Activity = ServerEvaluationChartsQuery$data["evaluationActivity"];
 
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
+
+/** Waiting work reads as neutral, so completed work stands out against it. */
+const QUEUED_COLOR = "var(--global-color-gray-500)";
 
 /**
  * The server's evaluation activity over the selected range, grouped by
@@ -232,6 +237,18 @@ export function ServerEvaluationCharts({
   );
 }
 
+/**
+ * The charts while they load: the chart strip skeleton, at the height of the
+ * loaded strip.
+ */
+export function ServerEvaluationChartsSkeleton() {
+  return (
+    <View height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS} flex="none">
+      <ChartPanelStripSkeleton />
+    </View>
+  );
+}
+
 type XAxisOverrides = {
   domain: number[];
   tickFormatter: (x: number) => string;
@@ -358,7 +375,7 @@ function QueuedVsCompletedChart({
   projectSeries: ServerProjectSeries;
   xAxisProps: XAxisOverrides;
 }) {
-  const colors = useCategoryChartColors();
+  const semanticColors = useSemanticChartColors();
   const { isFiltered, isShown } = projectSeries;
   const chartData = activity.series.map((bin) => {
     const groups = isFiltered
@@ -397,7 +414,7 @@ function QueuedVsCompletedChart({
             type="monotone"
             dataKey="queued"
             name="Queued"
-            stroke={colors.category5}
+            stroke={QUEUED_COLOR}
             dot={false}
             hide={isDataKeyHidden("queued")}
             isAnimationActive={false}
@@ -406,7 +423,7 @@ function QueuedVsCompletedChart({
             type="monotone"
             dataKey="completed"
             name="Completed"
-            stroke={colors.category1}
+            stroke={semanticColors.success}
             dot={false}
             hide={isDataKeyHidden("completed")}
             isAnimationActive={false}

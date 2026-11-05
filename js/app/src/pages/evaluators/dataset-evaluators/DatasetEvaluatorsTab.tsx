@@ -11,6 +11,7 @@ import { datasetEvaluatorsTabLoaderGql } from "@phoenix/pages/evaluators/dataset
 import { DatasetEvaluatorsTabTable } from "@phoenix/pages/evaluators/dataset-evaluators/DatasetEvaluatorsTabTable";
 import { DatasetEvaluatorsFilterBar } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterBar";
 import { DatasetEvaluatorsFilterProvider } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
+import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 
 /**
  * The Evaluators page's Dataset evaluators tab: every evaluator attached to a
@@ -35,5 +36,18 @@ export function DatasetEvaluatorsTab() {
         </Suspense>
       </Flex>
     </DatasetEvaluatorsFilterProvider>
+  );
+}
+
+/**
+ * The tab while the page loads, laid out as the loaded tab is: the search
+ * bar over the table.
+ */
+export function DatasetEvaluatorsTabSkeleton() {
+  return (
+    <Flex direction="column" height="100%">
+      <SearchBarSkeleton hasDivider />
+      <TableSkeleton rowCount="fill" />
+    </Flex>
   );
 }
