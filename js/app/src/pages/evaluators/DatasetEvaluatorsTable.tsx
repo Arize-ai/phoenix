@@ -376,6 +376,15 @@ export const DatasetEvaluatorsTable = ({
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
       {
+        header: "kind",
+        accessorKey: "kind", // special case for sorting that's handled by the backend
+        accessorFn: (row) => row.evaluator.kind,
+        size: 80,
+        cell: ({ getValue }) => (
+          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
+        ),
+      },
+      {
         header: "name",
         accessorKey: "name",
         size: 200,
@@ -390,15 +399,6 @@ export const DatasetEvaluatorsTable = ({
         },
       },
       ...(datasetId ? [] : [datasetColumn]),
-      {
-        header: "kind",
-        accessorKey: "kind", // special case for sorting that's handled by the backend
-        accessorFn: (row) => row.evaluator.kind,
-        size: 60,
-        cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
-        ),
-      },
       {
         header: "description",
         accessorKey: "description",
