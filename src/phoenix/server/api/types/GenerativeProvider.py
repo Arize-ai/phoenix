@@ -165,6 +165,22 @@ class GenerativeProviderCredentialConfig:
     env_var_name: str
     is_required: bool
 
+    @strawberry.field(  # type: ignore
+        description=(
+            "Whether the server's environment sets this variable. Its value is never exposed."
+        )
+    )
+    def is_set_in_environment(self) -> bool:
+        return getenv(self.env_var_name) is not None
+
+    @strawberry.field(  # type: ignore
+        description=(
+            "Whether a Phoenix secret is stored for this variable. Its value is never exposed."
+        )
+    )
+    async def is_set_as_secret(self, info: Info[Context, None]) -> bool:
+        return await info.context.data_loaders.secrets.load(self.env_var_name) is not None
+
 
 @strawberry.type
 class GenerativeProvider:

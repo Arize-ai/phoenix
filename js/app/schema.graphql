@@ -2502,6 +2502,16 @@ type GenerativeProvider {
 type GenerativeProviderCredentialConfig {
   envVarName: String!
   isRequired: Boolean!
+
+  """
+  Whether the server's environment sets this variable. Its value is never exposed.
+  """
+  isSetInEnvironment: Boolean!
+
+  """
+  Whether a Phoenix secret is stored for this variable. Its value is never exposed.
+  """
+  isSetAsSecret: Boolean!
 }
 
 enum GenerativeProviderKey {

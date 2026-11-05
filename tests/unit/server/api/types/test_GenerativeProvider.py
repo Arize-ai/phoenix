@@ -63,6 +63,17 @@ class TestGenerativeProvider:
         assert requirements[0].env_var_name == "MINIMAX_API_KEY"
         assert requirements[0].is_required is True
 
+    async def test_credential_is_set_in_environment(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        provider = GenerativeProvider(name="OpenAI", key=GenerativeProviderKey.OPENAI)
+        [requirement] = await provider.credential_requirements()
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        assert requirement.is_set_in_environment() is False
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        assert requirement.is_set_in_environment() is True
+
     async def test_credentials_set_for_providers(
         self,
         gql_client: AsyncGraphQLClient,
@@ -97,6 +108,28 @@ class TestGenerativeProvider:
             }
         """
 
+        async def get_is_set_as_secret(env_var_name: str) -> bool:
+            result = await gql_client.execute(
+                query="""
+                    query {
+                        modelProviders {
+                            credentialRequirements {
+                                envVarName
+                                isSetAsSecret
+                            }
+                        }
+                    }
+                """
+            )
+            assert not result.errors
+            assert result.data
+            return next(
+                requirement["isSetAsSecret"]
+                for provider in result.data["modelProviders"]
+                for requirement in provider["credentialRequirements"]
+                if requirement["envVarName"] == env_var_name
+            )
+
         async def get_credentials_set(provider_key: str) -> bool:
             result = await gql_client.execute(query=query)
             assert not result.errors, f"GraphQL errors: {result.errors}"
@@ -130,6 +163,7 @@ class TestGenerativeProvider:
 
         # 2. No credentials set → False
         assert await get_credentials_set("OPENAI") is False
+        assert await get_is_set_as_secret("OPENAI_API_KEY") is False
 
         # 3. Env var set → True
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
@@ -139,6 +173,7 @@ class TestGenerativeProvider:
         monkeypatch.delenv("OPENAI_API_KEY")
         await upsert_secret("OPENAI_API_KEY", "test-key")
         assert await get_credentials_set("OPENAI") is True
+        assert await get_is_set_as_secret("OPENAI_API_KEY") is True
 
         # 5. Partial multi-credentials (AWS needs 2 required keys) → False
         assert await get_credentials_set("AWS") is False
