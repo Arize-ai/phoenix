@@ -65,27 +65,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
-          NUMBERS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
-            --jq '.[] | select(.head.ref | startswith("skills-audit/")) | .number' \
-            | sort -n | paste -s -d ' ' -)
+          # Oldest first. Only this repo's branches: a fork may use the same name.
+          OPEN=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100&direction=asc" \
+            | jq -r --arg repo "$GITHUB_REPOSITORY" \
+              '.[] | select(.head.repo.full_name == $repo and (.head.ref | startswith("skills-audit/"))) | "\(.number) \(.created_at[:10])"')
+          NUMBERS=$(awk '{print $1}' <<< "$OPEN" | paste -s -d ' ' -)
+          OLDEST=$(awk 'NR == 1 {print $2}' <<< "$OPEN")
           echo "numbers=$NUMBERS" >> "$GITHUB_OUTPUT"
+          echo "oldest=$OLDEST" >> "$GITHUB_OUTPUT"
           echo "Open audit pull requests: ${NUMBERS:-none}"
 
       - name: Choose the audit window
         id: window
         env:
-          STALE: ${{ steps.stale.outputs.numbers }}
+          OLDEST_STALE: ${{ steps.stale.outputs.oldest }}
         run: |
           SINCE="$AUDIT_WINDOW"
-          if [[ -n "$STALE" ]]; then
-            # An unmerged audit is about to be superseded, so this run must cover
-            # its window too. The skills reflect main as of the last audit that
-            # landed, so start there unless the requested window is wider.
-            LAST_LANDED=$(git log origin/main -1 -E --grep='^docs\(skills\): weekly audit' --format=%s \
-              | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
+          if [[ -n "$OLDEST_STALE" ]]; then
+            # The open audits are about to be closed as superseded, so this run
+            # must cover their windows too: start where the oldest one's started.
             REQUESTED_START=$(date -u -d "$AUDIT_WINDOW" +%F)
-            if [[ -n "$LAST_LANDED" && "$LAST_LANDED" < "$REQUESTED_START" ]]; then
-              SINCE="$LAST_LANDED"
+            STALE_START=$(date -u -d "$OLDEST_STALE $AUDIT_WINDOW" +%F)
+            if [[ "$STALE_START" < "$REQUESTED_START" ]]; then
+              SINCE="$STALE_START"
             fi
           fi
           echo "since=$SINCE" >> "$GITHUB_OUTPUT"
