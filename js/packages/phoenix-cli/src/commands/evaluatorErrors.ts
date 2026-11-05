@@ -113,15 +113,19 @@ async function readDetail(error: HttpError): Promise<string> {
  * by the hint when an `InvalidArgumentError` carries one.
  *
  * @param params.verb - What the command was doing, e.g. `"fetching evaluators"`.
+ * @param params.hint - A command-specific hint; when given, it wins over the
+ *   one derived from the error.
  */
 export async function exitWithError({
   verb,
   error,
   format,
+  hint,
 }: {
   verb: string;
   error: unknown;
   format?: OutputFormat;
+  hint?: string;
 }): Promise<never> {
   const exitCode = getExitCodeForError(error);
   writeStructuredError({
@@ -129,9 +133,10 @@ export async function exitWithError({
     message: `Error ${verb}: ${await describeError(error)}`,
     code: exitCodeName(exitCode),
     hint:
-      error instanceof InvalidArgumentError
+      hint ??
+      (error instanceof InvalidArgumentError
         ? error.hint
-        : validationHint(error),
+        : validationHint(error)),
     ...describeFailure(error),
   });
   process.exit(exitCode);
