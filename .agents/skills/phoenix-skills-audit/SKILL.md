@@ -41,6 +41,20 @@ a broken link in an existing example fails CI on its own, including on the PR th
 opens. If you edit an example, keep it consistent with the code, but you don't need to
 trace every import by hand.
 
+The checks exempt some code, and the audit still covers it by reading:
+
+- **`**kwargs` arguments.** The Python check can't verify keyword arguments to functions
+  that take `**kwargs`, such as `register`, `LLM`, and `ClassificationEvaluator`. Check
+  those keywords against the source.
+- **Skipped blocks.** Blocks tagged `no-check` and lines inside `# WRONG` or `# BAD`
+  regions aren't checked.
+- **Known-broken examples.** `KNOWN_BROKEN` in `scripts/ci/test_skill_*.py` lists
+  examples that are stale but expected to fail. Each is a strict xfail, so fixing one
+  fails CI until its entry is removed, and the CI workflow stages only skill files.
+  Don't fix these in a CI run. List them under "Known-broken examples" in the run
+  summary instead. In a manual run, fix the example and delete its entry in the same
+  change.
+
 ## What the audit looks for
 
 These five gaps pass every check above. They're the reason this audit exists.
@@ -161,6 +175,10 @@ Audited `origin/main` at `<sha>`. Commits analyzed: N (M user-facing, K skipped)
 ### phoenix-cli
 - `SKILL.md`: documented `px experiment compare` (gap 1, `<sha>`); JSON fields from
   `js/packages/phoenix-cli/src/commands/...`.
+
+## Known-broken examples
+
+`KNOWN_BROKEN` entries that a change this week affects, and the fix each needs.
 
 ## Dropped candidates
 
