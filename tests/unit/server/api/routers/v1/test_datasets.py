@@ -1081,6 +1081,43 @@ async def test_post_dataset_upload_csv_with_utf8_bom(
         assert revisions[0].output == {"answer": "there"}
 
 
+async def test_post_dataset_upload_csv_with_utf8_bom_keeps_key_that_matches_a_header(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """utf-8-sig drops only the file's leading BOM, so a later header that starts with
+    U+FEFF keeps it, and a key equal to that header must not lose its BOM."""
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={
+            "file": (
+                " ",
+                "\ufeffquestion,\ufeffanswer\r\nhi,there\r\n".encode(),
+                "text/csv",
+            )
+        },
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["\ufeffanswer"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert [r.input for r in revisions] == [{"question": "hi"}]
+    assert [r.output for r in revisions] == [{"\ufeffanswer": "there"}]
+
+
 async def test_post_dataset_upload_jsonl_with_bom_blank_lines_and_line_separators(
     httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
@@ -1135,39 +1172,6 @@ async def test_post_dataset_upload_jsonl_reimports_jsonl_export_with_line_separa
         data={"action": "create", "name": name + "_copy", "input_keys[]": ["input"]},
     )
     assert response.status_code == 200, response.text
-
-
-async def test_post_dataset_upload_pyarrow_keeps_bom_in_column_name(
-    httpx_client: httpx2.AsyncClient,
-    db: DbSessionFactory,
-) -> None:
-    """Only CSV decoding drops a BOM, so a pyarrow column named with one still matches."""
-    name = inspect.stack()[0][3]
-    table = pa.Table.from_pydict({"\ufeffq": ["x"], "r": ["y"]})
-    sink = pa.BufferOutputStream()
-    with pa.ipc.new_stream(sink, table.schema) as writer:
-        writer.write_table(table)
-    response = await httpx_client.post(
-        url="v1/datasets/upload?sync=true",
-        files={"file": (" ", sink.getvalue().to_pybytes(), "application/x-pandas-pyarrow")},
-        data={
-            "action": "create",
-            "name": name,
-            "input_keys[]": ["\ufeffq"],
-            "output_keys[]": ["r"],
-        },
-    )
-    assert response.status_code == 200, response.text
-    async with db() as session:
-        revisions = list(
-            await session.scalars(
-                select(models.DatasetExampleRevision)
-                .join(models.DatasetExample)
-                .join_from(models.DatasetExample, models.Dataset)
-                .where(models.Dataset.name == name)
-            )
-        )
-    assert [r.input for r in revisions] == [{"\ufeffq": "x"}]
 
 
 async def test_post_dataset_upload_pyarrow_create_then_append(
