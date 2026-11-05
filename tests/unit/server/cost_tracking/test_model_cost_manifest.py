@@ -317,7 +317,7 @@ def test_every_manifest_entry_resolves_to_its_own_entry(
     entry: dict[str, Any],
 ) -> None:
     # The hand-picked lineup above only guards the models someone thought to list. A model
-    # ID that extends an older one (claude-opus-5-5 of claude-opus-5) also matches the older
+    # ID that extends an older one (claude-opus-5-5 extends claude-opus-5) also matches the older
     # entry's unanchored pattern, so check every entry and let each sync verify itself.
     # The provider is passed because some hosts list the same ID: groq/ and together_ai/
     # both carry openai/gpt-oss-120b.
