@@ -4,7 +4,10 @@ permissions:
   contents: read
   actions: write  # required to delete Actions caches via gh actions-cache delete
 on:
-  pull_request:
+  # zizmor: ignore[dangerous-triggers] pull_request_target so GitHub never parks
+  # this run as "awaiting approval" on PRs from first-time contributors. It only
+  # calls the GitHub API and never checks out or executes pull request code.
+  pull_request_target:
     types:
       - closed
 

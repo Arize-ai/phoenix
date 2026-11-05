@@ -1,7 +1,10 @@
 name: Update Helm on PR Merge
 
 on:
-  pull_request:
+  # zizmor: ignore[dangerous-triggers] pull_request_target so GitHub never parks
+  # this run as "awaiting approval" on PRs from first-time contributors. It runs
+  # only after merge, checks out main, and never executes pull request code.
+  pull_request_target:
     types: [closed]
     branches:
       - main
