@@ -7,6 +7,7 @@ import {
   Icon,
   Icons,
   ProgressBar,
+  StatusIndicator,
   Text,
   View,
 } from "@phoenix/components";
@@ -14,7 +15,6 @@ import type { BrowserModelAvailability } from "@phoenix/components/generative/br
 import {
   downloadBrowserModel,
   getBrowserBuiltInModel,
-  StatusText,
   useBrowserModelAvailability,
 } from "@phoenix/components/generative/browserAI";
 
@@ -104,18 +104,22 @@ export function BrowserModelCard() {
           </Text>
         );
       case "available":
-        return <StatusText tone="success">Downloaded and ready</StatusText>;
+        return (
+          <StatusIndicator category="succeeded" label="Downloaded and ready" />
+        );
       case "needs-download":
-        return <StatusText>Not downloaded</StatusText>;
+        return <StatusIndicator category="pending" label="Not downloaded" />;
       case "downloading":
         return (
-          <StatusText>
-            Downloading… {Math.round(downloadProgress * 100)}%
-          </StatusText>
+          <StatusIndicator
+            category="active"
+            label="Downloading"
+            detail={`${Math.round(downloadProgress * 100)}%`}
+          />
         );
       default:
         return (
-          <StatusText tone="warning">Unavailable on this device</StatusText>
+          <StatusIndicator category="off" label="Unavailable on this device" />
         );
     }
   };

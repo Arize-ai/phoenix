@@ -7,7 +7,7 @@ import { Flex, IDBadge, Text } from "@phoenix/components";
 import { dotSeparatedRowCSS } from "@phoenix/components/core/styles";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanMetrics } from "@phoenix/components/trace/SpanMetrics";
-import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { useTimeFormatters } from "@phoenix/hooks";
 
 import type { SpanHeader_span$key } from "./__generated__/SpanHeader_span.graphql";
@@ -96,7 +96,7 @@ export function SpanHeader(props: SpanHeaderProps) {
         >
           {span.name}
         </Text>
-        <SpanStatusBadge statusCode={span.code} labelVariant="full" />
+        <SpanStatusIndicator statusCode={span.code} />
         {props.actions ? (
           <div className="span-header__actions">{props.actions}</div>
         ) : null}

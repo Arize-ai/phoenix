@@ -3,6 +3,8 @@ import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 
 import type { StatusCategory } from "@phoenix/components";
 import { StatusIndicator } from "@phoenix/components";
+import { ExperimentStatus } from "@phoenix/components/experiment";
+import { SpanStatusIndicator } from "@phoenix/components/trace";
 
 import { OptionGrid } from "../../utils/OptionGrid";
 
@@ -35,6 +37,7 @@ import { OptionGrid } from "../../utils/OptionGrid";
 const meta: Meta = {
   title: "Design System/Badges/Status Indicator",
   component: StatusIndicator,
+  subcomponents: { SpanStatusIndicator, ExperimentStatus },
   tags: ["updated", "unreviewed", "complete"],
   parameters: {
     layout: "centered",
@@ -112,6 +115,37 @@ export const Categories: StoryFn = () => (
 );
 Categories.tags = ["!dev"];
 Categories.parameters = { themeLayout: "row" };
+
+const domainStatusesCSS = css`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--global-dimension-size-100);
+`;
+
+export const DomainSpan: StoryFn = () => (
+  <div css={domainStatusesCSS}>
+    <SpanStatusIndicator statusCode="OK" />
+    <SpanStatusIndicator statusCode="ERROR" />
+    <SpanStatusIndicator statusCode="UNSET" />
+  </div>
+);
+DomainSpan.storyName = "Domain: Span";
+DomainSpan.tags = ["!dev"];
+DomainSpan.parameters = { themeLayout: "row" };
+
+export const DomainExperiment: StoryFn = () => (
+  <div css={domainStatusesCSS}>
+    <ExperimentStatus status="RUNNING" />
+    <ExperimentStatus status="COMPLETED" />
+    <ExperimentStatus status="ERROR" />
+    <ExperimentStatus status="STOPPED" />
+    <ExperimentStatus status={null} />
+  </div>
+);
+DomainExperiment.storyName = "Domain: Experiment";
+DomainExperiment.tags = ["!dev"];
+DomainExperiment.parameters = { themeLayout: "row" };
 
 export const Content: StoryFn = () => (
   <OptionGrid

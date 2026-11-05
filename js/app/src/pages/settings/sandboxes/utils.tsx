@@ -4,10 +4,12 @@ import {
   Badge,
   Flex,
   RichTooltip,
+  StatusIndicator,
   Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
+import type { StatusCategory } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getDependencyPackages } from "@phoenix/utils/packageSpecUtils";
@@ -21,6 +23,23 @@ import type {
 
 type Language = SandboxProvider["supportedLanguages"][number];
 
+const STATUS_CATEGORIES: Record<BackendInfo["status"], StatusCategory> = {
+  AVAILABLE: "succeeded",
+  MISSING_CREDENTIALS: "needs-input",
+  UNAVAILABLE: "failed",
+  NOT_INSTALLED: "off",
+  DISABLED: "off",
+};
+
+const explainedStatusCSS = css`
+  cursor: help;
+  .status-indicator {
+    text-decoration: underline dotted;
+    text-decoration-color: var(--global-text-color-300);
+    text-underline-offset: 3px;
+  }
+`;
+
 export function StatusText({
   status,
   detail,
@@ -30,37 +49,22 @@ export function StatusText({
   detail?: BackendInfo["statusDetail"];
   dependencyHints?: BackendInfo["dependencyHints"];
 }) {
-  const color =
-    status === "AVAILABLE"
-      ? "var(--global-color-success)"
-      : status === "UNAVAILABLE" || status === "MISSING_CREDENTIALS"
-        ? "var(--global-color-warning)"
-        : "var(--global-text-color-700)";
-  const label = statusLabel(status);
+  const indicator = (
+    <StatusIndicator
+      category={STATUS_CATEGORIES[status]}
+      label={statusLabel(status)}
+    />
+  );
   const tooltipLines = detail ? [detail] : dependencyHints;
 
   if (status === "AVAILABLE" || tooltipLines.length === 0) {
-    return <span style={{ color }}>{label}</span>;
+    return indicator;
   }
-
-  const textColor =
-    status === "NOT_INSTALLED" || status === "DISABLED"
-      ? "text-700"
-      : "warning";
 
   return (
     <TooltipTrigger delay={100}>
       <TriggerWrap>
-        <Text
-          color={textColor}
-          css={css`
-            text-decoration: underline dotted;
-            text-underline-offset: 2px;
-            cursor: help;
-          `}
-        >
-          {label}
-        </Text>
+        <span css={explainedStatusCSS}>{indicator}</span>
       </TriggerWrap>
       <RichTooltip width={320}>
         <Flex direction="column" gap="size-50">
