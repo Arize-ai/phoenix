@@ -29,9 +29,11 @@ from phoenix.db.trace_aggregates import (
 )
 from phoenix.trace.dsl.filter import (
     COMPREHENSION_NAMES,
+    COST_DETAIL_ELEMENT_FIELDS,
     QUANTIFIER_NAMES,
     AliasedAnnotationRelation,
     ComprehensionSpec,
+    ElementField,
     NameMap,
     _compile_condition,
     _eval_globals,
@@ -87,11 +89,6 @@ _TRACE_DATETIME_NAMES: NameMap = MappingProxyType(
 )
 
 
-class _ElementField(typing.NamedTuple):
-    attribute: str
-    kind: typing.Literal["string", "float", "datetime", "boolean"]
-
-
 class _NestedIterable(typing.NamedTuple):
     iterable: str
     correlate: typing.Callable[[typing.Mapping[typing.Any, typing.Any], typing.Any], typing.Any]
@@ -99,7 +96,7 @@ class _NestedIterable(typing.NamedTuple):
 
 class _IterableSpec(typing.NamedTuple):
     model: typing.Any
-    fields: typing.Mapping[str, _ElementField]
+    fields: typing.Mapping[str, ElementField]
     joins: tuple[typing.Any, ...]
     trace_key_model: typing.Any
     uppercase_fields: frozenset[str] = frozenset()
@@ -125,45 +122,36 @@ def _correlate_siblings(
     )
 
 
-_SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+_SPAN_ELEMENT_FIELDS: typing.Mapping[str, ElementField] = MappingProxyType(
     {
-        "name": _ElementField("name", "string"),
-        "parent_id": _ElementField("parent_id", "string"),
-        "span_kind": _ElementField("span_kind", "string"),
-        "status_code": _ElementField("status_code", "string"),
-        "start_time": _ElementField("start_time", "datetime"),
-        "end_time": _ElementField("end_time", "datetime"),
-        "latency_ms": _ElementField("latency_ms", "float"),
-        "cumulative_error_count": _ElementField("cumulative_error_count", "float"),
-        "cumulative_llm_token_count_prompt": _ElementField(
+        "name": ElementField("name", "string"),
+        "parent_id": ElementField("parent_id", "string"),
+        "span_kind": ElementField("span_kind", "string"),
+        "status_code": ElementField("status_code", "string"),
+        "start_time": ElementField("start_time", "datetime"),
+        "end_time": ElementField("end_time", "datetime"),
+        "latency_ms": ElementField("latency_ms", "float"),
+        "cumulative_error_count": ElementField("cumulative_error_count", "float"),
+        "cumulative_llm_token_count_prompt": ElementField(
             "cumulative_llm_token_count_prompt", "float"
         ),
-        "cumulative_llm_token_count_completion": _ElementField(
+        "cumulative_llm_token_count_completion": ElementField(
             "cumulative_llm_token_count_completion", "float"
         ),
-        "cumulative_llm_token_count_total": _ElementField(
+        "cumulative_llm_token_count_total": ElementField(
             "cumulative_llm_token_count_total", "float"
         ),
-        "llm_token_count_prompt": _ElementField("llm_token_count_prompt", "float"),
-        "llm_token_count_completion": _ElementField("llm_token_count_completion", "float"),
-        "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
+        "llm_token_count_prompt": ElementField("llm_token_count_prompt", "float"),
+        "llm_token_count_completion": ElementField("llm_token_count_completion", "float"),
+        "llm_token_count_total": ElementField("llm_token_count_total", "float"),
     }
 )
-_ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
+_ANNOTATION_ELEMENT_FIELDS: typing.Mapping[str, ElementField] = MappingProxyType(
     {
-        "name": _ElementField("name", "string"),
-        "label": _ElementField("label", "string"),
-        "score": _ElementField("score", "float"),
-        "identifier": _ElementField("identifier", "string"),
-    }
-)
-_COST_DETAIL_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
-    {
-        "token_type": _ElementField("token_type", "string"),
-        "is_prompt": _ElementField("is_prompt", "boolean"),
-        "cost": _ElementField("cost", "float"),
-        "tokens": _ElementField("tokens", "float"),
-        "cost_per_token": _ElementField("cost_per_token", "float"),
+        "name": ElementField("name", "string"),
+        "label": ElementField("label", "string"),
+        "score": ElementField("score", "float"),
+        "identifier": ElementField("identifier", "string"),
     }
 )
 
@@ -212,7 +200,7 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
         ),
         "span_cost_details": _IterableSpec(
             model=models.SpanCostDetail,
-            fields=_COST_DETAIL_ELEMENT_FIELDS,
+            fields=COST_DETAIL_ELEMENT_FIELDS,
             joins=(models.SpanCost,),
             trace_key_model=models.SpanCost,
         ),
