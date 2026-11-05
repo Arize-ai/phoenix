@@ -18,15 +18,15 @@ import {
   View,
 } from "@phoenix/components";
 
-import type { ExperimentMetadataFilter } from "./experimentMetadataFilters";
+import type { ExperimentMetadataFilter } from "./experimentFilterDSL";
 import {
   parseMetadataFilterKey,
   parseMetadataFilterValue,
-} from "./experimentMetadataFilters";
+} from "./experimentFilterDSL";
 
 /**
- * A button that opens a form for adding a metadata filter to the experiments
- * table.
+ * A button that opens a form for adding a metadata match to the experiments
+ * table's filter condition.
  */
 export function ExperimentMetadataFilterButton({
   onAddFilter,
@@ -111,8 +111,8 @@ export function ExperimentMetadataFilterForm({
               <FieldError>Enter a value</FieldError>
             ) : (
               <Text slot="description">
-                Numbers and true or false match by type. Quote them to match
-                text, as in &quot;0.7&quot;.
+                Numbers and true or false compare as values. Quote a value to
+                compare it as text, as in &quot;0.7&quot;.
               </Text>
             )}
           </TextField>

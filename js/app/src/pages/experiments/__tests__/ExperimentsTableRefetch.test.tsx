@@ -2,8 +2,9 @@ import { act, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { createMemoryRouter, RouterProvider } from "react-router";
+import type { OperationDescriptor } from "relay-runtime";
 import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { DatasetProvider } from "@phoenix/contexts/DatasetContext";
@@ -12,17 +13,50 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { ExperimentsPage } from "../ExperimentsPage";
 
+// The CodeMirror field doesn't run under jsdom, so this stand-in settles every
+// value as valid, the way the real field does once the server accepts it.
+vi.mock("../ExperimentFilterConditionField", async () => {
+  const React = await import("react");
+  return {
+    ExperimentFilterConditionField: ({
+      value,
+      onValidCondition,
+    }: {
+      value: string;
+      onValidCondition: (args: {
+        condition: string;
+        isInitialSettlement: boolean;
+      }) => void;
+    }) => {
+      const isInitialSettlement = React.useRef(true);
+      React.useEffect(() => {
+        onValidCondition({
+          condition: value,
+          isInitialSettlement: isInitialSettlement.current,
+        });
+        isInitialSettlement.current = false;
+        // Settle once per value, like the real field.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [value]);
+      return React.createElement("div", null, value);
+    },
+  };
+});
+
 installTestMatchMedia();
 
 const SEARCH_DEBOUNCE_MS = 200;
+const METADATA_CONDITION = 'metadata["model"] == "gpt-5"';
 
 describe("ExperimentsTable refetches", () => {
   let container: HTMLDivElement;
   let root: Root;
   let environment: ReturnType<typeof createMockEnvironment>;
+  let resolvedOperations: OperationDescriptor[];
 
   beforeEach(() => {
     environment = createMockEnvironment();
+    resolvedOperations = [];
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -36,6 +70,7 @@ describe("ExperimentsTable refetches", () => {
   async function resolvePendingOperations() {
     await act(async () => {
       for (const operation of environment.mock.getAllOperations()) {
+        resolvedOperations.push(operation);
         environment.mock.resolve(
           operation,
           MockPayloadGenerator.generate(operation, {
@@ -47,7 +82,7 @@ describe("ExperimentsTable refetches", () => {
     });
   }
 
-  async function renderPage() {
+  async function renderPage(search = "") {
     const router = createMemoryRouter(
       [
         {
@@ -65,7 +100,7 @@ describe("ExperimentsTable refetches", () => {
           ),
         },
       ],
-      { initialEntries: ["/datasets/dataset-1/experiments"] }
+      { initialEntries: [`/datasets/dataset-1/experiments${search}`] }
     );
     await act(async () => {
       root.render(
@@ -79,6 +114,7 @@ describe("ExperimentsTable refetches", () => {
       );
     });
     await resolvePendingOperations();
+    return router;
   }
 
   /** Finds an input by its label or aria-label anywhere in the document. */
@@ -143,7 +179,7 @@ describe("ExperimentsTable refetches", () => {
     );
   }
 
-  it("keeps an added metadata filter when the search text changes", async () => {
+  it("keeps a filter condition from the Metadata form when the search text changes", async () => {
     await renderPage();
 
     await addMetadataFilter();
@@ -152,11 +188,11 @@ describe("ExperimentsTable refetches", () => {
 
     expect(getLastTableRefetchVariables()).toMatchObject({
       filterCondition: "cold",
-      metadataFilters: [{ path: ["model"], value: "gpt-5" }],
+      experimentFilterCondition: METADATA_CONDITION,
     });
   });
 
-  it("keeps the search text when a metadata filter is added", async () => {
+  it("keeps the search text when the filter condition changes", async () => {
     await renderPage();
 
     await search("cold");
@@ -165,8 +201,33 @@ describe("ExperimentsTable refetches", () => {
 
     expect(getLastTableRefetchVariables()).toMatchObject({
       filterCondition: "cold",
-      metadataFilters: [{ path: ["model"], value: "gpt-5" }],
+      experimentFilterCondition: METADATA_CONDITION,
     });
+  });
+
+  it("fetches with the URL's filter condition and writes an applied one back", async () => {
+    const router = await renderPage(
+      `?experimentFilterCondition=${encodeURIComponent("repetitions > 1")}`
+    );
+    const pageQuery = resolvedOperations.find(
+      (operation) =>
+        operation.request.node.params.name === "ExperimentsPageQuery"
+    );
+    expect(pageQuery?.request.variables).toMatchObject({
+      experimentFilterCondition: "repetitions > 1",
+    });
+
+    await addMetadataFilter();
+
+    const appliedCondition = `(repetitions > 1) and (${METADATA_CONDITION})`;
+    expect(getLastTableRefetchVariables()).toMatchObject({
+      experimentFilterCondition: appliedCondition,
+    });
+    expect(
+      new URLSearchParams(router.state.location.search).get(
+        "experimentFilterCondition"
+      )
+    ).toBe(appliedCondition);
   });
 
   it("says No results when a search matches nothing", async () => {

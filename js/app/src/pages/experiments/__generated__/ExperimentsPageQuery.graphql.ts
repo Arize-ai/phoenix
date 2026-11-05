@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e1f6b19e2f69fee54fb00beb6923ebb3>>
+ * @generated SignedSource<<94dd86d706651737da79216575c8a955>>
  * @lightSyntaxTransform
  */
 
@@ -9,13 +9,9 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ExperimentMetadataFilter = {
-  path: ReadonlyArray<string>;
-  value: any;
-};
 export type ExperimentsPageQuery$variables = {
   datasetId: string;
-  metadataFilters?: ReadonlyArray<ExperimentMetadataFilter> | null;
+  experimentFilterCondition?: string | null;
 };
 export type ExperimentsPageQuery$data = {
   readonly dataset: {
@@ -39,7 +35,7 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "metadataFilters"
+    "name": "experimentFilterCondition"
   }
 ],
 v1 = [
@@ -65,8 +61,8 @@ v3 = {
 },
 v4 = {
   "kind": "Variable",
-  "name": "metadataFilters",
-  "variableName": "metadataFilters"
+  "name": "experimentFilterCondition",
+  "variableName": "experimentFilterCondition"
 },
 v5 = {
   "alias": null,
@@ -173,8 +169,8 @@ v18 = [
   (v2/*:: as any*/)
 ],
 v19 = [
-  (v13/*:: as any*/),
-  (v4/*:: as any*/)
+  (v4/*:: as any*/),
+  (v13/*:: as any*/)
 ];
 return {
   "fragment": {
@@ -711,7 +707,7 @@ return {
                 "args": (v19/*:: as any*/),
                 "filters": [
                   "filterCondition",
-                  "metadataFilters"
+                  "experimentFilterCondition"
                 ],
                 "handle": "connection",
                 "key": "ExperimentsTable_experiments",
@@ -728,16 +724,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ef7fa376c973f79946e691697d512501",
+    "cacheID": "8e676224ca372e26ca82aeccd2cea867",
     "id": null,
     "metadata": {},
     "name": "ExperimentsPageQuery",
     "operationKind": "query",
-    "text": "query ExperimentsPageQuery(\n  $datasetId: ID!\n  $metadataFilters: [ExperimentMetadataFilter!]\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experimentCount\n    }\n    ...ExperimentsTableFragment_46MWkX\n  }\n}\n\nfragment ExperimentsTableFragment_46MWkX on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  baselineExperiment {\n    id\n    runCount\n    averageRunLatencyMs\n    errorRate\n    costSummary {\n      total {\n        tokens\n        cost\n      }\n    }\n    annotationSummaries {\n      annotationName\n      meanScore\n    }\n  }\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        name\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n  }\n  experiments(first: 100, metadataFilters: $metadataFilters) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        isBaseline\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentsPageQuery(\n  $datasetId: ID!\n  $experimentFilterCondition: String\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      experimentCount\n    }\n    ...ExperimentsTableFragment_2QZ1ox\n  }\n}\n\nfragment ExperimentsTableFragment_2QZ1ox on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  baselineExperiment {\n    id\n    runCount\n    averageRunLatencyMs\n    errorRate\n    costSummary {\n      total {\n        tokens\n        cost\n      }\n    }\n    annotationSummaries {\n      annotationName\n      meanScore\n    }\n  }\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        name\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n  }\n  experiments(first: 100, experimentFilterCondition: $experimentFilterCondition) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        isBaseline\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "852a2cc5a05b201e6cc45088223a124e";
+(node as any).hash = "0da3d0b8b45207b4f62b46e144a9b86f";
 
 export default node;

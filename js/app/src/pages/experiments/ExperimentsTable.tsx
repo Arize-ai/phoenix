@@ -91,12 +91,15 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { EXPERIMENT_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
+import { withFilterConditionParam } from "@phoenix/pages/project/filterConditionParam";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
+import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 import {
   floatFormatter,
   formatPercent,
@@ -113,18 +116,23 @@ import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateText } from "./ErrorRateText";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
-import { ExperimentMetadataFilterButton } from "./ExperimentMetadataFilterButton";
-import type { ExperimentMetadataFilter } from "./experimentMetadataFilters";
 import {
-  formatMetadataFilter,
-  writeMetadataFiltersToSearchParams,
-} from "./experimentMetadataFilters";
+  ExperimentFilterConditionField,
+  type ExperimentFilterValidConditionArgs,
+} from "./ExperimentFilterConditionField";
+import { getMetadataFilterCondition } from "./experimentFilterDSL";
+import { ExperimentMetadataFilterButton } from "./ExperimentMetadataFilterButton";
 import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
 import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
 
 const PAGE_SIZE = 100;
+
+const toolbarFilterFieldCSS = css`
+  flex: 2 1 420px;
+  min-width: min(100%, 320px);
+`;
 
 /**
  * Poll interval for refetching experiment data when experiments are running
@@ -181,7 +189,7 @@ const TableBody = <T extends { id: string }>({
   isLoadingNext: boolean;
   dataset: ExperimentsTableFragment$data;
   /**
-   * Whether a search or metadata filter is active, so an empty table reads
+   * Whether a search or filter condition is active, so an empty table reads
    * "No results" instead of "No experiments".
    */
   isFiltered: boolean;
@@ -253,25 +261,30 @@ export const MemoizedTableBody = memo(
 
 export function ExperimentsTable({
   dataset,
-  initialMetadataFilters,
+  initialFilterCondition,
 }: {
   dataset: ExperimentsTableFragment$key;
   /**
-   * The metadata filters the page query fetched the dataset's experiments
-   * with. The table owns the filters from then on, so the tokens it shows
-   * always match the rows it last fetched.
+   * The filter condition the page query fetched the dataset's experiments
+   * with. The table owns the condition from then on, so the rows always match
+   * the condition it last applied.
    */
-  initialMetadataFilters: ExperimentMetadataFilter[];
+  initialFilterCondition: string;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
   const [, setSearchParams] = useSearchParams();
   const { search } = useLocation();
-  const [metadataFilters, setMetadataFilters] = useState(
-    initialMetadataFilters
+  // The field's text, which may not be valid yet.
+  const [draftFilterCondition, setDraftFilterCondition] = useState(
+    initialFilterCondition
+  );
+  // The last condition that passed validation, which the rows match.
+  const [filterCondition, setFilterCondition] = useState(
+    initialFilterCondition
   );
   const [searchText, setSearchText] = useState("");
-  const isFiltered = Boolean(searchText) || metadataFilters.length > 0;
+  const isFiltered = Boolean(searchText) || Boolean(filterCondition);
   const {
     isExpanded: areRowsExpanded,
     setIsExpanded: setAreRowsExpanded,
@@ -288,10 +301,7 @@ export function ExperimentsTable({
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
           filterCondition: { type: "String", defaultValue: null }
-          metadataFilters: {
-            type: "[ExperimentMetadataFilter!]"
-            defaultValue: null
-          }
+          experimentFilterCondition: { type: "String", defaultValue: null }
         ) {
           id
           experimentAnnotationSummaries {
@@ -350,7 +360,7 @@ export function ExperimentsTable({
             first: $first
             after: $after
             filterCondition: $filterCondition
-            metadataFilters: $metadataFilters
+            experimentFilterCondition: $experimentFilterCondition
           ) @connection(key: "ExperimentsTable_experiments") {
             edges {
               experiment: node {
@@ -460,26 +470,24 @@ export function ExperimentsTable({
   );
 
   /**
-   * Refetches the experiments with both the search text and the metadata
-   * filters. Relay fills any variable a refetch omits from the page query,
+   * Refetches the experiments with both the search text and the filter
+   * condition. Relay fills any variable a refetch omits from the page query,
    * not from the previous refetch, so every refetch must pass both.
    */
   const refetchExperiments = ({
     fetchPolicy,
     nextSearchText = searchText,
-    nextMetadataFilters = metadataFilters,
+    nextFilterCondition = filterCondition,
   }: {
     fetchPolicy: "network-only" | "store-and-network";
     nextSearchText?: string;
-    nextMetadataFilters?: ExperimentMetadataFilter[];
+    nextFilterCondition?: string;
   }) => {
     startTransition(() => {
       refetch(
         {
           filterCondition: nextSearchText || null,
-          metadataFilters: nextMetadataFilters.length
-            ? nextMetadataFilters
-            : null,
+          experimentFilterCondition: nextFilterCondition || null,
         },
         { fetchPolicy }
       );
@@ -491,16 +499,27 @@ export function ExperimentsTable({
     refetchExperiments({ fetchPolicy: "network-only", nextSearchText });
   };
 
-  const onMetadataFiltersChange = (filters: ExperimentMetadataFilter[]) => {
-    setMetadataFilters(filters);
+  const onValidFilterCondition = ({
+    condition,
+    isInitialSettlement,
+  }: ExperimentFilterValidConditionArgs) => {
+    // The page query already fetched the rows for the URL's own condition.
+    if (isInitialSettlement || condition === filterCondition) {
+      return;
+    }
+    setFilterCondition(condition);
     setSearchParams(
       (prev) =>
-        writeMetadataFiltersToSearchParams({ searchParams: prev, filters }),
+        withFilterConditionParam(
+          prev,
+          EXPERIMENT_FILTER_CONDITION_PARAM,
+          condition
+        ),
       { replace: true }
     );
     refetchExperiments({
       fetchPolicy: "network-only",
-      nextMetadataFilters: filters,
+      nextFilterCondition: condition,
     });
   };
 
@@ -1045,17 +1064,36 @@ export function ExperimentsTable({
         borderBottomWidth="thin"
         flex="none"
       >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <View flex="1 1 auto">
+        <Flex
+          direction="row"
+          gap="size-100"
+          width="100%"
+          alignItems="center"
+          wrap="wrap"
+        >
+          <View flex="1 1 200px">
             <DebouncedSearch
               placeholder="Search experiments"
               aria-label="Search experiments"
               onChange={onSearchTextChange}
             />
           </View>
+          <div css={toolbarFilterFieldCSS}>
+            <ExperimentFilterConditionField
+              datasetId={data.id}
+              value={draftFilterCondition}
+              onChange={setDraftFilterCondition}
+              onValidCondition={onValidFilterCondition}
+            />
+          </div>
           <ExperimentMetadataFilterButton
             onAddFilter={(filter) =>
-              onMetadataFiltersChange([...metadataFilters, filter])
+              setDraftFilterCondition((current) =>
+                joinFilterConditions({
+                  existingCondition: current,
+                  nextCondition: getMetadataFilterCondition(filter),
+                })
+              )
             }
           />
           <ExperimentsMetricsChartSelector />
@@ -1078,36 +1116,6 @@ export function ExperimentsTable({
             }
           />
         </Flex>
-        {metadataFilters.length ? (
-          <View paddingTop="size-100">
-            <Flex
-              direction="row"
-              gap="size-50"
-              wrap="wrap"
-              alignItems="center"
-              data-testid="experiment-metadata-filters"
-            >
-              {metadataFilters.map((filter, index) => {
-                const label = formatMetadataFilter(filter);
-                return (
-                  <Token
-                    key={`${index}-${label}`}
-                    maxWidth="var(--global-dimension-size-4600)"
-                    onRemove={() =>
-                      onMetadataFiltersChange(
-                        metadataFilters.filter(
-                          (_, filterIndex) => filterIndex !== index
-                        )
-                      )
-                    }
-                  >
-                    {label}
-                  </Token>
-                );
-              })}
-            </Flex>
-          </View>
-        ) : null}
       </View>
       <div
         css={css`

@@ -20,9 +20,10 @@ import {
   useMetricChartsLayout,
 } from "@phoenix/components/chart";
 import { TableSkeleton } from "@phoenix/components/table";
+import { EXPERIMENT_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
+import { readFilterConditionParam } from "@phoenix/pages/project/filterConditionParam";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
-import { readMetadataFiltersFromSearchParams } from "./experimentMetadataFilters";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
 import {
   ExperimentsMetricsCharts,
@@ -34,20 +35,19 @@ export function ExperimentsPage() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required to view experiments");
   const [searchParams] = useSearchParams();
-  // Read the URL's filters only on mount and hand them to the table, which
-  // owns them from then on. Refetching this query on later changes would
+  // Read the URL's filter condition only on mount and hand it to the table,
+  // which owns it from then on. Refetching this query on later changes would
   // suspend the whole page.
-  const [initialMetadataFilters] = useState(() => {
-    const filters = readMetadataFiltersFromSearchParams(searchParams);
-    return filters.length ? filters : null;
-  });
+  const [initialFilterCondition] = useState(() =>
+    readFilterConditionParam(searchParams, EXPERIMENT_FILTER_CONDITION_PARAM)
+  );
   // We use a lazyLoadQuery here due to the fact that there is an issue with Relay connections
   // @see https://github.com/facebook/relay/issues/4875#issuecomment-3138533719
   const data = useLazyLoadQuery<ExperimentsPageQuery>(
     graphql`
       query ExperimentsPageQuery(
         $datasetId: ID!
-        $metadataFilters: [ExperimentMetadataFilter!]
+        $experimentFilterCondition: String
       ) {
         dataset: node(id: $datasetId) {
           id
@@ -55,13 +55,13 @@ export function ExperimentsPage() {
             experimentCount
           }
           ...ExperimentsTableFragment
-            @arguments(metadataFilters: $metadataFilters)
+            @arguments(experimentFilterCondition: $experimentFilterCondition)
         }
       }
     `,
     {
       datasetId,
-      metadataFilters: initialMetadataFilters,
+      experimentFilterCondition: initialFilterCondition || null,
     },
     { fetchPolicy: "store-and-network" }
   );
@@ -76,7 +76,7 @@ export function ExperimentsPage() {
         <ErrorBoundary fallback={ErrorBoundaryFallback}>
           <ExperimentsTable
             dataset={data.dataset}
-            initialMetadataFilters={initialMetadataFilters ?? []}
+            initialFilterCondition={initialFilterCondition}
           />
         </ErrorBoundary>
       </ExperimentsMetricChartsPanelGroup>

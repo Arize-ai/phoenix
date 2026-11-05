@@ -67,7 +67,8 @@ describe("revalidateUnlessOnlySearchChanges", () => {
   it("skips revalidation when only the search string changes", () => {
     const args = makeArgs({
       currentPath: "/datasets/dataset-1/experiments",
-      nextPath: "/datasets/dataset-1/experiments?metadataFilters=%5B%5D",
+      nextPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
     });
 
     expect(revalidateUnlessOnlySearchChanges(args)).toBe(false);
@@ -84,8 +85,10 @@ describe("revalidateUnlessOnlySearchChanges", () => {
 
   it("defers same-URL revalidation to React Router", () => {
     const args = makeArgs({
-      currentPath: "/datasets/dataset-1/experiments?metadataFilters=%5B%5D",
-      nextPath: "/datasets/dataset-1/experiments?metadataFilters=%5B%5D",
+      currentPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
+      nextPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
     });
 
     expect(revalidateUnlessOnlySearchChanges(args)).toBe(true);

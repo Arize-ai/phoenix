@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { ThemeProvider } from "@phoenix/contexts";
 
+import type { ExperimentMetadataFilter } from "../experimentFilterDSL";
 import { ExperimentMetadataFilterForm } from "../ExperimentMetadataFilterButton";
-import type { ExperimentMetadataFilter } from "../experimentMetadataFilters";
 
 installTestMatchMedia();
 

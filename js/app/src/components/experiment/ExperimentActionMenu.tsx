@@ -65,7 +65,7 @@ type ExperimentActionMenuBaseProps = {
   jobStatus?: ExperimentJobStatus | null;
   size?: ButtonProps["size"];
   /**
-   * The search string, such as `?metadataFilters=...`, to keep on the URL when
+   * The search string, such as `?experimentFilterCondition=...`, to keep on the URL when
    * opening the experiment's details.
    */
   experimentDetailsSearch?: string;

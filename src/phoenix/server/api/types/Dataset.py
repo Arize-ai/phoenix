@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Optional, cast
 import strawberry
 from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.sqltypes import String
@@ -20,7 +21,6 @@ from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetVersionSort import DatasetVersionSort
-from phoenix.server.api.input_types.ExperimentMetadataFilter import ExperimentMetadataFilter
 from phoenix.server.api.input_types.ExperimentSort import ExperimentSort
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetExperimentAnnotationSummary import (
@@ -38,6 +38,12 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
+from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.experiment_filters import (
+    ExperimentFilterConditionError,
+    compile_experiment_filter,
+    experiment_filter_errors,
+)
 
 if TYPE_CHECKING:
     from .ExperimentJob import ExperimentJob
@@ -410,11 +416,11 @@ class Dataset(Node):
             ),
         ] = UNSET,
         sort: Optional[ExperimentSort] = UNSET,
-        metadata_filters: Annotated[
-            Optional[list[ExperimentMetadataFilter]],
+        experiment_filter_condition: Annotated[
+            Optional[str],
             strawberry.argument(
-                description="When provided, return only the experiments whose metadata "
-                "matches every filter."
+                description="When provided, return only the experiments that match this "
+                'filter expression, e.g. `metadata["model"] == "gpt-5" and repetitions > 1`.'
             ),
         ] = UNSET,
     ) -> Connection[Experiment]:
@@ -451,11 +457,9 @@ class Dataset(Node):
             )
             query = query.where(search_filter)
 
-        if metadata_filters:
-            dialect = info.context.db.dialect
-            query = query.where(
-                *(metadata_filter.to_sql(dialect) for metadata_filter in metadata_filters)
-            )
+        if experiment_filter_condition:
+            with experiment_filter_errors():
+                query = compile_experiment_filter(experiment_filter_condition)(query)
 
         if filter_ids:
             filter_rowids = []
@@ -667,6 +671,20 @@ class Dataset(Node):
         # re-sort the final results by kind, this is necessary because builtin evaluators are not
         #  part of the polymorphic table
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description="Validate an experiment filter condition for SQLite and PostgreSQL."
+    )  # type: ignore
+    def validate_experiment_filter_condition(self, condition: str) -> ValidationResult:
+        try:
+            with experiment_filter_errors():
+                experiment_filter = compile_experiment_filter(condition)
+                stmt = experiment_filter(select(models.Experiment))
+                str(stmt.compile(dialect=sqlite.dialect()))
+                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+        except ExperimentFilterConditionError as error:
+            return ValidationResult(is_valid=False, error_message=str(error))
+        return ValidationResult(is_valid=True, error_message=None)
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:

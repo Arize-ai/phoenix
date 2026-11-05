@@ -173,7 +173,7 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
 };
 
 // The dataset loaders don't read the search string, so a change to only the
-// search string, such as the experiments table's metadata filters, skips them.
+// search string, such as the experiments table's filter condition, skips them.
 // Other navigations, including same-URL requests (useRevalidator), defer to
 // the router's default, so dataset counts still refresh between tabs.
 export const revalidateUnlessOnlySearchChanges: ShouldRevalidateFunction = ({
