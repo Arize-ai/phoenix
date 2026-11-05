@@ -44,6 +44,8 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicThinkingConfigEnabled,
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
@@ -216,6 +218,23 @@ class BaseEvaluator(ABC):
                    and retrieving any recorded spans after evaluation.
         """
         ...
+
+
+def _enables_extended_thinking(invocation_parameters: PromptInvocationParameters) -> bool:
+    """Checks whether Anthropic invocation parameters enable extended thinking.
+
+    Anthropic rejects a forced tool choice with extended thinking but accepts it with
+    adaptive thinking. `extra_body` is merged into the request last, so its `thinking`
+    key wins.
+    """
+    if not isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return False
+    anthropic_params = invocation_parameters.anthropic
+    extra_body = anthropic_params.extra_body
+    if isinstance(extra_body, dict) and "thinking" in extra_body:
+        thinking = extra_body["thinking"]
+        return isinstance(thinking, dict) and thinking.get("type") == "enabled"
+    return isinstance(anthropic_params.thinking, PromptAnthropicThinkingConfigEnabled)
 
 
 def _request_tool_call_in_prompt(
@@ -436,7 +455,9 @@ class LLMEvaluator(BaseEvaluator):
                     prompt_span.set_status(Status(StatusCode.OK))
 
                 tools = self._tools
-                if not self._llm_client.supports_forced_tool_choice:
+                if not self._llm_client.supports_forced_tool_choice or _enables_extended_thinking(
+                    self._invocation_parameters
+                ):
                     tools, messages = _request_tool_call_in_prompt(tools, messages)
 
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}

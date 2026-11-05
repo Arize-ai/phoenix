@@ -36,6 +36,9 @@ from phoenix.db.types.model_provider import (
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
     PromptAnthropicInvocationParametersContent,
+    PromptAnthropicThinkingConfigAdaptive,
+    PromptAnthropicThinkingConfigDisabled,
+    PromptAnthropicThinkingConfigEnabled,
     PromptChatTemplate,
     PromptMessage,
     PromptOpenAIInvocationParameters,
@@ -3730,6 +3733,7 @@ class TestLLMEvaluatorWithoutForcedToolChoice:
         response_content: list[dict[str, Any]],
         output_config: CategoricalOutputConfig,
         input_mapping: InputMapping,
+        anthropic_params: Optional[PromptAnthropicInvocationParametersContent] = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Runs an evaluator against a mocked Anthropic API.
 
@@ -3768,7 +3772,8 @@ class TestLLMEvaluatorWithoutForcedToolChoice:
                 tools=tools,
                 invocation_parameters=PromptAnthropicInvocationParameters(
                     type="anthropic",
-                    anthropic=PromptAnthropicInvocationParametersContent(max_tokens=2000),
+                    anthropic=anthropic_params
+                    or PromptAnthropicInvocationParametersContent(max_tokens=2000),
                 ),
                 model_provider=ModelProvider.ANTHROPIC,
                 llm_client=llm_client,
@@ -3857,6 +3862,89 @@ class TestLLMEvaluatorWithoutForcedToolChoice:
         assert result["error"] is None
         assert result["label"] == "correct"
         assert result["score"] == 1.0
+
+    @pytest.mark.parametrize(
+        "anthropic_params, expected_tool_choice, expected_system",
+        [
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigEnabled(
+                        type="enabled", budget_tokens=1024
+                    ),
+                ),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="extended-thinking",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    extra_body={"thinking": {"type": "enabled", "budget_tokens": 1024}},
+                ),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="extended-thinking-in-extra-body",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigEnabled(
+                        type="enabled", budget_tokens=1024
+                    ),
+                    extra_body={"thinking": {"type": "disabled"}},
+                ),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="extra-body-disables-thinking",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigAdaptive(type="adaptive"),
+                ),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="adaptive-thinking-keeps-any",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigDisabled(type="disabled"),
+                ),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="disabled-thinking-keeps-any",
+            ),
+        ],
+    )
+    async def test_tool_choice_sent_to_anthropic_with_thinking(
+        self,
+        anthropic_params: PromptAnthropicInvocationParametersContent,
+        expected_tool_choice: dict[str, Any],
+        expected_system: str,
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+    ) -> None:
+        request_body, result = await self._evaluate(
+            model_name="claude-sonnet-4-6",
+            tools=self._tools(PromptToolChoiceOneOrMore(type="one_or_more")),
+            response_content=[
+                {
+                    "type": "tool_use",
+                    "id": "toolu_mock",
+                    "name": "correctness",
+                    "input": {"label": "correct"},
+                }
+            ],
+            output_config=output_config,
+            input_mapping=input_mapping,
+            anthropic_params=anthropic_params,
+        )
+        assert request_body["tool_choice"] == expected_tool_choice
+        assert request_body["system"].strip() == expected_system
+        assert result["error"] is None
+        assert result["label"] == "correct"
 
     def test_instruction_names_every_tool_for_multiple_outputs(self) -> None:
         tools = self._tools(PromptToolChoiceOneOrMore(type="one_or_more"))
