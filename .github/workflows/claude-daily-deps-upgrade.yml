@@ -207,13 +207,6 @@ jobs:
           All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
           if [ "$(gh pr view "${BRANCH}" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
             gh pr edit "${BRANCH}" --title "$TITLE" --body "$BODY"
-            PR_NUMBER=$(gh pr view "${BRANCH}" --json number --jq .number)
-            gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
-              --jq '.[] | select(.state == "APPROVED") | .id' \
-              | while read -r REVIEW_ID; do
-                  gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/dismissals" \
-                    --field message="Dismissed: the branch was replaced by a newer upgrade." >/dev/null
-                done
           else
             gh pr create --title "$TITLE" --body "$BODY"
           fi
@@ -405,13 +398,6 @@ jobs:
           TITLE="chore(deps): daily dependency upgrade ${DATE}"
           if [ "$(gh pr view "${BRANCH}" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
             gh pr edit "${BRANCH}" --title "$TITLE" --body-file .scratch/pr-body-full.md
-            PR_NUMBER=$(gh pr view "${BRANCH}" --json number --jq .number)
-            gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
-              --jq '.[] | select(.state == "APPROVED") | .id' \
-              | while read -r REVIEW_ID; do
-                  gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/dismissals" \
-                    --field message="Dismissed: the branch was replaced by a newer upgrade." >/dev/null
-                done
           else
             gh pr create --title "$TITLE" --body-file .scratch/pr-body-full.md
           fi
