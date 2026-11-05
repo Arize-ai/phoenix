@@ -129,8 +129,6 @@ jobs:
           fi
           git add -A
           git commit -m "docs: add Phoenix release notes"
-          # One permanent branch: each run replaces it with a fresh diff
-          # against main and reuses the open pull request if there is one.
           git push --force -u origin "$BRANCH"
           if [ -s .scratch/pr-body.md ]; then
             BODY_FILE=.scratch/pr-body.md
