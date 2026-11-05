@@ -35,6 +35,9 @@ VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
+# factory-preview.yml deploys a labeled PR; docs PRs have nothing to seed.
+PREVIEW_LABEL = "factory-preview"
+PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -603,6 +606,15 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
+                    if lane in PREVIEW_LANES:
+                        run_gh(
+                            "pr",
+                            "edit",
+                            str(pr["number"]),
+                            "--add-label",
+                            PREVIEW_LABEL,
+                            token=app_token.refresh(),
+                        )
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
