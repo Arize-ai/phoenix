@@ -15,6 +15,45 @@
 - [Observe](https://arize.com/docs/phoenix/get-started/get-started-tracing): Trace a model call and send it to Phoenix, in Python or TypeScript
 - [Evaluate](https://arize.com/docs/phoenix/get-started/get-started-evaluations): Build a dataset, write an LLM judge, and compare two prompt runs as experiments, in Python or TypeScript
 
+## Learn (Phoenix Academy)
+
+- [Welcome to Phoenix Academy](https://arize.com/docs/phoenix/learn): Learn how tracing, evaluation, and experiments support agent improvement with a shared shopping assistant example
+
+### Understand behavior
+
+- [Capture your first agent run](https://arize.com/docs/phoenix/learn/capture-first-run): Run Wonder Toys locally and find the trace of a shopping request in Phoenix
+- [Add an agent span](https://arize.com/docs/phoenix/learn/add-context-to-traces): Add a named agent span with the complete request and answer above the automatically recorded calls
+- [Read model, retrieval, and tool steps](https://arize.com/docs/phoenix/learn/read-agent-run): Follow model calls and search results to explain how an agent produced its recommendation
+- [Follow a conversation with sessions](https://arize.com/docs/phoenix/learn/sessions): Review a conversation's traces together and compare follow-up answers with the messages the model received
+
+### Find failures
+
+- [Use traces and feedback](https://arize.com/docs/phoenix/learn/find-failures): Review Wonder Toys requests, save observations in Phoenix, and choose a problem to investigate
+- [Investigate and label a failed run](https://arize.com/docs/phoenix/learn/investigate-failure): Check the evidence behind a budget failure and apply consistent review labels to root spans
+- [Turn failures into representative cases](https://arize.com/docs/phoenix/learn/build-test-cases): Save reviewed shopping requests and expected behavior in a Phoenix dataset for future experiments
+
+### Design evaluations
+
+- [Choose what to evaluate](https://arize.com/docs/phoenix/learn/choose-evals): Match a Wonder Toys requirement to its evidence and choose code, an LLM judge, or human review
+
+- [Write checks for actions and outcomes](https://arize.com/docs/phoenix/learn/code-checks): Verify the stored result of the existing Wonder Toys purchase tool and test a code evaluator against deliberate mistakes
+
+- [Write and validate an LLM judge](https://arize.com/docs/phoenix/learn/llm-judge): Apply a budget rubric, compare judge decisions with independent reviews, and inspect disagreements in Phoenix experiments
+
+- [Compare prompt changes in Playground](https://arize.com/docs/phoenix/learn/playground-evals): Replay a captured model step and test one prompt change.
+
+- [Run a Phoenix dataset experiment](https://arize.com/docs/phoenix/learn/run-experiment): Compare complete Wonder Toys runs on a fixed dataset version.
+
+- [Compare results and agent steps](https://arize.com/docs/phoenix/learn/compare-experiments): Inspect individual answers, repetitions, judgments, and traces.
+
+- [Test sandboxable agents with Harbor](https://arize.com/docs/phoenix/learn/harbor-agent-tests): Run a purchase task in a fresh environment and verify the saved result in Phoenix.
+
+- [Decide whether a change is ready](https://arize.com/docs/phoenix/learn/ship-decision): Review experiment evidence and coverage gaps, then record a release decision and next action.
+
+- [Add critical checks to CI](https://arize.com/docs/phoenix/learn/ci-checks): Record pytest evaluation tests in Phoenix and choose assertions for code and model requirements.
+
+- [Evaluate new runs and update tests](https://arize.com/docs/phoenix/learn/production-evals): Manually evaluate captured runs, review judgments, and add useful cases to the test set.
+
 ## Tracing
 
 - [How to: Tracing](https://arize.com/docs/phoenix/tracing/how-to-tracing): Index of tracing guides — setup, metadata, annotations, import/export, advanced config
@@ -225,7 +264,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Connect Your Coding Agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents): Connect Claude Code, Codex, Cursor, or any coding agent to Phoenix with a plugin or the MCP server. The CLI is optional
 - [Phoenix CLI Guide](https://arize.com/docs/phoenix/integrations/developer-tools/cli): Read traces, datasets, experiments, and prompts and record annotations from a shell with px; px setup wires an app to Phoenix through a coding agent
 - [MCP Servers](https://arize.com/docs/phoenix/integrations/mcp): Connect an MCP client to your Phoenix data at /mcp, or to the Phoenix documentation
-- [Skills](https://arize.com/docs/phoenix/integrations/developer-tools/skills): The five Phoenix skills for tracing, evals, error analysis, Harbor, and the CLI. The MCP server serves four that match its version. The plugins and npx skills add install all five
+- [Skills](https://arize.com/docs/phoenix/integrations/developer-tools/skills): Install the Phoenix agent skills for tracing, evals, error analysis, Harbor, and the CLI via plugins, npx, or MCP
 
 ### Coding Agents
 
@@ -260,6 +299,8 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
 - [Ollama Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-tracing): Instrument the Ollama Python client with openinference-instrumentation-ollama
+- [Ollama with the OpenAI Node.js SDK](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-node-js-sdk): Trace Node.js OpenAI SDK calls to local Ollama models with @arizeai/openinference-instrumentation-openai
+- [Ollama with the OpenAI Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk): Trace Go OpenAI SDK calls to local Ollama models with openinference-instrumentation-openai-go
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [Cloudflare AI Gateway Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing): Configure Cloudflare AI Gateway to export OpenTelemetry gen_ai spans to Phoenix over OTLP
@@ -914,6 +955,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [10.13.2026: Docker Sandboxes and MCP GraphQL Tools](https://arize.com/docs/phoenix/release-notes/10-2026/10-13-2026-docker-sandboxes-and-mcp-graphql-tools): Run code evaluators in Docker Cloud Sandboxes and let MCP clients query Phoenix data through GraphQL
 - [10.16.2026: Claude Managed Agents Tracing and Gemini 4 Argon](https://arize.com/docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon): Trace Claude Managed Agents and Atomic Agents, try Gemini 4 Argon in the Playground, and export server logs over OTLP
 - [10.27.2026: Decision-Model Evaluators and Project Onboarding](https://arize.com/docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding): Run TypeScript classification evaluators on AI SDK decision models and get setup guides in empty projects
+- [11.02.2026: Breaking Change: Authentication by Default](https://arize.com/docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations): Upgrade to Phoenix 21 loopback binding and default auth; record DECISION and AGENT annotator kinds
 
 ### 2025
 

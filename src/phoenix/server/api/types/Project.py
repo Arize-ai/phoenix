@@ -74,6 +74,14 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.cost_tracking.token_types import (
+    AUDIO_TOKEN_TYPE,
+    CACHE_READ_TOKEN_TYPE,
+    CACHE_WRITE_TOKEN_TYPE,
+    INPUT_TOKEN_TYPE,
+    OUTPUT_TOKEN_TYPE,
+    REASONING_TOKEN_TYPE,
+)
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
@@ -114,12 +122,12 @@ _SESSION_FILTER_CONDITION_NOTE = (
     "session's input/output."
 )
 _TOKEN_COUNT_DETAIL_SORT_ORDER = {
-    "input": 0,
-    "output": 0,
-    "cache_read": 1,
-    "cache_write": 2,
-    "reasoning": 3,
-    "audio": 4,
+    INPUT_TOKEN_TYPE: 0,
+    OUTPUT_TOKEN_TYPE: 0,
+    CACHE_READ_TOKEN_TYPE: 1,
+    CACHE_WRITE_TOKEN_TYPE: 2,
+    REASONING_TOKEN_TYPE: 3,
+    AUDIO_TOKEN_TYPE: 4,
 }
 if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy

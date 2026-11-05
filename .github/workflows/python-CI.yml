@@ -8,6 +8,7 @@ on:
       - main
       - version-*
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -975,7 +976,7 @@ jobs:
           # the repository afterwards, so there is no pyproject.toml for setup-uv
           # to read. Keep equal to the lower bound of [tool.uv] required-version in
           # pyproject.toml.
-          version: "0.13.5"
+          version: "0.13.7"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
