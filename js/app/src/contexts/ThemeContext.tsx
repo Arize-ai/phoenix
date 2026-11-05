@@ -15,8 +15,10 @@ export type ProviderTheme = "light" | "dark";
  * The theme mode selected by the user.
  * Distinct from ProviderTheme, which is the actual theme that is applied to the app,
  * i.e., "system" is in ProviderThemeMode but not in ProviderTheme.
+ * "sunshine" is a golden variant of the light theme: it resolves to the "light"
+ * ProviderTheme and adds a `theme--sunshine` class that overrides the gray tokens.
  */
-export type ProviderThemeMode = ProviderTheme | "system";
+export type ProviderThemeMode = ProviderTheme | "system" | "sunshine";
 
 /**
  * Type guard to check if a value is a valid ProviderThemeMode.
@@ -24,7 +26,12 @@ export type ProviderThemeMode = ProviderTheme | "system";
 export function isProviderThemeMode(
   value: unknown
 ): value is ProviderThemeMode {
-  return value === "light" || value === "dark" || value === "system";
+  return (
+    value === "light" ||
+    value === "dark" ||
+    value === "system" ||
+    value === "sunshine"
+  );
 }
 
 export type ThemeContextType = {
@@ -41,6 +48,7 @@ export function getCurrentTheme(): ProviderTheme {
   const themeModeFromLocalStorage = localStorage.getItem(THEME_STORAGE_KEY);
   switch (themeModeFromLocalStorage) {
     case "light":
+    case "sunshine":
       return "light";
     case "dark":
       return "dark";
@@ -103,6 +111,9 @@ export function ThemeProvider(
     if (themeMode === "system") {
       return systemTheme;
     }
+    if (themeMode === "sunshine") {
+      return "light";
+    }
     return themeMode;
   }, [themeMode, systemTheme]);
 
@@ -128,13 +139,15 @@ export function ThemeProvider(
   useEffect(() => {
     if (props.disableBodyTheme) return undefined;
     // When the theme changes, set a class on the body to override the default theme
-    document.body.classList.add(`theme--${theme}`);
-    document.body.classList.add(`theme`);
+    const classNames = ["theme", `theme--${theme}`];
+    if (themeMode === "sunshine") {
+      classNames.push("theme--sunshine");
+    }
+    document.body.classList.add(...classNames);
     return () => {
-      document.body.classList.remove(`theme--${theme}`);
-      document.body.classList.remove(`theme`);
+      document.body.classList.remove(...classNames);
     };
-  }, [theme, props.disableBodyTheme]);
+  }, [theme, themeMode, props.disableBodyTheme]);
 
   return (
     <ThemeContext.Provider

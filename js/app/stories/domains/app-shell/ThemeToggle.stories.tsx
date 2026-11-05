@@ -4,8 +4,8 @@ import { View } from "@phoenix/components";
 import { ThemeToggle } from "@phoenix/components/nav";
 
 /**
- * A compact segmented control for switching between light, dark, and system
- * theme modes. Lives in the account menu at the bottom of the side nav.
+ * A compact segmented control for switching between light, dark, sunshine, and
+ * system theme modes. Lives in the account menu at the bottom of the side nav.
  */
 const meta: Meta<typeof ThemeToggle> = {
   title: "Domains/App shell/Theme Toggle",

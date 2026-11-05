@@ -362,6 +362,7 @@
               "docs/phoenix/settings/secrets",
               "docs/phoenix/settings/data-retention",
               "docs/phoenix/settings/custom-ai-providers",
+              "docs/phoenix/settings/color-themes",
               {
                 "group": "Sandboxes",
                 "pages": [

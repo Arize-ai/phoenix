@@ -873,6 +873,39 @@ export const lightThemeCSS = css`
   }
 `;
 
+/**
+ * A golden variant of the light theme. The "sunshine" theme mode applies both
+ * `theme--light` and `theme--sunshine`, so every light-theme token still
+ * applies and only the gray ramp is warmed. Tokens derived from the grays
+ * (backgrounds, borders, primary) pick up the golden values automatically.
+ */
+export const sunshineThemeCSS = css`
+  .theme--light.theme--sunshine {
+    --global-color-gray-50-rgb: 255, 253, 240;
+    --global-color-gray-50: rgb(var(--global-color-gray-50-rgb));
+    --global-color-gray-75-rgb: 255, 249, 222;
+    --global-color-gray-75: rgb(var(--global-color-gray-75-rgb));
+    --global-color-gray-100-rgb: 255, 243, 199;
+    --global-color-gray-100: rgb(var(--global-color-gray-100-rgb));
+    --global-color-gray-200-rgb: 247, 225, 150;
+    --global-color-gray-200: rgb(var(--global-color-gray-200-rgb));
+    --global-color-gray-300-rgb: 236, 206, 112;
+    --global-color-gray-300: rgb(var(--global-color-gray-300-rgb));
+    --global-color-gray-400-rgb: 204, 167, 66;
+    --global-color-gray-400: rgb(var(--global-color-gray-400-rgb));
+    --global-color-gray-500-rgb: 166, 130, 40;
+    --global-color-gray-500: rgb(var(--global-color-gray-500-rgb));
+    --global-color-gray-600-rgb: 120, 92, 24;
+    --global-color-gray-600: rgb(var(--global-color-gray-600-rgb));
+    --global-color-gray-700-rgb: 82, 62, 16;
+    --global-color-gray-700: rgb(var(--global-color-gray-700-rgb));
+    --global-color-gray-800-rgb: 44, 33, 8;
+    --global-color-gray-800: rgb(var(--global-color-gray-800-rgb));
+    --global-color-gray-900-rgb: 20, 14, 0;
+    --global-color-gray-900: rgb(var(--global-color-gray-900-rgb));
+  }
+`;
+
 type Theme = ThemeContextType["theme"];
 
 const baseTokensCSS = (theme: Theme) => css`
@@ -1693,6 +1726,7 @@ export function GlobalStyles() {
         staticCSS,
         themeCSS,
         derivedCSS(theme),
+        sunshineThemeCSS,
         mediumRootCSS,
         appGlobalStylesCSS,
         codeMirrorOverridesCSS,

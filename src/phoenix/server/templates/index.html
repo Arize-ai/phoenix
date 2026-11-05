@@ -65,11 +65,18 @@
         try {
           var STORAGE_KEY = "arize-phoenix-theme";
           var DEFAULT_THEME = "dark";
-          var BACKGROUND = { dark: "#0e0e0e", light: "#fdfdfd" };
+          var BACKGROUND = {
+            dark: "#0e0e0e",
+            light: "#fdfdfd",
+            sunshine: "#fff9de",
+          };
 
           var saved = localStorage.getItem(STORAGE_KEY);
           var mode =
-            saved === "light" || saved === "dark" || saved === "system"
+            saved === "light" ||
+            saved === "dark" ||
+            saved === "system" ||
+            saved === "sunshine"
               ? saved
               : DEFAULT_THEME;
           var theme =

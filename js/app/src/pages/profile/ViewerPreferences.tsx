@@ -64,6 +64,11 @@ export function ViewerPreferences() {
         label: "Light",
         icon: <Icons.Sun />,
       },
+      {
+        id: "sunshine" as const,
+        label: "Sunshine",
+        icon: <Icons.Sparkles />,
+      },
     ];
   }, [systemTheme]);
 

@@ -522,6 +522,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Secrets](https://arize.com/docs/phoenix/settings/secrets): Store and manage encrypted API keys and credentials
 - [Data Retention](https://arize.com/docs/phoenix/settings/data-retention): Configure data retention policies
 - [Custom AI Providers](https://arize.com/docs/phoenix/settings/custom-ai-providers): Server-managed AI provider credentials for Playground and evals
+- [Color Themes](https://arize.com/docs/phoenix/settings/color-themes): Choose the light, dark, sunshine, or system color theme for the Phoenix UI
 - [Sandboxes](https://arize.com/docs/phoenix/settings/sandboxes): Configure sandbox backends and reusable configurations for code evaluators
 - [WebAssembly Sandbox](https://arize.com/docs/phoenix/settings/sandboxes/wasm): Run simple Python evaluators locally inside Phoenix with no credentials needed
 - [Deno Sandbox](https://arize.com/docs/phoenix/settings/sandboxes/deno): Run simple TypeScript evaluators locally inside Phoenix with no credentials needed
