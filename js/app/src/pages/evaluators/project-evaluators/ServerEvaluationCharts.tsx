@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import type { TooltipContentProps } from "recharts";
@@ -28,6 +27,7 @@ import {
   ChartEmptyStateOverlay,
   ChartPanel,
   ChartPanelStrip,
+  ChartPanelStripSkeleton,
   ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
@@ -43,7 +43,6 @@ import {
   useInteractiveLegend,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
-import { Skeleton } from "@phoenix/components/core/loading";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -210,8 +209,13 @@ export function ServerEvaluationCharts({
     tickFormatter: (x: number) => timeTickFormatter(new Date(x)),
   };
   return (
-    <ChartsFrame>
-      <ChartPanelStrip chartCount={CHART_COUNT}>
+    <View
+      paddingX="size-200"
+      paddingTop="size-100"
+      height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
+      flex="none"
+    >
+      <ChartPanelStrip chartCount={3}>
         <ChartPanel title="Queue size by project" fillHeight>
           <QueueSizeChart
             activity={activity}
@@ -229,40 +233,19 @@ export function ServerEvaluationCharts({
         </ChartPanel>
         <TopProjectsPanel activity={activity} projectSeries={projectSeries} />
       </ChartPanelStrip>
-    </ChartsFrame>
-  );
-}
-
-/** Queue size by project, queued vs completed, and top projects. */
-const CHART_COUNT = 3;
-
-/** The strip's gutters and height, shared by the charts and their skeleton. */
-function ChartsFrame({ children }: { children: ReactNode }) {
-  return (
-    <View
-      paddingX="size-200"
-      paddingTop="size-100"
-      height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
-      flex="none"
-    >
-      {children}
     </View>
   );
 }
 
 /**
- * The charts while they load: a placeholder in the place and at the size of
- * each panel.
+ * The charts while they load: the chart strip skeleton, at the height of the
+ * loaded strip.
  */
 export function ServerEvaluationChartsSkeleton() {
   return (
-    <ChartsFrame>
-      <ChartPanelStrip chartCount={CHART_COUNT}>
-        {Array.from({ length: CHART_COUNT }, (_, index) => (
-          <Skeleton key={index} height="100%" borderRadius="medium" />
-        ))}
-      </ChartPanelStrip>
-    </ChartsFrame>
+    <View height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS} flex="none">
+      <ChartPanelStripSkeleton />
+    </View>
   );
 }
 

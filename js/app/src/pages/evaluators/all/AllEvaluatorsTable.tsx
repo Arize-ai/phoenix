@@ -1,6 +1,5 @@
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
-import type { CSSProperties } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 
@@ -11,17 +10,9 @@ import { DatasetLink } from "@phoenix/components/dataset/DatasetLink";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { ProjectLink } from "@phoenix/components/project/ProjectLink";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
-import {
-  TableBodySkeleton,
-  TableSkeletonContainer,
-} from "@phoenix/components/table/TableBodySkeleton";
 import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
-import type {
-  Column,
-  ColumnDef,
-  Table,
-} from "@phoenix/components/table/tableFeatures";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import type { AllEvaluatorsTableQuery } from "@phoenix/pages/evaluators/all/__generated__/AllEvaluatorsTableQuery.graphql";
@@ -122,57 +113,6 @@ const columns: ColumnDef<TableRow>[] = [
     cell: TimestampCell,
   },
 ];
-
-const TABLE_LABEL = "Project and dataset evaluators";
-
-/** How a body cell of the column is styled, loaded or loading. */
-function getCellStyle(column: Column<TableRow>): CSSProperties {
-  return {
-    width: column.getSize(),
-    maxWidth: column.getSize(),
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-  };
-}
-
-function TableHead({ table }: { table: Table<TableRow> }) {
-  return (
-    <thead>
-      {table.getHeaderGroups().map((headerGroup) => (
-        <tr key={headerGroup.id}>
-          {headerGroup.headers.map((header) => (
-            <TableColumnHeader key={header.id} header={header} />
-          ))}
-        </tr>
-      ))}
-    </thead>
-  );
-}
-
-/**
- * The table while it loads: its real header, sorted as the loaded table will
- * be, over placeholder rows that fill the table's scroll container.
- */
-export function AllEvaluatorsTableSkeleton({
-  sorting,
-}: {
-  sorting: SortingState;
-}) {
-  const table = useTable({
-    features: appTableFeatures,
-    data: [] as TableRow[],
-    columns,
-    state: { sorting },
-  });
-  return (
-    <TableSkeletonContainer>
-      <table css={selectableTableCSS} aria-label={TABLE_LABEL}>
-        <TableHead table={table} />
-        <TableBodySkeleton table={table} getCellStyle={getCellStyle} />
-      </table>
-    </TableSkeletonContainer>
-  );
-}
 
 /**
  * Every project evaluator and every dataset evaluator on the server, in one
@@ -294,8 +234,16 @@ export function AllEvaluatorsTable({
     return <GlobalEvaluatorsEmptyState hasActiveFilter={false} />;
   }
   return (
-    <table css={selectableTableCSS} aria-label={TABLE_LABEL}>
-      <TableHead table={table} />
+    <table css={selectableTableCSS} aria-label="Project and dataset evaluators">
+      <thead>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <TableColumnHeader key={header.id} header={header} />
+            ))}
+          </tr>
+        ))}
+      </thead>
       {tableRows.length === 0 ? (
         <TableEmptyWrap>
           <CompactEmptyState
@@ -309,7 +257,15 @@ export function AllEvaluatorsTable({
           {tableRows.map((row) => (
             <tr key={row.id} onClick={() => navigate(row.original.detailsPath)}>
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} style={getCellStyle(cell.column)}>
+                <td
+                  key={cell.id}
+                  style={{
+                    width: cell.column.getSize(),
+                    maxWidth: cell.column.getSize(),
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}

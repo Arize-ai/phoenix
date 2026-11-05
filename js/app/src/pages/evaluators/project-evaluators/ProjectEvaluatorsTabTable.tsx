@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
-import type { CSSProperties } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Icon, Icons, Link, Text } from "@phoenix/components";
@@ -17,17 +16,9 @@ import { ProjectLink } from "@phoenix/components/project/ProjectLink";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { ColumnHeaderWithHelp } from "@phoenix/components/table/ColumnHeaderWithHelp";
 import { tableCSS } from "@phoenix/components/table/styles";
-import {
-  TableBodySkeleton,
-  TableSkeletonContainer,
-} from "@phoenix/components/table/TableBodySkeleton";
 import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
-import type {
-  Column,
-  ColumnDef,
-  Table,
-} from "@phoenix/components/table/tableFeatures";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import type { ProjectEvaluatorsTabTableQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ProjectEvaluatorsTabTableQuery.graphql";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
@@ -134,19 +125,125 @@ function getProjectEvaluatorDetailsPath(row: TableRow): string {
 }
 
 /**
- * The table's columns. The queue share column reads the server's queue, so
- * the skeleton, which has none yet, passes an empty one.
+ * Every project evaluator on the server, across projects, so the ones taking
+ * the shared queue's bandwidth can be found and turned off from one place.
  */
-function getColumns({
-  totalQueued,
-  driverIds,
+export function ProjectEvaluatorsTabTable({
+  filter,
+  projectIds,
+  fetchKey,
+  sorting,
+  onSortingChange,
 }: {
-  /** Everything queued on the server, which each row's share is out of. */
-  totalQueued: number;
-  /** The evaluators driving a Degraded queue. */
-  driverIds: ReadonlySet<string>;
-}): ColumnDef<TableRow>[] {
-  return [
+  /** Matches an evaluator's name or its project's name. */
+  filter: string;
+  /** Only these projects' evaluators; all when empty. */
+  projectIds: ReadonlyArray<string>;
+  /** Changes when the queue was changed from this page, to refetch at once. */
+  fetchKey: number;
+  sorting: SortingState;
+  onSortingChange: OnChangeFn<SortingState>;
+}) {
+  const { timeRangeISOStrings } = useTimeRange();
+  const data = useLazyLoadQuery<ProjectEvaluatorsTabTableQuery>(
+    graphql`
+      query ProjectEvaluatorsTabTableQuery(
+        $first: Int!
+        $timeRange: TimeRange!
+      ) {
+        evaluationQueue {
+          status
+          queuedCount
+        }
+        projectEvaluators(first: $first) {
+          edges {
+            node {
+              id
+              name
+              enabled
+              project {
+                id
+                name
+              }
+              evaluator {
+                kind
+              }
+              runSummary {
+                status
+                lastRunAt
+                queuedCount
+                runningCount
+                evaluatedCount
+                failedCount
+                droppedCount
+                oldestQueuedAt
+              }
+              evaluationLoad {
+                evaluationCount
+                meanEvaluationSeconds
+                shareOfEvaluationTime
+              }
+              failureSummary(timeRange: $timeRange) {
+                failedCount
+                evaluatedCount
+                failureRate
+                lastFailedAt
+                lastError
+              }
+              lag(timeRange: $timeRange) {
+                p50Seconds
+                p95Seconds
+                p99Seconds
+              }
+              traceProject {
+                id
+                traceCount(timeRange: $timeRange)
+                costSummary(timeRange: $timeRange) {
+                  total {
+                    cost
+                  }
+                  prompt {
+                    cost
+                  }
+                  completion {
+                    cost
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    { first: PROJECT_EVALUATORS_LIMIT, timeRange: timeRangeISOStrings },
+    { fetchKey, fetchPolicy: "store-and-network" }
+  );
+  const trimmedFilter = filter.trim().toLowerCase();
+  const nodes = data.projectEvaluators.edges.map((edge) => edge.node);
+  // Picks naming a deleted project are ignored, as the charts ignore them.
+  const projectIdsWithEvaluators = new Set(
+    nodes.map((node) => node.project.id)
+  );
+  const picked = new Set(
+    projectIds.filter((id) => projectIdsWithEvaluators.has(id))
+  );
+  const rows = nodes
+    .filter((node) => picked.size === 0 || picked.has(node.project.id))
+    .filter(
+      (node) =>
+        trimmedFilter.length === 0 ||
+        node.name.toLowerCase().includes(trimmedFilter) ||
+        node.project.name.toLowerCase().includes(trimmedFilter)
+    );
+  const totalQueued = data.evaluationQueue.queuedCount;
+  const driverIds =
+    data.evaluationQueue.status === "DEGRADED"
+      ? getQueueDriverIds(
+          data.projectEvaluators.edges.map((edge) => edge.node),
+          totalQueued
+        )
+      : new Set<string>();
+  const columns: ColumnDef<TableRow>[] = [
     {
       id: "enabled",
       header: "enabled",
@@ -336,139 +433,6 @@ function getColumns({
       ),
     },
   ];
-}
-
-/** How a body cell of the column is styled, loaded or loading. */
-function getCellStyle(column: Column<TableRow>): CSSProperties {
-  return {
-    width: column.getSize(),
-    maxWidth: column.getSize(),
-    overflow: "hidden",
-    whiteSpace: "nowrap",
-    textAlign: column.columnDef.meta?.textAlign,
-  };
-}
-
-/**
- * Every project evaluator on the server, across projects, so the ones taking
- * the shared queue's bandwidth can be found and turned off from one place.
- */
-export function ProjectEvaluatorsTabTable({
-  filter,
-  projectIds,
-  fetchKey,
-  sorting,
-  onSortingChange,
-}: {
-  /** Matches an evaluator's name or its project's name. */
-  filter: string;
-  /** Only these projects' evaluators; all when empty. */
-  projectIds: ReadonlyArray<string>;
-  /** Changes when the queue was changed from this page, to refetch at once. */
-  fetchKey: number;
-  sorting: SortingState;
-  onSortingChange: OnChangeFn<SortingState>;
-}) {
-  const { timeRangeISOStrings } = useTimeRange();
-  const data = useLazyLoadQuery<ProjectEvaluatorsTabTableQuery>(
-    graphql`
-      query ProjectEvaluatorsTabTableQuery(
-        $first: Int!
-        $timeRange: TimeRange!
-      ) {
-        evaluationQueue {
-          status
-          queuedCount
-        }
-        projectEvaluators(first: $first) {
-          edges {
-            node {
-              id
-              name
-              enabled
-              project {
-                id
-                name
-              }
-              evaluator {
-                kind
-              }
-              runSummary {
-                status
-                lastRunAt
-                queuedCount
-                runningCount
-                evaluatedCount
-                failedCount
-                droppedCount
-                oldestQueuedAt
-              }
-              evaluationLoad {
-                evaluationCount
-                meanEvaluationSeconds
-                shareOfEvaluationTime
-              }
-              failureSummary(timeRange: $timeRange) {
-                failedCount
-                evaluatedCount
-                failureRate
-                lastFailedAt
-                lastError
-              }
-              lag(timeRange: $timeRange) {
-                p50Seconds
-                p95Seconds
-                p99Seconds
-              }
-              traceProject {
-                id
-                traceCount(timeRange: $timeRange)
-                costSummary(timeRange: $timeRange) {
-                  total {
-                    cost
-                  }
-                  prompt {
-                    cost
-                  }
-                  completion {
-                    cost
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    { first: PROJECT_EVALUATORS_LIMIT, timeRange: timeRangeISOStrings },
-    { fetchKey, fetchPolicy: "store-and-network" }
-  );
-  const trimmedFilter = filter.trim().toLowerCase();
-  const nodes = data.projectEvaluators.edges.map((edge) => edge.node);
-  // Picks naming a deleted project are ignored, as the charts ignore them.
-  const projectIdsWithEvaluators = new Set(
-    nodes.map((node) => node.project.id)
-  );
-  const picked = new Set(
-    projectIds.filter((id) => projectIdsWithEvaluators.has(id))
-  );
-  const rows = nodes
-    .filter((node) => picked.size === 0 || picked.has(node.project.id))
-    .filter(
-      (node) =>
-        trimmedFilter.length === 0 ||
-        node.name.toLowerCase().includes(trimmedFilter) ||
-        node.project.name.toLowerCase().includes(trimmedFilter)
-    );
-  const totalQueued = data.evaluationQueue.queuedCount;
-  const driverIds =
-    data.evaluationQueue.status === "DEGRADED"
-      ? getQueueDriverIds(
-          data.projectEvaluators.edges.map((edge) => edge.node),
-          totalQueued
-        )
-      : new Set<string>();
-  const columns = getColumns({ totalQueued, driverIds });
   const table = useTable({
     features: appTableFeatures,
     data: rows as TableRow[],
@@ -479,8 +443,16 @@ export function ProjectEvaluatorsTabTable({
   });
   const tableRows = table.getRowModel().rows;
   return (
-    <table css={tableCSS} aria-label={TABLE_LABEL}>
-      <TableHead table={table} />
+    <table css={tableCSS} aria-label="Project evaluators across all projects">
+      <thead>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <TableColumnHeader key={header.id} header={header} />
+            ))}
+          </tr>
+        ))}
+      </thead>
       {tableRows.length === 0 ? (
         <TableEmptyWrap>
           <CompactEmptyState
@@ -494,7 +466,16 @@ export function ProjectEvaluatorsTabTable({
           {tableRows.map((row) => (
             <tr key={row.id}>
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} style={getCellStyle(cell.column)}>
+                <td
+                  key={cell.id}
+                  style={{
+                    width: cell.column.getSize(),
+                    maxWidth: cell.column.getSize(),
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textAlign: cell.column.columnDef.meta?.textAlign,
+                  }}
+                >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}
@@ -503,70 +484,5 @@ export function ProjectEvaluatorsTabTable({
         </tbody>
       )}
     </table>
-  );
-}
-
-const TABLE_LABEL = "Project evaluators across all projects";
-
-function TableHead({ table }: { table: Table<TableRow> }) {
-  return (
-    <thead>
-      {table.getHeaderGroups().map((headerGroup) => (
-        <tr key={headerGroup.id}>
-          {headerGroup.headers.map((header) => (
-            <TableColumnHeader key={header.id} header={header} />
-          ))}
-        </tr>
-      ))}
-    </thead>
-  );
-}
-
-const NO_QUEUE_DRIVERS: ReadonlySet<string> = new Set();
-
-/**
- * The usual content width of the columns whose content runs well short of
- * their size: the enabled switch, the kind and status badges, and the
- * metrics, whose short values leave their header to set the width.
- */
-const SKELETON_CONTENT_WIDTHS = {
-  enabled: 40,
-  kind: 72,
-  status: 64,
-  queue: 32,
-  share: 32,
-  lag: 32,
-  load: 32,
-  failures: 32,
-  cost: 40,
-  averageCost: 40,
-};
-
-/**
- * The table while it loads: its real header, sorted as the loaded table will
- * be, over placeholder rows that fill the table's scroll container.
- */
-export function ProjectEvaluatorsTabTableSkeleton({
-  sorting,
-}: {
-  sorting: SortingState;
-}) {
-  const table = useTable({
-    features: appTableFeatures,
-    data: [] as TableRow[],
-    columns: getColumns({ totalQueued: 0, driverIds: NO_QUEUE_DRIVERS }),
-    state: { sorting },
-  });
-  return (
-    <TableSkeletonContainer>
-      <table css={tableCSS} aria-label={TABLE_LABEL}>
-        <TableHead table={table} />
-        <TableBodySkeleton
-          table={table}
-          getCellStyle={getCellStyle}
-          contentWidths={SKELETON_CONTENT_WIDTHS}
-        />
-      </table>
-    </TableSkeletonContainer>
   );
 }

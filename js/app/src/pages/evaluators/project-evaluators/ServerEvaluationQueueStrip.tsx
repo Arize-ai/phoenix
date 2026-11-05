@@ -277,79 +277,116 @@ function ServerEvaluationQueueStripContent({
   );
 }
 
-const statValueSkeletonCSS = css`
+const statSkeletonCSS = css`
   display: flex;
-  align-items: center;
-  /* A loaded value is one line of large text */
-  height: var(--global-line-height-l);
+  flex-direction: column;
+  flex: none;
+  .stat-skeleton__label,
+  .stat-skeleton__value {
+    display: flex;
+    align-items: center;
+  }
+  /* A loaded label is one line of small text, a value one of large text */
+  .stat-skeleton__label {
+    height: var(--global-line-height-s);
+  }
+  .stat-skeleton__value {
+    height: var(--global-line-height-l);
+  }
 `;
 
-/** A loading value, centered in the line a loaded value takes. */
-function StatValueSkeleton({ width }: { width: string }) {
+/**
+ * A stat while it loads: a bar where its label goes over one where its value
+ * goes, with the meter under the queue size. Labels are the width their text
+ * takes, so each stat keeps its loaded width and place.
+ */
+function StatSkeleton({
+  labelWidth,
+  valueWidth,
+  hasMeter = false,
+}: {
+  labelWidth: number;
+  valueWidth: number | string;
+  hasMeter?: boolean;
+}) {
   return (
-    <span css={statValueSkeletonCSS}>
-      <Skeleton width={width} height="var(--global-dimension-size-200)" />
-    </span>
+    <div css={statSkeletonCSS}>
+      <span className="stat-skeleton__label">
+        <Skeleton
+          width={labelWidth}
+          height="var(--global-dimension-size-150)"
+        />
+      </span>
+      <Flex
+        direction="column"
+        gap="size-50"
+        minWidth={hasMeter ? "size-2400" : undefined}
+      >
+        <span className="stat-skeleton__value">
+          <Skeleton
+            width={valueWidth}
+            height="var(--global-dimension-size-200)"
+          />
+        </span>
+        {hasMeter ? (
+          <Skeleton height="var(--global-dimension-size-75)" />
+        ) : null}
+      </Flex>
+    </div>
   );
 }
 
 /**
- * The strip's shape while it loads: each stat's label over a placeholder for
- * its value, and the queue meter under the queue size, so nothing shifts when
- * the stats arrive.
+ * The strip's shape while it loads, laid out as the loaded stats are, with
+ * the label widths of the loaded text so nothing shifts when it arrives.
  */
 function StripPlaceholder() {
   return (
     <div css={stripCSS} aria-hidden>
-      <StatItem label="Status">
-        <StatValueSkeleton width="var(--global-dimension-size-650)" />
-      </StatItem>
-      <StatItem label="In queue">
-        <Flex direction="column" gap="size-50" minWidth="size-2400">
-          <StatValueSkeleton width="var(--global-dimension-size-1200)" />
-          <Skeleton height="var(--global-dimension-size-75)" />
-        </Flex>
-      </StatItem>
-      {[
-        "Queued / hr",
-        "Completed / hr",
-        "Net / hr",
-        "Lag p95",
-        "Evaluation cost",
-      ].map((label) => (
-        <StatItem key={label} label={label}>
-          <StatValueSkeleton width="var(--global-dimension-size-600)" />
-        </StatItem>
-      ))}
+      <StatSkeleton
+        labelWidth={40}
+        valueWidth="var(--global-dimension-size-650)"
+      />
+      <StatSkeleton
+        labelWidth={56}
+        valueWidth="var(--global-dimension-size-1200)"
+        hasMeter
+      />
+      <StatSkeleton labelWidth={77} valueWidth={40} />
+      <StatSkeleton labelWidth={97} valueWidth={40} />
+      <StatSkeleton labelWidth={50} valueWidth={24} />
+      <StatSkeleton labelWidth={53} valueWidth={24} />
+      <StatSkeleton labelWidth={97} valueWidth={24} />
     </div>
   );
 }
 
 /**
  * The whole strip while the page loads, before its clear button can be
- * shown, laid out as the loaded strip is.
+ * shown, laid out as the loaded strip is. The strip's divider is left
+ * undrawn, but its space is kept.
  */
 export function ServerEvaluationQueueStripSkeleton() {
   return (
-    <View
-      paddingX="size-200"
-      paddingY="size-150"
-      borderBottomWidth="thin"
-      borderBottomColor="default"
-      flex="none"
-    >
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="start"
-        gap="size-200"
-      >
-        <StripPlaceholder />
-        <Skeleton
-          width="calc(15 * var(--global-dimension-size-100))"
-          height="var(--global-button-height-s)"
-        />
-      </Flex>
-    </View>
+    <div css={stripSkeletonCSS}>
+      <StripPlaceholder />
+      <Skeleton
+        width="calc(15 * var(--global-dimension-size-100))"
+        height="var(--global-button-height-s)"
+      />
+    </div>
   );
 }
+
+const stripSkeletonCSS = css`
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
+  padding-bottom: calc(
+    var(--global-dimension-size-150) + var(--global-border-size-thin)
+  );
+`;

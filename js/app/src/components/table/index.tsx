@@ -13,7 +13,6 @@ export * from "./ColumnHeaderWithHelp";
 export * from "./TableEmpty";
 export * from "./TableEmptyWrap";
 export * from "./TableSkeleton";
-export * from "./TableBodySkeleton";
 export * from "./CellTop";
 export * from "./LargeTextWrap";
 export * from "./JSONCell";

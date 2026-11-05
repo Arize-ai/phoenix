@@ -10,10 +10,8 @@ import {
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import {
-  ProjectEvaluatorsTabTable,
-  ProjectEvaluatorsTabTableSkeleton,
-} from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
+import { TableSkeleton } from "@phoenix/components/table";
+import { ProjectEvaluatorsTabTable } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
 import {
   ServerEvaluationCharts,
   ServerEvaluationChartsSkeleton,
@@ -24,6 +22,7 @@ import {
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
 import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
+import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
 /** The projects picked to show, repeated once per project. */
@@ -41,9 +40,6 @@ const tableScrollCSS = css`
   min-height: 0;
   overflow: auto;
 `;
-
-/** Most queued first, so the evaluators holding up the queue lead. */
-const DEFAULT_SORTING: SortingState = [{ id: "queue", desc: true }];
 
 /**
  * The Evaluators page's Project evaluators tab: every project evaluator
@@ -63,7 +59,9 @@ function ProjectEvaluatorsTabContent() {
   // the table refetch at once instead of on their next poll.
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = () => setRefreshKey((key) => key + 1);
-  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "queue", desc: true },
+  ]);
   const [searchParams, setSearchParams] = useSearchParams();
   const pickedProjectIds = normalizePickedProjectIds(
     searchParams.getAll(PROJECT_PARAM)
@@ -115,9 +113,7 @@ function ProjectEvaluatorsTabContent() {
           </Flex>
         </View>
         <div css={tableScrollCSS}>
-          <Suspense
-            fallback={<ProjectEvaluatorsTabTableSkeleton sorting={sorting} />}
-          >
+          <Suspense fallback={<TableSkeleton rowCount="fill" />}>
             <ProjectEvaluatorsTabTable
               filter={filter}
               projectIds={pickedProjectIds}
@@ -148,27 +144,11 @@ export function ProjectEvaluatorsTabSkeleton() {
       <div css={pageCSS}>
         <ServerEvaluationQueueStripSkeleton />
         <ServerEvaluationChartsSkeleton />
-        <View padding="size-100" flex="none">
-          <div css={toolbarSkeletonCSS}>
-            <Skeleton height="var(--global-input-height-m)" />
-            <Skeleton
-              width="calc(14 * var(--global-dimension-size-100))"
-              height="var(--global-button-height-m)"
-            />
-          </div>
-        </View>
+        <SearchBarSkeleton trailingControlWidth="calc(14 * var(--global-dimension-size-100))" />
         <div css={tableScrollCSS}>
-          <ProjectEvaluatorsTabTableSkeleton sorting={DEFAULT_SORTING} />
+          <TableSkeleton rowCount="fill" />
         </div>
       </div>
     </>
   );
 }
-
-/** The search field takes the row; the projects filter keeps its width. */
-const toolbarSkeletonCSS = css`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-`;

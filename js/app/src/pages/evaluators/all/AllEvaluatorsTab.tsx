@@ -3,12 +3,12 @@ import type { SortingState } from "@tanstack/react-table";
 import { Suspense, useState } from "react";
 
 import { DebouncedSearch, View } from "@phoenix/components";
-import { Skeleton } from "@phoenix/components/core/loading";
+import { TableSkeleton } from "@phoenix/components/table";
 import {
   ALL_EVALUATORS_DEFAULT_SORTING,
   AllEvaluatorsTable,
-  AllEvaluatorsTableSkeleton,
 } from "@phoenix/pages/evaluators/all/AllEvaluatorsTable";
+import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 
 const pageCSS = css`
   flex: 1 1 auto;
@@ -48,7 +48,7 @@ export function AllEvaluatorsTab() {
         />
       </View>
       <div css={tableScrollCSS}>
-        <Suspense fallback={<AllEvaluatorsTableSkeleton sorting={sorting} />}>
+        <Suspense fallback={<TableSkeleton rowCount="fill" />}>
           <AllEvaluatorsTable
             filter={filter}
             sorting={sorting}
@@ -67,16 +67,9 @@ export function AllEvaluatorsTab() {
 export function AllEvaluatorsTabSkeleton() {
   return (
     <div css={pageCSS}>
-      <View
-        padding="size-100"
-        flex="none"
-        borderBottomWidth="thin"
-        borderBottomColor="default"
-      >
-        <Skeleton height="var(--global-input-height-m)" />
-      </View>
+      <SearchBarSkeleton hasDivider />
       <div css={tableScrollCSS}>
-        <AllEvaluatorsTableSkeleton sorting={ALL_EVALUATORS_DEFAULT_SORTING} />
+        <TableSkeleton rowCount="fill" />
       </div>
     </div>
   );
