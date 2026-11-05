@@ -16,7 +16,7 @@ from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 from .version import __version__
 
-# module level doc-string
+# Module-level docstring
 __doc__ = """
 arize-phoenix - AI Observability Platform
 =====================================================================
