@@ -1,0 +1,46 @@
+name: Close superseded pull requests
+description: >-
+  For a workflow that opens a pull request from a new dated branch on each run,
+  closes the earlier runs' pull requests once this run's is open, so only one is
+  ever open. Each one is closed with a comment naming the new pull request and
+  its branch is deleted. Does nothing when this run opened no pull request.
+inputs:
+  branch-prefix:
+    description: Head-branch prefix shared by the workflow's pull requests, such as claude/llms-txt-.
+    required: true
+  branch:
+    description: Head branch of the pull request this run opened.
+    required: true
+  token:
+    description: Token with pull_requests:write; the closes and comments are attributed to its account.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Close
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PREFIX: ${{ inputs.branch-prefix }}
+        BRANCH: ${{ inputs.branch }}
+      run: |
+        NEW_PR_URL=$(gh pr view "$BRANCH" --repo "$GITHUB_REPOSITORY" --json url,state \
+          --jq 'select(.state == "OPEN") | .url' 2>/dev/null || true)
+        if [[ -z "$NEW_PR_URL" ]]; then
+          echo "No open pull request for '$BRANCH'; nothing to supersede."
+          exit 0
+        fi
+        # Only this repo's branches: a fork may use the same names.
+        SUPERSEDED=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
+          | jq -r --arg repo "$GITHUB_REPOSITORY" --arg prefix "$PREFIX" --arg branch "$BRANCH" '
+              .[]
+              | select(.head.repo.full_name == $repo and (.head.ref | startswith($prefix)) and .head.ref != $branch)
+              | .number')
+        if [[ -z "$SUPERSEDED" ]]; then
+          echo "No other open pull requests on '$PREFIX' branches."
+          exit 0
+        fi
+        for NUMBER in $SUPERSEDED; do
+          gh pr close "$NUMBER" --repo "$GITHUB_REPOSITORY" --delete-branch \
+            --comment "Superseded by $NEW_PR_URL, which the same workflow produced from the current \`main\`."
+        done

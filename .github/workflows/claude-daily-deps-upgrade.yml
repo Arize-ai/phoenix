@@ -406,6 +406,14 @@ jobs:
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
 
+      - name: Close superseded pull requests
+        if: steps.changes.outputs.changed == 'true' && (steps.verify.outcome == 'success' || steps.claude_fix.outcome == 'success')
+        uses: ./.github/actions/close-superseded-prs
+        with:
+          branch-prefix: claude/daily-deps-upgrade-
+          branch: ${{ steps.branch.outputs.branch }}
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
   slack-notification:
     name: Slack Notification
     runs-on: ubuntu-latest

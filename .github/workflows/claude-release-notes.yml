@@ -144,6 +144,13 @@ jobs:
             --body-file "$BODY_FILE"
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"
+      - name: Close superseded pull requests
+        if: steps.claude.outcome == 'success'
+        uses: ./.github/actions/close-superseded-prs
+        with:
+          branch-prefix: claude/release-notes-
+          branch: ${{ env.BRANCH }}
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
       - name: Approve pull request
         if: steps.claude.outcome == 'success'
         uses: ./.github/actions/approve-automation-pr
