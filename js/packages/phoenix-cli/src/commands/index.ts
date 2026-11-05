@@ -15,6 +15,7 @@ export * from "./spanAnnotations";
 export * from "./traceAnnotations";
 export * from "./sessionAnnotations";
 export * from "./prompt";
+export * from "./decision";
 export * from "./evaluator";
 export * from "./sandboxConfig";
 export * from "./promptVersions";
