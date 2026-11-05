@@ -8,7 +8,7 @@ on:
 
 jobs:
   version:
-    name: Extract version
+    name: Verify tag and extract version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract.outputs.version }}
@@ -27,11 +27,33 @@ jobs:
             echo "minor=${rest%%.*}"
           } >> "$GITHUB_OUTPUT"
 
+      # Anything holding a token with Contents write can push a tag, and this
+      # workflow publishes whatever the tag points at as `latest`. Only the tag
+      # release-please creates qualifies: it points at a commit on main whose
+      # manifest names this version.
+      - name: Refuse a tag that release-please did not create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.extract.outputs.version }}
+        run: |
+          set -euo pipefail
+          status=$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${GITHUB_SHA}" --jq .status)
+          if [ "$status" != "identical" ] && [ "$status" != "behind" ]; then
+            echo "::error::${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main (compare status: ${status})"
+            exit 1
+          fi
+          manifest_version=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.release-please-manifest.json?ref=${GITHUB_SHA}" --jq .content | base64 -d | jq -r '.["."]')
+          if [ "$manifest_version" != "$VERSION" ]; then
+            echo "::error::${GITHUB_REF_NAME} names version ${VERSION} but the manifest at ${GITHUB_SHA} says ${manifest_version}"
+            exit 1
+          fi
+
   build:
     name: Build ${{ matrix.platform }}
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    needs: [version]
     strategy:
       # One job per platform, not per variant/platform pair: the variants share
       # every stage but the final FROM, so building them together reuses the
