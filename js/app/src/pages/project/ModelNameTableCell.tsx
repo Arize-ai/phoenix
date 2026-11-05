@@ -24,8 +24,8 @@ export const ModelNameTableCell = ({
   }
   return (
     // Stop the click from reaching the row, which would open the span details
-    <span
-      style={{ display: "inline-flex", maxWidth: "100%" }}
+    <div
+      style={{ width: "fit-content", maxWidth: "100%" }}
       onClick={(e) => e.stopPropagation()}
     >
       <Token
@@ -37,6 +37,6 @@ export const ModelNameTableCell = ({
       >
         {modelName}
       </Token>
-    </span>
+    </div>
   );
 };

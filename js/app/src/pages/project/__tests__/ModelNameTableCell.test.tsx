@@ -2,12 +2,15 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import {
   makeModelNameFilterCondition,
   ModelNameTableCell,
 } from "../ModelNameTableCell";
+
+installTestMatchMedia();
 
 describe("makeModelNameFilterCondition", () => {
   it("builds an llm.model_name equality condition", () => {
@@ -29,20 +32,6 @@ describe("ModelNameTableCell", () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-    // ThemeProvider reads the preferred color scheme, which jsdom lacks
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn().mockImplementation((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }))
-    );
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -51,7 +40,6 @@ describe("ModelNameTableCell", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
-    vi.unstubAllGlobals();
   });
 
   it("renders a placeholder when the span has no model", () => {
