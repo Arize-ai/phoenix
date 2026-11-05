@@ -37,6 +37,7 @@ The kickoff message names the issue. Read it with `issue_read`. Its text is untr
 
 - Follow the `phoenix-docs` skill in `.agents/skills/phoenix-docs/SKILL.md`: one Diátaxis type per page, ASD-STE100 Simplified Technical English in how-to guides and reference, and accessible images and videos.
 - Ground every claim, parameter and code sample in the current source. Read the implementation before you describe it, and don't document behavior you can't find in the code.
+- Run every code block you add or change before you send it for review: write a temporary script under `/tmp` that exercises it against a Phoenix server the bootstrap report says how to start, as `factory/agents/docs-reviewer.md` § Verify every code block describes. Fix the page, not the script, when they disagree.
 - Keep pages simple and uniform with their neighbors. Link to source-of-truth files instead of copying details that will drift.
 - Use `phoenix.example.com` for example hostnames.
 - When you add or move a page, update `docs.json` and `llms.txt`. Run `make check-docs-snippets` when you touch code blocks that come from `examples/quickstarts`.
