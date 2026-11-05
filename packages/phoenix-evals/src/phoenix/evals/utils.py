@@ -171,6 +171,30 @@ def _bind_mapping_function(
     return mapping_function(**bound.arguments)
 
 
+def _mapping_source_key(path: str) -> Optional[str]:
+    """Return the top-level ``eval_input`` key that a mapping path reads from.
+
+    Used to decide which caller-supplied keys were consumed by ``input_mapping`` and
+    therefore should not also be passed through verbatim. JSONPath allows an explicit
+    ``$`` root, so ``"$.data.text"``, ``"$['data'].text"`` and ``"data.text"`` all read
+    the same ``data`` key and must resolve to the same source key.
+
+    Returns None when no single top-level key applies, e.g. a bare ``"$"`` root or a
+    root-level index such as ``"$[0]"``.
+    """
+    remainder = path.strip()
+    if remainder.startswith("$"):
+        remainder = remainder[1:].lstrip(".")
+    if remainder.startswith("["):
+        inner = remainder[1:].split("]")[0].strip()
+        quote = inner[:1]
+        if quote in ("'", '"') and inner.endswith(quote) and len(inner) > 1:
+            return inner[1:-1] or None
+        return None
+    first_key = remainder.split(".")[0].split("[")[0].strip()
+    return first_key or None
+
+
 @_deprecate_positional_args("remap_eval_input")
 def remap_eval_input(
     eval_input: Mapping[str, Any],
@@ -257,11 +281,10 @@ def remap_eval_input(
             if not path:  # Empty path means direct key mapping
                 mapped_values.add(field_name)
             else:
-                # For path mappings, extract the first key
-                # Find the first key (before any dots or brackets)
-                first_key = path.split(".")[0].split("[")[0]
-                if first_key:
-                    mapped_values.add(first_key)
+                # For path mappings, record the top-level key the path reads from.
+                source_key = _mapping_source_key(path)
+                if source_key:
+                    mapped_values.add(source_key)
 
     for k, v in eval_input.items():
         # Only pass through keys that weren't explicitly mapped to avoid duplicates
