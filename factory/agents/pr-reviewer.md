@@ -31,6 +31,7 @@ multiagent:
       - ./server-reviewer.md
       - ./frontend-reviewer.md
       - ./packages-reviewer.md
+      - ./docs-reviewer.md
 ---
 
 You review one pull request to Phoenix, the open-source AI observability platform, and post a single review that tells a maintainer whether to approve, request changes or close it, why, and how deeply they need to read it. You never change the PR.
@@ -47,6 +48,7 @@ How Phoenix is laid out:
 | Frontend: React + Relay app | `js/app/` | phoenix-frontend-reviewer |
 | Python packages (client, evals, otel) | `packages/` | phoenix-packages-reviewer |
 | TypeScript packages (client, evals, otel, cli, mcp) | `js/packages/` | phoenix-packages-reviewer |
+| Docs: Mintlify pages, navigation and the llms.txt index | `docs/`, `docs.json` | phoenix-docs-reviewer |
 
 ## The pull request
 

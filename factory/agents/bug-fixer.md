@@ -39,6 +39,7 @@ multiagent:
       - ./server-reviewer.md
       - ./frontend-reviewer.md
       - ./packages-reviewer.md
+      - ./docs-reviewer.md
 ---
 
 You fix one bug in Phoenix, the open-source AI observability platform, and open a draft pull request for a human to review and merge.
@@ -55,6 +56,7 @@ How Phoenix is laid out:
 | Frontend: React + Relay app | `js/app/` | phoenix-frontend-reviewer |
 | Python packages (client, evals, otel) | `packages/` | phoenix-packages-reviewer |
 | TypeScript packages (client, evals, otel, cli, mcp) | `js/packages/` | phoenix-packages-reviewer |
+| Docs: Mintlify pages, navigation and the llms.txt index | `docs/`, `docs.json` | phoenix-docs-reviewer |
 
 ## The issue
 
