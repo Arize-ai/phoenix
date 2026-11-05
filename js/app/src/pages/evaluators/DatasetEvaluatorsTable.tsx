@@ -287,8 +287,6 @@ const datasetColumn: ColumnDef<TableRow> = {
   header: "dataset",
   accessorFn: (row) => row.dataset.name,
   size: 180,
-  // A dataset name usually runs to the column's width, where it truncates.
-  meta: { textAlign: "left", skeletonWidth: 180 },
   enableSorting: false,
   cell: ({ row }) => (
     <DatasetLink
@@ -314,7 +312,6 @@ function getDatasetEvaluatorColumns({
       accessorKey: "kind", // special case for sorting that's handled by the backend
       accessorFn: (row) => row.evaluator.kind,
       size: 80,
-      meta: { textAlign: "left", skeletonWidth: 72 },
       cell: ({ getValue }) => (
         <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
       ),
@@ -383,8 +380,6 @@ function getDatasetEvaluatorColumns({
       header: "prompt / decision",
       accessorKey: "prompt",
       size: 180,
-      // The prompt or decision wraps at a fixed width wider than the column.
-      meta: { textAlign: "left", skeletonWidth: 180 },
       enableSorting: false,
       cell: ({ row }) => (
         <>
@@ -452,8 +447,6 @@ function getDatasetEvaluatorColumns({
       header: "last updated",
       accessorKey: "updatedAt",
       size: 160,
-      // A full date and time.
-      meta: { textAlign: "left", skeletonWidth: 160 },
       cell: TimestampCell,
     },
   ];
@@ -637,6 +630,18 @@ const tableContainerCSS = css`
 `;
 
 /**
+ * The usual content width of the columns whose loaded content sets their
+ * width: the kind badge, a dataset name truncated at the column's size, a
+ * prompt or decision wrapped at a fixed width, and a full date and time.
+ */
+const SKELETON_CONTENT_WIDTHS = {
+  kind: 72,
+  dataset: 180,
+  prompt: 180,
+  updatedAt: 160,
+};
+
+/**
  * The table while it loads: its real header over placeholder rows that fill
  * the space the loaded rows will take. Without `datasetId` it is the
  * cross-dataset table, whose actions column only appears once a loaded row
@@ -672,7 +677,11 @@ export function DatasetEvaluatorsTableSkeleton({
         }}
       >
         <DatasetEvaluatorsTableHead table={table} />
-        <TableBodySkeleton table={table} getCellStyle={getCellStyle} />
+        <TableBodySkeleton
+          table={table}
+          getCellStyle={getCellStyle}
+          contentWidths={SKELETON_CONTENT_WIDTHS}
+        />
       </table>
     </TableSkeletonContainer>
   );

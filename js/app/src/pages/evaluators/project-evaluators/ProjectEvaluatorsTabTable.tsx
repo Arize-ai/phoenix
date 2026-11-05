@@ -151,7 +151,6 @@ function getColumns({
       id: "enabled",
       header: "enabled",
       size: 80,
-      meta: { textAlign: "left", skeletonWidth: 40 },
       enableSorting: false,
       cell: ({ row }) => (
         <StopPropagation>
@@ -171,7 +170,6 @@ function getColumns({
       id: "kind",
       header: "kind",
       size: 80,
-      meta: { textAlign: "left", skeletonWidth: 72 },
       accessorFn: (row) => row.evaluator.kind,
       cell: ({ row }) => (
         <EvaluatorKindToken kind={row.original.evaluator.kind} />
@@ -204,7 +202,6 @@ function getColumns({
       id: "status",
       header: "status",
       size: 120,
-      meta: { textAlign: "left", skeletonWidth: 64 },
       accessorFn: (row) => row.runSummary.status,
       cell: ({ row }) => (
         <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
@@ -218,7 +215,7 @@ function getColumns({
         </ColumnHeaderWithHelp>
       ),
       size: 110,
-      meta: { textAlign: "right", skeletonWidth: 32 },
+      meta: { textAlign: "right" },
       sortDescFirst: true,
       accessorFn: (row) => row.runSummary.queuedCount,
       cell: ({ row }) => (
@@ -233,7 +230,7 @@ function getColumns({
         </ColumnHeaderWithHelp>
       ),
       size: 150,
-      meta: { textAlign: "right", skeletonWidth: 32 },
+      meta: { textAlign: "right" },
       sortDescFirst: true,
       accessorFn: (row) =>
         totalQueued > 0 ? row.runSummary.queuedCount / totalQueued : 0,
@@ -252,7 +249,7 @@ function getColumns({
         </ColumnHeaderWithHelp>
       ),
       size: 120,
-      meta: { textAlign: "right", skeletonWidth: 32 },
+      meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
       accessorFn: (row) => row.lag?.p95Seconds,
@@ -266,7 +263,7 @@ function getColumns({
         </ColumnHeaderWithHelp>
       ),
       size: 100,
-      meta: { textAlign: "right", skeletonWidth: 32 },
+      meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
       accessorFn: (row) =>
@@ -285,7 +282,7 @@ function getColumns({
         </ColumnHeaderWithHelp>
       ),
       size: 130,
-      meta: { textAlign: "right", skeletonWidth: 32 },
+      meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
       accessorFn: (row) => row.failureSummary.failureRate ?? undefined,
@@ -303,7 +300,7 @@ function getColumns({
         </ColumnHeaderWithHelp>
       ),
       size: 120,
-      meta: { textAlign: "right", skeletonWidth: 40 },
+      meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
       accessorFn: (row) => row.traceProject.costSummary.total.cost ?? undefined,
@@ -322,7 +319,7 @@ function getColumns({
         </ColumnHeaderWithHelp>
       ),
       size: 130,
-      meta: { textAlign: "right", skeletonWidth: 40 },
+      meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
       accessorFn: (row) => {
@@ -528,6 +525,24 @@ function TableHead({ table }: { table: Table<TableRow> }) {
 const NO_QUEUE_DRIVERS: ReadonlySet<string> = new Set();
 
 /**
+ * The usual content width of the columns whose content runs well short of
+ * their size: the enabled switch, the kind and status badges, and the
+ * metrics, whose short values leave their header to set the width.
+ */
+const SKELETON_CONTENT_WIDTHS = {
+  enabled: 40,
+  kind: 72,
+  status: 64,
+  queue: 32,
+  share: 32,
+  lag: 32,
+  load: 32,
+  failures: 32,
+  cost: 40,
+  averageCost: 40,
+};
+
+/**
  * The table while it loads: its real header, sorted as the loaded table will
  * be, over placeholder rows that fill the table's scroll container.
  */
@@ -546,7 +561,11 @@ export function ProjectEvaluatorsTabTableSkeleton({
     <TableSkeletonContainer>
       <table css={tableCSS} aria-label={TABLE_LABEL}>
         <TableHead table={table} />
-        <TableBodySkeleton table={table} getCellStyle={getCellStyle} />
+        <TableBodySkeleton
+          table={table}
+          getCellStyle={getCellStyle}
+          contentWidths={SKELETON_CONTENT_WIDTHS}
+        />
       </table>
     </TableSkeletonContainer>
   );

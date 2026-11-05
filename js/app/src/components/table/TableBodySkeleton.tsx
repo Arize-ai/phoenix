@@ -19,8 +19,8 @@ const BAR_WIDTHS = ["72%", "48%", "88%", "60%"] as const;
  * How much of a column's size a placeholder cell fills. A loaded table lays
  * its columns out to their content, which in most columns runs close to the
  * column's size, so the placeholder holds that much and the columns come out
- * at the loaded widths. A column whose content is much narrower sets
- * `meta.skeletonWidth` instead.
+ * at the loaded widths. A column whose content is much narrower is given
+ * its width through `contentWidths` instead.
  */
 const CELL_CONTENT_SHARE = 0.85;
 
@@ -104,6 +104,7 @@ export function TableBodySkeleton<Data extends RowData>({
   table,
   rowCount = "fill",
   getCellStyle = getDefaultCellStyle,
+  contentWidths,
 }: {
   table: Table<Data>;
   /**
@@ -114,6 +115,13 @@ export function TableBodySkeleton<Data extends RowData>({
   rowCount?: number | "fill";
   /** How the loaded table styles a body cell of the column. */
   getCellStyle?: TableBodySkeletonCellStyle<Data>;
+  /**
+   * The width, in pixels, a loaded cell's content usually takes, by column
+   * id, for columns whose content runs well short of their size (a switch, a
+   * badge, a short number), so each lays out at its loaded width. Other
+   * columns hold most of their size.
+   */
+  contentWidths?: Readonly<Partial<Record<string, number>>>;
 }) {
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const fillRowCount = useFillRowCount(bodyRef, rowCount === "fill");
@@ -130,7 +138,7 @@ export function TableBodySkeleton<Data extends RowData>({
                 data-align={column.columnDef.meta?.textAlign}
                 style={{
                   width:
-                    column.columnDef.meta?.skeletonWidth ??
+                    contentWidths?.[column.id] ??
                     column.getSize() * CELL_CONTENT_SHARE,
                 }}
               >

@@ -16,7 +16,7 @@ const columns: ColumnDef<Row>[] = [
     header: "count",
     accessorKey: "count",
     size: 120,
-    meta: { textAlign: "right", skeletonWidth: 32 },
+    meta: { textAlign: "right" },
   },
 ];
 
@@ -28,7 +28,11 @@ function SkeletonTable({ rowCount }: { rowCount: number }) {
   });
   return (
     <table>
-      <TableBodySkeleton table={table} rowCount={rowCount} />
+      <TableBodySkeleton
+        table={table}
+        rowCount={rowCount}
+        contentWidths={{ count: 32 }}
+      />
     </table>
   );
 }
@@ -73,7 +77,7 @@ describe("TableBodySkeleton", () => {
     expect(countCell.style.textAlign).toBe("right");
   });
 
-  it("holds most of the column's size, or the column's skeleton width", () => {
+  it("holds most of the column's size, or the content width it is given", () => {
     act(() => {
       root.render(<SkeletonTable rowCount={1} />);
     });
