@@ -4,6 +4,13 @@ from typing import Optional, Sequence
 import pytest
 
 from phoenix.db import models
+from phoenix.server.api.dataloaders.evaluation_queues import EvaluationQueueProjectsDataLoader
+from phoenix.server.api.dataloaders.project_evaluation_queues import (
+    ProjectEvaluationQueueDataLoader,
+)
+from phoenix.server.api.dataloaders.project_evaluator_queues import (
+    ProjectEvaluatorQueuesDataLoader,
+)
 from phoenix.server.online_eval import queue_health
 from phoenix.server.online_eval.queue_health import (
     ProjectEvaluatorRunStatus,
@@ -11,9 +18,7 @@ from phoenix.server.online_eval.queue_health import (
     QueuedWork,
     load_evaluation_queue,
     load_project_evaluator_queues,
-    load_project_queues,
     load_queue_throughput,
-    load_queued_by_project,
     project_evaluator_run_status,
 )
 from phoenix.server.types import DbSessionFactory
@@ -137,9 +142,10 @@ async def test_queue_reads_stop_at_the_bound_and_report_lower_bounds(
         == "DEGRADED"
     )
 
-    project_queue = (await load_project_queues(db, [project.id]))[project.id]
+    evaluator_queues = ProjectEvaluatorQueuesDataLoader(db)
+    project_queue = await ProjectEvaluationQueueDataLoader(db, evaluator_queues).load(project.id)
     assert (project_queue.queued_count, project_queue.counts_are_lower_bounds) == (3, True)
-    assert await load_queued_by_project(db, 5) == [
+    assert await EvaluationQueueProjectsDataLoader(db, evaluator_queues).load(5) == [
         ProjectQueuedCount(project_id=project.id, queued_count=3, counts_are_lower_bounds=True)
     ]
 
@@ -193,12 +199,14 @@ async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(
         assert reoffered.id < waiting.id
 
     queue = await load_evaluation_queue(db)
-    project_queues = await load_project_queues(db, [project.id])
+    project_queue = await ProjectEvaluationQueueDataLoader(
+        db, ProjectEvaluatorQueuesDataLoader(db)
+    ).load(project.id)
     evaluator_queues = await load_project_evaluator_queues(db, [project_evaluator_id])
 
     oldest_queued_at = [
         queue.target("TRACE").waiting.oldest_queued_at,
-        project_queues[project.id].oldest_queued_at,
+        project_queue.oldest_queued_at,
         evaluator_queues[project_evaluator_id].oldest_queued_at,
     ]
     assert oldest_queued_at == [now - timedelta(minutes=20)] * 3

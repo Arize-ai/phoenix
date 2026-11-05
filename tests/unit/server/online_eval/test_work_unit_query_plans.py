@@ -7,8 +7,15 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.api.dataloaders.evaluation_queues import EvaluationQueueProjectsDataLoader
+from phoenix.server.api.dataloaders.project_evaluation_queues import (
+    ProjectEvaluationQueueDataLoader,
+)
 from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
     ProjectEvaluatorLatestOutcomesDataLoader,
+)
+from phoenix.server.api.dataloaders.project_evaluator_queues import (
+    ProjectEvaluatorQueuesDataLoader,
 )
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
@@ -20,9 +27,7 @@ from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.queue_health import (
     load_evaluation_queue,
     load_project_evaluator_queues,
-    load_project_queues,
     load_queue_throughput,
-    load_queued_by_project,
 )
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
@@ -74,8 +79,10 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
         await load_queue_throughput(db, queue)
         first_evaluator_queue_plan = len(plans)
         await load_project_evaluator_queues(db, project_evaluator_ids)
-        await load_project_queues(db, [project.id])
-        await load_queued_by_project(db, 5)
+        await ProjectEvaluationQueueDataLoader(db, ProjectEvaluatorQueuesDataLoader(db)).load(
+            project.id
+        )
+        await EvaluationQueueProjectsDataLoader(db, ProjectEvaluatorQueuesDataLoader(db)).load(5)
         evaluator_queue_plans = plans[first_evaluator_queue_plan:]
         first_latest_outcome_plan = len(plans)
         await ProjectEvaluatorLatestOutcomesDataLoader(db).load(1)

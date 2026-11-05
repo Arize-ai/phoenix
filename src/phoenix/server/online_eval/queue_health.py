@@ -617,21 +617,6 @@ def queued_by_project(
     return projects[:limit]
 
 
-async def load_project_queues(
-    db: DbSessionFactory,
-    project_ids: Sequence[int],
-) -> dict[int, ProjectQueue]:
-    evaluators = await load_project_evaluator_targets(db, project_ids)
-    queued = await load_project_evaluator_queues(db, [evaluator.id for evaluator in evaluators])
-    return project_queues(project_ids, evaluators, queued)
-
-
-async def load_queued_by_project(db: DbSessionFactory, limit: int) -> list[ProjectQueuedCount]:
-    evaluators = await load_project_evaluator_targets(db)
-    queued = await load_project_evaluator_queues(db, [evaluator.id for evaluator in evaluators])
-    return queued_by_project(evaluators, queued, limit)
-
-
 def _project_target_queue(
     evaluation_target: models.EvaluationTarget,
     evaluators: Sequence[QueuedWork],
