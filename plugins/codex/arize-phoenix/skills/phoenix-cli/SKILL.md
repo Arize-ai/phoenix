@@ -204,7 +204,7 @@ px profile edit prod                         # open profile JSON in $EDITOR (val
 px profile delete prod --yes                 # delete a profile (--yes skips confirmation)
 ```
 
-Only `px auth login`, `px auth logout`, `px auth status` and `px setup mcp` take `--profile <name>`. Every other command uses the active profile, so switch profiles with `px profile use` first:
+Only `px auth login`, `px auth logout`, `px auth status` and `px setup mcp` take `--profile <name>`. Other commands use the active profile, so to run one against another profile, switch to it with `px profile use` first:
 
 ```bash
 px auth status --profile prod                # check a named profile without switching
