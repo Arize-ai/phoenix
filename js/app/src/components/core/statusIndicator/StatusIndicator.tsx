@@ -117,6 +117,21 @@ const statusIndicatorCSS = css`
   .status-indicator__detail {
     color: var(--global-text-color-500);
   }
+
+  .marker-trigger[data-explanation] > & .status-indicator__text {
+    text-decoration: underline dotted;
+    text-decoration-color: var(--global-text-color-300);
+    text-underline-offset: 3px;
+  }
+  .marker-trigger[data-hovered] > & .status-indicator__text,
+  .marker-trigger[data-pressed] > & .status-indicator__text {
+    text-decoration: underline solid;
+    text-decoration-color: currentColor;
+    text-underline-offset: 3px;
+  }
+  .marker-trigger[data-disabled] > & {
+    opacity: var(--global-opacity-disabled);
+  }
 `;
 
 /**
@@ -137,8 +152,10 @@ const statusIndicatorCSS = css`
  * - **No outcome**: `warning` (works, but needs attention), `off` (disabled,
  *   not installed, or does not apply), `unknown` (no value was reported)
  *
- * A value that fits no category is usually two axes, such as a lifecycle and
- * an outcome, each in its own slot.
+ * A status is never its own hit target. One that must explain itself (why
+ * a provider is unavailable) or open detail goes inside a `MarkerTrigger`,
+ * which underlines the label to show it. A value that fits no category is
+ * usually two axes, such as a lifecycle and an outcome, each in its own slot.
  *
  * Where space is tight, show only the statuses worth noticing rather than
  * dropping the word: a trace tree row marks a failed span and leaves an

@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import type { ReactNode } from "react";
+import { fn } from "storybook/test";
 
 import type { StatusCategory } from "@phoenix/components";
-import { StatusIndicator } from "@phoenix/components";
+import { MarkerTrigger, StatusIndicator } from "@phoenix/components";
 import { ExperimentStatus } from "@phoenix/components/experiment";
 import { SpanStatusIndicator } from "@phoenix/components/trace";
 
@@ -33,12 +35,18 @@ import { OptionGrid } from "../../utils/OptionGrid";
  * The word is never hidden: the glyphs alone do not tell the categories
  * apart. Where space is tight, mark only the statuses worth noticing, as a
  * trace tree row marks a failed span and leaves the rest unmarked.
+ *
+ * A status is never its own hit target. One that explains itself or acts
+ * goes inside a `MarkerTrigger`, which draws only a focus ring; the status
+ * draws the trigger's state. An explained status takes a dotted underline,
+ * and any triggered status takes a solid one while hovered or pressed.
+ * Hover is not shown here, since these stories cannot hold it.
  */
 const meta: Meta = {
   title: "Design System/Badges/Status Indicator",
   component: StatusIndicator,
-  subcomponents: { SpanStatusIndicator, ExperimentStatus },
-  tags: ["updated", "unreviewed", "complete"],
+  subcomponents: { MarkerTrigger, SpanStatusIndicator, ExperimentStatus },
+  tags: ["updated", "unreviewed", "incomplete"],
   parameters: {
     layout: "centered",
     controls: { disable: true },
@@ -197,6 +205,52 @@ export const ContentLength: StoryFn = () => (
 );
 ContentLength.tags = ["!dev"];
 ContentLength.parameters = { themeLayout: "column" };
+
+const TRIGGERS: {
+  label: string;
+  render: (isDisabled: boolean) => ReactNode;
+}[] = [
+  {
+    label: "Explanation",
+    render: (isDisabled) => (
+      <MarkerTrigger
+        explanation="Install Phoenix with the `e2b` extra."
+        isDisabled={isDisabled}
+      >
+        <StatusIndicator category="off" label="Not installed" />
+      </MarkerTrigger>
+    ),
+  },
+  {
+    label: "Action",
+    render: (isDisabled) => (
+      <MarkerTrigger
+        aria-label="Show error details"
+        onPress={fn()}
+        isDisabled={isDisabled}
+      >
+        <StatusIndicator category="failed" label="Error" />
+      </MarkerTrigger>
+    ),
+  },
+];
+
+const TRIGGER_STATES: { label: string; isDisabled: boolean }[] = [
+  { label: "Enabled", isDisabled: false },
+  { label: "Disabled", isDisabled: true },
+];
+
+/** Hover, focus or press the explanation to show it. */
+export const InATrigger: StoryFn = () => (
+  <OptionGrid
+    rows={TRIGGERS}
+    columns={TRIGGER_STATES}
+    renderCell={(trigger, state) => trigger.render(state?.isDisabled ?? false)}
+  />
+);
+InATrigger.storyName = "In a Trigger";
+InATrigger.tags = ["!dev"];
+InATrigger.parameters = { themeLayout: "column" };
 
 const thumbnailCSS = css`
   display: grid;
