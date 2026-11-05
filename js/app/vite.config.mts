@@ -40,6 +40,10 @@ export default defineConfig(() => {
     publicDir: resolve(__dirname, "static"),
     server: {
       port: parseInt(process.env.VITE_PORT || "5173"),
+      // Fail fast instead of silently picking another port. The Phoenix
+      // server is told the Vite port up front (--dev-vite-port), so an
+      // auto-assigned port would cause a mismatch.
+      strictPort: true,
       warmup: {
         clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
       },
