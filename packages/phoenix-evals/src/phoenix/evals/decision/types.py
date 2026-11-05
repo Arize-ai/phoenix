@@ -98,6 +98,10 @@ class BaseDecisionAdapter(ABC):
                 pieces.append(text)
         return "\n\n".join(pieces)
 
+    def _to_input(self, prompt: PromptLike) -> Any:
+        """The request input for this adapter. Defaults to the flattened state."""
+        return self._to_state(prompt)
+
 
 @dataclass
 class ProviderRegistration:
