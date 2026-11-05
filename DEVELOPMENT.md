@@ -70,7 +70,7 @@ Open [http://localhost:6006](http://localhost:6006). If authentication is enable
 > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
 > ```
 
-`pnpm dev` also starts a `datagen` process that continuously replays recorded OpenInference traces into the `phoenix-datagen` project, so the dev server always has live traffic. See [Synthetic Trace Traffic](#synthetic-trace-traffic) to configure or disable it.
+`pnpm dev` also starts a `datagen` process that continuously replays recorded OpenInference traces (one project per recorded application by default), so the dev server always has live traffic. See [Synthetic Trace Traffic](#synthetic-trace-traffic) to configure or disable it.
 
 To send your own traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
 
@@ -94,14 +94,13 @@ It sources `js/app/.env` and sends traces to `http://localhost:${PHOENIX_PORT:-6
 
 - **Stop or restart it** from the `dekit` console: select the `datagen` task and press `x` to stop, `s` to start, or `r` to restart.
 - **Authentication:** if `PHOENIX_ENABLE_AUTH` is on, create a system API key in the Phoenix UI and add `PHOENIX_API_KEY=<key>` to `js/app/.env`. Without it every export fails with `401 Unauthorized`.
-- **Configure it** by adding the environment variables below to `js/app/.env` (for example `PHOENIX_PROJECT_NAME=my-project`).
 
 ### Running it directly
 
 From the repo root, against any Phoenix instance:
 
 ```bash
-# defaults: http://localhost:6006, project "phoenix-datagen", 12 traces/minute
+# defaults: http://localhost:6006, one project per application, 12 traces/minute
 uv run phoenix datagen
 
 # fully configured
@@ -137,7 +136,7 @@ Command-line flags take precedence over environment variables.
 | Flag | Environment variable | Default | Description |
 | --- | --- | --- | --- |
 | `--endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | `http://localhost:6006` | Phoenix collector base URL. Traces are sent over OTLP/HTTP to `<endpoint>/v1/traces`. |
-| `--project` | `PHOENIX_PROJECT_NAME` | `phoenix-datagen` | Project the traces land in. |
+| `--project` | — | per application | Send every application to this one project instead of one project per recorded application. |
 | `--rate` | — | `12` | Mean traces per minute. Must be greater than zero. |
 | `--burstiness` | — | `0.5` | Variability of the time between traces. `0` is perfectly uniform; higher values make traffic burstier. |
 | `--api-key` | `PHOENIX_API_KEY` | none | API key, required when authentication is enabled. |
@@ -147,84 +146,21 @@ Command-line flags take precedence over environment variables.
 | `--control-host` | — | `127.0.0.1` | Interface the control server listens on. |
 | — | `PHOENIX_CLIENT_HEADERS` | none | Extra request headers as `key=value,key2=value2` (URL-encoded). |
 
+In `pnpm dev`, `--endpoint` is always passed explicitly (built from `PHOENIX_PORT`), so `PHOENIX_COLLECTOR_ENDPOINT` in `.env` has no effect there.
+
 ### Development datasets
 
-At startup, datagen seeds the Typed Decisions dataset, its workflow
-decisions, and an accuracy dataset evaluator before replaying traces. It retries transient connection failures while the Phoenix
-server starts. No model inference is performed. JevBench and BoolQ are available
-through explicit `--source` selection; `--source all` seeds all three benchmark sources.
+Before replaying traces, datagen seeds development fixtures (unless `--no-datasets` is passed): the `px-datagen-typed-decisions` dataset (400 examples across four workflow splits), its workflow decisions and accuracy dataset evaluator, custom provider stubs, and disabled online evaluators on `support-chatbot`. No model inference is performed during seeding, and user-tuned model selections and evaluator settings are preserved across restarts. See `src/phoenix/experimental/datagen/` for the seeded definitions.
 
-| Dataset | Source | Examples |
-| --- | --- | --- |
-| `px-datagen-jevbench-hard` | [JevBench public hard](https://github.com/fstandhartinger/jevbench/blob/main/datasets/public/hard.jsonl) | 111 |
-| `px-datagen-typed-decisions` | [Typed Decisions](https://huggingface.co/datasets/LocalLLaMA/typed-decisions), configuration `all`, split `test` | 400, with five questions per example |
-| `px-datagen-boolq` | [BoolQ](https://huggingface.co/datasets/google/boolq), split `validation` | 3,270 |
-
-Typed Decisions examples are assigned to splits using `metadata.workflow`:
-`agent_trace_observability`, `customer_service`, `invoice_processing`, and
-`security_incidents`, with 100 examples in each. Re-seed an existing dataset to
-populate these memberships.
-
-All 400 examples and all four splits remain in `px-datagen-typed-decisions`;
-datagen does not create separate workflow datasets.
-
-The dataset's `accuracy` evaluator uses TypeSafe `jev-latest`, with state
-`{"reference": <dataset expected output>, "output": <experiment output>}` and one
-noul (predicate) question: "is the output accurate". Its saved decision and
-evaluator are named `px-datagen-typed-decisions-accuracy`. Repeated seeding reuses
-unchanged versions and bindings; no inference or TypeSafe API key is needed to seed.
-
-The four workflows have saved decisions named `px-datagen-typed-decisions-<workflow>`.
-Each decision uses TypeSafe `jev-latest`, takes `state` as its input, and asks the
-workflow's five questions with their exact instructions and criteria. Decisions are
-generated by grouping the dataset examples using `metadata.workflow`; each decision's
-metadata identifies the combined dataset and its workflow. Repeated seeding skips
-unchanged decision versions; changes to the generated definitions create a new version.
-
-Seeding chooses each decision's model only when it creates the decision. After that, the
-model is yours to change: re-seeding keeps the provider, model, and custom provider of the
-decision's latest version, including when it writes a new version for a changed
-definition. Likewise, the online judge's bindings on `support-chatbot` keep your enabled
-state, filter, sampling rate, and evaluation delay. Re-seeding still repairs the questions,
-state, template, and input mappings, which datagen owns.
-
-These are datagen-owned fixtures: re-seeding replaces their contents using stable example
-IDs. Identical reimports do not create a dataset version or duplicate examples. Keep
-custom examples in a separate dataset. Reference answers, rationales, and generation
-metadata are kept out of model inputs; Typed Decisions retains its soft reference
-distributions, which measure agreement with its teacher model.
-
-Source revisions and SHA-256 checksums are pinned in
-`src/phoenix/experimental/datagen/datasets.py`. Downloads are cached under
-`${XDG_CACHE_HOME:-~/.cache}/phoenix/datagen/datasets/`, keyed by checksum. Subsequent
-restarts verify and reuse cached files without contacting GitHub or Hugging Face.
-Parquet sources use the existing PyArrow dependency; no Hugging Face library or account
-is needed. Source URLs, revisions, checksums, and licenses are recorded in example metadata.
-
-To seed datasets without starting trace replay:
+To seed datasets and evaluators without starting trace replay:
 
 ```bash
-uv run phoenix datagen seed
-uv run phoenix datagen seed --source typed-decisions --endpoint http://localhost:6007
-uv run phoenix datagen seed --source all
+uv run phoenix datagen seed                              # default: typed-decisions
+uv run phoenix datagen seed --source all                 # typed-decisions, jevbench-hard, boolq
+uv run phoenix datagen seed --file examples.jsonl --name my-dataset
 ```
 
-Future datasets can use a small source adapter or the generic local JSONL/Parquet loader.
-Each canonical row has a stable string `id`, object-valued `input` and `output`, and
-optional object-valued `metadata`. It need not describe a decision model task:
-
-```json
-{"id":"example-1","input":{"query":"Hello"},"output":{"answer":"Hi"},"metadata":{}}
-```
-
-```bash
-uv run phoenix datagen seed --file examples.jsonl --name my-development-dataset
-```
-
-Use `--format parquet` for local Parquet files. Files are fully validated before upload;
-empty files, duplicate IDs, and malformed records are rejected.
-
-In `pnpm dev`, `--endpoint` is always passed explicitly (built from `PHOENIX_PORT`), so `PHOENIX_COLLECTOR_ENDPOINT` in `.env` has no effect there.
+Use `--format parquet` with `--file` for local Parquet files. Downloads are cached under `${XDG_CACHE_HOME:-~/.cache}/phoenix/datagen/datasets/`.
 
 ### The corpus
 

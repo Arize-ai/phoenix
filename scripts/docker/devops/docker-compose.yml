@@ -494,6 +494,34 @@ services:
       - "monitoring.priority=medium"
       - "network.simulation=proxy"
 
+  # Control page for the toxics, at http://localhost:18273/toxiproxy/.
+  # nginx serves the page and forwards /api/ to the Toxiproxy admin API.
+  toxiproxy-ui:
+    image: nginx:1.27-alpine
+    profiles: ["toxiproxy"]
+    restart: unless-stopped
+    depends_on:
+      - toxiproxy
+    volumes:
+      # The directory, not the file, so that edits to index.html appear on reload.
+      - ./toxiproxy-ui:/srv/toxiproxy-ui:ro
+      - ./toxiproxy-ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.toxiproxy.rule=Host(`localhost`) && PathPrefix(`/toxiproxy`)"
+      - "traefik.http.routers.toxiproxy.middlewares=toxiproxy-stripprefix"
+      - "traefik.http.middlewares.toxiproxy-stripprefix.stripprefix.prefixes=/toxiproxy"
+      - "traefik.http.services.toxiproxy.loadbalancer.server.port=8080"
+      - "service.name=toxiproxy-ui"
+      - "service.type=dashboard"
+      - "monitoring.priority=low"
+      - "network.simulation=false"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
   toxiproxy-init:
     image: curlimages/curl:8.11.1
     profiles: ["toxiproxy"]

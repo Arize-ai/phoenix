@@ -20,9 +20,11 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.experimental.datagen.datasets import DatasetError
 from phoenix.experimental.datagen.evaluators import (
+    CUSTOM_PROVIDERS,
     ONLINE_JUDGE_BINDINGS,
     ONLINE_JUDGE_NAME,
     ONLINE_JUDGE_PROJECT_NAME,
+    seed_custom_providers,
     seed_dataset_decision_evaluators,
     seed_online_decision_judge,
 )
@@ -34,6 +36,7 @@ from phoenix.server.api.helpers.decision_clients import (
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.evaluators.resolution import build_decision_evaluator
 from phoenix.server.evaluators.snapshots import capture_decision_evaluator_definition
+from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 
 _DATASET_NAME = "px-datagen-typed-decisions"
@@ -369,3 +372,149 @@ async def test_seed_refuses_an_accuracy_binding_to_another_evaluator(
     seed = _seeder(httpx_client, dataset, [])
     with pytest.raises(DatasetError, match="accuracy is already bound to another evaluator"):
         await anyio.to_thread.run_sync(seed)
+
+
+async def test_seed_custom_providers_creates_each_once_with_blank_url_and_preserves_edits(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    redactor: Redactor,
+) -> None:
+    writes: list[str] = []
+    seed = _forwarding_seeder(httpx_client, seed_custom_providers, writes)
+
+    first = await anyio.to_thread.run_sync(seed)
+    assert [name for name, _ in first] == list(CUSTOM_PROVIDERS)
+    assert len(writes) == len(CUSTOM_PROVIDERS)
+    assert await anyio.to_thread.run_sync(seed) == first
+    assert len(writes) == len(CUSTOM_PROVIDERS)
+
+    query = await httpx_client.post(
+        "/graphql",
+        json={
+            "query": """
+            {
+              generativeModelCustomProviders(first: 10) {
+                edges {
+                  node {
+                    id
+                    name
+                    provider
+                    sdk
+                    config {
+                      __typename
+                      ... on OpenAICustomProviderConfig {
+                        openaiAuthenticationMethod { apiKey }
+                        openaiClientKwargs { baseUrl }
+                      }
+                      ... on AnthropicCustomProviderConfig {
+                        anthropicAuthenticationMethod { apiKey }
+                        anthropicClientKwargs { baseUrl }
+                      }
+                      ... on GoogleGenAICustomProviderConfig {
+                        googleGenaiAuthenticationMethod { apiKey }
+                        googleGenaiClientKwargs { httpOptions { baseUrl } }
+                      }
+                      ... on TypeSafeCustomProviderConfig {
+                        typesafeAuthenticationMethod { apiKey }
+                        typesafeClientKwargs { baseUrl }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """
+        },
+    )
+    assert query.status_code == 200 and "errors" not in query.json()
+    nodes = {
+        edge["node"]["name"]: edge["node"]
+        for edge in query.json()["data"]["generativeModelCustomProviders"]["edges"]
+    }
+    assert set(nodes) == set(CUSTOM_PROVIDERS)
+    assert nodes["px-datagen-openai"]["provider"] == "openai"
+    assert nodes["px-datagen-openai"]["sdk"] == "OPENAI"
+    assert (
+        redactor.unredact(
+            nodes["px-datagen-openai"]["config"]["openaiAuthenticationMethod"]["apiKey"]
+        )
+        == "fake"
+    )
+    assert nodes["px-datagen-openai"]["config"]["openaiClientKwargs"] is None
+    assert nodes["px-datagen-anthropic"]["provider"] == "anthropic"
+    assert nodes["px-datagen-anthropic"]["sdk"] == "ANTHROPIC"
+    assert (
+        redactor.unredact(
+            nodes["px-datagen-anthropic"]["config"]["anthropicAuthenticationMethod"]["apiKey"]
+        )
+        == "fake"
+    )
+    assert nodes["px-datagen-anthropic"]["config"]["anthropicClientKwargs"] is None
+    assert nodes["px-datagen-google"]["provider"] == "google"
+    assert nodes["px-datagen-google"]["sdk"] == "GOOGLE_GENAI"
+    assert (
+        redactor.unredact(
+            nodes["px-datagen-google"]["config"]["googleGenaiAuthenticationMethod"]["apiKey"]
+        )
+        == "fake"
+    )
+    assert nodes["px-datagen-google"]["config"]["googleGenaiClientKwargs"] is None
+    assert nodes["px-datagen-typesafe"]["provider"] == "typesafe"
+    assert nodes["px-datagen-typesafe"]["sdk"] == "TYPESAFE"
+    assert (
+        redactor.unredact(
+            nodes["px-datagen-typesafe"]["config"]["typesafeAuthenticationMethod"]["apiKey"]
+        )
+        == "fake"
+    )
+    assert nodes["px-datagen-typesafe"]["config"]["typesafeClientKwargs"] is None
+
+    # Adding a base URL on a seeded provider is preserved across re-seeding.
+    patched = await httpx_client.post(
+        "/graphql",
+        json={
+            "query": """
+            mutation($input: PatchGenerativeModelCustomProviderMutationInput!) {
+              patchGenerativeModelCustomProvider(input: $input) { provider { id } }
+            }
+            """,
+            "variables": {
+                "input": {
+                    "id": nodes["px-datagen-typesafe"]["id"],
+                    "clientConfig": {
+                        "typesafe": {
+                            "typesafeAuthenticationMethod": {"apiKey": "fake"},
+                            "typesafeClientKwargs": {"baseUrl": "http://mock-llm:57593"},
+                        }
+                    },
+                }
+            },
+        },
+    )
+    assert patched.status_code == 200 and "errors" not in patched.json()
+    assert await anyio.to_thread.run_sync(seed) == first
+    assert len(writes) == len(CUSTOM_PROVIDERS)
+
+    rechecked = await httpx_client.post(
+        "/graphql",
+        json={
+            "query": """
+            query($id: ID!) {
+              node(id: $id) {
+                ... on GenerativeModelCustomProvider {
+                  config {
+                    ... on TypeSafeCustomProviderConfig {
+                      typesafeClientKwargs { baseUrl }
+                    }
+                  }
+                }
+              }
+            }
+            """,
+            "variables": {"id": nodes["px-datagen-typesafe"]["id"]},
+        },
+    )
+    assert (
+        rechecked.json()["data"]["node"]["config"]["typesafeClientKwargs"]["baseUrl"]
+        == "http://mock-llm:57593"
+    )

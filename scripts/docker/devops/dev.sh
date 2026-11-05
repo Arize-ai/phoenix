@@ -13,6 +13,8 @@ readonly PROJECT_NAME="devops"
 readonly HEALTH_URL="http://localhost:18273/phoenix/healthz"
 readonly HEALTH_TIMEOUT=60
 readonly HEALTH_LOG_CHECK=15
+readonly DATAGEN_STATE_URL="http://localhost:18273/datagen/api/state"
+readonly DATAGEN_TIMEOUT=120
 
 # Global variables
 CURRENT_PROFILES=""
@@ -356,6 +358,36 @@ wait_for_phoenix() {
     return 1
 }
 
+# Wait for datagen to finish seeding datasets, custom providers, and evaluators
+wait_for_datagen() {
+    if [[ " $CURRENT_PROFILES " != *" datagen "* ]]; then
+        return 0
+    fi
+
+    echo "⏳ Waiting for datagen to finish seeding..."
+    local attempt=1
+    while [ $attempt -le $DATAGEN_TIMEOUT ]; do
+        if curl -s -f "$DATAGEN_STATE_URL" 2>/dev/null | grep -q '"phase"[[:space:]]*:[[:space:]]*"replaying"'; then
+            echo ""
+            log_success "Datagen is replaying!"
+            return 0
+        fi
+
+        if [ $attempt -eq 1 ]; then
+            echo -n "   Seeding"
+        fi
+        echo -n "."
+
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    echo ""
+    log_error "Datagen seeding did not complete within ${DATAGEN_TIMEOUT} seconds"
+    echo "   Check logs: $(compose_cmd_str) logs datagen"
+    return 1
+}
+
 # Show available services
 show_services() {
     echo "🌐 Web Services:"
@@ -382,6 +414,10 @@ show_services() {
                 "in-memory")
                     echo "  Database: In-memory SQLite"
                     ;;
+                "toxiproxy")
+                    echo "  Database:   Phoenix connects through Toxiproxy (2ms ±1ms by default)"
+                    echo "  Controls:   http://localhost:18273/toxiproxy/"
+                    ;;
                 "grafana")
                     echo "  Monitoring: Grafana + Prometheus enabled"
                     echo "  Grafana:    http://localhost:18273/grafana"
@@ -392,7 +428,7 @@ show_services() {
                     echo "  Dashboard:  http://localhost:18273/mock-llm/dashboard/"
                     ;;
                 "datagen")
-                    echo "  Datagen:    replaying traces into the phoenix-datagen project"
+                    echo "  Datagen:    replaying traces, one project per recorded application"
                     echo "  Controls:   http://localhost:18273/datagen/"
                     echo "  Logs:       $(compose_cmd_str) logs -f datagen"
                     ;;
@@ -455,7 +491,7 @@ list_profiles() {
     echo "  toxiproxy          Enable network simulation with Toxiproxy"
   echo "  grafana            Enable Grafana and Prometheus monitoring"
   echo "  mock-llm           Enable the mock LLM server (OpenAI, Anthropic, Gemini, TypeSafe)"
-  echo "  datagen            Replay synthetic traces into the phoenix-datagen project"
+  echo "  datagen            Replay synthetic traces (one project per application)"
   echo "  ldap               Enable LDAP authentication (mock LDAP server)"
   echo "  ldap-no-email      Enable LDAP authentication (users without email)"
   echo "  ldap-posix         Enable LDAP authentication (POSIX groups, no memberOf)"
@@ -615,7 +651,7 @@ run_doctor() {
     }
 
     echo ""
-    check_port 18273 "Traefik: Phoenix, mail, OIDC, mock LLM"
+    check_port 18273 "Traefik: Phoenix, mail, OIDC, mock LLM, datagen, Toxiproxy"
     check_port 5433 "PostgreSQL"
 
     echo ""
@@ -653,7 +689,7 @@ case "${COMMAND:-help}" in
         echo "📦 Building changed images and starting all services..."
         compose_cmd up -d --build
         
-        if wait_for_phoenix; then
+        if wait_for_phoenix && wait_for_datagen; then
             log_success "Environment ready!"
             show_services
         else
@@ -673,7 +709,7 @@ case "${COMMAND:-help}" in
         echo "📦 Starting all services..."
         compose_cmd up -d --force-recreate
         
-        if wait_for_phoenix; then
+        if wait_for_phoenix && wait_for_datagen; then
             log_success "Environment ready!"
             show_services
         else
@@ -831,7 +867,7 @@ Phoenix Development Environment
   toxiproxy                    Enable network simulation with Toxiproxy
   grafana                      Enable Grafana and Prometheus monitoring
   mock-llm                     Enable the mock LLM server (dashboard via Traefik)
-  datagen                      Replay synthetic traces into the phoenix-datagen project
+  datagen                      Replay synthetic traces (one project per application)
   ldap                         Enable LDAP authentication (mock LDAP server)
   ldap-no-email                Enable LDAP authentication (users without email)
   ldap-posix                   Enable LDAP with POSIX groups (no memberOf)
