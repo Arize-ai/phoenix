@@ -96,9 +96,6 @@ KNOWN_BROKEN = {
     "skills/phoenix-evals/references/validation-evaluators-typescript.md#1": (
         "@arizeai/phoenix-client/datasets has no createOrGetDataset"
     ),
-    "skills/phoenix-tracing/references/projects-typescript.md#0": (
-        "register() takes a params object; pass {}"
-    ),
 }
 
 

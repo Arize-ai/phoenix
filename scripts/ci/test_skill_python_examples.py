@@ -103,12 +103,6 @@ KNOWN_BROKEN = {
     "skills/phoenix-evals/references/experiments-datasets-python.md#2": (
         "datasets.get_dataset takes dataset=, not name="
     ),
-    "skills/phoenix-tracing/references/instrumentation-atif-python.md#1": (
-        "a signature without a body doesn't parse; tag it python no-check"
-    ),
-    "skills/phoenix-tracing/references/instrumentation-manual-python.md#4": (
-        "log_spans needs Span objects; annotate the list as list[Span]"
-    ),
 }
 
 

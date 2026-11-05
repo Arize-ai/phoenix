@@ -205,11 +205,12 @@ px profile edit prod                         # open profile JSON in $EDITOR (val
 px profile delete prod --yes                 # delete a profile (--yes skips confirmation)
 ```
 
-Use `--profile <name>` on any command to target a specific profile without changing the active one:
+Only `px auth login`, `px auth logout`, `px auth status` and `px setup mcp` take `--profile <name>`. Other commands use the active profile, so to run one against another profile, switch to it with `px profile use` first:
 
 ```bash
-px trace list --profile staging --limit 10 --format raw --no-progress | jq .
-px auth status --profile prod
+px auth status --profile prod                # check a named profile without switching
+px profile use staging
+px trace list --limit 10 --format raw --no-progress | jq .
 ```
 
 `px profile create` options: `--endpoint <url>`, `--project <name>`, `--api-key <key>`, `--header <key=value>` (repeatable), `--activate`.
