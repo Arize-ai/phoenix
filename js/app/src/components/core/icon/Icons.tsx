@@ -383,6 +383,23 @@ export const Bulb = () => (
   </svg>
 );
 
+export const Ban = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle fill="none" cx="12" cy="12" r="10" />
+    <path fill="none" d="m4.9 4.9 14.2 14.2" />
+  </svg>
+);
+
 //C
 export const Calendar = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -796,6 +813,29 @@ export const Cube = () => (
     />
     <path fill="none" d="m3.3 7 8.7 5 8.7-5" />
     <path fill="none" d="M12 22V12" />
+  </svg>
+);
+
+export const CircleDashed = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M10.1 2.182a10 10 0 0 1 3.8 0" />
+    <path fill="none" d="M13.9 21.818a10 10 0 0 1-3.8 0" />
+    <path fill="none" d="M17.609 3.721a10 10 0 0 1 2.69 2.7" />
+    <path fill="none" d="M2.182 13.9a10 10 0 0 1 0-3.8" />
+    <path fill="none" d="M20.279 17.609a10 10 0 0 1-2.7 2.69" />
+    <path fill="none" d="M21.818 10.1a10 10 0 0 1 0 3.8" />
+    <path fill="none" d="M3.721 6.391a10 10 0 0 1 2.7-2.69" />
+    <path fill="none" d="M6.391 20.279a10 10 0 0 1-2.69-2.7" />
   </svg>
 );
 
@@ -1466,6 +1506,22 @@ export const LogOut = () => (
   </svg>
 );
 
+export const LoaderCircle = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg>
+);
+
 //M
 
 // @src: lucide message-circle
@@ -1611,6 +1667,27 @@ export const Options = () => (
   </svg>
 );
 
+export const MessageCircleQuestionMark = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      fill="none"
+      d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"
+    />
+    <path fill="none" d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <path fill="none" d="M12 17h.01" />
+  </svg>
+);
+
 //P
 export const PaperPlane = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -1753,6 +1830,23 @@ export const PythonSVG = () => (
       d="M8.8925 0.000149919C9.63457 -0.00332877 10.4085 0.0536574 11.1542 0.178861C12.3324 0.376977 13.3251 1.26914 13.3251 2.4562V6.6271C13.3249 7.85004 12.3613 8.85269 11.1542 8.85269H6.81828C5.34599 8.85269 4.10554 10.1277 4.10539 11.5734V13.5753H2.6132C1.35139 13.5753 0.614206 12.6504 0.305585 11.3537C-0.11062 9.61183 -0.0930083 8.57077 0.305585 6.90249C0.651145 5.44704 1.75583 4.68193 3.0175 4.68179H8.98918V4.12515H4.64738V2.4562C4.64738 1.19219 4.98102 0.506326 6.81828 0.178861C7.44183 0.067561 8.15047 0.00364161 8.8925 0.000149919ZM6.54484 1.34292C6.09489 1.34292 5.73058 1.71828 5.73039 2.17984C5.73039 2.63993 6.09477 3.01187 6.54484 3.01187C6.99329 3.01185 7.3593 2.63991 7.3593 2.17984C7.35911 1.71829 6.99317 1.34294 6.54484 1.34292Z"
       fill="currentColor"
     />
+  </svg>
+);
+
+export const PauseFilled = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect fill="currentColor" x="14" y="4" width="4" height="16" rx="1" />
+    <rect fill="currentColor" x="6" y="4" width="4" height="16" rx="1" />
   </svg>
 );
 
@@ -2190,6 +2284,22 @@ export const Sun = () => (
     <path d="M4.22266 4.2226C4.61306 3.83219 5.24617 3.83243 5.63672 4.2226L7.04688 5.63275C7.43724 6.02329 7.43735 6.65634 7.04688 7.04681C6.6564 7.43724 6.02333 7.43717 5.63281 7.04681L4.22266 5.63666C3.83251 5.24612 3.8323 4.613 4.22266 4.2226Z" />
     <path d="M18.3633 4.2226C18.7538 3.8324 19.3869 3.83227 19.7773 4.2226C20.1677 4.61303 20.1676 5.24614 19.7773 5.63666L18.3672 7.04681C17.9767 7.43723 17.3436 7.43723 16.9531 7.04681C16.5627 6.65631 16.5627 6.02325 16.9531 5.63275L18.3633 4.2226Z" />
     <path d="M12 0.999939C12.5523 0.999939 13 1.44765 13 1.99994V3.99994C13 4.55222 12.5523 4.99994 12 4.99994C11.4477 4.99994 11 4.55222 11 3.99994V1.99994C11 1.44765 11.4477 0.999939 12 0.999939Z" />
+  </svg>
+);
+
+export const StopFilled = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect fill="currentColor" x="5" y="5" width="14" height="14" rx="2" />
   </svg>
 );
 
