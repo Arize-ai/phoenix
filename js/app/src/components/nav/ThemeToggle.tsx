@@ -1,32 +1,28 @@
-import type { ReactNode } from "react";
+import { css } from "@emotion/react";
 
 import {
   Icon,
   Icons,
   SegmentedControl,
   SegmentedControlItem,
-  Tooltip,
-  TooltipTrigger,
+  Text,
 } from "@phoenix/components";
-import type { ProviderThemeMode } from "@phoenix/contexts";
 import { isProviderThemeMode, useTheme } from "@phoenix/contexts";
 
-const THEME_MODE_OPTIONS: {
-  id: ProviderThemeMode;
-  label: string;
-  icon: ReactNode;
-}[] = [
-  { id: "light", label: "Light", icon: <Icons.Sun /> },
-  { id: "dark", label: "Dark", icon: <Icons.Moon /> },
-  { id: "sunshine", label: "Sunshine", icon: <Icons.Sparkles /> },
-  { id: "system", label: "System", icon: <Icons.HalfMoonHalfSun /> },
-];
+/**
+ * Four labelled segments do not fit at equal widths in the account menu, so
+ * each segment starts from its label's width and shares the leftover space.
+ */
+const themeToggleCSS = css`
+  &[data-justified="true"] .segmented-control__item {
+    flex: 1 0 auto;
+  }
+`;
 
 /**
  * A compact segmented control for picking the theme mode: light, dark,
  * sunshine (a golden variant of light), or system. Selecting "System" follows
- * the OS preference. Segments are icon-only so four modes fit in the account
- * menu; each names its mode in an aria-label and a tooltip.
+ * the OS preference.
  */
 export function ThemeToggle() {
   const { themeMode, setThemeMode } = useTheme();
@@ -45,15 +41,24 @@ export function ThemeToggle() {
         }
       }}
       className="theme-toggle"
+      css={themeToggleCSS}
     >
-      {THEME_MODE_OPTIONS.map(({ id, label, icon }) => (
-        <TooltipTrigger key={id} delay={100}>
-          <SegmentedControlItem id={id} aria-label={label}>
-            <Icon svg={icon} />
-          </SegmentedControlItem>
-          <Tooltip>{label}</Tooltip>
-        </TooltipTrigger>
-      ))}
+      <SegmentedControlItem id="light">
+        <Icon svg={<Icons.Sun />} />
+        <Text>Light</Text>
+      </SegmentedControlItem>
+      <SegmentedControlItem id="dark">
+        <Icon svg={<Icons.Moon />} />
+        <Text>Dark</Text>
+      </SegmentedControlItem>
+      <SegmentedControlItem id="sunshine">
+        <Icon svg={<Icons.Sparkles />} />
+        <Text>Sunshine</Text>
+      </SegmentedControlItem>
+      <SegmentedControlItem id="system">
+        <Icon svg={<Icons.HalfMoonHalfSun />} />
+        <Text>System</Text>
+      </SegmentedControlItem>
     </SegmentedControl>
   );
 }

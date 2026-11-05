@@ -16,7 +16,7 @@ const meta: Meta<typeof ThemeToggle> = {
   },
   decorators: [
     (Story) => (
-      <View width="250px">
+      <View width="350px">
         <Story />
       </View>
     ),
