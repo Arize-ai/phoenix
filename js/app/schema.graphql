@@ -1958,6 +1958,11 @@ type DecisionEvaluator implements Evaluator & Node {
   inputSchema: JSON!
   scoringPolicy: DecisionScoringPolicy!
   decisionVersion: DecisionVersion!
+
+  """
+  The tag this evaluator runs through; null when it runs the latest version.
+  """
+  decisionVersionTag: DecisionVersionTag
 }
 
 type DecisionEvaluatorMutationPayload {

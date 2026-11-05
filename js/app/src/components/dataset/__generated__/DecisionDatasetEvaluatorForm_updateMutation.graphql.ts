@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da4eab926cff7c75b928413ea12f4e19>>
+ * @generated SignedSource<<85129936f1c8503c414185ec119d233f>>
  * @lightSyntaxTransform
  */
 
@@ -400,6 +400,16 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "DecisionVersionTag",
+                            "kind": "LinkedField",
+                            "name": "decisionVersionTag",
+                            "plural": false,
+                            "selections": (v14/*:: as any*/),
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "DecisionVersion",
                             "kind": "LinkedField",
                             "name": "decisionVersion",
@@ -576,6 +586,16 @@ return {
                       {
                         "alias": null,
                         "args": null,
+                        "concreteType": "DecisionVersionTag",
+                        "kind": "LinkedField",
+                        "name": "decisionVersionTag",
+                        "plural": false,
+                        "selections": (v20/*:: as any*/),
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
                         "concreteType": "DecisionVersion",
                         "kind": "LinkedField",
                         "name": "decisionVersion",
@@ -648,12 +668,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "402bb8db10319f1225f000dc0eae0bff",
+    "cacheID": "c0496456e1937648647069f30432ac4f",
     "id": null,
     "metadata": {},
     "name": "DecisionDatasetEvaluatorForm_updateMutation",
     "operationKind": "mutation",
-    "text": "mutation DecisionDatasetEvaluatorForm_updateMutation(\n  $input: UpdateDatasetDecisionEvaluatorInput!\n) {\n  updateDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      description\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation DecisionDatasetEvaluatorForm_updateMutation(\n  $input: UpdateDatasetDecisionEvaluatorInput!\n) {\n  updateDatasetDecisionEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      description\n      inputMapping {\n        literalMapping\n        pathMapping\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersionTag {\n        name\n        id\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dcc98bca3029977c57336aa5cde11d5b>>
+ * @generated SignedSource<<231619d6fad5c99456ed7178760794ca>>
  * @lightSyntaxTransform
  */
 
@@ -241,6 +241,16 @@ return {
                           {
                             "alias": null,
                             "args": null,
+                            "concreteType": "DecisionVersionTag",
+                            "kind": "LinkedField",
+                            "name": "decisionVersionTag",
+                            "plural": false,
+                            "selections": (v6/*:: as any*/),
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
                             "concreteType": "DecisionVersion",
                             "kind": "LinkedField",
                             "name": "decisionVersion",
@@ -379,12 +389,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "142cdd16c650ae2603fdff919261d39f",
+    "cacheID": "ef1969d1f0a1a09db1a7c26403aa8ccf",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorsTabLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorsTabLoaderQuery {\n  ...DatasetEvaluatorsTabTable_datasetEvaluators\n}\n\nfragment DatasetEvaluatorsTabTable_datasetEvaluators on Query {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query datasetEvaluatorsTabLoaderQuery {\n  ...DatasetEvaluatorsTabTable_datasetEvaluators\n}\n\nfragment DatasetEvaluatorsTabTable_datasetEvaluators on Query {\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  dataset {\n    id\n    name\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on DecisionEvaluator {\n      decisionVersionTag {\n        name\n        id\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

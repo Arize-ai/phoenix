@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c17c72ef48035f6d0c38f06564c2a863>>
+ * @generated SignedSource<<1fc1fd59dc1845726fcc62a76b043a69>>
  * @lightSyntaxTransform
  */
 
@@ -49,45 +49,55 @@ v3 = {
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v4 = [
+  (v2/*:: as any*/),
+  (v3/*:: as any*/)
+],
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "instructions",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "enumValues": null,
   "nullable": false,
   "plural": false,
   "type": "String"
 },
-v7 = {
+v8 = {
   "enumValues": null,
   "nullable": false,
   "plural": false,
   "type": "ID"
 },
-v8 = {
+v9 = {
+  "enumValues": null,
+  "nullable": false,
+  "plural": false,
+  "type": "Identifier"
+},
+v10 = {
   "enumValues": null,
   "nullable": true,
   "plural": false,
   "type": "String"
 },
-v9 = {
+v11 = {
   "enumValues": null,
   "nullable": false,
   "plural": false,
   "type": "JSON"
 },
-v10 = {
+v12 = {
   "enumValues": null,
   "nullable": false,
   "plural": false,
@@ -276,6 +286,16 @@ return {
                       {
                         "alias": null,
                         "args": null,
+                        "concreteType": "DecisionVersionTag",
+                        "kind": "LinkedField",
+                        "name": "decisionVersionTag",
+                        "plural": false,
+                        "selections": (v4/*:: as any*/),
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
                         "concreteType": "DecisionVersion",
                         "kind": "LinkedField",
                         "name": "decisionVersion",
@@ -296,10 +316,7 @@ return {
                             "kind": "LinkedField",
                             "name": "decision",
                             "plural": false,
-                            "selections": [
-                              (v2/*:: as any*/),
-                              (v3/*:: as any*/)
-                            ],
+                            "selections": (v4/*:: as any*/),
                             "storageKey": null
                           },
                           {
@@ -376,7 +393,7 @@ return {
                                 "kind": "InlineFragment",
                                 "selections": [
                                   (v2/*:: as any*/),
-                                  (v4/*:: as any*/),
+                                  (v5/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -410,7 +427,7 @@ return {
                                 "kind": "InlineFragment",
                                 "selections": [
                                   (v2/*:: as any*/),
-                                  (v4/*:: as any*/),
+                                  (v5/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -426,7 +443,7 @@ return {
                                         "name": "value",
                                         "storageKey": null
                                       },
-                                      (v5/*:: as any*/)
+                                      (v6/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -438,7 +455,7 @@ return {
                                 "kind": "InlineFragment",
                                 "selections": [
                                   (v2/*:: as any*/),
-                                  (v4/*:: as any*/),
+                                  (v5/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -454,7 +471,7 @@ return {
                                         "name": "label",
                                         "storageKey": null
                                       },
-                                      (v5/*:: as any*/)
+                                      (v6/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -487,7 +504,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "778467d1d57e1c600bee6a1f488c7075",
+    "cacheID": "01f8dcdc3f46076b1f25c649856f897b",
     "id": null,
     "metadata": {
       "relayTestingSelectionTypeInfo": {
@@ -497,14 +514,14 @@ return {
           "plural": false,
           "type": "Node"
         },
-        "projectEvaluator.__typename": (v6/*:: as any*/),
+        "projectEvaluator.__typename": (v7/*:: as any*/),
         "projectEvaluator.evaluator": {
           "enumValues": null,
           "nullable": false,
           "plural": false,
           "type": "Evaluator"
         },
-        "projectEvaluator.evaluator.__typename": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.__typename": (v7/*:: as any*/),
         "projectEvaluator.evaluator.decisionVersion": {
           "enumValues": null,
           "nullable": false,
@@ -517,16 +534,11 @@ return {
           "plural": false,
           "type": "Decision"
         },
-        "projectEvaluator.evaluator.decisionVersion.decision.id": (v7/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.decision.name": {
-          "enumValues": null,
-          "nullable": false,
-          "plural": false,
-          "type": "Identifier"
-        },
-        "projectEvaluator.evaluator.decisionVersion.decisionId": (v7/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.id": (v7/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.modelName": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.decision.id": (v8/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.decision.name": (v9/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.decisionId": (v8/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.id": (v8/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.modelName": (v7/*:: as any*/),
         "projectEvaluator.evaluator.decisionVersion.modelProvider": {
           "enumValues": [
             "OPENAI",
@@ -558,42 +570,42 @@ return {
           "plural": true,
           "type": "DecisionQuestion"
         },
-        "projectEvaluator.evaluator.decisionVersion.questions.__typename": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.__typename": (v7/*:: as any*/),
         "projectEvaluator.evaluator.decisionVersion.questions.choices": {
           "enumValues": null,
           "nullable": false,
           "plural": true,
           "type": "DecisionChoiceOption"
         },
-        "projectEvaluator.evaluator.decisionVersion.questions.choices.description": (v8/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.questions.choices.value": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.choices.description": (v10/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.choices.value": (v7/*:: as any*/),
         "projectEvaluator.evaluator.decisionVersion.questions.criteria": {
           "enumValues": null,
           "nullable": true,
           "plural": false,
           "type": "DecisionPredicateCriteria"
         },
-        "projectEvaluator.evaluator.decisionVersion.questions.criteria.false": (v8/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.questions.criteria.true": (v8/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.questions.instructions": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.criteria.false": (v10/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.criteria.true": (v10/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.instructions": (v7/*:: as any*/),
         "projectEvaluator.evaluator.decisionVersion.questions.levels": {
           "enumValues": null,
           "nullable": false,
           "plural": true,
           "type": "DecisionScaleLevel"
         },
-        "projectEvaluator.evaluator.decisionVersion.questions.levels.description": (v8/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.questions.levels.label": (v6/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.questions.name": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.levels.description": (v10/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.levels.label": (v7/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.questions.name": (v7/*:: as any*/),
         "projectEvaluator.evaluator.decisionVersion.state": {
           "enumValues": null,
           "nullable": false,
           "plural": false,
           "type": "DecisionState"
         },
-        "projectEvaluator.evaluator.decisionVersion.state.__typename": (v6/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.state.json": (v9/*:: as any*/),
-        "projectEvaluator.evaluator.decisionVersion.state.text": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.state.__typename": (v7/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.state.json": (v11/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersion.state.text": (v7/*:: as any*/),
         "projectEvaluator.evaluator.decisionVersion.templateFormat": {
           "enumValues": [
             "MUSTACHE",
@@ -604,7 +616,15 @@ return {
           "plural": false,
           "type": "PromptTemplateFormat"
         },
-        "projectEvaluator.evaluator.id": (v7/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersionTag": {
+          "enumValues": null,
+          "nullable": true,
+          "plural": false,
+          "type": "DecisionVersionTag"
+        },
+        "projectEvaluator.evaluator.decisionVersionTag.id": (v8/*:: as any*/),
+        "projectEvaluator.evaluator.decisionVersionTag.name": (v9/*:: as any*/),
+        "projectEvaluator.evaluator.id": (v8/*:: as any*/),
         "projectEvaluator.evaluator.scoringPolicy": {
           "enumValues": null,
           "nullable": false,
@@ -617,14 +637,14 @@ return {
           "plural": true,
           "type": "DecisionQuestionScoring"
         },
-        "projectEvaluator.evaluator.scoringPolicy.questions.__typename": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.scoringPolicy.questions.__typename": (v7/*:: as any*/),
         "projectEvaluator.evaluator.scoringPolicy.questions.includeLabel": {
           "enumValues": null,
           "nullable": false,
           "plural": false,
           "type": "Boolean"
         },
-        "projectEvaluator.evaluator.scoringPolicy.questions.name": (v6/*:: as any*/),
+        "projectEvaluator.evaluator.scoringPolicy.questions.name": (v7/*:: as any*/),
         "projectEvaluator.evaluator.scoringPolicy.questions.optimizationDirection": {
           "enumValues": [
             "MINIMIZE",
@@ -641,23 +661,23 @@ return {
           "plural": true,
           "type": "DecisionChoiceScore"
         },
-        "projectEvaluator.evaluator.scoringPolicy.questions.scores.choice": (v6/*:: as any*/),
-        "projectEvaluator.evaluator.scoringPolicy.questions.scores.score": (v10/*:: as any*/),
-        "projectEvaluator.evaluator.scoringPolicy.questions.threshold": (v10/*:: as any*/),
-        "projectEvaluator.id": (v7/*:: as any*/),
+        "projectEvaluator.evaluator.scoringPolicy.questions.scores.choice": (v7/*:: as any*/),
+        "projectEvaluator.evaluator.scoringPolicy.questions.scores.score": (v12/*:: as any*/),
+        "projectEvaluator.evaluator.scoringPolicy.questions.threshold": (v12/*:: as any*/),
+        "projectEvaluator.id": (v8/*:: as any*/),
         "projectEvaluator.inputMapping": {
           "enumValues": null,
           "nullable": false,
           "plural": false,
           "type": "EvaluatorInputMapping"
         },
-        "projectEvaluator.inputMapping.literalMapping": (v9/*:: as any*/),
-        "projectEvaluator.inputMapping.pathMapping": (v9/*:: as any*/)
+        "projectEvaluator.inputMapping.literalMapping": (v11/*:: as any*/),
+        "projectEvaluator.inputMapping.pathMapping": (v11/*:: as any*/)
       }
     },
     "name": "DecisionProjectEvaluatorDetailsTestQuery",
     "operationKind": "query",
-    "text": "query DecisionProjectEvaluatorDetailsTestQuery {\n  projectEvaluator: node(id: \"test-project-evaluator-id\") {\n    __typename\n    ... on ProjectEvaluator {\n      ...DecisionProjectEvaluatorDetails_projectEvaluator\n    }\n    id\n  }\n}\n\nfragment DecisionProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on DecisionEvaluator {\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n        templateFormat\n        state {\n          __typename\n          ... on DecisionTextState {\n            text\n          }\n          ... on DecisionJsonState {\n            json\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query DecisionProjectEvaluatorDetailsTestQuery {\n  projectEvaluator: node(id: \"test-project-evaluator-id\") {\n    __typename\n    ... on ProjectEvaluator {\n      ...DecisionProjectEvaluatorDetails_projectEvaluator\n    }\n    id\n  }\n}\n\nfragment DecisionProjectEvaluatorDetails_projectEvaluator on ProjectEvaluator {\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    ... on DecisionEvaluator {\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersionTag {\n        name\n        id\n      }\n      decisionVersion {\n        id\n        decisionId\n        decision {\n          name\n          id\n        }\n        modelName\n        modelProvider\n        templateFormat\n        state {\n          __typename\n          ... on DecisionTextState {\n            text\n          }\n          ... on DecisionJsonState {\n            json\n          }\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n            instructions\n            criteria {\n              true\n              false\n            }\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            instructions\n            choices {\n              value\n              description\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            instructions\n            levels {\n              label\n              description\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
