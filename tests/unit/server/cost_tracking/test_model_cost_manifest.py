@@ -330,6 +330,17 @@ def test_every_manifest_entry_resolves_to_its_own_entry(
     )
     assert model is not None, f"no built-in model priced {entry['name']}"
     assert model.name == entry["name"], f"a span for {entry['name']} bills as {model.name}"
+    if "provider" in llm:
+        # Passing the provider must not hide a shadowing pattern from spans that omit it. Such
+        # a span may only land on an entry that shares this pattern and so is priced by host.
+        provider_less = built_in_lookup.find_model(
+            start_time=datetime.now(timezone.utc),
+            attributes={"llm": {"model_name": entry["name"]}},
+        )
+        assert provider_less is not None, f"no built-in model priced {entry['name']}"
+        assert provider_less.name_pattern.pattern == entry["name_pattern"], (
+            f"a span for {entry['name']} without a provider bills as {provider_less.name}"
+        )
 
 
 def test_checked_in_manifest_parses_without_skipping_entries(
