@@ -2175,18 +2175,15 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-opus-4-0",
 ]
 
-# Anthropic models that reject forced tool use: `tool_choice` of type `any` or
-# `tool` returns a 400. Only `auto` and `none` are accepted.
+# Anthropic models that return a 400 for a `tool_choice` of type `any` or `tool`.
+# These models accept only `auto` and `none`.
 ANTHROPIC_MODELS_WITHOUT_FORCED_TOOL_CHOICE = [
     "claude-fable-5-1",
     "claude-opus-5-5",
     "claude-sonnet-5-5",
 ]
 
-# Finds a model name from the list above inside a model ID, such as a Bedrock ID
-# (`us-gov.anthropic.claude-opus-5-5-v1:0`), an inference-profile ARN, or a dated
-# snapshot (`claude-opus-5-5@20261001`). The name must sit between separators, so
-# `claude-opus-5-5` does not match `claude-opus-5-50`.
+# The separators on both sides keep `claude-opus-5-5` from matching `claude-opus-5-50`.
 _ANTHROPIC_MODEL_WITHOUT_FORCED_TOOL_CHOICE = re.compile(
     r"(?:^|[./])(?:"
     + "|".join(map(re.escape, ANTHROPIC_MODELS_WITHOUT_FORCED_TOOL_CHOICE))
@@ -2199,9 +2196,11 @@ def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
     """Checks whether an Anthropic model accepts a `tool_choice` of `any` or `tool`.
 
     Args:
-        model_name: An Anthropic model name such as `claude-opus-5-5`, or a Bedrock
-            model ID such as `us.anthropic.claude-opus-5-5-v1:0`. An application
-            inference-profile ARN doesn't name the model, so it counts as supported.
+        model_name: A model name or ID, in any case. It can be an Anthropic name such
+            as `claude-opus-5-5@20261001`, a Bedrock ID such as
+            `us-gov.anthropic.claude-opus-5-5-v1:0`, or an inference-profile ARN.
+            An application inference-profile ARN doesn't name its model, so it
+            counts as supported.
     """
     return _ANTHROPIC_MODEL_WITHOUT_FORCED_TOOL_CHOICE.search(model_name) is None
 

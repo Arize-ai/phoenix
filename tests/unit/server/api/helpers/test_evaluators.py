@@ -3892,7 +3892,7 @@ class TestLLMEvaluatorWithoutForcedToolChoice:
         output_config: CategoricalOutputConfig,
         input_mapping: InputMapping,
     ) -> None:
-        """With `auto`, a model may answer in text; that is an evaluator error, not a crash."""
+        """With `auto`, a model can answer in text, which returns an evaluator error result."""
         request_body, result = await self._evaluate(
             model_name="claude-opus-5-5",
             tools=self._tools(PromptToolChoiceOneOrMore(type="one_or_more")),

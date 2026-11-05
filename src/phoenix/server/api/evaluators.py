@@ -222,20 +222,7 @@ def _request_tool_call_in_prompt(
     tools: PromptTools,
     messages: list[PlaygroundMessage],
 ) -> tuple[PromptTools, list[PlaygroundMessage]]:
-    """Replaces a forced tool choice with an instruction in the prompt.
-
-    Some models reject a tool choice that requires a tool call. For those models,
-    this sends the tools with a `zero_or_more` tool choice and appends a system
-    message that names the tools to call. A tool choice that doesn't force a call
-    is returned unchanged.
-
-    Args:
-        tools: The evaluator's prompt tools.
-        messages: The formatted prompt messages.
-
-    Returns:
-        The tools and messages to send to the model.
-    """
+    """Replaces a forced tool choice with `zero_or_more` and a system message naming the tools."""
     tool_choice = tools.tool_choice
     if isinstance(tool_choice, PromptToolChoiceSpecificFunctionTool):
         tool_names = [tool_choice.function_name]
