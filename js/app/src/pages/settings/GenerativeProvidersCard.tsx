@@ -80,71 +80,69 @@ export function GenerativeProvidersCard({
   const editingProvider = tableData.find(
     (provider) => provider.key === editingProviderKey
   );
-  const editCredentials = useCallback((providerKey: DataRow["key"]) => {
+  const editCredentials = (providerKey: DataRow["key"]) => {
     setEditingProviderKey(providerKey);
     setIsEditingCredentials(true);
-  }, []);
-  const columns = useMemo(() => {
-    return [
-      {
-        header: "Name",
-        accessorKey: "name",
-        cell: ({ row }) => {
-          return (
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <GenerativeProviderIcon provider={row.original.key} height={18} />
-              {row.original.name}
-            </Flex>
-          );
-        },
+  };
+  const columns = [
+    {
+      header: "Name",
+      accessorKey: "name",
+      cell: ({ row }) => {
+        return (
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <GenerativeProviderIcon provider={row.original.key} height={18} />
+            {row.original.name}
+          </Flex>
+        );
       },
-      {
-        header: "Environment Variables",
-        accessorKey: "apiKeyEnvVar",
-        cell: ({ row }) => {
-          const envVars =
-            row.original.credentialRequirements
-              .map((config) => config.envVarName)
-              .join(", ") || "--";
-          return <Text>{envVars}</Text>;
-        },
+    },
+    {
+      header: "Environment Variables",
+      accessorKey: "apiKeyEnvVar",
+      cell: ({ row }) => {
+        const envVars =
+          row.original.credentialRequirements
+            .map((config) => config.envVarName)
+            .join(", ") || "--";
+        return <Text>{envVars}</Text>;
       },
-      {
-        header: "Configuration",
-        accessorKey: "credentialsSet",
-        cell: ({ row }) => {
-          return (
-            <ProviderCredentialsStatus
-              provider={row.original}
-              onConfigure={() => editCredentials(row.original.key)}
+    },
+    {
+      header: "Configuration",
+      accessorKey: "credentialsSet",
+      cell: ({ row }) => {
+        return (
+          <ProviderCredentialsStatus
+            provider={row.original}
+            onConfigure={() => editCredentials(row.original.key)}
+          />
+        );
+      },
+    },
+    {
+      header: "",
+      accessorKey: "id",
+      cell: ({ row }) => {
+        return (
+          <Flex
+            direction="row"
+            justifyContent="end"
+            gap="size-100"
+            width="100%"
+          >
+            <Button
+              size="S"
+              aria-label={`Edit ${row.original.name} credentials`}
+              leadingVisual={<Icon svg={<Icons.Edit />} />}
+              isDisabled={row.original.credentialRequirements.length === 0}
+              onPress={() => editCredentials(row.original.key)}
             />
-          );
-        },
+          </Flex>
+        );
       },
-      {
-        header: "",
-        accessorKey: "id",
-        cell: ({ row }) => {
-          return (
-            <Flex
-              direction="row"
-              justifyContent="end"
-              gap="size-100"
-              width="100%"
-            >
-              <Button
-                size="S"
-                aria-label={`Edit ${row.original.name} credentials`}
-                leadingVisual={<Icon svg={<Icons.Edit />} />}
-                isDisabled={row.original.credentialRequirements.length === 0}
-                onPress={() => editCredentials(row.original.key)}
-              />
-            </Flex>
-          );
-        },
-      },
-    ] satisfies ColumnDef<DataRow>[];
-  }, [editCredentials]);
+    },
+  ] satisfies ColumnDef<DataRow>[];
 
   const table = useTable({
     features: appTableFeatures,
@@ -233,7 +231,10 @@ function ProviderCredentialsStatus({
     ({ envVarName, isRequired }) =>
       !!providerCredentials?.[envVarName] || !isRequired
   );
-  const status = getProviderCredentialsStatus(provider, hasLocalCredentials);
+  const status = getProviderCredentialsStatus({
+    provider,
+    hasLocalCredentials,
+  });
   const indicator = <StatusIndicator {...status} />;
   if (status.category === "needs-credentials") {
     return (
@@ -248,12 +249,15 @@ function ProviderCredentialsStatus({
   return indicator;
 }
 
-export function getProviderCredentialsStatus(
-  provider: ModelProvider,
-  hasLocalCredentials: boolean
-): { category: StatusCategory; label: string; detail?: string } {
+export function getProviderCredentialsStatus({
+  provider,
+  hasLocalCredentials,
+}: {
+  provider: ModelProvider;
+  hasLocalCredentials: boolean;
+}): { category: StatusCategory; label: string; detail?: string } {
   if (!provider.dependenciesInstalled) {
-    return { category: "off", label: "Not installed" };
+    return { category: "unavailable", label: "Not installed" };
   }
   if (!isModelProvider(provider.key)) {
     return { category: "failed", label: "Unknown provider" };

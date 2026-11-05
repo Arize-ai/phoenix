@@ -25,8 +25,14 @@ import { OptionGrid } from "../../utils/OptionGrid";
  *   good: cancelled, denied, skipped)
  * - **No outcome**: `warning` (works, but needs attention),
  *   `needs-credentials` (cannot be used until someone supplies credentials:
- *   an API key, a token), `off` (disabled, not installed, or does not
- *   apply), `unknown` (no value was reported)
+ *   an API key, a token), `disabled` (turned off by a person or a policy),
+ *   `unavailable` (does not exist here, and nobody chose that: not
+ *   installed, not supported in this browser), `unset` (nothing has been
+ *   set or recorded)
+ *
+ * `unavailable` and `unset` share the dash: a reader responds to both the
+ * same way, and the label tells them apart. Any other two categories differ
+ * in glyph, so a status still reads in grayscale.
  *
  * **Adding a category.** Categories are shared vocabulary, not a closed
  * list. Add one when a meaning recurs in more than one domain, asks the
@@ -84,8 +90,9 @@ const CATEGORIES: {
   { label: "stopped", code: true, text: "Stopped" },
   { label: "warning", code: true, text: "Degraded" },
   { label: "needs-credentials", code: true, text: "Needs credentials" },
-  { label: "off", code: true, text: "Not installed" },
-  { label: "unknown", code: true, text: "Unset" },
+  { label: "disabled", code: true, text: "Disabled" },
+  { label: "unavailable", code: true, text: "Not installed" },
+  { label: "unset", code: true, text: "Unset" },
 ];
 
 const CONTENT: {
@@ -109,7 +116,7 @@ const LENGTHS: {
   text: string;
   detail?: string;
 }[] = [
-  { label: "Empty", category: "unknown", text: "" },
+  { label: "Empty", category: "unset", text: "" },
   { label: "Regular", category: "needs-input", text: "Awaiting approval" },
   {
     label: "Long",
@@ -233,7 +240,7 @@ const TRIGGERS: {
         explanation="Install Phoenix with the `e2b` extra."
         isDisabled={isDisabled}
       >
-        <StatusIndicator category="off" label="Not installed" />
+        <StatusIndicator category="unavailable" label="Not installed" />
       </MarkerTrigger>
     ),
   },

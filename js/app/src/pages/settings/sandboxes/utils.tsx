@@ -28,8 +28,8 @@ const STATUS_CATEGORIES: Record<BackendInfo["status"], StatusCategory> = {
   AVAILABLE: "succeeded",
   MISSING_CREDENTIALS: "needs-credentials",
   UNAVAILABLE: "failed",
-  NOT_INSTALLED: "off",
-  DISABLED: "off",
+  NOT_INSTALLED: "unavailable",
+  DISABLED: "disabled",
 };
 
 export function StatusText({

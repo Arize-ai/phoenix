@@ -30,7 +30,7 @@ const EXPERIMENT_STATUSES: Record<
 };
 
 const NO_JOB_STATUS = {
-  category: "off",
+  category: "unset",
   label: "N/A",
   explanation: "No background job associated with this experiment",
 } satisfies (typeof EXPERIMENT_STATUSES)[ExperimentStatusValue];

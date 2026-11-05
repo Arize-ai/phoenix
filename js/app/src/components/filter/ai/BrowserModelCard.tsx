@@ -119,7 +119,10 @@ export function BrowserModelCard() {
         );
       default:
         return (
-          <StatusIndicator category="off" label="Unavailable on this device" />
+          <StatusIndicator
+            category="unavailable"
+            label="Unavailable on this device"
+          />
         );
     }
   };
