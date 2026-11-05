@@ -157,13 +157,14 @@ Add the code yourself or ask a coding assistant to make the same edits:
 
     ```text wrap
     Use the Phoenix tracing skill to add an AGENT span around a complete request in this app.
-    First inspect backend/tracing.py, backend/agent.py, and backend/main.py, then propose the edits before changing code.
+    Inspect the app's existing tracing setup and how it runs the agent and streams the response. Propose the edits before changing code.
 
     After I approve the plan:
-    - Reuse _tracer_provider from backend/tracing.py.
+    - Reuse the app's existing tracer provider.
     - Use start_as_current_span in a with block around the stream_agent event loop, naming the span "Wonder Toys" with kind AGENT.
     - Use set_input for the latest shopper message's text and set_output for the complete streamed text sent to the chat.
     - Keep the span open until streaming finishes. Set StatusCode.OK after successful completion and let exceptions record ERROR.
+    - After recording the complete output and OK status, exit the with block before yielding the final [DONE] event.
     - Preserve the chat's streaming behavior, model, prompt, and tools.
     - For this practice app, set telemetry={"tracing": False} on the existing FastAPI app so Wonder Toys is the top-level span used in later lessons.
     - Show me the changes.
