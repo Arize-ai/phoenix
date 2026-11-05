@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
-import { ChartPanelStripSkeleton } from "@phoenix/components/chart";
+import { Skeleton } from "@phoenix/components/core/loading";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
@@ -12,10 +12,17 @@ import {
 import { TopNavActions } from "@phoenix/components/nav";
 import { TableSkeleton } from "@phoenix/components/table";
 import { ProjectEvaluatorsTabTable } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
-import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
-import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
+import {
+  ServerEvaluationCharts,
+  ServerEvaluationChartsSkeleton,
+} from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
+import {
+  ServerEvaluationQueueStrip,
+  ServerEvaluationQueueStripSkeleton,
+} from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
 import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
+import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
 /** The projects picked to show, repeated once per project. */
@@ -81,7 +88,7 @@ function ProjectEvaluatorsTabContent() {
           refreshKey={refreshKey}
           onQueueCleared={refresh}
         />
-        <Suspense fallback={<ChartPanelStripSkeleton />}>
+        <Suspense fallback={<ServerEvaluationChartsSkeleton />}>
           <ServerEvaluationCharts
             fetchKey={refreshKey}
             pickedProjectIds={pickedProjectIds}
@@ -118,5 +125,30 @@ function ProjectEvaluatorsTabContent() {
         </div>
       </div>
     </QueueStatsRefreshContext.Provider>
+  );
+}
+
+/**
+ * The tab while the page loads, laid out as the loaded tab is: the queue
+ * strip, the charts, the search bar with the projects filter, and the table.
+ */
+export function ProjectEvaluatorsTabSkeleton() {
+  return (
+    <>
+      <TopNavActions>
+        <Skeleton
+          width="var(--global-dimension-size-2000)"
+          height="var(--global-button-height-s)"
+        />
+      </TopNavActions>
+      <div css={pageCSS}>
+        <ServerEvaluationQueueStripSkeleton />
+        <ServerEvaluationChartsSkeleton />
+        <SearchBarSkeleton trailingControlWidth="calc(14 * var(--global-dimension-size-100))" />
+        <div css={tableScrollCSS}>
+          <TableSkeleton rowCount="fill" />
+        </div>
+      </div>
+    </>
   );
 }
