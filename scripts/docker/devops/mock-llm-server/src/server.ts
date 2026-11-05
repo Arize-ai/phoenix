@@ -162,6 +162,33 @@ const TYPESAFE_MODELS: TypeSafeModelCard[] = [
   },
 ];
 
+const GEMINI_MODELS = [
+  {
+    name: "models/gemini-2.0-flash",
+    displayName: "Gemini 2.0 Flash",
+    description: "Mock Gemini 2.0 Flash model",
+    version: "2.0",
+    inputTokenLimit: 1048576,
+    outputTokenLimit: 8192,
+    supportedGenerationMethods: ["generateContent", "streamGenerateContent"],
+  },
+  {
+    name: "models/gemini-2.5-pro",
+    displayName: "Gemini 2.5 Pro",
+    description: "Mock Gemini 2.5 Pro model",
+    version: "2.5",
+    inputTokenLimit: 1048576,
+    outputTokenLimit: 65536,
+    supportedGenerationMethods: ["generateContent", "streamGenerateContent"],
+  },
+];
+
+app.get("/v1beta/models", (_req: Request, res: Response) => {
+  res.json({
+    models: GEMINI_MODELS,
+  });
+});
+
 app.get("/v1/models", (_req: Request, res: Response) => {
   res.json({
     object: "list",
@@ -248,6 +275,7 @@ export function startServer(): Promise<void> {
      POST /v1/decisions             (OpenAI Decisions API)
      POST /v1/messages              (Anthropic)
      POST /v1beta/models/*          (Gemini v1beta)
+     GET  /v1beta/models            (Gemini v1beta models list)
      POST /v1/models/*              (Gemini v1)
      POST /v1/systemone             (TypeSafe System One)
 

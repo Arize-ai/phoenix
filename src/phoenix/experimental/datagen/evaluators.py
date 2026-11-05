@@ -1,4 +1,4 @@
-"""Seed datagen's decision judges: Typed Decisions accuracy and an online response judge."""
+"""Seed datagen's custom providers and decision judges."""
 
 from __future__ import annotations
 
@@ -8,7 +8,11 @@ from urllib.parse import quote
 import httpx
 
 from phoenix.experimental.datagen.datasets import DatasetError
-from phoenix.experimental.datagen.decisions import TYPED_DECISIONS_DATASET_NAME, seed_decision
+from phoenix.experimental.datagen.decisions import (
+    TYPED_DECISIONS_DATASET_NAME,
+    _graphql,
+    seed_decision,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -20,6 +24,63 @@ _INPUT_MAPPING = {
     "literal_mapping": {},
     "path_mapping": {"reference": "reference", "output": "output"},
 }
+
+CUSTOM_PROVIDERS: dict[str, dict[str, Any]] = {
+    "px-datagen-openai": {
+        "provider": "openai",
+        "sdk": "OPENAI",
+        "description": "Datagen-owned OpenAI custom provider.",
+        "clientConfig": {
+            "openai": {
+                "openaiAuthenticationMethod": {"apiKey": "fake"},
+            }
+        },
+    },
+    "px-datagen-anthropic": {
+        "provider": "anthropic",
+        "sdk": "ANTHROPIC",
+        "description": "Datagen-owned Anthropic custom provider.",
+        "clientConfig": {
+            "anthropic": {
+                "anthropicAuthenticationMethod": {"apiKey": "fake"},
+            }
+        },
+    },
+    "px-datagen-google": {
+        "provider": "google",
+        "sdk": "GOOGLE_GENAI",
+        "description": "Datagen-owned Google GenAI custom provider.",
+        "clientConfig": {
+            "googleGenai": {
+                "googleGenaiAuthenticationMethod": {"apiKey": "fake"},
+            }
+        },
+    },
+    "px-datagen-typesafe": {
+        "provider": "typesafe",
+        "sdk": "TYPESAFE",
+        "description": "Datagen-owned TypeSafe custom provider.",
+        "clientConfig": {
+            "typesafe": {
+                "typesafeAuthenticationMethod": {"apiKey": "fake"},
+            }
+        },
+    },
+}
+
+_FIND_CUSTOM_PROVIDERS = """
+query DatagenCustomProviders($after: String) {
+  generativeModelCustomProviders(first: 100, after: $after) {
+    edges { node { id name sdk } }
+    pageInfo { hasNextPage endCursor }
+  }
+}
+"""
+_CREATE_CUSTOM_PROVIDER = """
+mutation DatagenCreateCustomProvider($input: CreateGenerativeModelCustomProviderMutationInput!) {
+  createGenerativeModelCustomProvider(input: $input) { provider { id } }
+}
+"""
 
 ONLINE_JUDGE_NAME = "px-datagen-addresses-request"
 ONLINE_JUDGE_PROJECT_NAME = "support-chatbot"
@@ -79,6 +140,53 @@ def _list(http: httpx.Client, path: str, **filters: str) -> Iterator[dict[str, A
         cursor = page.get("next_cursor")
         if cursor is None:
             return
+
+
+def _custom_providers_by_name(http: httpx.Client) -> dict[str, dict[str, Any]]:
+    providers: dict[str, dict[str, Any]] = {}
+    after = None
+    while True:
+        connection = _graphql(http, _FIND_CUSTOM_PROVIDERS, {"after": after})[
+            "generativeModelCustomProviders"
+        ]
+        for edge in connection["edges"]:
+            provider: dict[str, Any] = edge["node"]
+            providers[provider["name"]] = provider
+        if not connection["pageInfo"]["hasNextPage"]:
+            return providers
+        after = connection["pageInfo"]["endCursor"]
+
+
+def seed_custom_providers(http: httpx.Client) -> list[tuple[str, str]]:
+    """Seed one custom provider per supported mock SDK, with fake credentials and no base URL.
+
+    Existing providers with the same name and SDK are left untouched so that a base URL or
+    credential configured in the UI or by an agent survives restarts.
+    """
+    existing = _custom_providers_by_name(http)
+    results = []
+    for name, spec in CUSTOM_PROVIDERS.items():
+        saved = existing.get(name)
+        if saved is None:
+            created = _graphql(
+                http,
+                _CREATE_CUSTOM_PROVIDER,
+                {
+                    "input": {
+                        "name": name,
+                        "description": spec["description"],
+                        "provider": spec["provider"],
+                        "clientConfig": spec["clientConfig"],
+                    }
+                },
+            )["createGenerativeModelCustomProvider"]["provider"]
+            provider_id = str(created["id"])
+        elif saved["sdk"] != spec["sdk"]:
+            raise DatasetError(f"{name}: a custom provider with another SDK already exists")
+        else:
+            provider_id = str(saved["id"])
+        results.append((name, provider_id))
+    return results
 
 
 def _seed_decision_evaluator(http: httpx.Client, name: str, version_id: str) -> str:
