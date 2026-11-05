@@ -1107,12 +1107,6 @@ def _compile_condition(
         # from whichever stage happened to run out first.
         raise SyntaxError("filter condition is nested too deeply") from None
     except IndexError as error:
-        # Belt-and-suspenders alongside the line-offset table's own
-        # universal-newline handling: a lineno/col_offset the table doesn't
-        # have an entry for is a malformed-filter condition to the caller, not
-        # a crash. Converted here rather than at a grain's boundary so every
-        # grain compiling through this function gets it -- `SessionFilter`
-        # and `TraceFilter` raise out of this function directly.
         raise SyntaxError("invalid filter condition") from error
     aliased_annotation_attributes = {
         alias: attribute
