@@ -34,11 +34,11 @@ def _get_decision_model_name(bound: BoundArguments) -> str:
 
 def _get_decision_input(bound: BoundArguments) -> str:
     """A JSON view of the request: the input actually sent, the model, and the labels."""
-    model = bound.arguments["self"]
+    decision_model = bound.arguments["self"]
     prompt = bound.arguments.get("prompt")
     payload = {
-        "input": model._sync_adapter._to_input(prompt) if prompt is not None else "",
-        "model": model.model,
+        "input": decision_model._sync_adapter._to_input(prompt) if prompt is not None else "",
+        "model": decision_model.model,
         "questions": bound.arguments.get("labels"),
     }
     return json.dumps(payload, default=str)
