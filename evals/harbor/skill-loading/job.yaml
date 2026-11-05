@@ -13,7 +13,8 @@ agents:
   # condition needs a name of its own. `version` matches the image, so Harbor fails instead
   # of installing another version.
   #
-  # Needs a workspace-scoped ANTHROPIC_API_KEY.
+  # A key that isn't scoped to a workspace needs the workspace in a header. Set
+  # ANTHROPIC_CUSTOM_HEADERS="anthropic-workspace-id: WORKSPACE_ID" on the host.
   - name: claude-code-loading
     import_path: evals.harbor.agents.coding_agents:PreinstalledClaudeCode
     model_name: anthropic/claude-sonnet-5-5
@@ -29,6 +30,8 @@ agents:
               hooks:
                 - type: command
                   command: python /opt/skill-loading/stop_after_skill_load.py
+    env:
+      ANTHROPIC_CUSTOM_HEADERS: ${ANTHROPIC_CUSTOM_HEADERS:-}
     skills: &skills
       - skills/phoenix-cli
       - skills/phoenix-error-analysis
