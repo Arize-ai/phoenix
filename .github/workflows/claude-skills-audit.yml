@@ -229,12 +229,17 @@ jobs:
           STALE: ${{ steps.window.outputs.stale }}
           NEW_PR_URL: ${{ steps.publish.outputs.url }}
           SINCE: ${{ steps.window.outputs.since }}
+          SUMMARY_FILE: ${{ steps.summary.outputs.path }}
         run: |
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           if [[ -n "$NEW_PR_URL" ]]; then
             REASON="Superseded by $NEW_PR_URL, which audited every commit since $SINCE and so covers the changes proposed here."
-          else
+          elif [[ "$(head -n1 "$SUMMARY_FILE" 2>/dev/null)" == "NO_CHANGES" ]]; then
             REASON="Closed by [this audit run]($RUN_URL): auditing every commit since $SINCE found nothing left to change in the skills, so the changes proposed here are already on \`main\` or no longer apply."
+          else
+            # No PR and no NO_CHANGES verdict means the audit did not conclude.
+            echo "::warning::The audit made no changes but did not report NO_CHANGES; leaving open audit pull request(s) $STALE as they are."
+            exit 0
           fi
           for NUMBER in $STALE; do
             gh pr close "$NUMBER" --delete-branch --comment "$REASON"
