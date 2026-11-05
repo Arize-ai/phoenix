@@ -4,11 +4,13 @@ name: Factory Sync
 # Pull requests print the plan; a merge to main applies it. claude-lock.json is state that
 # `ant apply` writes, not config, so it lives on the factory-state branch, never on main.
 on:
+  # The skills agents attach (`skills:` in factory/agents/) live outside factory/, so a change
+  # to one re-applies the agents that mount it.
   pull_request:
-    paths: [factory/**]
+    paths: [factory/**, .agents/skills/phoenix-docs/**]
   push:
     branches: [main]
-    paths: [factory/**]
+    paths: [factory/**, .agents/skills/phoenix-docs/**]
   # Applies main by hand, e.g. after deleting factory-state to switch workspaces.
   workflow_dispatch:
 
