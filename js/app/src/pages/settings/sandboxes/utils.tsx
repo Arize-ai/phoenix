@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 import {
   Badge,
   Flex,
+  MarkerTrigger,
   RichTooltip,
   StatusIndicator,
   Text,
@@ -31,15 +32,6 @@ const STATUS_CATEGORIES: Record<BackendInfo["status"], StatusCategory> = {
   DISABLED: "off",
 };
 
-const explainedStatusCSS = css`
-  cursor: help;
-  .status-indicator {
-    text-decoration: underline dotted;
-    text-decoration-color: var(--global-text-color-300);
-    text-underline-offset: 3px;
-  }
-`;
-
 export function StatusText({
   status,
   detail,
@@ -55,25 +47,24 @@ export function StatusText({
       label={statusLabel(status)}
     />
   );
-  const tooltipLines = detail ? [detail] : dependencyHints;
+  const explanationLines = detail ? [detail] : dependencyHints;
 
-  if (status === "AVAILABLE" || tooltipLines.length === 0) {
+  if (status === "AVAILABLE" || explanationLines.length === 0) {
     return indicator;
   }
 
   return (
-    <TooltipTrigger delay={100}>
-      <TriggerWrap>
-        <span css={explainedStatusCSS}>{indicator}</span>
-      </TriggerWrap>
-      <RichTooltip width={320}>
+    <MarkerTrigger
+      explanation={
         <Flex direction="column" gap="size-50">
-          {tooltipLines.map((line) => (
+          {explanationLines.map((line) => (
             <Text key={line}>{line}</Text>
           ))}
         </Flex>
-      </RichTooltip>
-    </TooltipTrigger>
+      }
+    >
+      {indicator}
+    </MarkerTrigger>
   );
 }
 
