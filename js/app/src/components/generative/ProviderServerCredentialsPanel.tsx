@@ -29,6 +29,13 @@ export type ProviderServerCredentialsPanelProvider = {
   readonly credentialsSet: boolean;
 };
 
+/**
+ * Stands in for a stored secret the server could not decrypt. It is shaped
+ * like a redacted token, so the field masks it and it can still be replaced
+ * or cleared; being unchanged, it is never sent.
+ */
+const UNREADABLE_SECRET = "\ue000REDACTED\ue000\ue000unreadable";
+
 // Form values type for react-hook-form
 type ServerCredentialsFormValues = Record<string, string>;
 
@@ -141,13 +148,14 @@ function ServerCredentials({
   // Current secret values saved on the server (only successfully decrypted ones)
   const savedServerValues: ServerCredentialsFormValues = {};
   provider.credentialRequirements.forEach(({ envVarName }) => {
-    savedServerValues[envVarName] = serverSecretMap.get(envVarName) ?? "";
+    savedServerValues[envVarName] = unparsableSecrets.has(envVarName)
+      ? UNREADABLE_SECRET
+      : (serverSecretMap.get(envVarName) ?? "");
   });
 
   const {
     control,
     handleSubmit,
-    reset,
     formState: { isDirty },
   } = useForm<ServerCredentialsFormValues>({
     defaultValues: savedServerValues,
@@ -198,41 +206,9 @@ function ServerCredentials({
     });
   };
 
-  // Get keys that have values on the server (including unparsable secrets)
-  const existingSecretKeys = [
-    ...Object.entries(savedServerValues)
-      .filter(([, value]) => value.trim())
-      .map(([key]) => key),
-    ...unparsableSecrets.keys(),
-  ];
-
-  const handleDelete = () => {
-    if (existingSecretKeys.length === 0) return;
-
-    const secretsToDelete = existingSecretKeys.map((key) => ({
-      key,
-      value: null,
-    }));
-    commit({
-      variables: { input: { secrets: secretsToDelete } },
-      onCompleted: () => {
-        setFetchKey((k) => k + 1);
-        onCredentialsUpdated?.();
-        const emptyValues: ServerCredentialsFormValues = {};
-        provider.credentialRequirements.forEach(({ envVarName }) => {
-          emptyValues[envVarName] = "";
-        });
-        reset(emptyValues);
-        notifySuccess({
-          title: "Secrets deleted",
-          message: `${existingSecretKeys.length} secret(s) removed`,
-        });
-      },
-      onError: (error) => {
-        setError(error instanceof Error ? error.message : String(error));
-      },
-    });
-  };
+  const existingSecretKeys = Object.entries(savedServerValues)
+    .filter(([, value]) => value.trim())
+    .map(([key]) => key);
 
   const providerUnparsableSecrets = provider.credentialRequirements
     .filter(({ envVarName }) => unparsableSecrets.has(envVarName))
@@ -259,8 +235,8 @@ function ServerCredentials({
       {error && <Alert variant="danger">{error}</Alert>}
       {setViaServerEnvironment && (
         <Alert variant="info">
-          Set via a server environment variable. This can only be cleared by
-          removing the environment variable on the server.
+          Set by the server environment. A value saved here replaces it for
+          everyone.
         </Alert>
       )}
       {providerUnparsableSecrets.map(({ envVarName, parseError }) => (
@@ -273,25 +249,18 @@ function ServerCredentials({
           key={credentialConfig.envVarName}
           name={credentialConfig.envVarName}
           control={control}
-          rules={{
-            validate: credentialConfig.isRequired
-              ? (value) =>
-                  !!value?.trim() ||
-                  `${credentialConfig.envVarName} is required`
-              : undefined,
-          }}
-          render={({
-            field: { name, onChange, onBlur, value },
-            fieldState: { error },
-          }) => (
+          render={({ field: { name, onChange, onBlur, value } }) => (
             <RedactedCredentialField
               label={credentialConfig.envVarName}
-              isRequired={credentialConfig.isRequired}
               name={name}
               value={value ?? ""}
               onChange={onChange}
               onBlur={onBlur}
-              errorMessage={error?.message}
+              description={
+                savedServerValues[credentialConfig.envVarName] && !value
+                  ? "Removed when you save."
+                  : undefined
+              }
             />
           )}
         />
@@ -305,15 +274,6 @@ function ServerCredentials({
           margin-top: var(--global-dimension-size-100);
         `}
       >
-        {existingSecretKeys.length > 0 && (
-          <Button
-            variant="danger"
-            isDisabled={isCommitting}
-            onPress={handleDelete}
-          >
-            Clear
-          </Button>
-        )}
         <Button
           variant={isDirty ? "primary" : "default"}
           isDisabled={!isDirty || isCommitting}
