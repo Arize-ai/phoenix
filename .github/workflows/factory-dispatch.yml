@@ -4,7 +4,7 @@ name: Factory Dispatch
 # Candidates dispatches a triage candidate whose author has write access. dispatch.py
 # checks that the issue is ready, picks the lane from its triage labels and starts the
 # lane's Managed Agents session. It then follows the session: CI failures and automated
-# review findings go back to the agent, the PR leaves draft once required CI passes, and
+# review findings go back to the agent, the PR leaves draft once CI passes, and
 # the result is reported on the issue.
 on:
   issues:
@@ -19,6 +19,9 @@ on:
         type: choice
         options: [auto, bug, feature, docs]
         default: auto
+      base:
+        description: Branch the session starts from and the PR targets
+        default: main
 
 permissions:
   contents: read
@@ -77,11 +80,13 @@ jobs:
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           LANE: ${{ inputs.lane }}
+          BASE: ${{ inputs.base }}
           REQUESTED_BY: ${{ github.event.sender.login }}
         run: |
-          LANE_ARGS=()
-          if [ -n "$LANE" ] && [ "$LANE" != auto ]; then LANE_ARGS=(--lane "$LANE"); fi
-          uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" start --requested-by "$REQUESTED_BY" "${LANE_ARGS[@]}"
+          START_ARGS=()
+          if [ -n "$LANE" ] && [ "$LANE" != auto ]; then START_ARGS+=(--lane "$LANE"); fi
+          if [ -n "$BASE" ]; then START_ARGS+=(--base "$BASE"); fi
+          uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" start --requested-by "$REQUESTED_BY" "${START_ARGS[@]}"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'

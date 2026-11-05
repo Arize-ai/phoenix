@@ -78,7 +78,7 @@ sequenceDiagram
     session->>grader: end turn
     grader-->>session: needs revision, up to 3 iterations, or satisfied
     loop up to 3 feedback rounds
-      dispatch->>github: wait for required checks
+      dispatch->>github: wait for CI checks
       alt CI fails
         dispatch->>session: failed job logs
       else CI passes
@@ -98,13 +98,13 @@ Each part does one job, so it can be changed and tested on its own:
 |---|---|
 | Issue triage | `claude-issue-triage-on-open.yml` runs the triage job on each issue the moment it is opened, and `claude-issue-triage-sweep.yml` runs it over a slice of the backlog every 2 days; both call `claude-issue-triage.yml`. It labels `factory-candidate` the issues that pass [the factory-candidate policy](../.agents/skills/issue-triage/references/factory-candidate.md): specified, typed, `size:S` or `size:M`, reproducible in the sandbox, and needing no product decision |
 | `factory-candidates.yml` | After each triage run, dispatches up to 3 candidates the factory hasn't run on whose author has write access. Other candidates wait for a maintainer to add `factory` |
-| `dispatch.py start` | Admits the issue: the requester has write access, or for a run a workflow dispatched, the issue's author does, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it |
+| `dispatch.py start` | Admits the issue: the requester has write access, or for a run a workflow dispatched, the issue's author does, and the issue is open, unassigned, typed, not `needs information` or `size:L`, and has no open PR. Picks the lane from the `bug`, `enhancement` or `documentation` label; a manual dispatch can override it, and can name the branch the session starts from and the PR targets, `main` by default |
 | Lane coordinator | Runs `bootstrap.sh`, delegates, implements the change, sends it back to the reproducer or analyst to verify, opens the draft PR with both acceptance test outputs in its Acceptance test section, and posts `assessment.md`: fit, evidence, risk ratings and a review depth |
 | `bug-reproducer` | Before any fix exists, writes a unit test that fails for the reported reason and an acceptance test that shows the symptom against a server it starts; called back after the fix, reruns both unchanged and reports `FIXED` or `NOT_FIXED`. It verifies the fix because it did not write it |
 | `feature-analyst` | Runs an acceptance test showing the target branch lacks the behavior, then plans slices, or returns `NEEDS_DECISION`; called back after the implementation, reruns the acceptance test unchanged and reports `IMPLEMENTED` or `NOT_IMPLEMENTED` |
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer` and `packages-reviewer`, chosen by the paths the diff touches. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
-| `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
+| `dispatch.py watch` | Sends failing checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, and reports the run outcome on the issue |
 | `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, then edits its status comment on the PR into the review's verdict and labels it `factory-approved`, `factory-request-changes` or `factory-close`, or says why there is no verdict. See [Reviewing a PR](#reviewing-a-pr) |
 | `pr-reviewer` | Checks out the pinned commit from `pull/N/head`, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
 | `factory-finish.yml` | Runs when a maintainer labels a PR `factory-finish` or dispatches it by number. `finish.py` checks that the requester has write access, the PR is open and, for a fork PR, its CLA is signed, copies a fork PR to a `factory/pr-N` branch here and closes the original, starts a `pr-finisher` session on the PR's branch, then follows it the way `dispatch.py` does. See [Finishing a PR](#finishing-a-pr) |

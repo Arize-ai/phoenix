@@ -1,0 +1,29 @@
+name: Factory Tests
+
+# dispatch.py has no coverage from the Python CI workflow, which runs pytest under tests/
+# and packages/ only, so its regression tests run here on every change under factory/.
+on:
+  pull_request:
+    paths: [factory/**, .github/workflows/factory-tests.yml]
+  push:
+    branches: [main]
+    paths: [factory/**, .github/workflows/factory-tests.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          python-version: "3.12"
+      # The same pins as dispatch.py's script header, which is what factory-dispatch.yml runs.
+      - name: Run the factory tests
+        run: uv run --no-project --with "anthropic==1.12.1" --with "PyJWT[crypto]==2.15.1" python -m unittest discover -s factory -v
