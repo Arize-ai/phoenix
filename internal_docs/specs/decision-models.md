@@ -1024,16 +1024,47 @@ playground's per-model Azure endpoint isn't sent on decision runs. The span's
 
 ## 11. App Access
 
-REST mirrors the prompt routes:
+REST mirrors the prompt routes. A decision is addressed by its GlobalID or
+name, a version by its GlobalID, and a tag by name within the version's
+decision. Errors are problem details.
 
+- `GET /v1/decisions` (paginated, newest first; filter by `name` substring or
+  `label`, a label name or ID)
+- `POST /v1/decisions` (create a decision with its first version, or add a
+  version; an existing decision's description and metadata change only when
+  given)
+- `GET /v1/decisions/{identifier}`
+- `PATCH /v1/decisions/{identifier}` (description and/or metadata)
+- `DELETE /v1/decisions/{identifier}` (409 while an evaluator runs it)
+- `POST /v1/decisions/{identifier}/clones` (copy the version history under a
+  new name; tags are not copied)
+- `GET /v1/decisions/{identifier}/versions` (paginated, newest first)
+- `POST /v1/decisions/{identifier}/versions`
 - `GET /v1/decisions/{identifier}/latest`
 - `GET /v1/decisions/{identifier}/tags/{tag_name}`
 - `GET /v1/decision_versions/{id}`
-- `POST /v1/decisions` (create a decision with its first version, or add a
-  version)
+- `GET /v1/decision_versions/{id}/tags`
+- `POST /v1/decision_versions/{id}/tags` (201 with the tag when created, 200
+  when an existing tag moves)
+- `DELETE /v1/decision_versions/{id}/tags/{tag_name}`
+- `GET`, `POST /v1/decision_labels`; `GET`, `PATCH`, `DELETE
+  /v1/decision_labels/{id}`
+- `GET`, `PUT /v1/decisions/{identifier}/labels` (`PUT` replaces the set);
+  `PUT`, `DELETE /v1/decisions/{identifier}/labels/{label_id}` (idempotent)
 
-Each response carries `template_format`, `state`, `questions`, the derived
-`variables`, and the model.
+Running a decision stays in GraphQL (`runDecisionVersion`), as running a
+prompt does: apps format a version with the SDK and call their provider.
+
+`GET /v1/model_providers?model_type=DECISION` lists the built-in providers
+that offer decision models.
+
+Each version response carries `template_format`, `state`, `questions`, the
+derived `variables`, and the model, plus `decision_name`, a 1-based
+`version_number`, and `tag_names`, so an app can record which release it ran.
+A create-or-append that returns `version_number: 1` created the decision.
+Every create returns 201 with the new resource's URL in `Location`. A version
+that breaks a write-time rule is a 422 whose `errors` name the field, such as
+`body.version.questions.1.choices`. `/v1/prompts` follows the same contract.
 
 `phoenix-client` (Python and TypeScript) adds:
 
