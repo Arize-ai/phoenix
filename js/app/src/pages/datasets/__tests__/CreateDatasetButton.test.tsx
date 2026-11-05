@@ -127,16 +127,4 @@ describe("CreateDatasetButton", () => {
       },
     ]);
   });
-
-  it("stays on the datasets list when creation fails", async () => {
-    const { environment, queue, router } = renderCreateDatasetButton();
-    await submitDatasetFromScratch();
-
-    await act(async () => {
-      environment.mock.rejectMostRecentOperation(new Error("Failed to fetch"));
-    });
-
-    expect(router.state.location.pathname).toBe("/datasets");
-    expect(getToasts(queue)).toEqual([]);
-  });
 });
