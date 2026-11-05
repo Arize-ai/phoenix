@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -180,6 +181,11 @@ class PlaygroundClient(ABC, Generic[ClientT]):
     @property
     @abstractmethod
     def llm_system(self) -> str: ...
+
+    @property
+    def supports_forced_tool_choice(self) -> bool:
+        """True if the model accepts a tool choice that requires a tool call; false otherwise."""
+        return True
 
     @classmethod
     @abstractmethod
@@ -1494,6 +1500,11 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     def llm_system(self) -> str:
         return "aws"
 
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        return anthropic_model_supports_forced_tool_choice(self.model_name)
+
     # AWS Bedrock throttling error codes
     _THROTTLE_ERROR_CODES = frozenset(
         [
@@ -2164,6 +2175,34 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-opus-4-0",
 ]
 
+# Anthropic models that reject forced tool use: `tool_choice` of type `any` or
+# `tool` returns a 400. Only `auto` and `none` are accepted.
+ANTHROPIC_MODELS_WITHOUT_FORCED_TOOL_CHOICE = [
+    "claude-fable-5-1",
+    "claude-opus-5-5",
+    "claude-sonnet-5-5",
+]
+
+# Matches a model name from the list above, alone or as a Bedrock model ID with a
+# vendor prefix (`anthropic.`), an optional region scope (`us.`, `global.`), and a
+# version suffix (`-v1:0`). The suffix must start at a separator, so that
+# `claude-opus-5-5` does not match `claude-opus-5-50`.
+_ANTHROPIC_MODEL_WITHOUT_FORCED_TOOL_CHOICE = re.compile(
+    r"^(?:(?:[a-z]+\.)?anthropic\.)?(?:"
+    + "|".join(map(re.escape, ANTHROPIC_MODELS_WITHOUT_FORCED_TOOL_CHOICE))
+    + r")(?:[-@:].*)?$"
+)
+
+
+def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
+    """Checks whether an Anthropic model accepts a `tool_choice` of `any` or `tool`.
+
+    Args:
+        model_name: An Anthropic model name such as `claude-opus-5-5`, or a Bedrock
+            model ID such as `us.anthropic.claude-opus-5-5-v1:0`.
+    """
+    return _ANTHROPIC_MODEL_WITHOUT_FORCED_TOOL_CHOICE.match(model_name) is None
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
@@ -2177,6 +2216,11 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.ANTHROPIC.value
+
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        return anthropic_model_supports_forced_tool_choice(self.model_name)
 
     def __init__(
         self,

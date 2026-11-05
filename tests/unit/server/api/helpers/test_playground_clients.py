@@ -56,6 +56,7 @@ from phoenix.server.api.helpers.playground_clients import (
     _get_builtin_provider_client,
     _get_custom_provider_client,
     _resolve_provider_api_key,
+    anthropic_model_supports_forced_tool_choice,
     get_openai_client_class,
 )
 from phoenix.server.api.helpers.playground_registry import (
@@ -1495,3 +1496,51 @@ class TestResolveProviderApiKey:
                 credentials,
             )
         assert isinstance(client, OpenAIChatCompletionsClient)
+
+
+@pytest.mark.parametrize(
+    "model_name, expected",
+    [
+        pytest.param("claude-opus-5-5", False, id="opus-5-5"),
+        pytest.param("claude-sonnet-5-5", False, id="sonnet-5-5"),
+        pytest.param("claude-fable-5-1", False, id="fable-5-1"),
+        pytest.param("claude-opus-5-5-20261001", False, id="dated-snapshot"),
+        pytest.param("claude-opus-5-5@20261001", False, id="vertex-snapshot"),
+        pytest.param("anthropic.claude-opus-5-5", False, id="bedrock"),
+        pytest.param("us.anthropic.claude-sonnet-5-5-v1:0", False, id="bedrock-region-profile"),
+        pytest.param("global.anthropic.claude-fable-5-1", False, id="bedrock-global-profile"),
+        pytest.param("claude-opus-5", True, id="opus-5"),
+        pytest.param("claude-fable-5", True, id="fable-5"),
+        pytest.param("claude-haiku-5-5", True, id="haiku-5-5"),
+        pytest.param("claude-opus-5-50", True, id="no-partial-version-match"),
+        pytest.param("anthropic.claude-opus-5", True, id="bedrock-opus-5"),
+        pytest.param("amazon.nova-pro-v1:0", True, id="bedrock-non-anthropic"),
+    ],
+)
+def test_anthropic_model_supports_forced_tool_choice(model_name: str, expected: bool) -> None:
+    assert anthropic_model_supports_forced_tool_choice(model_name) is expected
+
+
+@pytest.mark.parametrize(
+    "client_class, provider, model_name, expected",
+    [
+        pytest.param(
+            AnthropicClient, "anthropic", "claude-opus-5-5", False, id="anthropic-opus-5-5"
+        ),
+        pytest.param(AnthropicClient, "anthropic", "claude-opus-5", True, id="anthropic-opus-5"),
+        pytest.param(
+            BedrockClient, "aws", "anthropic.claude-opus-5-5", False, id="bedrock-opus-5-5"
+        ),
+        pytest.param(BedrockClient, "aws", "anthropic.claude-opus-5", True, id="bedrock-opus-5"),
+        pytest.param(OpenAIChatCompletionsClient, "openai", "gpt-4o-mini", True, id="openai"),
+    ],
+)
+def test_supports_forced_tool_choice(
+    client_class: Any, provider: str, model_name: str, expected: bool
+) -> None:
+    client = client_class(
+        client_factory=_null_client_factory(provider),
+        model_name=model_name,
+        provider=provider,
+    )
+    assert client.supports_forced_tool_choice is expected
