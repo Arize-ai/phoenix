@@ -45,6 +45,7 @@ const STORYBOOK_INDENT_STEP = 18;
 /** The per-level indent every local row is given instead. */
 const INDENT_STEP = 12;
 const DEPTH_ATTRIBUTE = "data-phoenix-depth";
+const DEPTH_ITEM_ATTRIBUTE = "data-phoenix-depth-item";
 /** Storybook's 8px chevron glyph, and the row's 28px minimum height. */
 const CHEVRON_GLYPH = 8;
 const ROW_HEIGHT = 28;
@@ -203,22 +204,27 @@ function basePaddingOf(node: HTMLElement) {
  * Re-indent a row's button or link at `INDENT_STEP` per level. Storybook
  * exposes no depth on the row, only the emotion class's
  * `padding-left: base + depth * 18`, so the depth is read from that once per
- * element, before the inline override replaces it, and kept on the element.
- * React leaves these properties alone (it only manages `color` here), and a
- * re-mounted row is a new element that `sync` sees and reads again.
+ * entry, before the inline override replaces it, and kept on the element.
+ * React leaves these properties alone (it only manages `color` here), but it
+ * can hand a row's element to a different entry, for example when a story
+ * file loses its stories and its folder becomes a leaf, so the depth is
+ * re-read whenever the element's entry changes.
  *
  * An Overview folder's indent moves from padding to margin (see
  * `SPLIT_ROW_STYLES`).
  */
 function indentRow(node: HTMLElement, isOverviewFolder: boolean) {
+  const itemId = node.parentElement?.dataset.itemId ?? "";
   let depth = Number(node.getAttribute(DEPTH_ATTRIBUTE));
-  if (!node.hasAttribute(DEPTH_ATTRIBUTE)) {
+  if (node.getAttribute(DEPTH_ITEM_ATTRIBUTE) !== itemId) {
+    node.style.paddingLeft = "";
     const padding = parseFloat(getComputedStyle(node).paddingLeft);
     if (Number.isNaN(padding)) {
       return;
     }
     depth = Math.round((padding - basePaddingOf(node)) / STORYBOOK_INDENT_STEP);
     node.setAttribute(DEPTH_ATTRIBUTE, String(depth));
+    node.setAttribute(DEPTH_ITEM_ATTRIBUTE, itemId);
   }
   const indent = depth * INDENT_STEP;
   const marginLeft = isOverviewFolder ? `${indent}px` : "";
@@ -355,7 +361,7 @@ export function installSubjectOverviews(api: API) {
   const observe = () => {
     new MutationObserver(sync).observe(document.body, {
       attributes: true,
-      attributeFilter: ["data-selected", "data-highlightable"],
+      attributeFilter: ["data-selected", "data-highlightable", "data-item-id"],
       childList: true,
       subtree: true,
     });
