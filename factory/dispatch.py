@@ -247,7 +247,7 @@ def find_factory_pr(*, issue_number: int) -> Optional[dict[str, Any]]:
             "--state",
             "open",
             "--json",
-            "number,url,headRefOid,isDraft",
+            "number,url,headRefOid,isDraft,baseRefName",
         )
     )
     return pr_list[0] if pr_list else None
@@ -555,11 +555,11 @@ def watch_session(
     find_pr: Callable[[], Optional[dict[str, Any]]],
     app_token: GitHubAppToken,
     watch_minutes: int,
-    base_branch: str,
 ) -> str:
     """Drive the session's PR through CI and automated review; return the report comment.
 
-    `find_pr` returns the session's open PR, or None once it is closed or was never opened.
+    `find_pr` returns the session's open PR with its `baseRefName`, or None once it is closed
+    or was never opened.
     CI failures and review findings go back to the session, up to MAX_FEEDBACK_ROUNDS
     rounds, so a human is asked to review only once both are clean.
     """
@@ -601,7 +601,7 @@ def watch_session(
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
             failing_checks = wait_for_checks(
-                pr_number=pr["number"], base_branch=base_branch, deadline=deadline
+                pr_number=pr["number"], base_branch=pr["baseRefName"], deadline=deadline
             )
             if failing_checks is None:
                 break
@@ -792,7 +792,6 @@ def run_start(*, args: argparse.Namespace) -> None:
     write_github_outputs(
         started="true",
         lane=lane,
-        base=args.base,
         session_id=session_id,
         status_comment_id=str(status_comment_id),
     )
@@ -816,7 +815,6 @@ def run_watch(*, args: argparse.Namespace) -> None:
             find_pr=lambda: find_factory_pr(issue_number=args.issue),
             app_token=app_token,
             watch_minutes=args.watch_minutes,
-            base_branch=args.base,
         )
     finally:
         # The workflow's failure report skips a failed watch step, so when the app's
@@ -861,9 +859,6 @@ def main() -> None:
     watch_parser = subparsers.add_parser("watch", help="Follow a session to a reviewable PR")
     watch_parser.add_argument("--session-id", required=True)
     watch_parser.add_argument("--lane", required=True)
-    watch_parser.add_argument(
-        "--base", default="main", help="PR target branch; non-main bases wait on all CI checks"
-    )
     watch_parser.add_argument(
         "--status-comment-id", type=int, help="The start step's comment, edited into the report"
     )

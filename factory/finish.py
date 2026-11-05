@@ -68,7 +68,13 @@ def read_pr(*, pr_number: int, token: Optional[str] = None) -> dict[str, Any]:
 
 def find_open_pr(*, pr_number: int) -> Optional[dict[str, Any]]:
     pr = json.loads(
-        run_gh("pr", "view", str(pr_number), "--json", "number,url,headRefOid,isDraft,state")
+        run_gh(
+            "pr",
+            "view",
+            str(pr_number),
+            "--json",
+            "number,url,headRefOid,isDraft,state,baseRefName",
+        )
     )
     return pr if pr["state"] == "OPEN" else None
 

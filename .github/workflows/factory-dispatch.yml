@@ -97,10 +97,9 @@ jobs:
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           LANE: ${{ steps.start.outputs.lane }}
-          BASE: ${{ steps.start.outputs.base }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --base "$BASE" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures on the issue. This report uses GITHUB_TOKEN, so
       # it still lands when the failure is the app's credentials.

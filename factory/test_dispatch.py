@@ -4,9 +4,11 @@ import itertools
 import json
 import subprocess
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
-from dispatch import main, wait_for_checks
+import finish
+from dispatch import find_factory_pr, wait_for_checks, watch_session
 
 
 def clock_reaching_deadline(*, polls: int) -> itertools.chain[int]:
@@ -103,27 +105,42 @@ class WaitForChecksTest(unittest.TestCase):
                 self.assertIsNone(wait_for_checks(pr_number=42, base_branch="feature", deadline=1))
             sleep.assert_called_once()
 
-    def test_watch_accepts_base_and_defaults_to_main(self) -> None:
-        for base_args, expected_base in (([], "main"), (["--base", "feature"], "feature")):
+    def test_watch_session_gates_on_the_prs_base_branch(self) -> None:
+        pr = {
+            "number": 42,
+            "url": "https://github.com/Arize-ai/phoenix/pull/42",
+            "headRefOid": "abc123",
+            "isDraft": True,
+            "baseRefName": "version-online-evals",
+        }
+        session = SimpleNamespace(outcome_evaluations=[SimpleNamespace(result="satisfied")])
+        idle_event = SimpleNamespace(id="event", stop_reason=SimpleNamespace(type="end_turn"))
+        with (
+            patch("dispatch.wait_for_session", return_value=(session, idle_event)),
+            patch("dispatch.wait_for_checks", return_value=None) as wait,
+            patch("dispatch.format_cost", return_value="$0.00"),
+        ):
+            watch_session(
+                client=MagicMock(),
+                session_id="session",
+                lane="feature",
+                find_pr=lambda: pr,
+                app_token=MagicMock(),
+                watch_minutes=1,
+            )
+        self.assertEqual(wait.call_args.kwargs["base_branch"], "version-online-evals")
+
+
+class FindPrTest(unittest.TestCase):
+    def test_pr_lookups_fetch_the_base_branch(self) -> None:
+        for name, find_pr, stdout in (
+            ("dispatch", lambda: find_factory_pr(issue_number=42), json.dumps([])),
+            ("finish", lambda: finish.find_open_pr(pr_number=42), json.dumps({"state": "OPEN"})),
+        ):
             with (
-                self.subTest(base=expected_base),
-                patch(
-                    "sys.argv",
-                    [
-                        "dispatch.py",
-                        "--repo",
-                        "Arize-ai/phoenix",
-                        "--issue",
-                        "42",
-                        "watch",
-                        "--session-id",
-                        "session",
-                        "--lane",
-                        "feature",
-                        *base_args,
-                    ],
-                ),
-                patch("dispatch.run_watch") as watch,
+                self.subTest(module=name),
+                patch(f"{name}.run_gh", return_value=stdout) as run_gh,
             ):
-                main()
-            self.assertEqual(watch.call_args.kwargs["args"].base, expected_base)
+                find_pr()
+            json_fields = run_gh.call_args.args[run_gh.call_args.args.index("--json") + 1]
+            self.assertIn("baseRefName", json_fields.split(","))
