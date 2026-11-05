@@ -5,14 +5,20 @@ name: Factory Preview
 # The PR's Python source and, when it changed, its frontend build are laid over the published
 # image of the main commit the PR's dependencies match, together with the seed script from
 # the PR body (factory/preview/Dockerfile). The image goes to GHCR under pr-<number> and
-# sha-<short> tags, and deploy.py points a Railway service at it. Closing or unlabeling the
-# PR deletes the service.
+# pr-<number>-<short sha> tags, and deploy.py points a Railway service at it. Closing or
+# unlabeling the PR deletes the service and the PR's image tags.
+#
+# The scripts and the preview Dockerfile run from the base branch, checked out under base/,
+# because they run with the Railway token and a write token. The PR's checkout under head/
+# is only a Docker build context and the frontend build's input, and the frontend build runs
+# before any credential is on the runner. Factory Guard fails a PR that edits these files
+# but does not stop this workflow from running on it.
 #
 # No caches anywhere in the deploy job: it publishes an image, and a restored cache is a
 # way to tamper with what gets published.
 #
 # `pull_request` from a same-repo branch gets the repo secrets and a write token, and a
-# fork PR gets neither, so a fork's label does nothing here.
+# fork PR gets neither, so both jobs skip fork PRs.
 on:
   pull_request:
     types: [labeled, synchronize, closed, unlabeled]
@@ -24,9 +30,10 @@ jobs:
   deploy:
     name: Build and deploy
     if: >-
-      (github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
-      (github.event.action == 'synchronize' &&
-       contains(github.event.pull_request.labels.*.name, 'factory-preview'))
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
+       (github.event.action == 'synchronize' &&
+        contains(github.event.pull_request.labels.*.name, 'factory-preview')))
     # A newer push supersedes the preview an older run is still building.
     concurrency:
       group: factory-preview-${{ github.event.pull_request.number }}
@@ -38,51 +45,60 @@ jobs:
       packages: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Check out the PR as the build context
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          path: head
           persist-credentials: false
 
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version-file: "pyproject.toml"
+          version-file: base/pyproject.toml
           resolution-strategy: "lowest"
           python-version: "3.12"
           enable-cache: false
 
       # plan.py picks the published main image whose dependencies match the PR, or none
-      # for a full build, says whether the frontend needs building, and writes the seed
-      # script from the PR body to the seed directory (an empty file when there is none).
+      # for a full build, says whether the frontend changed since that image was built, and
+      # writes the seed script from the PR body to the seed directory (empty when none).
       - name: Decide what to build
         id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-          uv run --script factory/preview/plan.py --pr "$PR_NUMBER" --seed-dir "$RUNNER_TEMP/seed" >> "$GITHUB_OUTPUT"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --seed-dir "$RUNNER_TEMP/seed" >> "$GITHUB_OUTPUT"
 
       - name: Install PNPM
         if: steps.plan.outputs.frontend == 'true'
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
-          package_json_file: js/package.json
+          package_json_file: head/js/package.json
       - name: Use Node.js
         if: steps.plan.outputs.frontend == 'true'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version-file: .nvmrc
+          node-version-file: head/.nvmrc
           package-manager-cache: false
-      # Writes the app to src/phoenix/server/static, which the build passes to the
-      # Dockerfile as the static-context when STATIC_SOURCE is checkout. When it is
-      # base, the context still has to exist, so the seed directory stands in unused.
+      # Writes the app to head/src/phoenix/server/static, which the build passes to the
+      # Dockerfile as the static-context when STATIC_SOURCE is checkout. When it is base,
+      # the context still has to exist, so the seed directory stands in unused.
       - name: Build the frontend
         if: steps.plan.outputs.frontend == 'true'
-        working-directory: ./js
+        working-directory: head/js
         run: |
           pnpm install --frozen-lockfile
           pnpm --filter 'phoenix-ui...' run build
@@ -102,51 +118,54 @@ jobs:
         if: steps.plan.outputs.base-image == ''
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
-          context: .
-          file: ./Dockerfile
+          context: head
+          file: head/Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ steps.plan.outputs.image }}:base-${{ steps.plan.outputs.short-sha }}
+          tags: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-base-${{ steps.plan.outputs.short-sha }}
 
       - name: Build and push the preview image
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
         with:
-          context: .
-          file: ./factory/preview/Dockerfile
+          context: head
+          file: base/factory/preview/Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false
           build-contexts: |
+            preview=base/factory/preview
             seed=${{ runner.temp }}/seed
-            static-context=${{ steps.plan.outputs.frontend == 'true' && 'src/phoenix/server/static' || format('{0}/seed', runner.temp) }}
+            static-context=${{ steps.plan.outputs.frontend == 'true' && 'head/src/phoenix/server/static' || format('{0}/seed', runner.temp) }}
           build-args: |
-            BASE_IMAGE=${{ steps.plan.outputs.base-image || format('{0}:base-{1}', steps.plan.outputs.image, steps.plan.outputs.short-sha) }}
+            BASE_IMAGE=${{ steps.plan.outputs.base-image || format('{0}:pr-{1}-base-{2}', steps.plan.outputs.image, github.event.pull_request.number, steps.plan.outputs.short-sha) }}
             STATIC_SOURCE=${{ steps.plan.outputs.frontend == 'true' && 'checkout' || 'base' }}
           tags: |
             ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}
-            ${{ steps.plan.outputs.image }}:sha-${{ steps.plan.outputs.short-sha }}
+            ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.event.pull_request.head.sha }}
 
       - name: Deploy to Railway
         env:
+          GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-          IMAGE: ${{ steps.plan.outputs.image }}:sha-${{ steps.plan.outputs.short-sha }}
+          IMAGE: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
           SEED_SUMMARY: ${{ steps.plan.outputs.seed-summary }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: >-
-          uv run --script factory/preview/deploy.py deploy
+          uv run --script base/factory/preview/deploy.py deploy
           --pr "$PR_NUMBER" --image "$IMAGE" --head-sha "$HEAD_SHA"
           --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
 
   teardown:
     name: Tear down
     if: >-
-      (github.event.action == 'closed' &&
-       contains(github.event.pull_request.labels.*.name, 'factory-preview')) ||
-      (github.event.action == 'unlabeled' && github.event.label.name == 'factory-preview')
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      ((github.event.action == 'closed' &&
+        contains(github.event.pull_request.labels.*.name, 'factory-preview')) ||
+       (github.event.action == 'unlabeled' && github.event.label.name == 'factory-preview'))
     concurrency:
       group: factory-preview-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -154,14 +173,16 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      packages: write
       pull-requests: write
     env:
-      GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
+      # The base branch, not the PR's merge ref, which a closed or conflicting PR lacks.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          ref: ${{ github.event.pull_request.base.ref }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -169,7 +190,8 @@ jobs:
           resolution-strategy: "lowest"
           python-version: "3.12"
           enable-cache: false
-      - name: Delete the Railway service
+      - name: Delete the Railway service and the PR's image tags
         env:
+          GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-        run: uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER"
+        run: uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER" --image "ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"

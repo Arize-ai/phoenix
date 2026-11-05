@@ -4,9 +4,9 @@
 """Decide how to build one PR's preview image, and pull the seed script out of its body.
 
 Prints GitHub Actions outputs. The base image is the newest commit on the PR's base branch
-that has a published `arizephoenix/phoenix:commit-<sha>` image and the same `pyproject.toml`
-and `uv.lock` as the PR, so the PR's source can be laid over an environment that already
-has its dependencies. A PR whose dependencies match no published commit gets an empty
+that has a published `arizephoenix/phoenix:commit-<sha>` image and the same `pyproject.toml`,
+`uv.lock` and `Dockerfile` as the PR, so the PR's source can be laid over an environment that
+already has its dependencies. A PR whose dependencies match no published commit gets an empty
 base-image output, and the workflow builds the Dockerfile in full instead.
 """
 
@@ -35,6 +35,24 @@ def gh_api(path: str) -> object:
     return json.loads(output)
 
 
+def changed_paths(*, base_sha: str, head_sha: str) -> list[str]:
+    """Every path that differs between two commits; the compare API pages its file list."""
+    output = subprocess.run(
+        [
+            "gh",
+            "api",
+            "--paginate",
+            f"repos/{{owner}}/{{repo}}/compare/{base_sha}...{head_sha}?per_page=100",
+            "--jq",
+            ".files[].filename",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    return output.split()
+
+
 def blob_shas(*, ref: str) -> tuple[str, ...]:
     shas = []
     for path in DEPENDENCY_FILES:
@@ -54,10 +72,11 @@ def image_is_published(*, sha: str) -> bool:
         raise
 
 
-def find_base_image(*, pr: dict[str, object]) -> str:
-    """The newest base-branch commit with a published image and the PR's dependency files."""
-    head_sha = str(pr["headRefOid"])
-    base_ref = str(pr["baseRefName"])
+def find_base_commit(*, head_sha: str, base_ref: str) -> str:
+    """The newest base-branch commit with a published image and the PR's dependency files.
+
+    Empty when none of the last MAX_BASE_CANDIDATES commits qualifies.
+    """
     compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{base_ref}...{head_sha}")
     assert isinstance(compare, dict)
     merge_base_sha = str(compare["merge_base_commit"]["sha"])
@@ -72,7 +91,7 @@ def find_base_image(*, pr: dict[str, object]) -> str:
             # Older commits can't match either: the PR's files came from this history.
             return ""
         if image_is_published(sha=sha):
-            return f"{PUBLISHED_IMAGE}:commit-{sha[:7]}"
+            return sha
     return ""
 
 
@@ -89,16 +108,20 @@ def main() -> int:
 
     pr = json.loads(
         subprocess.run(
-            ["gh", "pr", "view", str(args.pr), "--json", "headRefOid,baseRefName,body,files"],
+            ["gh", "pr", "view", str(args.pr), "--json", "headRefOid,baseRefName,body"],
             capture_output=True,
             text=True,
             check=True,
         ).stdout
     )
-    changed_paths = [str(file["path"]) for file in pr["files"]]
-    base_image = find_base_image(pr=pr)
-    # A full build makes the PR's own frontend, so the runner builds it only for an overlay.
-    frontend = bool(base_image) and any(FRONTEND_PATTERN.match(path) for path in changed_paths)
+    head_sha = str(pr["headRefOid"])
+    base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
+    base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
+    # The base image's frontend is as old as its commit, so the diff that matters runs from
+    # that commit, not from the merge base. A full build makes the PR's own frontend.
+    frontend = bool(base_sha) and any(
+        FRONTEND_PATTERN.match(path) for path in changed_paths(base_sha=base_sha, head_sha=head_sha)
+    )
 
     seed = extract_seed(body=str(pr["body"] or ""))
     args.seed_dir.mkdir(parents=True, exist_ok=True)
@@ -112,7 +135,7 @@ def main() -> int:
     for name, value in {
         "base-image": base_image,
         "frontend": str(frontend).lower(),
-        "short-sha": str(pr["headRefOid"])[:7],
+        "short-sha": head_sha[:7],
         "seed-summary": seed_summary,
     }.items():
         print(f"{name}={value}")
