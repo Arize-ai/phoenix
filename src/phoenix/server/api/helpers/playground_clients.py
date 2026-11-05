@@ -2183,14 +2183,15 @@ ANTHROPIC_MODELS_WITHOUT_FORCED_TOOL_CHOICE = [
     "claude-sonnet-5-5",
 ]
 
-# Matches a model name from the list above, alone or as a Bedrock model ID with a
-# vendor prefix (`anthropic.`), an optional region scope (`us.`, `global.`), and a
-# version suffix (`-v1:0`). The suffix must start at a separator, so that
+# Finds a model name from the list above inside a model ID, such as a Bedrock ID
+# (`us-gov.anthropic.claude-opus-5-5-v1:0`), an inference-profile ARN, or a dated
+# snapshot (`claude-opus-5-5@20261001`). The name must sit between separators, so
 # `claude-opus-5-5` does not match `claude-opus-5-50`.
 _ANTHROPIC_MODEL_WITHOUT_FORCED_TOOL_CHOICE = re.compile(
-    r"^(?:(?:[a-z]+\.)?anthropic\.)?(?:"
+    r"(?:^|[./])(?:"
     + "|".join(map(re.escape, ANTHROPIC_MODELS_WITHOUT_FORCED_TOOL_CHOICE))
-    + r")(?:[-@:].*)?$"
+    + r")(?:[-@:]|$)",
+    re.IGNORECASE,
 )
 
 
@@ -2199,9 +2200,10 @@ def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
 
     Args:
         model_name: An Anthropic model name such as `claude-opus-5-5`, or a Bedrock
-            model ID such as `us.anthropic.claude-opus-5-5-v1:0`.
+            model ID such as `us.anthropic.claude-opus-5-5-v1:0`. An application
+            inference-profile ARN doesn't name the model, so it counts as supported.
     """
-    return _ANTHROPIC_MODEL_WITHOUT_FORCED_TOOL_CHOICE.match(model_name) is None
+    return _ANTHROPIC_MODEL_WITHOUT_FORCED_TOOL_CHOICE.search(model_name) is None
 
 
 @register_llm_client(

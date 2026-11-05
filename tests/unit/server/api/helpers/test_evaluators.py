@@ -57,6 +57,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.evaluators import (
     BuiltInEvaluator,
     LLMEvaluator,
+    _request_tool_call_in_prompt,
     apply_input_mapping,
     cast_template_variable_types,
     get_evaluators,
@@ -77,6 +78,7 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIChatCompletionsClient,
 )
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
@@ -3855,6 +3857,35 @@ class TestLLMEvaluatorWithoutForcedToolChoice:
         assert result["error"] is None
         assert result["label"] == "correct"
         assert result["score"] == 1.0
+
+    def test_instruction_names_every_tool_for_multiple_outputs(self) -> None:
+        tools = self._tools(PromptToolChoiceOneOrMore(type="one_or_more"))
+        tools = tools.model_copy(
+            update={
+                "tools": [
+                    *tools.tools,
+                    PromptToolFunction(
+                        type="function",
+                        function=PromptToolFunctionDefinition(name="relevance"),
+                    ),
+                ],
+                "disable_parallel_tool_calls": False,
+            }
+        )
+        new_tools, messages = _request_tool_call_in_prompt(tools, [])
+        assert new_tools.tool_choice == PromptToolChoiceZeroOrMore(type="zero_or_more")
+        assert new_tools.tools == tools.tools
+        assert new_tools.disable_parallel_tool_calls is False
+        assert messages == [
+            {
+                "role": ChatCompletionMessageRole.SYSTEM,
+                "content": "Respond by calling each of these tools: `correctness`, `relevance`.",
+            }
+        ]
+
+    def test_tool_choice_that_does_not_force_a_call_is_unchanged(self) -> None:
+        tools = self._tools(PromptToolChoiceZeroOrMore(type="zero_or_more"))
+        assert _request_tool_call_in_prompt(tools, []) == (tools, [])
 
     async def test_text_response_without_tool_call_returns_error_result(
         self,
