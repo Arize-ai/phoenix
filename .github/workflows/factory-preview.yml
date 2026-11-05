@@ -10,9 +10,9 @@ name: Factory Preview
 #
 # The scripts and the preview Dockerfile run from the base branch, checked out under base/,
 # because they run with the Railway token and a write token. The PR's checkout under head/
-# is only a Docker build context and the frontend build's input, and the frontend build runs
-# before any credential is on the runner. Factory Guard fails a PR that edits these files
-# but does not stop this workflow from running on it.
+# is only a Docker build context: nothing from the PR runs on the runner, only inside
+# BuildKit. Factory Guard fails a PR that edits these files but does not stop this
+# workflow from running on it.
 #
 # No caches anywhere in the deploy job: it publishes an image, and a restored cache is a
 # way to tamper with what gets published.
@@ -21,7 +21,7 @@ name: Factory Preview
 # fork PR gets neither, so both jobs skip fork PRs.
 on:
   pull_request:
-    types: [labeled, synchronize, closed, unlabeled]
+    types: [labeled, synchronize, reopened, closed, unlabeled]
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
-       (github.event.action == 'synchronize' &&
+       ((github.event.action == 'synchronize' || github.event.action == 'reopened') &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')))
     # A newer push supersedes the preview an older run is still building.
     concurrency:
@@ -72,6 +72,8 @@ jobs:
       # plan.py picks the published main image whose dependencies match the PR, or none
       # for a full build, says whether the frontend changed since that image was built, and
       # writes the seed script from the PR body to the seed directory (empty when none).
+      # The head SHA comes from the event, not a fresh lookup, so a push that lands during
+      # this run can't get its SHA on an image built from the previous head.
       - name: Decide what to build
         id: plan
         env:
@@ -80,28 +82,7 @@ jobs:
           set -euo pipefail
           image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --seed-dir "$RUNNER_TEMP/seed" >> "$GITHUB_OUTPUT"
-
-      - name: Install PNPM
-        if: steps.plan.outputs.frontend == 'true'
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-        with:
-          package_json_file: head/js/package.json
-      - name: Use Node.js
-        if: steps.plan.outputs.frontend == 'true'
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version-file: head/.nvmrc
-          package-manager-cache: false
-      # Writes the app to head/src/phoenix/server/static, which the build passes to the
-      # Dockerfile as the static-context when STATIC_SOURCE is checkout. When it is base,
-      # the context still has to exist, so the seed directory stands in unused.
-      - name: Build the frontend
-        if: steps.plan.outputs.frontend == 'true'
-        working-directory: head/js
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm --filter 'phoenix-ui...' run build
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/seed" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -136,10 +117,9 @@ jobs:
           build-contexts: |
             preview=base/factory/preview
             seed=${{ runner.temp }}/seed
-            static-context=${{ steps.plan.outputs.frontend == 'true' && 'head/src/phoenix/server/static' || format('{0}/seed', runner.temp) }}
           build-args: |
             BASE_IMAGE=${{ steps.plan.outputs.base-image || format('{0}:pr-{1}-base-{2}', steps.plan.outputs.image, github.event.pull_request.number, steps.plan.outputs.short-sha) }}
-            STATIC_SOURCE=${{ steps.plan.outputs.frontend == 'true' && 'checkout' || 'base' }}
+            STATIC_SOURCE=${{ steps.plan.outputs.frontend == 'true' && 'build' || 'base' }}
           tags: |
             ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}
             ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}

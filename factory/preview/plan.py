@@ -23,10 +23,9 @@ PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 FRONTEND_PATTERN = re.compile(r"^(js|schemas)/")
-SEED_PATTERN = re.compile(
-    r"^##+\s*Preview seed\s*$.*?^```python\s*$(.*?)^```\s*$",
-    re.MULTILINE | re.DOTALL | re.IGNORECASE,
-)
+SEED_HEADING_PATTERN = re.compile(r"^##+\s*Preview seed\s*$", re.MULTILINE | re.IGNORECASE)
+HEADING_PATTERN = re.compile(r"^##+\s", re.MULTILINE)
+PYTHON_FENCE_PATTERN = re.compile(r"^```python\s*$(.*?)^```\s*$", re.MULTILINE | re.DOTALL)
 MAX_BASE_CANDIDATES = 30
 
 
@@ -54,12 +53,11 @@ def changed_paths(*, base_sha: str, head_sha: str) -> list[str]:
 
 
 def blob_shas(*, ref: str) -> tuple[str, ...]:
-    shas = []
-    for path in DEPENDENCY_FILES:
-        contents = gh_api(f"repos/{{owner}}/{{repo}}/contents/{path}?ref={ref}")
-        assert isinstance(contents, dict)
-        shas.append(str(contents["sha"]))
-    return tuple(shas)
+    """The dependency files' blob SHAs at a commit, from its root tree in one request."""
+    tree = gh_api(f"repos/{{owner}}/{{repo}}/git/trees/{ref}")
+    assert isinstance(tree, dict)
+    by_path = {entry["path"]: str(entry["sha"]) for entry in tree["tree"]}
+    return tuple(by_path.get(path, "") for path in DEPENDENCY_FILES)
 
 
 def image_is_published(*, sha: str) -> bool:
@@ -96,25 +94,32 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
 
 
 def extract_seed(*, body: str) -> str:
-    match = SEED_PATTERN.search(body)
-    return match.group(1).strip() + "\n" if match else ""
+    """The python block of the body's Preview seed section, and only that section's."""
+    heading = SEED_HEADING_PATTERN.search(body)
+    if heading is None:
+        return ""
+    next_heading = HEADING_PATTERN.search(body, heading.end())
+    section = body[heading.end() : next_heading.start() if next_heading else len(body)]
+    fence = PYTHON_FENCE_PATTERN.search(section)
+    return fence.group(1).strip() + "\n" if fence else ""
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr", type=int, required=True)
+    parser.add_argument("--head-sha", required=True, help="the commit the workflow checked out")
     parser.add_argument("--seed-dir", type=Path, required=True)
     args = parser.parse_args()
 
     pr = json.loads(
         subprocess.run(
-            ["gh", "pr", "view", str(args.pr), "--json", "headRefOid,baseRefName,body"],
+            ["gh", "pr", "view", str(args.pr), "--json", "baseRefName,body"],
             capture_output=True,
             text=True,
             check=True,
         ).stdout
     )
-    head_sha = str(pr["headRefOid"])
+    head_sha = str(args.head_sha)
     base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
     # The base image's frontend is as old as its commit, so the diff that matters runs from

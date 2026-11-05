@@ -4,20 +4,32 @@
 #
 #   BASE_IMAGE     the Phoenix image to overlay: the published image of the main commit
 #                  whose dependencies match the PR, or a full build of the PR when none does
-#   STATIC_SOURCE  `base` to keep the base image's frontend build, `checkout` to use the
-#                  one the workflow built into src/phoenix/server/static
+#   STATIC_SOURCE  `base` to keep the base image's frontend build, `build` to build the
+#                  PR's frontend here, in a stage that mirrors the main Dockerfile's
 #
-# Build contexts besides the PR checkout: `preview`, this directory from the base branch,
-# for the launcher; `seed`, a directory that holds seed.py; and `static-context`, the built
-# frontend when STATIC_SOURCE is checkout (.dockerignore keeps src/phoenix/server/static
-# out of the main context, so it has to arrive this way).
+# The build context is the PR's checkout. Everything from the PR runs inside BuildKit,
+# never on the runner, so the frontend's install scripts can't touch the workflow's files
+# or credentials. Other build contexts: `preview`, this directory from the base branch, for
+# the launcher, and `seed`, a directory that holds seed.py.
 ARG BASE_IMAGE
 ARG STATIC_SOURCE=base
 
-FROM ${BASE_IMAGE} AS static-base
+FROM node:24-slim AS frontend-builder
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+WORKDIR /phoenix/js/
+COPY ./js /phoenix/js
+COPY ./schemas /phoenix/schemas
+RUN npm i -g corepack
+RUN corepack enable
+RUN corepack install
+RUN pnpm install
+RUN pnpm --filter 'phoenix-ui...' run build
 
-FROM scratch AS static-checkout
-COPY --from=static-context / /phoenix/.venv/lib/python3.13/site-packages/phoenix/server/static
+FROM scratch AS static-build
+COPY --from=frontend-builder /phoenix/src/phoenix/server/static /phoenix/.venv/lib/python3.13/site-packages/phoenix/server/static
+
+FROM ${BASE_IMAGE} AS static-base
 
 FROM static-${STATIC_SOURCE} AS static
 
