@@ -1573,10 +1573,13 @@ class TestResolveProviderApiKey:
         pytest.param("claude-opus-5", True, id="opus-5"),
         pytest.param("claude-fable-5", True, id="fable-5"),
         pytest.param("claude-haiku-5-5", True, id="haiku-5-5"),
-        pytest.param("claude-opus-5-50", True, id="no-partial-version-match"),
+        pytest.param("claude-opus-5-50", False, id="unknown-model"),
+        pytest.param("claude-opus-5@20260801", True, id="vertex-snapshot-opus-5"),
+        pytest.param("claude-sonnet-4-20250514", True, id="dated-sonnet-4"),
         pytest.param("anthropic.claude-opus-5", True, id="bedrock-opus-5"),
+        pytest.param("anthropic.claude-opus-4-6-v1", True, id="bedrock-opus-4-6"),
+        pytest.param("anthropic.claude-opus-4-5-20251101-v1:0", True, id="bedrock-dated-opus-4-5"),
         pytest.param("us-gov.anthropic.claude-opus-5-v1:0", True, id="bedrock-govcloud-opus-5"),
-        pytest.param("amazon.nova-pro-v1:0", True, id="bedrock-non-anthropic"),
     ],
 )
 def test_anthropic_model_supports_forced_tool_choice(model_name: str, expected: bool) -> None:
@@ -1594,6 +1597,9 @@ def test_anthropic_model_supports_forced_tool_choice(model_name: str, expected: 
             BedrockClient, "aws", "anthropic.claude-opus-5-5", False, id="bedrock-opus-5-5"
         ),
         pytest.param(BedrockClient, "aws", "anthropic.claude-opus-5", True, id="bedrock-opus-5"),
+        pytest.param(
+            BedrockClient, "aws", "amazon.nova-pro-v1:0", True, id="bedrock-non-anthropic"
+        ),
         pytest.param(OpenAIChatCompletionsClient, "openai", "gpt-4o-mini", True, id="openai"),
     ],
 )
