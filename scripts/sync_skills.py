@@ -80,6 +80,7 @@ _KEY_VALUE = re.compile(r"^(?P<indent>\s*)(?P<key>[\w-]+):\s*(?P<value>.*?)\s*$"
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _NPX_SKILL_LINE = re.compile(r"^[|│]\s{4}(?P<name>[a-z0-9][a-z0-9-]*)\s*$")
 _MARKDOWN_LINK = re.compile(r"\]\((?P<target>[^)\s#]+)(?:#[^)]*)?\)")
+_FENCED_BLOCK = re.compile(r"^[ \t]*```.*?^[ \t]*```", re.DOTALL | re.MULTILINE)
 _CODE_REFERENCE = re.compile(r"`(?P<target>references/[^`\s]+)`")
 
 MAX_DESCRIPTION_CHARS = 1024
@@ -319,7 +320,9 @@ def build(errors: list[str]) -> list[Change]:
 def _broken_references(skill: Skill) -> Iterator[str]:
     for markdown in sorted(skill.path.rglob("*.md")):
         text = markdown.read_text(encoding="utf-8")
-        for match in _MARKDOWN_LINK.finditer(text):
+        # Code such as `evaluators[name](output)` looks like a link, so only prose is scanned.
+        prose = _FENCED_BLOCK.sub(lambda block: "\n" * block[0].count("\n"), text)
+        for match in _MARKDOWN_LINK.finditer(prose):
             target = match["target"]
             if "://" in target or target.startswith("mailto:"):
                 continue

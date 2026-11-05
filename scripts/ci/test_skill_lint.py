@@ -40,7 +40,10 @@ def test_clean_skill_has_no_warnings(
     sync_skills: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(sync_skills, "REPO_ROOT", tmp_path)
-    body = "See [present](references/present.md#top) and `references/present.md`.\n"
+    body = (
+        "See [present](references/present.md#top) and `references/present.md`.\n\n"
+        "```python\nresult = evaluators[name](output)\n```\n"
+    )
     skill = _skill(sync_skills, tmp_path, "Does one thing.", body)
     assert sync_skills.lint([skill]) == ([], [])
 
