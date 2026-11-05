@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Flex, Text, View } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
+import { Skeleton } from "@phoenix/components/core/loading";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
@@ -276,23 +277,116 @@ function ServerEvaluationQueueStripContent({
   );
 }
 
-/** The strip's shape while it loads, so the page doesn't shift. */
-function StripPlaceholder() {
+const statSkeletonCSS = css`
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  .stat-skeleton__label,
+  .stat-skeleton__value {
+    display: flex;
+    align-items: center;
+  }
+  /* A loaded label is one line of small text, a value one of large text */
+  .stat-skeleton__label {
+    height: var(--global-line-height-s);
+  }
+  .stat-skeleton__value {
+    height: var(--global-line-height-l);
+  }
+`;
+
+/**
+ * A stat while it loads: a bar where its label goes over one where its value
+ * goes, with the meter under the queue size. Labels are the width their text
+ * takes, so each stat keeps its loaded width and place.
+ */
+function StatSkeleton({
+  labelWidth,
+  valueWidth,
+  hasMeter = false,
+}: {
+  labelWidth: number;
+  valueWidth: number | string;
+  hasMeter?: boolean;
+}) {
   return (
-    <div css={stripCSS}>
-      {[
-        "Status",
-        "In queue",
-        "Queued / hr",
-        "Completed / hr",
-        "Net / hr",
-        "Lag p95",
-        "Evaluation cost",
-      ].map((label) => (
-        <StatItem key={label} label={label}>
-          <StatValue>--</StatValue>
-        </StatItem>
-      ))}
+    <div css={statSkeletonCSS}>
+      <span className="stat-skeleton__label">
+        <Skeleton
+          width={labelWidth}
+          height="var(--global-dimension-size-150)"
+        />
+      </span>
+      <Flex
+        direction="column"
+        gap="size-50"
+        minWidth={hasMeter ? "size-2400" : undefined}
+      >
+        <span className="stat-skeleton__value">
+          <Skeleton
+            width={valueWidth}
+            height="var(--global-dimension-size-200)"
+          />
+        </span>
+        {hasMeter ? (
+          <Skeleton height="var(--global-dimension-size-75)" />
+        ) : null}
+      </Flex>
     </div>
   );
 }
+
+/**
+ * The strip's shape while it loads, laid out as the loaded stats are, with
+ * the label widths of the loaded text so nothing shifts when it arrives.
+ */
+function StripPlaceholder() {
+  return (
+    <div css={stripCSS} aria-hidden>
+      <StatSkeleton
+        labelWidth={40}
+        valueWidth="var(--global-dimension-size-650)"
+      />
+      <StatSkeleton
+        labelWidth={56}
+        valueWidth="var(--global-dimension-size-1200)"
+        hasMeter
+      />
+      <StatSkeleton labelWidth={77} valueWidth={40} />
+      <StatSkeleton labelWidth={97} valueWidth={40} />
+      <StatSkeleton labelWidth={50} valueWidth={24} />
+      <StatSkeleton labelWidth={53} valueWidth={24} />
+      <StatSkeleton labelWidth={97} valueWidth={24} />
+    </div>
+  );
+}
+
+/**
+ * The whole strip while the page loads, before its clear button can be
+ * shown, laid out as the loaded strip is. The strip's divider is left
+ * undrawn, but its space is kept.
+ */
+export function ServerEvaluationQueueStripSkeleton() {
+  return (
+    <div css={stripSkeletonCSS}>
+      <StripPlaceholder />
+      <Skeleton
+        width="calc(15 * var(--global-dimension-size-100))"
+        height="var(--global-button-height-s)"
+      />
+    </div>
+  );
+}
+
+const stripSkeletonCSS = css`
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
+  padding-bottom: calc(
+    var(--global-dimension-size-150) + var(--global-border-size-thin)
+  );
+`;
