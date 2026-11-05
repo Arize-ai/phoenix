@@ -205,10 +205,17 @@ jobs:
           - \`pnpm update --recursive\` in \`js/\`
 
           All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
-          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
-            gh pr create --title "$TITLE" --body "$BODY"
-          else
+          if [ "$(gh pr view "${BRANCH}" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
             gh pr edit "${BRANCH}" --title "$TITLE" --body "$BODY"
+            PR_NUMBER=$(gh pr view "${BRANCH}" --json number --jq .number)
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+              --jq '.[] | select(.state == "APPROVED") | .id' \
+              | while read -r REVIEW_ID; do
+                  gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/dismissals" \
+                    --field message="Dismissed: the branch was replaced by a newer upgrade." >/dev/null
+                done
+          else
+            gh pr create --title "$TITLE" --body "$BODY"
           fi
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
@@ -396,10 +403,17 @@ jobs:
           git commit -m "chore(deps): daily dependency upgrade ${DATE}"
           git push --force -u origin "${BRANCH}"
           TITLE="chore(deps): daily dependency upgrade ${DATE}"
-          if [ "$(gh pr list --head "${BRANCH}" --state open --json number --jq 'length')" -eq 0 ]; then
-            gh pr create --title "$TITLE" --body-file .scratch/pr-body-full.md
-          else
+          if [ "$(gh pr view "${BRANCH}" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
             gh pr edit "${BRANCH}" --title "$TITLE" --body-file .scratch/pr-body-full.md
+            PR_NUMBER=$(gh pr view "${BRANCH}" --json number --jq .number)
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews" \
+              --jq '.[] | select(.state == "APPROVED") | .id' \
+              | while read -r REVIEW_ID; do
+                  gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews/${REVIEW_ID}/dismissals" \
+                    --field message="Dismissed: the branch was replaced by a newer upgrade." >/dev/null
+                done
+          else
+            gh pr create --title "$TITLE" --body-file .scratch/pr-body-full.md
           fi
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"

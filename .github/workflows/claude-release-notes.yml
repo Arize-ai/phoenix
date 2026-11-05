@@ -137,14 +137,14 @@ jobs:
             echo "Automated weekly release notes update." > "$BODY_FILE"
           fi
           TITLE="docs: Add Phoenix release notes — $TODAY"
-          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')" -eq 0 ]; then
+          if [ "$(gh pr view "$BRANCH" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
+            gh pr edit "$BRANCH" --title "$TITLE" --body-file "$BODY_FILE"
+          else
             gh pr create \
               --base main \
               --head "$BRANCH" \
               --title "$TITLE" \
               --body-file "$BODY_FILE"
-          else
-            gh pr edit "$BRANCH" --title "$TITLE" --body-file "$BODY_FILE"
           fi
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"
