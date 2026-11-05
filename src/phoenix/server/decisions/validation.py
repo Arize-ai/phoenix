@@ -7,7 +7,7 @@ run or a save, and can change without making stored rows unreadable.
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Sequence, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -35,38 +35,80 @@ MIN_CHOICES, MAX_CHOICES = 2, 255
 MIN_LEVELS, MAX_LEVELS = 2, 10
 
 
+FieldPath = tuple[Union[str, int], ...]
+
+
+class DecisionRuleError(ValueError):
+    """A write-time rule a version breaks, and where.
+
+    ``path`` locates the offending input within the version, e.g. ``("questions", 1,
+    "choices")``, so an API can point at the field. ``code`` is a short kind of failure:
+    ``too_short``, ``out_of_range``, or ``invalid``.
+    """
+
+    def __init__(self, message: str, path: FieldPath, code: str = "invalid") -> None:
+        super().__init__(message)
+        self.path = path
+        self.code = code
+
+
 def validate_questions(questions: Sequence[DecisionQuestion]) -> None:
     """Check questions being accepted for a run or a save.
 
     Raises:
-        ValueError: The questions are empty, or a question breaks a rule; the message
-            names the question.
+        DecisionRuleError: The questions are empty, or a question breaks a rule; the
+            message names the question and the error's path locates it.
     """
     if not questions:
-        raise ValueError("At least one question is required")
+        raise DecisionRuleError("At least one question is required", ("questions",), "too_short")
     names: set[str] = set()
-    for question in questions:
+    for index, question in enumerate(questions):
+        at: FieldPath = ("questions", index)
         name = question.name
         if not name.strip():
-            raise ValueError("Question names cannot be empty")
+            raise DecisionRuleError("Question names cannot be empty", (*at, "name"), "too_short")
         if name in names:
-            raise ValueError(f"Question names must be unique: {name!r} is repeated")
+            raise DecisionRuleError(
+                f"Question names must be unique: {name!r} is repeated", (*at, "name")
+            )
         names.add(name)
         if not question.instructions.strip():
-            raise ValueError(f"Instructions for {name} cannot be empty")
+            raise DecisionRuleError(
+                f"Instructions for {name} cannot be empty", (*at, "instructions"), "too_short"
+            )
         if isinstance(question, ChoiceQuestion):
             values = [option.value for option in question.choices]
             if not MIN_CHOICES <= len(values) <= MAX_CHOICES:
-                raise ValueError(f"{name} needs {MIN_CHOICES} to {MAX_CHOICES} choices")
-            if any(not value.strip() for value in values):
-                raise ValueError(f"Choice values for {name} cannot be empty")
+                raise DecisionRuleError(
+                    f"{name} needs {MIN_CHOICES} to {MAX_CHOICES} choices",
+                    (*at, "choices"),
+                    "out_of_range",
+                )
+            for choice_index, value in enumerate(values):
+                if not value.strip():
+                    raise DecisionRuleError(
+                        f"Choice values for {name} cannot be empty",
+                        (*at, "choices", choice_index, "value"),
+                        "too_short",
+                    )
             if len(set(values)) != len(values):
-                raise ValueError(f"Choice values for {name} must be unique")
+                raise DecisionRuleError(
+                    f"Choice values for {name} must be unique", (*at, "choices")
+                )
         elif isinstance(question, ScaleQuestion):
             if not MIN_LEVELS <= len(question.levels) <= MAX_LEVELS:
-                raise ValueError(f"{name} needs {MIN_LEVELS} to {MAX_LEVELS} levels")
-            if any(not level.label.strip() for level in question.levels):
-                raise ValueError(f"Level labels for {name} cannot be empty")
+                raise DecisionRuleError(
+                    f"{name} needs {MIN_LEVELS} to {MAX_LEVELS} levels",
+                    (*at, "levels"),
+                    "out_of_range",
+                )
+            for level_index, level in enumerate(question.levels):
+                if not level.label.strip():
+                    raise DecisionRuleError(
+                        f"Level labels for {name} cannot be empty",
+                        (*at, "levels", level_index, "label"),
+                        "too_short",
+                    )
 
 
 def validate_template(
@@ -83,22 +125,50 @@ def validate_template(
         The decision's variables, in first-appearance order.
 
     Raises:
-        ValueError: A text template is empty, a JSON template is a literal number, boolean
-            or null or an empty string, or a template can't be parsed.
+        DecisionRuleError: A text template is empty, a JSON template is a literal number,
+            boolean or null or an empty string, or a template can't be parsed.
     """
+    state_path: FieldPath = ("state", "template")
     if isinstance(state, TextState):
         if not state.template.strip():
-            raise ValueError("The state template cannot be empty")
+            raise DecisionRuleError("The state template cannot be empty", state_path, "too_short")
     elif isinstance(state, JsonState):
         template = state.template
         if isinstance(template, str):
             if not template.strip():
-                raise ValueError("The state template cannot be empty")
+                raise DecisionRuleError(
+                    "The state template cannot be empty", state_path, "too_short"
+                )
         elif not isinstance(template, (dict, list)):
-            raise ValueError("A JSON state template must be an object, a list, or a string")
+            raise DecisionRuleError(
+                "A JSON state template must be an object, a list, or a string", state_path
+            )
     else:
         assert_never(state)
-    return decision_variables(template_format, state, questions)
+    try:
+        return decision_variables(template_format, state, questions)
+    except ValueError as error:
+        raise DecisionRuleError(
+            str(error), _unparseable_template_path(template_format, state, questions)
+        ) from error
+
+
+def _unparseable_template_path(
+    template_format: PromptTemplateFormat,
+    state: DecisionState,
+    questions: Sequence[DecisionQuestion],
+) -> FieldPath:
+    """Which part of the version holds the template that failed to parse."""
+    try:
+        decision_variables(template_format, state, ())
+    except ValueError:
+        return ("state", "template")
+    for index, question in enumerate(questions):
+        try:
+            decision_variables(template_format, state, (question,))
+        except ValueError:
+            return ("questions", index)
+    return ()
 
 
 async def validate_decision_custom_provider(

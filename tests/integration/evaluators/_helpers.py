@@ -75,7 +75,7 @@ def _judge_prompt_version(
             },
         },
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text
     version_id: str = response.json()["data"]["id"]
     return version_id
 
