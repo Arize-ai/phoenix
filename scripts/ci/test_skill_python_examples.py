@@ -206,9 +206,9 @@ def _copy_typed_evals(destination: Path) -> None:
 
     The module ``__getattr__`` returns ``Any``, which makes every ``from phoenix.evals import X``
     resolve, even for names the package doesn't have. The deprecation decorators in ``utils.py``
-    return ``Callable[..., Any]``, which hides the signatures of ``evaluate_dataframe``,
-    ``create_classifier``, ``bind_evaluator`` and others. A patch whose code has changed is
-    skipped, so the check keeps working after the package fixes either gap itself.
+    return ``Callable[..., Any]``, which hides the signature of every function they wrap. A
+    patch whose code has changed is skipped, so the check keeps working after the package
+    closes either gap itself.
     """
     shutil.copytree(
         _package_source("evals"), destination, ignore=shutil.ignore_patterns("__pycache__")
@@ -306,7 +306,6 @@ def prelude(source: str, undefined: set[str], exports: dict[str, str]) -> str:
 
 
 def run_pyright(root: Path, **config: object) -> list[dict[str, Any]]:
-    """Runs pyright over ``root/examples`` and returns its diagnostics."""
     (root / "pyrightconfig.json").write_text(
         json.dumps({**_PYRIGHT_CONFIG, **config}), encoding="utf-8"
     )
@@ -354,8 +353,8 @@ def _is_reported(diagnostic: dict[str, Any]) -> bool:
     message = str(diagnostic["message"])
     if diagnostic.get("rule") == "reportMissingImports":
         return '"phoenix' in message
-    # `EvalsEvaluator` in phoenix-client no longer matches `phoenix.evals.Evaluator`, so passing
-    # a phoenix.evals evaluator to `run_experiment` fails type-checking although it works.
+    # phoenix-client's `EvalsEvaluator` protocol doesn't match `phoenix.evals.Evaluator`, so
+    # pyright rejects a phoenix.evals evaluator passed to `run_experiment`, which works at run time.
     if 'parameter "evaluators"' in message and '"phoenix.evals.evaluators.Evaluator"' in message:
         return False
     return True

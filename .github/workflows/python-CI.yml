@@ -114,8 +114,8 @@ jobs:
               - "scripts/ci/skill_examples.py"
               - "scripts/ci/test_skill_graphql_examples.py"
               - "scripts/ci/test_skill_filter_dsl_examples.py"
-            # The Python examples and px commands in skills/ break when the client packages,
-            # the CLI, or the APIs they call change, so those changes run the checks too.
+            # The code examples and px commands in skills/ break when the client packages, the
+            # CLI, or the APIs they call change, so a change to any of them runs the checks.
             skill_code_examples:
               - "skills/**"
               - "packages/phoenix-client/src/**"

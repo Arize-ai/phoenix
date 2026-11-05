@@ -34,6 +34,7 @@ import subprocess
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 from skill_examples import REPO_ROOT, location, public_skill_dirs
@@ -189,8 +190,14 @@ def _is_reported(code: str, message: str) -> bool:
     return True
 
 
-def _run_tsc(root: Path, files: list[str]) -> list[tuple[str, str, int, str]]:
-    """Returns each error tsc reports as its file, code, line and message."""
+class Diagnostic(NamedTuple):
+    file: str
+    code: str
+    line: int
+    message: str
+
+
+def _run_tsc(root: Path, files: list[str]) -> list[Diagnostic]:
     config = {**_TSCONFIG, "files": files}
     (root / "tsconfig.json").write_text(json.dumps(config), encoding="utf-8")
     result = subprocess.run(
@@ -209,7 +216,7 @@ def _run_tsc(root: Path, files: list[str]) -> list[tuple[str, str, int, str]]:
             pytest.fail(f"Couldn't parse tsc output:\n{result.stdout}\n{result.stderr}")
         message = output_line[diagnostic.end() :]
         diagnostics.append(
-            (diagnostic["file"], diagnostic["code"], int(diagnostic["line"]), message)
+            Diagnostic(diagnostic["file"], diagnostic["code"], int(diagnostic["line"]), message)
         )
     return diagnostics
 
@@ -225,10 +232,10 @@ def errors_by_example(tmp_path_factory: pytest.TempPathFactory) -> dict[str, lis
     examples_dir.mkdir()
     files: dict[str, tuple[Example, int]] = {}
     for number, example in enumerate(EXAMPLES):
-        file = examples_dir / f"example_{number}.ts"
+        path = examples_dir / f"example_{number}.ts"
         source, offset = checkable_source(example)
-        file.write_text(source, encoding="utf-8")
-        files[f"examples/{file.name}"] = (example, offset)
+        path.write_text(source, encoding="utf-8")
+        files[f"examples/{path.name}"] = (example, offset)
 
     errors: dict[str, list[str]] = defaultdict(list)
     remaining = sorted(files)
