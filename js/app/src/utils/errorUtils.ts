@@ -1,3 +1,5 @@
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
+
 /**
  * Type-guard for the `AbortError` browsers raise when the user dismisses a
  * picker or an in-flight request is aborted. Structural rather than an
@@ -129,4 +131,37 @@ export const getErrorMessagesFromRelaySubscriptionError = (
     return error.map((error) => error.message);
   }
   return null;
+};
+
+/**
+ * Extracts the server's message from the `error` body openapi-fetch returns
+ * for a failed REST request. FastAPI sends `{ detail: string }` for an
+ * HTTPException and `{ detail: [{ msg, ... }] }` for a request validation error.
+ * Phoenix serves HTTPExceptions as plain text, which openapi-fetch keeps as a
+ * string.
+ * @param error - the `error` returned by openapi-fetch
+ * @returns the detail message, or an empty string when the body has none
+ */
+export const getRestErrorDetail = (error: unknown): string => {
+  if (typeof error === "string") {
+    const text = error.trim();
+    // An HTML page, e.g. a reverse proxy's 502, is not a message to show.
+    return text.startsWith("<") ? "" : text;
+  }
+  if (!isPlainObject(error)) {
+    return "";
+  }
+  const { detail } = error;
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        isPlainObject(item) && typeof item.msg === "string" ? item.msg : null
+      )
+      .filter((msg): msg is string => msg !== null)
+      .join("; ");
+  }
+  return "";
 };

@@ -36,16 +36,15 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
-import { isGlobalIdOfType } from "@phoenix/utils/globalIdUtils";
+import { getRestErrorDetail } from "@phoenix/utils/errorUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
 import { isPlainObject, safelyParseJSONString } from "@phoenix/utils/jsonUtils";
 
 import {
   ColumnAssigner,
   type ColumnAssignerValue,
-  getAutoAssignment,
-  isAutoIdColumn,
-  isAutoSplitColumn,
+  computeAutoAssignment,
+  type PreviewData,
 } from "./ColumnAssigner";
 import { computeBucketCollapseConflicts } from "./ColumnAssigner/collapseUtils";
 import { ColumnSelector } from "./ColumnSelector";
@@ -58,94 +57,7 @@ export type DatasetUploadSummary = {
   numDeletedExamples: number;
 };
 
-type AutoAssignmentResult = ColumnAssignerValue & {
-  splitKey: string | null;
-  exampleIdKey: string | null;
-};
-
-/**
- * Auto-assign columns based on name matching heuristics. In create mode an
- * ID-named column holding DatasetExample node IDs is not auto-selected.
- */
-function computeAutoAssignment({
-  columns,
-  previewRows,
-  mode,
-}: {
-  columns: string[];
-  previewRows: PreviewData;
-  mode: "create" | "append";
-}): AutoAssignmentResult {
-  const result: AutoAssignmentResult = {
-    input: [],
-    output: [],
-    metadata: [],
-    splitKey: null,
-    exampleIdKey: null,
-  };
-  for (const column of columns) {
-    if (isAutoSplitColumn(column)) {
-      result.splitKey ??= column; // first match wins
-    }
-    if (
-      isAutoIdColumn(column) &&
-      !(
-        mode === "create" &&
-        holdsDatasetExampleIds({ column, columns, rows: previewRows })
-      )
-    ) {
-      result.exampleIdKey ??= column; // first match wins
-    }
-    const bucket = getAutoAssignment(column);
-    if (bucket === "input") {
-      result.input.push(column);
-    } else if (bucket === "output") {
-      result.output.push(column);
-    } else if (bucket === "metadata") {
-      result.metadata.push(column);
-    }
-  }
-  return result;
-}
-
 type DatasetFileType = "csv" | "jsonl" | null;
-
-type PreviewData = string[][] | Record<string, unknown>[];
-
-/**
- * True when a preview value of `column` is a Phoenix DatasetExample node ID,
- * as in the `id` column of a Phoenix CSV/JSONL export. The server rejects
- * those IDs when creating a new dataset (422), so create mode must not
- * auto-select such a column as the Example ID.
- * Only the preview rows are checked: a column whose node IDs start after
- * the preview still gets auto-selected (the server's 422 detail then says why).
- */
-function holdsDatasetExampleIds({
-  column,
-  columns,
-  rows,
-}: {
-  column: string;
-  columns: string[];
-  rows: PreviewData;
-}): boolean {
-  const index = columns.indexOf(column);
-  return rows.some((row) => {
-    const value = Array.isArray(row) ? row[index] : row[column];
-    return (
-      typeof value === "string" && isGlobalIdOfType(value, "DatasetExample")
-    );
-  });
-}
-
-/** The server's `detail` message from an openapi-fetch `error`, if any. */
-function getErrorDetail(error: unknown): string {
-  if (typeof error === "string") return error;
-  if (isPlainObject(error) && typeof error.detail === "string") {
-    return error.detail;
-  }
-  return "";
-}
 
 type CreateDatasetFromFileParams = {
   file: File | null;
@@ -691,7 +603,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         if (!response.ok || !result) {
           // openapi-fetch has already read the body into `error`.
           throw new Error(
-            getErrorDetail(error) ||
+            getRestErrorDetail(error) ||
               response.statusText ||
               "Failed to create dataset"
           );
