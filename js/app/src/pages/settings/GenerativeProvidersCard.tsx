@@ -17,10 +17,12 @@ import {
 } from "@phoenix/components";
 import type { StatusCategory } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import { providerSupportsDefaultCredentialChain } from "@phoenix/components/generative/modelProviderUtils";
 import { tableCSS } from "@phoenix/components/table/styles";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type {
@@ -28,6 +30,14 @@ import type {
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
 import { ProviderCredentialsDialog } from "./ProviderCredentialsDialog";
+import type {
+  CredentialPresence,
+  CredentialSource,
+} from "./providerCredentialSources";
+import {
+  CREDENTIAL_SOURCES,
+  getSourceCompleteness,
+} from "./providerCredentialSources";
 
 export function GenerativeProvidersCard({
   query,
@@ -210,16 +220,20 @@ function ProviderCredentialsStatus({
   provider: ModelProvider;
   onConfigure: () => void;
 }) {
-  const hasBrowserCredential = useCredentialsContext((state) => {
+  const browserKeys = useCredentialsContext((state) => {
     if (!isModelProvider(provider.key)) {
-      return false;
+      return "";
     }
     const credentials = state[provider.key];
-    return provider.credentialRequirements.some(
-      ({ envVarName }) => !!credentials?.[envVarName]
-    );
+    return provider.credentialRequirements
+      .map(({ envVarName }) => envVarName)
+      .filter((envVarName) => !!credentials?.[envVarName])
+      .join(",");
   });
-  const credentials = getProviderCredentials(provider, hasBrowserCredential);
+  const credentials = getProviderCredentials(
+    provider,
+    new Set(browserKeys ? browserKeys.split(",") : [])
+  );
   if (credentials.kind === "status") {
     return <StatusIndicator {...credentials.status} />;
   }
@@ -228,37 +242,43 @@ function ProviderCredentialsStatus({
       aria-label={`Configure ${provider.name} credentials`}
       onPress={onConfigure}
     >
-      {credentials.sources.map(({ label, isSet }) => (
-        <StatusIndicator
-          key={label}
-          category={isSet ? "succeeded" : "unset"}
-          label={label}
-        />
-      ))}
+      {credentials.kind === "default-chain" ? (
+        <StatusIndicator category="unset" label="Default credentials" />
+      ) : (
+        credentials.sources.map((source) => (
+          <StatusIndicator key={source.label} {...source} />
+        ))
+      )}
     </MarkerTrigger>
   );
 }
+
+const SOURCE_LABELS: Record<CredentialSource, string> = {
+  browser: "Browser",
+  secret: "Secret",
+  environment: "Environment",
+};
 
 type ProviderCredentials =
   | {
       kind: "status";
       status: { category: StatusCategory; label: string };
     }
+  | { kind: "default-chain" }
   | {
       kind: "sources";
-      sources: {
-        label: "Browser" | "Secret" | "Environment";
-        isSet: boolean;
-      }[];
+      sources: { category: StatusCategory; label: string; detail?: string }[];
     };
 
 /**
- * A provider that takes credentials shows where they are set, in the order
- * Phoenix uses them; any other provider shows why it takes none.
+ * A provider that takes credentials shows how completely each source sets
+ * them, in the order Phoenix uses them. One with a default credential chain
+ * and nothing set says it uses that chain. Any other provider shows why it
+ * takes none.
  */
 export function getProviderCredentials(
   provider: ModelProvider,
-  hasBrowserCredential: boolean
+  browserKeys: ReadonlySet<string>
 ): ProviderCredentials {
   if (!provider.dependenciesInstalled) {
     return {
@@ -279,20 +299,49 @@ export function getProviderCredentials(
       status: { category: "succeeded", label: "Ready" },
     };
   }
+  const presence = getSavedCredentialPresence(requirements, browserKeys);
+  const sources = CREDENTIAL_SOURCES.map((source) => ({
+    source,
+    completeness: getSourceCompleteness(requirements, presence[source]),
+  }));
+  if (
+    sources.every(({ completeness }) => completeness.state === "unset") &&
+    providerSupportsDefaultCredentialChain({ providerKey: provider.key })
+  ) {
+    return { kind: "default-chain" };
+  }
   return {
     kind: "sources",
-    sources: [
-      { label: "Browser", isSet: hasBrowserCredential },
-      {
-        label: "Secret",
-        isSet: requirements.some(({ isSetAsSecret }) => isSetAsSecret),
-      },
-      {
-        label: "Environment",
-        isSet: requirements.some(
-          ({ isSetInEnvironment }) => isSetInEnvironment
-        ),
-      },
-    ],
+    sources: sources.map(({ source, completeness }) => {
+      const label = SOURCE_LABELS[source];
+      switch (completeness.state) {
+        case "set":
+          return { category: "succeeded", label };
+        case "partial":
+          return {
+            category: "needs-credentials",
+            label,
+            detail: `${completeness.setCount} of ${completeness.requiredCount}`,
+          };
+        case "unset":
+          return { category: "unset", label };
+        default:
+          return assertUnreachable(completeness);
+      }
+    }),
+  };
+}
+
+function getSavedCredentialPresence(
+  requirements: ModelProvider["credentialRequirements"],
+  browserKeys: ReadonlySet<string>
+): CredentialPresence {
+  const namesWhere = (
+    isSet: (requirement: (typeof requirements)[number]) => boolean
+  ) => new Set(requirements.filter(isSet).map(({ envVarName }) => envVarName));
+  return {
+    browser: browserKeys,
+    secret: namesWhere(({ isSetAsSecret }) => isSetAsSecret),
+    environment: namesWhere(({ isSetInEnvironment }) => isSetInEnvironment),
   };
 }

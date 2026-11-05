@@ -27,12 +27,14 @@ import { redactedPreviewText } from "@phoenix/utils/redactionUtils";
 
 import type { ProviderCredentialsDialogSaveSecretsMutation } from "./__generated__/ProviderCredentialsDialogSaveSecretsMutation.graphql";
 import type { ProviderCredentialsDialogSecretsQuery } from "./__generated__/ProviderCredentialsDialogSecretsQuery.graphql";
+import { getCredentialWarnings } from "./providerCredentialSources";
 
 export type ProviderCredentialsDialogProvider = {
   readonly name: string;
   readonly key: string;
   readonly credentialRequirements: ReadonlyArray<{
     readonly envVarName: string;
+    readonly isRequired: boolean;
     readonly isSetInEnvironment: boolean;
     readonly isSetAsSecret: boolean;
   }>;
@@ -182,6 +184,26 @@ function ProviderCredentialsForm({
     ? envVarNames.filter((name) => secretDrafts[name] !== savedSecrets[name])
     : [];
   const isDirty = changedBrowser.length > 0 || changedSecrets.length > 0;
+  const namesWhere = (isSet: (envVarName: string) => boolean) =>
+    new Set(envVarNames.filter(isSet));
+  const warnings = getCredentialWarnings({
+    requirements,
+    presence: {
+      browser: namesWhere((name) => browserDrafts[name].trim() !== ""),
+      secret: isAdmin
+        ? namesWhere((name) => secretDrafts[name].trim() !== "")
+        : namesWhere(
+            (name) =>
+              requirements.find(({ envVarName }) => envVarName === name)
+                ?.isSetAsSecret ?? false
+          ),
+      environment: namesWhere(
+        (name) =>
+          requirements.find(({ envVarName }) => envVarName === name)
+            ?.isSetInEnvironment ?? false
+      ),
+    },
+  });
 
   const saveBrowser = () => {
     if (!isModelProvider(provider.key)) {
@@ -306,6 +328,11 @@ function ProviderCredentialsForm({
               />
             ))}
           </section>
+          {warnings.map((warning) => (
+            <Alert key={warning} variant="warning">
+              {warning}
+            </Alert>
+          ))}
         </Flex>
       </View>
       <DialogFooter>

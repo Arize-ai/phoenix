@@ -32,6 +32,7 @@ const PROVIDER: ProviderCredentialsDialogProvider = {
   credentialRequirements: [
     {
       envVarName: "OPENAI_API_KEY",
+      isRequired: true,
       isSetInEnvironment: true,
       isSetAsSecret: true,
     },
