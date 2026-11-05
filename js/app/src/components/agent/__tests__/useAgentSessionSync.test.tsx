@@ -6,6 +6,18 @@ import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as AgentSessionRelay from "../agentSessionRelay";
+
+const fetchAgentSessionSyncStateMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../agentSessionRelay", async (importOriginal) => {
+  const actual = await importOriginal<typeof AgentSessionRelay>();
+  return {
+    ...actual,
+    fetchAgentSessionSyncState: fetchAgentSessionSyncStateMock,
+  };
+});
+
 import { SESSION_CANCELLATION_GRACE_MS } from "@phoenix/agent/chat/sessionCancellation";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
@@ -37,6 +49,7 @@ function SyncProbe({
   isActive = true,
   isCompacting = false,
   isBusyElsewhere = false,
+  shouldSyncOnMount = false,
 }: {
   sessionId?: string | null;
   chatInstance: Chat<AgentUIMessage>;
@@ -44,6 +57,7 @@ function SyncProbe({
   isActive?: boolean;
   isCompacting?: boolean;
   isBusyElsewhere?: boolean;
+  shouldSyncOnMount?: boolean;
 }) {
   const lastSyncedRef = useRef(null);
   useAgentSessionSync({
@@ -53,7 +67,7 @@ function SyncProbe({
     isActive,
     isCompacting,
     isBusyElsewhere,
-    shouldSyncOnMount: false,
+    shouldSyncOnMount,
     lastSyncedSessionStateRef: lastSyncedRef,
   });
   return null;
@@ -76,6 +90,7 @@ describe("useAgentSessionSync turn-lock cancellation grace", () => {
     store = createAgentStore();
     relayEnvironment = createRelayEnvironment();
     chatInstance = createStubChat({ status: "ready" });
+    fetchAgentSessionSyncStateMock.mockReset();
   });
 
   afterEach(() => {
@@ -165,5 +180,153 @@ describe("useAgentSessionSync turn-lock cancellation grace", () => {
     expect(
       store.getState().isBusyElsewhereBySessionId["session-1"]
     ).toBeUndefined();
+  });
+});
+
+describe("useAgentSessionSync polling cancellation grace", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let store: AgentStore;
+  let relayEnvironment: Environment;
+  let chatInstance: Chat<AgentUIMessage>;
+
+  beforeEach(() => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-01T00:00:00.000Z"));
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    store = createAgentStore();
+    relayEnvironment = createRelayEnvironment();
+    chatInstance = createStubChat({ status: "ready" });
+    fetchAgentSessionSyncStateMock.mockReset();
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    vi.useRealTimers();
+  });
+
+  function renderProbe(props: Partial<Parameters<typeof SyncProbe>[0]> = {}) {
+    act(() => {
+      root.render(
+        <RelayEnvironmentProvider environment={relayEnvironment}>
+          <AgentContext.Provider value={store}>
+            <SyncProbe chatInstance={chatInstance} {...props} />
+          </AgentContext.Provider>
+        </RelayEnvironmentProvider>
+      );
+    });
+  }
+
+  it("does not mark session busy-elsewhere when poll probe reports active session during cancellation grace", async () => {
+    store.getState().markSessionLocallyCancelled("session-1");
+    fetchAgentSessionSyncStateMock.mockResolvedValue({
+      isActive: true,
+      updatedAt: "2026-01-01T00:00:00Z",
+      lastMessageId: "msg-1",
+    });
+
+    renderProbe({
+      sessionId: "session-1",
+      isActive: false,
+      shouldSyncOnMount: true,
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchAgentSessionSyncStateMock).toHaveBeenCalled();
+    expect(
+      store.getState().isBusyElsewhereBySessionId["session-1"]
+    ).toBeUndefined();
+  });
+
+  it("clears local cancellation marker when poll probe reports an idle session", async () => {
+    store.getState().markSessionLocallyCancelled("session-1");
+    expect(
+      store.getState().locallyCancelledSessionAtBySessionId["session-1"]
+    ).toBeTypeOf("number");
+
+    fetchAgentSessionSyncStateMock.mockResolvedValue({
+      isActive: false,
+      updatedAt: "2026-01-01T00:00:00Z",
+      lastMessageId: "msg-1",
+    });
+
+    renderProbe({
+      sessionId: "session-1",
+      isActive: false,
+      shouldSyncOnMount: true,
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchAgentSessionSyncStateMock).toHaveBeenCalled();
+    expect(
+      store.getState().locallyCancelledSessionAtBySessionId["session-1"]
+    ).toBeUndefined();
+  });
+
+  it("eventually marks session busy-elsewhere when poll probe reports active session after cancellation grace expires", async () => {
+    store.getState().markSessionLocallyCancelled("session-1");
+    fetchAgentSessionSyncStateMock.mockResolvedValue({
+      isActive: true,
+      updatedAt: "2026-01-01T00:00:00Z",
+      lastMessageId: "msg-1",
+    });
+
+    renderProbe({
+      sessionId: "session-1",
+      isActive: false,
+      shouldSyncOnMount: true,
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(
+      store.getState().isBusyElsewhereBySessionId["session-1"]
+    ).toBeUndefined();
+
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+      await Promise.resolve();
+    });
+
+    expect(store.getState().isBusyElsewhereBySessionId["session-1"]).toBe(true);
+  });
+
+  it("reschedules the busy re-check when cancellation happens again during the grace period", () => {
+    store.getState().markSessionLocallyCancelled("session-1");
+
+    renderProbe({ sessionId: "session-1", isActive: true });
+
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+      store.getState().markSessionLocallyCancelled("session-1");
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(SESSION_CANCELLATION_GRACE_MS - 2_000 + 1);
+    });
+
+    expect(
+      store.getState().isBusyElsewhereBySessionId["session-1"]
+    ).toBeUndefined();
+
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+    });
+
+    expect(store.getState().isBusyElsewhereBySessionId["session-1"]).toBe(true);
   });
 });

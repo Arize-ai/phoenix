@@ -2,7 +2,10 @@ import { isToolUIPart } from "ai";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SESSION_BUSY_ERROR_CODE } from "@phoenix/agent/chat/agentChatApi";
+import {
+  SESSION_BUSY_ERROR_CODE,
+  SESSION_MESSAGES_STALE_ERROR_CODE,
+} from "@phoenix/agent/chat/agentChatApi";
 import { createClientToolTimingRecorder } from "@phoenix/agent/chat/clientToolTimings";
 import {
   applyClientToolTimingMetadata,
@@ -317,11 +320,11 @@ describe("createAgentSessionChat rehydration", () => {
 describe("createAgentSessionChat busy conflict handling", () => {
   const sessionId = "test-session";
 
-  function createBusyResponse(): Response {
+  function createConflictResponse(code: string): Response {
     return new Response(
       JSON.stringify({
-        code: SESSION_BUSY_ERROR_CODE,
-        message: "Another client holds the session lock.",
+        code,
+        message: "Session conflict.",
       }),
       {
         status: 409,
@@ -333,7 +336,9 @@ describe("createAgentSessionChat busy conflict handling", () => {
   }
 
   it("does not enter busy-elsewhere mode for a conflict during local cancellation grace", async () => {
-    const fetchMock = vi.fn(async () => createBusyResponse());
+    const fetchMock = vi.fn(async () =>
+      createConflictResponse(SESSION_BUSY_ERROR_CODE)
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const store = createAgentStore();
@@ -355,10 +360,15 @@ describe("createAgentSessionChat busy conflict handling", () => {
     expect(
       store.getState().isBusyElsewhereBySessionId[sessionId]
     ).toBeUndefined();
+    expect(store.getState().sessionNoticeBySessionId[sessionId]).toBe(
+      "previousTurnCancelled"
+    );
   });
 
   it("still enters busy-elsewhere mode for a genuine busy conflict", async () => {
-    const fetchMock = vi.fn(async () => createBusyResponse());
+    const fetchMock = vi.fn(async () =>
+      createConflictResponse(SESSION_BUSY_ERROR_CODE)
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const store = createAgentStore();
@@ -383,7 +393,9 @@ describe("createAgentSessionChat busy conflict handling", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-26T06:00:00.000Z"));
 
-    const fetchMock = vi.fn(async () => createBusyResponse());
+    const fetchMock = vi.fn(async () =>
+      createConflictResponse(SESSION_BUSY_ERROR_CODE)
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const store = createAgentStore();
@@ -391,6 +403,30 @@ describe("createAgentSessionChat busy conflict handling", () => {
 
     // Advance beyond the local cancellation grace period.
     vi.advanceTimersByTime(SESSION_CANCELLATION_GRACE_MS + 1_000);
+
+    const chat = createAgentSessionChat({
+      sessionId,
+      seedMessages: [],
+      store,
+      relayEnvironment: createRelayEnvironment(),
+      onTranscriptSynced: () => undefined,
+    });
+
+    await chat.sendMessage({ text: "Test message" }).catch(() => undefined);
+    await flushMicrotasks();
+
+    expect(fetchMock).toHaveBeenCalled();
+
+    expect(store.getState().isBusyElsewhereBySessionId[sessionId]).toBe(true);
+  });
+
+  it("enters busy-elsewhere mode for a messages-stale conflict", async () => {
+    const fetchMock = vi.fn(async () =>
+      createConflictResponse(SESSION_MESSAGES_STALE_ERROR_CODE)
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const store = createAgentStore();
 
     const chat = createAgentSessionChat({
       sessionId,

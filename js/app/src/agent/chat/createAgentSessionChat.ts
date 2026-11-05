@@ -354,16 +354,16 @@ export function createAgentSessionChat({
         });
         return;
       }
-      if (isBusyRejection) {
-        const cancelledAt =
-          store.getState().locallyCancelledSessionAtBySessionId[sessionId];
-        if (isSessionSelfCancellationGraceActive(cancelledAt)) {
-          store.getState().setSessionNotice(sessionId, "previousTurnCancelled");
-        } else {
-          store.getState().setSessionBusyElsewhere(sessionId, true);
-        }
+      if (
+        isBusyRejection &&
+        isSessionSelfCancellationGraceActive(
+          store.getState().locallyCancelledSessionAtBySessionId[sessionId]
+        )
+      ) {
+        store.getState().setSessionNotice(sessionId, "previousTurnCancelled");
         return;
       }
+      store.getState().setSessionBusyElsewhere(sessionId, true);
     },
     onFinish: ({ messages: finalMessages, message }) => {
       turnCompletionGate.handleFinish({ finalMessages, message });

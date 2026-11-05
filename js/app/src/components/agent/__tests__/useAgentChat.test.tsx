@@ -6,6 +6,10 @@ import { RelayEnvironmentProvider } from "react-relay";
 import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  SESSION_BUSY_ERROR_CODE,
+  buildAgentCompactApiUrl,
+} from "@phoenix/agent/chat/agentChatApi";
 import { getRemovedUserMessageText } from "@phoenix/agent/chat/removedUserMessageText";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { AgentContext } from "@phoenix/contexts/AgentContext";
@@ -22,6 +26,11 @@ vi.mock("@phoenix/contexts/AgentChatRuntimeContext", () => ({
     evictChat: vi.fn(),
   }),
 }));
+
+async function flushMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
 function createRelayEnvironment() {
   return new Environment({
@@ -247,7 +256,145 @@ describe("useAgentChat stop cancellation marker", () => {
     });
 
     expect(
-      store.getState().locallyCancelledSessionAtBySessionId["session-1"]
+      Object.keys(store.getState().locallyCancelledSessionAtBySessionId)
+    ).toEqual([]);
+  });
+});
+
+describe("useAgentChat compaction busy-conflict handling", () => {
+  const SESSION_ID = "session-1";
+  let container: HTMLDivElement;
+  let root: Root;
+  let store: AgentStore;
+  let relayEnvironment: Environment;
+  let capturedChatApi: ReturnType<typeof useAgentChat> | null = null;
+
+  function ChatProbe({ sessionId }: { sessionId: string }) {
+    const chatApi = useAgentChat({ sessionId });
+    useEffect(() => {
+      capturedChatApi = chatApi;
+    }, [chatApi]);
+    return null;
+  }
+
+  function renderProbe() {
+    act(() => {
+      root.render(
+        <RelayEnvironmentProvider environment={relayEnvironment}>
+          <AgentContext.Provider value={store}>
+            <ChatProbe sessionId={SESSION_ID} />
+          </AgentContext.Provider>
+        </RelayEnvironmentProvider>
+      );
+    });
+  }
+
+  beforeEach(() => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    store = createAgentStore();
+    relayEnvironment = createRelayEnvironment();
+    capturedChatApi = null;
+    mockChatInstance = createStubChat({ status: "ready" });
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    vi.unstubAllGlobals();
+  });
+
+  it("sets previousTurnCancelled notice instead of busy-elsewhere when compact 409 arrives during local cancellation grace", async () => {
+    const compactUrl = buildAgentCompactApiUrl(SESSION_ID);
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === compactUrl) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              code: SESSION_BUSY_ERROR_CODE,
+              message: "Session busy.",
+            }),
+            {
+              status: 409,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    store.getState().markSessionLocallyCancelled(SESSION_ID);
+
+    renderProbe();
+    expect(capturedChatApi).not.toBeNull();
+
+    await act(async () => {
+      capturedChatApi!.compactSession();
+      while (store.getState().isCompactionPendingBySessionId[SESSION_ID]) {
+        await flushMicrotasks();
+      }
+      await flushMicrotasks();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      compactUrl,
+      expect.objectContaining({ method: "POST" })
+    );
+
+    expect(
+      store.getState().isBusyElsewhereBySessionId[SESSION_ID]
     ).toBeUndefined();
+    expect(store.getState().sessionNoticeBySessionId[SESSION_ID]).toBe(
+      "previousTurnCancelled"
+    );
+  });
+
+  it("enters busy-elsewhere mode for a genuine compact 409 outside cancellation grace", async () => {
+    const compactUrl = buildAgentCompactApiUrl(SESSION_ID);
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === compactUrl) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              code: SESSION_BUSY_ERROR_CODE,
+              message: "Session busy.",
+            }),
+            {
+              status: 409,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        );
+      }
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderProbe();
+    expect(capturedChatApi).not.toBeNull();
+
+    await act(async () => {
+      capturedChatApi!.compactSession();
+      while (store.getState().isCompactionPendingBySessionId[SESSION_ID]) {
+        await flushMicrotasks();
+      }
+      await flushMicrotasks();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      compactUrl,
+      expect.objectContaining({ method: "POST" })
+    );
+
+    expect(store.getState().isBusyElsewhereBySessionId[SESSION_ID]).toBe(true);
+    expect(store.getState().sessionNoticeBySessionId[SESSION_ID]).not.toBe(
+      "previousTurnCancelled"
+    );
   });
 });

@@ -999,8 +999,8 @@ export function ChatView({
                   setSessionNotice(sessionId, null);
                 }}
               >
-                The previous turn was stopped. Your unsent message is still in
-                the input below.
+                The previous turn was stopped but is still finishing on the
+                server. Your request could not be completed. Please try again.
               </Alert>
             </div>
           ) : null}

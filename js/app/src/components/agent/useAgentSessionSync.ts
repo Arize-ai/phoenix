@@ -137,19 +137,36 @@ export function useAgentSessionSync({
         0,
         SESSION_CANCELLATION_GRACE_MS - (Date.now() - (cancelledAt ?? 0)) + 1
       );
-      const timeoutId = setTimeout(() => {
+      const scheduleBusyRecheck = () => {
         const currentState = store.getState();
         const currentCancelledAt =
           currentState.locallyCancelledSessionAtBySessionId[persistedSessionId];
+
+        if (isSessionSelfCancellationGraceActive(currentCancelledAt)) {
+          const remainingMs = Math.max(
+            0,
+            SESSION_CANCELLATION_GRACE_MS -
+              (Date.now() - (currentCancelledAt ?? 0)) +
+              1
+          );
+
+          timeoutId = setTimeout(scheduleBusyRecheck, remainingMs);
+          return;
+        }
+
         if (
-          !isSessionSelfCancellationGraceActive(currentCancelledAt) &&
           currentState.isBusyElsewhereBySessionId[persistedSessionId] !==
             true &&
           !isRequestActive(chatInstance.status)
         ) {
           currentState.setSessionBusyElsewhere(persistedSessionId, true);
         }
-      }, remainingMs);
+      };
+
+      let timeoutId: ReturnType<typeof setTimeout>;
+
+      timeoutId = setTimeout(scheduleBusyRecheck, remainingMs);
+
       return () => {
         clearTimeout(timeoutId);
       };
