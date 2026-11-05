@@ -141,11 +141,12 @@ The app supplies `session_id` for the current chat. `using_session` records it a
 
     ```text wrap
     Add conversation tracking to the Wonder Toys app using the Phoenix tracing skill.
-    Inspect src/components/Chat.tsx, src/app/api/chat/route.ts, backend/main.py, backend/agent.py, and the existing tracing setup. Show the proposed changes first.
+    Inspect how this app starts a conversation, sends messages to the backend, and records traces. Find where the conversation ID should be created and passed through. Show the proposed changes before editing.
 
     - Store a conversation ID in browser sessionStorage as chat-session-id.
     - Reuse it for follow-ups and reset it when the Wonder Toys logo starts a new chat.
     - Send it as x-session-id through the web app to the Python backend.
+    - In the web route, Python chat endpoint, and stream_agent, preserve a supplied session ID. Generate a UUID only when the ID is missing or empty.
     - Pass it to stream_agent. Use using_session around the existing Wonder Toys span and include session_id in the LangChain metadata.
     - Reuse the existing tracer provider and preserve the agent's streaming behavior.
     - Verify that follow-ups share a session and a new chat starts a different session.

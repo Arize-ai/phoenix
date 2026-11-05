@@ -67,6 +67,8 @@ Once you've decided, record your review in that case:
 
 Do the same for the other answers, then save the file without changing its other fields. Your decisions are the **reference labels** we'll use to check the judge. Making them before you see its results keeps your review independent.
 
+If an AI assistant supplies the labels, follow the [practice-review instructions](https://github.com/Arize-ai/project-rosetta-stone/blob/main/academy/evaluations/README.md#validate-the-budget-judge) and use `review_source: "assistant_review"`. AI labels let you test the workflow, but they don't count as human validation.
+
 ## Step 2: Write a rubric the judge can apply
 
 You've made your own decisions. Now let's explain those same rules to the model in a **rubric**, the instructions it will use to review an answer.
@@ -119,11 +121,10 @@ Let's first look at the judge defined in `budget_judge.py`. The code is already 
 
 ```python wrap
 def make_budget_judge(model: str = DEFAULT_MODEL) -> ClassificationEvaluator:
-    rubric = RUBRIC_PATH.read_text()
     return ClassificationEvaluator(
         name="budget_compliance_judge",
         llm=LLM(provider="anthropic", model=model),
-        prompt_template=rubric,
+        prompt_template=RUBRIC_PATH.read_text(),
         choices=["pass", "fail", "needs_review"],
         include_explanation=True,
     )
@@ -131,15 +132,16 @@ def make_budget_judge(model: str = DEFAULT_MODEL) -> ClassificationEvaluator:
 
 Phoenix's [`ClassificationEvaluator`](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) combines the model (`LLM`), your rubric (`prompt_template`), and the labels it can choose (`choices`). Setting `include_explanation=True` also asks the judge to explain its decision.
 
-When `validate_judge.py` reviews an answer, it uses that judge to evaluate the case's `request` and `response`, as shown below. Your review label stays out of this call:
+The validation script calls `evaluate_budget` in `budget_judge.py`. Inside that helper, the judge receives only the request and answer:
 
 ```python wrap
-judge = make_budget_judge()
 verdict = judge.evaluate({
-    "request": case["request"],
-    "response": case["response"],
+    "request": request,
+    "response": response,
 })[0]
 ```
+
+The helper assigns `1` to `pass`, `0` to `fail`, and leaves `needs_review` unscored. Your review label stays separate for the agreement check.
 
 We'll start with 2 of the answers you reviewed. These are the ones we'll use to improve the rubric. The other 2 are kept aside for a final check in Step 5. The file already marks these groups in its `split` field:
 

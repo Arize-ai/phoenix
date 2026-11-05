@@ -22,8 +22,20 @@ You'll run these requests again to test changes, so each one needs enough contex
   Open [PXI](/docs/phoenix/pxi#get-started) and share links to the traces you reviewed. Keep **Manual Approval** enabled and review the proposed cases before saving them.
 
   ```text wrap
-  Use these reviewed traces to propose cases for `wonder-toys-shopping`. Include passing requests, observed failures, and different conditions. For each case, keep the complete request in `input` and draft an `expected_behavior` reference based on the request's requirements. Show me the cases before saving them. After I approve, add them to the dataset with working View Source Span links, preserving existing examples and avoiding duplicates.
+  Use these reviewed traces to propose cases for `wonder-toys-shopping`. Include passing requests, observed failures, and different conditions. For each example, use these JSON fields:
+
+  - Input: {"input": "the complete shopping request"}
+  - Output: {"expected_behavior": "what a correct answer should do, based on the request's requirements"}
+
+  Include the request's budget, age, toy type, and maximum number of options in each reference. Show me the cases before saving them.
+
+  After I approve:
+  - Use Add to Dataset for the selected top-level spans, preserving existing examples and avoiding duplicates.
+  - Replace the captured answers with the approved expected_behavior, keeping each example's source span.
+  - Verify that View Source Span opens the original span. A URL in metadata doesn't create this link.
   ```
+
+  If PXI can't preserve the source links, follow Steps 2 and 3 below to add the cases yourself.
 
   <Frame caption="PXI's revised proposals after reviewing the budgets and source spans. These proposals haven't been saved.">
     <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-academy/build-test-pxi-b000c4a30ebe.png" alt="PXI proposing cases for the reviewed 35 dollar, 25 dollar, and 1 dollar requests, with expected behavior and links to the source spans" />
