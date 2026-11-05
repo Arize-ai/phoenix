@@ -25,7 +25,9 @@ jobs:
               state=$(gh api "repos/$REPO/pulls/$number" --jq .state)
               if [ "$state" = "closed" ]; then
                   echo "Deleting caches for $ref"
-                  gh api -X DELETE "repos/$REPO/actions/caches?ref=$ref" > /dev/null
+                  for id in $(gh api --paginate "repos/$REPO/actions/caches?ref=$ref&per_page=100" --jq '.actions_caches[].id'); do
+                      gh api -X DELETE "repos/$REPO/actions/caches/$id" > /dev/null
+                  done
               fi
           done
           echo "Done"
