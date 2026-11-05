@@ -31,7 +31,7 @@ describe("isAbortError", () => {
 describe("getErrorMessagesFromRelayMutationError", () => {
   it("should extract error messages from a Relay mutation error", () => {
     const error = new Error(
-      `Error fetching GraphQL query "MutationName" with variables {"input":{"var1":"test"}: [{"message":"Actual Error Message 'with quotes'","locations":[{"line":4,"column":3}],"path":["responsePath"]}]`
+      `Error fetching GraphQL query "MutationName": [{"message":"Actual Error Message 'with quotes'","locations":[{"line":4,"column":3}],"path":["responsePath"]}]`
     );
     const result = getErrorMessagesFromRelayMutationError(error);
     expect(result).toEqual(["Actual Error Message 'with quotes'"]);

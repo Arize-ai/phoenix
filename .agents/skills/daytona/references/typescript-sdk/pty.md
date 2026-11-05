@@ -244,6 +244,9 @@ try {
     id: 'session',
     cols: 120,
     rows: 30,
+    onData: (data) => {
+      process.stdout.write(new TextDecoder().decode(data))
+    },
   })
   // Do work...
 } finally {

@@ -55,22 +55,20 @@ import type { ExperimentDetailsDialogQuery } from "./__generated__/ExperimentDet
 
 function ExperimentDetailsDialogSkeleton() {
   return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <Skeleton height={24} width={200} />
-          <DialogTitleExtra>
-            <DialogCloseButton slot="close" />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <View padding="size-200">
-          <Flex direction="column" gap="size-200">
-            <Skeleton height={100} />
-            <Skeleton height={100} />
-          </Flex>
-        </View>
-      </DialogContent>
-    </Dialog>
+    <>
+      <DialogHeader>
+        <Skeleton height={24} width={200} />
+        <DialogTitleExtra>
+          <DialogCloseButton slot="close" />
+        </DialogTitleExtra>
+      </DialogHeader>
+      <View padding="size-200">
+        <Flex direction="column" gap="size-200">
+          <Skeleton height={100} />
+          <Skeleton height={100} />
+        </Flex>
+      </View>
+    </>
   );
 }
 

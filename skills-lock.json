@@ -5,19 +5,19 @@
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/create-task/SKILL.md",
-      "computedHash": "b2e66a678ae1647e8c7047b82c80a16ed33bc804bbdd10baf7fcacbe3fe4214b"
+      "computedHash": "431d3c060b697a7e2112729c7278758026be1c77768b7eaa8785aeeb3c37a29c"
     },
     "daytona": {
       "source": "daytona/skills",
       "sourceType": "github",
       "skillPath": "skills/daytona/SKILL.md",
-      "computedHash": "d8dd2ff2edb38d2db403b9d342449753be6815e4d99f39a043634f997abdeb98"
+      "computedHash": "2d869388d88e3ed7241ea1e0fe274f2efbb809eb90412e73a2b50ab5c8422448"
     },
     "gh-stack": {
       "source": "github/gh-stack",
       "sourceType": "github",
       "skillPath": "skills/gh-stack/SKILL.md",
-      "computedHash": "6a5289601eedbeedc2d79c2d8627277afb9b9a3fbd78b4da3399a46dd788ae0a"
+      "computedHash": "e54bf50370987f13ca2803b3be829f36350b68a79dc36ffd3b27350bc6d2fde1"
     },
     "harbor-exec": {
       "source": "harbor-framework/harbor",
@@ -29,20 +29,20 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "de9ca2fce0e71912d02a8702096c875e1f52e726dad5e2d72245c188a473d481",
-      "wellKnownDigest": "sha256:18b947ad9ab1ce972d0cc2d7394221ab0cc3699eddffb08decb876f40eb59435"
+      "computedHash": "87622db935f9aa21710aff22b7e7d5ca8c0810e7ce4fcff3af5f4d28714b716b",
+      "wellKnownDigest": "sha256:d7de9ea1caf3f169593851387153d150a25347427baa8d3160c3f131b64e5380"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/rewardkit/SKILL.md",
-      "computedHash": "b0291c702c0fa70bd1087f4bfcd8cdd09583f36de1e22457fbf4f0458a2e0988"
+      "computedHash": "b51a29fdbc029f55c684126a9dca340f0963133c75aad43eda9152bc84a5b42a"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-best-practices/SKILL.md",
-      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
     }
   }
 }

@@ -27,6 +27,7 @@ import {
   DisclosureArrow,
   Empty,
   Flex,
+  ListSkeleton,
   Loading,
   Text,
   Truncate,
@@ -58,10 +59,15 @@ import type { SessionDetailsTracesViewTreeQuery } from "@phoenix/pages/trace/__g
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
-import { SpanDetails } from "./SpanDetails";
+import { SpanDetails, SpanDetailsSkeleton } from "./SpanDetails";
 import { SpanInfoCardsProvider } from "./SpanInfoCardsContext";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
+
+const SESSION_TRACES_VIEW_LAYOUT_OPTIONS = {
+  id: "session-traces-view-layout",
+  storage: localStorage,
+};
 
 export const sessionDetailsTracesViewQuery = graphql`
   query SessionDetailsTracesViewQuery($id: ID!, $first: Int!) {
@@ -240,10 +246,9 @@ export function SessionDetailsTracesView({
     }
   }, [hasNext, isLoadingNext, loadNext, traces]);
 
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "session-traces-view-layout",
-    storage: localStorage,
-  });
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout(
+    SESSION_TRACES_VIEW_LAYOUT_OPTIONS
+  );
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
@@ -296,6 +301,35 @@ export function SessionDetailsTracesView({
         <SpanInfoCardsProvider>
           <SpanDetailsPanel selectedSpanNodeId={selectedSpanNodeId} />
         </SpanInfoCardsProvider>
+      </Panel>
+    </Group>
+  );
+}
+
+/**
+ * A loading placeholder for `SessionDetailsTracesView`: the session's trace
+ * list beside the selected span's details, split as the loaded view is.
+ */
+export function SessionDetailsTracesViewSkeleton() {
+  const { defaultLayout } = useDefaultLayout(
+    SESSION_TRACES_VIEW_LAYOUT_OPTIONS
+  );
+  const [searchParams] = useSearchParams();
+  const hasSelectedSpan = searchParams.has(SELECTED_SPAN_NODE_ID_PARAM);
+  return (
+    <Group
+      orientation="horizontal"
+      defaultLayout={defaultLayout}
+      css={viewGroupCSS}
+      aria-busy="true"
+    >
+      <Panel id="session-traces-list" defaultSize="50%" minSize="20%">
+        <div css={traceListSkeletonPanelCSS}>
+          <ListSkeleton itemCount={5} fadeEdge="bottom" aria-hidden />
+        </div>
+      </Panel>
+      <Panel id="session-traces-span-details">
+        {hasSelectedSpan ? <SpanDetailsSkeleton /> : null}
       </Panel>
     </Group>
   );
@@ -604,7 +638,7 @@ function SpanDetailsPanel({
   }
   return (
     <div css={spanDetailsContainerCSS} data-testid="session-span-details">
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<SpanDetailsSkeleton />}>
         <SpanDetails key={selectedSpanNodeId} spanNodeId={selectedSpanNodeId} />
       </Suspense>
     </div>
@@ -700,6 +734,12 @@ const traceRowHeaderCSS = css`
   &:hover {
     background: var(--global-list-item-hover-background-color);
   }
+`;
+
+const traceListSkeletonPanelCSS = css`
+  box-sizing: border-box;
+  height: 100%;
+  padding: var(--global-dimension-size-100);
 `;
 
 const chevronCSS = css`

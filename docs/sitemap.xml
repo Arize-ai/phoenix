@@ -630,11 +630,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
-    <lastmod>2025-12-12T01:23:03.604Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents</loc>
 
   </url>
@@ -1960,11 +1955,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/mcp-server</loc>
-    <lastmod>2025-12-12T01:23:03.594Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/overview</loc>
     <lastmod>2025-12-13T01:25:06.716Z</lastmod>
   </url>
@@ -2269,8 +2259,4 @@
     
   </url>
 
-  <url>
-    <loc>https://arize.com/docs/phoenix/user-guide</loc>
-    <lastmod>2025-12-10T05:17:16.699Z</lastmod>
-  </url>
 </urlset>

@@ -21,6 +21,8 @@ from starlette.responses import Response
 from starlette.routing import BaseRoute, Match
 from starlette.types import Scope
 
+from phoenix.server.utils import strip_root_path
+
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
     documentation="Summary of requests processing time by method and path (in seconds)",
@@ -169,8 +171,9 @@ def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[s
             continue
         if isinstance(route, _IncludedRouter):
             prefix = route.include_context.prefix or ""
-            stripped_path = scope["path"][len(prefix) :]
-            sub_scope = {**scope, "path": stripped_path} if prefix else scope
+            # scope["path"] includes the root path; strip prefixes from the root-relative path.
+            stripped_path = strip_root_path(scope, scope["path"])[len(prefix) :]
+            sub_scope = {**scope, "path": stripped_path, "root_path": ""} if prefix else scope
             sub_path = _resolve_route_path(route.original_router.routes, sub_scope)
             if sub_path is not None:
                 return _join_paths(prefix, sub_path)
@@ -198,9 +201,13 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def start_prometheus() -> None:
+def start_prometheus(host: str) -> None:
+    """Start the unauthenticated metrics endpoint on port 9090.
+
+    ``host`` comes from ``canonicalize_host``.
+    """
     Thread(target=gather_system_data, daemon=True).start()
-    start_http_server(9090, addr="::")
+    start_http_server(9090, addr=host)
 
 
 def gather_system_data() -> None:

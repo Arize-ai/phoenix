@@ -112,10 +112,10 @@ jobs:
       - name: Send message to Slack
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             {
-              "type": "mrkdwn",
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
               "text": ":x: Docker Nightly Publication Failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }

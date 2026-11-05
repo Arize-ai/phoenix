@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 from typing import AsyncIterator
 
-import httpx
+import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
@@ -41,15 +41,17 @@ async def asgi_app_with_auth(app_with_auth: FastAPI) -> AsyncIterator[ASGIApp]:
 
 
 @pytest.fixture
-def client_with_auth(asgi_app_with_auth: ASGIApp) -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=asgi_app_with_auth),
+def client_with_auth(asgi_app_with_auth: ASGIApp) -> httpx2.AsyncClient:
+    return httpx2.AsyncClient(
+        transport=httpx2.ASGITransport(app=asgi_app_with_auth),
         base_url="http://test",
     )
 
 
 class TestProtectedResourceMetadata:
-    async def test_returns_json_with_resource_fields(self, httpx_client: httpx.AsyncClient) -> None:
+    async def test_returns_json_with_resource_fields(
+        self, httpx_client: httpx2.AsyncClient
+    ) -> None:
         resp = await httpx_client.get("/.well-known/oauth-protected-resource")
         assert resp.status_code == 200
         assert "application/json" in resp.headers["content-type"]
@@ -63,7 +65,7 @@ class TestProtectedResourceMetadata:
 
 
 class TestGetAuthMd:
-    async def test_no_auth_content(self, httpx_client: httpx.AsyncClient) -> None:
+    async def test_no_auth_content(self, httpx_client: httpx2.AsyncClient) -> None:
         resp = await httpx_client.get("/auth.md")
         assert resp.status_code == 200
         assert "text/markdown" in resp.headers["content-type"]
@@ -71,7 +73,7 @@ class TestGetAuthMd:
         assert "# auth.md" in body
         assert "without authentication" in body
 
-    async def test_auth_enabled_content(self, client_with_auth: httpx.AsyncClient) -> None:
+    async def test_auth_enabled_content(self, client_with_auth: httpx2.AsyncClient) -> None:
         resp = await client_with_auth.get("/auth.md")
         assert resp.status_code == 200
         assert "text/markdown" in resp.headers["content-type"]
@@ -87,7 +89,7 @@ class TestGetAuthMd:
 
 class TestWWWAuthenticateHeader:
     async def test_401_includes_www_authenticate_when_auth_enabled(
-        self, client_with_auth: httpx.AsyncClient
+        self, client_with_auth: httpx2.AsyncClient
     ) -> None:
         resp = await client_with_auth.get("/v1/projects")
         assert resp.status_code == 401
@@ -96,7 +98,7 @@ class TestWWWAuthenticateHeader:
         assert 'resource_metadata="http://test/.well-known/oauth-protected-resource"' in www_auth
 
     async def test_non_401_response_has_no_www_authenticate(
-        self, client_with_auth: httpx.AsyncClient
+        self, client_with_auth: httpx2.AsyncClient
     ) -> None:
         resp = await client_with_auth.get("/healthz")
         assert resp.status_code == 200
@@ -148,8 +150,8 @@ class TestWWWAuthenticateHeader:
                 secret=SecretStr("test-secret-at-least-32-chars-long!!"),
             )
             manager = await stack.enter_async_context(LifespanManager(app))
-            client = httpx.AsyncClient(
-                transport=httpx.ASGITransport(app=manager.app),
+            client = httpx2.AsyncClient(
+                transport=httpx2.ASGITransport(app=manager.app),
                 base_url="http://test",
             )
             resp = await client.get("/v1/projects")

@@ -1,0 +1,71 @@
+---
+title: "Novita AI Tracing"
+description: "Trace Novita AI calls in Phoenix with OpenInference auto-instrumentation for the OpenAI Python SDK, since Novita AI provides an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Novita AI](https://novita.ai/) provides model APIs with OpenAI-compatible chat completions support. Point the OpenAI client at Novita AI's OpenAI-compatible endpoint and use [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai) to send traces to Phoenix.
+
+<Note>
+This page uses Novita AI's OpenAI-compatible API. There is no separate Novita-specific OpenInference instrumentor required.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Novita AI API key and the model you want to call as environment variables:
+
+```bash
+export NOVITA_API_KEY="<your-novita-api-key>"
+export NOVITA_MODEL="<your-novita-model-id>"
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Novita AI
+
+```python
+import os
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://api.novita.ai/openai",
+    api_key=os.environ["NOVITA_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    model=os.environ["NOVITA_MODEL"],
+    messages=[
+        {
+            "role": "user",
+            "content": "What should teams inspect when an LLM answer is wrong?",
+        },
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Novita AI will be streamed to your running Phoenix for observability and evaluation. Each call appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **Spans missing**: `register(..., auto_instrument=True)` must run before your application sends requests, and `openinference-instrumentation-openai` must be installed in the same environment
+* **`401` from Novita AI**: Use your Novita AI API key, not an OpenAI key
+* **Model not found**: Confirm `NOVITA_MODEL` matches a model identifier available in your Novita AI account
+* **Base URL**: Ensure you're using `https://api.novita.ai/openai` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Novita AI LLM API" href="https://novita.ai/docs/guides/llm-api" icon="book" horizontal description="Novita AI LLM API docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>
