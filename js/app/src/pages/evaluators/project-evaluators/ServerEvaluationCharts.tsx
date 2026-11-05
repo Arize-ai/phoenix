@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import type { TooltipContentProps } from "recharts";
@@ -40,7 +41,9 @@ import {
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
+  useSemanticChartColors,
 } from "@phoenix/components/chart";
+import { Skeleton } from "@phoenix/components/core/loading";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -66,6 +69,9 @@ import {
 type Activity = ServerEvaluationChartsQuery$data["evaluationActivity"];
 
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
+
+/** Waiting work reads as neutral, so completed work stands out against it. */
+const QUEUED_COLOR = "var(--global-color-gray-500)";
 
 /**
  * The server's evaluation activity over the selected range, grouped by
@@ -204,13 +210,8 @@ export function ServerEvaluationCharts({
     tickFormatter: (x: number) => timeTickFormatter(new Date(x)),
   };
   return (
-    <View
-      paddingX="size-200"
-      paddingTop="size-100"
-      height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
-      flex="none"
-    >
-      <ChartPanelStrip chartCount={3}>
+    <ChartsFrame>
+      <ChartPanelStrip chartCount={CHART_COUNT}>
         <ChartPanel title="Queue size by project" fillHeight>
           <QueueSizeChart
             activity={activity}
@@ -228,7 +229,40 @@ export function ServerEvaluationCharts({
         </ChartPanel>
         <TopProjectsPanel activity={activity} projectSeries={projectSeries} />
       </ChartPanelStrip>
+    </ChartsFrame>
+  );
+}
+
+/** Queue size by project, queued vs completed, and top projects. */
+const CHART_COUNT = 3;
+
+/** The strip's gutters and height, shared by the charts and their skeleton. */
+function ChartsFrame({ children }: { children: ReactNode }) {
+  return (
+    <View
+      paddingX="size-200"
+      paddingTop="size-100"
+      height={CHART_PANEL_STRIP_DEFAULT_HEIGHT_PIXELS}
+      flex="none"
+    >
+      {children}
     </View>
+  );
+}
+
+/**
+ * The charts while they load: a placeholder in the place and at the size of
+ * each panel.
+ */
+export function ServerEvaluationChartsSkeleton() {
+  return (
+    <ChartsFrame>
+      <ChartPanelStrip chartCount={CHART_COUNT}>
+        {Array.from({ length: CHART_COUNT }, (_, index) => (
+          <Skeleton key={index} height="100%" borderRadius="medium" />
+        ))}
+      </ChartPanelStrip>
+    </ChartsFrame>
   );
 }
 
@@ -358,7 +392,7 @@ function QueuedVsCompletedChart({
   projectSeries: ServerProjectSeries;
   xAxisProps: XAxisOverrides;
 }) {
-  const colors = useCategoryChartColors();
+  const semanticColors = useSemanticChartColors();
   const { isFiltered, isShown } = projectSeries;
   const chartData = activity.series.map((bin) => {
     const groups = isFiltered
@@ -397,7 +431,7 @@ function QueuedVsCompletedChart({
             type="monotone"
             dataKey="queued"
             name="Queued"
-            stroke={colors.category5}
+            stroke={QUEUED_COLOR}
             dot={false}
             hide={isDataKeyHidden("queued")}
             isAnimationActive={false}
@@ -406,7 +440,7 @@ function QueuedVsCompletedChart({
             type="monotone"
             dataKey="completed"
             name="Completed"
-            stroke={colors.category1}
+            stroke={semanticColors.success}
             dot={false}
             hide={isDataKeyHidden("completed")}
             isAnimationActive={false}

@@ -4,16 +4,24 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
-import { ChartPanelStripSkeleton } from "@phoenix/components/chart";
+import { Skeleton } from "@phoenix/components/core/loading";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import { TableSkeleton } from "@phoenix/components/table";
-import { ProjectEvaluatorsTabTable } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
-import { ServerEvaluationCharts } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
-import { ServerEvaluationQueueStrip } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
+import {
+  ProjectEvaluatorsTabTable,
+  ProjectEvaluatorsTabTableSkeleton,
+} from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTabTable";
+import {
+  ServerEvaluationCharts,
+  ServerEvaluationChartsSkeleton,
+} from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
+import {
+  ServerEvaluationQueueStrip,
+  ServerEvaluationQueueStripSkeleton,
+} from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
 import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
@@ -34,6 +42,9 @@ const tableScrollCSS = css`
   overflow: auto;
 `;
 
+/** Most queued first, so the evaluators holding up the queue lead. */
+const DEFAULT_SORTING: SortingState = [{ id: "queue", desc: true }];
+
 /**
  * The Evaluators page's Project evaluators tab: every project evaluator
  * running online, across all projects, with the queue they share.
@@ -52,9 +63,7 @@ function ProjectEvaluatorsTabContent() {
   // the table refetch at once instead of on their next poll.
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = () => setRefreshKey((key) => key + 1);
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "queue", desc: true },
-  ]);
+  const [sorting, setSorting] = useState<SortingState>(DEFAULT_SORTING);
   const [searchParams, setSearchParams] = useSearchParams();
   const pickedProjectIds = normalizePickedProjectIds(
     searchParams.getAll(PROJECT_PARAM)
@@ -81,7 +90,7 @@ function ProjectEvaluatorsTabContent() {
           refreshKey={refreshKey}
           onQueueCleared={refresh}
         />
-        <Suspense fallback={<ChartPanelStripSkeleton />}>
+        <Suspense fallback={<ServerEvaluationChartsSkeleton />}>
           <ServerEvaluationCharts
             fetchKey={refreshKey}
             pickedProjectIds={pickedProjectIds}
@@ -106,7 +115,9 @@ function ProjectEvaluatorsTabContent() {
           </Flex>
         </View>
         <div css={tableScrollCSS}>
-          <Suspense fallback={<TableSkeleton rowCount="fill" />}>
+          <Suspense
+            fallback={<ProjectEvaluatorsTabTableSkeleton sorting={sorting} />}
+          >
             <ProjectEvaluatorsTabTable
               filter={filter}
               projectIds={pickedProjectIds}
@@ -120,3 +131,44 @@ function ProjectEvaluatorsTabContent() {
     </QueueStatsRefreshContext.Provider>
   );
 }
+
+/**
+ * The tab while the page loads, laid out as the loaded tab is: the queue
+ * strip, the charts, the search bar with the projects filter, and the table.
+ */
+export function ProjectEvaluatorsTabSkeleton() {
+  return (
+    <>
+      <TopNavActions>
+        <Skeleton
+          width="var(--global-dimension-size-2000)"
+          height="var(--global-button-height-s)"
+        />
+      </TopNavActions>
+      <div css={pageCSS}>
+        <ServerEvaluationQueueStripSkeleton />
+        <ServerEvaluationChartsSkeleton />
+        <View padding="size-100" flex="none">
+          <div css={toolbarSkeletonCSS}>
+            <Skeleton height="var(--global-input-height-m)" />
+            <Skeleton
+              width="calc(14 * var(--global-dimension-size-100))"
+              height="var(--global-button-height-m)"
+            />
+          </div>
+        </View>
+        <div css={tableScrollCSS}>
+          <ProjectEvaluatorsTabTableSkeleton sorting={DEFAULT_SORTING} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** The search field takes the row; the projects filter keeps its width. */
+const toolbarSkeletonCSS = css`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+`;

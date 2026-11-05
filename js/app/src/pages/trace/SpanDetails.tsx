@@ -255,7 +255,7 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
                 Events{" "}
-                <Counter variant={hasExceptions ? "danger" : "default"}>
+                <Counter variant={hasExceptions ? "danger" : "quiet"}>
                   {span.events.length}
                 </Counter>
               </Tab>

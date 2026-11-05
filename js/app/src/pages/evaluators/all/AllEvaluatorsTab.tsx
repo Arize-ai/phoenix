@@ -3,10 +3,11 @@ import type { SortingState } from "@tanstack/react-table";
 import { Suspense, useState } from "react";
 
 import { DebouncedSearch, View } from "@phoenix/components";
-import { TableSkeleton } from "@phoenix/components/table";
+import { Skeleton } from "@phoenix/components/core/loading";
 import {
   ALL_EVALUATORS_DEFAULT_SORTING,
   AllEvaluatorsTable,
+  AllEvaluatorsTableSkeleton,
 } from "@phoenix/pages/evaluators/all/AllEvaluatorsTable";
 
 const pageCSS = css`
@@ -23,7 +24,7 @@ const tableScrollCSS = css`
 `;
 
 /**
- * The Evaluators page's All tab: every project evaluator and every dataset
+ * The Evaluators page's All evaluators tab: every project evaluator and every dataset
  * evaluator in one list.
  */
 export function AllEvaluatorsTab() {
@@ -47,13 +48,35 @@ export function AllEvaluatorsTab() {
         />
       </View>
       <div css={tableScrollCSS}>
-        <Suspense fallback={<TableSkeleton rowCount="fill" />}>
+        <Suspense fallback={<AllEvaluatorsTableSkeleton sorting={sorting} />}>
           <AllEvaluatorsTable
             filter={filter}
             sorting={sorting}
             onSortingChange={setSorting}
           />
         </Suspense>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The tab while the page loads, laid out as the loaded tab is: the search
+ * bar over the table.
+ */
+export function AllEvaluatorsTabSkeleton() {
+  return (
+    <div css={pageCSS}>
+      <View
+        padding="size-100"
+        flex="none"
+        borderBottomWidth="thin"
+        borderBottomColor="default"
+      >
+        <Skeleton height="var(--global-input-height-m)" />
+      </View>
+      <div css={tableScrollCSS}>
+        <AllEvaluatorsTableSkeleton sorting={ALL_EVALUATORS_DEFAULT_SORTING} />
       </div>
     </div>
   );

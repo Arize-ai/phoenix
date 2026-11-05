@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { CSSProperties } from "react";
 import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, LinkButton, Text } from "@phoenix/components";
@@ -34,8 +35,16 @@ import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
+import {
+  TableBodySkeleton,
+  TableSkeletonContainer,
+} from "@phoenix/components/table/TableBodySkeleton";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
-import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import type {
+  Column,
+  ColumnDef,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
@@ -278,6 +287,8 @@ const datasetColumn: ColumnDef<TableRow> = {
   header: "dataset",
   accessorFn: (row) => row.dataset.name,
   size: 180,
+  // A dataset name usually runs to the column's width, where it truncates.
+  meta: { textAlign: "left", skeletonWidth: 180 },
   enableSorting: false,
   cell: ({ row }) => (
     <DatasetLink
@@ -286,6 +297,206 @@ const datasetColumn: ColumnDef<TableRow> = {
     />
   ),
 };
+
+/** The table's columns, shared by the loaded table and its skeleton. */
+function getDatasetEvaluatorColumns({
+  datasetId,
+  hasActionsColumn,
+  updateConnectionIds,
+}: {
+  datasetId?: string;
+  hasActionsColumn: boolean;
+  updateConnectionIds?: string[];
+}): ColumnDef<TableRow>[] {
+  const cols: ColumnDef<TableRow>[] = [
+    {
+      header: "kind",
+      accessorKey: "kind", // special case for sorting that's handled by the backend
+      accessorFn: (row) => row.evaluator.kind,
+      size: 80,
+      meta: { textAlign: "left", skeletonWidth: 72 },
+      cell: ({ getValue }) => (
+        <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
+      ),
+    },
+    {
+      header: "name",
+      accessorKey: "name",
+      size: 200,
+      cell: ({ getValue, row }) => {
+        return (
+          <Link
+            to={`/datasets/${row.original.dataset.id}/evaluators/${row.original.id}`}
+          >
+            <Truncate maxWidth="100%">{getValue() as string}</Truncate>
+          </Link>
+        );
+      },
+    },
+    ...(datasetId ? [] : [datasetColumn]),
+    {
+      header: "description",
+      accessorKey: "description",
+      cell: TextCell,
+      enableSorting: false,
+      size: 320,
+    },
+    {
+      header: "language",
+      accessorKey: "language",
+      size: 110,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const language = row.original.evaluator.language;
+        if (!language) {
+          return <Text color="text-700">—</Text>;
+        }
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {language === "PYTHON" ? <PythonSVG /> : <TypeScriptSVG />}
+            <Text>{language === "PYTHON" ? "Python" : "TypeScript"}</Text>
+          </Flex>
+        );
+      },
+    },
+    {
+      header: "sandbox",
+      accessorKey: "sandbox",
+      size: 180,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const sandboxConfig = row.original.evaluator.sandboxConfig;
+        if (!sandboxConfig) {
+          return <Text color="text-700">—</Text>;
+        }
+        return (
+          <SandboxConfigLabel
+            sandboxConfigId={sandboxConfig.id}
+            name={sandboxConfig.name}
+            backendType={sandboxConfig.provider.backendType}
+          />
+        );
+      },
+    },
+    {
+      // Holds the LLM evaluator's prompt or the decision evaluator's decision.
+      header: "prompt / decision",
+      accessorKey: "prompt",
+      size: 180,
+      // The prompt or decision wraps at a fixed width wider than the column.
+      meta: { textAlign: "left", skeletonWidth: 180 },
+      enableSorting: false,
+      cell: ({ row }) => (
+        <>
+          <PromptCell
+            prompt={row.original.evaluator.prompt}
+            promptVersionTag={row.original.evaluator.promptVersionTag?.name}
+            wrapWidth={200}
+          />
+          <DecisionCell
+            decisionVersion={row.original.evaluator.decisionVersion}
+            wrapWidth={200}
+          />
+        </>
+      ),
+    },
+    {
+      header: "model",
+      accessorKey: "model",
+      size: 180,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const promptVersion =
+          row.original.evaluator.promptVersion ??
+          row.original.evaluator.decisionVersion;
+        if (!promptVersion) {
+          return <Text color="text-700">—</Text>;
+        }
+        const { modelName, modelProvider } = promptVersion;
+        const providerIsValid = isModelProvider(modelProvider);
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {providerIsValid && (
+              <GenerativeProviderIcon provider={modelProvider} height={16} />
+            )}
+            <Text minWidth={0}>
+              <Truncate>{modelName}</Truncate>
+            </Text>
+          </Flex>
+        );
+      },
+    },
+    {
+      header: "last modified by",
+      accessorKey: "user",
+      size: 160,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const user = row.original.user;
+        if (!user) {
+          return <Text color="text-700">—</Text>;
+        }
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <UserPicture
+              name={user.username ?? undefined}
+              profilePictureUrl={user.profilePictureUrl}
+              size={20}
+            />
+            <Text>{user.username ?? "system"}</Text>
+          </Flex>
+        );
+      },
+    },
+    {
+      header: "last updated",
+      accessorKey: "updatedAt",
+      size: 160,
+      // A full date and time.
+      meta: { textAlign: "left", skeletonWidth: 160 },
+      cell: TimestampCell,
+    },
+  ];
+  if (!hasActionsColumn) {
+    return cols;
+  }
+  // Pinned to the right edge like the prompts table's actions column.
+  cols.push({
+    header: "",
+    id: ACTIONS_COLUMN_ID,
+    size: datasetId ? 150 : 130,
+    enableSorting: false,
+    cell: ({ row }) => (
+      <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
+        {canOpenInPlayground(row.original.evaluator.kind) ? (
+          <StopPropagation>
+            <LinkButton
+              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+              size="S"
+              aria-label="Open in playground"
+              to={`/playground?${new URLSearchParams({
+                datasetId: row.original.dataset.id,
+                datasetEvaluator0: row.original.id,
+              })}`}
+            >
+              Playground
+            </LinkButton>
+          </StopPropagation>
+        ) : null}
+        {datasetId ? (
+          <DatasetEvaluatorActionMenu
+            datasetEvaluatorId={row.original.id}
+            datasetId={datasetId}
+            evaluatorKind={row.original.evaluator.kind}
+            evaluatorName={row.original.name}
+            updateConnectionIds={updateConnectionIds}
+          />
+        ) : null}
+      </Flex>
+    ),
+  });
+  return cols;
+}
 
 type DatasetEvaluatorsTableProps = {
   /**
@@ -331,6 +542,142 @@ type DatasetEvaluatorsTableProps = {
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
 };
 
+/** The header row, shared by the loaded table and its skeleton. */
+function DatasetEvaluatorsTableHead({ table }: { table: Table<TableRow> }) {
+  return (
+    <thead>
+      {table.getHeaderGroups().map((headerGroup) => (
+        <tr key={headerGroup.id}>
+          {headerGroup.headers.map((header) => (
+            <th
+              colSpan={header.colSpan}
+              key={header.id}
+              style={{
+                ...getCommonPinningStyles(header.column),
+                width: `calc(var(--header-${header.id}-size) * 1px)`,
+              }}
+            >
+              {header.isPlaceholder ? null : (
+                <>
+                  <div
+                    {...{
+                      className: header.column.getCanSort() ? "sort" : "",
+                      onClick: header.column.getToggleSortingHandler(),
+                      style: {
+                        textAlign: header.column.columnDef.meta?.textAlign,
+                      },
+                    }}
+                  >
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                    {header.column.getIsSorted() ? (
+                      <Icon
+                        className="sort-icon"
+                        svg={
+                          header.column.getIsSorted() === "asc" ? (
+                            <Icons.CaretUpFilled />
+                          ) : (
+                            <Icons.CaretDownFilled />
+                          )
+                        }
+                      />
+                    ) : null}
+                  </div>
+                  <div
+                    {...{
+                      onMouseDown: header.getResizeHandler(),
+                      onTouchStart: header.getResizeHandler(),
+                      className: `resizer ${
+                        header.column.getIsResizing() ? "isResizing" : ""
+                      }`,
+                    }}
+                  />
+                </>
+              )}
+            </th>
+          ))}
+        </tr>
+      ))}
+    </thead>
+  );
+}
+
+/**
+ * The sizes of every column as CSS variables, set on the table so a cell
+ * reads its column's size without calling `getSize()` on every render.
+ * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
+ */
+function getColumnSizeVars(table: Table<TableRow>): Record<string, number> {
+  const columnSizeVars: Record<string, number> = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
+  return columnSizeVars;
+}
+
+/** How a body cell of the column is styled, loaded or loading. */
+function getCellStyle(column: Column<TableRow>): CSSProperties {
+  const colSizeVar = `--col-${column.id}-size`;
+  return {
+    ...getCommonPinningStyles(column),
+    width: `calc(var(${colSizeVar}) * 1px)`,
+    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  };
+}
+
+const tableContainerCSS = css`
+  flex: 1 1 auto;
+  overflow: auto;
+`;
+
+/**
+ * The table while it loads: its real header over placeholder rows that fill
+ * the space the loaded rows will take. Without `datasetId` it is the
+ * cross-dataset table, whose actions column only appears once a loaded row
+ * can open in the Playground, so the skeleton leaves it out.
+ */
+export function DatasetEvaluatorsTableSkeleton({
+  datasetId,
+  sort,
+}: {
+  datasetId?: string;
+  sort?: DatasetEvaluatorSort | null;
+}) {
+  const table = useTable({
+    features: appTableFeatures,
+    columns: getDatasetEvaluatorColumns({
+      datasetId,
+      hasActionsColumn: datasetId != null,
+    }),
+    data: [] as TableRow[],
+    state: {
+      sorting: convertEvaluatorSortToTanstackSort(sort),
+      columnPinning: { start: [], end: [ACTIONS_COLUMN_ID] },
+    },
+  });
+  return (
+    <TableSkeletonContainer>
+      <table
+        css={selectableTableCSS}
+        style={{
+          ...getColumnSizeVars(table),
+          width: table.getTotalSize(),
+          minWidth: "100%",
+        }}
+      >
+        <DatasetEvaluatorsTableHead table={table} />
+        <TableBodySkeleton table={table} getCellStyle={getCellStyle} />
+      </table>
+    </TableSkeletonContainer>
+  );
+}
+
 export const DatasetEvaluatorsTable = ({
   rowReferences,
   builtInEvaluators,
@@ -373,191 +720,15 @@ export const DatasetEvaluatorsTable = ({
   const hasActionsColumn =
     datasetId != null ||
     tableData.some((row) => canOpenInPlayground(row.evaluator.kind));
-  const columns = useMemo(() => {
-    const cols: ColumnDef<TableRow>[] = [
-      {
-        header: "name",
-        accessorKey: "name",
-        size: 200,
-        cell: ({ getValue, row }) => {
-          return (
-            <Link
-              to={`/datasets/${row.original.dataset.id}/evaluators/${row.original.id}`}
-            >
-              <Truncate maxWidth="100%">{getValue() as string}</Truncate>
-            </Link>
-          );
-        },
-      },
-      ...(datasetId ? [] : [datasetColumn]),
-      {
-        header: "kind",
-        accessorKey: "kind", // special case for sorting that's handled by the backend
-        accessorFn: (row) => row.evaluator.kind,
-        size: 60,
-        cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
-        ),
-      },
-      {
-        header: "description",
-        accessorKey: "description",
-        cell: TextCell,
-        enableSorting: false,
-        size: 320,
-      },
-      {
-        header: "language",
-        accessorKey: "language",
-        size: 110,
-        enableSorting: false,
-        cell: ({ row }) => {
-          const language = row.original.evaluator.language;
-          if (!language) {
-            return <Text color="text-700">—</Text>;
-          }
-          return (
-            <Flex direction="row" gap="size-100" alignItems="center">
-              {language === "PYTHON" ? <PythonSVG /> : <TypeScriptSVG />}
-              <Text>{language === "PYTHON" ? "Python" : "TypeScript"}</Text>
-            </Flex>
-          );
-        },
-      },
-      {
-        header: "sandbox",
-        accessorKey: "sandbox",
-        size: 180,
-        enableSorting: false,
-        cell: ({ row }) => {
-          const sandboxConfig = row.original.evaluator.sandboxConfig;
-          if (!sandboxConfig) {
-            return <Text color="text-700">—</Text>;
-          }
-          return (
-            <SandboxConfigLabel
-              sandboxConfigId={sandboxConfig.id}
-              name={sandboxConfig.name}
-              backendType={sandboxConfig.provider.backendType}
-            />
-          );
-        },
-      },
-      {
-        // Holds the LLM evaluator's prompt or the decision evaluator's decision.
-        header: "prompt / decision",
-        accessorKey: "prompt",
-        size: 180,
-        enableSorting: false,
-        cell: ({ row }) => (
-          <>
-            <PromptCell
-              prompt={row.original.evaluator.prompt}
-              promptVersionTag={row.original.evaluator.promptVersionTag?.name}
-              wrapWidth={200}
-            />
-            <DecisionCell
-              decisionVersion={row.original.evaluator.decisionVersion}
-              wrapWidth={200}
-            />
-          </>
-        ),
-      },
-      {
-        header: "model",
-        accessorKey: "model",
-        size: 180,
-        enableSorting: false,
-        cell: ({ row }) => {
-          const promptVersion =
-            row.original.evaluator.promptVersion ??
-            row.original.evaluator.decisionVersion;
-          if (!promptVersion) {
-            return <Text color="text-700">—</Text>;
-          }
-          const { modelName, modelProvider } = promptVersion;
-          const providerIsValid = isModelProvider(modelProvider);
-          return (
-            <Flex direction="row" gap="size-100" alignItems="center">
-              {providerIsValid && (
-                <GenerativeProviderIcon provider={modelProvider} height={16} />
-              )}
-              <Text minWidth={0}>
-                <Truncate>{modelName}</Truncate>
-              </Text>
-            </Flex>
-          );
-        },
-      },
-      {
-        header: "last modified by",
-        accessorKey: "user",
-        size: 160,
-        enableSorting: false,
-        cell: ({ row }) => {
-          const user = row.original.user;
-          if (!user) {
-            return <Text color="text-700">—</Text>;
-          }
-          return (
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <UserPicture
-                name={user.username ?? undefined}
-                profilePictureUrl={user.profilePictureUrl}
-                size={20}
-              />
-              <Text>{user.username ?? "system"}</Text>
-            </Flex>
-          );
-        },
-      },
-      {
-        header: "last updated",
-        accessorKey: "updatedAt",
-        size: 160,
-        cell: TimestampCell,
-      },
-    ];
-    if (!hasActionsColumn) {
-      return cols;
-    }
-    // Pinned to the right edge like the prompts table's actions column.
-    cols.push({
-      header: "",
-      id: ACTIONS_COLUMN_ID,
-      size: datasetId ? 150 : 130,
-      enableSorting: false,
-      cell: ({ row }) => (
-        <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
-          {canOpenInPlayground(row.original.evaluator.kind) ? (
-            <StopPropagation>
-              <LinkButton
-                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                size="S"
-                aria-label="Open in playground"
-                to={`/playground?${new URLSearchParams({
-                  datasetId: row.original.dataset.id,
-                  datasetEvaluator0: row.original.id,
-                })}`}
-              >
-                Playground
-              </LinkButton>
-            </StopPropagation>
-          ) : null}
-          {datasetId ? (
-            <DatasetEvaluatorActionMenu
-              datasetEvaluatorId={row.original.id}
-              datasetId={datasetId}
-              evaluatorKind={row.original.evaluator.kind}
-              evaluatorName={row.original.name}
-              updateConnectionIds={updateConnectionIds}
-            />
-          ) : null}
-        </Flex>
-      ),
-    });
-    return cols;
-  }, [datasetId, hasActionsColumn, updateConnectionIds]);
+  const columns = useMemo(
+    () =>
+      getDatasetEvaluatorColumns({
+        datasetId,
+        hasActionsColumn,
+        updateConnectionIds,
+      }),
+    [datasetId, hasActionsColumn, updateConnectionIds]
+  );
 
   const table = useTable({
     features: appTableFeatures,
@@ -574,17 +745,7 @@ export const DatasetEvaluatorsTable = ({
     getRowId: (row) => row.id,
   });
 
-  /**
-   * Calculate all column sizes at once at the root table level
-   * and pass them down as CSS variables to the <table> element.
-   * This avoids calling `column.getSize()` on every render for every cell.
-   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
-   */
-  const columnSizeVars: { [key: string]: number } = {};
-  for (const header of table.getFlatHeaders()) {
-    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
-    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
-  }
+  const columnSizeVars = getColumnSizeVars(table);
 
   const fetchMoreOnBottomReached = (
     containerRefElement?: HTMLDivElement | null
@@ -624,10 +785,7 @@ export const DatasetEvaluatorsTable = ({
 
   return (
     <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
+      css={tableContainerCSS}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
@@ -639,62 +797,7 @@ export const DatasetEvaluatorsTable = ({
           minWidth: "100%",
         }}
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  colSpan={header.colSpan}
-                  key={header.id}
-                  style={{
-                    ...getCommonPinningStyles(header.column),
-                    width: `calc(var(--header-${header.id}-size) * 1px)`,
-                  }}
-                >
-                  {header.isPlaceholder ? null : (
-                    <>
-                      <div
-                        {...{
-                          className: header.column.getCanSort() ? "sort" : "",
-                          onClick: header.column.getToggleSortingHandler(),
-                          style: {
-                            textAlign: header.column.columnDef.meta?.textAlign,
-                          },
-                        }}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {header.column.getIsSorted() ? (
-                          <Icon
-                            className="sort-icon"
-                            svg={
-                              header.column.getIsSorted() === "asc" ? (
-                                <Icons.CaretUpFilled />
-                              ) : (
-                                <Icons.CaretDownFilled />
-                              )
-                            }
-                          />
-                        ) : null}
-                      </div>
-                      <div
-                        {...{
-                          onMouseDown: header.getResizeHandler(),
-                          onTouchStart: header.getResizeHandler(),
-                          className: `resizer ${
-                            header.column.getIsResizing() ? "isResizing" : ""
-                          }`,
-                        }}
-                      />
-                    </>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
+        <DatasetEvaluatorsTableHead table={table} />
         {isEmpty ? (
           <DatasetEvaluatorsEmpty
             builtInEvaluators={builtInEvaluators}
@@ -712,27 +815,14 @@ export const DatasetEvaluatorsTable = ({
                     onRowClick?.(row.original);
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => {
-                    const colSizeVar = `--col-${cell.column.id}-size`;
-                    return (
-                      <td
-                        key={cell.id}
-                        style={{
-                          ...getCommonPinningStyles(cell.column),
-                          width: `calc(var(${colSizeVar}) * 1px)`,
-                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    );
-                  })}
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} style={getCellStyle(cell.column)}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
                 </tr>
               );
             })}

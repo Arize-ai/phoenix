@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Flex, Text, View } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
+import { Skeleton } from "@phoenix/components/core/loading";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
@@ -276,13 +277,40 @@ function ServerEvaluationQueueStripContent({
   );
 }
 
-/** The strip's shape while it loads, so the page doesn't shift. */
+const statValueSkeletonCSS = css`
+  display: flex;
+  align-items: center;
+  /* A loaded value is one line of large text */
+  height: var(--global-line-height-l);
+`;
+
+/** A loading value, centered in the line a loaded value takes. */
+function StatValueSkeleton({ width }: { width: string }) {
+  return (
+    <span css={statValueSkeletonCSS}>
+      <Skeleton width={width} height="var(--global-dimension-size-200)" />
+    </span>
+  );
+}
+
+/**
+ * The strip's shape while it loads: each stat's label over a placeholder for
+ * its value, and the queue meter under the queue size, so nothing shifts when
+ * the stats arrive.
+ */
 function StripPlaceholder() {
   return (
-    <div css={stripCSS}>
+    <div css={stripCSS} aria-hidden>
+      <StatItem label="Status">
+        <StatValueSkeleton width="var(--global-dimension-size-650)" />
+      </StatItem>
+      <StatItem label="In queue">
+        <Flex direction="column" gap="size-50" minWidth="size-2400">
+          <StatValueSkeleton width="var(--global-dimension-size-1200)" />
+          <Skeleton height="var(--global-dimension-size-75)" />
+        </Flex>
+      </StatItem>
       {[
-        "Status",
-        "In queue",
         "Queued / hr",
         "Completed / hr",
         "Net / hr",
@@ -290,9 +318,38 @@ function StripPlaceholder() {
         "Evaluation cost",
       ].map((label) => (
         <StatItem key={label} label={label}>
-          <StatValue>--</StatValue>
+          <StatValueSkeleton width="var(--global-dimension-size-600)" />
         </StatItem>
       ))}
     </div>
+  );
+}
+
+/**
+ * The whole strip while the page loads, before its clear button can be
+ * shown, laid out as the loaded strip is.
+ */
+export function ServerEvaluationQueueStripSkeleton() {
+  return (
+    <View
+      paddingX="size-200"
+      paddingY="size-150"
+      borderBottomWidth="thin"
+      borderBottomColor="default"
+      flex="none"
+    >
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="start"
+        gap="size-200"
+      >
+        <StripPlaceholder />
+        <Skeleton
+          width="calc(15 * var(--global-dimension-size-100))"
+          height="var(--global-button-height-s)"
+        />
+      </Flex>
+    </View>
   );
 }
