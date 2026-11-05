@@ -27,10 +27,6 @@ jobs:
             echo "minor=${rest%%.*}"
           } >> "$GITHUB_OUTPUT"
 
-      # Anything holding a token with Contents write can push a tag, and this
-      # workflow publishes whatever the tag points at as `latest`. Limit that
-      # to commits that reached main through review and whose manifest names
-      # this version, which is what release-please's tag points at.
       - name: Require a commit on main whose manifest names this version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
