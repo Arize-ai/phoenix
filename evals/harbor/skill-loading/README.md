@@ -34,8 +34,9 @@ These rules apply to any Harbor loading eval.
 
 ## Phoenix layout
 
-The Phoenix loading evals live in `evals/harbor/skill-loading/`, outside `evals/harbor/tasks/`
-so that `make harbor-stage` doesn't stage them.
+The Phoenix loading evals live in this folder, outside `evals/harbor/tasks/` so that
+`make harbor-stage` doesn't stage them. Run them by hand. They don't run on
+pull requests.
 
 ```text
 evals/harbor/skill-loading/
@@ -51,7 +52,28 @@ evals/harbor/skill-loading/
     tests/test.sh                   identical in every task
 ```
 
-Each skill has 5 should-load cases and 5 should-not-load cases.
+Each skill has at least 5 should-load cases and 5 should-not-load cases. Tags are loose
+labels such as `sibling`, `near-miss`, and `plugin-eval` (a case ported from the
+`claude plugin eval` suite in `plugins/claude/arize-phoenix/evals/`).
+
+### Add a skill
+
+1. Create `tasks/SKILL_NAME/` and write its cases as described in [Add a case](#add-a-case).
+   Write 5 should-load cases and 5 should-not-load cases. Make at least 2 of the
+   should-not-load cases requests that a sibling skill covers, and label that sibling in
+   `skills_expected`.
+2. Add `- path: evals/harbor/skill-loading/tasks/SKILL_NAME` under `datasets` in `job.yaml`,
+   so that a plain `harbor run -c job.yaml` includes it.
+3. If the skill isn't under `agents[].skills` in `job.yaml`, add `skills/SKILL_NAME` there.
+   Every agent sees every listed skill, so a new skill can change what loads for other
+   skills' cases.
+4. Run the job, as described in [Run the evals](#run-the-evals), and read each new case's
+   load rate before you rely on it.
+
+To port a `claude plugin eval` case, copy the request from its `prompt.md` without the front
+matter. Take the labels from its `skill-fired` or `skill-not-used` grader, and tag the case
+`plugin-eval`. A loading task can't port the case's other graders, because the trial stops
+before the agent answers.
 
 ### Add a case
 
@@ -121,18 +143,21 @@ should-not-load case.
      --agents codex-loading --out evals/harbor/.cache/skill-loading-codex.yaml
    ```
 
-4. Run the job on local Docker and record it to phoenix-devs. Name the job after the
-   commit so that experiments stay apart:
+4. Run the job on local Docker for one skill and record it to phoenix-devs. The Phoenix
+   plugin records one dataset per job, so `-p` selects the skill's tasks. Name the job after
+   the commit so that experiments stay apart:
 
    ```bash
-   PYTHONPATH=. proj keys --env llm --env phoenix-railway -- sh -c \
+   PYTHONPATH=. SKILL=SKILL_NAME proj keys --env llm --env phoenix-railway -- sh -c \
      'PHOENIX_COLLECTOR_ENDPOINT="$PHOENIX_AGENTS_COLLECTOR_ENDPOINT" exec \
      uvx --python 3.13 --from "harbor[daytona]==0.21.0" --with "$(ls dist/phoenix-client/*.whl)" \
      harbor run -c evals/harbor/.cache/skill-loading-codex.yaml \
-     --job-name "skill-loading-$(git rev-parse --short HEAD)-codex-loading" \
-     --plugin arize-phoenix --plugin-kwarg dataset=skill-loading-SKILL_NAME --yes'
+     -p "evals/harbor/skill-loading/tasks/$SKILL" \
+     --job-name "skill-loading-$(git rev-parse --short HEAD)-codex-loading-$SKILL" \
+     --plugin arize-phoenix --plugin-kwarg "dataset=skill-loading-$SKILL" --yes'
    ```
 
-   Replace `SKILL_NAME` with the skill whose tasks the job runs.
+   Replace `SKILL_NAME` with a folder name in `tasks/`. Each example in the dataset has its
+   tags in its metadata.
 
 The Claude Code agent needs an `ANTHROPIC_API_KEY` that is scoped to a workspace.
