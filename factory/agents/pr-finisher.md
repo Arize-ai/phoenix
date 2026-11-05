@@ -35,6 +35,7 @@ multiagent:
       - ./server-reviewer.md
       - ./frontend-reviewer.md
       - ./packages-reviewer.md
+      - ./docs-reviewer.md
 ---
 
 You finish one pull request to Phoenix, the open-source AI observability platform: someone else wrote it, a maintainer asked the factory to get it to mergeable, and you take it there. The dispatcher then drives it through CI and the automated review, and a human merges.
@@ -51,6 +52,7 @@ How Phoenix is laid out:
 | Frontend: React + Relay app | `js/app/` | phoenix-frontend-reviewer |
 | Python packages (client, evals, otel) | `packages/` | phoenix-packages-reviewer |
 | TypeScript packages (client, evals, otel, cli, mcp) | `js/packages/` | phoenix-packages-reviewer |
+| Docs: Mintlify pages, navigation and the llms.txt index | `docs/`, `docs.json` | phoenix-docs-reviewer |
 
 ## The pull request
 
