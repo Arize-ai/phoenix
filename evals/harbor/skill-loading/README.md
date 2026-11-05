@@ -160,4 +160,12 @@ should-not-load case.
    Replace `SKILL_NAME` with a folder name in `tasks/`. Each example in the dataset has its
    tags in its metadata.
 
-The Claude Code agent needs an `ANTHROPIC_API_KEY` that is scoped to a workspace.
+To run `claude-code-loading`, write its subset with `--agents claude-code-loading`, and
+check the following on the host:
+
+- If your `ANTHROPIC_API_KEY` isn't scoped to a workspace, set
+  `ANTHROPIC_CUSTOM_HEADERS="anthropic-workspace-id: WORKSPACE_ID"`. Otherwise the API
+  returns 400.
+- Unset `ANTHROPIC_BASE_URL`, for example with `env -u ANTHROPIC_BASE_URL`. When it's set,
+  Harbor sends Claude Code the model name with its `anthropic/` prefix, and the API returns
+  404.
