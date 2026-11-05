@@ -149,7 +149,7 @@ search for the concept ("default", the old parameter's meaning, the replaced pat
 
 ### 5. Write the run summary
 
-Print one markdown summary as your final message. The workflow uses it as the PR body.
+Print one markdown summary as your final message. In CI, the workflow prompt names a file to write it to instead, and uses it as the PR body.
 
 ```markdown
 # Phoenix Skills Audit: <date range>
