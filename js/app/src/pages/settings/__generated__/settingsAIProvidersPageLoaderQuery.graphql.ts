@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<66ec0d1c96e1f30f4b0897e0f499a651>>
+ * @generated SignedSource<<8acdfe71c29fcb7953fa19fc1082e9e0>>
  * @lightSyntaxTransform
  */
 
@@ -124,6 +124,20 @@ return {
                 "args": null,
                 "kind": "ScalarField",
                 "name": "isRequired",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "isSetInEnvironment",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "isSetAsSecret",
                 "storageKey": null
               }
             ],
@@ -306,12 +320,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7d24a9b375274a1fcd4573005daf1438",
+    "cacheID": "9eec1adccf2f647e9a95ea19687bf3f2",
     "id": null,
     "metadata": {},
     "name": "settingsAIProvidersPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
+    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...CustomProvidersCard_data\n}\n\nfragment CustomProvidersCard_data on Query {\n  generativeModelCustomProviders(first: 50) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    credentialRequirements {\n      envVarName\n      isRequired\n      isSetInEnvironment\n      isSetAsSecret\n    }\n    credentialsSet\n  }\n}\n"
   }
 };
 })();

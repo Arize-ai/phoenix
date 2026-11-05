@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2677ba9c0fe1d005a3300059d0c97ec1>>
+ * @generated SignedSource<<1bbeee9dd2be077c6338c34e14d96662>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,8 @@ export type GenerativeProvidersCard_data$data = {
     readonly credentialRequirements: ReadonlyArray<{
       readonly envVarName: string;
       readonly isRequired: boolean;
+      readonly isSetAsSecret: boolean;
+      readonly isSetInEnvironment: boolean;
     }>;
     readonly credentialsSet: boolean;
     readonly dependencies: ReadonlyArray<string>;
@@ -92,6 +94,20 @@ const node: ReaderFragment = {
               "kind": "ScalarField",
               "name": "isRequired",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "isSetInEnvironment",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "isSetAsSecret",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -111,6 +127,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "4062531cfa3f77e541172a44101f5331";
+(node as any).hash = "563b1640292e4a39adce8df070f7f511";
 
 export default node;

@@ -15,8 +15,9 @@ type MarkerTriggerBaseProps = Omit<
   "className" | "style" | "children" | "onPress"
 > & {
   /**
-   * The one marker that is the trigger's whole visible face, such as a
-   * `StatusIndicator`.
+   * The marker that is the trigger's whole visible face, such as a
+   * `StatusIndicator`, or a row of markers that are one fact together, such
+   * as where a credential is set.
    */
   children: ReactNode;
   ref?: Ref<HTMLButtonElement>;
@@ -58,6 +59,7 @@ const markerTriggerCSS = css`
   appearance: none;
   display: inline-flex;
   align-items: center;
+  gap: var(--global-dimension-size-150);
   min-width: 0;
   max-width: 100%;
   margin: 0;
@@ -96,8 +98,8 @@ const markerTriggerCSS = css`
  *   press toggles. It stays a button, because assistive technology announces
  *   a tooltip only on an interactive element, and the press does something.
  *
- * Use it only when the marker is the trigger's whole visible face. A marker
- * takes one action; a second belongs in a menu.
+ * Use it only when its markers are the trigger's whole visible face. A
+ * trigger takes one action; a second belongs in a menu.
  */
 export function MarkerTrigger(props: MarkerTriggerProps) {
   if (props.explanation !== undefined) {

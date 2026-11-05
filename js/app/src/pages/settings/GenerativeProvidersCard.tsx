@@ -1,44 +1,25 @@
-import { css } from "@emotion/react";
 import { flexRender, useTable } from "@tanstack/react-table";
-import { useCallback, useContext, useMemo, useState } from "react";
-import { OverlayTriggerStateContext } from "react-aria-components";
+import { useCallback, useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
   Button,
   Card,
-  Dialog,
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
   DocumentationHelp,
   Flex,
   Icon,
   Icons,
-  LazyTabPanel,
   MarkerTrigger,
   StatusIndicator,
+  Text,
   ViewportModal,
   ViewportModalOverlay,
-  Tab,
-  TabList,
-  Tabs,
-  Text,
-  View,
 } from "@phoenix/components";
 import type { StatusCategory } from "@phoenix/components";
-import {
-  GenerativeProviderIcon,
-  ProviderBrowserCredentialsPanel,
-  ProviderServerCredentialsPanel,
-} from "@phoenix/components/generative";
-import { getMissingCredentialsStatus } from "@phoenix/components/generative/modelProviderUtils";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
-import { useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -46,6 +27,7 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
+import { ProviderCredentialsDialog } from "./ProviderCredentialsDialog";
 
 export function GenerativeProvidersCard({
   query,
@@ -63,6 +45,8 @@ export function GenerativeProvidersCard({
           credentialRequirements {
             envVarName
             isRequired
+            isSetInEnvironment
+            isSetAsSecret
           }
           credentialsSet
         }
@@ -110,7 +94,7 @@ export function GenerativeProvidersCard({
         },
       },
       {
-        header: "Configuration",
+        header: "Credentials",
         accessorKey: "credentialsSet",
         cell: ({ row }) => {
           return (
@@ -226,158 +210,89 @@ function ProviderCredentialsStatus({
   provider: ModelProvider;
   onConfigure: () => void;
 }) {
-  const providerCredentials = useCredentialsContext((state) =>
-    isModelProvider(provider.key) ? state[provider.key] : undefined
-  );
-  const hasLocalCredentials = provider.credentialRequirements.every(
-    ({ envVarName, isRequired }) =>
-      !!providerCredentials?.[envVarName] || !isRequired
-  );
-  const status = getProviderCredentialsStatus(provider, hasLocalCredentials);
-  const indicator = <StatusIndicator {...status} />;
-  if (status.category === "needs-credentials") {
-    return (
-      <MarkerTrigger
-        aria-label={`Configure ${provider.name} credentials`}
-        onPress={onConfigure}
-      >
-        {indicator}
-      </MarkerTrigger>
-    );
-  }
-  return indicator;
-}
-
-export function getProviderCredentialsStatus(
-  provider: ModelProvider,
-  hasLocalCredentials: boolean
-): { category: StatusCategory; label: string; detail?: string } {
-  if (!provider.dependenciesInstalled) {
-    return { category: "unavailable", label: "Not installed" };
-  }
-  if (!isModelProvider(provider.key)) {
-    return { category: "failed", label: "Unknown provider" };
-  }
-  if (provider.credentialRequirements.length === 0) {
-    return { category: "succeeded", label: "Ready" };
-  }
-  if (hasLocalCredentials) {
-    return {
-      category: "succeeded",
-      label: "Configured",
-      detail: "In this browser",
-    };
-  }
-  if (provider.credentialsSet) {
-    return {
-      category: "succeeded",
-      label: "Configured",
-      detail: "On the server",
-    };
-  }
-  return getMissingCredentialsStatus({ providerKey: provider.key });
-}
-
-function CredentialsSetIndicator() {
-  return (
-    <Icon
-      color="success"
-      svg={<Icons.Checkmark />}
-      aria-label="credentials set"
-      css={css`
-        font-size: var(--global-font-size-s);
-      `}
-    />
-  );
-}
-
-function ProviderCredentialsDialog({
-  provider,
-}: {
-  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
-}) {
-  const { viewer } = useViewer();
-  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
-  const providerKey = provider.key;
-  const hasBrowserCredentials = useCredentialsContext((state) => {
-    if (!isModelProvider(providerKey)) {
+  const hasBrowserCredential = useCredentialsContext((state) => {
+    if (!isModelProvider(provider.key)) {
       return false;
     }
-    const providerCredentials = state[providerKey];
+    const credentials = state[provider.key];
     return provider.credentialRequirements.some(
-      ({ envVarName }) => !!providerCredentials?.[envVarName]
+      ({ envVarName }) => !!credentials?.[envVarName]
     );
   });
-  const overlayState = useContext(OverlayTriggerStateContext);
-  const closeDialog = useCallback(() => {
-    overlayState?.close();
-  }, [overlayState]);
-
+  const credentials = getProviderCredentials(provider, hasBrowserCredential);
+  if (credentials.kind === "status") {
+    return <StatusIndicator {...credentials.status} />;
+  }
   return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Configure {provider.name} Credentials</DialogTitle>
-          <DialogTitleExtra>
-            <DialogCloseButton slot="close" />
-          </DialogTitleExtra>
-        </DialogHeader>
-        {isAdmin ? (
-          <>
-            <View paddingX="size-200" paddingY="size-100">
-              <Text size="XS" color="text-700">
-                Credentials can be stored in two places: in this browser for
-                your personal use, and on the server to share with all users.
-              </Text>
-            </View>
-            <Tabs defaultSelectedKey="browser">
-              <TabList aria-label="Credential storage location">
-                <Tab id="browser">
-                  <Flex direction="row" alignItems="center" gap="size-50">
-                    <Text>Browser</Text>
-                    {hasBrowserCredentials && <CredentialsSetIndicator />}
-                  </Flex>
-                </Tab>
-                <Tab id="server">
-                  <Flex direction="row" alignItems="center" gap="size-50">
-                    <Text>Server</Text>
-                    {provider.credentialsSet && <CredentialsSetIndicator />}
-                  </Flex>
-                </Tab>
-              </TabList>
-              <LazyTabPanel id="browser">
-                <View padding="size-200">
-                  <ProviderBrowserCredentialsPanel
-                    provider={provider}
-                    onSaved={closeDialog}
-                  />
-                </View>
-              </LazyTabPanel>
-              <LazyTabPanel id="server">
-                <View padding="size-200">
-                  <ProviderServerCredentialsPanel
-                    provider={provider}
-                    onSaved={closeDialog}
-                  />
-                </View>
-              </LazyTabPanel>
-            </Tabs>
-          </>
-        ) : (
-          <View padding="size-200" paddingTop="size-100">
-            <Flex direction="column" gap="size-100">
-              <Text size="XS" color="text-700">
-                To configure shared credentials for all users on the server,
-                contact an administrator.
-              </Text>
-              <ProviderBrowserCredentialsPanel
-                provider={provider}
-                onSaved={closeDialog}
-              />
-            </Flex>
-          </View>
-        )}
-      </DialogContent>
-    </Dialog>
+    <MarkerTrigger
+      aria-label={`Configure ${provider.name} credentials`}
+      onPress={onConfigure}
+    >
+      {credentials.sources.map(({ label, isSet }) => (
+        <StatusIndicator
+          key={label}
+          category={isSet ? "succeeded" : "unset"}
+          label={label}
+        />
+      ))}
+    </MarkerTrigger>
   );
+}
+
+type ProviderCredentials =
+  | {
+      kind: "status";
+      status: { category: StatusCategory; label: string };
+    }
+  | {
+      kind: "sources";
+      sources: {
+        label: "Browser" | "Secret" | "Environment";
+        isSet: boolean;
+      }[];
+    };
+
+/**
+ * A provider that takes credentials shows where they are set, in the order
+ * Phoenix uses them; any other provider shows why it takes none.
+ */
+export function getProviderCredentials(
+  provider: ModelProvider,
+  hasBrowserCredential: boolean
+): ProviderCredentials {
+  if (!provider.dependenciesInstalled) {
+    return {
+      kind: "status",
+      status: { category: "unavailable", label: "Not installed" },
+    };
+  }
+  if (!isModelProvider(provider.key)) {
+    return {
+      kind: "status",
+      status: { category: "failed", label: "Unknown provider" },
+    };
+  }
+  const requirements = provider.credentialRequirements;
+  if (requirements.length === 0) {
+    return {
+      kind: "status",
+      status: { category: "succeeded", label: "Ready" },
+    };
+  }
+  return {
+    kind: "sources",
+    sources: [
+      { label: "Browser", isSet: hasBrowserCredential },
+      {
+        label: "Secret",
+        isSet: requirements.some(({ isSetAsSecret }) => isSetAsSecret),
+      },
+      {
+        label: "Environment",
+        isSet: requirements.some(
+          ({ isSetInEnvironment }) => isSetInEnvironment
+        ),
+      },
+    ],
+  };
 }
