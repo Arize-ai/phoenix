@@ -14,17 +14,57 @@ import { textFieldCSS } from "./styles";
 export interface CredentialFieldProps
   extends Omit<AriaTextFieldProps, "type">, SizingProps {
   children: ReactNode;
+  /**
+   * A saved value exists that the input does not show, such as a credential
+   * stored on the server. The clear button is offered for it, and clearing
+   * calls `onChange("")`.
+   */
+  hasHiddenValue?: boolean;
 }
 
+/**
+ * A field for a password, API key or token. Its `CredentialInput` reveals the
+ * value with a toggle at the trailing edge and, while there is something to
+ * remove, offers a clear button just inside it, so the toggle never moves.
+ */
 function CredentialField({
   ref,
   ...props
 }: CredentialFieldProps & { ref?: Ref<HTMLDivElement> }) {
-  const { size = "M", children, ...otherProps } = props;
+  const {
+    size = "M",
+    children,
+    hasHiddenValue = false,
+    value: valueProp,
+    defaultValue,
+    onChange,
+    isDisabled,
+    isReadOnly,
+    ...otherProps
+  } = props;
   const [isVisible, setIsVisible] = useState(false);
+  const [uncontrolledValue, setUncontrolledValue] = useState(
+    defaultValue ?? ""
+  );
+  const value = valueProp ?? uncontrolledValue;
+  const setValue = (nextValue: string) => {
+    if (valueProp === undefined) {
+      setUncontrolledValue(nextValue);
+    }
+    onChange?.(nextValue);
+  };
+  const isInteractive = !isDisabled && !isReadOnly;
 
   return (
-    <CredentialContext.Provider value={{ isVisible, setIsVisible }}>
+    <CredentialContext.Provider
+      value={{
+        isVisible,
+        setIsVisible,
+        canClear: isInteractive && (value !== "" || hasHiddenValue),
+        clear: () => setValue(""),
+        isInteractive,
+      }}
+    >
       <SizeProvider size={size}>
         <AriaTextField
           data-size={size}
@@ -32,6 +72,10 @@ function CredentialField({
           autoComplete="off"
           ref={ref}
           {...otherProps}
+          value={value}
+          onChange={setValue}
+          isDisabled={isDisabled}
+          isReadOnly={isReadOnly}
           css={css(fieldBaseCSS, textFieldCSS)}
         >
           {children}

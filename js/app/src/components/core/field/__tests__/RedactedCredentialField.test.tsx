@@ -106,13 +106,28 @@ describe("RedactedCredentialField", () => {
       expect.anything()
     );
 
-    // 4. Syncing a new redacted token re-masks the input instead of leaking the token into value
+    // 4. The clear button removes an untouched redacted token
     act(() => {
       root.render(
         <TestCredentialForm apiKey={NEXT_REDACTED_TOKEN} onSubmit={onSubmit} />
       );
     });
+    const clearButton = () =>
+      container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Clear credential"]'
+      );
+    expect(clearButton()).not.toBeNull();
+    await act(async () => user.click(clearButton()!));
+    expect(input.placeholder).toBe("sk-...");
+    expect(clearButton()).toBeNull();
+
+    // 5. Syncing a new redacted token re-masks the input instead of leaking the token into value
+    act(() => {
+      root.render(
+        <TestCredentialForm apiKey={REDACTED_TOKEN} onSubmit={onSubmit} />
+      );
+    });
     expect(input.value).toBe("");
-    expect(input.placeholder).toBe("••••1234");
+    expect(input.placeholder).toBe("••••xyz9");
   });
 });

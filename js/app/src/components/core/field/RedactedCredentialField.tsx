@@ -1,10 +1,11 @@
-import { FieldError, Input as AriaInput, Label } from "react-aria-components";
+import { FieldError, Label } from "react-aria-components";
 
 import { Text } from "@phoenix/components/core/content";
 import type { ComponentSize } from "@phoenix/components/core/types";
 import { isRedacted, redactedPreviewText } from "@phoenix/utils/redactionUtils";
 
-import { TextField } from "./TextField";
+import { CredentialField } from "./CredentialField";
+import { CredentialInput } from "./CredentialInput";
 
 export interface RedactedCredentialFieldProps {
   label: string;
@@ -24,11 +25,12 @@ export interface RedactedCredentialFieldProps {
  * Hidden credential input that round-trips server-issued redacted tokens.
  *
  * The form holds the redacted token (or plaintext, when newly entered); the
- * rendered input is always `type="password"` and is shown empty while the
- * value is still an untouched redacted token, with the masked preview
- * (`••••xyz9`) as its placeholder. The first keystroke flips to direct
- * binding, so typing replaces the stored token and clearing the field
- * submits an empty value.
+ * input is shown empty while the value is still an untouched redacted token,
+ * with the masked preview (`••••xyz9`) as its placeholder. The first
+ * keystroke flips to direct binding, so typing replaces the stored token.
+ * The clear button, or deleting the text, submits an empty value; the reveal
+ * toggle shows only what was typed, since the stored value never reaches the
+ * client.
  */
 export function RedactedCredentialField({
   label,
@@ -50,26 +52,25 @@ export function RedactedCredentialField({
     : placeholder;
 
   return (
-    <TextField
-      type="password"
+    <CredentialField
       size={size}
       name={name}
       value={displayValue}
+      hasHiddenValue={showRedactedPlaceholder}
       onChange={onChange}
       onBlur={onBlur}
       isDisabled={isDisabled}
       isRequired={isRequired}
       isInvalid={Boolean(errorMessage)}
       validationBehavior="aria"
-      autoComplete="off"
     >
       <Label>{label}</Label>
-      <AriaInput placeholder={inputPlaceholder} />
+      <CredentialInput placeholder={inputPlaceholder} />
       {errorMessage ? (
         <FieldError>{errorMessage}</FieldError>
       ) : description ? (
         <Text slot="description">{description}</Text>
       ) : null}
-    </TextField>
+    </CredentialField>
   );
 }

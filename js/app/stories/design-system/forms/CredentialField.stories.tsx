@@ -1,4 +1,5 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
+import { useState } from "react";
 
 import type { CredentialFieldProps } from "@phoenix/components";
 import {
@@ -26,7 +27,10 @@ const meta: Meta = {
       description: {
         component: `
 A specialized text field for entering sensitive information like passwords, API keys, and tokens.
-Features a toggle button to show/hide the credential value.
+A toggle at the trailing edge shows or hides the value. While the field holds something to remove, a clear
+button sits just inside the toggle, so the toggle never moves. A saved value the input does not show, such as
+a credential stored on the server, is passed as \`hasHiddenValue\` with a masked placeholder; clearing it
+calls \`onChange("")\`. Disabled and read-only fields show neither button.
 
 ## Usage
 
@@ -124,6 +128,49 @@ export const StatesAndSizes: StoryFn = () => (
   />
 );
 StatesAndSizes.tags = ["!dev"];
+
+const CONTENTS: {
+  label: string;
+  defaultValue?: string;
+  hasHiddenValue?: boolean;
+  placeholder?: string;
+}[] = [
+  { label: "Empty" },
+  { label: "Typed", defaultValue: "sk-1234567890abcdef" },
+  { label: "Saved, not shown", hasHiddenValue: true, placeholder: "••••cdef" },
+];
+
+function ContentCell({ content }: { content: (typeof CONTENTS)[number] }) {
+  const [value, setValue] = useState(content.defaultValue ?? "");
+  const [hasHiddenValue, setHasHiddenValue] = useState(
+    content.hasHiddenValue ?? false
+  );
+  return (
+    <CredentialField
+      value={value}
+      hasHiddenValue={hasHiddenValue}
+      onChange={(nextValue) => {
+        setValue(nextValue);
+        setHasHiddenValue(false);
+      }}
+    >
+      <Label>API Key</Label>
+      <CredentialInput
+        placeholder={hasHiddenValue ? content.placeholder : "sk-..."}
+      />
+    </CredentialField>
+  );
+}
+
+export const Contents: StoryFn = () => (
+  <OptionGrid
+    rows={CONTENTS}
+    cellWidth={FIELD_WIDTH}
+    renderCell={(content) => <ContentCell content={content} />}
+  />
+);
+Contents.tags = ["!dev"];
+Contents.parameters = { themeLayout: "row" };
 
 export const ExampleUsage: StoryFn = () => (
   <Flex direction="column" gap="size-200" width="320px">
