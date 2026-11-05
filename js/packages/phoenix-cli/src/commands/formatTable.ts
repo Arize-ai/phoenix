@@ -42,8 +42,12 @@ export function formatTable(
   const headers = Object.keys(rows[0]!);
 
   // Pre-stringify all cell values once; reuse for both width calculation and rendering.
+  // A row is one line, so line breaks in a value (e.g. a multi-line description)
+  // are collapsed to a space rather than splitting the row across the table.
   const stringRows = rows.map((row) =>
-    headers.map((header) => String(row[header] ?? ""))
+    headers.map((header) =>
+      String(row[header] ?? "").replace(/\s*[\r\n]+\s*/g, " ")
+    )
   );
 
   const naturalWidths = headers.map((header, colIndex) =>
