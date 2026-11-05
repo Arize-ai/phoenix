@@ -276,6 +276,10 @@ class PromptVersion:
 
         Returns:
             The formatted prompt.
+
+        Raises:
+            TemplateFormatterError: If a variable used in the template is missing from
+                ``variables``.
         """
         sdk = sdk or _to_sdk(self._model_provider)
         obj = self._dumps()
