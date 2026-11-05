@@ -1,24 +1,17 @@
-name: Update Helm on PR Merge
+name: Publish Helm Chart
 
 on:
-  # zizmor: ignore[dangerous-triggers] pull_request_target so GitHub never parks
-  # this run as "awaiting approval" on PRs from first-time contributors. It runs
-  # only after merge, checks out main, and never executes pull request code.
-  pull_request_target:
-    types: [closed]
+  push:
     branches:
       - main
+    paths:
+      - helm/Chart.yaml
 
 jobs:
-  check-and-push-helm:
-    name: Check PR and Push Helm
+  push-helm:
+    name: Push Helm
     permissions:
       contents: read
-    # Only run if the PR was merged and matches our pattern
-    if: |
-      github.event.pull_request.merged == true && 
-      startsWith(github.event.pull_request.head.ref, 'update-phoenix-version-')
-
     runs-on: ubuntu-latest
     env:
       REGISTRY: arizephoenix
