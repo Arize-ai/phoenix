@@ -309,6 +309,7 @@ TOOL_CALL_PROBABILITY=1.0 pnpm start
 
 | Endpoint                                           | Description                         |
 | -------------------------------------------------- | ----------------------------------- |
+| `GET /v1beta/models`                               | List available models (v1beta)      |
 | `POST /v1beta/models/:model:generateContent`       | Generate content (non-streaming)    |
 | `POST /v1beta/models/:model:streamGenerateContent` | Generate content (streaming)        |
 | `POST /v1/models/:model:generateContent`           | Generate content v1 (non-streaming) |

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toxiproxy Control</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f7f7f8; --card: #fff; --text: #1d1d1f;
+          --muted: #6b6b70; --accent: #2f6fde; --border: #dedee3; --bad: #c62828;
+          --good: #2e7d32; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151518; --card: #1f1f23; --text: #ececf0; --muted: #9a9aa2;
+            --accent: #6d9bff; --border: #33333a; --bad: #ff6b6b; --good: #66bb6a; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 system-ui, -apple-system, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+          padding: 16px; margin-top: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere; }
+  .on { color: var(--good); }
+  .off { color: var(--bad); }
+  label { display: block; font-weight: 600; margin: 12px 0 4px; }
+  label.inline { display: inline-flex; gap: 6px; font-weight: 400; margin: 0; align-items: center; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  input[type=range] { flex: 1; min-width: 140px; accent-color: var(--accent); }
+  input[type=number], select { width: 110px; padding: 4px 6px; border: 1px solid var(--border);
+                               border-radius: 6px; background: transparent; color: inherit;
+                               font: inherit; }
+  select { width: auto; }
+  button { padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+           background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
+  button.secondary { background: transparent; color: inherit; }
+  button.danger { background: var(--bad); border-color: var(--bad); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  .presets button { text-align: left; line-height: 1.3; }
+  .presets small { display: block; opacity: 0.8; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--border);
+           vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; border-top: none; }
+  .scroll { overflow-x: auto; }
+  #error { color: var(--bad); min-height: 1.5em; margin-top: 8px; }
+  .hint { font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Toxiproxy Control</h1>
+  <div class="muted" id="status">Connecting...</div>
+
+  <section class="card stats">
+    <div class="stat"><span class="muted">Connection</span><b id="enabled">-</b></div>
+    <div class="stat"><span class="muted">Route</span><b id="route">-</b></div>
+    <div class="stat"><span class="muted">Added round-trip delay</span><b id="delay">-</b></div>
+    <div class="stat"><span class="muted">Active toxics</span><b id="count">-</b></div>
+  </section>
+
+  <section class="card">
+    <h2>Connection</h2>
+    <div class="row">
+      <button id="toggle" class="danger" disabled>Cut connection</button>
+      <button id="reset" class="secondary" disabled>Reset all</button>
+    </div>
+    <p class="muted hint">Cut connection disables the proxy. Toxiproxy closes Phoenix's open
+      database connections and refuses new ones. The button then reads Restore
+      connection. Click it to enable the proxy again, so that it accepts new
+      connections. The closed connections do not reopen: Phoenix must open new ones.
+      Reset all enables the proxy and removes every toxic, which means no added delay.</p>
+  </section>
+
+  <section class="card">
+    <h2>Presets</h2>
+    <div class="presets" id="presets"></div>
+    <p class="muted hint">A preset removes the active toxics, then adds its own. These are the
+      same presets as <code>scripts/toxiproxy-scenario.sh</code>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Latency</h2>
+    <label for="latency-range">Latency (ms)</label>
+    <div class="row">
+      <input id="latency-range" type="range" min="0" max="500" step="1">
+      <input id="latency" type="number" min="0" step="1">
+    </div>
+    <label for="jitter-range">Jitter (ms, ±)</label>
+    <div class="row">
+      <input id="jitter-range" type="range" min="0" max="250" step="1">
+      <input id="jitter" type="number" min="0" step="1">
+    </div>
+    <div class="row" style="margin-top: 12px">
+      <label class="inline"><input id="both" type="checkbox"> Both directions</label>
+      <button id="apply-latency">Apply</button>
+    </div>
+    <p class="muted hint">One direction delays only the responses from PostgreSQL to Phoenix, so a
+      query round trip takes the latency once. Both directions delays the requests
+      too, so a round trip takes the latency twice. A latency of 0 removes the delay.</p>
+  </section>
+
+  <section class="card">
+    <h2>Add a fault</h2>
+    <div class="row">
+      <select id="fault-type"></select>
+      <select id="fault-stream">
+        <option value="downstream">PostgreSQL to Phoenix</option>
+        <option value="upstream">Phoenix to PostgreSQL</option>
+      </select>
+    </div>
+    <div id="fault-attrs"></div>
+    <label for="toxicity">Share of connections affected (0 to 1)</label>
+    <div class="row">
+      <input id="toxicity" type="number" min="0" max="1" step="0.05" value="1">
+      <button id="add-fault">Add or replace</button>
+    </div>
+    <p class="muted hint" id="fault-help"></p>
+  </section>
+
+  <section class="card">
+    <h2>Active toxics</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Direction</th><th>Share</th><th>Settings</th><th></th></tr></thead>
+        <tbody id="toxics"></tbody>
+      </table>
+    </div>
+    <div id="error"></div>
+  </section>
+</main>
+<script>
+  // Requests use paths relative to the page, so the page works behind a
+  // reverse proxy that strips a path prefix.
+  const base = location.href.endsWith("/") ? location.href : location.href + "/";
+  const api = (path) => new URL("api/" + path, base);
+  const $ = (id) => document.getElementById(id);
+  const PROXY = "proxies/postgres";
+
+  const PRESETS = {
+    localhost: { title: "Localhost", detail: "No delay", toxics: [] },
+    "same-region": { title: "Same region", detail: "2 ms ±1 ms", toxics: [
+      latency(2, 1)] },
+    aurora: { title: "Aurora", detail: "3 ms ±2 ms, slow close", toxics: [
+      latency(3, 2),
+      { name: "slow_close", type: "slow_close", stream: "downstream", toxicity: 1,
+        attributes: { delay: 100 } }] },
+    "cross-region": { title: "Cross region", detail: "75 ms ±15 ms, 10 MB/s", toxics: [
+      latency(75, 15),
+      { name: "bandwidth", type: "bandwidth", stream: "downstream", toxicity: 1,
+        attributes: { rate: 10000 } }] },
+    "bad-network": { title: "Bad network", detail: "200 ms ±100 ms, 1 MB/s", toxics: [
+      latency(200, 100),
+      { name: "bandwidth", type: "bandwidth", stream: "downstream", toxicity: 1,
+        attributes: { rate: 1000 } }] },
+  };
+
+  const FAULTS = {
+    bandwidth: { title: "Bandwidth limit", attrs: [["rate", "KB/s", 1000]],
+      help: "Limits the transfer rate. Large result sets and bulk inserts slow down." },
+    slow_close: { title: "Slow close", attrs: [["delay", "ms", 100]],
+      help: "Delays the close of each connection. Connection churn becomes expensive." },
+    timeout: { title: "Timeout", attrs: [["timeout", "ms", 5000]],
+      help: "Stops all data. The connection closes after the timeout, or never if the timeout is 0. Queries hang until the client gives up." },
+    reset_peer: { title: "Reset peer", attrs: [["timeout", "ms", 0]],
+      help: "Resets the TCP connection after the timeout, or at once if the timeout is 0. Clients see a connection reset error." },
+    limit_data: { title: "Limit data", attrs: [["bytes", "bytes", 100000]],
+      help: "Closes each connection after the given number of bytes." },
+  };
+
+  const UNITS = { latency: "ms", jitter: "ms", rate: "KB/s", delay: "ms", timeout: "ms",
+                  bytes: "bytes" };
+
+  function latency(ms, jitter) {
+    return { name: "latency", type: "latency", stream: "downstream", toxicity: 1,
+             attributes: { latency: ms, jitter } };
+  }
+
+  let proxy = null;
+  let syncInputs = true;
+  let busy = false;
+
+  async function call(path, method = "GET", body) {
+    const response = await fetch(api(path), {
+      method,
+      headers: {
+        "X-Requested-With": "toxiproxy-ui",
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
+    if (!response.ok) {
+      const message = (data && data.error) || response.statusText;
+      throw new Error(response.status + " " + message);
+    }
+    return data;
+  }
+
+  function roundTripDelay(toxics) {
+    let total = 0;
+    for (const t of toxics) {
+      if (t.type === "latency") total += t.attributes.latency * t.toxicity;
+    }
+    return total;
+  }
+
+  function describe(attributes) {
+    return Object.entries(attributes)
+      .map(([key, value]) => key + " " + value.toLocaleString() + (UNITS[key] ? " " + UNITS[key] : ""))
+      .join(", ");
+  }
+
+  function render(next) {
+    proxy = next;
+    const toxics = next.toxics || [];
+    $("status").textContent = "Updated " + new Date().toLocaleTimeString();
+    $("enabled").textContent = next.enabled ? "Connected" : "Cut";
+    $("enabled").className = next.enabled ? "on" : "off";
+    $("route").textContent = next.listen + " → " + next.upstream;
+    $("delay").textContent = roundTripDelay(toxics) + " ms";
+    $("count").textContent = toxics.length;
+    $("toggle").textContent = next.enabled ? "Cut connection" : "Restore connection";
+    $("toggle").className = next.enabled ? "danger" : "";
+    $("toggle").disabled = busy;
+    $("reset").disabled = busy;
+
+    const body = $("toxics");
+    body.replaceChildren();
+    if (!toxics.length) {
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 6;
+      cell.className = "muted";
+      cell.textContent = "None. Phoenix reaches PostgreSQL with no added delay.";
+    }
+    for (const t of toxics) {
+      const row = body.insertRow();
+      for (const value of [t.name, t.type,
+                           t.stream === "upstream" ? "Phoenix to PostgreSQL" : "PostgreSQL to Phoenix",
+                           t.toxicity, describe(t.attributes)]) {
+        row.insertCell().textContent = value;
+      }
+      const remove = document.createElement("button");
+      remove.className = "secondary";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", () => run(() =>
+        call(PROXY + "/toxics/" + encodeURIComponent(t.name), "DELETE")));
+      row.insertCell().append(remove);
+    }
+
+    if (syncInputs) {
+      const down = toxics.find((t) => t.name === "latency");
+      const up = toxics.find((t) => t.name === "latency_upstream");
+      setPair("latency", down ? down.attributes.latency : 0);
+      setPair("jitter", down ? down.attributes.jitter : 0);
+      $("both").checked = Boolean(up);
+      syncInputs = false;
+    }
+  }
+
+  function setPair(id, value) {
+    $(id).value = value;
+    $(id + "-range").value = value;
+  }
+
+  async function refresh() {
+    try {
+      render(await call(PROXY));
+    } catch (error) {
+      $("status").textContent = error.message.startsWith("404")
+        ? "The postgres proxy does not exist. Run ./dev.sh up --profile toxiproxy so that toxiproxy-init creates it."
+        : "Disconnected: " + error.message;
+    }
+  }
+
+  async function run(action, { resync = false } = {}) {
+    if (busy) return;
+    busy = true;
+    $("error").textContent = "";
+    try {
+      await action();
+      if (resync) syncInputs = true;
+    } catch (error) {
+      $("error").textContent = error.message;
+    } finally {
+      busy = false;
+      await refresh();
+    }
+  }
+
+  async function upsert(toxic) {
+    const existing = (proxy.toxics || []).find((t) => t.name === toxic.name);
+    if (existing && existing.type === toxic.type && existing.stream === toxic.stream) {
+      return call(PROXY + "/toxics/" + encodeURIComponent(toxic.name), "POST",
+                  { attributes: toxic.attributes, toxicity: toxic.toxicity });
+    }
+    if (existing) await call(PROXY + "/toxics/" + encodeURIComponent(toxic.name), "DELETE");
+    return call(PROXY + "/toxics", "POST", toxic);
+  }
+
+  async function remove(name) {
+    if ((proxy.toxics || []).some((t) => t.name === name)) {
+      await call(PROXY + "/toxics/" + encodeURIComponent(name), "DELETE");
+    }
+  }
+
+  async function applyPreset(preset) {
+    for (const t of proxy.toxics || []) {
+      await call(PROXY + "/toxics/" + encodeURIComponent(t.name), "DELETE");
+    }
+    for (const t of preset.toxics) await call(PROXY + "/toxics", "POST", t);
+  }
+
+  async function applyLatency() {
+    const ms = Math.max(0, +$("latency").value || 0);
+    const jitter = Math.max(0, +$("jitter").value || 0);
+    if (ms === 0 && jitter === 0) {
+      await remove("latency");
+      await remove("latency_upstream");
+      return;
+    }
+    await upsert(latency(ms, jitter));
+    if ($("both").checked) {
+      await upsert({ ...latency(ms, jitter), name: "latency_upstream", stream: "upstream" });
+    } else {
+      await remove("latency_upstream");
+    }
+  }
+
+  function renderFaultForm() {
+    const fault = FAULTS[$("fault-type").value];
+    const container = $("fault-attrs");
+    container.replaceChildren();
+    for (const [key, unit, initial] of fault.attrs) {
+      const label = document.createElement("label");
+      label.htmlFor = "attr-" + key;
+      label.textContent = key[0].toUpperCase() + key.slice(1) + " (" + unit + ")";
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "0";
+      input.id = "attr-" + key;
+      input.value = initial;
+      container.append(label, input);
+    }
+    $("fault-help").textContent = fault.help;
+  }
+
+  async function addFault() {
+    const type = $("fault-type").value;
+    const stream = $("fault-stream").value;
+    const attributes = {};
+    for (const [key] of FAULTS[type].attrs) attributes[key] = Math.max(0, +$("attr-" + key).value || 0);
+    const toxicity = Math.min(1, Math.max(0, +$("toxicity").value));
+    await upsert({ name: stream === "downstream" ? type : type + "_upstream",
+                   type, stream, toxicity, attributes });
+  }
+
+  for (const [key, preset] of Object.entries(PRESETS)) {
+    const button = document.createElement("button");
+    button.className = "secondary";
+    button.dataset.preset = key;
+    button.innerHTML = "<span></span><small></small>";
+    button.firstChild.textContent = preset.title;
+    button.lastChild.textContent = preset.detail;
+    button.addEventListener("click", () => run(() => applyPreset(preset), { resync: true }));
+    $("presets").append(button);
+  }
+
+  for (const [key, fault] of Object.entries(FAULTS)) {
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = fault.title;
+    $("fault-type").append(option);
+  }
+  $("fault-type").addEventListener("change", renderFaultForm);
+  renderFaultForm();
+
+  for (const id of ["latency", "jitter"]) {
+    $(id + "-range").addEventListener("input", () => { $(id).value = $(id + "-range").value; });
+    $(id).addEventListener("input", () => { $(id + "-range").value = $(id).value; });
+  }
+
+  $("apply-latency").addEventListener("click", () => run(applyLatency, { resync: true }));
+  $("add-fault").addEventListener("click", () => run(addFault));
+  $("toggle").addEventListener("click", () => run(() =>
+    call(PROXY, "POST", { enabled: !proxy.enabled })));
+  $("reset").addEventListener("click", () => run(() => call("reset", "POST"), { resync: true }));
+
+  refresh();
+  setInterval(() => { if (!busy) refresh(); }, 3000);
+</script>
+</body>
+</html>

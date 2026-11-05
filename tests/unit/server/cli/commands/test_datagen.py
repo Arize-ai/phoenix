@@ -155,8 +155,10 @@ def test_seed_command_selects_sources_and_accepts_connection_flags(
     seed = MagicMock(return_value=[])
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
     decisions = MagicMock(return_value=[])
+    providers = MagicMock(return_value=[])
     evaluators = MagicMock(return_value=[])
     monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    monkeypatch.setattr("phoenix.experimental.datagen.evaluators.seed_custom_providers", providers)
     monkeypatch.setattr(
         "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
     )
@@ -166,6 +168,7 @@ def test_seed_command_selects_sources_and_accepts_connection_flags(
     )
     args.func(args)
     decisions.assert_called_once_with(transport, [])
+    providers.assert_called_once_with(transport)
     evaluators.assert_called_once_with(transport, [])
     online.assert_called_once_with(transport)
     expected = (
@@ -250,6 +253,10 @@ def test_startup_seeding_retries_until_server_is_ready(monkeypatch: pytest.Monke
     seed = MagicMock(side_effect=[httpx.ConnectError("starting"), unavailable, []])
     monkeypatch.setattr("phoenix.experimental.datagen.datasets.seed_datasets", seed)
     monkeypatch.setattr(
+        "phoenix.experimental.datagen.evaluators.seed_custom_providers",
+        MagicMock(return_value=[]),
+    )
+    monkeypatch.setattr(
         "phoenix.experimental.datagen.evaluators.seed_online_decision_judge",
         MagicMock(return_value=[]),
     )
@@ -289,11 +296,13 @@ def test_startup_seeds_decisions_and_decision_judges(monkeypatch: pytest.MonkeyP
     args = parser.parse_args(["datagen"])
     datasets = [MagicMock()]
     decisions = MagicMock(return_value=[])
+    providers = MagicMock(return_value=[])
     evaluators = MagicMock(return_value=[])
     monkeypatch.setattr(
         "phoenix.experimental.datagen.datasets.seed_datasets", MagicMock(return_value=datasets)
     )
     monkeypatch.setattr("phoenix.experimental.datagen.decisions.seed_workflow_decisions", decisions)
+    monkeypatch.setattr("phoenix.experimental.datagen.evaluators.seed_custom_providers", providers)
     monkeypatch.setattr(
         "phoenix.experimental.datagen.evaluators.seed_dataset_decision_evaluators", evaluators
     )
@@ -303,5 +312,6 @@ def test_startup_seeds_decisions_and_decision_judges(monkeypatch: pytest.MonkeyP
     )
     datagen._seed_when_ready(datagen._resolve_config(args, {}))
     assert decisions.call_args.args[1] is datasets
+    providers.assert_called_once_with(decisions.call_args.args[0])
     evaluators.assert_called_once_with(decisions.call_args.args[0], datasets)
     online.assert_called_once_with(decisions.call_args.args[0])
