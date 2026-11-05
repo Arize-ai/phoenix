@@ -23,7 +23,7 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
     request.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -39,15 +39,17 @@ class RetrievalRelevanceEvaluator(ClassificationEvaluator):
         - ``context`` should be the retrieved information for the
           step, with all returned items joined together.
         - Returns one `Score` with `label` (relevant or irrelevant), `score`
-          (1.0 if relevant, 0.0 if irrelevant), and an `explanation` from the
-          LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+          (1.0 if relevant, 0.0 if irrelevant), and, when an `LLM` judge is used,
+          an `explanation` (decision models return a label and probabilities, not an
+          explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.retrieval_relevance import RetrievalRelevanceEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         relevance_eval = RetrievalRelevanceEvaluator(llm=llm)

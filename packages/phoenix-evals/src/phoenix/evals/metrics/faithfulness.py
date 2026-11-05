@@ -16,21 +16,23 @@ class FaithfulnessEvaluator(ClassificationEvaluator):
     A specialized evaluator for detecting faithfulness in grounded LLM responses.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
     Notes:
         - Evaluates whether the output to an input is faithful or unfaithful based on the context.
         - Returns one `Score` with `label` (faithful or unfaithful), `score` (1.0 if faithful,
-          0.0 if unfaithful), and an `explanation` from the LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+          0.0 if unfaithful), and, when an `LLM` judge is used, an `explanation`
+          (decision models return a label and probabilities, not an explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.faithfulness import FaithfulnessEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         faithfulness_eval = FaithfulnessEvaluator(llm=llm)
@@ -46,7 +48,8 @@ class FaithfulnessEvaluator(ClassificationEvaluator):
         scores = faithfulness_eval.evaluate(eval_input)
         print(scores)
         [Score(name='faithfulness', score=1.0, label='faithful',
-            explanation='Information is supported by context', metadata={'model': 'gpt-4o-mini'},
+            metadata={'model': 'gpt-6-luna', 'model_id': 'gpt-6-luna', 'confidence': 0.95,
+                'probabilities': {'faithful': 0.97, 'unfaithful': 0.03}},
             kind="llm", direction="maximize")]
 
     """
