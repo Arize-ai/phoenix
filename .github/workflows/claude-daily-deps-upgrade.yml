@@ -137,8 +137,6 @@ jobs:
             gh pr create --draft --title "$TITLE" --body "$BODY"
           fi
           gh pr edit "${BRANCH}" --add-label factory-finish
-          # Auto-merge once a reviewer approves and checks pass.
-          gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
 
   slack-notification:
     name: Slack Notification
