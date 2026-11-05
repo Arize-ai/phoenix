@@ -26,7 +26,7 @@ import {
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { TokenCostsDetails } from "@phoenix/components/trace/TokenCostsDetails";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
@@ -320,7 +320,7 @@ function TraceHeader({
               align-items: center;
             `}
           >
-            <SpanStatusBadge statusCode={statusCode} labelVariant="full" />
+            <SpanStatusIndicator statusCode={statusCode} />
           </div>
         </Flex>
         <Flex direction="column">
