@@ -6,7 +6,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
@@ -676,6 +676,34 @@ async def test_cursor_regresses_to_live_span_high_water(db: DbSessionFactory) ->
     assert cursor.produced_through_id == span.id
     assert cursor.observed_high_water_id is None
     assert cursor.observed_at is None
+
+
+async def test_spans_that_reuse_deleted_span_ids_are_queued(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        spans = [await _add_span(session, trace) for _ in range(5)]
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    await _seed_cursor(db, produced_through_id=spans[-1].id)
+    async with db() as session:
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == project_evaluator_id)
+            .values(span_rowid_floor=spans[-1].id)
+        )
+    producer = OnlineEvalProducer(db, frontier_lag_seconds=0)
+
+    async with db() as session:
+        await session.execute(
+            delete(models.Span).where(models.Span.id.in_([span.id for span in spans[2:]]))
+        )
+    await producer._tick()
+    async with db() as session:
+        new_spans = [await _add_span(session, trace) for _ in range(5)]
+    for _ in range(3):
+        await producer._tick()
+
+    assert sorted(await _work_unit_span_rowids(db)) == sorted(span.id for span in new_spans)
 
 
 async def test_frontier_gate_holds_until_lag_elapses(db: DbSessionFactory) -> None:

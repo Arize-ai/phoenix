@@ -245,13 +245,14 @@ class OnlineEvalProducer(DaemonTask):
         return await session.get(models.EvalSpanCursor, _CURSOR_ID)
 
     async def _clamp_cursor(self, cursor: models.EvalSpanCursor) -> Optional[models.EvalSpanCursor]:
-        """Lower the cursor to the live span high water, or return None if another
-        producer moved it since it was loaded."""
+        """Lower the cursor, and every span floor above it, to the live span high water, or
+        return None if another producer moved the cursor since it was loaded. SQLite reuses
+        the ids of deleted newest spans, so new spans arrive at or below the old position."""
         async with self._db() as session:
             max_span_id = await session.scalar(select(func.max(models.Span.id))) or 0
             if max_span_id >= cursor.produced_through_id:
                 return cursor
-            return await session.scalar(
+            clamped = await session.scalar(
                 update(models.EvalSpanCursor)
                 .where(
                     models.EvalSpanCursor.id == _CURSOR_ID,
@@ -264,6 +265,16 @@ class OnlineEvalProducer(DaemonTask):
                 )
                 .returning(models.EvalSpanCursor)
             )
+            if clamped is not None:
+                await session.execute(
+                    update(models.ProjectEvaluator)
+                    .where(models.ProjectEvaluator.span_rowid_floor > max_span_id)
+                    .values(
+                        span_rowid_floor=max_span_id,
+                        updated_at=models.ProjectEvaluator.updated_at,
+                    )
+                )
+            return clamped
 
     async def _reap(self, now: datetime) -> None:
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
