@@ -1,4 +1,7 @@
+import pytest
+
 from phoenix.client.types.prompts import OpenAIPrompt, PromptVersion
+from phoenix.client.utils.template_formatters import TemplateFormatterError
 
 
 def test_minimax_prompt_uses_openai_format() -> None:
@@ -57,3 +60,26 @@ def test_omitted_version_metadata_defaults_to_empty() -> None:
     )
 
     assert prompt.metadata == {}
+
+
+def test_format_substitutes_dotted_mustache_variable() -> None:
+    prompt = PromptVersion(
+        [{"role": "user", "content": "Question: {{ input.query }}"}],
+        model_name="gpt-4o",
+    )
+
+    formatted = prompt.format(variables={"input.query": "What is Phoenix?"})
+
+    assert formatted.messages[0]["content"] == "Question: What is Phoenix?"
+
+
+def test_format_raises_for_missing_dotted_mustache_variable() -> None:
+    prompt = PromptVersion(
+        [{"role": "user", "content": "Question: {{ input.query }}"}],
+        model_name="gpt-4o",
+    )
+
+    with pytest.raises(
+        TemplateFormatterError, match=r"Missing template variable\(s\): input\.query$"
+    ):
+        prompt.format(variables={})
