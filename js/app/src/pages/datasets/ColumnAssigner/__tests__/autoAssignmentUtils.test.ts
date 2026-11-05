@@ -44,62 +44,38 @@ function jsonlRows(ids: string[]): Record<string, unknown>[] {
 }
 
 describe("computeAutoAssignment", () => {
-  it.each([
-    {
-      scenario: "CSV id column holds node IDs in create mode",
-      columns: CSV_COLUMNS,
-      previewRows: csvRows([nodeId(1), nodeId(2), nodeId(3)]),
-      mode: "create" as const,
-      exampleIdKey: null,
-    },
-    {
-      scenario: "CSV id column mixes external and node IDs in create mode",
-      columns: CSV_COLUMNS,
-      previewRows: csvRows(["ext-1", nodeId(2), "ext-3"]),
-      mode: "create" as const,
-      exampleIdKey: null,
-    },
-    {
-      scenario: "CSV id column holds external IDs in create mode",
-      columns: CSV_COLUMNS,
-      previewRows: csvRows(["ext-1", "ext-2", "ext-3"]),
-      mode: "create" as const,
-      exampleIdKey: "id",
-    },
-    {
-      scenario: "CSV id column holds node IDs in append mode",
-      columns: CSV_COLUMNS,
-      previewRows: csvRows([nodeId(1), nodeId(2), nodeId(3)]),
-      mode: "append" as const,
-      exampleIdKey: "id",
-    },
-    {
-      scenario: "JSONL id field holds node IDs in create mode",
-      columns: JSONL_COLUMNS,
-      previewRows: jsonlRows([nodeId(1), nodeId(2), nodeId(3)]),
-      mode: "create" as const,
-      exampleIdKey: null,
-    },
-    {
-      scenario: "JSONL id field holds external IDs in create mode",
-      columns: JSONL_COLUMNS,
-      previewRows: jsonlRows(["ext-1", "ext-2", "ext-3"]),
-      mode: "create" as const,
-      exampleIdKey: "id",
-    },
-    {
-      scenario: "JSONL id field holds node IDs in append mode",
-      columns: JSONL_COLUMNS,
-      previewRows: jsonlRows([nodeId(1), nodeId(2), nodeId(3)]),
-      mode: "append" as const,
-      exampleIdKey: "id",
-    },
-  ])(
-    "selects exampleIdKey $exampleIdKey when the $scenario",
-    ({ columns, previewRows, mode, exampleIdKey }) => {
+  const formats = [
+    { format: "CSV", columns: CSV_COLUMNS, rows: csvRows },
+    { format: "JSONL", columns: JSONL_COLUMNS, rows: jsonlRows },
+  ];
+
+  it.each(formats)(
+    "skips a $format id of node IDs in create mode but keeps one of external IDs",
+    ({ columns, rows }) => {
+      const exampleIdKeyFor = (ids: string[]) =>
+        computeAutoAssignment({
+          columns,
+          previewRows: rows(ids),
+          mode: "create",
+        }).exampleIdKey;
+      expect(exampleIdKeyFor([nodeId(1), nodeId(2), nodeId(3)])).toBeNull();
+      expect(exampleIdKeyFor(["ext-1", nodeId(2), "ext-3"])).toBeNull();
+      expect(exampleIdKeyFor(["ext-1", "ext-2", "ext-3"])).toBe("id");
+    }
+  );
+
+  it.each(formats)(
+    "keeps a $format id of node IDs in append mode only",
+    ({ columns, rows }) => {
+      const previewRows = rows([nodeId(1), nodeId(2), nodeId(3)]);
       expect(
-        computeAutoAssignment({ columns, previewRows, mode }).exampleIdKey
-      ).toBe(exampleIdKey);
+        computeAutoAssignment({ columns, previewRows, mode: "create" })
+          .exampleIdKey
+      ).toBeNull();
+      expect(
+        computeAutoAssignment({ columns, previewRows, mode: "append" })
+          .exampleIdKey
+      ).toBe("id");
     }
   );
 

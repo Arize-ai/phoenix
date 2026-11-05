@@ -74,18 +74,26 @@ describe("getErrorMessagesFromRelaySubscriptionError", () => {
 });
 
 describe("getRestErrorDetail", () => {
-  it("should return a plain-text error body as is", () => {
+  it("should return a plain-text error body, but not an HTML error page", () => {
     // Phoenix serves HTTPExceptions as text/plain, which openapi-fetch keeps
     // as a string.
     const body =
       "No examples found in this dataset with the following IDs: 'RGF0YXNldEV4YW1wbGU6MQ=='";
     expect(getRestErrorDetail(body)).toBe(body);
+    expect(getRestErrorDetail(`  ${body}\n`)).toBe(body);
+    expect(
+      getRestErrorDetail("<html><body><h1>502 Bad Gateway</h1></body></html>")
+    ).toBe("");
+    expect(getRestErrorDetail("  ")).toBe("");
   });
 
-  it("should return a string detail from a JSON error body", () => {
+  it("should return a string detail from a JSON error body, or nothing without one", () => {
     expect(getRestErrorDetail({ detail: "Dataset already exists" })).toBe(
       "Dataset already exists"
     );
+    expect(getRestErrorDetail(undefined)).toBe("");
+    expect(getRestErrorDetail({})).toBe("");
+    expect(getRestErrorDetail({ detail: 42 })).toBe("");
   });
 
   it("should join the messages of a request validation error", () => {
@@ -97,18 +105,5 @@ describe("getRestErrorDetail", () => {
         ],
       })
     ).toBe("Field required; Field required");
-  });
-
-  it("should not return an HTML error page", () => {
-    expect(
-      getRestErrorDetail("<html><body><h1>502 Bad Gateway</h1></body></html>")
-    ).toBe("");
-  });
-
-  it("should return an empty string when the body has no detail", () => {
-    expect(getRestErrorDetail(undefined)).toBe("");
-    expect(getRestErrorDetail("  ")).toBe("");
-    expect(getRestErrorDetail({})).toBe("");
-    expect(getRestErrorDetail({ detail: 42 })).toBe("");
   });
 });

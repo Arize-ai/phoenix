@@ -99,14 +99,14 @@ describe("DatasetFromFileForm Example ID auto-selection in create mode", () => {
     });
   }
 
-  it("leaves Example ID as None when the id column holds Phoenix node IDs", async () => {
+  it("leaves Example ID as None for an id column of node IDs, but selects one of external IDs", async () => {
     await selectFile(
       exportShapedCsv([datasetExampleNodeId(1), datasetExampleNodeId(2)])
     );
     expect(exampleIdSelection(container)).toBe("None");
-  });
 
-  it("still selects id when the id column holds external IDs", async () => {
+    act(() => root.unmount());
+    root = createRoot(container);
     await selectFile(exportShapedCsv(["ext-1", "ext-2"]));
     expect(exampleIdSelection(container)).toBe("id");
   });
