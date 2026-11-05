@@ -113,15 +113,6 @@ The following environment variables will control how your phoenix server runs.
 | `PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES` | `65536` | Limits the aggregate UTF-8 size of the final rendered messages sent to an LLM provider. Minimum: `1024`. |
 | `PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES` | `65536` | Limits the UTF-8 size of the rendered span or session code-evaluator payload. Minimum: `1024`. |
 
-The evaluation queue has no size limit. When evaluations arrive faster than
-evaluators finish them, the queue grows, and its status shows Degraded once the
-oldest waiting evaluation has waited more than 10 minutes. Large queue counts
-show with a "+", for example "5,000+", because Phoenix stops counting there.
-
-An evaluator evaluates only what arrives after you create or enable it, or after
-you change a span evaluator's filter or sampling rate. Enabling an evaluator
-removes the evaluations it still had queued from before it was disabled.
-
 Set the two byte limits to the same values on every Phoenix replica. They are
 deployment policy, not part of a persisted evaluator definition, so mixed values
 during a rolling deployment can make replicas derive different inputs or outcomes
