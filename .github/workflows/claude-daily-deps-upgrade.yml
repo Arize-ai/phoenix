@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
-      # The workflow token stays read-only: publishing is done with a PAT.
       contents: read
     env:
       CI: "true"
@@ -99,7 +98,6 @@ jobs:
           gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Factory Guard fails a finished PR that touches these paths.
           blocked_files=$({ git diff --name-only origin/main...HEAD; git diff --name-only; } | sort -u | awk '
             /^\.github\// ||
             /^\.cursor\// ||
@@ -138,8 +136,6 @@ jobs:
           else
             gh pr create --draft --title "$TITLE" --body "$BODY"
           fi
-          # The PAT's owner is the label's sender, which is who the finish lane
-          # admits. Adding the label starts factory-finish.yml.
           gh pr edit "${BRANCH}" --add-label factory-finish
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "${BRANCH}" --auto --squash || echo "::warning::Could not enable auto-merge on ${BRANCH}"
