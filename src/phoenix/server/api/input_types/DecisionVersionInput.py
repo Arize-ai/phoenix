@@ -185,23 +185,17 @@ class DecisionVersionInput:
             BadRequest: The state template or questions break a rule, the model name is
                 empty, or the provider offers no decision models.
         """
-        from phoenix.db import models
-        from phoenix.server.api.helpers.decision_clients import DECISION_CLIENTS
+        from phoenix.server.api.helpers.decision_versions import new_decision_version
         from phoenix.server.api.types.GenerativeModelCustomProvider import (
             GenerativeModelCustomProvider,
         )
         from phoenix.server.api.types.node import from_global_id_with_expected_type
 
-        if self.model_provider not in DECISION_CLIENTS:
-            raise BadRequest(f"{self.model_provider.value} does not offer decision models.")
-        if not self.model_name.strip():
-            raise BadRequest("A decision model name is required.")
         if self.metadata is not None and not isinstance(self.metadata, dict):
             raise BadRequest("metadata must be an object")
         try:
-            state, questions = to_decision_definition(
-                self.template_format, self.state, self.questions
-            )
+            state = self.state.to_orm()
+            questions = [question.to_orm() for question in self.questions]
             custom_provider_id = (
                 from_global_id_with_expected_type(
                     self.custom_provider_id, GenerativeModelCustomProvider.__name__
@@ -211,14 +205,14 @@ class DecisionVersionInput:
             )
         except ValueError as error:
             raise BadRequest(str(error)) from error
-        return models.DecisionVersion(
-            description=self.description,
-            user_id=user_id,
+        return new_decision_version(
             template_format=self.template_format,
             state=state,
             questions=questions,
             model_provider=self.model_provider.to_model_provider(),
-            model_name=self.model_name.strip(),
+            model_name=self.model_name,
             custom_provider_id=custom_provider_id,
-            metadata_=dict(self.metadata or {}),
+            description=self.description,
+            metadata=self.metadata or {},
+            user_id=user_id,
         )
