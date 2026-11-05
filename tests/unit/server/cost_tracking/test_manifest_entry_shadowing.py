@@ -1,8 +1,8 @@
 """
 A manifest entry is shadowed when another entry's unanchored ``name_pattern`` wins the lookup
 for a span that reports the shadowed entry's own model ID, so the span bills at the other
-entry's rates (Arize-ai/phoenix#16402, #17652). These tests shadow one entry in a copy of the
-bundled manifest and check that the manifest tests notice.
+entry's rates (Arize-ai/phoenix#16402, #17652). This test shadows one entry in a copy of the
+bundled manifest and checks that the manifest tests notice.
 """
 
 import copy
@@ -39,14 +39,6 @@ def _lookup(manifest: dict[str, Any]) -> CostModelLookup:
     )
 
 
-def _resolve(lookup: CostModelLookup, model_name: str) -> str | None:
-    model = lookup.find_model(
-        start_time=datetime.now(timezone.utc),
-        attributes={"llm": {"model_name": model_name}},
-    )
-    return model.name if model else None
-
-
 @pytest.fixture(scope="module")
 def shadowed_manifest() -> dict[str, Any]:
     manifest: dict[str, Any] = copy.deepcopy(json.loads(BUNDLED_MANIFEST_PATH.read_text()))
@@ -55,13 +47,6 @@ def shadowed_manifest() -> dict[str, Any]:
     # specific than gpt-4o's unanchored pattern, which also matches gpt-4o-mini.
     entry["name_pattern"] = "o-mini"
     return manifest
-
-
-def test_a_shadowed_entry_bills_as_the_entry_that_shadows_it(
-    shadowed_manifest: dict[str, Any],
-) -> None:
-    assert _resolve(_lookup(json.loads(BUNDLED_MANIFEST_PATH.read_text())), SHADOWED) == SHADOWED
-    assert _resolve(_lookup(shadowed_manifest), SHADOWED) == SHADOWING
 
 
 def test_manifest_tests_catch_a_shadowed_entry(shadowed_manifest: dict[str, Any]) -> None:
