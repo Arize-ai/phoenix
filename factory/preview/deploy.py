@@ -36,8 +36,13 @@ DEPLOYMENT_FINAL_STATUSES = {
     "SLEEPING",
     "NEEDS_APPROVAL",
 }
+# launch.py's outcome lines; everything but "finished" and "no seed" is a failure.
 SEED_START_PREFIX = "preview: running"
-SEED_OUTCOME_PREFIXES = ("preview: seed finished", "preview: seed failed", "preview: no seed")
+SEED_SUCCESS_PREFIXES = ("preview: seed finished", "preview: no seed")
+SEED_OUTCOME_PREFIXES = SEED_SUCCESS_PREFIXES + (
+    "preview: seed failed",
+    "preview: the server did not become healthy",
+)
 COMMENT_MARKER = "<!-- factory-preview -->"
 
 
@@ -237,7 +242,11 @@ def run_gh(*args: str, input_text: Optional[str] = None) -> str:
 
 
 def delete_image_tags(*, image: str, pr_number: int) -> int:
-    """Delete every GHCR version tagged for this PR (pr-N and pr-N-*); return how many."""
+    """Delete every GHCR version tagged for this PR (pr-N and pr-N-*); return how many.
+
+    GitHub refuses to delete a package's last tagged version, so a refusal is reported and
+    skipped rather than failing the teardown.
+    """
     org, _, package = image.removeprefix("ghcr.io/").partition("/")
     tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
     version_ids = set(
@@ -249,20 +258,23 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
             f".[] | select(.metadata.container.tags[]? | {tag_filter}) | .id",
         ).split()
     )
+    deleted = 0
     for version_id in version_ids:
-        run_gh(
-            "api",
-            "--method",
-            "DELETE",
-            f"orgs/{org}/packages/container/{package}/versions/{version_id}",
-            "--silent",
-        )
-    return len(version_ids)
+        try:
+            run_gh(
+                "api",
+                "--method",
+                "DELETE",
+                f"orgs/{org}/packages/container/{package}/versions/{version_id}",
+                "--silent",
+            )
+            deleted += 1
+        except subprocess.CalledProcessError as error:
+            print(f"::warning::Could not delete image version {version_id}: {error.stderr}")
+    return deleted
 
 
-def upsert_comment(*, pr_number: int, body: str) -> None:
-    """Keep one preview comment per PR, found by its marker, so pushes edit rather than pile up."""
-    body = f"{COMMENT_MARKER}\n{body}"
+def find_comment(*, pr_number: int) -> Optional[str]:
     comment_ids = run_gh(
         "api",
         "--paginate",
@@ -270,12 +282,24 @@ def upsert_comment(*, pr_number: int, body: str) -> None:
         "--jq",
         f".[] | select(.body | startswith({json.dumps(COMMENT_MARKER)})) | .id",
     ).split()
-    if comment_ids:
+    return comment_ids[0] if comment_ids else None
+
+
+def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
+    """Keep one preview comment per PR, found by its marker, so pushes edit rather than pile up.
+
+    Without `create`, a PR that never had a preview comment gets none.
+    """
+    body = f"{COMMENT_MARKER}\n{body}"
+    comment_id = find_comment(pr_number=pr_number)
+    if comment_id is None and not create:
+        return
+    if comment_id is not None:
         run_gh(
             "api",
             "--method",
             "PATCH",
-            f"repos/{{owner}}/{{repo}}/issues/comments/{comment_ids[0]}",
+            f"repos/{{owner}}/{{repo}}/issues/comments/{comment_id}",
             "--input",
             "-",
             "--silent",
@@ -375,8 +399,7 @@ def run_deploy(args: argparse.Namespace) -> int:
         ),
     )
     print(f"url={url}\nstatus={status}\n{seed_outcome}")
-    seed_failed = seed_outcome.startswith("preview: seed failed")
-    return 0 if status == "SUCCESS" and not seed_failed else 1
+    return 0 if status == "SUCCESS" and seed_outcome.startswith(SEED_SUCCESS_PREFIXES) else 1
 
 
 def run_teardown(args: argparse.Namespace) -> int:
@@ -389,7 +412,9 @@ def run_teardown(args: argparse.Namespace) -> int:
         print(f"deleted service pr-{args.pr}")
     deleted_tags = delete_image_tags(image=args.image, pr_number=args.pr)
     print(f"deleted {deleted_tags} image versions")
-    upsert_comment(pr_number=args.pr, body="The preview for this PR has been torn down.")
+    upsert_comment(
+        pr_number=args.pr, body="The preview for this PR has been torn down.", create=False
+    )
     return 0
 
 
