@@ -58,6 +58,7 @@ import { AnnotationConfigurationCard } from "@phoenix/pages/project/evaluators/A
 import { CodeProjectEvaluatorConfigCards } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorConfigCards";
 import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorDetails";
 import { DecisionProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/DecisionProjectEvaluatorDetails";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
@@ -283,10 +284,7 @@ function ProjectEvaluatorDetailsPageContent({
                 projectEvaluatorId={projectEvaluator.id}
                 name={projectEvaluator.name}
                 enabled={projectEvaluator.enabled}
-                clearableCount={
-                  projectEvaluator.runSummary.queuedCount -
-                  projectEvaluator.runSummary.runningCount
-                }
+                clearableCount={getClearableCount(projectEvaluator.runSummary)}
               />
             </Flex>
             {canEdit && (

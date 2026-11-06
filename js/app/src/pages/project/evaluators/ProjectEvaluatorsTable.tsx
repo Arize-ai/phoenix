@@ -63,9 +63,15 @@ import type { ProjectEvaluatorsTable_lag$key } from "@phoenix/pages/project/eval
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
+import {
+  formatEvaluationTarget,
+  formatEvaluationTargetPlural,
+  formatSamplingRate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
@@ -85,11 +91,6 @@ import {
 import { ProjectEvaluatorSelectionToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSelectionToolbar";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
-import {
-  formatEvaluationTarget,
-  formatEvaluationTargetPlural,
-  formatSamplingRate,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
@@ -128,8 +129,8 @@ const readRow = (
           runningCount
           evaluatedCount
           failedCount
-          droppedCount
-          oldestQueuedAt
+          clearedCount
+          oldestWaitingOrRetryingAt
         }
         evaluationLoad {
           evaluationCount
@@ -518,10 +519,7 @@ export function ProjectEvaluatorsTable({
               projectEvaluatorId={row.original.id}
               name={row.original.name}
               enabled={row.original.enabled}
-              clearableCount={
-                row.original.runSummary.queuedCount -
-                row.original.runSummary.runningCount
-              }
+              clearableCount={getClearableCount(row.original.runSummary)}
             />
           </StopPropagation>
         ),
@@ -546,7 +544,7 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "queue",
-        header: "queued",
+        header: "in queue",
         size: 96,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
@@ -555,8 +553,9 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "load",
-        header: "load",
-        size: 72,
+        // Kept on one line: the table's layout wraps headers at spaces.
+        header: "eval\u00a0time\u00a0share",
+        size: 130,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <ProjectEvaluatorLoadCell
@@ -680,7 +679,7 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "averageCost",
-        header: "avg cost / run",
+        header: "avg cost / evaluation",
         size: 200,
         meta: { textAlign: "right" },
         cell: ({ row }) => (

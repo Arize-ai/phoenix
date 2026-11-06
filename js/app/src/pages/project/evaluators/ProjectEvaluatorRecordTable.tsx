@@ -27,16 +27,16 @@ import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import {
+  formatElapsedShort,
+  formatEvaluationRecordKind,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import {
   isRecordedRunEntryRunnable,
   type RecordedRunEntry,
   type RecordedRunRow,
   shortenRecordId,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
-import {
-  formatElapsedShort,
-  formatEvaluationRecordKind,
-  type ProjectEvaluatorRecordKind,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 /** The one column that takes whatever width the fixed columns leave. */

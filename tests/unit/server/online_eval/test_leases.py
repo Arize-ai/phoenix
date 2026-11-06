@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.online_eval.leases import (
-    MATERIALIZER_LEASE_TTL_SECONDS,
-    MaterializerLease,
-    current_database_time,
+from phoenix.server.online_eval.clock import current_database_time
+from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS, ScanLease
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    SweepingEvaluationProducer,
 )
-from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
 
 
@@ -41,8 +41,8 @@ async def test_current_database_time_uses_statement_time(
 async def test_lease_is_exclusive_while_held_and_taken_over_once_stale(
     db: DbSessionFactory,
 ) -> None:
-    holder = MaterializerLease(db, name="span-producer", holder="replica-1")
-    rival = MaterializerLease(db, name="span-producer", holder="replica-2")
+    holder = ScanLease(db, name="span-producer", holder="replica-1")
+    rival = ScanLease(db, name="span-producer", holder="replica-2")
 
     assert await holder.acquire()
     assert not await rival.acquire()
@@ -52,7 +52,7 @@ async def test_lease_is_exclusive_while_held_and_taken_over_once_stale(
         now = await current_database_time(session, db.dialect)
         await session.execute(
             update(models.EvalWorkLease).values(
-                heartbeat_at=now - timedelta(seconds=MATERIALIZER_LEASE_TTL_SECONDS + 1)
+                heartbeat_at=now - timedelta(seconds=SCAN_LEASE_TTL_SECONDS + 1)
             )
         )
     assert await rival.acquire()
@@ -64,8 +64,8 @@ async def test_lease_is_exclusive_while_held_and_taken_over_once_stale(
 
 @pytest.mark.postgres_only
 async def test_acquiring_a_lease_held_elsewhere_draws_no_new_id(db: DbSessionFactory) -> None:
-    holder = MaterializerLease(db, name="span-producer", holder="replica-1")
-    rival = MaterializerLease(db, name="span-producer", holder="replica-2")
+    holder = ScanLease(db, name="span-producer", holder="replica-1")
+    rival = ScanLease(db, name="span-producer", holder="replica-2")
     last_id = text("SELECT last_value FROM eval_work_leases_id_seq")
 
     assert await holder.acquire()
@@ -76,16 +76,14 @@ async def test_acquiring_a_lease_held_elsewhere_draws_no_new_id(db: DbSessionFac
         assert await session.scalar(last_id) == before
 
 
-@pytest.mark.parametrize("materializer", ["producer", "sweeper"])
-async def test_stopping_a_materializer_releases_its_lease(
+@pytest.mark.parametrize("producer", ["span", "sweeping"])
+async def test_stopping_a_producer_releases_its_lease(
     db: DbSessionFactory,
-    materializer: str,
+    producer: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    daemon: OnlineEvalProducer | EvalSweeper = (
-        OnlineEvalProducer(db)
-        if materializer == "producer"
-        else EvalSweeper(db, evaluation_target="SESSION")
+    daemon: SpanEvaluationProducer | SweepingEvaluationProducer = (
+        SpanEvaluationProducer(db) if producer == "span" else SessionEvaluationProducer(db)
     )
     acquired = asyncio.Event()
 

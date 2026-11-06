@@ -81,9 +81,6 @@ from phoenix.config import (
     get_env_max_spans_queue_size,
     get_env_mcp_code_mode,
     get_env_model_cost_manifest_url,
-    get_env_online_eval_claim_batch_size,
-    get_env_online_eval_consumer_tick_interval_seconds,
-    get_env_online_eval_max_db_concurrency,
     get_env_online_eval_max_evaluator_concurrency,
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
@@ -173,9 +170,13 @@ from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMi
 from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.oauth2_authorization_server import public_origin
-from phoenix.server.online_eval.consumer import OnlineEvalConsumer
-from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import EvalSweeper
+from phoenix.server.online_eval.consumer import MAX_DB_CONCURRENCY as ONLINE_EVAL_MAX_DB_CONCURRENCY
+from phoenix.server.online_eval.consumer import EvaluationConsumer
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    TraceEvaluationProducer,
+)
 from phoenix.server.prometheus import (
     ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT,
     SPAN_QUEUE_REJECTIONS,
@@ -682,12 +683,12 @@ def _lifespan(
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
     sandbox_runtime: SandboxRuntimeContext,
-    online_eval_producer: Optional[OnlineEvalProducer] = None,
-    online_eval_consumer: Optional[OnlineEvalConsumer] = None,
-    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None,
-    online_eval_trace_consumer: Optional[OnlineEvalConsumer] = None,
-    online_eval_session_sweeper: Optional[EvalSweeper] = None,
-    online_eval_trace_sweeper: Optional[EvalSweeper] = None,
+    online_eval_span_producer: Optional[SpanEvaluationProducer] = None,
+    online_eval_consumer: Optional[EvaluationConsumer] = None,
+    online_eval_session_consumer: Optional[EvaluationConsumer] = None,
+    online_eval_trace_consumer: Optional[EvaluationConsumer] = None,
+    online_eval_session_producer: Optional[SessionEvaluationProducer] = None,
+    online_eval_trace_producer: Optional[TraceEvaluationProducer] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -782,12 +783,12 @@ def _lifespan(
                 await stack.enter_async_context(online_eval_session_consumer)
             if online_eval_trace_consumer is not None:
                 await stack.enter_async_context(online_eval_trace_consumer)
-            if online_eval_producer is not None:
-                await stack.enter_async_context(online_eval_producer)
-            if online_eval_session_sweeper is not None:
-                await stack.enter_async_context(online_eval_session_sweeper)
-            if online_eval_trace_sweeper is not None:
-                await stack.enter_async_context(online_eval_trace_sweeper)
+            if online_eval_span_producer is not None:
+                await stack.enter_async_context(online_eval_span_producer)
+            if online_eval_session_producer is not None:
+                await stack.enter_async_context(online_eval_session_producer)
+            if online_eval_trace_producer is not None:
+                await stack.enter_async_context(online_eval_trace_producer)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during
                 # startup. Never let its initialization (which can hang until a
@@ -1151,63 +1152,55 @@ def create_app(
         sandbox_session_manager=sandbox_session_manager,
         sandbox_runtime=sandbox_runtime,
     )
-    online_eval_producer: Optional[OnlineEvalProducer] = None
-    online_eval_consumer: Optional[OnlineEvalConsumer] = None
-    online_eval_session_consumer: Optional[OnlineEvalConsumer] = None
-    online_eval_trace_consumer: Optional[OnlineEvalConsumer] = None
-    online_eval_session_sweeper: Optional[EvalSweeper] = None
-    online_eval_trace_sweeper: Optional[EvalSweeper] = None
+    online_eval_span_producer: Optional[SpanEvaluationProducer] = None
+    online_eval_consumer: Optional[EvaluationConsumer] = None
+    online_eval_session_consumer: Optional[EvaluationConsumer] = None
+    online_eval_trace_consumer: Optional[EvaluationConsumer] = None
+    online_eval_session_producer: Optional[SessionEvaluationProducer] = None
+    online_eval_trace_producer: Optional[TraceEvaluationProducer] = None
     if not read_only:
-        claim_batch_size = get_env_online_eval_claim_batch_size()
-        tick_interval_seconds = get_env_online_eval_consumer_tick_interval_seconds()
         get_env_online_eval_max_llm_message_bytes()
         get_env_online_eval_max_sandbox_payload_bytes()
         max_evaluator_concurrency = get_env_online_eval_max_evaluator_concurrency()
         if enable_prometheus:
             ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT.set(max_evaluator_concurrency)
         evaluator_semaphore = asyncio.Semaphore(max_evaluator_concurrency)
-        db_semaphore = asyncio.Semaphore(get_env_online_eval_max_db_concurrency())
-        online_eval_producer = OnlineEvalProducer(db)
-        online_eval_consumer = OnlineEvalConsumer(
+        db_semaphore = asyncio.Semaphore(ONLINE_EVAL_MAX_DB_CONCURRENCY)
+        online_eval_span_producer = SpanEvaluationProducer(db)
+        online_eval_consumer = EvaluationConsumer(
             db,
             decrypt=encryption_service.decrypt,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
             event_queue=dml_event_handler,
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
-        online_eval_session_consumer = OnlineEvalConsumer(
+        online_eval_session_consumer = EvaluationConsumer(
             db,
             decrypt=encryption_service.decrypt,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
             event_queue=dml_event_handler,
             evaluation_target="SESSION",
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
-        online_eval_trace_consumer = OnlineEvalConsumer(
+        online_eval_trace_consumer = EvaluationConsumer(
             db,
             decrypt=encryption_service.decrypt,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
             event_queue=dml_event_handler,
             evaluation_target="TRACE",
-            tick_interval_seconds=tick_interval_seconds,
-            claim_batch_size=claim_batch_size,
             evaluator_semaphore=evaluator_semaphore,
             db_semaphore=db_semaphore,
             tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         )
-        online_eval_session_sweeper = EvalSweeper(db, evaluation_target="SESSION")
-        online_eval_trace_sweeper = EvalSweeper(db, evaluation_target="TRACE")
+        online_eval_session_producer = SessionEvaluationProducer(db)
+        online_eval_trace_producer = TraceEvaluationProducer(db)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1260,12 +1253,12 @@ def create_app(
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
-            online_eval_producer=online_eval_producer,
+            online_eval_span_producer=online_eval_span_producer,
             online_eval_consumer=online_eval_consumer,
             online_eval_session_consumer=online_eval_session_consumer,
             online_eval_trace_consumer=online_eval_trace_consumer,
-            online_eval_session_sweeper=online_eval_session_sweeper,
-            online_eval_trace_sweeper=online_eval_trace_sweeper,
+            online_eval_session_producer=online_eval_session_producer,
+            online_eval_trace_producer=online_eval_trace_producer,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1501,12 +1494,12 @@ def create_app(
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.sandbox_runtime = sandbox_runtime
-    app.state.online_eval_producer = online_eval_producer
+    app.state.online_eval_span_producer = online_eval_span_producer
     app.state.online_eval_consumer = online_eval_consumer
     app.state.online_eval_session_consumer = online_eval_session_consumer
     app.state.online_eval_trace_consumer = online_eval_trace_consumer
-    app.state.online_eval_session_sweeper = online_eval_session_sweeper
-    app.state.online_eval_trace_sweeper = online_eval_trace_sweeper
+    app.state.online_eval_session_producer = online_eval_session_producer
+    app.state.online_eval_trace_producer = online_eval_trace_producer
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and
     # GraphQL surfaces answer from the same (startup-validated) value.

@@ -7,6 +7,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
+from phoenix.server.online_eval import current_queue
 from phoenix.server.online_eval.evaluation_activity import (
     ActivityBinGroup,
     ActivityGroup,
@@ -18,10 +19,11 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
-from .test_producer import _seed_criteria
+from .test_span_producer import _seed_criteria
 
 _NOON = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
 _HOURLY = TimeBucketSpec()
+_EVERY_BIN_FIELD: dict[str, Any] = dict(time_bins=_HOURLY, read_added=True, read_queue_size=True)
 
 
 def _at(hour: int, minute: int = 0) -> datetime:
@@ -76,7 +78,7 @@ async def _seed(db: DbSessionFactory) -> _Seeded:
             return models.EvalTraceWorkUnit(
                 trace_rowid=(await _add_trace(session, first)).id,
                 project_evaluator_id=trace_evaluator_id,
-                evaluated_through=created_at,
+                decided_through=created_at,
                 status=status,
                 created_at=created_at,
                 updated_at=updated_at or created_at,
@@ -88,7 +90,7 @@ async def _seed(db: DbSessionFactory) -> _Seeded:
             return models.EvalSessionWorkUnit(
                 project_session_rowid=(await _add_project_session(session, second)).id,
                 project_evaluator_id=session_evaluator_id,
-                evaluated_through=created_at,
+                decided_through=created_at,
                 status=status,
                 created_at=created_at,
                 updated_at=updated_at,
@@ -177,7 +179,7 @@ async def test_lag_percentiles_over_evaluations_that_ran(db: DbSessionFactory) -
 async def test_project_activity_is_grouped_by_evaluator(db: DbSessionFactory) -> None:
     seeded = await _seed(db)
     activity = await load_evaluation_activity(
-        db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=_HOURLY
+        db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), **_EVERY_BIN_FIELD
     )
     project_id = seeded.first_project_id
     span, trace = seeded.span_evaluator_id, seeded.trace_evaluator_id
@@ -210,7 +212,7 @@ async def test_project_activity_is_grouped_by_evaluator(db: DbSessionFactory) ->
 async def test_server_activity_is_grouped_by_project(db: DbSessionFactory) -> None:
     seeded = await _seed(db)
     activity = await load_evaluation_activity(
-        db, project_id=None, start=_at(12), end=_at(15), time_bins=_HOURLY
+        db, project_id=None, start=_at(12), end=_at(15), **_EVERY_BIN_FIELD
     )
     first, second = seeded.first_project_id, seeded.second_project_id
 
@@ -247,7 +249,13 @@ async def test_activity_bins_follow_the_time_bin_config(
 ) -> None:
     seeded = await _seed(db)
     activity = await load_evaluation_activity(
-        db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=time_bins
+        db,
+        project_id=seeded.first_project_id,
+        start=_at(12),
+        end=_at(15),
+        time_bins=time_bins,
+        read_added=True,
+        read_queue_size=True,
     )
     assert [activity_bin.timestamp for activity_bin in activity.series] == list(
         time_bins.timestamps(_at(12), _at(15))
@@ -257,13 +265,94 @@ async def test_activity_bins_follow_the_time_bin_config(
     assert sum(group.failed_count for group in bin_groups) == activity.failed_count == 1
     # Queued in the range: two span evaluations at 12:20 and 12:40, one at 13:10 and one at
     # 14:30; trace evaluations at 12:05 and 14:10.
-    assert sum(group.queued_count for group in bin_groups) == 6
+    assert sum(group.added_count for group in bin_groups) == 6
     assert sum(group.cost or 0 for group in bin_groups) == _approx(1.75)
     # Queued or running at 15:00: one PENDING and one RUNNING span evaluation, one trace
     # evaluation awaiting a retry.
     assert {
         group.project_evaluator_id: group.queue_size for group in activity.series[-1].groups
     } == {seeded.span_evaluator_id: 2, seeded.trace_evaluator_id: 1}
+
+
+async def test_queue_size_counts_past_the_queue_count_limit(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
+    async with db() as session:
+        project = await _add_project(session)
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        for status in ("PENDING", "PENDING", "PENDING", "RUNNING"):
+            session.add(
+                models.EvalWorkUnit(
+                    span_rowid=(await _add_span(session, trace)).id,
+                    project_evaluator_id=project_evaluator_id,
+                    status=status,
+                    created_at=_at(12, 30),
+                )
+            )
+
+    activity = await load_evaluation_activity(
+        db, project_id=project.id, start=_at(12), end=_at(13), **_EVERY_BIN_FIELD
+    )
+
+    assert [group.queue_size for group in activity.series[-1].groups] == [4]
+
+
+async def test_added_and_queue_size_are_read_only_when_asked(db: DbSessionFactory) -> None:
+    seeded = await _seed(db)
+    activity = await load_evaluation_activity(
+        db, project_id=seeded.first_project_id, start=_at(12), end=_at(15), time_bins=_HOURLY
+    )
+    bin_groups = [group for activity_bin in activity.series for group in activity_bin.groups]
+    assert bin_groups
+    assert {(group.added_count, group.queue_size) for group in bin_groups} == {(0, 0)}
+    assert activity.evaluated_count == 3
+
+
+async def _seed_pending(
+    db: DbSessionFactory, project: models.Project, created_at: list[datetime]
+) -> int:
+    _, project_evaluator_id = await _seed_criteria(db, project.id)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        for at in created_at:
+            session.add(
+                models.EvalWorkUnit(
+                    span_rowid=(await _add_span(session, trace)).id,
+                    project_evaluator_id=project_evaluator_id,
+                    created_at=at,
+                )
+            )
+    return project_evaluator_id
+
+
+async def test_queue_size_counts_only_the_projects_own_work(db: DbSessionFactory) -> None:
+    async with db() as session:
+        project, other_project = await _add_project(session), await _add_project(session)
+    await _seed_pending(db, project, [_at(12, 10)])
+    await _seed_pending(db, other_project, [_at(12, 20)] * 2)
+
+    activity = await load_evaluation_activity(
+        db, project_id=project.id, start=_at(12), end=_at(13), **_EVERY_BIN_FIELD
+    )
+
+    assert [group.queue_size for group in activity.series[-1].groups] == [1]
+
+
+async def test_queue_size_counts_only_work_queued_before_the_range_end(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    await _seed_pending(db, project, [_at(12, 10), _at(14), _at(14)])
+
+    activity = await load_evaluation_activity(
+        db, project_id=project.id, start=_at(12), end=_at(13), **_EVERY_BIN_FIELD
+    )
+
+    assert [group.queue_size for group in activity.series[-1].groups] == [1]
 
 
 async def test_activity_over_an_empty_range(db: DbSessionFactory) -> None:
@@ -306,7 +395,7 @@ async def test_evaluation_activity_graphql(
                             timestamp
                             groups {
                                 projectEvaluator { id }
-                                queuedCount
+                                addedCount
                                 queueSize
                                 lagP95Seconds
                             }
@@ -347,14 +436,44 @@ async def test_evaluation_activity_graphql(
         datetime.fromisoformat(activity_bin["timestamp"]) for activity_bin in project["series"]
     ] == [_at(12), _at(13), _at(14)]
     assert project["series"][2]["groups"] == [
-        {"projectEvaluator": {"id": span}, "queuedCount": 1, "queueSize": 2, "lagP95Seconds": None},
+        {"projectEvaluator": {"id": span}, "addedCount": 1, "queueSize": 2, "lagP95Seconds": None},
         {
             "projectEvaluator": {"id": trace},
-            "queuedCount": 1,
+            "addedCount": 1,
             "queueSize": 1,
             "lagP95Seconds": None,
         },
     ]
+
+
+async def test_evaluation_activity_graphql_reads_bin_fields_only_when_selected(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.server.online_eval import evaluation_activity
+
+    reads: list[tuple[bool, bool]] = []
+    load = evaluation_activity.load_evaluation_activity
+
+    async def recording_load(*args: Any, **kwargs: Any) -> Any:
+        reads.append((kwargs["read_added"], kwargs["read_queue_size"]))
+        return await load(*args, **kwargs)
+
+    monkeypatch.setattr(evaluation_activity, "load_evaluation_activity", recording_load)
+    time_range = {"start": _at(12).isoformat(), "end": _at(15).isoformat()}
+    for query in (
+        """query ($timeRange: TimeRange!) {
+            evaluationActivity(timeRange: $timeRange) { series { groups { addedCount } } }
+        }""",
+        """query ($timeRange: TimeRange!) {
+            evaluationActivity(timeRange: $timeRange) { series { groups { ...Bin } } }
+        }
+        fragment Bin on EvaluationActivityBinGroup { queueSize }""",
+    ):
+        response = await gql_client.execute(query, {"timeRange": time_range})
+        assert not response.errors
+    assert reads == [(True, False), (False, True)]
 
 
 async def test_project_evaluator_lag_graphql(

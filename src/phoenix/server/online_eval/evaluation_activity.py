@@ -28,27 +28,13 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.eval_work import (
-    COMPLETED_EVAL_WORK_STATUSES,
-    LIVE_EVAL_WORK_STATUSES,
-    TERMINAL_EVAL_SESSION_WORK_STATUSES,
-    TERMINAL_EVAL_WORK_STATUSES,
-)
+from phoenix.db.eval_work import COMPLETED_STATUSES, QUEUED_STATUSES
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import LatencyMs
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
+from phoenix.server.online_eval.work_tables import WORK_TABLES, status_in
 from phoenix.server.types import DbSessionFactory
 
-_WorkUnitModel: TypeAlias = Union[
-    type[models.EvalWorkUnit],
-    type[models.EvalTraceWorkUnit],
-    type[models.EvalSessionWorkUnit],
-]
-_WORK_TABLES: tuple[tuple[_WorkUnitModel, tuple[str, ...]], ...] = (
-    (models.EvalWorkUnit, TERMINAL_EVAL_WORK_STATUSES),
-    (models.EvalTraceWorkUnit, TERMINAL_EVAL_SESSION_WORK_STATUSES),
-    (models.EvalSessionWorkUnit, TERMINAL_EVAL_SESSION_WORK_STATUSES),
-)
 _ProjectEvaluatorIds: TypeAlias = Union[Sequence[int], sa.Select[Any]]
 _GroupKey: TypeAlias = int
 
@@ -77,13 +63,13 @@ class ActivityGroup:
 @dataclass(frozen=True)
 class ActivityBinGroup:
     """One group's activity in one time bin. ``queue_size`` is how many of its evaluations
-    were queued or running at the bin's end."""
+    were in queue at the bin's end."""
 
     project_id: int
     project_evaluator_id: Optional[int]
     evaluated_count: int = 0
     failed_count: int = 0
-    queued_count: int = 0
+    added_count: int = 0
     lag_p95_seconds: Optional[float] = None
     cost: Optional[float] = None
     queue_size: int = 0
@@ -131,9 +117,16 @@ async def load_evaluation_activity(
     start: datetime,
     end: datetime,
     time_bins: TimeBucketSpec,
+    read_added: bool = False,
+    read_queue_size: bool = False,
 ) -> EvaluationActivity:
     """Activity of one project's evaluators, grouped by project evaluator, or, with no
-    ``project_id``, of every project evaluator on the server, grouped by project."""
+    ``project_id``, of every project evaluator on the server, grouped by project.
+
+    Evaluations added in each bin are read with ``read_added``, and the queue's size at each
+    bin's end with ``read_queue_size``; otherwise both are 0. The queue size reads every
+    evaluation in queue in the scope, so it costs as much as the queue is long.
+    """
     scope = sa.select(models.ProjectEvaluator.id)
     if project_id is not None:
         scope = scope.where(models.ProjectEvaluator.project_id == project_id)
@@ -144,6 +137,8 @@ async def load_evaluation_activity(
         start=start,
         end=end,
         time_bins=time_bins,
+        read_added=read_added,
+        read_queue_size=read_queue_size,
     )
     async with db.read() as session:
         return await reader.read(session)
@@ -153,7 +148,7 @@ async def load_evaluation_activity(
 class _GroupBin:
     evaluated_count: int = 0
     failed_count: int = 0
-    queued_count: int = 0
+    added_count: int = 0
     lag_p95_seconds: Optional[float] = None
     cost: Optional[float] = None
 
@@ -176,17 +171,22 @@ class _ActivityReader:
     start: datetime
     end: datetime
     time_bins: TimeBucketSpec
+    read_added: bool
+    read_queue_size: bool
 
     async def read(self, session: AsyncSession) -> EvaluationActivity:
         bins = list(self.time_bins.timestamps(self.start, self.end))
         bin_index = {timestamp: i for i, timestamp in enumerate(bins)}
         project_ids: dict[_GroupKey, int] = {}
+        group_keys_by_evaluator: dict[int, _GroupKey] = {}
         async for project_evaluator_id, project_id in await session.stream(
             sa.select(models.ProjectEvaluator.id, models.ProjectEvaluator.project_id).where(
                 models.ProjectEvaluator.id.in_(self.scope)
             )
         ):
-            project_ids[project_id if self.by_project else project_evaluator_id] = project_id
+            key = project_id if self.by_project else project_evaluator_id
+            project_ids[key] = project_id
+            group_keys_by_evaluator[project_evaluator_id] = key
         groups = {key: _GroupTotals(queue_sizes=[0] * len(bins)) for key in project_ids}
 
         completed = _completed(self.scope, self.start, self.end)
@@ -230,7 +230,10 @@ class _ActivityReader:
         ).one()
         lag = _lag(*total_percentiles)
 
-        await self._read_queue(session, groups, bin_index)
+        if self.read_added:
+            await self._read_added(session, groups, group_keys_by_evaluator, bin_index)
+        if self.read_queue_size:
+            await self._read_queue_size(session, groups, group_keys_by_evaluator, bin_index)
         await self._read_cost(session, groups, bin_index)
 
         group_keys = sorted(
@@ -261,7 +264,7 @@ class _ActivityReader:
                             *self._identity(key, project_ids[key]),
                             evaluated_count=group_bin.evaluated_count,
                             failed_count=group_bin.failed_count,
-                            queued_count=group_bin.queued_count,
+                            added_count=group_bin.added_count,
                             lag_p95_seconds=group_bin.lag_p95_seconds,
                             cost=group_bin.cost,
                             queue_size=queue_size,
@@ -277,17 +280,37 @@ class _ActivityReader:
             ),
         )
 
-    async def _read_queue(
+    async def _read_added(
         self,
         session: AsyncSession,
         groups: dict[_GroupKey, _GroupTotals],
+        group_keys_by_evaluator: dict[int, _GroupKey],
         bin_index: dict[datetime, int],
     ) -> None:
-        """Evaluations queued in each bin, and the queue's size at each bin's end, from one
-        read of the evaluations queued at any time in the range: those still queued, and
-        those that left the queue in or after it."""
-        queued = _queued(self.scope, self.start, self.end)
-        entered_at, exited_at = queued.c.entered_at, queued.c.exited_at
+        """Evaluations added to the queue in each bin."""
+        added = _added(self.scope, self.start, self.end)
+        bucket = self.time_bins.truncate(self.dialect, added.c.added_at)
+        async for project_evaluator_id, timestamp, count in await session.stream(
+            sa.select(added.c.project_evaluator_id, bucket, sa.func.count())
+            .select_from(added)
+            .group_by(added.c.project_evaluator_id, bucket)
+        ):
+            if (key := group_keys_by_evaluator.get(project_evaluator_id)) is None:
+                continue
+            index = bin_index[_as_datetime(timestamp)]
+            groups[key].bins.setdefault(index, _GroupBin()).added_count += count
+
+    async def _read_queue_size(
+        self,
+        session: AsyncSession,
+        groups: dict[_GroupKey, _GroupTotals],
+        group_keys_by_evaluator: dict[int, _GroupKey],
+        bin_index: dict[datetime, int],
+    ) -> None:
+        """The queue's size at each bin's end, from how many evaluations entered and left the
+        queue in each bin."""
+        in_queue = _in_queue(self.scope, self.start, self.end)
+        entered_at, exited_at = in_queue.c.entered_at, in_queue.c.exited_at
         entered_bin = sa.case(
             (entered_at < self.start, None),
             else_=self.time_bins.truncate(self.dialect, entered_at),
@@ -298,18 +321,16 @@ class _ActivityReader:
         )
         bin_count = len(bin_index)
         changes: dict[_GroupKey, list[int]] = defaultdict(lambda: [0] * (bin_count + 1))
-        group = self._group(queued)
-        async for key, entered, exited, count in await session.stream(
-            sa.select(group, entered_bin, exited_bin, sa.func.count())
-            .select_from(queued)
-            .group_by(group, entered_bin, exited_bin)
+        project_evaluator_id = in_queue.c.project_evaluator_id
+        async for evaluator_id, entered, exited, count in await session.stream(
+            sa.select(project_evaluator_id, entered_bin, exited_bin, sa.func.count())
+            .select_from(in_queue)
+            .group_by(project_evaluator_id, entered_bin, exited_bin)
         ):
-            if key not in groups:
+            if (key := group_keys_by_evaluator.get(evaluator_id)) is None:
                 continue
             entered_index = -1 if entered is None else bin_index[_as_datetime(entered)]
             exited_index = bin_count if exited is None else bin_index[_as_datetime(exited)]
-            if entered_index >= 0:
-                groups[key].bins.setdefault(entered_index, _GroupBin()).queued_count += count
             changes[key][max(entered_index, 0)] += count
             changes[key][exited_index] -= count
         for key, deltas in changes.items():
@@ -348,7 +369,7 @@ class _ActivityReader:
 
     def _group(self, rows: sa.Subquery) -> sa.ColumnElement[int]:
         """The group of rows keyed by project evaluator. The project is looked up per row:
-        joined instead, SQLite materializes the rows and indexes them to drive the join from
+        joined instead, SQLite copies the rows into a temporary index to drive the join from
         the project evaluators, at several times the cost."""
         if not self.by_project:
             return rows.c.project_evaluator_id
@@ -376,7 +397,8 @@ def _completed(
     table rather than search ``ix_*_project_evaluator_done`` once per evaluator.
     """
     branches: list[sa.Select[*tuple[Any, ...]]] = []
-    for model, terminal_statuses in _WORK_TABLES:
+    for work_table in WORK_TABLES.values():
+        model = work_table.work_unit_model
         branches.append(
             sa.select(
                 model.project_evaluator_id.label("project_evaluator_id"),
@@ -384,8 +406,8 @@ def _completed(
                 model.updated_at.label("completed_at"),
                 (LatencyMs(model.created_at, model.updated_at) / 1000).label("lag_seconds"),
             ).where(
-                _status_in(model, terminal_statuses),
-                _status_in(model, COMPLETED_EVAL_WORK_STATUSES),
+                status_in(model, work_table.terminal_statuses),
+                status_in(model, COMPLETED_STATUSES),
                 _evaluator_in(model, project_evaluator_ids),
                 model.updated_at >= start,
                 model.updated_at < end,
@@ -394,42 +416,73 @@ def _completed(
     return sa.union_all(*branches).subquery("completed")
 
 
-def _queued(
+def _added(
     project_evaluator_ids: sa.Select[Any],
     start: datetime,
     end: datetime,
 ) -> sa.Subquery:
-    """Evaluations queued before ``end`` and still queued, or queued before ``end`` that left
-    the queue at or after ``start``, with when each entered and left.
-
-    Still-queued rows are read through ``ix_*_claimable``, which the queue's limit bounds, and
-    rows that left through ``ix_*_terminal`` from ``start``. The evaluator is matched as an
-    expression so neither dialect reads each evaluator's whole history by its index instead.
-    Rows inserted already declined never entered the queue, and no branch reads them.
-    """
+    """Evaluations added to the queue in ``[start, end)``: those still in queue, read through
+    each evaluator's ``ix_*_project_evaluator_live`` index from ``start``, and those that have
+    left it, through ``ix_*_terminal`` from ``start``. Rows inserted already declined never
+    entered the queue, and no branch reads them."""
     branches: list[sa.Select[*tuple[Any, ...]]] = []
-    for model, terminal_statuses in _WORK_TABLES:
-        in_scope = (model.project_evaluator_id + sa.literal_column("0")).in_(project_evaluator_ids)
+    for work_table in WORK_TABLES.values():
+        model = work_table.work_unit_model
+        added_in_range = (model.created_at >= start, model.created_at < end)
         branches.append(
             sa.select(
                 model.project_evaluator_id.label("project_evaluator_id"),
-                model.created_at.label("entered_at"),
-                sa.null().label("exited_at"),
-            ).where(_status_in(model, LIVE_EVAL_WORK_STATUSES), in_scope, model.created_at < end)
+                model.created_at.label("added_at"),
+            ).where(
+                status_in(model, QUEUED_STATUSES),
+                model.project_evaluator_id.in_(project_evaluator_ids),
+                *added_in_range,
+            )
         )
         branches.append(
+            sa.select(model.project_evaluator_id, model.created_at).where(
+                status_in(model, work_table.terminal_statuses),
+                _evaluator_in(model, project_evaluator_ids),
+                model.updated_at >= start,
+                *added_in_range,
+            )
+        )
+    return sa.union_all(*branches).subquery("added")
+
+
+def _in_queue(
+    project_evaluator_ids: sa.Select[Any],
+    start: datetime,
+    end: datetime,
+) -> sa.Subquery:
+    """Evaluations in queue at any time in ``[start, end)``, with when each entered and left:
+    those still in queue that entered before ``end``, read through each evaluator's
+    ``ix_*_project_evaluator_live`` index, and those that left at or after ``start``, through
+    ``ix_*_terminal``. Rows inserted already declined never entered the queue, and no branch
+    reads them."""
+    branches: list[sa.Select[*tuple[Any, ...]]] = []
+    for work_table in WORK_TABLES.values():
+        model = work_table.work_unit_model
+        branches.append(
             sa.select(
                 model.project_evaluator_id.label("project_evaluator_id"),
                 model.created_at.label("entered_at"),
-                model.updated_at.label("exited_at"),
+                sa.cast(sa.null(), models.UtcTimeStamp).label("exited_at"),
             ).where(
-                _status_in(model, terminal_statuses),
-                in_scope,
+                status_in(model, QUEUED_STATUSES),
+                model.project_evaluator_id.in_(project_evaluator_ids),
+                model.created_at < end,
+            )
+        )
+        branches.append(
+            sa.select(model.project_evaluator_id, model.created_at, model.updated_at).where(
+                status_in(model, work_table.terminal_statuses),
+                _evaluator_in(model, project_evaluator_ids),
                 model.updated_at >= start,
                 model.created_at < end,
             )
         )
-    return sa.union_all(*branches).subquery("queued")
+    return sa.union_all(*branches).subquery("in_queue")
 
 
 def _lag_percentiles(
@@ -461,20 +514,6 @@ def _evaluator_in(
 ) -> sa.ColumnElement[bool]:
     condition: sa.ColumnElement[bool] = (model.project_evaluator_id + sa.literal_column("0")).in_(
         project_evaluator_ids
-    )
-    return condition
-
-
-def _status_in(model: Any, statuses: tuple[str, ...]) -> sa.ColumnElement[bool]:
-    """Statuses render as literals so SQLite matches the work tables' partial indexes."""
-    condition: sa.ColumnElement[bool] = model.status.in_(
-        sa.bindparam(
-            "statuses",
-            list(statuses),
-            expanding=True,
-            literal_execute=True,
-            unique=True,
-        )
     )
     return condition
 

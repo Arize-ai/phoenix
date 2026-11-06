@@ -136,13 +136,13 @@ const ProjectEvaluatorMetricPanels = memo(
           <DeferredProjectMetricPanel
             chart={getProjectMetricChart("traces")}
             title="Evaluations"
-            subtitle="Evaluation runs over time by status"
+            subtitle="Evaluations over time by status"
             {...evaluatorTraceChartProps}
           />
           <DeferredProjectMetricPanel
             chart={getProjectMetricChart("latency")}
             title="Evaluation latency"
-            subtitle="Latency percentiles of evaluation runs"
+            subtitle="Latency percentiles of evaluations"
             {...evaluatorTraceChartProps}
           />
         </Flex>
@@ -150,7 +150,7 @@ const ProjectEvaluatorMetricPanels = memo(
           <DeferredProjectMetricPanel
             chart={getProjectMetricChart("cost")}
             title="Evaluation cost"
-            subtitle="Estimated LLM cost of evaluation runs in USD"
+            subtitle="Estimated LLM cost of evaluations in USD"
             {...evaluatorTraceChartProps}
           />
         </Flex>

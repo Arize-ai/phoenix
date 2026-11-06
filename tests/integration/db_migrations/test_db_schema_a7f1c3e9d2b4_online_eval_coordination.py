@@ -227,7 +227,6 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
-            "swept_through_at",
             "created_at",
             "updated_at",
         }
@@ -262,7 +261,36 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping", "swept_through_at"]),
+            nullable_column_names=frozenset(["input_mapping"]),
+        )
+
+
+class TestProjectEvaluatorState(_OnlineEvalSchemaTest):
+    table_name = "project_evaluator_state"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
+        column_names = {"project_evaluator_id", "span_start_rowid", "swept_through_at"}
+        constraint_names = {
+            "pk_project_evaluator_state",
+            _constraint_name(
+                "fk_project_evaluator_state_project_evaluator_id_project_evaluators",
+                db_backend,
+            ),
+        }
+        if db_backend == "postgresql":
+            index_names = {"pk_project_evaluator_state"}
+        elif db_backend == "sqlite":
+            index_names = {"sqlite_autoindex_project_evaluator_state_1"}
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(column_names),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(["span_start_rowid", "swept_through_at"]),
         )
 
 
@@ -290,6 +318,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_work_units_project_evaluator_done",
             "ix_eval_work_units_project_evaluator_failed",
             "ix_eval_work_units_project_evaluator_id",
+            "ix_eval_work_units_project_evaluator_live",
             "ix_eval_work_units_terminal",
         }
         constraint_names = {
@@ -332,6 +361,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_session_work_units_project_evaluator_done",
             "ix_eval_session_work_units_project_evaluator_failed",
             "ix_eval_session_work_units_project_evaluator_id",
+            "ix_eval_session_work_units_project_evaluator_live",
             "ix_eval_session_work_units_terminal",
         }
         unique_key = _constraint_name(
@@ -364,7 +394,7 @@ class TestEvalSessionWorkUnits(_OnlineEvalSchemaTest):
                     "id",
                     "project_session_rowid",
                     "project_evaluator_id",
-                    "evaluated_through",
+                    "decided_through",
                     "status",
                     "claimed_at",
                     "claimed_by",
@@ -399,6 +429,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
             "ix_eval_trace_work_units_project_evaluator_done",
             "ix_eval_trace_work_units_project_evaluator_failed",
             "ix_eval_trace_work_units_project_evaluator_id",
+            "ix_eval_trace_work_units_project_evaluator_live",
             "ix_eval_trace_work_units_terminal",
         }
         unique_key = _constraint_name(
@@ -431,7 +462,7 @@ class TestEvalTraceWorkUnits(_OnlineEvalSchemaTest):
                     "id",
                     "trace_rowid",
                     "project_evaluator_id",
-                    "evaluated_through",
+                    "decided_through",
                     "status",
                     "claimed_at",
                     "claimed_by",

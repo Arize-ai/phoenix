@@ -35,26 +35,8 @@ class TestGetEnvOnlineEval:
         ("env_name", "getter", "value", "expected"),
         [
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
-                phoenix_config.get_env_online_eval_frontier_lag_seconds,
-                "0",
-                0.0,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
-                phoenix_config.get_env_online_eval_backstop_interval_seconds,
-                "0.001",
-                0.001,
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
                 phoenix_config.get_env_online_eval_retention_seconds,
-                "0.001",
-                0.001,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_CONSUMER_TICK_INTERVAL_SECONDS,
-                phoenix_config.get_env_online_eval_consumer_tick_interval_seconds,
                 "0.001",
                 0.001,
             ),
@@ -74,21 +56,6 @@ class TestGetEnvOnlineEval:
     @pytest.mark.parametrize(
         ("env_name", "getter", "value"),
         [
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
-                phoenix_config.get_env_online_eval_frontier_lag_seconds,
-                "-1",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
-                phoenix_config.get_env_online_eval_backstop_interval_seconds,
-                "-1",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
-                phoenix_config.get_env_online_eval_backstop_interval_seconds,
-                "0",
-            ),
             (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
                 phoenix_config.get_env_online_eval_retention_seconds,
@@ -116,14 +83,6 @@ class TestGetEnvOnlineEval:
         ("env_name", "getter"),
         [
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS,
-                phoenix_config.get_env_online_eval_frontier_lag_seconds,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS,
-                phoenix_config.get_env_online_eval_backstop_interval_seconds,
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS,
                 phoenix_config.get_env_online_eval_retention_seconds,
             ),
@@ -145,32 +104,8 @@ class TestGetEnvOnlineEval:
         ("env_name", "getter", "value", "expected"),
         [
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS,
-                phoenix_config.get_env_online_eval_backstop_lookback_span_ids,
-                "0",
-                0,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
-                phoenix_config.get_env_online_eval_max_outstanding,
-                "1",
-                1,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
-                phoenix_config.get_env_online_eval_claim_batch_size,
-                "1",
-                1,
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
                 phoenix_config.get_env_online_eval_max_evaluator_concurrency,
-                "1",
-                1,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
-                phoenix_config.get_env_online_eval_max_db_concurrency,
                 "1",
                 1,
             ),
@@ -203,28 +138,8 @@ class TestGetEnvOnlineEval:
         ("env_name", "getter", "value"),
         [
             (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS,
-                phoenix_config.get_env_online_eval_backstop_lookback_span_ids,
-                "-1",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
-                phoenix_config.get_env_online_eval_max_outstanding,
-                "0",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_OUTSTANDING,
-                phoenix_config.get_env_online_eval_max_outstanding,
-                "-1",
-            ),
-            (
                 phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
                 phoenix_config.get_env_online_eval_max_evaluator_concurrency,
-                "0",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
-                phoenix_config.get_env_online_eval_max_db_concurrency,
                 "0",
             ),
             (
@@ -249,6 +164,13 @@ class TestGetEnvOnlineEval:
         monkeypatch.setenv(env_name, value)
         with pytest.raises(ValueError, match=env_name):
             getter()
+
+    def test_evaluator_concurrency_defaults_to_50(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv(
+            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, raising=False
+        )
+
+        assert phoenix_config.get_env_online_eval_max_evaluator_concurrency() == 50
 
     def test_session_size_defaults(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.delenv(

@@ -91,9 +91,9 @@ from phoenix.server.app import _db, create_app
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.online_eval.consumer import OnlineEvalConsumer
-from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import EvalSweeper
+from phoenix.server.online_eval.consumer import EvaluationConsumer
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import SweepingEvaluationProducer
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers
@@ -1122,13 +1122,13 @@ async def _no_op(*_: Any, **__: Any) -> None:
 
 @contextlib.asynccontextmanager
 async def patch_online_eval_daemons() -> AsyncIterator[None]:
-    """Run the app without its online-evaluation producer, consumers, and sweepers.
+    """Run the app without its online-evaluation producers and consumers.
 
     Like the DML event daemon, they query the database from background tasks, and a
     query cancelled at shutdown invalidates the one connection a test's sessions
     share. Tests of the daemons themselves drive them directly instead.
     """
-    classes = (OnlineEvalProducer, OnlineEvalConsumer, EvalSweeper)
+    classes = (SpanEvaluationProducer, EvaluationConsumer, SweepingEvaluationProducer)
     names = ("__aenter__", "__aexit__")
     # All three inherit both methods from DaemonTask; shadowing them per class
     # leaves every other daemon running as before.

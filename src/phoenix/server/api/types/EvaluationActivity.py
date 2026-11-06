@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, Sequence
 
 import strawberry
 from strawberry.types import Info
+from strawberry.types.nodes import SelectedField, Selection
 
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
@@ -78,12 +79,6 @@ class EvaluationActivityGroup:
         return self.group.failed_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Lag of evaluations completed in the range; null if none completed."
-    )
-    def lag(self) -> Optional[EvaluationLag]:
-        return to_gql_evaluation_lag(self.group.lag)
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
         description="Cost in USD of the evaluations' traces started in the range; null if none."
     )
     def cost(self) -> Optional[float]:
@@ -116,9 +111,9 @@ class EvaluationActivityBinGroup:
     def failed_count(self) -> int:
         return self.group.failed_count
 
-    @strawberry.field(description="Evaluations queued in the bin.")  # type: ignore
-    def queued_count(self) -> int:
-        return self.group.queued_count
+    @strawberry.field(description="Evaluations added to the queue in the bin.")  # type: ignore
+    def added_count(self) -> int:
+        return self.group.added_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
@@ -135,7 +130,10 @@ class EvaluationActivityBinGroup:
         return self.group.cost
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Evaluations queued or running at the end of the bin."
+        description=(
+            "Evaluations in queue at the end of the bin. Read only when selected, from every "
+            "evaluation in queue."
+        )
     )
     def queue_size(self) -> int:
         return self.group.queue_size
@@ -218,5 +216,26 @@ async def resolve_evaluation_activity(
         start=time_range.start,
         end=end,
         time_bins=TimeBucketSpec.from_config(time_bin_config),
+        read_added=_selects_bin_field(info, "addedCount"),
+        read_queue_size=_selects_bin_field(info, "queueSize"),
     )
     return EvaluationActivity(activity=activity)
+
+
+def _selects_bin_field(info: Info[Context, None], name: str) -> bool:
+    return any(
+        _selects(field.selections, ("series", "groups", name)) for field in info.selected_fields
+    )
+
+
+def _selects(selections: Sequence[Selection], path: Sequence[str]) -> bool:
+    """Whether ``selections`` reach the field at ``path``, through any fragments."""
+    for selection in selections:
+        if not isinstance(selection, SelectedField):
+            if _selects(selection.selections, path):
+                return True
+        elif selection.name == path[0] and (
+            len(path) == 1 or _selects(selection.selections, path[1:])
+        ):
+            return True
+    return False

@@ -1,19 +1,11 @@
-"""Policy governing scheduled evaluation work: scheduling delays and the turn cap on
-what a session evaluation loads.
+"""The turn cap on what a session evaluation loads, and its identity in the config
+fingerprint.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-
-# What to do about an over-limit sandbox payload. Shared with the preview
-# mutation so a preview run under the online limits reports the rejection in the
-# same words the scheduled evaluation would.
-ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
-    "Narrow the slot with a path mapping, reduce the evaluator source, or raise the "
-    "limit with PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
-)
 
 SESSION_POLICY_VERSION = "3"
 MAX_SESSION_EVAL_TURNS = 1_000

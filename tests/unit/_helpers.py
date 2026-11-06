@@ -234,7 +234,7 @@ async def _add_live_session_work_unit(
     work_unit = models.EvalSessionWorkUnit(
         project_session_rowid=project_session.id,
         project_evaluator_id=project_evaluator.id,
-        evaluated_through=now,
+        decided_through=now,
         status="RUNNING",
         claimed_at=now,
         claimed_by="consumer",

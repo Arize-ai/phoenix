@@ -1,4 +1,4 @@
-"""Online-eval consumer daemon.
+"""The evaluation consumer: runs queued evaluations.
 
 Runs on every replica; instances compete for work through coordinator claims.
 A consumer claims only as many work units as it holds evaluator permits for, up
@@ -30,7 +30,7 @@ from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
     PublicationEvaluatorDisabledError,
 )
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
+from phoenix.server.online_eval.current_queue import load_evaluation_queue
 from phoenix.server.online_eval.executor import (
     ConfigurationSnapshotOutcome,
     HydratedWorkUnit,
@@ -41,9 +41,7 @@ from phoenix.server.online_eval.executor import (
     SharedHydrationFailure,
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition, classify
-from phoenix.server.online_eval.queue_health import load_evaluation_queue
 from phoenix.server.prometheus import (
-    ONLINE_EVAL_AT_CAPACITY,
     ONLINE_EVAL_CLEARED_WORK_UNITS,
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
     ONLINE_EVAL_EXPIRED_WORK_UNITS,
@@ -62,6 +60,9 @@ _T = TypeVar("_T")
 
 TICK_INTERVAL_SECONDS = 5.0
 CLAIM_BATCH_SIZE = 10
+MAX_DB_CONCURRENCY = 5
+"""How many consumer database phases (claim, hydrate, publish, evaluator trace) a replica
+runs at once, across its consumers."""
 ERROR_COOLDOWN_SECONDS = 60.0
 DRAIN_TIMEOUT_SECONDS = 10.0
 EXECUTION_DEADLINE_SECONDS = 600.0
@@ -104,7 +105,7 @@ async def _cancel_and_await(task: asyncio.Task[Any]) -> None:
         pass
 
 
-class OnlineEvalConsumer(DaemonTask):
+class EvaluationConsumer(DaemonTask):
     """Per-replica daemon claiming and executing online-eval work units."""
 
     def __init__(
@@ -129,7 +130,7 @@ class OnlineEvalConsumer(DaemonTask):
         if evaluation_target not in ("SPAN", "SESSION", "TRACE"):
             raise ValueError(f"Online evaluation consumers do not support {evaluation_target}")
         self._evaluation_target = evaluation_target
-        self._coordinator: EvalWorkCoordinator = coordinator or DbEvalWorkCoordinator(
+        self._coordinator: EvalWorkCoordinator = coordinator or EvalWorkCoordinator(
             db, evaluation_target=self._evaluation_target
         )
         self._executor = OnlineEvalExecutor(
@@ -179,16 +180,15 @@ class OnlineEvalConsumer(DaemonTask):
         ended = await self._coordinator.ended_work_counts()
         target = queue.target(self._evaluation_target)
         labels = {"evaluation_target": self._evaluation_target}
-        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(target.waiting.queued_count)
+        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(target.waiting_count)
         ONLINE_EVAL_RUNNING_WORK_UNITS.labels(**labels).set(target.running_count)
         ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(target.retrying_count)
         ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.labels(**labels).set(
-            queue.wait_seconds(target.waiting) or 0.0
+            queue.wait_seconds(target.oldest_waiting_at) or 0.0
         )
-        ONLINE_EVAL_AT_CAPACITY.set(int(queue.at_capacity))
         ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(ended.exhausted_error_count)
         ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(ended.expired_count)
-        ONLINE_EVAL_CLEARED_WORK_UNITS.labels(**labels).set(ended.dropped_count)
+        ONLINE_EVAL_CLEARED_WORK_UNITS.labels(**labels).set(ended.cleared_count)
 
     async def stop(self) -> None:
         await super().stop()
@@ -328,20 +328,34 @@ class OnlineEvalConsumer(DaemonTask):
                 error = hydrated.reason.value
                 if hydrated.detail:
                     error = f"{error}: {hydrated.detail}"
-                expired = await self._retry_transition(
-                    action="expire",
-                    unit=unit,
-                    transition=lambda: self._coordinator.expire(
-                        work_unit_id=unit.work_unit_id,
-                        claimed_by=unit.claimed_by,
-                        error=error,
-                        status=hydrated.terminal_status,
-                    ),
-                )
-                if not expired:
+                status = hydrated.terminal_status
+                if status == "DROPPED":
+                    action = "clear"
+                    ended = await self._retry_transition(
+                        action=action,
+                        unit=unit,
+                        transition=lambda: self._coordinator.clear(
+                            work_unit_id=unit.work_unit_id,
+                            claimed_by=unit.claimed_by,
+                            error=error,
+                        ),
+                    )
+                else:
+                    action = "expire"
+                    ended = await self._retry_transition(
+                        action=action,
+                        unit=unit,
+                        transition=lambda: self._coordinator.expire(
+                            work_unit_id=unit.work_unit_id,
+                            claimed_by=unit.claimed_by,
+                            error=error,
+                            status=status,
+                        ),
+                    )
+                if not ended:
                     logger.warning(
-                        f"Online-eval work unit {unit.work_unit_id} could not expire after its "
-                        "claim was lost"
+                        f"Online-eval work unit {unit.work_unit_id} could not {action} after "
+                        "its claim was lost"
                     )
                 return
             hydrated_work_unit = hydrated
@@ -362,19 +376,18 @@ class OnlineEvalConsumer(DaemonTask):
                     "claim was lost"
                 )
         except PublicationEvaluatorDisabledError:
-            dropped = await self._retry_transition(
-                action="drop",
+            cleared = await self._retry_transition(
+                action="clear",
                 unit=unit,
-                transition=lambda: self._coordinator.expire(
+                transition=lambda: self._coordinator.clear(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=unit.claimed_by,
                     error=HydrationFailureReason.PROJECT_EVALUATOR_DISABLED.value,
-                    status="DROPPED",
                 ),
             )
-            if not dropped:
+            if not cleared:
                 logger.warning(
-                    f"Online-eval work unit {unit.work_unit_id} could not be dropped after "
+                    f"Online-eval work unit {unit.work_unit_id} could not be cleared after "
                     "its claim was lost"
                 )
         except Exception as exc:

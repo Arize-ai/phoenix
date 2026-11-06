@@ -26,8 +26,8 @@ import {
   useServerProjectSeries,
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import { MAX_PICKED_PROJECTS } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { EvaluationQueueSwatch } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /**
  * Picks which projects the charts and table show. With none picked, the
@@ -40,7 +40,7 @@ export function ServerProjectsFilterButton({
 }: {
   pickedProjectIds: ReadonlyArray<string>;
   onPickedProjectIdsChange: (projectIds: string[]) => void;
-  fetchKey: number;
+  fetchKey: string;
 }) {
   return (
     <MenuTrigger>
@@ -76,7 +76,7 @@ function ServerProjectsFilterContent({
 }: {
   pickedProjectIds: ReadonlyArray<string>;
   onPickedProjectIdsChange: (projectIds: string[]) => void;
-  fetchKey: number;
+  fetchKey: string;
 }) {
   const { contains } = useFilter({ sensitivity: "base" });
   // The charts already loaded this; opening the menu reads it from the store.
@@ -140,7 +140,7 @@ function ServerProjectsFilterContent({
               trailingContent={
                 queuedCount > 0 && totalQueued > 0 ? (
                   <Text size="S" fontFamily="mono" color="text-700">
-                    {`${intFormatter(queuedCount)} queued`}
+                    {`${formatQueueCount(queuedCount)} in queue`}
                   </Text>
                 ) : undefined
               }
