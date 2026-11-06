@@ -6,10 +6,8 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
-import {
-  formatElapsedShort,
-  formatQueueCount,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import { formatElapsedShort } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 
 export type ProjectEvaluatorQueuedWork = {
   queuedCount: number;

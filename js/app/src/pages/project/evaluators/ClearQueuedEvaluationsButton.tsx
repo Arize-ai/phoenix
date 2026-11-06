@@ -14,11 +14,11 @@ import type { ClearQueuedEvaluationsButtonClearAllMutation } from "@phoenix/page
 import type { ClearQueuedEvaluationsButtonCountsQuery } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonCountsQuery.graphql";
 import type { ClearQueuedEvaluationsButtonMutation } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonMutation.graphql";
 import { ClearQueueConfirmDialog } from "@phoenix/pages/project/evaluators/ClearQueueConfirmDialog";
-import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import {
   formatQueueCount,
   getClearableCount,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+} from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";

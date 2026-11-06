@@ -8,7 +8,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import type { TextColorValue } from "@phoenix/components/core/types/style";
-import { formatLastRun } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatRelativeOrNever } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { formatPercentShort } from "@phoenix/utils/numberFormatUtils";
 
 export type ProjectEvaluatorFailureSummary = {
@@ -80,7 +80,7 @@ export function ProjectEvaluatorFailuresCell({
           </Text>
           {lastFailedAt != null ? (
             <Flex direction="column" gap="size-50">
-              <Text size="S">{`Last failed ${formatLastRun(lastFailedAt)}`}</Text>
+              <Text size="S">{`Last failed ${formatRelativeOrNever(lastFailedAt)}`}</Text>
               {lastError ? (
                 <div css={errorCSS}>
                   <Text size="XS" fontFamily="mono" color="danger">

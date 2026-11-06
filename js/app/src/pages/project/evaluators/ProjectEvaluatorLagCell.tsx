@@ -7,7 +7,7 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import { DEGRADED_WAIT_MS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
-import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 
 const lagValueCSS = css`
   white-space: nowrap;

@@ -58,6 +58,7 @@ import { AnnotationConfigurationCard } from "@phoenix/pages/project/evaluators/A
 import { CodeProjectEvaluatorConfigCards } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorConfigCards";
 import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/CodeProjectEvaluatorDetails";
 import { DecisionProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/DecisionProjectEvaluatorDetails";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
@@ -67,7 +68,6 @@ import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/proj
 import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeDetails";
 import { ProjectEvaluatorStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStats";
 import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
-import { getClearableCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import { isServerUnreachableError } from "@phoenix/pages/redirects/notFound";
 

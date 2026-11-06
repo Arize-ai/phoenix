@@ -26,19 +26,19 @@ import type {
   ProjectEvaluatorStats_projectEvaluator$key,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorStats_projectEvaluator.graphql";
 import type { ProjectEvaluatorStatsDailyRatesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorStatsDailyRatesQuery.graphql";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import {
+  formatElapsedShort,
+  formatRelativeOrNever,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorLoad } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import { EvaluatorResultAnnotationMetricPanel } from "@phoenix/pages/project/evaluators/projectEvaluatorMetricPanels";
 import {
   StatField,
   StatFieldList,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorStatFields";
-import {
-  formatElapsedShort,
-  formatLastRun,
-  formatQueueCount,
-  getAnnotationLevel,
-  getProjectEvaluatorStatus,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { getProjectEvaluatorStatus } from "@phoenix/pages/project/evaluators/projectEvaluatorStatus";
+import { getAnnotationLevel } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /** Matches the height of the metric chart strips above the tables. */
 const stripCSS = css`
@@ -166,12 +166,14 @@ function ProjectEvaluatorActivityPanel({
         </StatField>
         <StatField label="last run">
           {runSummary.lastRunAt == null ? (
-            <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>
+            <Text size="S">{formatRelativeOrNever(runSummary.lastRunAt)}</Text>
           ) : (
             // Relative time, with the absolute timestamp on hover.
             <TooltipTrigger delay={64}>
               <TriggerWrap>
-                <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>
+                <Text size="S">
+                  {formatRelativeOrNever(runSummary.lastRunAt)}
+                </Text>
               </TriggerWrap>
               <Tooltip>
                 <TooltipArrow />

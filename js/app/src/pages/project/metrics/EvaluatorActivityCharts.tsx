@@ -46,11 +46,9 @@ import {
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { DEGRADED_WAIT_MS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
-import {
-  formatLag,
-  formatQueueCount,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   PROJECT_METRICS_CHART_SYNC_ID,

@@ -13,8 +13,8 @@ import {
   formatEvaluationTarget,
   formatEvaluationTargetPlural,
   formatSamplingRate,
-  hasEvaluationDelay,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import { hasEvaluationDelay } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
  * A filter expression is one long unbreakable mono token more often than not

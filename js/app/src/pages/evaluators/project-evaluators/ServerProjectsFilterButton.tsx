@@ -26,8 +26,8 @@ import {
   useServerProjectSeries,
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import { MAX_PICKED_PROJECTS } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { EvaluationQueueSwatch } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
-import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /**
  * Picks which projects the charts and table show. With none picked, the

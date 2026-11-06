@@ -12,7 +12,7 @@ import {
 } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { Badge } from "@phoenix/components/core/badge";
-import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 

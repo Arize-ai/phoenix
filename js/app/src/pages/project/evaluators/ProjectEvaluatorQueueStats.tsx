@@ -19,6 +19,11 @@ import type {
   ProjectEvaluatorQueueStatsQuery$data,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorQueueStatsQuery.graphql";
 import {
+  formatQueueCount,
+  getClearableCount,
+  MAX_QUEUE_COUNT,
+} from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import {
   EvaluationQueueMeter,
   EvaluationQueueSwatch,
 } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
@@ -38,10 +43,7 @@ import {
 import {
   formatElapsedShort,
   formatLag,
-  formatQueueCount,
-  getClearableCount,
-  MAX_QUEUE_COUNT,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 
 /**

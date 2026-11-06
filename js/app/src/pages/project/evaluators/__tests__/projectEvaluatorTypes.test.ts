@@ -3,13 +3,9 @@ import { DEFAULT_SPAN_FILTER_CONDITION } from "@phoenix/pages/project/spanFilter
 import {
   dropOtherRecordKindPathMappings,
   dropPathsShadowedByLiterals,
-  formatElapsedShort,
   formatMissingBindingMessage,
-  formatProjectEvaluatorRunCounts,
-  formatQueueCount,
   getDefaultProjectEvaluatorFilterCondition,
   getProjectEvaluatorMappingDiagnostics,
-  getProjectEvaluatorStatus,
   getUnboundRequiredVariables,
   isSameInputMapping,
   PROJECT_EVALUATOR_TARGETS,
@@ -57,58 +53,6 @@ describe("withProjectEvaluatorTarget", () => {
       });
     }
   );
-});
-
-const runSummary = {
-  status: "HEALTHY" as const,
-  lastRunAt: "2026-08-14T12:00:00Z",
-  queuedCount: 3,
-  evaluatedCount: 118,
-  failedCount: 2,
-  clearedCount: 0,
-};
-
-describe("getProjectEvaluatorStatus", () => {
-  it.each([
-    ["HEALTHY", "Running", "success"],
-    ["DISABLED", "Disabled", "default"],
-    ["DEGRADED", "Degraded", "warning"],
-  ] as const)("labels %s as %s", (status, label, variant) => {
-    expect(getProjectEvaluatorStatus({ runSummary: { status } })).toMatchObject(
-      { label, variant }
-    );
-  });
-});
-
-describe("formatProjectEvaluatorRunCounts", () => {
-  it("omits the parts of the funnel that are empty", () => {
-    expect(formatProjectEvaluatorRunCounts(runSummary)).toBe(
-      "118 evaluated · 2 failed · 3 queued"
-    );
-    expect(
-      formatProjectEvaluatorRunCounts({ ...runSummary, failedCount: 0 })
-    ).toBe("118 evaluated · 3 queued");
-    expect(
-      formatProjectEvaluatorRunCounts({ ...runSummary, clearedCount: 4 })
-    ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
-  });
-});
-
-describe("formatQueueCount", () => {
-  it("shows a count at the server's limit as at least the limit", () => {
-    expect(formatQueueCount(999_999)).toBe("999,999");
-    expect(formatQueueCount(1_000_000)).toBe("1,000,000+");
-  });
-});
-
-describe("formatElapsedShort", () => {
-  it("shows the largest whole unit elapsed", () => {
-    const now = Date.parse("2026-10-01T12:00:00Z");
-    expect(formatElapsedShort("2026-10-01T11:59:30Z", now)).toBe("<1m");
-    expect(formatElapsedShort("2026-10-01T11:48:00Z", now)).toBe("12m");
-    expect(formatElapsedShort("2026-10-01T09:00:00Z", now)).toBe("3h");
-    expect(formatElapsedShort("2026-09-29T11:00:00Z", now)).toBe("2d");
-  });
 });
 
 describe("toProjectEvaluatorSamplingFraction", () => {

@@ -21,13 +21,13 @@ import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import type { ProjectEvaluatorsTabTableQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ProjectEvaluatorsTabTableQuery.graphql";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
-import { getClearableCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 type QueryData = ProjectEvaluatorsTabTableQuery["response"];
 type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];

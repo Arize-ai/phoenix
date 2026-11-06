@@ -8,8 +8,8 @@ import type { ProjectEvaluatorEnabledSwitchClearMutation } from "@phoenix/pages/
 import type { ProjectEvaluatorEnabledSwitchMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchMutation.graphql";
 import type { ProjectEvaluatorEnabledSwitchRunSummaryQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchRunSummaryQuery.graphql";
 import { ClearQueueConfirmDialog } from "@phoenix/pages/project/evaluators/ClearQueueConfirmDialog";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
-import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export function ProjectEvaluatorEnabledSwitch({

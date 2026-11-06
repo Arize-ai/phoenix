@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 import { SegmentChart } from "@phoenix/components/chart";
-import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 
 export type EvaluationQueueMeterSegment = {
   /** Stable key, e.g. the evaluation target. */

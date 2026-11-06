@@ -12,9 +12,9 @@ import {
   Text,
 } from "@phoenix/components";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import {
   dropOtherRecordKindPathMappings,
-  formatEvaluationTarget,
   getDefaultProjectEvaluatorFilterCondition,
   hasEvaluationDelay,
   isProjectEvaluatorTarget,

@@ -49,6 +49,7 @@ import type { projectEvaluatorGalleryModalQuery as ProjectEvaluatorGalleryModalQ
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import {
   type CustomEvaluator,
   type GalleryItem,
@@ -76,10 +77,7 @@ import {
   PROJECT_EVALUATOR_CATEGORIES,
   type ProjectEvaluatorTemplate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
-import {
-  formatEvaluationTargetPlural,
-  type ProjectEvaluatorTarget,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";

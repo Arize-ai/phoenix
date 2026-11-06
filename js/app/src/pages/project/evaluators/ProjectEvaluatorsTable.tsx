@@ -63,9 +63,15 @@ import type { ProjectEvaluatorsTable_lag$key } from "@phoenix/pages/project/eval
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
 import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
+import {
+  formatEvaluationTarget,
+  formatEvaluationTargetPlural,
+  formatSamplingRate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
@@ -85,12 +91,6 @@ import {
 import { ProjectEvaluatorSelectionToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSelectionToolbar";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
-import {
-  formatEvaluationTarget,
-  formatEvaluationTargetPlural,
-  formatSamplingRate,
-  getClearableCount,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;

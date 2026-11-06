@@ -9,6 +9,11 @@ import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
 import { ClearAllQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
+import {
+  formatQueueCount,
+  getClearableCount,
+  MAX_QUEUE_COUNT,
+} from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { EvaluationQueueMeter } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import {
   DEGRADED_WAIT_MS,
@@ -26,10 +31,7 @@ import {
 import {
   formatElapsedShort,
   formatLag,
-  formatQueueCount,
-  getClearableCount,
-  MAX_QUEUE_COUNT,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 

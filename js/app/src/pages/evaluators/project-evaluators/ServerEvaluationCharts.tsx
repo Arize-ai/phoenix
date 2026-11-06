@@ -57,7 +57,7 @@ import {
   getServerProjectSeries,
   OTHER_PROJECTS_KEY,
 } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
-import { formatQueueCount } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import {
   costFormatter,
