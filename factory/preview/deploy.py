@@ -65,6 +65,8 @@ def railway(query: str, **variables: Any) -> dict[str, Any]:
             payload = json.load(response)
     except urllib.error.HTTPError as error:
         raise RailwayError(f"HTTP {error.code}: {error.read().decode(errors='replace')}") from error
+    except (urllib.error.URLError, TimeoutError) as error:
+        raise RailwayError(f"request failed: {error}") from error
     if payload.get("errors"):
         raise RailwayError(json.dumps(payload["errors"]))
     return dict(payload["data"])
@@ -164,14 +166,17 @@ def deploy_service(*, environment_id: str, service_id: str) -> str:
     return str(data["serviceInstanceDeployV2"])
 
 
-def latest_deployment_id(*, environment_id: str, service_id: str) -> str:
+def active_deployment_id(*, environment_id: str, service_id: str) -> str:
+    """The newest of the service's recent deployments that Railway did not skip."""
     data = railway(
         "query($input: DeploymentListInput!) {"
-        " deployments(input: $input, first: 1) { edges { node { id } } } }",
+        " deployments(input: $input, first: 5) { edges { node { id status } } } }",
         input={"environmentId": environment_id, "serviceId": service_id},
     )
-    edges = data["deployments"]["edges"]
-    return str(edges[0]["node"]["id"]) if edges else ""
+    for edge in data["deployments"]["edges"]:
+        if edge["node"]["status"] != "SKIPPED":
+            return str(edge["node"]["id"])
+    return ""
 
 
 def wait_for_deployment(
@@ -179,21 +184,27 @@ def wait_for_deployment(
 ) -> tuple[str, str]:
     """Follow the deployment to a final status; return (deployment id, status).
 
-    A deployment Railway skips in favor of one it queued itself hands over to the service's
-    latest deployment. The deployment can also read as absent for a moment after it is
-    requested, which counts as pending.
+    A deployment Railway skips in favor of one it queued itself, as on a new service, hands
+    over to the service's newest unskipped deployment. A failed poll, including the moment
+    after the request when the deployment does not exist yet, counts as pending.
     """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     status = "PENDING"
     while time.monotonic() < deadline:
-        data = railway("query($id: String!) { deployment(id: $id) { status } }", id=deployment_id)
-        status = str(data["deployment"]["status"]) if data.get("deployment") else "PENDING"
+        try:
+            data = railway(
+                "query($id: String!) { deployment(id: $id) { status } }", id=deployment_id
+            )
+            status = str(data["deployment"]["status"])
+            if status == "SKIPPED":
+                active = active_deployment_id(environment_id=environment_id, service_id=service_id)
+                if active:
+                    deployment_id = active
+                    continue
+        except RailwayError as error:
+            print(f"::warning::Polling deployment {deployment_id}: {error}", flush=True)
+            status = "PENDING"
         print(f"deployment {deployment_id}: {status}", flush=True)
-        if status == "SKIPPED":
-            latest = latest_deployment_id(environment_id=environment_id, service_id=service_id)
-            if latest and latest != deployment_id:
-                deployment_id = latest
-                continue
         if status in DEPLOYMENT_FINAL_STATUSES:
             return deployment_id, status
         time.sleep(10)
@@ -221,6 +232,7 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     """
     deadline = time.monotonic() + SEED_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
+        # A failed read comes back as a one-line message, so it never matches an outcome.
         lines = read_deployment_logs(deployment_id, limit=500).splitlines()
         for index, line in enumerate(lines):
             if line.startswith(SEED_OUTCOME_PREFIXES):
@@ -403,19 +415,29 @@ def run_deploy(args: argparse.Namespace) -> int:
 
 
 def run_teardown(args: argparse.Namespace) -> int:
-    project_id, _ = read_token_scope()
-    service_id = find_service(project_id=project_id, name=f"pr-{args.pr}")
-    if service_id is None:
-        print("no preview service to delete")
-    else:
-        delete_service(service_id)
-        print(f"deleted service pr-{args.pr}")
+    """Delete the service, then the PR's image tags and the comment whatever Railway did."""
+    railway_error: Optional[RailwayError] = None
+    try:
+        project_id, _ = read_token_scope()
+        service_id = find_service(project_id=project_id, name=f"pr-{args.pr}")
+        if service_id is None:
+            print("no preview service to delete")
+        else:
+            delete_service(service_id)
+            print(f"deleted service pr-{args.pr}")
+    except RailwayError as error:
+        railway_error = error
+        print(f"::error::Railway API: {error}", file=sys.stderr)
     deleted_tags = delete_image_tags(image=args.image, pr_number=args.pr)
     print(f"deleted {deleted_tags} image versions")
-    upsert_comment(
-        pr_number=args.pr, body="The preview for this PR has been torn down.", create=False
+    body = (
+        "The preview for this PR has been torn down."
+        if railway_error is None
+        else "The preview's image tags were removed, but deleting its Railway service failed;"
+        " see the workflow run."
     )
-    return 0
+    upsert_comment(pr_number=args.pr, body=body, create=False)
+    return 0 if railway_error is None else 1
 
 
 def main() -> int:

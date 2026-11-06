@@ -20,8 +20,8 @@ HEALTHY_TIMEOUT_SECONDS = 300
 
 
 def base_url() -> str:
-    port = os.environ.get("PHOENIX_PORT") or os.environ.get("PORT") or "6006"
-    return f"http://127.0.0.1:{port}"
+    # The server reads PHOENIX_PORT and nothing else, so neither does the launcher.
+    return f"http://127.0.0.1:{os.environ.get('PHOENIX_PORT') or '6006'}"
 
 
 def wait_until_healthy(server: subprocess.Popen[bytes], url: str) -> bool:
