@@ -49,6 +49,8 @@ DEPLOYMENT_FINAL_STATUSES = {
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
 COMMENT_MARKER = "<!-- factory-preview -->"
+# The workflow's token posts as this login; a marker in anyone else's comment is ignored.
+COMMENT_AUTHOR = "github-actions[bot]"
 PREVIEW_LABEL = "factory-preview"
 SEED_NOT_FINISHED_LINE = "preview: the seed had not finished when the run stopped waiting"
 SEED_OUTCOME_GONE_LINE = "preview: the seed's outcome is no longer in the log"
@@ -226,12 +228,14 @@ def wait_for_deployment(
     crashed_since: Optional[float] = None
     while time.monotonic() < deadline:
         status = "PENDING"
+        polled = False
         try:
             ours = [
                 d
                 for d in list_deployments(environment_id=environment_id, service_id=service_id)
                 if d["id"] not in before
             ]
+            polled = True
             live = [d for d in ours if d["status"] != "SKIPPED"]
             if live:
                 deployment_id, status = str(live[0]["id"]), str(live[0]["status"])
@@ -248,8 +252,8 @@ def wait_for_deployment(
             crashed_since = crashed_since or time.monotonic()
             if time.monotonic() - crashed_since <= CRASHED_GRACE_SECONDS:
                 status = "PENDING"  # a restart may still bring it up
-        else:
-            crashed_since = None
+        elif polled:
+            crashed_since = None  # only a real observation ends a crash
         if status in DEPLOYMENT_FINAL_STATUSES:
             return deployment_id, status
         time.sleep(10)
@@ -378,7 +382,8 @@ def delete_service(service_id: str) -> None:
 def delete_image_tags(
     *, image: str, pr_number: int, keep: str = "", keep_latest: bool = False
 ) -> int:
-    """Delete the GHCR versions tagged for this PR (pr-N-*); return how many.
+    """Delete the GHCR versions tagged for this PR (pr-N-*), and any untagged orphan;
+    return how many.
 
     With `keep`, the version carrying that tag stays, so a deploy prunes the images it
     superseded; with `keep_latest`, the newest version stays, so an unlabeled PR keeps one
@@ -387,19 +392,25 @@ def delete_image_tags(
     """
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
-    select = f'any(.metadata.container.tags[]?; startswith("pr-{pr_number}-"))'
+    ours = f'any(.metadata.container.tags[]?; startswith("pr-{pr_number}-"))'
     if keep:
-        select += f" and (any(.metadata.container.tags[]?; . == {json.dumps(keep)}) | not)"
+        ours += f" and (any(.metadata.container.tags[]?; . == {json.dumps(keep)}) | not)"
+    # A version with no tag at all is the orphan of a tag that was pushed again, whichever
+    # PR did it; nothing ever refers to it by digest.
+    untagged = "((.metadata.container.tags // []) | length) == 0"
     try:
         listed = run_gh(
             "api",
             "--paginate",
             f"{root}/{package}/versions?per_page=100",
             "--jq",
-            f".[] | select({select}) | [.id, .created_at] | @tsv",
+            f".[] | select(({ours}) or ({untagged}))"
+            f" | [.id, .created_at, ({untagged} | tostring)] | @tsv",
         ).splitlines()
-        versions = sorted((line.split("\t") for line in listed if line.strip()), key=lambda v: v[1])
-        version_ids = {v[0] for v in (versions[:-1] if keep_latest else versions)}
+        rows = [line.split("\t") for line in listed if line.strip()]
+        tagged = sorted((row for row in rows if row[2] != "true"), key=lambda row: row[1])
+        version_ids = {row[0] for row in rows if row[2] == "true"}
+        version_ids |= {row[0] for row in (tagged[:-1] if keep_latest else tagged)}
     except subprocess.CalledProcessError as error:
         # No package yet, when the PR never got as far as a push, or GHCR is unavailable.
         warn(f"Could not list image versions: {error.stderr}")
@@ -446,7 +457,8 @@ def find_comment(*, pr_number: int) -> Optional[str]:
         "--paginate",
         f"repos/{{owner}}/{{repo}}/issues/{pr_number}/comments",
         "--jq",
-        f".[] | select(.body | startswith({json.dumps(COMMENT_MARKER)})) | .id",
+        f".[] | select(.user.login == {json.dumps(COMMENT_AUTHOR)})"
+        f" | select(.body | startswith({json.dumps(COMMENT_MARKER)})) | .id",
     ).split()
     return comment_ids[0] if comment_ids else None
 
@@ -618,7 +630,7 @@ def reuse_existing_deployment(
     log = LogTail(str(live[0]["id"]))
     log.refresh()
     state, seed_outcome, seed_output = seed_state(log)
-    if state == "running":
+    if state in ("running", "starting"):
         seed_outcome, seed_output = wait_for_seed(str(live[0]["id"]))
     elif state == "unknown":
         seed_outcome = SEED_OUTCOME_GONE_LINE
@@ -639,7 +651,7 @@ def reuse_existing_deployment(
         fresh=False,
     )
     print(f"{image} is already deployed; comment refreshed")
-    settle_with_pr_state(pr_number=args.pr, service_id=service_id)
+    settle_quietly(pr_number=args.pr, service_id=service_id)
     return True
 
 
@@ -735,7 +747,7 @@ def run_deploy(args: argparse.Namespace) -> int:
         logs=logs,
     )
     print(f"status={status}\n{seed_outcome}")
-    settle_with_pr_state(pr_number=args.pr, service_id=service_id)
+    settle_quietly(pr_number=args.pr, service_id=service_id)
     return 0 if status == "SUCCESS" and seed_is_fine(seed_outcome) else 1
 
 
@@ -786,6 +798,14 @@ def settle_with_pr_state(*, pr_number: int, service_id: str) -> None:
     upsert_comment(pr_number=pr_number, body=body)
 
 
+def settle_quietly(*, pr_number: int, service_id: str) -> None:
+    """settle_with_pr_state, where a GitHub hiccup must not fail a deploy that succeeded."""
+    try:
+        settle_with_pr_state(pr_number=pr_number, service_id=service_id)
+    except subprocess.CalledProcessError as failure:
+        warn(f"Could not check the PR's state after deploying: {failure.stderr}")
+
+
 def run_note(args: argparse.Namespace) -> int:
     """Leave word on the PR that the run died before deploy.py could report.
 
@@ -805,23 +825,23 @@ def run_note(args: argparse.Namespace) -> int:
 
 def run_teardown(args: argparse.Namespace) -> int:
     """Delete the service, then the PR's image tags and the comment whatever Railway did."""
-    railway_error: Optional[RailwayError] = None
     try:
         project_id, _ = read_token_scope()
         service_id = find_service(project_id=project_id, name=f"pr-{args.pr}")
-    except RailwayError as failure:
-        railway_error, service_id = failure, None
-        log_error(f"Railway API: {failure}")
-    try:
         body = tear_down(
             pr_number=args.pr, service_id=service_id, keep_latest_image=args.keep_latest_image
         )
+        failed = False
     except RailwayError as failure:
-        railway_error = failure
         log_error(f"Railway API: {failure}")
+        # The tags can still go; the service's fate is unknown and the comment says so.
+        delete_image_tags(
+            image=preview_image(), pr_number=args.pr, keep_latest=args.keep_latest_image
+        )
         body = "Deleting the preview's Railway service failed; see the workflow run."
+        failed = True
     upsert_comment(pr_number=args.pr, body=body, create=False)
-    return 0 if railway_error is None else 1
+    return 1 if failed else 0
 
 
 def main() -> int:
