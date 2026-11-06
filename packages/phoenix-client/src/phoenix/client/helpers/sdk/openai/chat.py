@@ -14,6 +14,7 @@ from typing import (
     Sequence,
     TypedDict,
     Union,
+    cast,
     overload,
 )
 
@@ -69,6 +70,7 @@ class _ToolKwargs(TypedDict, total=False):
 
 
 class _InvocationParameters(TypedDict, total=False):
+    extra_body: dict[str, Any]
     frequency_penalty: float
     max_completion_tokens: int
     max_tokens: int
@@ -110,6 +112,7 @@ def create_prompt_version_from_openai(
     /,
     *,
     description: Optional[str] = None,
+    metadata: Optional[Mapping[str, Any]] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     model_provider: Literal["OPENAI", "AZURE_OPENAI", "DEEPSEEK", "XAI", "OLLAMA"] = "OPENAI",
 ) -> v1.PromptVersionData:
@@ -143,6 +146,8 @@ def create_prompt_version_from_openai(
         ans["response_format"] = _ResponseFormatConversion.from_openai(obj["response_format"])
     if description:
         ans["description"] = description
+    if metadata:
+        ans["metadata"] = dict(metadata)
     return ans
 
 
@@ -198,6 +203,14 @@ class _InvocationParametersConversion:
             v1.PromptXAIInvocationParameters,
             v1.PromptOllamaInvocationParameters,
             v1.PromptAwsInvocationParameters,
+            v1.PromptCerebrasInvocationParameters,
+            v1.PromptFireworksInvocationParameters,
+            v1.PromptGroqInvocationParameters,
+            v1.PromptMoonshotInvocationParameters,
+            v1.PromptPerplexityInvocationParameters,
+            v1.PromptTogetherInvocationParameters,
+            v1.PromptZAIInvocationParameters,
+            v1.PromptMetaInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = {}
@@ -220,6 +233,10 @@ class _InvocationParametersConversion:
                 ans["seed"] = openai_params["seed"]
             if "reasoning_effort" in openai_params:
                 ans["reasoning_effort"] = openai_params["reasoning_effort"]
+            if "stop" in openai_params:
+                ans["stop"] = list(openai_params["stop"])
+            if "extra_body" in openai_params:
+                ans["extra_body"] = dict(openai_params["extra_body"])
         elif obj["type"] == "azure_openai":
             azure_params: v1.PromptAzureOpenAIInvocationParametersContent
             azure_params = obj["azure_openai"]
@@ -239,6 +256,10 @@ class _InvocationParametersConversion:
                 ans["seed"] = azure_params["seed"]
             if "reasoning_effort" in azure_params:
                 ans["reasoning_effort"] = azure_params["reasoning_effort"]
+            if "stop" in azure_params:
+                ans["stop"] = list(azure_params["stop"])
+            if "extra_body" in azure_params:
+                ans["extra_body"] = dict(azure_params["extra_body"])
         elif obj["type"] == "deepseek":
             deepseek_params: v1.PromptDeepSeekInvocationParametersContent
             deepseek_params = obj["deepseek"]
@@ -258,6 +279,10 @@ class _InvocationParametersConversion:
                 ans["seed"] = deepseek_params["seed"]
             if "reasoning_effort" in deepseek_params:
                 ans["reasoning_effort"] = deepseek_params["reasoning_effort"]
+            if "stop" in deepseek_params:
+                ans["stop"] = list(deepseek_params["stop"])
+            if "extra_body" in deepseek_params:
+                ans["extra_body"] = dict(deepseek_params["extra_body"])
         elif obj["type"] == "xai":
             xai_params: v1.PromptXAIInvocationParametersContent
             xai_params = obj["xai"]
@@ -277,6 +302,10 @@ class _InvocationParametersConversion:
                 ans["seed"] = xai_params["seed"]
             if "reasoning_effort" in xai_params:
                 ans["reasoning_effort"] = xai_params["reasoning_effort"]
+            if "stop" in xai_params:
+                ans["stop"] = list(xai_params["stop"])
+            if "extra_body" in xai_params:
+                ans["extra_body"] = dict(xai_params["extra_body"])
         elif obj["type"] == "ollama":
             ollama_params: v1.PromptOllamaInvocationParametersContent
             ollama_params = obj["ollama"]
@@ -296,6 +325,10 @@ class _InvocationParametersConversion:
                 ans["seed"] = ollama_params["seed"]
             if "reasoning_effort" in ollama_params:
                 ans["reasoning_effort"] = ollama_params["reasoning_effort"]
+            if "stop" in ollama_params:
+                ans["stop"] = list(ollama_params["stop"])
+            if "extra_body" in ollama_params:
+                ans["extra_body"] = dict(ollama_params["extra_body"])
         elif obj["type"] == "anthropic":
             anthropic_params: v1.PromptAnthropicInvocationParametersContent
             anthropic_params = obj["anthropic"]
@@ -316,6 +349,8 @@ class _InvocationParametersConversion:
                 ans["temperature"] = aws_params["temperature"]
             if "top_p" in aws_params:
                 ans["top_p"] = aws_params["top_p"]
+            if "stop_sequences" in aws_params:
+                ans["stop"] = list(aws_params["stop_sequences"])
         elif obj["type"] == "google":
             google_params: v1.PromptGoogleInvocationParametersContent
             google_params = obj["google"]
@@ -325,14 +360,199 @@ class _InvocationParametersConversion:
                 ans["temperature"] = google_params["temperature"]
             if "top_p" in google_params:
                 ans["top_p"] = google_params["top_p"]
-            if "top_k" in google_params:
-                ans["top_logprobs"] = google_params["top_k"]
+            # Google `top_k` is a sampling parameter with no OpenAI chat-completion
+            # equivalent; it must not be written to `top_logprobs` (an unrelated
+            # output-formatting field). Drop it, like the other reverse converters.
             if "presence_penalty" in google_params:
                 ans["presence_penalty"] = google_params["presence_penalty"]
             if "frequency_penalty" in google_params:
                 ans["frequency_penalty"] = google_params["frequency_penalty"]
             if "stop_sequences" in google_params:
                 ans["stop"] = list(google_params["stop_sequences"])
+        elif obj["type"] == "cerebras":
+            cerebras_params: v1.PromptCerebrasInvocationParametersContent
+            cerebras_params = obj["cerebras"]
+            if "max_completion_tokens" in cerebras_params:
+                ans["max_completion_tokens"] = cerebras_params["max_completion_tokens"]
+            if "max_tokens" in cerebras_params:
+                ans["max_tokens"] = cerebras_params["max_tokens"]
+            if "temperature" in cerebras_params:
+                ans["temperature"] = cerebras_params["temperature"]
+            if "top_p" in cerebras_params:
+                ans["top_p"] = cerebras_params["top_p"]
+            if "presence_penalty" in cerebras_params:
+                ans["presence_penalty"] = cerebras_params["presence_penalty"]
+            if "frequency_penalty" in cerebras_params:
+                ans["frequency_penalty"] = cerebras_params["frequency_penalty"]
+            if "seed" in cerebras_params:
+                ans["seed"] = cerebras_params["seed"]
+            if "reasoning_effort" in cerebras_params:
+                ans["reasoning_effort"] = cerebras_params["reasoning_effort"]
+            if "stop" in cerebras_params:
+                ans["stop"] = list(cerebras_params["stop"])
+            if "extra_body" in cerebras_params:
+                ans["extra_body"] = dict(cerebras_params["extra_body"])
+        elif obj["type"] == "fireworks":
+            fireworks_params: v1.PromptFireworksInvocationParametersContent
+            fireworks_params = obj["fireworks"]
+            if "max_completion_tokens" in fireworks_params:
+                ans["max_completion_tokens"] = fireworks_params["max_completion_tokens"]
+            if "max_tokens" in fireworks_params:
+                ans["max_tokens"] = fireworks_params["max_tokens"]
+            if "temperature" in fireworks_params:
+                ans["temperature"] = fireworks_params["temperature"]
+            if "top_p" in fireworks_params:
+                ans["top_p"] = fireworks_params["top_p"]
+            if "presence_penalty" in fireworks_params:
+                ans["presence_penalty"] = fireworks_params["presence_penalty"]
+            if "frequency_penalty" in fireworks_params:
+                ans["frequency_penalty"] = fireworks_params["frequency_penalty"]
+            if "seed" in fireworks_params:
+                ans["seed"] = fireworks_params["seed"]
+            if "reasoning_effort" in fireworks_params:
+                ans["reasoning_effort"] = fireworks_params["reasoning_effort"]
+            if "stop" in fireworks_params:
+                ans["stop"] = list(fireworks_params["stop"])
+            if "extra_body" in fireworks_params:
+                ans["extra_body"] = dict(fireworks_params["extra_body"])
+        elif obj["type"] == "groq":
+            groq_params: v1.PromptGroqInvocationParametersContent
+            groq_params = obj["groq"]
+            if "max_completion_tokens" in groq_params:
+                ans["max_completion_tokens"] = groq_params["max_completion_tokens"]
+            if "max_tokens" in groq_params:
+                ans["max_tokens"] = groq_params["max_tokens"]
+            if "temperature" in groq_params:
+                ans["temperature"] = groq_params["temperature"]
+            if "top_p" in groq_params:
+                ans["top_p"] = groq_params["top_p"]
+            if "presence_penalty" in groq_params:
+                ans["presence_penalty"] = groq_params["presence_penalty"]
+            if "frequency_penalty" in groq_params:
+                ans["frequency_penalty"] = groq_params["frequency_penalty"]
+            if "seed" in groq_params:
+                ans["seed"] = groq_params["seed"]
+            if "reasoning_effort" in groq_params:
+                ans["reasoning_effort"] = groq_params["reasoning_effort"]
+            if "stop" in groq_params:
+                ans["stop"] = list(groq_params["stop"])
+            if "extra_body" in groq_params:
+                ans["extra_body"] = dict(groq_params["extra_body"])
+        elif obj["type"] == "moonshot":
+            moonshot_params: v1.PromptMoonshotInvocationParametersContent
+            moonshot_params = obj["moonshot"]
+            if "max_completion_tokens" in moonshot_params:
+                ans["max_completion_tokens"] = moonshot_params["max_completion_tokens"]
+            if "max_tokens" in moonshot_params:
+                ans["max_tokens"] = moonshot_params["max_tokens"]
+            if "temperature" in moonshot_params:
+                ans["temperature"] = moonshot_params["temperature"]
+            if "top_p" in moonshot_params:
+                ans["top_p"] = moonshot_params["top_p"]
+            if "presence_penalty" in moonshot_params:
+                ans["presence_penalty"] = moonshot_params["presence_penalty"]
+            if "frequency_penalty" in moonshot_params:
+                ans["frequency_penalty"] = moonshot_params["frequency_penalty"]
+            if "seed" in moonshot_params:
+                ans["seed"] = moonshot_params["seed"]
+            if "reasoning_effort" in moonshot_params:
+                ans["reasoning_effort"] = moonshot_params["reasoning_effort"]
+            if "stop" in moonshot_params:
+                ans["stop"] = list(moonshot_params["stop"])
+            if "extra_body" in moonshot_params:
+                ans["extra_body"] = dict(moonshot_params["extra_body"])
+        elif obj["type"] == "perplexity":
+            perplexity_params: v1.PromptPerplexityInvocationParametersContent
+            perplexity_params = obj["perplexity"]
+            if "max_completion_tokens" in perplexity_params:
+                ans["max_completion_tokens"] = perplexity_params["max_completion_tokens"]
+            if "max_tokens" in perplexity_params:
+                ans["max_tokens"] = perplexity_params["max_tokens"]
+            if "temperature" in perplexity_params:
+                ans["temperature"] = perplexity_params["temperature"]
+            if "top_p" in perplexity_params:
+                ans["top_p"] = perplexity_params["top_p"]
+            if "presence_penalty" in perplexity_params:
+                ans["presence_penalty"] = perplexity_params["presence_penalty"]
+            if "frequency_penalty" in perplexity_params:
+                ans["frequency_penalty"] = perplexity_params["frequency_penalty"]
+            if "seed" in perplexity_params:
+                ans["seed"] = perplexity_params["seed"]
+            if "reasoning_effort" in perplexity_params:
+                ans["reasoning_effort"] = perplexity_params["reasoning_effort"]
+            if "stop" in perplexity_params:
+                ans["stop"] = list(perplexity_params["stop"])
+            if "extra_body" in perplexity_params:
+                ans["extra_body"] = dict(perplexity_params["extra_body"])
+        elif obj["type"] == "together":
+            together_params: v1.PromptTogetherInvocationParametersContent
+            together_params = obj["together"]
+            if "max_completion_tokens" in together_params:
+                ans["max_completion_tokens"] = together_params["max_completion_tokens"]
+            if "max_tokens" in together_params:
+                ans["max_tokens"] = together_params["max_tokens"]
+            if "temperature" in together_params:
+                ans["temperature"] = together_params["temperature"]
+            if "top_p" in together_params:
+                ans["top_p"] = together_params["top_p"]
+            if "presence_penalty" in together_params:
+                ans["presence_penalty"] = together_params["presence_penalty"]
+            if "frequency_penalty" in together_params:
+                ans["frequency_penalty"] = together_params["frequency_penalty"]
+            if "seed" in together_params:
+                ans["seed"] = together_params["seed"]
+            if "reasoning_effort" in together_params:
+                ans["reasoning_effort"] = together_params["reasoning_effort"]
+            if "stop" in together_params:
+                ans["stop"] = list(together_params["stop"])
+            if "extra_body" in together_params:
+                ans["extra_body"] = dict(together_params["extra_body"])
+        elif obj["type"] == "zai":
+            zai_params: v1.PromptZAIInvocationParametersContent
+            zai_params = obj["zai"]
+            if "max_completion_tokens" in zai_params:
+                ans["max_completion_tokens"] = zai_params["max_completion_tokens"]
+            if "max_tokens" in zai_params:
+                ans["max_tokens"] = zai_params["max_tokens"]
+            if "temperature" in zai_params:
+                ans["temperature"] = zai_params["temperature"]
+            if "top_p" in zai_params:
+                ans["top_p"] = zai_params["top_p"]
+            if "presence_penalty" in zai_params:
+                ans["presence_penalty"] = zai_params["presence_penalty"]
+            if "frequency_penalty" in zai_params:
+                ans["frequency_penalty"] = zai_params["frequency_penalty"]
+            if "seed" in zai_params:
+                ans["seed"] = zai_params["seed"]
+            if "reasoning_effort" in zai_params:
+                ans["reasoning_effort"] = zai_params["reasoning_effort"]
+            if "stop" in zai_params:
+                ans["stop"] = list(zai_params["stop"])
+            if "extra_body" in zai_params:
+                ans["extra_body"] = dict(zai_params["extra_body"])
+        elif obj["type"] == "meta":
+            meta_params: v1.PromptMetaInvocationParametersContent
+            meta_params = obj["meta"]
+            if "max_completion_tokens" in meta_params:
+                ans["max_completion_tokens"] = meta_params["max_completion_tokens"]
+            if "max_tokens" in meta_params:
+                ans["max_tokens"] = meta_params["max_tokens"]
+            if "temperature" in meta_params:
+                ans["temperature"] = meta_params["temperature"]
+            if "top_p" in meta_params:
+                ans["top_p"] = meta_params["top_p"]
+            if "presence_penalty" in meta_params:
+                ans["presence_penalty"] = meta_params["presence_penalty"]
+            if "frequency_penalty" in meta_params:
+                ans["frequency_penalty"] = meta_params["frequency_penalty"]
+            if "seed" in meta_params:
+                ans["seed"] = meta_params["seed"]
+            if "reasoning_effort" in meta_params:
+                ans["reasoning_effort"] = meta_params["reasoning_effort"]
+            if "stop" in meta_params:
+                ans["stop"] = list(meta_params["stop"])
+            if "extra_body" in meta_params:
+                ans["extra_body"] = dict(meta_params["extra_body"])
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans
@@ -430,8 +650,14 @@ class _InvocationParametersConversion:
             content["seed"] = obj["seed"]
         if "reasoning_effort" in obj:
             v = obj["reasoning_effort"]
-            if v in ("minimal", "low", "medium", "high"):
+            if v in ("none", "minimal", "low", "medium", "high", "xhigh"):
                 content["reasoning_effort"] = v
+        if "stop" in obj and obj["stop"] is not None:
+            stop_val = obj["stop"]
+            if isinstance(stop_val, str):
+                content["stop"] = [stop_val]
+            else:
+                content["stop"] = list(stop_val)
         if model_provider == "OPENAI":
             return v1.PromptOpenAIInvocationParameters(
                 type="openai",
@@ -487,10 +713,14 @@ class _ToolKwargsConversion:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
-        tools: list[ChatCompletionToolParam] = []
+        tools: list[ChatCompletionToolUnionParam] = []
         for tool in obj["tools"]:
             if tool["type"] == "function":
                 tools.append(_FunctionToolConversion.to_openai(tool))
+            elif tool["type"] == "raw":
+                tools.append(cast("ChatCompletionToolUnionParam", dict(tool["raw"])))
+            elif TYPE_CHECKING:
+                assert_never(tool)
         if not tools:
             return ans
         ans["tools"] = tools
@@ -508,10 +738,19 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptToolFunction] = []
+        tools: list[Union[v1.PromptToolFunction, v1.PromptToolRaw]] = []
         for tool in obj["tools"]:
             if tool["type"] == "function":
                 tools.append(_FunctionToolConversion.from_openai(tool))
+            else:
+                # Custom / vendor tools (web_search_options, etc.) — round-trip
+                # through PromptToolRaw so we don't lose them on a save/reload.
+                tools.append(
+                    v1.PromptToolRaw(
+                        type="raw",
+                        raw=dict(cast(Mapping[str, Any], tool)),
+                    )
+                )
         if not tools:
             return None
         ans = v1.PromptTools(type="tools", tools=tools)

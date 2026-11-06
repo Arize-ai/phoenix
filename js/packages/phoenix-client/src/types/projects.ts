@@ -1,5 +1,29 @@
+import type { components } from "../__generated__/api/v1";
+
 /**
- * A project can be identified by its projectId or projectName
- * In the case of a projectName, the name must be url encodable
+ * A project as returned by the Phoenix REST API.
  */
-export type ProjectSelector = { projectId: string } | { projectName: string };
+export type Project = components["schemas"]["Project"];
+
+/**
+ * Identifies a project. Accepts any of:
+ * - `project` — a project ID or name (the server accepts either)
+ * - `projectId` — an explicit project ID
+ * - `projectName` — an explicit project name
+ */
+export type ProjectIdentifier =
+  | { project: string }
+  | { projectId: string }
+  | { projectName: string };
+
+/**
+ * Resolves a {@link ProjectIdentifier} union to a plain string
+ * suitable for the REST `project_identifier` path parameter.
+ */
+export function resolveProjectIdentifier(
+  identifier: ProjectIdentifier
+): string {
+  if ("project" in identifier) return identifier.project;
+  if ("projectId" in identifier) return identifier.projectId;
+  return identifier.projectName;
+}

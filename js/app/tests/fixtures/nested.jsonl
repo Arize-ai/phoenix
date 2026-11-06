@@ -1,0 +1,3 @@
+{"input": {"question": "What is 2+2?", "context": "math"}, "output": {"answer": "4"}, "id": 1}
+{"input": {"question": "Capital of France?", "context": "geography"}, "output": {"answer": "Paris"}, "id": 2}
+{"input": {"question": "Hello in Spanish?", "context": "translation"}, "output": {"answer": "Hola"}, "id": 3}

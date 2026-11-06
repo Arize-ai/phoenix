@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from phoenix.trace.attributes import get_attribute_value, unflatten
+from phoenix.trace.attributes import get_attribute_value, load_json_strings, unflatten
 
 
 @pytest.mark.parametrize(
@@ -807,3 +807,14 @@ def test_unflatten_edge_cases(
     random.shuffle(shuffled)
     shuffled_result = dict(unflatten(shuffled))
     assert shuffled_result == expected
+
+
+def test_load_json_strings_preserves_empty_json_object() -> None:
+    # A JSON-string attribute that parses to an empty container (e.g. a tool call
+    # with no parameters, serialized as "{}") must round-trip instead of being
+    # dropped. _flatten_mapping emits json.dumps({}) == "{}", so load_json_strings
+    # has to load it back rather than discarding it on a falsy check.
+    assert list(load_json_strings([("metadata", "{}")])) == [("metadata", {})]
+    # non-empty JSON and non-JSON attributes are unaffected
+    assert list(load_json_strings([("metadata", '{"a": 1}')])) == [("metadata", {"a": 1})]
+    assert list(load_json_strings([("name", "value")])) == [("name", "value")]

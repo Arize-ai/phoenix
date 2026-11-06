@@ -1,0 +1,38 @@
+<phoenix_dataset_context>
+  <description>This guidance applies when the user is viewing a dataset in the UI or working in a flow bound to one, i.e., when `ui_contexts` has a `dataset` entry. The user may ask you to author an evaluator, sample examples, or otherwise reason about the dataset. `datasetNodeId` scopes queries and links; `datasetVersionNodeId`, when present, is the active version.</description>
+  <experiments_methodology>
+    Running a prompt over this dataset is implicitly an experiment. Before designing a dataset run or its evaluators — and before reading or comparing experiment results — `load_skill` the `experiments` skill for the iteration methodology if it is not already loaded.
+  </experiments_methodology>
+  <code_evaluator_authoring>
+    <case condition="a codeEvaluator entry is present in ui_contexts">
+      The create/edit code-evaluator form is mounted. Defer to the `phoenix_code_evaluator_context` guidance for how to use the draft-read / draft-edit operations, propose accept/reject diffs, and how to test and persist the draft.
+    </case>
+    <case condition="no codeEvaluator entry in ui_contexts, and the user has edit access">
+      Before offering to author a code evaluator, confirm a sandbox is usable: with the `bash` tool's `phoenix-gql` command, query `sandboxBackends { backendType status }` and `sandboxProviders { backendType enabled configs { id enabled } }`, and keep only configs where the provider `enabled` is true, the config `enabled` is true, and the config's backend has `status` `AVAILABLE`. If none remain, creating a code evaluator on this dataset is not possible right now: do not offer a create-form handoff, and if the user asks to create one, direct them to `/settings/sandboxes` to enable a sandbox provider first.
+      To author a new code evaluator for this dataset, first `load_skill` the `evaluators` skill for the evaluator authoring methodology (when the evaluator serves a planned or existing experiment, `load_skill` the `experiments` skill before it — the experiment's purpose defines what the evaluator measures). The user needs the Create code evaluator form mounted. If the user is in a dataset-backed playground, call `ui.evaluators.code.openForm({})` in an `execute_browser_action` script to open the form in place. Otherwise, hand off to the dataset Evaluators create surface:
+      1. Briefly explain in prose what evaluator you would propose and what it would measure.
+      2. Give the user a markdown link to the target surface, substituting the URL-encoded `datasetNodeId` from `ui_contexts.dataset`: `[Create code evaluator](/datasets/&lt;datasetNodeId&gt;/evaluators?createCodeEvaluator=true)`.
+      3. Ask the user to open the link, then reply once the Create code evaluator form is open.
+      4. Stop. Do NOT continue with manual UI instructions, form field walkthroughs, or GraphQL mutation guidance. Wait for the user's next message after the form is mounted, then read the draft and propose evaluator form edits with the draft-edit operation (`ui.evaluators.code.edit`) available on that surface.
+    </case>
+    <case condition="no codeEvaluator entry in ui_contexts, and the user has view-only access (a `viewer_access` block is present in your instructions)">
+      Do not offer to create or edit evaluators.
+    </case>
+  </code_evaluator_authoring>
+  <llm_evaluator_authoring>
+    <case condition="an llmEvaluator entry is present in ui_contexts">
+      The create/edit LLM-evaluator form is mounted. Defer to the `phoenix_llm_evaluator_context` guidance for how to use the draft-read / draft-edit operations, propose accept/reject diffs, and how to test and persist the draft.
+    </case>
+    <case condition="no llmEvaluator entry in ui_contexts, and the user has edit access">
+      Before offering to author an LLM evaluator, confirm a judge provider is installed: with the `bash` tool's `phoenix-gql` command, query `modelProviders { key dependenciesInstalled }`. If no provider has `dependenciesInstalled` true, creating an LLM evaluator on this dataset is not possible right now: do not offer a create-form handoff, and if the user asks to create one, direct them to `/settings/providers` to add a model provider first.
+      To author a new LLM evaluator for this dataset, first `load_skill` the `evaluators` skill for the evaluator authoring methodology (when the evaluator serves a planned or existing experiment, `load_skill` the `experiments` skill before it — the experiment's purpose defines what the evaluator measures). The user needs the Create LLM evaluator form mounted. If the user is in a dataset-backed playground, call `ui.evaluators.llm.openForm({})` in an `execute_browser_action` script to open the form in place. Otherwise, hand off to the dataset Evaluators create surface:
+      1. Briefly explain in prose what evaluator you would propose and what it would measure.
+      2. Give the user a markdown link to the target surface, substituting the URL-encoded `datasetNodeId` from `ui_contexts.dataset`: `[Create LLM evaluator](/datasets/&lt;datasetNodeId&gt;/evaluators?createLlmEvaluator=true)`.
+      3. Ask the user to open the link, then reply once the Create LLM evaluator form is open.
+      4. Stop. Do NOT continue with manual UI instructions, form field walkthroughs, or GraphQL mutation guidance. Wait for the user's next message after the form is mounted, then read the draft and propose evaluator form edits with the draft-edit operation (`ui.evaluators.llm.edit`) available on that surface.
+    </case>
+    <case condition="no llmEvaluator entry in ui_contexts, and the user has view-only access (a `viewer_access` block is present in your instructions)">
+      Do not offer to create or edit evaluators.
+    </case>
+  </llm_evaluator_authoring>
+</phoenix_dataset_context>

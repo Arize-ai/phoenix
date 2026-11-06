@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import json
 import logging
+import warnings
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Iterable, Literal, Optional, Sequence, Union, cast, overload
@@ -15,11 +18,24 @@ from phoenix.client.utils.annotation_helpers import (
     _validate_document_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
     _validate_span_annotations_dataframe,  # pyright: ignore[reportPrivateUsage]
 )
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
+)
 
 if TYPE_CHECKING:
+    import httpx
     import pandas as pd
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import (
+    GET_SPANS_BY_ATTRIBUTE,
+    GET_SPANS_FILTERS,
+    GET_SPANS_ORDER,
+    GET_SPANS_SORT,
+    GET_SPANS_SPAN_IDS,
+    GET_SPANS_TRACE_IDS,
+)
 from phoenix.client.exceptions import DuplicateSpanInfo, InvalidSpanInfo, SpanCreationError
 from phoenix.client.helpers.spans import dataframe_to_spans as _dataframe_to_spans
 from phoenix.client.types.spans import SpanQuery
@@ -27,11 +43,50 @@ from phoenix.client.utils.id_handling import is_node_id
 
 logger = logging.getLogger(__name__)
 
+_AttributeValue: TypeAlias = Union[str, int, float, bool]
+_Attributes: TypeAlias = dict[str, _AttributeValue]
+SpanSort: TypeAlias = Literal["id", "start_time"]
+SortOrder: TypeAlias = Literal["asc", "desc"]
+
+
+def _serialize_attribute_value(v: _AttributeValue) -> str:
+    """Serialize a typed attribute value for the ``attribute=key:value`` query param.
+
+    - int/float: str(v). Non-finite floats raise ValueError.
+    - bool: json.dumps(v) → "true"/"false".
+    - str: passed as-is, unless it is empty or json.loads(v) would parse it,
+      in which case it is JSON-quoted to preserve the original string on the server.
+    """
+    if isinstance(v, bool):
+        return json.dumps(v)
+    if isinstance(v, int):
+        return str(v)
+    if isinstance(v, float):
+        import math
+
+        if not math.isfinite(v):
+            raise ValueError(f"Non-finite float values are not supported: {v!r}")
+        return str(v)
+    if v == "":
+        return json.dumps(v)
+    try:
+        json.loads(v)
+    except (json.JSONDecodeError, ValueError):
+        return v
+    return json.dumps(v)
+
+
+def _serialize_attributes(attributes: _Attributes) -> list[str]:
+    return [f"{k}:{_serialize_attribute_value(v)}" for k, v in attributes.items()]
+
+
 # Re-export generated types
 AnnotateSpanDocumentsRequestBody = v1.AnnotateSpanDocumentsRequestBody
 AnnotateSpanDocumentsResponseBody = v1.AnnotateSpanDocumentsResponseBody
 AnnotateSpansRequestBody = v1.AnnotateSpansRequestBody
 AnnotateSpansResponseBody = v1.AnnotateSpansResponseBody
+CreateSpanNoteRequestBody = v1.CreateSpanNoteRequestBody
+CreateSpanNoteResponseBody = v1.CreateSpanNoteResponseBody
 CreateSpansResponseBody = v1.CreateSpansResponseBody
 InsertedSpanAnnotation = v1.InsertedSpanAnnotation
 InsertedSpanDocumentAnnotation = v1.InsertedSpanDocumentAnnotation
@@ -42,12 +97,13 @@ SpanAnnotationResult = v1.AnnotationResult
 SpanAnnotationsResponseBody = v1.SpanAnnotationsResponseBody
 SpanDocumentAnnotationData = v1.SpanDocumentAnnotationData
 SpanDocumentAnnotationResult = v1.AnnotationResult
+SpanNoteData = v1.SpanNoteData
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 _MAX_SPAN_IDS_PER_REQUEST = 100
 
-_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN"]
+_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]
 
 
 class Spans:
@@ -106,8 +162,14 @@ class Spans:
             client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: "httpx.Client",
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     def get_spans_dataframe(
         self,
@@ -129,6 +191,10 @@ class Spans:
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
             root_spans_only (Optional[bool]): Whether to return only root spans.
+                Deprecated: express root-span scoping in the query instead, e.g.
+                `SpanQuery().where("parent_span is None")` to match root spans
+                including orphans (spans whose parent is absent), or
+                `parent_id is None` to match only spans with no parent id.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
@@ -142,6 +208,15 @@ class Spans:
             ImportError: If pandas is not installed.
         """
         project_name = project_name
+        if root_spans_only is not None:
+            warnings.warn(
+                "root_spans_only is deprecated. Express root-span scoping in the query "
+                'instead: SpanQuery().where("parent_span is None") for root spans including '
+                'orphans, or SpanQuery().where("parent_id is None") for only spans with no '
+                "parent id.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         query = query if query else SpanQuery()
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
@@ -256,7 +331,8 @@ class Spans:
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
-                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+                list[str],
+                spans_dataframe["context.span_id"].dropna().tolist(),  # pyright: ignore[reportUnknownMemberType]
             )
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
@@ -308,7 +384,7 @@ class Spans:
 
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
-        df.rename(columns={"name": "annotation_name"}, inplace=True)
+        df.rename(columns={"name": "annotation_name"}, inplace=True)  # pyright: ignore[reportUnknownMemberType]
         if not df.empty:
             df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
@@ -419,6 +495,15 @@ class Spans:
         project_identifier: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
+        trace_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
+        parent_id: Optional[str] = None,
+        name: Optional[Union[str, Sequence[str]]] = None,
+        span_kind: Optional[Union[str, Sequence[str]]] = None,
+        status_code: Optional[Union[str, Sequence[str]]] = None,
+        attributes: Optional[_Attributes] = None,
+        sort: Optional[SpanSort] = None,
+        order: Optional[SortOrder] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -431,6 +516,32 @@ class Spans:
                 (inclusive lower bound).
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
+            trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
+                Requires Phoenix server >= 13.9.0.
+            span_ids (Optional[Sequence[str]]): Optional list of span IDs to filter by.
+                Requires Phoenix server >= 19.6.0.
+            parent_id (Optional[str]): Optional parent span ID to filter by.
+                Use "null" to get root spans only.
+            name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
+                Requires Phoenix server >= 13.15.0.
+            span_kind (Optional[Union[str, Sequence[str]]]): Optional span kind(s) to filter
+                by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
+            status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
+                filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
+            attributes (Optional[dict[str, Union[str, int, float, bool]]]): Optional
+                dictionary of attribute key-value pairs to filter by; multiple entries
+                are AND-ed together. The Python type of each value selects how the
+                stored attribute is matched: a ``str`` matches a stored string;
+                ``int``, ``float``, and ``bool`` match the corresponding native type.
+                To match a stored string whose contents look like a number or boolean
+                (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
+                Requires Phoenix server >= 14.9.0.
+            sort (Optional[Literal["id", "start_time"]]): Which field orders the
+                result. The default, ``"id"``, is insertion order;
+                ``"start_time"`` is when each span started, with ties broken by id.
+                Requires Phoenix server >= 20.16.0.
+            order (Optional[Literal["asc", "desc"]]): Sort direction. The
+                default is ``"desc"``, newest first. Requires Phoenix server >= 20.16.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -439,7 +550,20 @@ class Spans:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
+            ValueError: If a float value in ``attributes`` is non-finite (nan or inf).
         """
+        if trace_ids:
+            self._guard.require(GET_SPANS_TRACE_IDS)
+        if span_ids:
+            self._guard.require(GET_SPANS_SPAN_IDS)
+        if name or span_kind or status_code:
+            self._guard.require(GET_SPANS_FILTERS)
+        if attributes:
+            self._guard.require(GET_SPANS_BY_ATTRIBUTE)
+        if sort:
+            self._guard.require(GET_SPANS_SORT)
+        if order:
+            self._guard.require(GET_SPANS_ORDER)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -456,6 +580,26 @@ class Spans:
                 params["start_time"] = start_time.isoformat()
             if end_time:
                 params["end_time"] = end_time.isoformat()
+            if trace_ids:
+                params["trace_id"] = list(trace_ids)
+            if span_ids:
+                params["span_id"] = list(span_ids)
+            if parent_id is not None:
+                params["parent_id"] = parent_id
+            if name:
+                params["name"] = [name] if isinstance(name, str) else list(name)
+            if span_kind:
+                params["span_kind"] = [span_kind] if isinstance(span_kind, str) else list(span_kind)
+            if status_code:
+                params["status_code"] = (
+                    [status_code] if isinstance(status_code, str) else list(status_code)
+                )
+            if attributes:
+                params["attribute"] = _serialize_attributes(attributes)
+            if sort:
+                params["sort"] = sort
+            if order:
+                params["order"] = order
             if cursor:
                 params["cursor"] = cursor
 
@@ -604,7 +748,7 @@ class Spans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -619,7 +763,7 @@ class Spans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -634,7 +778,7 @@ class Spans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -648,7 +792,7 @@ class Spans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -661,8 +805,8 @@ class Spans:
         Args:
             span_id (str): The ID of the span to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -716,12 +860,67 @@ class Spans:
             return res[0]
         return None
 
+    def add_span_note(
+        self,
+        *,
+        span_id: str,
+        note: str,
+    ) -> InsertedSpanAnnotation:
+        """Add a note to a span.
+
+        Notes are append-only: each call creates a new note with an auto-generated
+        UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+        annotations, by contrast, are keyed by (name, span_id, identifier) — to keep
+        multiple structured annotations with the same name on a span, supply distinct
+        identifiers; otherwise re-writing the same name overwrites the existing one.
+
+        Args:
+            span_id (str): The OpenTelemetry span ID of the span to add the note to.
+            note (str): The text content of the note.
+
+        Returns:
+            InsertedSpanAnnotation: The inserted span annotation containing the ID.
+
+        Raises:
+            ValueError: If span_id or note is empty (after stripping whitespace).
+            httpx.HTTPStatusError: If the span is not found (404) or other API errors.
+            httpx.HTTPError: If the request fails.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            # Add a note to a span
+            result = client.spans.add_span_note(
+                span_id="abc123def456",
+                note="This span shows interesting behavior.",
+            )
+            print(f"Note created with ID: {result['id']}")
+        """
+        span_id = span_id.strip()
+        if not span_id:
+            raise ValueError("Span ID cannot be empty")
+        note = note.strip()
+        if not note:
+            raise ValueError("Note cannot be empty")
+        url = "v1/span_notes"
+        json_: CreateSpanNoteRequestBody = {
+            "data": {
+                "span_id": span_id,
+                "note": note,
+            }
+        }
+        response = self._client.post(url=url, json=json_)
+        response.raise_for_status()
+        return cast(CreateSpanNoteResponseBody, response.json())["data"]
+
     @overload
     def log_span_annotations_dataframe(
         self,
         *,
         dataframe: "pd.DataFrame",
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         annotation_name: Optional[str] = None,
         sync: Literal[True],
     ) -> list[InsertedSpanAnnotation]: ...
@@ -731,7 +930,7 @@ class Spans:
         self,
         *,
         dataframe: "pd.DataFrame",
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         annotation_name: Optional[str] = None,
         sync: Literal[False] = False,
     ) -> None: ...
@@ -741,7 +940,7 @@ class Spans:
         self,
         *,
         dataframe: "pd.DataFrame",
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         annotation_name: Optional[str] = None,
         sync: bool,
     ) -> Optional[list[InsertedSpanAnnotation]]: ...
@@ -750,7 +949,7 @@ class Spans:
         self,
         *,
         dataframe: "pd.DataFrame",
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         annotation_name: Optional[str] = None,
         sync: bool = False,
     ) -> Optional[list[InsertedSpanAnnotation]]:
@@ -768,10 +967,10 @@ class Spans:
                 provide a global annotator_kind. The `span_id` can be either a column in the
                 DataFrame or will be taken from the DataFrame index. Optional columns include:
                 "label", "score", "explanation", "metadata", and "identifier".
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
@@ -825,7 +1024,11 @@ class Spans:
             )
         """  # noqa: E501
         # Validate DataFrame first
-        _validate_span_annotations_dataframe(dataframe=dataframe)
+        _validate_span_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: list[InsertedSpanAnnotation] = []
@@ -965,8 +1168,8 @@ class Spans:
             span_id (str): The ID of the span to annotate.
             document_position (int): The 0-based index of the document within the span.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for
-                the annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for
+                the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -1166,7 +1369,7 @@ class Spans:
             annotation_name (Optional[str]): The name to use for all annotations. If provided,
                 this name will be used for all rows in the DataFrame. Cannot be used if the
                 DataFrame contains a "name" or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The annotator kind to
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The annotator kind to
                 use for all annotations. If provided, this kind will be used for all rows in the
                 DataFrame. Cannot be used if the DataFrame contains an "annotator_kind" column.
             sync (bool): If True, the request will be fulfilled synchronously and the response
@@ -1275,8 +1478,14 @@ class AsyncSpans:
             await client.spans.delete(span_identifier="abc123def456")
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: "httpx.AsyncClient",
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     async def get_spans_dataframe(
         self,
@@ -1298,6 +1507,10 @@ class AsyncSpans:
             end_time (Optional[datetime]): Optional end time for filtering.
             limit (int): Maximum number of spans to return. Defaults to 1000.
             root_spans_only (Optional[bool]): Whether to return only root spans.
+                Deprecated: express root-span scoping in the query instead, e.g.
+                `SpanQuery().where("parent_span is None")` to match root spans
+                including orphans (spans whose parent is absent), or
+                `parent_id is None` to match only spans with no parent id.
             project_name (Optional[str]): Optional project name to filter by. Deprecated,
                 use `project_identifier` to also specify by the project id.
             project_identifier (Optional[str]): Optional project identifier (name or id)
@@ -1312,6 +1525,15 @@ class AsyncSpans:
             ImportError: If pandas is not installed.
         """
         project_name = project_name
+        if root_spans_only is not None:
+            warnings.warn(
+                "root_spans_only is deprecated. Express root-span scoping in the query "
+                'instead: SpanQuery().where("parent_span is None") for root spans including '
+                'orphans, or SpanQuery().where("parent_id is None") for only spans with no '
+                "parent id.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         query = query if query else SpanQuery()
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
@@ -1427,7 +1649,8 @@ class AsyncSpans:
 
         if spans_dataframe is not None:
             span_ids_raw: list[str] = cast(
-                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+                list[str],
+                spans_dataframe["context.span_id"].dropna().tolist(),  # pyright: ignore[reportUnknownMemberType]
             )
             span_ids_list = list({*span_ids_raw})
         elif span_ids is not None:
@@ -1479,7 +1702,7 @@ class AsyncSpans:
 
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
-        df.rename(columns={"name": "annotation_name"}, inplace=True)
+        df.rename(columns={"name": "annotation_name"}, inplace=True)  # pyright: ignore[reportUnknownMemberType]
         if not df.empty:
             df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
@@ -1590,6 +1813,15 @@ class AsyncSpans:
         project_identifier: str,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
+        trace_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
+        parent_id: Optional[str] = None,
+        name: Optional[Union[str, Sequence[str]]] = None,
+        span_kind: Optional[Union[str, Sequence[str]]] = None,
+        status_code: Optional[Union[str, Sequence[str]]] = None,
+        attributes: Optional[_Attributes] = None,
+        sort: Optional[SpanSort] = None,
+        order: Optional[SortOrder] = None,
         limit: int = 100,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.Span]:
@@ -1602,6 +1834,32 @@ class AsyncSpans:
                 (inclusive lower bound).
             end_time (Optional[datetime]): Optional end time for filtering
                 (exclusive upper bound).
+            trace_ids (Optional[Sequence[str]]): Optional list of trace IDs to filter by.
+                Requires Phoenix server >= 13.9.0.
+            span_ids (Optional[Sequence[str]]): Optional list of span IDs to filter by.
+                Requires Phoenix server >= 19.6.0.
+            parent_id (Optional[str]): Optional parent span ID to filter by.
+                Use "null" to get root spans only.
+            name (Optional[Union[str, Sequence[str]]]): Optional span name(s) to filter by.
+                Requires Phoenix server >= 13.15.0.
+            span_kind (Optional[Union[str, Sequence[str]]]): Optional span kind(s) to filter
+                by (e.g. LLM, CHAIN, TOOL). Requires Phoenix server >= 13.15.0.
+            status_code (Optional[Union[str, Sequence[str]]]): Optional status code(s) to
+                filter by (e.g. OK, ERROR, UNSET). Requires Phoenix server >= 13.15.0.
+            attributes (Optional[dict[str, Union[str, int, float, bool]]]): Optional
+                dictionary of attribute key-value pairs to filter by; multiple entries
+                are AND-ed together. The Python type of each value selects how the
+                stored attribute is matched: a ``str`` matches a stored string;
+                ``int``, ``float``, and ``bool`` match the corresponding native type.
+                To match a stored string whose contents look like a number or boolean
+                (e.g. a user ID stored as ``"12345"``), pass it as a Python ``str``.
+                Requires Phoenix server >= 14.9.0.
+            sort (Optional[Literal["id", "start_time"]]): Which field orders the
+                result. The default, ``"id"``, is insertion order;
+                ``"start_time"`` is when each span started, with ties broken by id.
+                Requires Phoenix server >= 20.16.0.
+            order (Optional[Literal["asc", "desc"]]): Sort direction. The
+                default is ``"desc"``, newest first. Requires Phoenix server >= 20.16.0.
             limit (int): Maximum number of spans to return. Defaults to 100.
             timeout (Optional[int]): Optional request timeout in seconds.
 
@@ -1610,7 +1868,20 @@ class AsyncSpans:
 
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
+            ValueError: If a float value in ``attributes`` is non-finite (nan or inf).
         """
+        if trace_ids:
+            await self._guard.require(GET_SPANS_TRACE_IDS)
+        if span_ids:
+            await self._guard.require(GET_SPANS_SPAN_IDS)
+        if name or span_kind or status_code:
+            await self._guard.require(GET_SPANS_FILTERS)
+        if attributes:
+            await self._guard.require(GET_SPANS_BY_ATTRIBUTE)
+        if sort:
+            await self._guard.require(GET_SPANS_SORT)
+        if order:
+            await self._guard.require(GET_SPANS_ORDER)
         all_spans: list[v1.Span] = []
         cursor: Optional[str] = None
         page_size = min(100, limit)
@@ -1627,6 +1898,26 @@ class AsyncSpans:
                 params["start_time"] = start_time.isoformat()
             if end_time:
                 params["end_time"] = end_time.isoformat()
+            if trace_ids:
+                params["trace_id"] = list(trace_ids)
+            if span_ids:
+                params["span_id"] = list(span_ids)
+            if parent_id is not None:
+                params["parent_id"] = parent_id
+            if name:
+                params["name"] = [name] if isinstance(name, str) else list(name)
+            if span_kind:
+                params["span_kind"] = [span_kind] if isinstance(span_kind, str) else list(span_kind)
+            if status_code:
+                params["status_code"] = (
+                    [status_code] if isinstance(status_code, str) else list(status_code)
+                )
+            if attributes:
+                params["attribute"] = _serialize_attributes(attributes)
+            if sort:
+                params["sort"] = sort
+            if order:
+                params["order"] = order
             if cursor:
                 params["cursor"] = cursor
 
@@ -1777,7 +2068,7 @@ class AsyncSpans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -1792,7 +2083,7 @@ class AsyncSpans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -1807,7 +2098,7 @@ class AsyncSpans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -1821,7 +2112,7 @@ class AsyncSpans:
         *,
         span_id: str,
         annotation_name: str,
-        annotator_kind: Literal["LLM", "CODE", "HUMAN"] = "HUMAN",
+        annotator_kind: _AnnotatorKind = "HUMAN",
         label: Optional[str] = None,
         score: Optional[float] = None,
         explanation: Optional[str] = None,
@@ -1834,7 +2125,7 @@ class AsyncSpans:
         Args:
             span_id (str): The ID of the span to annotate.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
                 Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
@@ -1886,13 +2177,68 @@ class AsyncSpans:
             return res[0]
         return None
 
+    async def add_span_note(
+        self,
+        *,
+        span_id: str,
+        note: str,
+    ) -> InsertedSpanAnnotation:
+        """Add a note to a span asynchronously.
+
+        Notes are append-only: each call creates a new note with an auto-generated
+        UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+        annotations, by contrast, are keyed by (name, span_id, identifier) — to keep
+        multiple structured annotations with the same name on a span, supply distinct
+        identifiers; otherwise re-writing the same name overwrites the existing one.
+
+        Args:
+            span_id (str): The OpenTelemetry span ID of the span to add the note to.
+            note (str): The text content of the note.
+
+        Returns:
+            InsertedSpanAnnotation: The inserted span annotation containing the ID.
+
+        Raises:
+            ValueError: If span_id or note is empty (after stripping whitespace).
+            httpx.HTTPStatusError: If the span is not found (404) or other API errors.
+            httpx.HTTPError: If the request fails.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            client = AsyncClient()
+
+            # Add a note to a span
+            result = await client.spans.add_span_note(
+                span_id="abc123def456",
+                note="This span shows interesting behavior.",
+            )
+            print(f"Note created with ID: {result['id']}")
+        """
+        span_id = span_id.strip()
+        if not span_id:
+            raise ValueError("Span ID cannot be empty")
+        note = note.strip()
+        if not note:
+            raise ValueError("Note cannot be empty")
+        url = "v1/span_notes"
+        json_: CreateSpanNoteRequestBody = {
+            "data": {
+                "span_id": span_id,
+                "note": note,
+            }
+        }
+        response = await self._client.post(url=url, json=json_)
+        response.raise_for_status()
+        return cast(CreateSpanNoteResponseBody, response.json())["data"]
+
     @overload
     async def log_span_annotations_dataframe(
         self,
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: Literal[True],
     ) -> list[InsertedSpanAnnotation]: ...
 
@@ -1902,7 +2248,7 @@ class AsyncSpans:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -1912,7 +2258,7 @@ class AsyncSpans:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: bool,
     ) -> Optional[list[InsertedSpanAnnotation]]: ...
 
@@ -1921,7 +2267,7 @@ class AsyncSpans:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: bool = False,
     ) -> Optional[list[InsertedSpanAnnotation]]:
         """Log multiple span annotations from a pandas DataFrame asynchronously.
@@ -1941,10 +2287,10 @@ class AsyncSpans:
             annotation_name (Optional[str]): The name to use for all annotations. If provided, this
                 value will be used for all rows and the DataFrame does not need to include a "name"
                 or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The kind of annotator used
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The kind of annotator used
                 for all annotations. If provided, this value will be used for all rows and the
                 DataFrame does not need to include an "annotator_kind" column. Must be one of
-                "LLM", "CODE", or "HUMAN".
+                "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             sync (bool): If True, the request will be fulfilled synchronously and the response will
                 contain the inserted annotation IDs. If False, the request will be processed
                 asynchronously. Defaults to False.
@@ -1983,7 +2329,11 @@ class AsyncSpans:
             )
         """  # noqa: E501
         # Validate DataFrame first
-        _validate_span_annotations_dataframe(dataframe=dataframe)
+        _validate_span_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: list[InsertedSpanAnnotation] = []
@@ -2149,8 +2499,8 @@ class AsyncSpans:
             span_id (str): The ID of the span to annotate.
             document_position (int): The 0-based index of the document within the span.
             annotation_name (str): The name of the annotation.
-            annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the
-                annotation. Must be one of "LLM", "CODE", or "HUMAN". Defaults to "HUMAN".
+            annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the
+                annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT". Defaults to "HUMAN".
             label (Optional[str]): The label assigned by the annotation.
             score (Optional[float]): The score assigned by the annotation.
             explanation (Optional[str]): Explanation of the annotation result.
@@ -2255,7 +2605,7 @@ class AsyncSpans:
         Example::
 
             from phoenix.client import AsyncClient
-            from phoenix.client.resources.annotations import SpanDocumentAnnotationData
+            from phoenix.client.resources.spans import SpanDocumentAnnotationData
             async_client = AsyncClient()
 
             # Log multiple document annotations
@@ -2298,7 +2648,7 @@ class AsyncSpans:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: Literal[True],
     ) -> list[InsertedSpanDocumentAnnotation]: ...
 
@@ -2308,7 +2658,7 @@ class AsyncSpans:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: Literal[False] = False,
     ) -> None: ...
 
@@ -2318,7 +2668,7 @@ class AsyncSpans:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: bool,
     ) -> Optional[list[InsertedSpanDocumentAnnotation]]: ...
 
@@ -2327,7 +2677,7 @@ class AsyncSpans:
         *,
         dataframe: "pd.DataFrame",
         annotation_name: Optional[str] = None,
-        annotator_kind: Optional[Literal["LLM", "CODE", "HUMAN"]] = None,
+        annotator_kind: Optional[_AnnotatorKind] = None,
         sync: bool = False,
     ) -> Optional[list[InsertedSpanDocumentAnnotation]]:
         """Log multiple span document annotations from a pandas DataFrame asynchronously.
@@ -2349,7 +2699,7 @@ class AsyncSpans:
             annotation_name (Optional[str]): The name to use for all annotations. If provided,
                 this name will be used for all rows in the DataFrame. Cannot be used if the
                 DataFrame contains a "name" or "annotation_name" column.
-            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN"]]): The annotator kind to
+            annotator_kind (Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]]): The annotator kind to
                 use for all annotations. If provided, this kind will be used for all rows in the
                 DataFrame. Cannot be used if the DataFrame contains an "annotator_kind" column.
             sync (bool): If True, the request will be fulfilled synchronously and the response
@@ -2423,7 +2773,7 @@ def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
     Returns:
         pd.DataFrame: The decoded pandas DataFrame with cleaned index and column names.
     """
-    import pandas as pd
+    import pandas as pd  # pyright: ignore[reportUnusedImport]
     from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 
     df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))
@@ -2511,10 +2861,10 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
     if column_name in df.columns:
         # Flatten the nested dictionary column and prefix each resulting column with
         # the original column name (e.g., "result.label").
-        nested_df = pd.json_normalize(df[column_name]).rename(  # type: ignore[arg-type]
-            columns=lambda col: f"{column_name}.{col}"
+        nested_df = pd.json_normalize(df[column_name]).rename(  # pyright: ignore[reportArgumentType]
+            columns=lambda col: f"{column_name}.{col}"  # pyright: ignore[reportUnknownLambdaType]
         )
-        df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)
+        df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)  # pyright: ignore[reportUnknownMemberType]
     return df
 
 
@@ -2650,7 +3000,7 @@ def _extract_invalid_span_from_log_spans_error(
     if not isinstance(loc_raw, list):
         return None
 
-    loc: list[Any] = loc_raw
+    loc = cast(Sequence[Any], loc_raw)
     if not (len(loc) >= 3 and loc[0] == "body" and loc[1] == "data" and isinstance(loc[2], int)):
         return None
 

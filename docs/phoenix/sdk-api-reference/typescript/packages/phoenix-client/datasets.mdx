@@ -1,0 +1,303 @@
+---
+title: "Datasets"
+description: "Create datasets and manage reusable dataset labels with @arizeai/phoenix-client"
+---
+
+Datasets are the foundation for experiment runs. The `@arizeai/phoenix-client/datasets` entrypoint covers dataset creation (which upserts by name), record inspection, example appends, split management, and both global dataset-label resources and their dataset assignments.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li>
+      <code>src/datasets/createDataset.ts</code> for the exact return shape and
+      upsert-by-name behavior
+    </li>
+    <li>
+      <code>src/datasets/datasetLabelTypes.ts</code> for the generated
+      dataset-label request and response types
+    </li>
+    <li>
+      <code>src/datasets/datasetLabelAssignments.ts</code> for dataset label assignment
+      helpers
+    </li>
+  </ul>
+</section>
+
+## Create A Dataset
+
+```ts
+import { createDataset } from "@arizeai/phoenix-client/datasets";
+
+const { datasetId } = await createDataset({
+  name: "support-eval",
+  description: "Support questions with expected answers",
+  examples: [
+    {
+      id: "order-tracking",
+      input: { question: "Where is my order?" },
+      output: { answer: "Use the tracking page in your account." },
+      metadata: { channel: "chat" },
+    },
+    {
+      id: "password-reset",
+      input: { question: "How do I reset my password?" },
+      output: { answer: "Use the forgot password flow." },
+      metadata: { channel: "chat" },
+    },
+  ],
+});
+```
+
+`id` is optional. When you do provide it, give every example its own value:
+example IDs are unique per dataset, so reusing one across examples in the same
+dataset is an error. A stable, unique `id` is what `createDataset()` matches on
+when it upserts, and what you can hand to the split helpers below instead of the
+server-generated `nodeId`. Omit `id` and the server generates one for you.
+
+## Upsert Or Append
+
+`createDataset()` upserts by name: re-running it with the same name updates the existing dataset to match the examples you pass, and an unchanged upload is a no-op. To keep existing examples and add more, use `appendDatasetExamples()` instead of re-running `createDataset()` with the extra examples.
+
+```ts
+import {
+  appendDatasetExamples,
+  createDataset,
+} from "@arizeai/phoenix-client/datasets";
+
+const dataset = await createDataset({
+  name: "support-eval",
+  description: "Support questions with expected answers",
+  examples: [
+    {
+      id: "order-tracking",
+      input: { question: "Where is my order?" },
+      output: { answer: "Use the tracking page in your account." },
+    },
+  ],
+});
+
+await appendDatasetExamples({
+  dataset,
+  examples: [
+    {
+      id: "password-reset",
+      input: { question: "How do I reset my password?" },
+      output: { answer: "Use the forgot password flow." },
+    },
+  ],
+});
+```
+
+`createDataset()` returns `{ datasetId }`, so you can pass that object directly as the dataset selector for append or experiment calls.
+
+## Organize Datasets With Labels
+
+Dataset label assignment helpers accept either a dataset name or a Phoenix GlobalID.
+Label IDs are Phoenix GlobalIDs returned by the dataset-label API or shown in Phoenix.
+The following workflow creates a shared label, applies it to a dataset, and then
+uses replacement to make the dataset's organization declarative:
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+import {
+  addLabelToDataset,
+  createDatasetLabel,
+  listLabelsForDataset,
+  removeLabelFromDataset,
+  replaceLabelsForDataset,
+} from "@arizeai/phoenix-client/datasets";
+
+const client = createClient();
+const goldenLabel = await createDatasetLabel({
+  client,
+  name: "golden",
+  color: "#00cc88",
+  description: "Curated datasets for release qualification",
+});
+
+const goldenLabelId = goldenLabel.id;
+const dataset = { datasetName: "support-eval" };
+
+// Safe to retry: applying an existing assignment is a no-op.
+await addLabelToDataset({ client, dataset, labelId: goldenLabelId });
+console.log(await listLabelsForDataset({ client, dataset }));
+
+// Make this the dataset's complete label set. Pass [] to clear all labels.
+await replaceLabelsForDataset({
+  client,
+  dataset,
+  labelIds: [goldenLabelId],
+});
+
+// This only removes the assignment; it does not delete the shared label.
+await removeLabelFromDataset({
+  client,
+  dataset,
+  labelId: goldenLabelId,
+});
+```
+
+Assignment endpoints require Phoenix server 17.16.0 or newer. Adding and removing an
+assignment are idempotent, while `replaceLabelsForDataset()` treats
+`labelIds` as the complete desired set.
+
+## Read Back Dataset State
+
+Use `getDataset`, `getDatasetExamples`, and `getDatasetInfo` to inspect datasets after creation.
+
+## Manage Splits On An Existing Dataset
+
+Use `createDatasetSplit`, `updateDatasetSplit`, and `deleteDatasetSplit` to
+manage train, test, validation, or other named subsets after a dataset exists.
+Select the dataset by name or GlobalID. Example membership accepts either the
+user-provided `id` or Phoenix `nodeId` returned by `getDatasetExamples`.
+
+```ts
+import {
+  createDatasetSplit,
+  deleteDatasetSplit,
+  getDatasetExamples,
+  updateDatasetSplit,
+} from "@arizeai/phoenix-client/datasets";
+
+const datasetIdentifier = "support-eval";
+const dataset = { datasetName: datasetIdentifier };
+const { examples } = await getDatasetExamples({
+  dataset,
+});
+const [firstExample, secondExample] = examples;
+if (firstExample == null || secondExample == null) {
+  throw new Error("At least two examples are required to demonstrate split updates");
+}
+
+const testSplit = await createDatasetSplit({
+  dataset,
+  name: "test",
+  description: "Held-out evaluation examples",
+  exampleIds: [firstExample.id],
+});
+
+// Only provided fields change. Adding an existing member or removing a
+// non-member is an idempotent no-op.
+await updateDatasetSplit({
+  dataset,
+  splitId: testSplit.id,
+  description: "Reviewed held-out examples",
+  addExampleIds: [secondExample.id],
+  removeExampleIds: [firstExample.id],
+});
+
+// Deleting a split removes its memberships, not the underlying examples.
+await deleteDatasetSplit({
+  dataset,
+  splitId: testSplit.id,
+});
+```
+
+Split names are unique across the Phoenix instance. Creating or renaming a
+split to an existing name fails with HTTP 409. These helpers require Phoenix
+server 19.20.0 or newer. Servers on 19.20.0 through 20.15.0 resolve membership
+by `nodeId` only — user-provided `id` values are accepted from the release that
+follows 20.15.0, so pass `nodeId` when you target an older server.
+
+## Manage Dataset Label Resources
+
+Dataset labels are reusable, global resources for organizing datasets. The datasets entrypoint provides typed helpers to list, get, create, update, and delete those resources.
+
+<Warning>
+Dataset label **resources** and dataset label **assignments** are different. These helpers manage the global resource itself; they do not attach a label to a dataset. An assignment links an existing resource to one dataset. Removing an assignment preserves the label resource, while deleting the resource removes it from every dataset where it is assigned.
+</Warning>
+
+### Create And Read Labels
+
+Names are unique across Phoenix. Creating a label whose name already exists rejects with an `HttpError` whose `status` is `409`.
+
+```ts
+import { HttpError } from "@arizeai/phoenix-client";
+import {
+  createDatasetLabel,
+  getDatasetLabel,
+} from "@arizeai/phoenix-client/datasets";
+
+try {
+  const created = await createDatasetLabel({
+    name: "golden",
+    color: "#00cc88",
+    description: "Curated reference datasets",
+  });
+
+  const label = await getDatasetLabel({ labelId: created.id });
+  console.log(label.name);
+} catch (error) {
+  if (error instanceof HttpError && error.status === 409) {
+    console.error("That dataset label name already exists.");
+  }
+}
+```
+
+### List Labels With Cursor Pagination
+
+`listDatasetLabels()` returns one page at a time. Pass `nextCursor` from one result as `cursor` on the next request.
+
+```ts
+import { listDatasetLabels } from "@arizeai/phoenix-client/datasets";
+
+let cursor: string | null | undefined;
+
+do {
+  const page = await listDatasetLabels({ cursor, limit: 100 });
+
+  for (const label of page.datasetLabels) {
+    console.log(label.id, label.name);
+  }
+
+  cursor = page.nextCursor;
+} while (cursor != null);
+```
+
+### Update Or Delete A Label
+
+Updates are partial: omitted fields stay unchanged, and `description: null` clears the description. Deleting a global label also removes every assignment of that label.
+
+```ts
+import {
+  deleteDatasetLabel,
+  updateDatasetLabel,
+} from "@arizeai/phoenix-client/datasets";
+
+const labelId = "RGF0YXNldExhYmVsOjE=";
+
+await updateDatasetLabel({ labelId, description: null });
+await deleteDatasetLabel({ labelId });
+```
+
+| Helper | Purpose |
+|--------|---------|
+| `listDatasetLabels` | Return one cursor-paginated page of global resources |
+| `getDatasetLabel` | Read one global resource by label ID |
+| `createDatasetLabel` | Create a reusable resource with a unique name |
+| `updateDatasetLabel` | Partially update a resource's name, color, or description |
+| `deleteDatasetLabel` | Delete a resource and all of its assignments |
+
+Dataset assignments use the separate `/v1/datasets/{dataset_identifier}/labels` routes. They control which existing labels are applied to a dataset and do not create, update, or delete the global resources documented here.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/datasets/createDataset.ts</code></li>
+    <li><code>src/datasets/appendDatasetExamples.ts</code></li>
+    <li><code>src/datasets/getDataset.ts</code></li>
+    <li><code>src/datasets/getDatasetExamples.ts</code></li>
+    <li><code>src/datasets/getDatasetInfo.ts</code></li>
+    <li><code>src/datasets/datasetLabelTypes.ts</code></li>
+    <li><code>src/datasets/listDatasetLabels.ts</code></li>
+    <li><code>src/datasets/getDatasetLabel.ts</code></li>
+    <li><code>src/datasets/createDatasetLabel.ts</code></li>
+    <li><code>src/datasets/updateDatasetLabel.ts</code></li>
+    <li><code>src/datasets/deleteDatasetLabel.ts</code></li>
+    <li><code>src/datasets/datasetLabelAssignments.ts</code></li>
+    <li><code>src/datasets/createDatasetSplit.ts</code></li>
+    <li><code>src/datasets/updateDatasetSplit.ts</code></li>
+    <li><code>src/datasets/deleteDatasetSplit.ts</code></li>
+  </ul>
+</section>

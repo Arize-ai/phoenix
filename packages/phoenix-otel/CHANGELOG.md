@@ -1,5 +1,94 @@
 # Changelog
 
+## [0.17.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.2...arize-phoenix-otel-v0.17.3) (2026-11-06)
+
+
+### Bug Fixes
+
+* **otel, client, config:** parse .env.phoenix the same way in Python and TypeScript ([#17075](https://github.com/Arize-ai/phoenix/issues/17075)) ([67cc379](https://github.com/Arize-ai/phoenix/commit/67cc379f25062fa42f0d7d7f845f1fe9719116ba)), closes [#17048](https://github.com/Arize-ai/phoenix/issues/17048)
+* **otel:** pick the OTLP protocol once ([#17531](https://github.com/Arize-ai/phoenix/issues/17531)) ([0f5024c](https://github.com/Arize-ai/phoenix/commit/0f5024c740912a96414e8eec2afd80b376ec127b))
+* **otel:** show the header name in the URL-encoding warning ([#16428](https://github.com/Arize-ai/phoenix/issues/16428)) ([30949b8](https://github.com/Arize-ai/phoenix/commit/30949b840efd6e800bb14d7cd746c983a1763813))
+
+
+### Documentation
+
+* fix dead Read the Docs links ([#16967](https://github.com/Arize-ai/phoenix/issues/16967)) ([0fed1f4](https://github.com/Arize-ai/phoenix/commit/0fed1f431c65cf24f52ca8153d5ffd63ce04a1b2))
+
+## [0.17.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.1...arize-phoenix-otel-v0.17.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* **otel:** fix register() crash with opentelemetry-exporter-otlp-proto-http 1.45 ([#16549](https://github.com/Arize-ai/phoenix/issues/16549)) ([70c5051](https://github.com/Arize-ai/phoenix/commit/70c5051460a199410145913fe2513799bfeb1eaa))
+
+## [0.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.0...arize-phoenix-otel-v0.17.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **phoenix-otel:** correct README logo variants and UTM campaign ([f0077ac](https://github.com/Arize-ai/phoenix/commit/f0077accf2f5ef9d8d935fdd299dfef626dd47a1))
+* **phoenix-otel:** only remove the default processor when replacing it ([#15021](https://github.com/Arize-ai/phoenix/issues/15021)) ([997df77](https://github.com/Arize-ai/phoenix/commit/997df77664a6decdee027572ba7998c16ec424fc))
+
+
+### Documentation
+
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+* **otel:** document arize-phoenix-otel/server version independence ([#14823](https://github.com/Arize-ai/phoenix/issues/14823)) ([003ff2d](https://github.com/Arize-ai/phoenix/commit/003ff2da27d0de5a8633c2ce6931653e9a648b83))
+* replace app.phoenix.arize.com with generic placeholder in package docs ([23deebc](https://github.com/Arize-ai/phoenix/commit/23deebcc2ff045297d86be44b9b6291bf0461151))
+
+## [0.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.16.1...arize-phoenix-otel-v0.17.0) (2026-08-08)
+
+
+### Features
+
+* phoenix env file ([#14188](https://github.com/Arize-ai/phoenix/issues/14188)) ([c0ab6a9](https://github.com/Arize-ai/phoenix/commit/c0ab6a9715bd8050094f8ac4135c7fa5d556c453))
+
+
+### Bug Fixes
+
+* **phoenix-otel:** correct README logo variants and UTM campaign ([f0077ac](https://github.com/Arize-ai/phoenix/commit/f0077accf2f5ef9d8d935fdd299dfef626dd47a1))
+* **phoenix-otel:** only remove the default processor when replacing it ([#15021](https://github.com/Arize-ai/phoenix/issues/15021)) ([997df77](https://github.com/Arize-ai/phoenix/commit/997df77664a6decdee027572ba7998c16ec424fc))
+
+
+### Documentation
+
+* fill small feature-gap docs across evals, tracing, playground, and packages ([e5764b3](https://github.com/Arize-ai/phoenix/commit/e5764b348eeaca2d824638264b9d929c5a730c5a))
+* **otel:** document arize-phoenix-otel/server version independence ([#14823](https://github.com/Arize-ai/phoenix/issues/14823)) ([003ff2d](https://github.com/Arize-ai/phoenix/commit/003ff2da27d0de5a8633c2ce6931653e9a648b83))
+* replace app.phoenix.arize.com with generic placeholder in package docs ([23deebc](https://github.com/Arize-ai/phoenix/commit/23deebcc2ff045297d86be44b9b6291bf0461151))
+
+## [0.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.16.0...arize-phoenix-otel-v0.16.1) (2026-05-03)
+
+
+### Documentation
+
+* add LinkedIn social links alongside X/Bluesky ([#12993](https://github.com/Arize-ai/phoenix/issues/12993)) ([5d14f23](https://github.com/Arize-ai/phoenix/commit/5d14f23598202c062530466a9dbdc9a1a033d6c8))
+
+## [0.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.15.0...arize-phoenix-otel-v0.16.0) (2026-04-24)
+
+
+### Features
+
+* **phoenix-otel:** re-export openinference helpers, decorators, and semconv ([#12844](https://github.com/Arize-ai/phoenix/issues/12844)) ([23576da](https://github.com/Arize-ai/phoenix/commit/23576da85d9de51527b525b3d20625785e175b23))
+
+## [0.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.14.0...arize-phoenix-otel-v0.15.0) (2026-03-02)
+
+
+### Features
+
+* **otel:** support python 3.10 - 3.14 for arize-phoenix-otel ([#11831](https://github.com/Arize-ai/phoenix/issues/11831)) ([bca6282](https://github.com/Arize-ai/phoenix/commit/bca62828e00951948b12a4bd96a47938bd11b267))
+
+
+### Bug Fixes
+
+* update slack invitation link ([#11612](https://github.com/Arize-ai/phoenix/issues/11612)) ([316833e](https://github.com/Arize-ai/phoenix/commit/316833e629baf1b9185d7c712d8816b927d69a96))
+
+## [0.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.13.1...arize-phoenix-otel-v0.14.0) (2025-11-19)
+
+
+### Features
+
+* switch client to be Apache 2.0 ([#10332](https://github.com/Arize-ai/phoenix/issues/10332)) ([ee6f6ee](https://github.com/Arize-ai/phoenix/commit/ee6f6ee15deca45430aff2732fb5ac7253d82522))
+
 ## [0.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.13.0...arize-phoenix-otel-v0.13.1) (2025-09-10)
 
 

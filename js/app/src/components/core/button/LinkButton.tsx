@@ -1,0 +1,68 @@
+import { css } from "@emotion/react";
+import type { Ref } from "react";
+import type { LinkProps } from "react-router";
+import { Link } from "react-router";
+
+import { buttonCSS } from "./styles";
+import type { ButtonProps } from "./types";
+
+interface LinkButtonProps
+  extends
+    Pick<LinkProps, "to" | "children" | "aria-label">,
+    Pick<
+      ButtonProps,
+      | "size"
+      | "variant"
+      | "leadingVisual"
+      | "trailingVisual"
+      | "css"
+      | "isDisabled"
+    > {}
+
+const linkButtonCSS = css`
+  text-decoration: none;
+  user-select: none;
+  &[data-disabled="true"] {
+    pointer-events: none;
+    cursor: default;
+    opacity: var(--global-opacity-disabled);
+  }
+`;
+/**
+ * A link that is rendered as a button
+ * This is useful when you want the link to be styled as a button but you want the semantic meaning of a link
+ */
+function LinkButton({
+  ref,
+  ...props
+}: LinkButtonProps & { ref?: Ref<HTMLAnchorElement> }) {
+  const {
+    size = "M",
+    variant = "default",
+    leadingVisual,
+    trailingVisual,
+    children,
+    css: propCSS,
+    isDisabled,
+    to,
+    "aria-label": ariaLabel,
+  } = props;
+  return (
+    <Link
+      ref={ref}
+      data-size={size}
+      data-variant={variant}
+      data-childless={!children}
+      data-disabled={isDisabled}
+      css={css(buttonCSS, linkButtonCSS, propCSS)}
+      to={to}
+      aria-label={ariaLabel}
+    >
+      {leadingVisual}
+      {children}
+      {trailingVisual}
+    </Link>
+  );
+}
+
+export { LinkButton, LinkButtonProps };

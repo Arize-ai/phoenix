@@ -8,6 +8,20 @@ from phoenix.server.types import DbSessionFactory
 
 from ....graphql import AsyncGraphQLClient
 
+PATCH_PROJECT_MUTATION = """
+    mutation($input: PatchProjectInput!) {
+        patchProject(input: $input) {
+            project {
+                id
+                name
+                description
+                gradientStartColor
+                gradientEndColor
+            }
+        }
+    }
+"""
+
 
 class TestProjectMutations:
     async def test_clear_project(
@@ -118,6 +132,78 @@ class TestProjectMutations:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
 
+    async def test_clear_project_preserves_straddling_session_and_its_newer_trace(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """A bounded clear must not delete a session that still has newer traces.
+
+        Deleting such a session would cascade-delete its surviving traces via
+        the ``traces.project_session_rowid ON DELETE CASCADE`` foreign key,
+        destroying data outside the requested time bound.
+        """
+        base_start_time = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                project_id=project.id,
+                session_id=token_hex(8),
+                start_time=base_start_time - timedelta(days=2),
+                end_time=base_start_time + timedelta(hours=1),
+            )
+            session.add(project_session)
+            await session.flush()
+            old_trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                project_session_rowid=project_session.id,
+                start_time=base_start_time - timedelta(days=2),
+                end_time=base_start_time - timedelta(days=2) + timedelta(hours=1),
+            )
+            new_trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=token_hex(16),
+                project_session_rowid=project_session.id,
+                start_time=base_start_time,
+                end_time=base_start_time + timedelta(hours=1),
+            )
+            session.add_all([old_trace, new_trace])
+            await session.flush()
+
+        # Clear up to a point between the two traces: the old trace is deleted,
+        # and the session straddling the bound survives with its newer trace.
+        end_time = base_start_time - timedelta(days=1)
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) {
+                    __typename
+                }
+            }
+            """,
+            variables={
+                "input": {
+                    "id": str(GlobalID("Project", str(project.id))),
+                    "endTime": end_time.isoformat(),
+                }
+            },
+        )
+        assert not result.errors
+
+        async with db() as session:
+            assert await session.get(models.Trace, old_trace.id) is None, (
+                "Trace before the bound should be deleted"
+            )
+            assert await session.get(models.Trace, new_trace.id) is not None, (
+                "Trace after the bound must survive the clear"
+            )
+            assert await session.get(models.ProjectSession, project_session.id) is not None, (
+                "Session with a surviving trace must not be deleted"
+            )
+
     async def test_create_project(
         self,
         db: DbSessionFactory,
@@ -177,6 +263,131 @@ class TestProjectMutations:
             assert project.description == project_description
             assert project.gradient_start_color == gradient_start_color
             assert project.gradient_end_color == gradient_end_color
+
+    async def test_patch_project_description(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test patching only the project description."""
+        project_name = token_hex(8)
+        async with db() as session:
+            project = models.Project(name=project_name)
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        global_id = str(GlobalID("Project", str(project_id)))
+        result = await gql_client.execute(
+            query=PATCH_PROJECT_MUTATION,
+            variables={
+                "input": {
+                    "id": global_id,
+                    "description": "Updated description",
+                }
+            },
+        )
+        assert not result.errors
+        assert result.data
+        project_data = result.data["patchProject"]["project"]
+        assert project_data["name"] == project_name
+        assert project_data["description"] == "Updated description"
+        # Gradient should remain unchanged (defaults)
+        assert project_data["gradientStartColor"] == "#5bdbff"
+        assert project_data["gradientEndColor"] == "#1c76fc"
+
+        async with db() as session:
+            project_obj = await session.get(models.Project, project_id)
+            assert project_obj is not None
+            assert project_obj.description == "Updated description"
+
+    async def test_patch_project_gradient(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test patching only the gradient colors."""
+        project_name = token_hex(8)
+        async with db() as session:
+            project = models.Project(name=project_name, description="Original desc")
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        global_id = str(GlobalID("Project", str(project_id)))
+        result = await gql_client.execute(
+            query=PATCH_PROJECT_MUTATION,
+            variables={
+                "input": {
+                    "id": global_id,
+                    "gradientStartColor": "#ff0000",
+                    "gradientEndColor": "#00ff00",
+                }
+            },
+        )
+        assert not result.errors
+        assert result.data
+        project_data = result.data["patchProject"]["project"]
+        assert project_data["description"] == "Original desc"
+        assert project_data["gradientStartColor"] == "#ff0000"
+        assert project_data["gradientEndColor"] == "#00ff00"
+
+    async def test_patch_project_all_fields(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test patching description and gradient together."""
+        project_name = token_hex(8)
+        async with db() as session:
+            project = models.Project(name=project_name)
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        global_id = str(GlobalID("Project", str(project_id)))
+        result = await gql_client.execute(
+            query=PATCH_PROJECT_MUTATION,
+            variables={
+                "input": {
+                    "id": global_id,
+                    "description": "New description",
+                    "gradientStartColor": "#aabbcc",
+                    "gradientEndColor": "#ddeeff",
+                }
+            },
+        )
+        assert not result.errors
+        assert result.data
+        project_data = result.data["patchProject"]["project"]
+        assert project_data["description"] == "New description"
+        assert project_data["gradientStartColor"] == "#aabbcc"
+        assert project_data["gradientEndColor"] == "#ddeeff"
+
+    async def test_patch_project_invalid_color(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Test that invalid hex colors are rejected."""
+        project_name = token_hex(8)
+        async with db() as session:
+            project = models.Project(name=project_name)
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        global_id = str(GlobalID("Project", str(project_id)))
+        result = await gql_client.execute(
+            query=PATCH_PROJECT_MUTATION,
+            variables={
+                "input": {
+                    "id": global_id,
+                    "gradientStartColor": "not-a-color",
+                }
+            },
+        )
+        assert result.errors
 
     async def test_create_project_with_minimal_input(
         self,

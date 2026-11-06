@@ -1,108 +1,168 @@
+import json
+import logging
+import os
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Iterator, Literal, Optional, Union
+from typing import Annotated, Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
-import numpy as np
-import numpy.typing as npt
 import strawberry
-from sqlalchemy import ColumnElement, String, and_, case, cast, func, select, text
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy import ColumnElement, String, and_, case, cast, exists, func, or_, select, text
+from sqlalchemy.orm import joinedload, load_only, with_polymorphic
+from sqlalchemy.sql.expression import tuple_
 from starlette.authentication import UnauthenticatedUser
-from strawberry import ID, UNSET
+from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node
+from strawberry.scalars import JSON
 from strawberry.types import Info
-from typing_extensions import Annotated, TypeAlias, assert_never
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.config import (
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     get_env_database_allocated_storage_capacity_gibibytes,
-    getenv,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    exclude_dataset_evaluator_projects,
+    exclude_experiment_projects,
+    pg_table_sizes_stmt,
+)
 from phoenix.db.models import LatencyMs
-from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.db.types.annotation_configs import OptimizationDirection
+from phoenix.db.types.prompts import PromptMessageRole
+from phoenix.server.agents.config import AgentsEnvConfig
+from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspace_secret
+from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
+from phoenix.server.api.evaluators import (
+    apply_input_mapping,
+    cast_template_variable_types,
+    infer_input_schema_from_template,
+    validate_template_variables,
+)
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.classification_evaluator_configs import (
+    get_classification_evaluator_configs,
+)
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
     update_examples_query_with_filter_condition,
 )
-from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
+from phoenix.server.api.helpers.playground_clients import (
+    initialize_playground_clients,
+)
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
+from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
-from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
+from phoenix.server.api.input_types.EvaluatorSort import EvaluatorSort
+from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
+from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
 from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.input_types.PromptFilter import PromptFilter
+from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
+from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
+from phoenix.server.api.types.AgentsConfig import AgentsConfig
+from phoenix.server.api.types.AgentSession import AgentSession, to_gql_agent_session
+from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
-from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
+from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
+from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
-from phoenix.server.api.types.DatasetLabel import DatasetLabel, to_gql_dataset_label
-from phoenix.server.api.types.DatasetSplit import DatasetSplit, to_gql_dataset_split
-from phoenix.server.api.types.Dimension import to_gql_dimension
-from phoenix.server.api.types.EmbeddingDimension import (
-    DEFAULT_CLUSTER_SELECTION_EPSILON,
-    DEFAULT_MIN_CLUSTER_SIZE,
-    DEFAULT_MIN_SAMPLES,
-    to_gql_embedding_dimension,
+from phoenix.server.api.types.DatasetLabel import DatasetLabel
+from phoenix.server.api.types.DatasetSplit import DatasetSplit
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluator,
+    CodeEvaluator,
+    DatasetEvaluator,
+    Evaluator,
+    LLMEvaluator,
 )
-from phoenix.server.api.types.Event import create_event_id, unpack_event_id
-from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
+from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.api.types.ExperimentComparison import (
     ExperimentComparison,
 )
+from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.ExperimentRepeatedRunGroup import (
     ExperimentRepeatedRunGroup,
     parse_experiment_repeated_run_group_node_id,
 )
-from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
-from phoenix.server.api.types.Functionality import Functionality
-from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
-from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
-from phoenix.server.api.types.InferenceModel import InferenceModel
-from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
-from phoenix.server.api.types.node import (
-    from_global_id,
-    from_global_id_with_expected_type,
-    is_global_id,
+from phoenix.server.api.types.ExperimentRun import ExperimentRun
+from phoenix.server.api.types.ExperimentTag import ExperimentTag
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModelCustomProvider import (
+    GenerativeModelCustomProvider,
 )
+from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
+from phoenix.server.api.types.ModelCostManifest import (
+    ModelCostManifest,
+    to_gql_model_cost_manifest,
+)
+from phoenix.server.api.types.node import (
+    from_global_id_with_expected_type,
+    is_composite_global_id,
+)
+from phoenix.server.api.types.OAuth2Grant import OAuth2Grant
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
     CursorString,
     connection_from_cursors_and_nodes,
     connection_from_list,
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project
-from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
-from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
-from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
+from phoenix.server.api.types.Prompt import Prompt
+from phoenix.server.api.types.PromptLabel import PromptLabel
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
-from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag
+from phoenix.server.api.types.PromptVersionTemplate import (
+    ContentPart,
+    PromptChatTemplate,
+    PromptMessage,
+    TextContentPart,
+    TextContentValue,
+    ToolCallContentPart,
+    ToolCallContentValue,
+    ToolCallFunction,
+    ToolResultContentPart,
+    ToolResultContentValue,
+)
+from phoenix.server.api.types.SandboxConfig import (
+    SandboxBackendInfo,
+    SandboxConfig,
+    SandboxProvider,
+    get_sandbox_backend_info,
+)
+from phoenix.server.api.types.SearchResult import SearchResult
+from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
-from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
-from phoenix.server.api.types.User import User, to_gql_user
-from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
+from phoenix.server.api.types.TraceAnnotation import TraceAnnotation
+from phoenix.server.api.types.User import User
+from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
+from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
+from phoenix.utilities.template_formatters import TemplateFormatterError
+
+logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
@@ -111,6 +171,7 @@ initialize_playground_clients()
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
     model_name: Optional[str] = None
+    openai_api_type: Optional[OpenAIApiType] = None
 
 
 @strawberry.type
@@ -147,7 +208,7 @@ class ExperimentRunMetricComparison:
             "the base experiment run was missing a value or because all compare experiment runs "
             "were missing values."
         )
-    )  # type: ignore[misc]
+    )  # type: ignore[untyped-decorator]
     def num_runs_without_comparison(self) -> int:
         return (
             self.num_total_runs
@@ -171,8 +232,10 @@ class ExperimentRunMetricComparisons:
 @strawberry.type
 class Query:
     @strawberry.field
-    async def model_providers(self) -> list[GenerativeProvider]:
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+    async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
+        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
+            info.context.allowed_provider_names
+        )
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -182,11 +245,108 @@ class Query:
         ]
 
     @strawberry.field
+    async def generative_model_custom_providers(
+        self,
+        info: Info[Context, None],
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
+    ) -> Connection[GenerativeModelCustomProvider]:
+        page_size = first or 50
+
+        # Parse cursor for forward pagination
+        after_cursor = Cursor.from_string(after) if after else None
+
+        # Build query with ordering (descending by id)
+        stmt = select(models.GenerativeModelCustomProvider).order_by(
+            models.GenerativeModelCustomProvider.id.desc()
+        )
+
+        # Apply cursor filtering for forward pagination
+        if after_cursor:
+            # Get items with id < cursor.rowid (next items in desc order)
+            stmt = stmt.where(models.GenerativeModelCustomProvider.id < after_cursor.rowid)
+
+        # Fetch one extra item to check for next page
+        stmt = stmt.limit(page_size + 1)
+
+        async with info.context.db.read() as session:
+            providers = (await session.scalars(stmt)).all()
+
+        # Check for next page
+        has_next_page = len(providers) > page_size
+        if has_next_page:
+            providers = providers[:page_size]
+
+        # has_previous_page is True if we have an after cursor (we're not at the start)
+        has_previous_page = after_cursor is not None
+
+        # Convert ORM models to GraphQL types and create cursors
+        cursors_and_nodes: list[tuple[Cursor, GenerativeModelCustomProvider]] = []
+
+        for provider in providers:
+            gql_provider = GenerativeModelCustomProvider(id=provider.id, db_record=provider)
+            cursors_and_nodes.append((Cursor(rowid=provider.id), gql_provider))
+
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=has_previous_page,
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def secrets(
+        self,
+        info: Info[Context, None],
+        keys: list[str] | None = None,
+        first: int | None = 50,
+        last: int | None = UNSET,
+        after: CursorString | None = UNSET,
+        before: CursorString | None = UNSET,
+    ) -> Connection[Secret]:
+        page_size = first or 50
+
+        stmt = select(models.Secret).order_by(models.Secret.key)
+        if keys:
+            keys = list({k.strip() for k in keys if k.strip()})
+            if keys:
+                stmt = stmt.where(models.Secret.key.in_(keys))
+        if after:
+            stmt = stmt.where(models.Secret.key > after)
+        stmt = stmt.limit(page_size + 1)
+        async with info.context.db.read() as session:
+            secrets = (await session.scalars(stmt)).all()
+
+        has_next_page = len(secrets) > page_size
+        if has_next_page:
+            secrets = secrets[:page_size]
+        has_previous_page = bool(after)
+        cursors_and_nodes: list[tuple[str, Secret]] = []
+        for secret in secrets:
+            cursors_and_nodes.append((secret.key, Secret(id=secret.key, db_record=secret)))
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes=cursors_and_nodes,
+            has_previous_page=has_previous_page,
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
     async def generative_models(
         self,
         info: Info[Context, None],
-    ) -> list[GenerativeModel]:
-        async with info.context.db() as session:
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[GenerativeModel]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db.read() as session:
             result = await session.scalars(
                 select(models.GenerativeModel)
                 .where(models.GenerativeModel.deleted_at.is_(None))
@@ -195,17 +355,29 @@ class Query:
                     models.GenerativeModel.provider.nullslast(),
                     models.GenerativeModel.name,
                 )
-                .options(joinedload(models.GenerativeModel.token_prices))
             )
+            data = [GenerativeModel(id=model.id, db_record=model) for model in result.unique()]
+        return connection_from_list(data=data, args=args)
 
-        return [to_gql_generative_model(model) for model in result.unique()]
+    @strawberry.field(
+        description=(
+            "The model cost manifest that the built-in models and token prices were last "
+            "synced from, or null if none has been applied."
+        ),
+    )  # type: ignore
+    async def model_cost_manifest(self, info: Info[Context, None]) -> Optional[ModelCostManifest]:
+        async with info.context.db.read() as session:
+            marker = await get_applied_manifest_version(session)
+        if marker is None:
+            return None
+        return to_gql_model_cost_manifest(marker)
 
     @strawberry.field
     async def playground_models(self, input: Optional[ModelsInput] = None) -> list[PlaygroundModel]:
         if input is not None and input.provider_key is not None:
             supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
             supported_models = [
-                PlaygroundModel(name=model_name, provider_key=input.provider_key)
+                PlaygroundModel(name_value=model_name, provider_key_value=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
@@ -214,25 +386,10 @@ class Query:
         all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:
-                all_models.append(PlaygroundModel(name=model_name, provider_key=provider_key))
+                all_models.append(
+                    PlaygroundModel(name_value=model_name, provider_key_value=provider_key)
+                )
         return all_models
-
-    @strawberry.field
-    async def model_invocation_parameters(
-        self, input: Optional[ModelsInput] = None
-    ) -> list[InvocationParameter]:
-        if input is None:
-            return []
-        provider_key = input.provider_key
-        model_name = input.model_name
-        if provider_key is not None:
-            client = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, model_name)
-            if client is None:
-                return []
-            invocation_parameters = client.supported_invocation_parameters()
-            return invocation_parameters
-        else:
-            return []
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def users(
@@ -256,9 +413,9 @@ class Query:
             .order_by(models.User.email)
             .options(joinedload(models.User.role))
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             users = await session.stream_scalars(stmt)
-            data = [to_gql_user(user) async for user in users]
+            data = [User(id=user.id, db_record=user) async for user in users]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -266,7 +423,7 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[UserRole]:
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             roles = await session.scalars(
                 select(models.UserRole).where(models.UserRole.name != "SYSTEM")
             )
@@ -286,9 +443,20 @@ class Query:
             .join(models.UserRole)
             .where(models.UserRole.name != "SYSTEM")
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             api_keys = await session.scalars(stmt)
-        return [to_gql_api_key(api_key) for api_key in api_keys]
+        return [UserApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
+
+    @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
+    async def oauth2_grants(self, info: Info[Context, None]) -> list[OAuth2Grant]:
+        async with info.context.db.read() as session:
+            grants = await session.scalars(
+                select(models.OAuth2Grant)
+                .where(models.OAuth2Grant.revoked_at.is_(None))
+                .options(joinedload(models.OAuth2Grant.client))
+                .order_by(models.OAuth2Grant.last_used_at.desc().nullslast())
+            )
+        return [OAuth2Grant(id=grant.id, db_record=grant) for grant in grants]
 
     @strawberry.field(permission_classes=[IsAdmin])  # type: ignore
     async def system_api_keys(self, info: Info[Context, None]) -> list[SystemApiKey]:
@@ -298,18 +466,9 @@ class Query:
             .join(models.UserRole)
             .where(models.UserRole.name == "SYSTEM")
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             api_keys = await session.scalars(stmt)
-        return [
-            SystemApiKey(
-                id_attr=api_key.id,
-                name=api_key.name,
-                description=api_key.description,
-                created_at=api_key.created_at,
-                expires_at=api_key.expires_at,
-            )
-            for api_key in api_keys
-        ]
+        return [SystemApiKey(id=api_key.id, db_record=api_key) for api_key in api_keys]
 
     @strawberry.field
     async def projects(
@@ -328,35 +487,37 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Project)
+        projects_query = select(models.Project)
 
         if sort and sort.col is ProjectColumn.endTime:
             # For end time sorting, we need to use a correlated subquery
             # The end_time comes from the Trace model, and we need to get the max end_time for
             # each project
             end_time_subq = (
-                select(func.max(models.Trace.end_time))
+                select(func.max(models.Trace.start_time))
                 .where(models.Trace.project_rowid == models.Project.id)
                 .scalar_subquery()
             )
-            stmt = stmt.order_by(
-                end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
+            projects_query = projects_query.order_by(
+                end_time_subq.desc().nullslast()
+                if sort.dir is SortDir.desc
+                else end_time_subq.asc().nullslast(),
+                models.Project.id.desc(),
             )
         elif sort:
             sort_col = getattr(models.Project, sort.col.value)
-            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+            projects_query = projects_query.order_by(
+                sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc()
+            )
         if filter:
-            stmt = stmt.where(getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%"))
-        stmt = exclude_experiment_projects(stmt)
-        async with info.context.db() as session:
-            projects = await session.stream_scalars(stmt)
-            data = [
-                Project(
-                    project_rowid=project.id,
-                    db_project=project,
-                )
-                async for project in projects
-            ]
+            projects_query = projects_query.where(
+                getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%")
+            )
+        projects_query = exclude_experiment_projects(projects_query)
+        projects_query = exclude_dataset_evaluator_projects(projects_query)
+        async with info.context.db.read() as session:
+            projects = await session.stream_scalars(projects_query)
+            data = [Project(id=project.id, db_record=project) async for project in projects]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -385,11 +546,39 @@ class Query:
             sort_col = getattr(models.Dataset, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         if filter:
-            stmt = stmt.where(getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%"))
-        async with info.context.db() as session:
+            # Apply name filter
+            if filter.col and filter.value:
+                stmt = stmt.where(
+                    getattr(models.Dataset, filter.col.value).ilike(f"%{filter.value}%")
+                )
+
+            # Apply label filter
+            if filter.filter_labels and filter.filter_labels is not UNSET:
+                label_rowids = []
+                for label_id in filter.filter_labels:
+                    try:
+                        label_rowid = from_global_id_with_expected_type(
+                            global_id=GlobalID.from_id(label_id),
+                            expected_type_name="DatasetLabel",
+                        )
+                        label_rowids.append(label_rowid)
+                    except ValueError:
+                        continue  # Skip invalid label IDs
+
+                if label_rowids:
+                    # Join with the junction table to filter by labels
+                    stmt = (
+                        stmt.join(
+                            models.DatasetsDatasetLabel,
+                            models.Dataset.id == models.DatasetsDatasetLabel.dataset_id,
+                        )
+                        .where(models.DatasetsDatasetLabel.dataset_label_id.in_(label_rowids))
+                        .distinct()
+                    )
+        async with info.context.db.read() as session:
             datasets = await session.scalars(stmt)
         return connection_from_list(
-            data=[to_gql_dataset(dataset) for dataset in datasets], args=args
+            data=[Dataset(id=dataset.id, db_record=dataset) for dataset in datasets], args=args
         )
 
     @strawberry.field
@@ -434,7 +623,7 @@ class Query:
         cursor = Cursor.from_string(after) if after else None
         page_size = first or 50
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             experiments = (
                 await session.scalars(
                     select(
@@ -448,6 +637,7 @@ class Query:
                     )
                 )
             ).all()
+
             if not experiments or len(experiments) < len(experiment_rowids):
                 raise NotFound("Unable to resolve one or more experiment IDs.")
             num_datasets = len(set(experiment.dataset_id for experiment in experiments))
@@ -456,39 +646,21 @@ class Query:
             base_experiment = next(
                 experiment for experiment in experiments if experiment.id == base_experiment_rowid
             )
-            revision_ids = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .join(
-                    models.DatasetExample,
-                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
-                )
-                .where(
-                    and_(
-                        models.DatasetExampleRevision.dataset_version_id
-                        <= base_experiment.dataset_version_id,
-                        models.DatasetExample.dataset_id == base_experiment.dataset_id,
-                    )
-                )
-                .group_by(models.DatasetExampleRevision.dataset_example_id)
-                .scalar_subquery()
-            )
+
+            # Use ExperimentDatasetExample to pull down examples.
+            # Splits are mutable and should not be used for comparison.
+            # The comparison should only occur against examples which were assigned to the same
+            # splits at the time of execution of the ExperimentRun.
             examples_query = (
                 select(models.DatasetExample)
-                .distinct(models.DatasetExample.id)
-                .join(
-                    models.DatasetExampleRevision,
-                    onclause=and_(
-                        models.DatasetExample.id
-                        == models.DatasetExampleRevision.dataset_example_id,
-                        models.DatasetExampleRevision.id.in_(revision_ids),
-                        models.DatasetExampleRevision.revision_kind != "DELETE",
-                    ),
-                )
-                .order_by(models.DatasetExample.id.desc())
+                .join(models.ExperimentDatasetExample)
+                .where(models.ExperimentDatasetExample.experiment_id == base_experiment_rowid)
+                .order_by(models.DatasetExample.id.asc())
                 .limit(page_size + 1)
             )
+
             if cursor is not None:
-                examples_query = examples_query.where(models.DatasetExample.id < cursor.rowid)
+                examples_query = examples_query.where(models.DatasetExample.id > cursor.rowid)
 
             if filter_condition:
                 examples_query = update_examples_query_with_filter_condition(
@@ -531,10 +703,11 @@ class Query:
                     ExperimentRepeatedRunGroup(
                         experiment_rowid=experiment_id,
                         dataset_example_rowid=example.id,
-                        runs=[
-                            to_gql_experiment_run(run)
+                        cached_runs=[
+                            ExperimentRun(id=run.id, db_record=run)
                             for run in sorted(
-                                runs[example.id][experiment_id], key=lambda run: run.id
+                                runs[example.id][experiment_id],
+                                key=lambda run: run.repetition_number,
                             )
                         ],
                     )
@@ -542,8 +715,8 @@ class Query:
             experiment_comparison = ExperimentComparison(
                 id_attr=example.id,
                 example=DatasetExample(
-                    id_attr=example.id,
-                    created_at=example.created_at,
+                    id=example.id,
+                    db_record=example,
                     version_id=base_experiment.dataset_version_id,
                 ),
                 repeated_run_groups=repeated_run_groups,
@@ -588,11 +761,17 @@ class Query:
             except ValueError:
                 raise BadRequest(f"Invalid compare experiment ID: {compare_experiment_id}")
 
-        base_experiment_runs = (
+        # Each run's tokens and cost are the sum over the spans of its trace. Both sides are then
+        # reduced to their best run per example in the same way, so identical experiments compare
+        # as equal however many spans a trace has and however many repetitions were run.
+        run_metrics = (
             select(
-                models.ExperimentRun.dataset_example_id,
-                func.min(models.ExperimentRun.start_time).label("start_time"),
-                func.min(models.ExperimentRun.end_time).label("end_time"),
+                models.ExperimentRun.id.label("run_id"),
+                models.ExperimentRun.experiment_id.label("experiment_id"),
+                models.ExperimentRun.dataset_example_id.label("dataset_example_id"),
+                LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time).label(
+                    "latency_ms"
+                ),
                 func.sum(models.SpanCost.total_tokens).label("total_tokens"),
                 func.sum(models.SpanCost.prompt_tokens).label("prompt_tokens"),
                 func.sum(models.SpanCost.completion_tokens).label("completion_tokens"),
@@ -611,46 +790,42 @@ class Query:
                 onclause=models.Trace.id == models.SpanCost.trace_rowid,
                 isouter=True,
             )
-            .where(models.ExperimentRun.experiment_id == base_experiment_rowid)
-            .group_by(models.ExperimentRun.dataset_example_id)
-            .subquery()
-            .alias("base_experiment_runs")
-        )
-        compare_experiment_runs = (
-            select(
-                models.ExperimentRun.dataset_example_id,
-                func.min(
-                    LatencyMs(models.ExperimentRun.start_time, models.ExperimentRun.end_time)
-                ).label("min_latency_ms"),
-                func.min(models.SpanCost.total_tokens).label("min_total_tokens"),
-                func.min(models.SpanCost.prompt_tokens).label("min_prompt_tokens"),
-                func.min(models.SpanCost.completion_tokens).label("min_completion_tokens"),
-                func.min(models.SpanCost.total_cost).label("min_total_cost"),
-                func.min(models.SpanCost.prompt_cost).label("min_prompt_cost"),
-                func.min(models.SpanCost.completion_cost).label("min_completion_cost"),
-            )
-            .select_from(models.ExperimentRun)
-            .join(
-                models.Trace,
-                onclause=models.ExperimentRun.trace_id == models.Trace.trace_id,
-                isouter=True,
-            )
-            .join(
-                models.SpanCost,
-                onclause=models.Trace.id == models.SpanCost.trace_rowid,
-                isouter=True,
-            )
             .where(
-                models.ExperimentRun.experiment_id.in_(compare_experiment_rowids),
+                models.ExperimentRun.experiment_id.in_(
+                    [base_experiment_rowid, *compare_experiment_rowids]
+                )
             )
-            .group_by(models.ExperimentRun.dataset_example_id)
+            .group_by(models.ExperimentRun.id)
             .subquery()
-            .alias("comp_exp_run_mins")
+            .alias("run_metrics")
         )
 
-        base_experiment_run_latency = LatencyMs(
-            base_experiment_runs.c.start_time, base_experiment_runs.c.end_time
-        ).label("base_experiment_run_latency_ms")
+        def best_run_per_example(*, compare: bool, alias: str) -> Any:
+            experiment_filter = (
+                run_metrics.c.experiment_id.in_(compare_experiment_rowids)
+                if compare
+                else run_metrics.c.experiment_id == base_experiment_rowid
+            )
+            return (
+                select(
+                    run_metrics.c.dataset_example_id,
+                    func.min(run_metrics.c.latency_ms).label("min_latency_ms"),
+                    func.min(run_metrics.c.total_tokens).label("min_total_tokens"),
+                    func.min(run_metrics.c.prompt_tokens).label("min_prompt_tokens"),
+                    func.min(run_metrics.c.completion_tokens).label("min_completion_tokens"),
+                    func.min(run_metrics.c.total_cost).label("min_total_cost"),
+                    func.min(run_metrics.c.prompt_cost).label("min_prompt_cost"),
+                    func.min(run_metrics.c.completion_cost).label("min_completion_cost"),
+                )
+                .where(experiment_filter)
+                .group_by(run_metrics.c.dataset_example_id)
+                .subquery()
+                .alias(alias)
+            )
+
+        base_experiment_runs = best_run_per_example(compare=False, alias="base_experiment_runs")
+        compare_experiment_runs = best_run_per_example(compare=True, alias="comp_exp_run_mins")
+        base_experiment_run_latency = base_experiment_runs.c.min_latency_ms
 
         comparisons_query = (
             select(
@@ -674,109 +849,109 @@ class Query:
                     comparison_type="equality",
                 ).label("num_latency_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_total_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_total_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_tokens,
+                    base_column=base_experiment_runs.c.min_total_tokens,
                     compare_column=compare_experiment_runs.c.min_total_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_total_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_prompt_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_prompt_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_tokens,
+                    base_column=base_experiment_runs.c.min_prompt_tokens,
                     compare_column=compare_experiment_runs.c.min_prompt_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_prompt_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_completion_token_count_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_completion_token_count_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_tokens,
+                    base_column=base_experiment_runs.c.min_completion_tokens,
                     compare_column=compare_experiment_runs.c.min_completion_tokens,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_completion_token_count_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_total_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_total_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.total_cost,
+                    base_column=base_experiment_runs.c.min_total_cost,
                     compare_column=compare_experiment_runs.c.min_total_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_total_cost_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_prompt_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_prompt_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.prompt_cost,
+                    base_column=base_experiment_runs.c.min_prompt_cost,
                     compare_column=compare_experiment_runs.c.min_prompt_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
                 ).label("num_prompt_cost_is_equal"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="improvement",
                 ).label("num_completion_cost_improved"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="regression",
                 ).label("num_completion_cost_regressed"),
                 _comparison_count_expression(
-                    base_column=base_experiment_runs.c.completion_cost,
+                    base_column=base_experiment_runs.c.min_completion_cost,
                     compare_column=compare_experiment_runs.c.min_completion_cost,
                     optimization_direction="minimize",
                     comparison_type="equality",
@@ -791,7 +966,7 @@ class Query:
             )
         )
 
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = (await session.execute(comparisons_query)).first()
         assert result is not None
 
@@ -865,161 +1040,77 @@ class Query:
             )
 
     @strawberry.field
-    async def functionality(self, info: Info[Context, None]) -> "Functionality":
-        has_model_inferences = not info.context.model.is_empty
-        return Functionality(
-            model_inferences=has_model_inferences,
-        )
-
-    @strawberry.field
-    def model(self) -> InferenceModel:
-        return InferenceModel()
-
-    @strawberry.field
     async def node(self, id: strawberry.ID, info: Info[Context, None]) -> Node:
-        if not is_global_id(id):
+        if is_composite_global_id(id):
             try:
                 experiment_rowid, dataset_example_rowid = (
                     parse_experiment_repeated_run_group_node_id(id)
                 )
             except Exception:
                 raise NotFound(f"Unknown node: {id}")
-
-            async with info.context.db() as session:
-                runs = (
-                    await session.scalars(
-                        select(models.ExperimentRun)
-                        .where(models.ExperimentRun.experiment_id == experiment_rowid)
-                        .where(models.ExperimentRun.dataset_example_id == dataset_example_rowid)
-                        .order_by(models.ExperimentRun.repetition_number.asc())
-                        .options(
-                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
-                        )
-                    )
-                ).all()
-            if not runs:
-                raise NotFound(f"Unknown experiment or dataset example: {id}")
             return ExperimentRepeatedRunGroup(
                 experiment_rowid=experiment_rowid,
                 dataset_example_rowid=dataset_example_rowid,
-                runs=[to_gql_experiment_run(run) for run in runs],
             )
 
-        global_id = GlobalID.from_id(id)
-        type_name, node_id = from_global_id(global_id)
-        if type_name == "Dimension":
-            dimension = info.context.model.scalar_dimensions[node_id]
-            return to_gql_dimension(node_id, dimension)
-        elif type_name == "EmbeddingDimension":
-            embedding_dimension = info.context.model.embedding_dimensions[node_id]
-            return to_gql_embedding_dimension(node_id, embedding_dimension)
-        elif type_name == "Project":
-            project_stmt = select(models.Project).filter_by(id=node_id)
-            async with info.context.db() as session:
-                project = await session.scalar(project_stmt)
-            if project is None:
-                raise NotFound(f"Unknown project: {id}")
-            return Project(
-                project_rowid=project.id,
-                db_project=project,
-            )
-        elif type_name == "Trace":
-            trace_stmt = select(models.Trace).filter_by(id=node_id)
-            async with info.context.db() as session:
-                trace = await session.scalar(trace_stmt)
-            if trace is None:
-                raise NotFound(f"Unknown trace: {id}")
-            return Trace(trace_rowid=trace.id, db_trace=trace)
+        try:
+            global_id = GlobalID.from_id(id)
+        except ValueError:
+            raise NotFound(f"Unknown node: {id}") from None
+        type_name = global_id.type_name
+        if type_name == Secret.__name__:
+            secret = await info.context.data_loaders.secrets.load(global_id.node_id)
+            if secret is None:
+                raise NotFound(f"Unknown node: {id}")
+            return Secret(id=secret.key, db_record=secret)
+        if type_name == SandboxProvider.__name__:
+            backend_type = global_id.node_id
+            if backend_type not in SANDBOX_BACKEND_TYPES:
+                raise NotFound(f"Unknown sandbox backend type: {backend_type}")
+            return SandboxProvider(id=backend_type)
+        try:
+            node_id = int(global_id.node_id)
+        except ValueError:
+            raise BadRequest(
+                f"Invalid node id: {id}. The id of a {type_name} node must be an integer, "
+                f"but got: {global_id.node_id}"
+            ) from None
+        if type_name == "Dimension" or type_name == "EmbeddingDimension":
+            raise NotFound(f"Unknown node type: {type_name}")
+        if type_name == Project.__name__:
+            return Project(id=node_id)
+        elif type_name == Trace.__name__:
+            return Trace(id=node_id)
         elif type_name == Span.__name__:
-            span_stmt = (
-                select(models.Span)
-                .options(
-                    joinedload(models.Span.trace, innerjoin=True).load_only(models.Trace.trace_id)
-                )
-                .where(models.Span.id == node_id)
-            )
-            async with info.context.db() as session:
-                span = await session.scalar(span_stmt)
-            if span is None:
-                raise NotFound(f"Unknown span: {id}")
-            return Span(span_rowid=span.id, db_span=span)
+            return Span(id=node_id)
         elif type_name == Dataset.__name__:
-            dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
-            async with info.context.db() as session:
-                if (dataset := await session.scalar(dataset_stmt)) is None:
-                    raise NotFound(f"Unknown dataset: {id}")
-            return to_gql_dataset(dataset)
+            return Dataset(id=node_id)
         elif type_name == DatasetExample.__name__:
-            example_id = node_id
-            async with info.context.db() as session:
-                example = await session.scalar(
-                    select(models.DatasetExample).where(models.DatasetExample.id == example_id)
-                )
-            if not example:
-                raise NotFound(f"Unknown dataset example: {id}")
-            return DatasetExample(
-                id_attr=example.id,
-                created_at=example.created_at,
-            )
+            return DatasetExample(id=node_id)
         elif type_name == DatasetSplit.__name__:
-            async with info.context.db() as session:
-                dataset_split = await session.scalar(
-                    select(models.DatasetSplit).where(models.DatasetSplit.id == node_id)
-                )
-            if not dataset_split:
-                raise NotFound(f"Unknown dataset split: {id}")
-            return to_gql_dataset_split(dataset_split)
+            return DatasetSplit(id=node_id)
         elif type_name == Experiment.__name__:
-            async with info.context.db() as session:
-                experiment = await session.scalar(
-                    select(models.Experiment).where(models.Experiment.id == node_id)
-                )
-            if not experiment:
-                raise NotFound(f"Unknown experiment: {id}")
-            return to_gql_experiment(experiment)
+            return Experiment(id=node_id)
         elif type_name == ExperimentRun.__name__:
-            async with info.context.db() as session:
-                if not (
-                    run := await session.scalar(
-                        select(models.ExperimentRun)
-                        .where(models.ExperimentRun.id == node_id)
-                        .options(
-                            joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id)
-                        )
-                    )
-                ):
-                    raise NotFound(f"Unknown experiment run: {id}")
-            return to_gql_experiment_run(run)
+            return ExperimentRun(id=node_id)
+        elif type_name == ExperimentJob.__name__:
+            return ExperimentJob(id=node_id)
+        elif type_name == ExperimentTag.__name__:
+            return ExperimentTag(id=node_id)
         elif type_name == User.__name__:
             if int((user := info.context.user).identity) != node_id and not user.is_admin:
                 raise Unauthorized(MSG_ADMIN_ONLY)
-            async with info.context.db() as session:
-                if not (
-                    user := await session.scalar(
-                        select(models.User).where(models.User.id == node_id)
-                    )
-                ):
-                    raise NotFound(f"Unknown user: {id}")
-            return to_gql_user(user)
+            return User(id=node_id)
         elif type_name == ProjectSession.__name__:
-            async with info.context.db() as session:
-                if not (
-                    project_session := await session.scalar(
-                        select(models.ProjectSession).filter_by(id=node_id)
-                    )
-                ):
-                    raise NotFound(f"Unknown user: {id}")
-            return to_gql_project_session(project_session)
+            return ProjectSession(id=node_id)
+        elif type_name == OAuth2Grant.__name__:
+            return OAuth2Grant(id=node_id)
+        elif type_name == AgentSession.__name__:
+            return AgentSession(id=node_id)
         elif type_name == Prompt.__name__:
-            async with info.context.db() as session:
-                if orm_prompt := await session.scalar(
-                    select(models.Prompt).where(models.Prompt.id == node_id)
-                ):
-                    return to_gql_prompt_from_orm(orm_prompt)
-                else:
-                    raise NotFound(f"Unknown prompt: {id}")
+            return Prompt(id=node_id)
         elif type_name == PromptVersion.__name__:
-            async with info.context.db() as session:
+            async with info.context.db.read() as session:
                 if orm_prompt_version := await session.scalar(
                     select(models.PromptVersion).where(models.PromptVersion.id == node_id)
                 ):
@@ -1027,51 +1118,29 @@ class Query:
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
         elif type_name == PromptLabel.__name__:
-            async with info.context.db() as session:
-                if not (
-                    prompt_label := await session.scalar(
-                        select(models.PromptLabel).where(models.PromptLabel.id == node_id)
-                    )
-                ):
-                    raise NotFound(f"Unknown prompt label: {id}")
-            return to_gql_prompt_label(prompt_label)
+            return PromptLabel(id=node_id)
         elif type_name == PromptVersionTag.__name__:
-            async with info.context.db() as session:
-                if not (prompt_version_tag := await session.get(models.PromptVersionTag, node_id)):
-                    raise NotFound(f"Unknown prompt version tag: {id}")
-            return to_gql_prompt_version_tag(prompt_version_tag)
+            return PromptVersionTag(id=node_id)
         elif type_name == ProjectTraceRetentionPolicy.__name__:
-            async with info.context.db() as session:
-                db_policy = await session.scalar(
-                    select(models.ProjectTraceRetentionPolicy).filter_by(id=node_id)
-                )
-                if not db_policy:
-                    raise NotFound(f"Unknown project trace retention policy: {id}")
-            return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+            return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
-            async with info.context.db() as session:
-                span_annotation = await session.get(models.SpanAnnotation, node_id)
-                if not span_annotation:
-                    raise NotFound(f"Unknown span annotation: {id}")
-            return to_gql_span_annotation(span_annotation)
+            return SpanAnnotation(id=node_id)
         elif type_name == TraceAnnotation.__name__:
-            async with info.context.db() as session:
-                trace_annotation = await session.get(models.TraceAnnotation, node_id)
-                if not trace_annotation:
-                    raise NotFound(f"Unknown trace annotation: {id}")
-            return to_gql_trace_annotation(trace_annotation)
+            return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
-            async with info.context.db() as session:
-                stmt = (
-                    select(models.GenerativeModel)
-                    .where(models.GenerativeModel.deleted_at.is_(None))
-                    .where(models.GenerativeModel.id == node_id)
-                    .options(joinedload(models.GenerativeModel.token_prices))
-                )
-                model = await session.scalar(stmt)
-                if not model:
-                    raise NotFound(f"Unknown model: {id}")
-            return to_gql_generative_model(model)
+            return GenerativeModel(id=node_id)
+        elif type_name == LLMEvaluator.__name__:
+            return LLMEvaluator(id=node_id)
+        elif type_name == CodeEvaluator.__name__:
+            return CodeEvaluator(id=node_id)
+        elif type_name == BuiltInEvaluator.__name__:
+            return BuiltInEvaluator(id=node_id)
+        elif type_name == DatasetEvaluator.__name__:
+            return DatasetEvaluator(id=node_id)
+        elif type_name == SandboxConfig.__name__:
+            return SandboxConfig(id=node_id)
+        if type_name == GenerativeModelCustomProvider.__name__:
+            return GenerativeModelCustomProvider(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -1083,16 +1152,7 @@ class Query:
             return None
         if isinstance(user, UnauthenticatedUser):
             return None
-        async with info.context.db() as session:
-            if (
-                user := await session.scalar(
-                    select(models.User)
-                    .where(models.User.id == int(user.identity))
-                    .options(joinedload(models.User.role))
-                )
-            ) is None:
-                return None
-        return to_gql_user(user)
+        return User(id=int(user.identity))
 
     @strawberry.field
     async def prompts(
@@ -1103,6 +1163,7 @@ class Query:
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[PromptFilter] = UNSET,
+        labelIds: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[Prompt]:
         args = ConnectionArgs(
             first=first,
@@ -1110,22 +1171,137 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Prompt)
+        stmt = select(models.Prompt).order_by(
+            models.Prompt.created_at.desc(),
+            models.Prompt.id.desc(),
+        )
         if filter:
             column = getattr(models.Prompt, filter.col.value)
             # Cast Identifier columns to String for ilike operations
             if filter.col.value == "name":
                 column = cast(column, String)
-            stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
-                models.Prompt.updated_at.desc()
+            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
+        if labelIds:
+            stmt = stmt.join(models.PromptPromptLabel).where(
+                models.PromptPromptLabel.prompt_label_id.in_(
+                    from_global_id_with_expected_type(
+                        global_id=label_id, expected_type_name="PromptLabel"
+                    )
+                    for label_id in labelIds
+                )
             )
-        async with info.context.db() as session:
+            stmt = stmt.distinct()
+        async with info.context.db.read() as session:
             orm_prompts = await session.stream_scalars(stmt)
-            data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            data = [
+                Prompt(id=orm_prompt.id, db_record=orm_prompt) async for orm_prompt in orm_prompts
+            ]
             return connection_from_list(
                 data=data,
                 args=args,
             )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Search top-level resources (projects, datasets, experiments, and prompts) "
+            "by name or description."
+        )
+    )
+    async def search_resources(
+        self,
+        info: Info[Context, None],
+        query: str,
+        limit_per_type: int = 5,
+    ) -> list[SearchResult]:
+        search_term = query.strip()
+        if not search_term:
+            return []
+        if limit_per_type < 1:
+            raise BadRequest("limitPerType must be a positive integer")
+        limit_per_type = min(limit_per_type, 25)
+
+        # icontains(autoescape=True) matches a case-insensitive substring while
+        # escaping LIKE metacharacters (% and _) so they match literally rather
+        # than acting as wildcards.
+        projects_stmt = (
+            exclude_dataset_evaluator_projects(
+                exclude_experiment_projects(
+                    select(models.Project).where(
+                        or_(
+                            models.Project.name.icontains(search_term, autoescape=True),
+                            models.Project.description.icontains(search_term, autoescape=True),
+                        )
+                    )
+                )
+            )
+            .order_by(
+                case((models.Project.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Project.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        datasets_stmt = (
+            select(models.Dataset)
+            .where(
+                or_(
+                    models.Dataset.name.icontains(search_term, autoescape=True),
+                    models.Dataset.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((models.Dataset.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Dataset.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        experiments_stmt = (
+            select(models.Experiment)
+            .where(models.Experiment.is_ephemeral.is_(False))
+            .where(
+                or_(
+                    models.Experiment.name.icontains(search_term, autoescape=True),
+                    models.Experiment.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case(
+                    (models.Experiment.name.icontains(search_term, autoescape=True), 0),
+                    else_=1,
+                ),
+                models.Experiment.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        # Prompt.name is an Identifier column and must be cast to String for matching
+        prompt_name = cast(models.Prompt.name, String)
+        prompts_stmt = (
+            select(models.Prompt)
+            .where(
+                or_(
+                    prompt_name.icontains(search_term, autoescape=True),
+                    models.Prompt.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((prompt_name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Prompt.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+
+        results: list[SearchResult] = []
+        async with info.context.db.read() as session:
+            projects = await session.scalars(projects_stmt)
+            results.extend(Project(id=project.id, db_record=project) for project in projects)
+            datasets = await session.scalars(datasets_stmt)
+            results.extend(Dataset(id=dataset.id, db_record=dataset) for dataset in datasets)
+            experiments = await session.scalars(experiments_stmt)
+            results.extend(
+                Experiment(id=experiment.id, db_record=experiment) for experiment in experiments
+            )
+            prompts = await session.scalars(prompts_stmt)
+            results.extend(Prompt(id=prompt.id, db_record=prompt) for prompt in prompts)
+        return results
 
     @strawberry.field
     async def prompt_labels(
@@ -1142,9 +1318,12 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             prompt_labels = await session.stream_scalars(select(models.PromptLabel))
-            data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+            data = [
+                PromptLabel(id=prompt_label.id, db_record=prompt_label)
+                async for prompt_label in prompt_labels
+            ]
             return connection_from_list(
                 data=data,
                 args=args,
@@ -1158,6 +1337,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only labels whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetLabel]:
         args = ConnectionArgs(
             first=first,
@@ -1165,9 +1352,17 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
-            dataset_labels = await session.scalars(select(models.DatasetLabel))
-        data = [to_gql_dataset_label(dataset_label) for dataset_label in dataset_labels]
+        stmt = select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetLabel.name.in_(names))
+        async with info.context.db.read() as session:
+            dataset_labels = await session.scalars(stmt)
+        data = [
+            DatasetLabel(id=dataset_label.id, db_record=dataset_label)
+            for dataset_label in dataset_labels
+        ]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field
@@ -1178,6 +1373,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only splits whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetSplit]:
         args = ConnectionArgs(
             first=first,
@@ -1185,13 +1388,113 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
-            splits = await session.stream_scalars(select(models.DatasetSplit))
-            data = [to_gql_dataset_split(split) async for split in splits]
+        stmt = select(models.DatasetSplit)
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetSplit.name.in_(names))
+        async with info.context.db.read() as session:
+            splits = await session.stream_scalars(stmt)
+            data = [DatasetSplit(id=split.id, db_record=split) async for split in splits]
             return connection_from_list(
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def built_in_evaluators(self, info: Info[Context, None]) -> list[BuiltInEvaluator]:
+        async with info.context.db.read() as session:
+            result = await session.execute(select(models.BuiltinEvaluator))
+            return [BuiltInEvaluator(id=row.id) for row in result.scalars()]
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+        sort: Optional[EvaluatorSort] = UNSET,
+        filter: Optional[EvaluatorFilter] = UNSET,
+    ) -> Connection[Evaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        # The resolvers on the various evaluator GraphQL types read from the ORM, so we need to
+        # ensure that all fields of the polymorphic ORMs are loaded, not just the fields of the
+        # base `evaluators` table.
+        PolymorphicEvaluator = with_polymorphic(
+            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator]
+        )  # eagerly join sub-classed evaluator tables
+
+        has_dataset_association = exists(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id
+            )
+        )
+        query = select(PolymorphicEvaluator).where(
+            or_(
+                # non-builtin evaluators are always included
+                PolymorphicEvaluator.kind != "BUILTIN",
+                # builtin evaluators are only included if associated with at least one dataset
+                has_dataset_association,
+            )
+        )
+
+        if filter:
+            if filter.col.value == "name":
+                parent_name_col = cast(PolymorphicEvaluator.name, String)
+                # Match parent name OR any child (datasetEvaluator) name
+                child_name_exists = exists(
+                    select(models.DatasetEvaluators.id)
+                    .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
+                    .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
+                )
+                query = query.where(
+                    or_(
+                        parent_name_col.ilike(f"%{filter.value}%"),
+                        child_name_exists,
+                    )
+                )
+            else:
+                column = getattr(PolymorphicEvaluator, filter.col.value)
+                query = query.where(column.ilike(f"%{filter.value}%"))
+
+        if sort:
+            if sort.col.value == "updated_at":
+                # updated_at exists in sub-tables, not base table
+                # Use case to pick the value based on kind
+                # this special case can be removed if we add updated_at to the base table
+                sort_col = case(
+                    (PolymorphicEvaluator.kind == "LLM", models.LLMEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "CODE", models.CodeEvaluator.updated_at),
+                    (PolymorphicEvaluator.kind == "BUILTIN", models.BuiltinEvaluator.synced_at),
+                    else_=None,
+                )
+            else:
+                sort_col = getattr(PolymorphicEvaluator, sort.col.value)
+            query = query.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        else:
+            query = query.order_by(PolymorphicEvaluator.name.asc())
+
+        async with info.context.db.read() as session:
+            evaluators = await session.scalars(query)
+        data: list[Evaluator] = []
+        for evaluator in evaluators:
+            if isinstance(evaluator, models.LLMEvaluator):
+                data.append(LLMEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.CodeEvaluator):
+                data.append(CodeEvaluator(id=evaluator.id, db_record=evaluator))
+            elif isinstance(evaluator, models.BuiltinEvaluator):
+                data.append(BuiltInEvaluator(id=evaluator.id, db_record=evaluator))
+            else:
+                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     async def annotation_configs(
@@ -1208,7 +1511,7 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             configs = await session.stream_scalars(
                 select(models.AnnotationConfig).order_by(models.AnnotationConfig.name)
             )
@@ -1216,132 +1519,56 @@ class Query:
             return connection_from_list(data=data, args=args)
 
     @strawberry.field
-    def clusters(
-        self,
-        clusters: list[ClusterInput],
-    ) -> list[Cluster]:
-        clustered_events: dict[str, set[ID]] = defaultdict(set)
-        for i, cluster in enumerate(clusters):
-            clustered_events[cluster.id or str(i)].update(cluster.event_ids)
-        return to_gql_clusters(
-            clustered_events=clustered_events,
-        )
-
-    @strawberry.field
-    def hdbscan_clustering(
+    async def classification_evaluator_configs(
         self,
         info: Info[Context, None],
-        event_ids: Annotated[
-            list[ID],
-            strawberry.argument(
-                description="Event ID of the coordinates",
-            ),
-        ],
-        coordinates_2d: Annotated[
-            Optional[list[InputCoordinate2D]],
-            strawberry.argument(
-                description="Point coordinates. Must be either 2D or 3D.",
-            ),
-        ] = UNSET,
-        coordinates_3d: Annotated[
-            Optional[list[InputCoordinate3D]],
-            strawberry.argument(
-                description="Point coordinates. Must be either 2D or 3D.",
-            ),
-        ] = UNSET,
-        min_cluster_size: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum cluster size",
-            ),
-        ] = DEFAULT_MIN_CLUSTER_SIZE,
-        cluster_min_samples: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum samples",
-            ),
-        ] = DEFAULT_MIN_SAMPLES,
-        cluster_selection_epsilon: Annotated[
-            float,
-            strawberry.argument(
-                description="HDBSCAN cluster selection epsilon",
-            ),
-        ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-    ) -> list[Cluster]:
-        coordinates_3d = ensure_list(coordinates_3d)
-        coordinates_2d = ensure_list(coordinates_2d)
+        labels: Optional[list[str]] = UNSET,
+    ) -> list[ClassificationEvaluatorConfig]:
+        pydantic_configs = get_classification_evaluator_configs(
+            labels=labels if labels is not UNSET else None
+        )
 
-        if len(coordinates_3d) > 0 and len(coordinates_2d) > 0:
-            raise ValueError("must specify only one of 2D or 3D coordinates")
+        gql_configs: list[ClassificationEvaluatorConfig] = []
+        for config in pydantic_configs:
+            if config.optimization_direction == "maximize":
+                optimization_direction = OptimizationDirection.MAXIMIZE
+            elif config.optimization_direction == "minimize":
+                optimization_direction = OptimizationDirection.MINIMIZE
+            else:
+                optimization_direction = OptimizationDirection.NONE
 
-        if len(coordinates_3d) > 0:
-            coordinates = list(
-                map(
-                    lambda coord: np.array(
-                        [coord.x, coord.y, coord.z],
-                    ),
-                    coordinates_3d,
+            gql_messages: list[PromptMessage] = []
+            for msg in config.messages:
+                role_str = msg.role.lower()
+                if role_str == "user":
+                    role = PromptMessageRole.USER
+                elif role_str == "system":
+                    role = PromptMessageRole.SYSTEM
+                elif role_str in ("ai", "assistant"):
+                    role = PromptMessageRole.AI
+                elif role_str == "tool":
+                    role = PromptMessageRole.TOOL
+                else:
+                    # Default to USER if unknown role
+                    role = PromptMessageRole.USER
+
+                content = type_cast(
+                    list[ContentPart],
+                    [TextContentPart(text=TextContentValue(text=msg.content))],
                 )
+
+                gql_messages.append(PromptMessage(role=role, content=content))
+
+            gql_config = ClassificationEvaluatorConfig(
+                name=config.name,
+                description=config.description,
+                optimization_direction=optimization_direction,
+                messages=gql_messages,
+                choices=JSON(config.choices),
             )
-        else:
-            coordinates = list(
-                map(
-                    lambda coord: np.array(
-                        [coord.x, coord.y],
-                    ),
-                    coordinates_2d,
-                )
-            )
+            gql_configs.append(gql_config)
 
-        if len(event_ids) != len(coordinates):
-            raise ValueError(
-                f"length mismatch between "
-                f"event_ids ({len(event_ids)}) "
-                f"and coordinates ({len(coordinates)})"
-            )
-
-        if len(event_ids) == 0:
-            return []
-
-        grouped_event_ids: dict[
-            Union[InferencesRole, AncillaryInferencesRole],
-            list[ID],
-        ] = defaultdict(list)
-        grouped_coordinates: dict[
-            Union[InferencesRole, AncillaryInferencesRole],
-            list[npt.NDArray[np.float64]],
-        ] = defaultdict(list)
-
-        for event_id, coordinate in zip(event_ids, coordinates):
-            row_id, inferences_role = unpack_event_id(event_id)
-            grouped_coordinates[inferences_role].append(coordinate)
-            grouped_event_ids[inferences_role].append(create_event_id(row_id, inferences_role))
-
-        stacked_event_ids = (
-            grouped_event_ids[InferencesRole.primary]
-            + grouped_event_ids[InferencesRole.reference]
-            + grouped_event_ids[AncillaryInferencesRole.corpus]
-        )
-        stacked_coordinates = np.stack(
-            grouped_coordinates[InferencesRole.primary]
-            + grouped_coordinates[InferencesRole.reference]
-            + grouped_coordinates[AncillaryInferencesRole.corpus]
-        )
-
-        clusters = Hdbscan(
-            min_cluster_size=min_cluster_size,
-            min_samples=cluster_min_samples,
-            cluster_selection_epsilon=cluster_selection_epsilon,
-        ).find_clusters(stacked_coordinates)
-
-        clustered_events = {
-            str(i): {stacked_event_ids[row_idx] for row_idx in cluster}
-            for i, cluster in enumerate(clusters)
-        }
-
-        return to_gql_clusters(
-            clustered_events=clustered_events,
-        )
+        return gql_configs
 
     @strawberry.field
     async def default_project_trace_retention_policy(
@@ -1351,7 +1578,7 @@ class Query:
         stmt = select(models.ProjectTraceRetentionPolicy).filter_by(
             id=DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             db_policy = await session.scalar(stmt)
         assert db_policy
         return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
@@ -1374,7 +1601,7 @@ class Query:
         stmt = select(models.ProjectTraceRetentionPolicy).order_by(
             models.ProjectTraceRetentionPolicy.id
         )
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             result = await session.stream_scalars(stmt)
             data = [
                 ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
@@ -1399,30 +1626,26 @@ class Query:
         if info.context.db.dialect is SupportedSQLDialect.SQLITE:
             # TODO: temporary workaround until we can figure out why
             # the dbstat query takes longer than expected
-            async with info.context.db() as session:
+            async with info.context.db.read() as session:
                 page_count = await session.scalar(text("PRAGMA page_count;"))
                 free_pages = await session.scalar(text("PRAGMA freelist_count;"))
                 page_size = await session.scalar(text("PRAGMA page_size;"))
             num_bytes = (page_count - free_pages) * page_size
             return [DbTableStats(table_name="SQLite", num_bytes=num_bytes)]
             # stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
-            # async with info.context.db() as session:
+            # async with info.context.db.read() as session:
             #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
-            nspname = getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"
-            stmt = text("""\
-                SELECT c.relname, pg_total_relation_size(c.oid)
-                FROM pg_class as c
-                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
-                WHERE c.relkind = 'r'
-                AND n.nspname = :nspname;
-            """).bindparams(nspname=nspname)
             try:
-                async with info.context.db() as session:
-                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                async with info.context.db.read() as session:
+                    stats = type_cast(
+                        Iterable[tuple[str, int]],
+                        await session.execute(pg_table_sizes_stmt()),
+                    )
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
+                logger.exception("Failed to query PostgreSQL table sizes for db table stats")
                 return []
         else:
             assert_never(info.context.db.dialect)
@@ -1436,9 +1659,120 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> ServerStatus:
+        if info.context.auth_enabled and not (
+            isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        ):
+            database_encryption_key_is_public = None
+        else:
+            database_encryption_key_is_public = not info.context.secret
         return ServerStatus(
             insufficient_storage=info.context.db.should_not_insert_or_update,
+            database_encryption_key_is_public=database_encryption_key_is_public,
         )
+
+    @strawberry.field(
+        description=(
+            "Persisted assistant chat sessions, most recently active first. By default, "
+            "users see their own sessions. Admins can pass viewerOnly: false to see all "
+            "sessions. When authentication is disabled, all sessions are returned."
+        ),
+    )  # type: ignore
+    async def agent_sessions(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 20,
+        after: Optional[CursorString] = UNSET,
+        viewer_only: bool = True,
+    ) -> Connection[AgentSession]:
+        page_size = first or 20
+        stmt = select(models.AgentSession).where(models.AgentSession.is_ephemeral.is_(False))
+        owner_filter = get_agent_session_owner_filter(info.context, viewer_only=viewer_only)
+        if owner_filter is not None:
+            stmt = stmt.where(owner_filter)
+        after_cursor = Cursor.from_string(after) if isinstance(after, CursorString) else None
+        if after_cursor is not None and after_cursor.sort_column is not None:
+            stmt = stmt.where(
+                tuple_(models.AgentSession.updated_at, models.AgentSession.id)
+                < (after_cursor.sort_column.value, after_cursor.rowid)
+            )
+        stmt = stmt.order_by(
+            models.AgentSession.updated_at.desc(),
+            models.AgentSession.id.desc(),
+        ).limit(page_size + 1)
+        async with info.context.db.read() as session:
+            agent_sessions = list((await session.scalars(stmt)).all())
+        has_next_page = len(agent_sessions) > page_size
+        if has_next_page:
+            agent_sessions = agent_sessions[:page_size]
+        cursors_and_nodes = [
+            (
+                Cursor(
+                    rowid=agent_session.id,
+                    sort_column=CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
+                        value=agent_session.updated_at,
+                    ),
+                ),
+                to_gql_agent_session(agent_session),
+            )
+            for agent_session in agent_sessions
+        ]
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=after_cursor is not None,
+            has_next_page=has_next_page,
+        )
+
+    @strawberry.field
+    async def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
+        agent_assistant_enabled = info.context.settings.agent_assistant_enabled
+        trace_recording = info.context.settings.agent_trace_recording
+        env = AgentsEnvConfig.from_env()
+        session_retention = info.context.settings.agent_session_retention
+        github_enabled = env.allows_github(info.context.settings.agent_github)
+        github_workspace_token_configured = False
+        # Computed under the env ceiling (not the admin toggle) so the value is
+        # already correct when an admin flips the runtime setting on without a
+        # reload. Existence only — the token value is never exposed — and a
+        # stored secret counts only when it is actually usable
+        # (`decrypt_workspace_secret` mirrors `resolve_github_token`).
+        if env.github_enabled:
+            github_workspace_token_configured = bool(os.getenv(GITHUB_PAT_SECRET_KEY))
+            if not github_workspace_token_configured:
+                secret = await info.context.data_loaders.secrets.load(GITHUB_PAT_SECRET_KEY)
+                github_workspace_token_configured = (
+                    secret is not None
+                    and decrypt_workspace_secret(secret.value, info.context.decrypt) is not None
+                )
+        return AgentsConfig(
+            collector_endpoint=env.collector_endpoint,
+            assistant_project_name=env.assistant_project_name,
+            force_tracing=env.force_tracing,
+            web_access_enabled=env.web_access_enabled,
+            assistant_enabled=agent_assistant_enabled.enabled,
+            github_server_enabled=env.github_enabled,
+            github_enabled=github_enabled,
+            github_workspace_token_configured=github_workspace_token_configured,
+            allow_local_traces=env.allows_local_traces(trace_recording),
+            allow_remote_export=env.allows_remote_export(trace_recording),
+            session_retention_max_idle_days=session_retention.max_idle_days or None,
+            session_retention_max_count_per_user=session_retention.max_count_per_user or None,
+        )
+
+    @strawberry.field
+    def available_agent_skills(
+        self,
+        info: Info[Context, None],
+    ) -> list[AgentSkill]:
+        skills = info.context.get_request().app.state.agent_skills
+        return [
+            AgentSkill(
+                name=skill.name,
+                description=skill.description,
+                summary=skill.summary,
+            )
+            for skill in skills
+        ]
 
     @strawberry.field
     def validate_regular_expression(self, regex: str) -> ValidationResult:
@@ -1455,10 +1789,10 @@ class Query:
         span_id: str,
     ) -> Optional[Span]:
         stmt = select(models.Span.id).filter_by(span_id=span_id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             span_rowid = await session.scalar(stmt)
         if span_rowid:
-            return Span(span_rowid=span_rowid)
+            return Span(id=span_rowid)
         return None
 
     @strawberry.field
@@ -1468,10 +1802,23 @@ class Query:
         trace_id: str,
     ) -> Optional[Trace]:
         stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             trace_rowid = await session.scalar(stmt)
         if trace_rowid:
-            return Trace(trace_rowid=trace_rowid)
+            return Trace(id=trace_rowid)
+        return None
+
+    @strawberry.field
+    async def get_project_by_name(
+        self,
+        info: Info[Context, None],
+        name: str,
+    ) -> Optional[Project]:
+        stmt = select(models.Project).where(models.Project.name == name)
+        async with info.context.db.read() as session:
+            project_row = await session.scalar(stmt)
+        if project_row:
+            return Project(id=project_row.id, db_record=project_row)
         return None
 
     @strawberry.field
@@ -1481,11 +1828,181 @@ class Query:
         session_id: str,
     ) -> Optional[ProjectSession]:
         stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
-        async with info.context.db() as session:
+        async with info.context.db.read() as session:
             session_row = await session.scalar(stmt)
         if session_row:
-            return to_gql_project_session(session_row)
+            return ProjectSession(id=session_row.id, db_record=session_row)
         return None
+
+    @strawberry.field
+    async def get_dataset_example_by_external_id(
+        self,
+        info: Info[Context, None],
+        dataset_id: GlobalID,
+        external_id: str,
+    ) -> Optional[DatasetExample]:
+        dataset_rowid = from_global_id_with_expected_type(
+            global_id=dataset_id, expected_type_name="Dataset"
+        )
+        stmt = select(models.DatasetExample).where(
+            models.DatasetExample.dataset_id == dataset_rowid,
+            models.DatasetExample.external_id == external_id,
+        )
+        async with info.context.db() as session:
+            example = await session.scalar(stmt)
+        if example:
+            return DatasetExample(id=example.id, db_record=example)
+        return None
+
+    @strawberry.field
+    async def apply_chat_template(
+        self,
+        template: PromptChatTemplateInput,
+        template_options: PromptTemplateOptions,
+        input_mapping: Optional[EvaluatorInputMappingInput] = None,
+    ) -> PromptChatTemplate:
+        """
+        Applies template formatting to a prompt chat template.
+
+        Takes a template with messages containing template placeholders and template options
+        (format and variables), and returns the messages with placeholders replaced.
+        """
+        formatter = get_template_formatter(template_options.format)
+        # Ensure variables is a dict - JSON scalar can be any JSON type
+        raw_variables = template_options.variables
+        variables: dict[str, Any]
+        if isinstance(raw_variables, dict):
+            variables = raw_variables
+        elif isinstance(raw_variables, str):
+            parsed = json.loads(raw_variables)
+            if not isinstance(parsed, dict):
+                raise BadRequest("Variables JSON string must parse to a dictionary")
+            variables = parsed
+        else:
+            raise BadRequest("Variables must be a dictionary or a string")
+
+        if input_mapping:
+            input_schema = infer_input_schema_from_template(
+                template=template,
+                template_format=template_options.format,
+            )
+
+            try:
+                variables = apply_input_mapping(
+                    input_schema=input_schema,
+                    input_mapping=input_mapping.to_orm(),
+                    context=variables,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
+
+            variables = cast_template_variable_types(
+                template_variables=variables,
+                input_schema=input_schema,
+            )
+
+            try:
+                validate_template_variables(
+                    template_variables=variables,
+                    input_schema=input_schema,
+                )
+            except ValueError as error:
+                raise BadRequest(str(error))
+
+        messages: list[PromptMessage] = []
+        for msg in template.messages:
+            content_parts: list[ContentPart] = []
+            for part in msg.content:
+                if part.text is not UNSET:
+                    assert part.text is not None
+                    try:
+                        formatted_text = formatter.format(part.text.text, **variables)
+                    except TemplateFormatterError as error:
+                        raise BadRequest(str(error))
+                    content_parts.append(
+                        TextContentPart(text=TextContentValue(text=formatted_text))
+                    )
+                elif part.tool_call is not UNSET:
+                    assert part.tool_call is not None
+                    tc = part.tool_call
+                    content_parts.append(
+                        ToolCallContentPart(
+                            tool_call=ToolCallContentValue(
+                                tool_call_id=tc.tool_call_id,
+                                tool_call=ToolCallFunction(
+                                    name=tc.tool_call.name,
+                                    arguments=tc.tool_call.arguments,
+                                ),
+                            )
+                        )
+                    )
+                elif part.tool_result is not UNSET:
+                    assert part.tool_result is not None
+                    tr = part.tool_result
+                    content_parts.append(
+                        ToolResultContentPart(
+                            tool_result=ToolResultContentValue(
+                                tool_call_id=tr.tool_call_id,
+                                result=tr.result,
+                            )
+                        )
+                    )
+            messages.append(PromptMessage(role=PromptMessageRole(msg.role), content=content_parts))
+
+        return PromptChatTemplate(messages=messages)
+
+    @strawberry.field
+    async def project_count(self, info: Info[Context, None]) -> int:
+        stmt = select(func.count(models.Project.id))
+        stmt = exclude_experiment_projects(stmt)
+        stmt = exclude_dataset_evaluator_projects(stmt)
+        async with info.context.db.read() as session:
+            return await session.scalar(stmt) or 0
+
+    @strawberry.field
+    async def dataset_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.Dataset.id))) or 0
+
+    @strawberry.field
+    async def prompt_count(self, info: Info[Context, None]) -> int:
+        async with info.context.db.read() as session:
+            return await session.scalar(select(func.count(models.Prompt.id))) or 0
+
+    @strawberry.field
+    async def evaluator_count(self, info: Info[Context, None]) -> int:
+        has_dataset_association = exists(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.evaluator_id == models.Evaluator.id
+            )
+        )
+        stmt = select(func.count(models.Evaluator.id)).where(
+            or_(
+                models.Evaluator.kind != "BUILTIN",
+                has_dataset_association,
+            )
+        )
+        async with info.context.db.read() as session:
+            return await session.scalar(stmt) or 0
+
+    @strawberry.field
+    async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:
+        """Return static + runtime info for all known sandbox backends."""
+        from phoenix.server.sandbox import SecretsContext
+
+        async with info.context.db.read() as session:
+            return await get_sandbox_backend_info(
+                secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+                runtime=info.context.sandbox_runtime,
+            )
+
+    @strawberry.field
+    async def sandbox_providers(self, info: Info[Context, None]) -> list[SandboxProvider]:
+        """Return all persisted sandbox providers with their nested configs."""
+        stmt = select(models.SandboxProvider).order_by(models.SandboxProvider.backend_type.asc())
+        async with info.context.db.read() as session:
+            rows = (await session.scalars(stmt)).all()
+        return [SandboxProvider(id=row.backend_type, db_record=row) for row in rows]
 
 
 def _consolidate_sqlite_db_table_stats(

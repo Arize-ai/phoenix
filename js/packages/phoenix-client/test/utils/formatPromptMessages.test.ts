@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
+import type { TextPart } from "../../src/schemas/llm/phoenixPrompt/messagePartSchemas";
+import type { PromptChatMessage } from "../../src/types/prompts";
 import { formatPromptMessages } from "../../src/utils/formatPromptMessages";
-import { PromptChatMessage } from "../../src/types/prompts";
-import { TextPart } from "../../src/schemas/llm/phoenixPrompt/messagePartSchemas";
 
 describe("formatPromptMessages", () => {
   it("should only format TextPart content", () => {

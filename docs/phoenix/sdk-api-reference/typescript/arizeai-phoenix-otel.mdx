@@ -1,0 +1,56 @@
+---
+title: "@arizeai/phoenix-otel"
+description: "Register OpenTelemetry with Phoenix and use the full OpenInference helper surface from one package"
+---
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel)
+
+`@arizeai/phoenix-otel` configures OpenTelemetry export for [Arize Phoenix](https://github.com/Arize-ai/phoenix) and re-exports the full `@arizeai/openinference-core` helper surface from the same import path.
+
+That means one package gives you Phoenix registration plus:
+
+- OpenInference wrappers: `withSpan`, `traceChain`, `traceAgent`, `traceTool`
+- method decorators: `observe`
+- context propagation: `setSession`, `setUser`, `setMetadata`, `setTags`, `setPromptTemplate`, `setAttributes`
+- attribute builders: `getLLMAttributes`, `getRetrieverAttributes`, `getEmbeddingAttributes`, `getToolAttributes`
+- redaction helpers: `OITracer` and `OPENINFERENCE_*` masking env vars
+- utility helpers: `withSafety`, `safelyJSONStringify`, `safelyJSONParse`
+
+<Note>
+The re-exported OpenInference wrappers resolve the default tracer when the wrapped function runs. Module-scoped traced helpers therefore continue following global provider changes, including experiment-scoped providers.
+</Note>
+
+## Installation
+
+```bash
+npm install @arizeai/phoenix-otel
+```
+
+## Start Here
+
+- [Package overview](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/overview) for installation, registration, configuration, instrumentation, and provider lifecycle
+- [Tracing helpers](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/tracing-helpers) for `withSpan`, `traceChain`, `traceAgent`, `traceTool`, `observe`, and custom input/output processors
+- [Context attributes](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes) for sessions, users, metadata, tags, prompt templates, and manual context propagation
+- [Manual spans](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans) for raw OpenTelemetry spans, attribute helpers, `OITracer`, and utility helpers
+
+## Local Install Pattern
+
+After install, a coding agent can inspect:
+
+```text
+node_modules/@arizeai/phoenix-otel/docs/
+node_modules/@arizeai/phoenix-otel/src/
+```
+
+Because `@arizeai/phoenix-otel` re-exports `@arizeai/openinference-core`, the dependency docs are also useful:
+
+```text
+node_modules/@arizeai/openinference-core/docs/
+node_modules/@arizeai/openinference-core/src/
+```
+
+This gives the agent version-matched prose, implementation details, and examples without needing network access.
+
+## API Reference
+
+- [TypeScript API docs](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-otel.html)

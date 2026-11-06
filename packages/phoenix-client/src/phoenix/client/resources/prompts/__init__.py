@@ -1,21 +1,48 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, cast
+from collections.abc import Mapping
+from typing import Any, Optional, Union, cast
 
 import httpx
+from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_VERSION_METADATA,
+    DELETE_PROMPT,
+    PATCH_PROMPT,
+)
 from phoenix.client.types.prompts import PromptVersion
+from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _build_patch_prompt_body(
+    *,
+    prompt_description: Union[str, None, NotGiven],
+    prompt_metadata: Union[Mapping[str, Any], NotGiven],
+) -> dict[str, Any]:
+    if isinstance(prompt_description, NotGiven) and isinstance(prompt_metadata, NotGiven):
+        raise ValueError("At least one of prompt_description or prompt_metadata must be provided.")
+    body: dict[str, Any] = {}
+    if not isinstance(prompt_description, NotGiven):
+        body["description"] = prompt_description
+    if not isinstance(prompt_metadata, NotGiven):
+        body["metadata"] = dict(prompt_metadata)
+    return body
 
 
 class Prompts:
     """Provides methods for interacting with prompt resources.
 
-    This class allows you to retrieve and create prompt versions.
+    This class allows you to retrieve, create, update, and delete prompts and prompt versions.
 
     Examples:
         Basic prompt operations::
@@ -46,7 +73,8 @@ class Prompts:
                     model_name="gpt-4",
                     model_provider="OPENAI"
                 ),
-                prompt_description="Sentiment classification prompt"
+                prompt_description="Sentiment classification prompt",
+                prompt_metadata={"category": "classification", "version": "1.0"}
             )
 
         Working with tags::
@@ -64,12 +92,18 @@ class Prompts:
             )
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     @property
     def tags(self) -> PromptVersionTags:
-        return PromptVersionTags(self._client)
+        return PromptVersionTags(self._client, _guard=self._guard)
 
     def get(
         self,
@@ -90,6 +124,7 @@ class Prompts:
             PromptVersion: The retrieved prompt version data.
 
         Raises:
+            ValueError: If prompt identifier or prompt version id is not found.
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
         Example::
@@ -111,9 +146,14 @@ class Prompts:
             )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
-        response = self._client.get(url)
-        response.raise_for_status()
-        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        try:
+            prompt_response = self._client.get(url)
+            prompt_response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
+            raise
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     def create(
         self,
@@ -121,6 +161,7 @@ class Prompts:
         version: PromptVersion,
         name: str,
         prompt_description: Optional[str] = None,
+        prompt_metadata: Optional[dict[str, Any]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -133,6 +174,8 @@ class Prompts:
                 alphanumeric character.
             prompt_description (Optional[str]): An optional description for the prompt.
                 If prompt already exists, this value is ignored by the server.
+            prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
+                for the prompt. If prompt already exists, this value is ignored by the server.
 
         Returns:
             PromptVersion: The created prompt version data.
@@ -141,10 +184,106 @@ class Prompts:
         prompt = v1.PromptData(name=name)
         if prompt_description:
             prompt["description"] = prompt_description
+        if prompt_metadata:
+            prompt["metadata"] = prompt_metadata
+        if version.metadata:
+            self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+
+    def update(
+        self,
+        *,
+        prompt_identifier: str,
+        prompt_description: Union[str, None, NotGiven] = NOT_GIVEN,
+        prompt_metadata: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+    ) -> v1.Prompt:
+        """
+        Update a prompt's description and/or metadata.
+
+        Omit a field to leave it unchanged. Pass ``prompt_description=None`` to
+        clear the description. ``prompt_metadata`` replaces the existing metadata
+        object as a whole; it cannot be cleared to null.
+
+        Args:
+            prompt_identifier (str): The prompt name or ID.
+            prompt_description (Optional[str]): New description, or ``None`` to clear it.
+            prompt_metadata (Mapping[str, Any]): New metadata object (full replace).
+
+        Returns:
+            v1.Prompt: The updated prompt.
+
+        Raises:
+            ValueError: If neither prompt_description nor prompt_metadata is
+                provided, or the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful
+                status code.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            prompt = client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description="Production classifier",
+                prompt_metadata={"team": "ml", "env": "prod"},
+            )
+            print(prompt.get("metadata"))
+
+            # Clear the description only
+            client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description=None,
+            )
+        """
+        body = _build_patch_prompt_body(
+            prompt_description=prompt_description,
+            prompt_metadata=prompt_metadata,
+        )
+        self._guard.require(PATCH_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = self._client.patch(url, json=body)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
+        return cast(v1.PatchPromptResponseBody, response.json())["data"]
+
+    def delete(self, *, prompt_identifier: str) -> None:
+        """Delete a prompt by name or GlobalID.
+
+        Warning:
+            Deleting a prompt also deletes all of its versions, tags, and labels.
+
+        Args:
+            prompt_identifier (str): The prompt name or GlobalID.
+
+        Raises:
+            ValueError: If the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned another unsuccessful
+                status code, including a permission error.
+
+        Example::
+
+            from phoenix.client import Client
+            client = Client()
+
+            client.prompts.delete(prompt_identifier="my-prompt")
+        """
+        self._guard.require(DELETE_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = self._client.delete(url)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
 
 
 class PromptVersionTags:
@@ -185,8 +324,14 @@ class PromptVersionTags:
                 )
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     def create(
         self,
@@ -280,7 +425,8 @@ class AsyncPrompts:
     """
     Provides asynchronous methods for interacting with prompt resources.
 
-    This class allows you to retrieve and create prompt versions asynchronously.
+    This class allows you to retrieve, create, update, and delete prompts and prompt
+    versions asynchronously.
 
     Examples:
         Basic prompt operations::
@@ -311,7 +457,8 @@ class AsyncPrompts:
                     model_name="gpt-4",
                     model_provider="OPENAI"
                 ),
-                prompt_description="Sentiment classification prompt"
+                prompt_description="Sentiment classification prompt",
+                prompt_metadata={"category": "classification"}
             )
 
         Working with tags::
@@ -329,12 +476,18 @@ class AsyncPrompts:
             )
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     @property
     def tags(self) -> AsyncPromptVersionTags:
-        return AsyncPromptVersionTags(self._client)
+        return AsyncPromptVersionTags(self._client, _guard=self._guard)
 
     async def get(
         self,
@@ -355,6 +508,7 @@ class AsyncPrompts:
             PromptVersion: The retrieved prompt version data.
 
         Raises:
+            ValueError: If prompt identifier or prompt version id is not found.
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
 
         Example::
@@ -376,9 +530,14 @@ class AsyncPrompts:
             )
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
-        response = await self._client.get(url)
-        response.raise_for_status()
-        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        try:
+            prompt_response = await self._client.get(url)
+            prompt_response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_version_id or prompt_identifier}")
+            raise
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, prompt_response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     async def create(
         self,
@@ -386,6 +545,7 @@ class AsyncPrompts:
         version: PromptVersion,
         name: str,
         prompt_description: Optional[str] = None,
+        prompt_metadata: Optional[dict[str, Any]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -398,6 +558,8 @@ class AsyncPrompts:
                 alphanumeric character.
             prompt_description (Optional[str]): An optional description for the prompt.
                 If prompt already exists, this value is ignored by the server.
+            prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
+                for the prompt. If prompt already exists, this value is ignored by the server.
 
         Returns:
             PromptVersion: The created prompt version data.
@@ -406,10 +568,106 @@ class AsyncPrompts:
         prompt = v1.PromptData(name=name)
         if prompt_description:
             prompt["description"] = prompt_description
+        if prompt_metadata:
+            prompt["metadata"] = prompt_metadata
+        if version.metadata:
+            await self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+
+    async def update(
+        self,
+        *,
+        prompt_identifier: str,
+        prompt_description: Union[str, None, NotGiven] = NOT_GIVEN,
+        prompt_metadata: Union[Mapping[str, Any], NotGiven] = NOT_GIVEN,
+    ) -> v1.Prompt:
+        """
+        Asynchronously update a prompt's description and/or metadata.
+
+        Omit a field to leave it unchanged. Pass ``prompt_description=None`` to
+        clear the description. ``prompt_metadata`` replaces the existing metadata
+        object as a whole; it cannot be cleared to null.
+
+        Args:
+            prompt_identifier (str): The prompt name or ID.
+            prompt_description (Optional[str]): New description, or ``None`` to clear it.
+            prompt_metadata (Mapping[str, Any]): New metadata object (full replace).
+
+        Returns:
+            v1.Prompt: The updated prompt.
+
+        Raises:
+            ValueError: If neither prompt_description nor prompt_metadata is
+                provided, or the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful
+                status code.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            prompt = await async_client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description="Production classifier",
+                prompt_metadata={"team": "ml", "env": "prod"},
+            )
+            print(prompt.get("metadata"))
+
+            # Clear the description only
+            await async_client.prompts.update(
+                prompt_identifier="my-prompt",
+                prompt_description=None,
+            )
+        """
+        body = _build_patch_prompt_body(
+            prompt_description=prompt_description,
+            prompt_metadata=prompt_metadata,
+        )
+        await self._guard.require(PATCH_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = await self._client.patch(url, json=body)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
+        return cast(v1.PatchPromptResponseBody, response.json())["data"]
+
+    async def delete(self, *, prompt_identifier: str) -> None:
+        """Asynchronously delete a prompt by name or GlobalID.
+
+        Warning:
+            Deleting a prompt also deletes all of its versions, tags, and labels.
+
+        Args:
+            prompt_identifier (str): The prompt name or GlobalID.
+
+        Raises:
+            ValueError: If the prompt is not found.
+            httpx.HTTPStatusError: If the HTTP request returned another unsuccessful
+                status code, including a permission error.
+
+        Example::
+
+            from phoenix.client import AsyncClient
+            async_client = AsyncClient()
+
+            await async_client.prompts.delete(prompt_identifier="my-prompt")
+        """
+        await self._guard.require(DELETE_PROMPT)
+        url = f"v1/prompts/{encode_path_param(prompt_identifier)}"
+        try:
+            response = await self._client.delete(url)
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise ValueError(f"Prompt not found: {prompt_identifier}") from e
+            raise
 
 
 class AsyncPromptVersionTags:
@@ -450,8 +708,14 @@ class AsyncPromptVersionTags:
                 )
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     async def create(
         self,

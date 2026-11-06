@@ -3,48 +3,61 @@
   "version": "0.0.0",
   "private": true,
   "description": "Monorepo for Arize Phoenix Javascript Tooling",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Arize-ai/phoenix.git"
-  },
-  "scripts": {
-    "prettier:check": "prettier --check .",
-    "prettier:write": "prettier --write .",
-    "type:check": "pnpm run -r type:check",
-    "test": "pnpm run -r test run",
-    "lint": "eslint",
-    "build": "pnpm run -r build",
-    "ci:version": "pnpm changeset version",
-    "ci:publish": "pnpm run -r build && pnpm publish -r --access public --provenance",
-    "docs:generate": "typedoc",
-    "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o"
-  },
   "keywords": [
-    "telemetry",
     "evaluation",
     "llmops",
-    "observability"
+    "observability",
+    "telemetry"
   ],
-  "author": "oss@arize.com",
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
   "license": "ELv2",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "scripts": {
+    "build": "pnpm run -r build",
+    "ci:publish": "pnpm --filter './packages/*' run -r build && pnpm changeset publish",
+    "ci:version": "pnpm changeset version",
+    "clean": "pnpm run clean:node_modules",
+    "clean:node_modules": "rimraf --glob '**/node_modules/**'",
+    "docs:generate": "typedoc",
+    "docs:preview": "rimraf docs && pnpm run docs:generate && pnpx http-server ./docs -p 8080 -o",
+    "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
+    "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
+    "lint": "oxlint packages examples benchmarks scripts && pnpm --filter phoenix-ui run lint",
+    "lint:fix": "oxlint --fix packages examples benchmarks scripts && pnpm --filter phoenix-ui run lint:fix",
+    "sync-package-docs": "node ./scripts/sync-package-docs.mjs",
+    "test": "pnpm run -r test",
+    "typecheck": "pnpm run -r typecheck"
+  },
   "devDependencies": {
-    "@changesets/cli": "^2.28.1",
-    "@eslint/js": "^9.34.0",
-    "eslint": "^9.34.0",
-    "globals": "^16.3.0",
-    "jiti": "^2.5.1",
-    "pkg-pr-new": "^0.0.39",
-    "prettier": "^3.5.2",
-    "rimraf": "^5.0.10",
-    "tsc-alias": "1.8.11",
-    "typedoc": "^0.27.9",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.40.0",
-    "vitest": "^2.1.9"
+    "@changesets/cli": "^3.0.3",
+    "oxfmt": "^0.58.0",
+    "oxlint": "~1.79.0",
+    "oxlint-tsgolint": "~7.0.2005",
+    "pkg-pr-new": "^0.0.75",
+    "rimraf": "^6.1.4",
+    "tsc-alias": "1.9.0",
+    "typedoc": "^0.28.20",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.22.1 || >=26.12.1",
+      "onFail": "error"
+    }
   },
   "engines": {
-    "node": ">=10",
+    "node": "^24.22.1 || >=26.12.1",
     "pnpm": ">=3"
   },
-  "packageManager": "pnpm@10.13.1"
+  "packageManager": "pnpm@12.0.0"
 }

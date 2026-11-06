@@ -7,16 +7,19 @@ RUN corepack enable
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json pnpm-lock.yaml ./
-COPY frontend/package*.json ./frontend/
+# Copy package files. ``pnpm-lock.yaml*`` (with trailing glob) tolerates the
+# lockfile being absent — lock files under ``scripts/docker/devops/`` are
+# untracked per the SBOM-scanner directive, and pnpm install falls back to a
+# fresh resolve when no lockfile is present.
+COPY package*.json pnpm-lock.yaml* pnpm-workspace.yaml ./
+COPY frontend/package*.json frontend/pnpm-lock.yaml* frontend/pnpm-workspace.yaml ./frontend/
 
 # Install dependencies
 RUN pnpm install
 
 # Copy backend source and build backend first (changes less frequently)
 COPY src/ ./src/
-COPY tsconfig.json ./
+COPY tsconfig.json tsconfig.build.json ./
 RUN pnpm build
 
 # Install frontend dependencies (cached if package.json unchanged)
@@ -37,9 +40,6 @@ RUN pnpm install --prod
 
 # Final runtime stage
 FROM node:22-slim AS runtime
-
-# Enable pnpm
-RUN corepack enable
 
 # Create app user for security
 RUN groupadd --gid 1001 nodejs && \
@@ -66,4 +66,4 @@ EXPOSE 9000
 ENV NODE_ENV=production
 
 # Start server
-CMD ["pnpm", "start"]
+CMD ["node", "dist/server.js"]

@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { createDataset } from "../src/datasets";
-import { asEvaluator, runExperiment } from "../src/experiments";
+import { asExperimentEvaluator, runExperiment } from "../src/experiments";
 
 async function main() {
   const { datasetId } = await createDataset({
@@ -38,7 +38,7 @@ async function main() {
     dataset: { datasetId },
     task: async (example) => `hello ${example.input.name}`,
     evaluators: [
-      asEvaluator({
+      asExperimentEvaluator({
         name: "matches",
         kind: "CODE",
         evaluate: async ({ output, expected }) => {
@@ -53,7 +53,7 @@ async function main() {
           };
         },
       }),
-      asEvaluator({
+      asExperimentEvaluator({
         name: "contains-hello",
         kind: "CODE",
         evaluate: async ({ output }) => {

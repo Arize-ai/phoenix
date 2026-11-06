@@ -25,9 +25,16 @@ Anthropic
    :members:
    :show-inheritance:
 
-Google Generative AI
-~~~~~~~~~~~~~~~~~~~~
+Google Gen AI
+~~~~~~~~~~~~~
 
-.. automodule:: client.helpers.sdk.google_generativeai
+.. automodule:: client.helpers.sdk.google_genai
+   :members:
+   :show-inheritance:
+
+ATIF (Agent Trajectory Interchange Format)
+------------------------------------------
+
+.. automodule:: client.helpers.atif
    :members:
    :show-inheritance:

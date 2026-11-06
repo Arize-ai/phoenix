@@ -179,6 +179,11 @@ html_theme_options = {
             "url": "https://x.com/ArizePhoenix",
             "icon": "fa-brands fa-twitter",
         },
+        {
+            "name": "LinkedIn",
+            "url": "https://www.linkedin.com/showcase/113218220",
+            "icon": "fa-brands fa-linkedin",
+        },
     ],
     "external_links": [
         {"name": "Phoenix Otel", "url": "https://phoenix-otel.readthedocs.io/"},

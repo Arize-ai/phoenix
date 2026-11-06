@@ -56,7 +56,7 @@ async function getParticipants(github, issue) {
   }
 }
 
-// Helper function to filter issues based on required labels and a cutoff date
+// Helper function to filter issues (excluding PRs) by required labels and cutoff
 function filterIssues(issues, requiredLabels, cutoffDate) {
   return issues
     .filter((issue) => {
@@ -64,6 +64,18 @@ function filterIssues(issues, requiredLabels, cutoffDate) {
       const isRecent = new Date(issue.created_at) > cutoffDate;
       const isNotPR = !issue.pull_request;
       return hasLabels && isRecent && isNotPR;
+    })
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by creation date, newest first
+}
+
+// Helper function to filter PRs based on required labels and a cutoff date
+function filterPRs(issues, requiredLabels, cutoffDate) {
+  return issues
+    .filter((issue) => {
+      const hasLabels = hasLabel(issue.labels, requiredLabels);
+      const isRecent = new Date(issue.created_at) > cutoffDate;
+      const isPR = !!issue.pull_request;
+      return hasLabels && isRecent && isPR;
     })
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by creation date, newest first
 }
@@ -135,7 +147,7 @@ async function formatIssueLine(github, issue, index) {
 // Helper function to build a message for Slack with grouped and formatted issues
 async function buildSlackMessage(github, issueGroups, lookbackDays) {
   const messageLines = [
-    `*🛠️ Customer Issues Opened in the Last ${lookbackDays} Day(s) Pending Triage*\n`,
+    `*🛠️ Customer Issues and Pull Requests Opened in the Last ${lookbackDays} Day(s) Pending Triage*\n`,
   ];
 
   for (const [issuesArray, header] of issueGroups) {
@@ -176,9 +188,10 @@ module.exports = async ({ github, context, core }) => {
     issues.push(...repoIssues);
   }
 
-  // Filter issues by label and date, then categorize by staleness and type
+  // Filter issues and PRs separately by label and date, then categorize
   const filteredIssues = filterIssues(issues, requiredLabels, cutoffDate);
-  if (filteredIssues.length === 0) {
+  const filteredPRs = filterPRs(issues, requiredLabels, cutoffDate);
+  if (filteredIssues.length === 0 && filteredPRs.length === 0) {
     core.setOutput("has_issues", "false");
     return;
   }
@@ -195,6 +208,7 @@ module.exports = async ({ github, context, core }) => {
     [bugIssues, "*🐛 Bugs*"],
     [enhancementIssues, "*💡 Enhancements or Inquiries*"],
     [staleIssues, `*🥀 Stale Issues (>${stalenessThreshold} days)*`],
+    [filteredPRs, "*🔧 Pull Requests Pending Review*"],
   ];
 
   // Build the Slack message and set as output

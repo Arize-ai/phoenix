@@ -14,6 +14,8 @@ from phoenix.db.models import (
     Base,
     DocumentAnnotation,
     Project,
+    ProjectSession,
+    ProjectSessionAnnotation,
     Span,
     SpanAnnotation,
     Trace,
@@ -23,6 +25,7 @@ from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.dml_event import (
     DmlEvent,
     DocumentAnnotationDmlEvent,
+    ProjectSessionAnnotationDmlEvent,
     SpanAnnotationDmlEvent,
     SpanDeleteEvent,
     SpanDmlEvent,
@@ -140,6 +143,7 @@ _AnnotationTable: TypeAlias = Union[
     type[SpanAnnotation],
     type[TraceAnnotation],
     type[DocumentAnnotation],
+    type[ProjectSessionAnnotation],
 ]
 
 _AnnotationDmlEventT = TypeVar(
@@ -147,6 +151,7 @@ _AnnotationDmlEventT = TypeVar(
     SpanAnnotationDmlEvent,
     TraceAnnotationDmlEvent,
     DocumentAnnotationDmlEvent,
+    ProjectSessionAnnotationDmlEvent,
 )
 
 
@@ -156,7 +161,7 @@ class _AnnotationDmlEventHandler(
     ABC,
 ):
     _table: _AnnotationTable
-    _base_stmt: Union[Select[tuple[int, str]], Select[tuple[int]]] = (
+    _base_stmt: Union[Select[int, str], Select[int]] = (
         select(Project.id).join_from(Project, Trace).distinct()
     )
 
@@ -166,7 +171,7 @@ class _AnnotationDmlEventHandler(
         if self._cache_for_dataloaders:
             self._stmt = self._stmt.add_columns(self._table.name)
 
-    def _get_stmt(self) -> Union[Select[tuple[int, str]], Select[tuple[int]]]:
+    def _get_stmt(self) -> Union[Select[int, str], Select[int]]:
         ids = set(chain.from_iterable(e.ids for e in self._batch))
         return self._stmt.where(self._table.id.in_(ids))
 
@@ -218,6 +223,23 @@ class _DocumentAnnotationDmlEventHandler(_AnnotationDmlEventHandler[DocumentAnno
         cache.document_evaluation_summary.invalidate((project_id, name))
 
 
+class _ProjectSessionAnnotationDmlEventHandler(
+    _AnnotationDmlEventHandler[ProjectSessionAnnotationDmlEvent]
+):
+    _table = ProjectSessionAnnotation
+    # Session annotations hang off project sessions rather than traces, so the
+    # project lookup joins through ProjectSession instead of the default Trace.
+    _base_stmt = select(Project.id).join_from(Project, ProjectSession).distinct()
+
+    def __init__(self, **kwargs: Unpack[_HandlerParams]) -> None:
+        super().__init__(**kwargs)
+        self._stmt = self._stmt.join_from(ProjectSession, self._table)
+
+    @staticmethod
+    def _clear(cache: CacheForDataLoaders, project_id: int, name: str) -> None:
+        cache.annotation_summary.invalidate((project_id, name, "session"))
+
+
 class DmlEventHandler:
     def __init__(
         self,
@@ -240,6 +262,7 @@ class DmlEventHandler:
             SpanAnnotationDmlEvent: [_SpanAnnotationDmlEventHandler(**kwargs)],
             TraceAnnotationDmlEvent: [_TraceAnnotationDmlEventHandler(**kwargs)],
             DocumentAnnotationDmlEvent: [_DocumentAnnotationDmlEventHandler(**kwargs)],
+            ProjectSessionAnnotationDmlEvent: [_ProjectSessionAnnotationDmlEventHandler(**kwargs)],
         }
         self._all_handlers = frozenset(chain.from_iterable(self._handlers.values()))
 

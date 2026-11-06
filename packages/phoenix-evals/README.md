@@ -4,9 +4,10 @@
     <a href="https://pypi.org/project/arize-phoenix-evals/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix-evals" alt="PyPI Version">
     </a>
-    <a href="https://arize-phoenix.readthedocs.io/projects/evals/en/latest/index.html">
+    <a href="https://arize-phoenix.readthedocs.io/projects/evals/">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=packages/phoenix-evals/README.md" />
 </p>
 
 Phoenix Evals provides **lightweight, composable building blocks** for writing and running evaluations on LLM applications, including tools to determine relevance, toxicity, hallucination detection, and much more.
@@ -52,16 +53,82 @@ scores[0].pretty_print()
 # With input mapping for nested data
 scores = evaluator.evaluate(
     {"data": {"query": "How do I reset?", "response": "Go to settings > reset."}},
-    input_mapping={"input": "data.query", "output": "data.response"}
+    input_mapping={"input": "data.query", "output": "data.response"},
 )
 scores[0].pretty_print()
+```
+
+## Pre-Built Evaluators
+
+The `phoenix.evals.metrics` module provides ready-to-use evaluators for common tasks:
+
+| Evaluator | Class | Description |
+| --------- | ----- | ----------- |
+| Faithfulness | `FaithfulnessEvaluator` | Detects hallucinations — checks if output is grounded in context |
+| Completeness | `CompletenessEvaluator` | Checks whether every active user request in a conversation was actually completed |
+| Conciseness | `ConcisenessEvaluator` | Evaluates whether the response is appropriately concise |
+| Correctness | `CorrectnessEvaluator` | Checks if the output is factually correct |
+| Retrieval Relevance | `RetrievalRelevanceEvaluator` | Measures how relevant retrieved information is to a request |
+| Refusal | `RefusalEvaluator` | Detects whether the model refused to answer |
+| Tool Invocation | `ToolInvocationEvaluator` | Checks whether the correct tool was called with the right arguments |
+| Tool Selection | `ToolSelectionEvaluator` | Evaluates whether the right tool was selected for the task |
+| Tool Response Handling | `ToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
+| User Friction | `UserFrictionEvaluator` | Detects expressed corrections, retries, frustration, and challenges |
+| PII Detection | `PiiDetectionEvaluator` | Screens a conversation record for personally identifiable information |
+| Exact Match | `exact_match` | Checks for exact string equality between output and expected |
+| Regex Match | `MatchesRegex` | Checks whether the output matches a regular expression |
+| Precision/Recall | `PrecisionRecallFScore` | Computes precision, recall, and F-score for classification tasks |
+
+```python
+from phoenix.evals.llm import LLM
+from phoenix.evals.metrics import FaithfulnessEvaluator, exact_match, MatchesRegex
+
+llm = LLM(provider="openai", model="gpt-4o")
+
+# LLM-powered faithfulness evaluator
+faithfulness = FaithfulnessEvaluator(llm=llm)
+scores = faithfulness.evaluate(
+    {
+        "input": "What is the capital of France?",
+        "context": "Paris is the capital of France.",
+        "output": "The capital of France is Berlin.",
+    }
+)
+scores[0].pretty_print()
+# Score(name='faithfulness', score=0.0, label='unfaithful', explanation='...')
+
+# Code-based exact match
+match_result = exact_match({"output": "Paris", "expected": "Paris"})
+
+# Regex match
+regex_result = MatchesRegex(pattern=r"^\d{4}-\d{2}-\d{2}$").evaluate({"output": "2024-03-15"})
+```
+
+## LLM Providers
+
+The `LLM` class supports multiple AI providers:
+
+```python
+from phoenix.evals.llm import LLM
+
+# OpenAI
+llm = LLM(provider="openai", model="gpt-4o")
+
+# Anthropic
+llm = LLM(provider="anthropic", model="claude-3-5-sonnet-20241022")
+
+# Google Gemini
+llm = LLM(provider="google", model="gemini-1.5-pro")
+
+# LiteLLM (unified interface for 100+ providers)
+llm = LLM(provider="litellm", model="gpt-4o")
 ```
 
 ## Evaluating Dataframes
 
 ```python
 import pandas as pd
-from phoenix.evals import create_classifier, evaluate_dataframe
+from phoenix.evals import create_classifier, evaluate_dataframe, async_evaluate_dataframe
 from phoenix.evals.llm import LLM
 
 # Create an LLM instance
@@ -83,23 +150,37 @@ helpfulness_evaluator = create_classifier(
 )
 
 # Prepare your dataframe
-df = pd.DataFrame([
-    {"input": "How do I reset my password?", "output": "Go to settings > account > reset password."},
-    {"input": "What's the weather like?", "output": "I can help you with password resets."},
-])
+df = pd.DataFrame(
+    [
+        {
+            "input": "How do I reset my password?",
+            "output": "Go to settings > account > reset password.",
+        },
+        {"input": "What's the weather like?", "output": "I can help you with password resets."},
+    ]
+)
 
-# Evaluate the dataframe
+# Synchronous evaluation
 results_df = evaluate_dataframe(
     dataframe=df,
     evaluators=[relevance_evaluator, helpfulness_evaluator],
 )
-
 print(results_df.head())
+
+# Async evaluation (up to 20x faster with large dataframes)
+import asyncio
+
+results_df = asyncio.run(
+    async_evaluate_dataframe(
+        dataframe=df,
+        evaluators=[relevance_evaluator, helpfulness_evaluator],
+    )
+)
 ```
 
 ## Documentation
 
-- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/evals/en/latest/index.html)** - Complete API reference and guides
+- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/evals/)** - Complete API reference and guides
 - **[Phoenix Docs](https://arize.com/docs/phoenix)** - Detailed use-cases and examples
 - **[OpenInference](https://github.com/Arize-ai/openinference)** - Auto-instrumentation libraries for frameworks
 
@@ -107,10 +188,11 @@ print(results_df.head())
 
 Join our community to connect with thousands of AI builders:
 
-- 🌍 Join our [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg).
+- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
 - 📚 Read the [Phoenix documentation](https://arize.com/docs/phoenix).
 - 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 💼 Follow us on [LinkedIn](https://www.linkedin.com/showcase/113218220).
 - 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.

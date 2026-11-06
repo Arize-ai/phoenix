@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="GH Comment Watch">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="bubble" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded app tile -->
+  <rect x="0" y="0" width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- comment bubble with tail -->
+  <path fill="url(#bubble)" d="M8 6h16a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4h-9l-5.2 4.4A1 1 0 0 1 8 25.6V22a4 4 0 0 1-4-4v-8a4 4 0 0 1 4-4z"/>
+
+  <!-- three dots = a conversation -->
+  <g fill="#0f172a">
+    <circle cx="11.5" cy="14" r="1.7"/>
+    <circle cx="16" cy="14" r="1.7"/>
+    <circle cx="20.5" cy="14" r="1.7"/>
+  </g>
+
+  <!-- amber "needs attention" alert badge -->
+  <circle cx="25.5" cy="6.5" r="5.5" fill="#1e293b"/>
+  <circle cx="25.5" cy="6.5" r="4" fill="#fbbf24"/>
+</svg>

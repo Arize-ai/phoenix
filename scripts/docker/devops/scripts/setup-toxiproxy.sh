@@ -15,8 +15,8 @@ curl -X POST "http://toxiproxy:8474/proxies" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "postgres",
-    "listen": "0.0.0.0:5432",
-    "upstream": "db:5432",
+    "listen": "0.0.0.0:5433",
+    "upstream": "db:5433",
     "enabled": true
   }'
 

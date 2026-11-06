@@ -1,0 +1,151 @@
+import type { PropsWithChildren } from "react";
+import React, { createContext, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+
+import {
+  Dialog,
+  Switch,
+  Text,
+  View,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/core/dialog";
+import { FEATURE_FLAGS_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+
+/**
+ * No flags are currently in flight — add new pre-release gates here.
+ * (The last one, "agent-experimental-settings", shipped and was lifted.)
+ */
+type FeatureFlag = never;
+
+export type FeatureFlagsContextType = {
+  featureFlags: Record<FeatureFlag, boolean>;
+  setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
+};
+
+const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {};
+
+function getFeatureFlags(): Record<FeatureFlag, boolean> {
+  const featureFlagsFromLocalStorage = localStorage.getItem(
+    FEATURE_FLAGS_STORAGE_KEY
+  );
+  if (!featureFlagsFromLocalStorage) {
+    return DEFAULT_FEATURE_FLAGS;
+  }
+
+  try {
+    const parsedFeatureFlags = JSON.parse(
+      featureFlagsFromLocalStorage
+    ) as Record<string, unknown>;
+    const next = { ...DEFAULT_FEATURE_FLAGS };
+    const hasUnknownFeatureFlags = Object.keys(parsedFeatureFlags).some(
+      (key) => !(key in DEFAULT_FEATURE_FLAGS)
+    );
+    for (const key of Object.keys(DEFAULT_FEATURE_FLAGS) as FeatureFlag[]) {
+      const v = parsedFeatureFlags[key];
+      if (typeof v === "boolean") {
+        (next as Record<string, boolean>)[key] = v;
+      }
+    }
+    if (hasUnknownFeatureFlags) {
+      localStorage.setItem(FEATURE_FLAGS_STORAGE_KEY, JSON.stringify(next));
+    }
+    return next;
+  } catch (_e) {
+    return DEFAULT_FEATURE_FLAGS;
+  }
+}
+
+export const FeatureFlagsContext =
+  createContext<FeatureFlagsContextType | null>(null);
+
+export function useFeatureFlags() {
+  const context = React.useContext(FeatureFlagsContext);
+  if (context === null) {
+    throw new Error(
+      "useFeatureFlags must be used within a FeatureFlagsProvider"
+    );
+  }
+  return context;
+}
+
+export function useFeatureFlag(featureFlag: FeatureFlag) {
+  const { featureFlags } = useFeatureFlags();
+  return featureFlags[featureFlag];
+}
+
+export function FeatureFlagsProvider(props: React.PropsWithChildren) {
+  const [featureFlags, _setFeatureFlags] =
+    useState<Record<FeatureFlag, boolean>>(getFeatureFlags);
+  const setFeatureFlags = (featureFlags: Record<FeatureFlag, boolean>) => {
+    localStorage.setItem(
+      FEATURE_FLAGS_STORAGE_KEY,
+      JSON.stringify(featureFlags)
+    );
+    _setFeatureFlags(featureFlags);
+  };
+
+  return (
+    <FeatureFlagsContext.Provider value={{ featureFlags, setFeatureFlags }}>
+      <FeatureFlagsControls>{props.children}</FeatureFlagsControls>
+    </FeatureFlagsContext.Provider>
+  );
+}
+
+function FeatureFlagsControls(props: PropsWithChildren) {
+  const { children } = props;
+  const { featureFlags, setFeatureFlags } = useFeatureFlags();
+  const [showControls, setShowControls] = useState(false);
+  useHotkeys("ctrl+shift+f", () => setShowControls(true));
+  return (
+    <>
+      {children}
+
+      <ViewportModalOverlay
+        isOpen={showControls}
+        onOpenChange={setShowControls}
+      >
+        <ViewportModal size="S">
+          <Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Feature Flags</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton slot="close" />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <View padding="size-100">
+                {Object.keys(featureFlags).length === 0 && (
+                  <Text color="text-500">
+                    No feature flags are currently in flight.
+                  </Text>
+                )}
+                {Object.keys(featureFlags).map((featureFlag) => (
+                  <Switch
+                    key={featureFlag}
+                    isSelected={featureFlags[featureFlag as FeatureFlag]}
+                    onChange={(isSelected) =>
+                      setFeatureFlags({
+                        ...featureFlags,
+                        [featureFlag]: isSelected,
+                      })
+                    }
+                  >
+                    {featureFlag}
+                  </Switch>
+                ))}
+              </View>
+            </DialogContent>
+          </Dialog>
+        </ViewportModal>
+      </ViewportModalOverlay>
+    </>
+  );
+}

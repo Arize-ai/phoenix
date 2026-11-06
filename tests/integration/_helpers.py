@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import ssl
@@ -8,22 +9,24 @@ import string
 import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
-from collections.abc import Iterable, Iterator, Mapping
-from contextlib import AbstractContextManager, contextmanager, nullcontext
+from collections.abc import AsyncIterator, Iterable, Iterator, Mapping
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import AbstractContextManager, asynccontextmanager, contextmanager, nullcontext
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from email.message import Message
-from functools import cached_property
+from functools import cached_property, lru_cache
 from io import BytesIO
 from itertools import chain
 from random import random
 from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
-from time import sleep, time
+from time import monotonic, sleep, time
 from types import MappingProxyType, TracebackType
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -43,12 +46,13 @@ from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 from urllib.request import urlopen
 
 import bs4
-import httpx
+import httpx2
 import jwt
 import pytest
 import smtpdfix
 from fastapi import FastAPI
-from httpx import Headers, HTTPStatusError
+from fastapi.routing import APIRoute, _IncludedRouter
+from httpx2 import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.exporter.otlp.proto.grpc.exporter import _load_credentials
@@ -58,33 +62,39 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter, Sp
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Span, Tracer, format_span_id
-from opentelemetry.util.types import AttributeValue
-from psutil import STATUS_ZOMBIE, Popen
-from sqlalchemy import URL, create_engine, text
+from psutil import STATUS_ZOMBIE, NoSuchProcess, Popen
+from sqlalchemy import URL, make_url, select, text
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.routing import BaseRoute
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never, override
 
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
-    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     sanitize_email,
 )
 from phoenix.config import (
+    ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE,
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
     ENV_PHOENIX_SQL_DATABASE_URL,
 )
+from phoenix.db.engines import get_async_db_url
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.routers.v1 import create_v1_router
 from phoenix.server.thread_server import ThreadServer
+from phoenix.trace.attributes import AttributeValue
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
 
@@ -96,6 +106,8 @@ _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
 _Headers: TypeAlias = dict[str, Any]
 _Name: TypeAlias = str
+_HttpMethod: TypeAlias = str
+_RoutePath: TypeAlias = str
 
 _Secret: TypeAlias = str
 _Email: TypeAlias = str
@@ -126,10 +138,11 @@ class _User:
     gid: _GqlId
     role: UserRoleInput
     profile: _Profile
+    profile_picture_url: Optional[str]
 
     def log_in(self, app: _AppInfo) -> _LoggedInUser:
         tokens = _log_in(app, self.password, email=self.email)
-        return _LoggedInUser(self.gid, self.role, self.profile, tokens)
+        return _LoggedInUser(self.gid, self.role, self.profile, self.profile_picture_url, tokens)
 
     @cached_property
     def password(self) -> _Password:
@@ -171,7 +184,7 @@ class _User:
             local=local,
         )
 
-    def delete_users(self, app: _AppInfo, *users: Union[_GqlId, _User]) -> None:
+    def delete_users(self, app: _AppInfo, *users: Union[_GqlId, _User]) -> list[_GqlId]:
         return _delete_users(app, self, users=users)
 
     def list_users(self, app: _AppInfo) -> list[_User]:
@@ -245,9 +258,6 @@ class _User:
     def delete_api_key(self, app: _AppInfo, api_key: _ApiKey, /) -> None:
         return _delete_api_key(app, api_key, self)
 
-    def export_embeddings(self, app: _AppInfo, filename: str) -> None:
-        _export_embeddings(app, self, filename=filename)
-
     def initiate_password_reset(
         self,
         app: _AppInfo,
@@ -264,16 +274,27 @@ class _User:
         )
 
 
+class _DefaultAdminMarker:
+    pass
+
+
 _SYSTEM_USER_GID = _GqlId(GlobalID(type_name="User", node_id="1"))
-_DEFAULT_ADMIN = _User(
-    _GqlId(GlobalID("User", "2")),
-    _ADMIN,
-    _Profile(
-        email=DEFAULT_ADMIN_EMAIL,
-        password=DEFAULT_ADMIN_PASSWORD,
-        username=DEFAULT_ADMIN_USERNAME,
-    ),
-)
+_DEFAULT_ADMIN_GID = _GqlId(GlobalID("User", "2"))
+# The default "admin" password requires a reset before a session can be opened.
+_DEFAULT_ADMIN_INITIAL_PASSWORD = token_hex(16)
+_DEFAULT_ADMIN = _DefaultAdminMarker()
+
+
+def _auth_env(*, secret_configuration: str = "configured") -> dict[str, str]:
+    env = {
+        "PHOENIX_ENABLE_AUTH": "true",
+        "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD": _DEFAULT_ADMIN_INITIAL_PASSWORD,
+    }
+    if secret_configuration != "absent":
+        env["PHOENIX_SECRET"] = token_hex(16)
+        env["PHOENIX_ADMIN_SECRET"] = token_hex(16)
+    return env
+
 
 _ApiKeyKind = Literal["System", "User"]
 
@@ -306,6 +327,19 @@ class _ApiKey(str):
 
 
 class _AdminSecret(str): ...
+
+
+def _admin_auth(app: _AppInfo) -> Union[_AdminSecret, _User]:
+    if app.env.get("PHOENIX_ADMIN_SECRET"):
+        return app.admin_secret
+    return app.default_admin
+
+
+def _admin_bearer(app: _AppInfo) -> str:
+    auth = _admin_auth(app)
+    if isinstance(auth, _AdminSecret):
+        return str(auth)
+    return str(auth.log_in(app).tokens.access_token)
 
 
 class _Token(str, ABC): ...
@@ -349,7 +383,7 @@ class _LoggedInUser(_User, _CanLogOut[_User]):
 
     @property
     def user(self) -> _User:
-        return _User(self.gid, self.role, self.profile)
+        return _User(self.gid, self.role, self.profile, self.profile_picture_url)
 
     @override
     def log_out(self, app: _AppInfo) -> _User:
@@ -364,7 +398,7 @@ class _LoggedInUser(_User, _CanLogOut[_User]):
         assert response.status_code == expected_status_code
 
 
-_RoleOrUser = Union[UserRoleInput, _User]
+_RoleOrUser = Union[UserRoleInput, _User, _DefaultAdminMarker]
 _SecurityArtifact: TypeAlias = Union[
     _AdminSecret,
     _AccessToken,
@@ -395,7 +429,7 @@ class _GetUser(Protocol):
     def __call__(
         self,
         app: _AppInfo,
-        role_or_user: Union[_User, UserRoleInput] = _MEMBER,
+        role_or_user: Union[_User, UserRoleInput, _DefaultAdminMarker] = _MEMBER,
         /,
         *,
         profile: Optional[_Profile] = None,
@@ -440,6 +474,19 @@ class _AppInfo:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "env", MappingProxyType(dict(self.env)))
+
+    @property
+    def default_admin(self) -> _User:
+        return _User(
+            _DEFAULT_ADMIN_GID,
+            _ADMIN,
+            _Profile(
+                email=DEFAULT_ADMIN_EMAIL,
+                password=self.env["PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"],
+                username=DEFAULT_ADMIN_USERNAME,
+            ),
+            profile_picture_url=None,
+        )
 
     @cached_property
     def base_url(self) -> str:
@@ -487,6 +534,71 @@ class _AppInfo:
     @cached_property
     def client_key_file(self) -> Optional[str]:
         return self.env.get("PHOENIX_TLS_CA_FILE")
+
+
+def _is_memory_sqlite(database_url: str) -> bool:
+    # Parse the URL because its database name may be percent-encoded.
+    return database_url.startswith("sqlite") and make_url(database_url).database == ":memory:"
+
+
+if TYPE_CHECKING:
+    from phoenix.server.redaction import Redactor
+
+
+def _load_deployment_seed(database_url: str, schema: str) -> bytes:
+    from phoenix.db import models
+
+    url = get_async_db_url(database_url)
+    connect_args: dict[str, Any] = {}
+    if url.get_backend_name() == "postgresql" and schema:
+        connect_args["server_settings"] = {"search_path": schema}
+    elif url.get_backend_name() == "sqlite":
+        connect_args["timeout"] = 30.0
+    engine = create_async_engine(url, poolclass=NullPool, connect_args=connect_args)
+
+    async def load() -> bytes:
+        try:
+            async with engine.connect() as connection:
+                seed = await connection.scalar(
+                    select(models.DeploymentSecret.seed).where(models.DeploymentSecret.id == 1)
+                )
+            assert isinstance(seed, (bytes, memoryview)) and len(seed) == 32
+            return bytes(seed)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(load())
+
+
+@lru_cache(maxsize=None)
+def _redactor_for_app_key(database_url: str, schema: str, secret: str) -> Redactor:
+    from pydantic import SecretStr
+
+    from phoenix.server.deployment_secret import REDACTION_KEY_PURPOSE, derive_deployment_key
+    from phoenix.server.redaction import Redactor
+
+    return Redactor(
+        derive_deployment_key(
+            seed=_load_deployment_seed(database_url, schema),
+            secret=SecretStr(secret),
+            purpose=REDACTION_KEY_PURPOSE,
+        )
+    )
+
+
+def _redactor_for_app(app: _AppInfo) -> Redactor:
+    return _redactor_for_app_key(
+        app.env[ENV_PHOENIX_SQL_DATABASE_URL],
+        app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),
+        app.env.get("PHOENIX_SECRET", ""),
+    )
+
+
+def _deployment_seed_for_app(app: _AppInfo) -> bytes:
+    return _load_deployment_seed(
+        app.env[ENV_PHOENIX_SQL_DATABASE_URL],
+        app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, ""),
+    )
 
 
 def _http_span_exporter(
@@ -588,42 +700,7 @@ def _start_span(
     )
 
 
-class _DefaultAdminTokens(ABC):
-    """
-    Because the tests can be run concurrently, and we need the default admin to create database
-    entities (e.g. to add new users), the default admin should never log out once logged in,
-    because logging out invalidates all existing access tokens, resulting in a race among the
-    tests. The approach here is to add a middleware to block any inadvertent use of the default
-    admin's access tokens for logging out. This class is intended to be used as a singleton
-    container to ensure that all tokens are always accounted for. Furthermore, the tokens are
-    disambiguated by the port of the server to which they belong.
-    """
-
-    _set: set[tuple[int, str]] = set()
-    _lock: Lock = Lock()
-
-    @classmethod
-    def __new__(cls) -> Self:
-        raise NotImplementedError("This class is intended as a singleton to be used directly.")
-
-    @classmethod
-    def stash(cls, port: int, headers: Headers) -> None:
-        tokens = _extract_tokens(headers, "set-cookie").values()
-        for token in tokens:
-            with cls._lock:
-                cls._set.add((port, token))
-
-    @classmethod
-    def intersect(cls, port: int, headers: Headers) -> bool:
-        tokens = _extract_tokens(headers).values()
-        for token in tokens:
-            with cls._lock:
-                if (port, token) in cls._set:
-                    return True
-        return False
-
-
-class _LogResponse(httpx.Response):
+class _LogResponse(httpx2.Response):
     def __init__(self, info: BytesIO, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._info = info
@@ -643,11 +720,11 @@ _TEST_NAME: ContextVar[str] = ContextVar("test_name", default="")
 _HTTPX_OP_IDX: ContextVar[int] = ContextVar("httpx_operation_index", default=0)
 
 
-class _LogTransport(httpx.BaseTransport):
-    def __init__(self, transport: httpx.BaseTransport) -> None:
+class _LogTransport(httpx2.BaseTransport):
+    def __init__(self, transport: httpx2.BaseTransport) -> None:
         self._transport = transport
 
-    def handle_request(self, request: httpx.Request) -> httpx.Response:
+    def handle_request(self, request: httpx2.Request) -> httpx2.Response:
         info = BytesIO()
         info.write(f"{'-' * 50}\n".encode())
         if test_name := _TEST_NAME.get():
@@ -683,8 +760,8 @@ def _httpx_client(
     auth: Optional[_SecurityArtifact] = None,
     headers: Optional[_Headers] = None,
     cookies: Optional[dict[str, Any]] = None,
-    transport: Optional[httpx.BaseTransport] = None,
-) -> httpx.Client:
+    transport: Optional[httpx2.BaseTransport] = None,
+) -> httpx2.Client:
     if isinstance(auth, _AccessToken):
         cookies = {**(cookies or {}), PHOENIX_ACCESS_TOKEN_COOKIE_NAME: auth}
     elif isinstance(auth, _RefreshToken):
@@ -714,12 +791,12 @@ def _httpx_client(
         assert_never(auth)
     ssl_context = _get_ssl_context(app.env)
     # Having no timeout is useful when stepping through the debugger on the server side.
-    return httpx.Client(
+    return httpx2.Client(
         timeout=None,
         headers=headers,
         cookies=cookies,
         base_url=app.base_url,
-        transport=_LogTransport(transport or httpx.HTTPTransport(verify=ssl_context or False)),
+        transport=_LogTransport(transport or httpx2.HTTPTransport(verify=ssl_context or False)),
     )
 
 
@@ -741,6 +818,8 @@ def _get_ssl_context(env: Mapping[str, str]) -> Optional[ssl.SSLContext]:
 
 _SCHEMA_PREFIX = f"_{token_hex(3)}"
 
+_SECRET_ENV = ("PHOENIX_SECRET", "PHOENIX_ADMIN_SECRET")
+
 
 @contextmanager
 def _server(app: _AppInfo) -> Iterator[_AppInfo]:
@@ -750,26 +829,56 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
         app.env.get(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
     ).startswith(_SCHEMA_PREFIX):
         raise ValueError(f"{ENV_PHOENIX_SQL_DATABASE_SCHEMA} should start with {_SCHEMA_PREFIX}")
-    command = f"{sys.executable} -m phoenix.server.main serve"
-    env = {**os.environ, **app.env} if sys.platform == "win32" else dict(app.env)
-    process = Popen(command.split(), stdout=PIPE, stderr=STDOUT, text=True, env=env)
+    command = f"{sys.executable} -m phoenix.server.main serve --debug"
+    if sys.platform == "win32":
+        # Windows needs the parent's environment to start Python. Leave out inherited
+        # secrets so app.env alone decides whether the server has them.
+        env = {k: v for k, v in os.environ.items() if k not in _SECRET_ENV}
+        env.update(app.env)
+    else:
+        env = dict(app.env)
+    # The server's stdio and this pipe's reader must agree on an encoding, and
+    # the reader must never die on a byte it cannot decode: it is the only
+    # thing draining the pipe, and a server whose pipe is full blocks on its
+    # next log write and stops answering requests. The locale encoding that
+    # Popen(text=True) would otherwise use is cp1252 on Windows, which cannot
+    # decode the box-drawing glyphs Rich puts around a logged traceback.
+    env["PYTHONIOENCODING"] = "utf-8"
+    # Keep the built-in prices the bundled manifest's, and the tests off the network.
+    env[ENV_PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE] = "true"
+    process = Popen(
+        command.split(),
+        stdout=PIPE,
+        stderr=STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
     log: list[str] = []
     lock: Lock = Lock()
-    Thread(target=_capture_stdout, args=(process, log, lock), daemon=True).start()
-    t = 60
-    time_limit = time() + t
-    timed_out = False
-    url = str(urljoin(app.base_url, "healthz"))
-    ssl_context = _get_ssl_context(app.env)
-    while not timed_out and _is_alive(process):
-        sleep(0.1)
-        try:
-            urlopen(url, context=ssl_context)
-            break
-        except BaseException:
-            timed_out = time() > time_limit
+    reader = Thread(target=_capture_stdout, args=(process, log, lock), daemon=True)
+    reader_started = False
     try:
-        if timed_out:
+        reader.start()
+        reader_started = True
+        t = 60
+        time_limit = monotonic() + t
+        started = False
+        url = str(urljoin(app.base_url, "healthz"))
+        ssl_context = _get_ssl_context(app.env)
+        while _is_alive(process):
+            remaining = time_limit - monotonic()
+            if remaining <= 0:
+                break
+            try:
+                with urlopen(url, context=ssl_context, timeout=min(1.0, remaining)):
+                    pass
+                started = True
+                break
+            except OSError:
+                sleep(min(0.1, max(0.0, time_limit - monotonic())))
+        if not started and monotonic() >= time_limit:
             raise TimeoutError(f"Server {url} did not start within {t} seconds.")
         assert _is_alive(process)
         with lock:
@@ -777,17 +886,33 @@ def _server(app: _AppInfo) -> Iterator[_AppInfo]:
                 print(line, end="")
             log.clear()
         yield app
-        process.kill()
-        process.wait(10)
     finally:
-        for line in log:
-            print(line, end="")
+        try:
+            if process.poll() is None:
+                try:
+                    process.kill()
+                except (NoSuchProcess, ProcessLookupError):
+                    pass
+            try:
+                process.wait(timeout=10)
+            except (NoSuchProcess, ProcessLookupError):
+                pass
+        finally:
+            if reader_started:
+                reader.join(timeout=10)
+        with lock:
+            for line in log:
+                print(line, end="")
+            log.clear()
 
 
 def _is_alive(
     process: Popen,
 ) -> bool:
-    return process.is_running() and process.status() != STATUS_ZOMBIE
+    try:
+        return process.is_running() and process.status() != STATUS_ZOMBIE
+    except NoSuchProcess:
+        return False
 
 
 def _capture_stdout(
@@ -795,35 +920,40 @@ def _capture_stdout(
     log: list[str],
     lock: Lock,
 ) -> None:
-    while _is_alive(process):
-        line = process.stdout.readline()
-        if line or (log and log[-1] != line):
-            with lock:
-                log.append(line)
+    if process.stdout is None:
+        return
+    for line in process.stdout:
+        with lock:
+            log.append(line)
 
 
-@contextmanager
-def _random_schema(
+@asynccontextmanager
+async def _random_schema(
     url: URL,
-) -> Iterator[str]:
-    engine = create_engine(url.set(drivername="postgresql+psycopg"))
-    engine.connect().close()
-    engine.dispose()
+) -> AsyncIterator[str]:
+    async_url = get_async_db_url(url.render_as_string(hide_password=False))
+    async_engine = create_async_engine(async_url, poolclass=NullPool)
+
     schema = f"{_SCHEMA_PREFIX}{token_hex(16)}"[:63]
+    async with async_engine.connect() as conn:
+        await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        await conn.commit()
+
     yield schema
+
     time_limit = time() + 30
     while time() < time_limit:
         try:
-            with engine.connect() as conn:
-                conn.execute(text(f"DROP SCHEMA {schema} CASCADE;"))
-                conn.commit()
+            async with async_engine.connect() as conn:
+                await conn.execute(text(f"DROP SCHEMA {schema} CASCADE;"))
+                await conn.commit()
         except OperationalError as exc:
             if "too many clients" in str(exc):
-                sleep(1)
+                await asyncio.sleep(1)
                 continue
             raise
         break
-    engine.dispose()
+    await async_engine.dispose()
 
 
 def _gql(
@@ -834,10 +964,14 @@ def _gql(
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
     operation_name: Optional[str] = None,
+    raise_on_errors: bool = True,
 ) -> tuple[dict[str, Any], Headers]:
     json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
     resp = _httpx_client(app, auth).post("graphql", json=json_)
-    return _json(resp), resp.headers
+    if raise_on_errors:
+        return _json(resp), resp.headers
+    resp.raise_for_status()
+    return cast(dict[str, Any], resp.json()), resp.headers
 
 
 def _get_gql_spans(
@@ -846,7 +980,7 @@ def _get_gql_spans(
     /,
     *fields: str,
 ) -> dict[_ProjectName, list[dict[str, Any]]]:
-    out = "name spans{edges{node{" + " ".join(fields) + "}}}"
+    out = "name spans(first:1000){edges{node{" + " ".join(fields) + "}}}"
     query = "query{projects{edges{node{" + out + "}}}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert not resp_dict.get("errors")
@@ -874,7 +1008,7 @@ def _list_users(
         query = (
             "query{users"
             + args_str
-            + "{edges{node{id email username role{name}}} pageInfo{hasNextPage endCursor}}}"
+            + "{edges{node{id email username profilePictureUrl role{name}}} pageInfo{hasNextPage endCursor}}}"
         )
         resp_dict, _ = _gql(app, auth, query=query)
 
@@ -885,7 +1019,8 @@ def _list_users(
                 _User(
                     _GqlId(u["id"]),
                     UserRoleInput(u["role"]["name"]),
-                    _Profile(u["email"], "", u["username"]),
+                    _Profile(u["email"] or "", "", u["username"]),
+                    profile_picture_url=u.get("profilePictureUrl"),
                 )
                 for u in users
             ]
@@ -917,14 +1052,16 @@ def _create_user(
     if not local:
         args.append("authMethod:OAUTH2")
     args.append(f"sendWelcomeEmail:{str(send_welcome_email).lower()}")
-    out = "user{id email role{name}}"
+    out = "user{id email profilePictureUrl role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(app, auth, query=query)
     assert (user := resp_dict["data"]["createUser"]["user"])
     assert user["email"] == sanitize_email(email)
     assert user["role"]["name"] == role.value
     assert not headers.get("set-cookie")
-    return _User(_GqlId(user["id"]), role, profile)
+    return _User(
+        _GqlId(user["id"]), role, profile, profile_picture_url=user.get("profilePictureUrl")
+    )
 
 
 def _delete_users(
@@ -933,11 +1070,12 @@ def _delete_users(
     /,
     *,
     users: Iterable[Union[_GqlId, _User]],
-) -> None:
+) -> list[_GqlId]:
     user_ids = [u.gid if isinstance(u, _User) else u for u in users]
-    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds})}"
-    _, headers = _gql(app, auth, query=query, variables=dict(userIds=user_ids))
+    query = "mutation($userIds:[ID!]!){deleteUsers(input:{userIds:$userIds}){userIds}}"
+    response, headers = _gql(app, auth, query=query, variables=dict(userIds=user_ids))
     assert not headers.get("set-cookie")
+    return [_GqlId(user_id) for user_id in response["data"]["deleteUsers"]["userIds"]]
 
 
 def _patch_user_gid(
@@ -1141,15 +1279,8 @@ def _reset_password(
     resp.raise_for_status()
 
 
-def _export_embeddings(
-    app: _AppInfo, auth: Optional[_SecurityArtifact] = None, /, *, filename: str
-) -> None:
-    resp = _httpx_client(app, auth).get("/exports", params={"filename": filename})
-    resp.raise_for_status()
-
-
 def _json(
-    resp: httpx.Response,
+    resp: httpx2.Response,
 ) -> dict[str, Any]:
     resp.raise_for_status()
     assert (resp_dict := cast(dict[str, Any], resp.json()))
@@ -1237,6 +1368,7 @@ _COOKIE_NAMES = (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
 )
 
@@ -1261,6 +1393,56 @@ async def _await_or_return(obj: Union[_AnyT, Awaitable[_AnyT]]) -> _AnyT:
     if isinstance(obj, Awaitable):
         return cast(_AnyT, await obj)
     return obj
+
+
+@dataclass
+class _TestOverrides:
+    """Dynamic test overrides for simulating IDP state changes."""
+
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
+    user_logins_remaining: int = 0
+
+    role: Optional[str] = None
+    role_logins_remaining: int = 0
+
+    email: Optional[str] = None
+    email_logins_remaining: int = 0
+
+    picture: Optional[str] = None
+    picture_logins_remaining: int = 0
+
+    def consume_user(self) -> Optional[tuple[str, str, str]]:
+        """Consume and return user override if available."""
+        if self.user_logins_remaining > 0:
+            self.user_logins_remaining -= 1
+            assert self.user_id is not None
+            assert self.user_email is not None
+            assert self.user_name is not None
+            return self.user_id, self.user_email, self.user_name
+        return None
+
+    def consume_role(self) -> Optional[str]:
+        """Consume and return role override if available."""
+        if self.role_logins_remaining > 0:
+            self.role_logins_remaining -= 1
+            return self.role
+        return None
+
+    def consume_email(self) -> Optional[str]:
+        """Consume and return email override if available."""
+        if self.email_logins_remaining > 0:
+            self.email_logins_remaining -= 1
+            return self.email
+        return None
+
+    def consume_picture(self) -> Optional[str]:
+        """Consume and return picture override if available."""
+        if self.picture_logins_remaining > 0:
+            self.picture_logins_remaining -= 1
+            return self.picture
+        return None
 
 
 class _OIDCServer:
@@ -1304,6 +1486,7 @@ class _OIDCServer:
         port: int,
         use_pkce: bool = False,
         groups: Optional[list[str]] = None,
+        role: Optional[str] = None,
     ):
         """
         Initialize a new OIDC server instance.
@@ -1312,6 +1495,7 @@ class _OIDCServer:
             port: The port number on which the server will listen.
             use_pkce: Enable PKCE (Proof Key for Code Exchange) support.
             groups: List of groups to include in ID token claims (for group-based access control testing).
+            role: Role to include in ID token claims (for role mapping testing).
         """
         self._name: str = f"oidc_server_{token_hex(8)}"
         self._client_id: str = f"client_id_{token_hex(8)}"
@@ -1321,16 +1505,60 @@ class _OIDCServer:
         self._port: int = port
         self._use_pkce: bool = use_pkce
         self._groups: list[str] = groups or []
+        self._role: Optional[str] = role
         self._app = FastAPI()
-        self._nonce: Optional[str] = None
-        self._user_id: Optional[str] = None
-        self._user_email: Optional[str] = None
-        self._user_name: Optional[str] = None
         # PKCE state: maps auth_code -> code_challenge
         self._code_challenges: dict[str, str] = {}
+        # Dynamic test overrides for simulating IDP state changes
+        self._test_overrides = _TestOverrides()
+        # Auth sessions: maps auth_code -> session info
+        self._auth_sessions: dict[str, dict[str, Any]] = {}
+        # Current session data for /userinfo endpoint
+        self._current_session: Optional[dict[str, Any]] = None
         self._server: Optional[Generator[Thread, None, None]] = None
         self._thread: Optional[Thread] = None
         self._setup_routes()
+
+    def _generate_session_data(self, nonce: Optional[str]) -> dict[str, Any]:
+        """
+        Generate session data for the current auth request, considering test overrides.
+
+        Returns:
+            Dictionary containing user_id, user_email, user_name, user_picture, nonce, session_role, session_groups
+        """
+        # Determine user identity
+        user_override = self._test_overrides.consume_user()
+        if user_override:
+            user_id, user_email, user_name = user_override
+        else:
+            user_id = f"user_id_{token_hex(8)}"
+            user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
+            user_name = f"User {token_hex(8)}"
+
+        # Apply email override (independent of user override)
+        email_override = self._test_overrides.consume_email()
+        if email_override:
+            user_email = email_override
+
+        # Determine profile picture
+        picture_override = self._test_overrides.consume_picture()
+        user_picture = (
+            picture_override if picture_override is not None else "https://example.com/picture.jpg"
+        )
+
+        # Determine role
+        role_override = self._test_overrides.consume_role()
+        session_role = role_override if role_override is not None else self._role
+
+        return {
+            "user_id": user_id,
+            "user_email": user_email,
+            "user_name": user_name,
+            "user_picture": user_picture,
+            "nonce": nonce,
+            "session_role": session_role,
+            "session_groups": self._groups,
+        }
 
     def _setup_routes(self) -> None:
         """
@@ -1388,11 +1616,14 @@ class _OIDCServer:
 
                 self._code_challenges[auth_code] = code_challenge
 
-            # Generate user for this session
-            self._nonce = nonce
-            self._user_id = f"user_id_{token_hex(8)}"
-            self._user_email = _randomize_casing(f"{string.ascii_lowercase}@{token_hex(16)}.com")
-            self._user_name = f"User {token_hex(8)}"
+            # Generate session data for this authorization request
+            session_data = self._generate_session_data(nonce)
+
+            # Store session info keyed by auth_code
+            self._auth_sessions[auth_code] = session_data
+
+            # Also store as current session so properties (user_email, etc.) work immediately
+            self._current_session = session_data
 
             return RedirectResponse(
                 f"{redirect_uri}?code={auth_code}&state={state}",
@@ -1524,18 +1755,40 @@ class _OIDCServer:
                         status_code=400,
                     )
 
+            # Retrieve session info for this auth code
+            session = self._auth_sessions.get(code)
+            if not session:
+                return JSONResponse(
+                    {
+                        "error": "invalid_grant",
+                        "error_description": "Invalid or expired authorization code",
+                    },
+                    status_code=400,
+                )
+
+            # Store as current session for /userinfo endpoint
+            self._current_session = session
+
+            # Clean up session after first use (proper OAuth2 single-use behavior)
+            del self._auth_sessions[code]
+
             # Create ID token with required claims
             now = int(time())
             id_token_claims = {
                 "iss": self.base_url,
-                "sub": self._user_id,
+                "sub": session["user_id"],
                 "aud": self._client_id,
                 "iat": now,
                 "exp": now + 3600,
-                "email": self._user_email,
-                "name": self._user_name,
-                "nonce": self._nonce,
+                "email": session["user_email"],
+                "name": session["user_name"],
+                "picture": session["user_picture"],
+                "nonce": session["nonce"],
             }
+
+            # Add role if configured
+            if session["session_role"]:
+                id_token_claims["role"] = session["session_role"]
 
             # NOTE: Groups are intentionally NOT included in ID token to simulate
             # real-world IDPs (AWS Cognito, Azure AD) that keep ID tokens small.
@@ -1601,6 +1854,12 @@ class _OIDCServer:
                 assert isinstance(token_auth_methods, list)
                 token_auth_methods.append("none")
 
+            # Add role claim if configured
+            if self._role:
+                claims_supported = config["claims_supported"]
+                assert isinstance(claims_supported, list)
+                claims_supported.append("role")
+
             # Add groups claim if configured
             if self._groups:
                 claims_supported = config["claims_supported"]
@@ -1618,16 +1877,26 @@ class _OIDCServer:
             be retrieved from a real identity provider's user database.
             Includes groups claim if configured.
             """
+            if not self._current_session:
+                return JSONResponse(
+                    {"error": "invalid_token", "error_description": "No active session"},
+                    status_code=401,
+                )
+
             user_info = {
-                "sub": self._user_id,
-                "name": self._user_name,
-                "email": self._user_email,
-                "picture": "https://example.com/picture.jpg",
+                "sub": self._current_session["user_id"],
+                "name": self._current_session["user_name"],
+                "email": self._current_session["user_email"],
+                "picture": self._current_session["user_picture"],
             }
 
+            # Add role if configured
+            if self._current_session["session_role"]:
+                user_info["role"] = self._current_session["session_role"]
+
             # Add groups if configured
-            if self._groups:
-                user_info["groups"] = self._groups  # type: ignore[assignment]
+            if self._current_session["session_groups"]:
+                user_info["groups"] = self._current_session["session_groups"]
 
             return JSONResponse(user_info)
 
@@ -1695,17 +1964,17 @@ class _OIDCServer:
     @property
     def user_id(self) -> Optional[str]:
         """Get the current user ID."""
-        return self._user_id
+        return self._current_session["user_id"] if self._current_session else None
 
     @property
     def user_email(self) -> Optional[str]:
         """Get the current user email."""
-        return self._user_email
+        return self._current_session["user_email"] if self._current_session else None
 
     @property
     def user_name(self) -> Optional[str]:
         """Get the current user name."""
-        return self._user_name
+        return self._current_session["user_name"] if self._current_session else None
 
     @property
     def client_id(self) -> str:
@@ -1721,6 +1990,113 @@ class _OIDCServer:
     def groups(self) -> list[str]:
         """Get the configured groups for this OIDC server."""
         return self._groups
+
+    @property
+    def role(self) -> Optional[str]:
+        """Get the configured role for this OIDC server."""
+        return self._role
+
+    def set_role(self, role: Optional[str], num_logins: int) -> None:
+        """
+        Dynamically update the role that will be returned in ID token and userinfo claims.
+
+        This is useful for testing scenarios where a user's role changes in the IDP
+        between login sessions (e.g., a user gets promoted from MEMBER to ADMIN).
+
+        Args:
+            role: The new role value to return in claims, or None to remove role claims
+            num_logins: Number of logins to use this role for (must be > 0)
+
+        Example:
+            server.set_role("Owner", num_logins=1)
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.role = role
+        self._test_overrides.role_logins_remaining = num_logins
+
+    def set_email(self, email: str, num_logins: int) -> None:
+        """
+        Dynamically update the email that will be returned in ID token and userinfo claims.
+
+        This is useful for testing scenarios where a user's email changes in the IDP
+        between login sessions (e.g., a user updates their email address). This is
+        independent of set_user() and allows changing just the email while keeping
+        the same user_id.
+
+        Args:
+            email: The new email address to return in claims
+            num_logins: Number of logins to use this email for (must be > 0)
+
+        Example:
+            server.set_user("user_123", "alice@example.com", num_logins=2)
+            email1, _, _ = await complete_flow(app, server)  # alice@example.com
+
+            server.set_email("alice.new@example.com", num_logins=1)
+            email2, _, _ = await complete_flow(app, server)  # alice.new@example.com
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.email = email
+        self._test_overrides.email_logins_remaining = num_logins
+
+    def set_picture(self, picture: str, num_logins: int) -> None:
+        """
+        Dynamically update the profile picture URL that will be returned in userinfo claims.
+
+        This is useful for testing scenarios where a user's profile picture changes in the IDP
+        between login sessions (e.g., a user updates their avatar). This is independent of
+        set_user() and allows changing just the picture while keeping the same user_id.
+
+        Args:
+            picture: The new profile picture URL to return in claims
+            num_logins: Number of logins to use this picture for (must be > 0)
+
+        Example:
+            server.set_user("user_123", "alice@example.com", num_logins=2)
+            # First login - default picture
+
+            server.set_picture("https://example.com/new_avatar.jpg", num_logins=1)
+            # Second login - updated picture
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.picture = picture
+        self._test_overrides.picture_logins_remaining = num_logins
+
+    def set_user(
+        self,
+        user_id: str,
+        email: str,
+        num_logins: int,
+        name: Optional[str] = None,
+    ) -> None:
+        """
+        Set a persistent user identity for the next N login flows.
+
+        By default, the mock OIDC server generates a new random user on each /auth request.
+        This method allows you to persist a user's identity across multiple login flows,
+        which is essential for testing scenarios where the same user logs in multiple times
+        (e.g., to test role updates or email changes).
+
+        After num_logins auth requests, the server automatically reverts to generating
+        random users, so no manual cleanup is needed.
+
+        Args:
+            user_id: The persistent user ID (sub claim) to use
+            email: The persistent email to use
+            num_logins: Number of login flows to use this user for (must be > 0)
+            name: Optional name for the user (defaults to "User {user_id}" if None)
+
+        Example:
+            server.set_user("user_123", "alice@example.com", num_logins=2)
+            email1, _, _ = await complete_flow(app, server)  # First login
+            server.set_role("Owner", num_logins=1)  # Change role in IDP
+            email2, _, _ = await complete_flow(app, server)  # Second login - same user!
+            assert email1 == email2
+        """
+        assert num_logins > 0, "num_logins must be > 0"
+        self._test_overrides.user_id = user_id
+        self._test_overrides.user_email = email
+        self._test_overrides.user_name = name if name is not None else f"User {user_id}"
+        self._test_overrides.user_logins_remaining = num_logins
 
     @property
     def use_pkce(self) -> bool:
@@ -1828,12 +2204,12 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
         ).end()
     assert len(spans := memory.get_finished_spans()) == n
 
-    headers = {"authorization": f"Bearer {app.admin_secret}"}
+    headers = {"authorization": f"Bearer {_admin_bearer(app)}"}
     assert _grpc_span_exporter(app, headers=headers).export(spans) is SpanExportResult.SUCCESS
 
     span_ids = set()
     for span in spans:
-        assert (context := span.get_span_context())  # type: ignore[no-untyped-call]
+        assert (context := span.get_span_context())
         span_ids.add(format_span_id(context.span_id))
     assert len(span_ids) == n
 
@@ -1850,66 +2226,64 @@ def _get_existing_spans(
     span_ids: Iterable[_SpanId],
 ) -> set[_ExistingSpan]:
     ids = list(span_ids)
-    n = len(ids)
+    auth = _admin_auth(app)
+    if not isinstance(auth, _AdminSecret):
+        auth = auth.log_in(app)
     query = """
-      query ($filterCondition: String, $first: Int) {
-        projects {
-          edges {
-            node {
+      query ($spanId: String!) {
+        getSpanByOtelId(spanId: $spanId) {
+          id
+          spanId
+          trace {
+            id
+            traceId
+            project {
               id
               name
-              spans (filterCondition: $filterCondition, first: $first) {
-                edges {
-                  node {
-                    id
-                    spanId
-                    trace {
-                      id
-                      traceId
-                      session {
-                        id
-                        sessionId
-                      }
-                    }
-                  }
-                }
-              }
+            }
+            session {
+              id
+              sessionId
             }
           }
         }
       }
     """
-    res, _ = _gql(
-        app,
-        app.admin_secret,
-        query=query,
-        variables={"filterCondition": f"span_id in {ids}", "first": n},
-    )
-    return {
-        _ExistingSpan(
-            id=GlobalID.from_id(span["node"]["id"]),
-            span_id=span["node"]["spanId"],
+
+    def fetch_span(span_id: _SpanId) -> _ExistingSpan | None:
+        res, _ = _gql(
+            app,
+            auth,
+            query=query,
+            variables={"spanId": span_id},
+        )
+        span = res["data"]["getSpanByOtelId"]
+        if span is None:
+            return None
+        return _ExistingSpan(
+            id=GlobalID.from_id(span["id"]),
+            span_id=span["spanId"],
             trace=_ExistingTrace(
-                id=GlobalID.from_id(span["node"]["trace"]["id"]),
-                trace_id=span["node"]["trace"]["traceId"],
+                id=GlobalID.from_id(span["trace"]["id"]),
+                trace_id=span["trace"]["traceId"],
                 project=_ExistingProject(
-                    id=GlobalID.from_id(project["node"]["id"]),
-                    name=project["node"]["name"],
+                    id=GlobalID.from_id(span["trace"]["project"]["id"]),
+                    name=span["trace"]["project"]["name"],
                 ),
                 session=(
                     _ExistingSession(
-                        id=GlobalID.from_id(span["node"]["trace"]["session"]["id"]),
-                        session_id=span["node"]["trace"]["session"]["sessionId"],
+                        id=GlobalID.from_id(span["trace"]["session"]["id"]),
+                        session_id=span["trace"]["session"]["sessionId"],
                     )
-                    if span["node"]["trace"]["session"] is not None
+                    if span["trace"]["session"] is not None
                     else None
                 ),
             ),
         )
-        for project in res["data"]["projects"]["edges"]
-        for span in project["node"]["spans"]["edges"]
-        if span["node"]["spanId"] in ids
-    }
+
+    with ThreadPoolExecutor() as executor:
+        results = executor.map(fetch_span, ids)
+        return {span for span in results if span is not None}
 
 
 async def _until_spans_exist(app: _AppInfo, span_ids: Iterable[_SpanId]) -> None:
@@ -1932,14 +2306,23 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/versions"),
     (422, "GET", "v1/datasets/fake-id-{}/examples"),
     (422, "GET", "v1/datasets/fake-id-{}/csv"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    (404, "GET", "v1/datasets/fake-id-{}/splits"),
+    # Dataset labels
+    (200, "GET", "v1/dataset_labels"),
+    (422, "GET", "v1/dataset_labels/fake-id-{}"),
+    (404, "GET", "v1/datasets/fake-id-{}/labels"),
     # Experiments
     (422, "GET", "v1/experiments/fake-id-{}"),
     (422, "GET", "v1/datasets/fake-id-{}/experiments"),
     (422, "GET", "v1/experiments/fake-id-{}/runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/incomplete-runs"),
+    (422, "GET", "v1/experiments/fake-id-{}/incomplete-evaluations"),
     (422, "GET", "v1/experiments/fake-id-{}/json"),
     (422, "GET", "v1/experiments/fake-id-{}/csv"),
+    (422, "GET", "v1/experiments/fake-id-{}/tags"),
     # Prompts
     (200, "GET", "v1/prompts"),
     (200, "GET", "v1/prompts/fake-id-{}/versions"),
@@ -1950,8 +2333,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     # Annotation configs
     (200, "GET", "v1/annotation_configs"),
     (404, "GET", "v1/annotation_configs/fake-id-{}"),
-    # Evaluations
-    (404, "GET", "v1/evaluations"),
+    # Project annotation config assignments (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/annotation_configs"),
     # Spans (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/spans"),
     (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
@@ -1961,46 +2344,157 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/projects/fake-id-{}/session_annotations"),
     # Spans
     (422, "GET", "v1/spans"),
+    # Sessions
+    (404, "GET", "v1/projects/fake-id-{}/sessions"),
+    (404, "GET", "v1/sessions/fake-id-{}"),
+    # Traces (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Model providers
+    (200, "GET", "v1/model_providers"),
+    (200, "GET", "v1/custom_model_providers"),
+    # Viewer (authenticated user profile)
+    (200, "GET", "v1/user"),
+    # API keys (the authenticated user's own personal keys)
+    (200, "GET", "v1/user/api_keys"),
 )
 
 # Admin-only endpoints (user management, project CRUD)
 # Non-admins always receive 403, admins get expected_admin_status
 _ADMIN_ONLY_ENDPOINTS = (
     (200, "GET", "v1/users"),
+    (200, "GET", "v1/users/api_keys"),
     (422, "POST", "v1/users"),
     (422, "DELETE", "v1/users/fake-id-{}"),
     (422, "PUT", "v1/projects/fake-id-{}"),
+    (422, "PATCH", "v1/projects/fake-id-{}/retention"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
+    (422, "PUT", "v1/secrets"),
+    (200, "GET", "v1/system/api_keys"),
+    (422, "POST", "v1/system/api_keys"),
+    (422, "DELETE", "v1/system/api_keys/fake-id-{}"),
 )
 
-# Write operations blocked for viewers (POST/PUT/DELETE)
+# Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # POST routes
     (422, "POST", "v1/annotation_configs"),
+    (422, "POST", "v1/dataset_labels"),
     (400, "POST", "v1/datasets/upload"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
+    (422, "POST", "v1/datasets/fake-id-{}/splits"),
     (422, "POST", "v1/document_annotations"),
-    (415, "POST", "v1/evaluations"),
     (422, "POST", "v1/experiment_evaluations"),
     (422, "POST", "v1/experiments/fake-id-{}/runs"),
+    (422, "POST", "v1/experiments/fake-id-{}/tags"),
     (422, "POST", "v1/projects"),
     (422, "POST", "v1/projects/fake-id-{}/spans"),
     (422, "POST", "v1/prompts"),
+    (422, "POST", "v1/prompts/fake-id-{}/versions"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
+    (422, "POST", "v1/session_notes"),
     (422, "POST", "v1/span_annotations"),
+    (422, "POST", "v1/span_notes"),
     (422, "POST", "v1/spans"),
     (422, "POST", "v1/trace_annotations"),
+    (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
+    (422, "POST", "v1/traces/transfer"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    (404, "PUT", "v1/projects/{0}/annotation_configs/{0}"),
+    (422, "PUT", "v1/projects/fake-id-{}/annotation_configs"),
+    (422, "PUT", "v1/datasets/fake-id-{}/labels"),
+    (422, "PUT", "v1/datasets/fake-id-{}/labels/test-label"),
+    # PATCH routes
+    (422, "PATCH", "v1/experiments/fake-id-{}"),
+    (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
+    (422, "PATCH", "v1/prompts/fake-id-{}"),
+    (422, "PATCH", "v1/datasets/fake-id-{}/splits/test-split"),
     # DELETE routes
+    (422, "DELETE", "v1/projects/fake-id-{}/traces"),
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
+    (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
+    (422, "DELETE", "v1/dataset_labels/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/splits/test-split"),
+    (422, "DELETE", "v1/experiments/fake-id-{}"),
+    (422, "DELETE", "v1/experiments/fake-id-{}/tags/test-tag"),
+    (404, "DELETE", "v1/sessions/fake-id-{}"),
     (404, "DELETE", "v1/spans/fake-id-{}"),
+    (404, "DELETE", "v1/prompts/fake-id-{}"),
     (404, "DELETE", "v1/traces/fake-id-{}"),
+    (422, "DELETE", "v1/prompt_versions/fake-id-{}/tags/test-tag"),
+    (422, "DELETE", "v1/projects/fake-id-{}/span_annotations"),
+    (422, "DELETE", "v1/projects/fake-id-{}/trace_annotations"),
+    (422, "DELETE", "v1/projects/fake-id-{}/session_annotations"),
+    # Bulk delete routes
+    (422, "POST", "v1/sessions/delete"),
 )
+
+
+# Self-service credential writes are intentionally available to viewers.
+_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS = (
+    (422, "POST", "v1/user/api_keys"),
+    (422, "DELETE", "v1/user/api_keys/fake-id-{}"),
+)
+
+
+# POST endpoints that write nothing and are intentionally available to every
+# authenticated role, viewers included
+_VIEWER_ALLOWED_WRITE_OPERATIONS = ((422, "POST", "v1/chat/completions"),)
+
+
+# Credential issuance requires a human session (or, where supported, the admin secret).
+# A user API key cannot issue another credential, even when its owner has the required role.
+_SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS = frozenset(
+    {
+        ("POST", "v1/user/api_keys"),
+        ("POST", "v1/system/api_keys"),
+    }
+)
+
+
+# Endpoints that refuse to act when authentication is disabled, returning 403.
+#
+# These issue credentials. Without authentication Phoenix has no notion of identity, so
+# minting an API key would hand a durable bearer token to an anonymous caller. They still
+# appear in the registries above, so that the role matrix covers them when authentication
+# IS enabled, but a no-auth app must reject them regardless of the status code recorded
+# there.
+_AUTH_REQUIRED_ENDPOINTS = frozenset(
+    {
+        ("GET", "v1/user/api_keys"),
+        ("GET", "v1/users/api_keys"),
+        ("POST", "v1/user/api_keys"),
+        ("DELETE", "v1/user/api_keys/fake-id-{}"),
+        ("GET", "v1/system/api_keys"),
+        ("POST", "v1/system/api_keys"),
+        ("DELETE", "v1/system/api_keys/fake-id-{}"),
+    }
+)
+
+
+def _join_paths(prefix: _RoutePath, path: _RoutePath) -> _RoutePath:
+    if not prefix:
+        return path
+    return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _get_api_route_methods_and_paths(
+    routes: Iterable[BaseRoute], prefix: _RoutePath = ""
+) -> Iterator[tuple[_HttpMethod, _RoutePath]]:
+    for route in routes:
+        if isinstance(route, APIRoute):
+            for method in route.methods or ():
+                yield method, _join_paths(prefix, route.path)
+        elif isinstance(route, _IncludedRouter):
+            include_prefix = route.include_context.prefix
+            yield from _get_api_route_methods_and_paths(
+                route.original_router.routes, _join_paths(prefix, include_prefix)
+            )
 
 
 def _ensure_endpoint_coverage_is_exhaustive() -> None:
@@ -2009,20 +2503,9 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
     This runs at module import time as a prerequisite check. If endpoint
     coverage is incomplete, all tests that import this module will fail fast.
     """
-    import re
-
-    from fastapi.routing import APIRoute
-
-    from phoenix.server.api.routers.v1 import create_v1_router
-
     # Get all actual routes from the v1 router
     router = create_v1_router(authentication_enabled=False)
-    actual_routes = {
-        (method, route.path)
-        for route in router.routes
-        if isinstance(route, APIRoute)
-        for method in route.methods
-    }
+    actual_routes = set(_get_api_route_methods_and_paths(router.routes))
 
     # Get all routes from test constants
     test_routes = {
@@ -2031,6 +2514,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             _COMMON_RESOURCE_ENDPOINTS,
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
+            _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+            _VIEWER_ALLOWED_WRITE_OPERATIONS,
         )
     }
 
@@ -2041,6 +2526,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
         path = re.sub(r"fake-id-\{\}", "{id}", path)
         path = re.sub(r"\{[^}]*\}", "{id}", path)
         path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
+        path = re.sub(r"/labels/test-label$", "/labels/{id}", path)
+        path = re.sub(r"/splits/test-split$", "/splits/{id}", path)
         return path
 
     # Map normalized paths back to original paths for error reporting
@@ -2065,7 +2552,9 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
                 f"Add these to _helpers.py:\n"
                 f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
                 f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
-                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"  - Viewer-blocked writes → _VIEWER_BLOCKED_WRITE_OPERATIONS\n"
+                f"  - Viewer credential self-service → _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS\n"
+                f"  - Viewer-allowed writes (e.g. LLM proxy) → _VIEWER_ALLOWED_WRITE_OPERATIONS\n\n"
                 f"Format: (expected_status_code, method, endpoint_path)\n"
                 f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
             )
@@ -2076,9 +2565,127 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
             error_parts.append(
                 f"Routes in test constants but NOT in server (removed?):\n{routes_str}\n\n"
                 f"Remove these from _COMMON_RESOURCE_ENDPOINTS, _ADMIN_ONLY_ENDPOINTS,\n"
-                f"or _VIEWER_BLOCKED_WRITE_OPERATIONS in _helpers.py"
+                f"_VIEWER_BLOCKED_WRITE_OPERATIONS, _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,\n"
+                f"or _VIEWER_ALLOWED_WRITE_OPERATIONS in _helpers.py"
             )
         raise AssertionError("Endpoint coverage is incomplete!\n\n" + "\n\n".join(error_parts))
 
 
 _ensure_endpoint_coverage_is_exhaustive()
+
+
+# =============================================================================
+# Apollo Multipart Subscription Helpers
+# =============================================================================
+
+
+async def _parse_apollo_multipart_response(
+    response: httpx2.Response,
+) -> AsyncIterator[dict[str, Any]]:
+    """Parse Apollo multipart subscription response.
+
+    The Apollo multipart subscription protocol streams GraphQL subscription
+    results over HTTP using multipart/mixed content type.
+
+    The response format is:
+    --boundary
+    Content-Type: application/json
+
+    {"data": {...}}
+    --boundary
+    ...
+    --boundary--
+
+    Usage:
+        async with client.stream(
+            "POST",
+            "/graphql",
+            json={"query": subscription_query, "variables": variables},
+            headers={
+                "Accept": "multipart/mixed; deferSpec=20220824, application/json",
+                "Content-Type": "application/json",
+            },
+        ) as response:
+            async for payload in _parse_apollo_multipart_response(response):
+                # payload is a dict like {"data": {...}}
+                ...
+    """
+    content_type = response.headers.get("content-type", "")
+
+    # Handle regular JSON response (non-streaming)
+    if "application/json" in content_type and "multipart" not in content_type:
+        data: dict[str, Any] = json.loads(await response.aread())
+        yield data
+        return
+
+    # Handle multipart response
+    buffer = b""
+    boundary: bytes | None = None
+
+    # Extract boundary from content-type header
+    if "boundary=" in content_type:
+        boundary = content_type.split("boundary=")[1].split(";")[0].strip().encode()
+
+    async for chunk in response.aiter_bytes():
+        buffer += chunk
+
+        # Try to extract complete parts
+        while True:
+            if boundary is None:
+                # Try to detect boundary from first line
+                if b"\r\n" in buffer:
+                    first_line = buffer.split(b"\r\n")[0]
+                    if first_line.startswith(b"--"):
+                        boundary = first_line[2:]
+
+            if boundary is None:
+                break
+
+            # Look for complete parts
+            delimiter = b"--" + boundary
+            end_delimiter = delimiter + b"--"
+
+            if end_delimiter in buffer:
+                # Final part - process remaining
+                parts = buffer.split(delimiter)
+                for part in parts[1:]:  # Skip empty first part
+                    if part.strip() and not part.startswith(b"--"):
+                        json_data = _extract_json_from_multipart_part(part)
+                        if json_data:
+                            yield json_data
+                return
+
+            # Check if we have a complete part
+            parts = buffer.split(delimiter)
+            if len(parts) > 2:
+                # We have at least one complete part
+                for part in parts[1:-1]:  # Skip first empty and last incomplete
+                    json_data = _extract_json_from_multipart_part(part)
+                    if json_data:
+                        yield json_data
+                buffer = delimiter + parts[-1]
+            else:
+                break
+
+
+def _extract_json_from_multipart_part(part: bytes) -> dict[str, Any] | None:
+    """Extract JSON from a multipart part.
+
+    Skips HTTP headers in the part and parses the JSON body.
+    """
+    # Skip headers to find JSON body
+    if b"\r\n\r\n" in part:
+        _, body = part.split(b"\r\n\r\n", 1)
+    elif b"\n\n" in part:
+        _, body = part.split(b"\n\n", 1)
+    else:
+        body = part
+
+    body = body.strip()
+    if not body or body == b"--":
+        return None
+
+    try:
+        return cast(dict[str, Any], json.loads(body.decode("utf-8")))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None

@@ -1,81 +1,153 @@
 from __future__ import annotations
 
-import asyncio
 import importlib.util
-import inspect
-import json
-import time
+import re
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
-from dataclasses import dataclass
-from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union
+from contextlib import AbstractAsyncContextManager, AsyncExitStack, asynccontextmanager
+from itertools import chain
+from secrets import token_hex
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Hashable,
+    Iterable,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+    cast,
+)
 
+import openinference.instrumentation as oi
+import sqlalchemy as sa
 import wrapt
-from openinference.instrumentation import safe_json_dumps
+from openinference.instrumentation import (
+    get_llm_provider_attributes,
+    get_llm_system_attributes,
+    get_output_attributes,
+    safe_json_dumps,
+)
+from openinference.instrumentation.openai._attributes._responses_api import (
+    _ResponsesApiAttributes,
+)
 from openinference.semconv.trace import (
+    MessageAttributes,
     OpenInferenceLLMProviderValues,
     OpenInferenceLLMSystemValues,
+    OpenInferenceMimeTypeValues,
+    OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolAttributes,
+    ToolCallAttributes,
 )
-from strawberry import UNSET
-from strawberry.scalars import JSON as JSONScalarType
+from opentelemetry.context import Context as OtelContext
+from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer
+from opentelemetry.trace import Span as OTelSpan
+from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias, assert_never, override
 
 from phoenix.config import getenv
-from phoenix.evals.models.rate_limiters import (
-    AsyncCallable,
-    GenericType,
-    ParameterSpec,
-    RateLimiter,
-    RateLimitError,
+from phoenix.db import models
+from phoenix.db.types.experiment_config import ConnectionConfig
+from phoenix.db.types.model_provider import (
+    ClientFactory,
+    GenerativeModelCustomerProviderConfig,
+    LLMClientFactory,
+    ModelProvider,
+    anthropic_rate_limit_key,
+    azure_rate_limit_key,
+    bedrock_rate_limit_key,
+    google_rate_limit_key,
+    is_sdk_compatible_with_model_provider,
+    openai_rate_limit_key,
 )
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicOutputConfig,
+    PromptAnthropicThinkingConfigAdaptive,
+    PromptAnthropicThinkingConfigDisabled,
+    PromptAnthropicThinkingConfigEnabled,
+    PromptAwsInvocationParameters,
+    PromptGoogleInvocationParameters,
+    PromptGoogleThinkingConfig,
+    PromptInvocationParameters,
+    PromptOpenAIInvocationParameters,
+    PromptResponseFormat,
+    PromptTools,
+)
+from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, PlaygroundToolCall
 from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, register_llm_client
-from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
-from phoenix.server.api.input_types.InvocationParameters import (
-    BoundedFloatInvocationParameter,
-    CanonicalParameterName,
-    FloatInvocationParameter,
-    IntInvocationParameter,
-    InvocationParameter,
-    InvocationParameterInput,
-    JSONInvocationParameter,
-    StringInvocationParameter,
-    StringListInvocationParameter,
-    extract_parameter,
-    validate_invocation_parameters,
-)
+from phoenix.server.api.input_types.ConnectionConfigInput import OPENAI_SDK_STYLE_PROVIDER_KEYS
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     TextChunk,
     ToolCallChunk,
 )
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import (
+    GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING,
+    MINIMAX_MODEL_NAMES,
+    GenerativeProviderKey,
+)
+from phoenix.utilities.json import jsonify
 
 if TYPE_CHECKING:
-    import httpx
-    from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
-    from botocore.awsrequest import AWSPreparedRequest  # type: ignore[import-untyped]
-    from google.generativeai.types import ContentType
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
+    import httpx2
+    from anthropic import AsyncAnthropic
+    from anthropic.lib.streaming import AsyncMessageStreamManager
+    from anthropic.types import MessageParam, TextBlockParam, ToolUseBlockParam
+    from anthropic.types.message_create_params import MessageCreateParamsBase
+    from anthropic.types.usage import Usage
+    from google.genai.client import AsyncClient as GoogleAsyncClient
+    from google.genai.types import (
+        ContentUnionDict,
+        GenerateContentConfig,
+        GenerateContentResponse,
+    )
+    from openai import AsyncOpenAI
+    from openai._streaming import AsyncStream
+    from openai.lib.streaming.responses import AsyncResponseStreamManager
     from openai.types import CompletionUsage
-    from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
-    from opentelemetry.util.types import AttributeValue
+    from openai.types.chat import (
+        ChatCompletion,
+        ChatCompletionMessageParam,
+    )
+    from openai.types.chat import (
+        ChatCompletionChunk as OpenAIChatCompletionChunk,
+    )
+    from openai.types.chat.completion_create_params import CompletionCreateParamsBase
+    from openai.types.responses import (
+        Response,
+        ResponseInputItemParam,
+    )
+    from types_aiobotocore_bedrock_runtime.client import BedrockRuntimeClient
+    from types_aiobotocore_bedrock_runtime.type_defs import (
+        ContentBlockTypeDef,
+        ConverseResponseTypeDef,
+        ConverseStreamRequestTypeDef,
+        ConverseStreamResponseTypeDef,
+        MessageOutputTypeDef,
+        MessageTypeDef,
+    )
+
+    from phoenix.trace.attributes import AttributeValue
+
+# TypeVar for generic client type
+ClientT = TypeVar("ClientT")
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
-
-
-@dataclass
-class PlaygroundClientCredential:
-    """
-    Represents a credential for LLM providers.
-    """
-
-    env_var_name: str
-    value: str
+ToolCallID: TypeAlias = str
 
 
 class Dependency:
@@ -92,102 +164,28 @@ class Dependency:
         return self.module_name or self.name
 
 
-class KeyedSingleton:
-    _instances: dict[Hashable, "KeyedSingleton"] = {}
+class PlaygroundClient(ABC, Generic[ClientT]):
+    _client_factory: ClientFactory[ClientT]
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> "KeyedSingleton":
-        if "singleton_key" in kwargs:
-            singleton_key = kwargs.pop("singleton_key")
-        elif args:
-            singleton_key = args[0]
-            args = args[1:]
-        else:
-            raise ValueError("singleton_key must be provided")
-
-        instance_key = (cls, singleton_key)
-        if instance_key not in cls._instances:
-            instance = super().__new__(cls)
-            cls._instances[instance_key] = instance
-        return cls._instances[instance_key]
-
-
-class PlaygroundRateLimiter(RateLimiter, KeyedSingleton):
-    """
-    A rate rate limiter class that will be instantiated once per `singleton_key`.
-    """
-
-    def __init__(self, singleton_key: Hashable, rate_limit_error: Optional[type[BaseException]]):
-        super().__init__(
-            rate_limit_error=rate_limit_error,
-            max_rate_limit_retries=3,
-            initial_per_second_request_rate=1.0,
-            maximum_per_second_request_rate=3.0,
-            enforcement_window_minutes=0.05,
-            rate_reduction_factor=0.5,
-            rate_increase_factor=0.01,
-            cooldown_seconds=5,
-            verbose=False,
-        )
-
-    # TODO: update the rate limiter class in phoenix.evals to support decorated sync functions
-    def _alimit(
-        self, fn: Callable[ParameterSpec, GenericType]
-    ) -> AsyncCallable[ParameterSpec, GenericType]:
-        @wraps(fn)
-        async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-            self._initialize_async_primitives()
-            assert self._rate_limit_handling_lock is not None and isinstance(
-                self._rate_limit_handling_lock, asyncio.Lock
-            )
-            assert self._rate_limit_handling is not None and isinstance(
-                self._rate_limit_handling, asyncio.Event
-            )
-            try:
-                try:
-                    await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
-                except asyncio.TimeoutError:
-                    self._rate_limit_handling.set()  # Set the event as a failsafe
-                await self._throttler.async_wait_until_ready()
-                request_start_time = time.time()
-                maybe_coroutine = fn(*args, **kwargs)
-                if inspect.isawaitable(maybe_coroutine):
-                    return await maybe_coroutine  # type: ignore[no-any-return]
-                else:
-                    return maybe_coroutine
-            except self._rate_limit_error:
-                async with self._rate_limit_handling_lock:
-                    self._rate_limit_handling.clear()  # prevent new requests from starting
-                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
-                    try:
-                        for _attempt in range(self._max_rate_limit_retries):
-                            try:
-                                request_start_time = time.time()
-                                await self._throttler.async_wait_until_ready()
-                                maybe_coroutine = fn(*args, **kwargs)
-                                if inspect.isawaitable(maybe_coroutine):
-                                    return await maybe_coroutine  # type: ignore[no-any-return]
-                                else:
-                                    return maybe_coroutine
-                            except self._rate_limit_error:
-                                self._throttler.on_rate_limit_error(
-                                    request_start_time, verbose=self._verbose
-                                )
-                                continue
-                    finally:
-                        self._rate_limit_handling.set()  # allow new requests to start
-            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
-
-        return wrapper
-
-
-class PlaygroundStreamingClient(ABC):
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: ClientFactory[ClientT],
+        model_name: str,
+        provider: str,
     ) -> None:
-        self._attributes: dict[str, AttributeValue] = dict()
-        self._credentials = credentials or []
+        self.provider = provider
+        self.model_name = model_name
+        self._client_factory = client_factory
+
+    @property
+    @abstractmethod
+    def llm_system(self) -> str: ...
+
+    @property
+    def supports_forced_tool_choice(self) -> bool:
+        """True if the model accepts a tool choice that requires a tool call; false otherwise."""
+        return True
 
     @classmethod
     @abstractmethod
@@ -195,43 +193,68 @@ class PlaygroundStreamingClient(ABC):
         # A list of dependencies this client needs to run
         ...
 
-    @classmethod
-    @abstractmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]: ...
-
-    @abstractmethod
     async def chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None = None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        tracer: Tracer | None = None,
+        otel_context: OtelContext | None = None,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        # a yield statement is needed to satisfy the type-checker
-        # https://mypy.readthedocs.io/en/stable/more_types.html#asynchronous-iterators
-        yield TextChunk(content="")
+        tracer_ = tracer or NoOpTracer()
+        attributes = dict(
+            chain(
+                llm_span_kind(),
+                llm_model_name(self.model_name),
+                get_llm_system_attributes(self.llm_system).items(),
+                get_llm_provider_attributes(self.provider).items(),
+                llm_input_messages(messages),
+            )
+        )
 
-    @classmethod
-    def construct_invocation_parameters(
-        cls, invocation_parameters: list[InvocationParameterInput]
-    ) -> dict[str, Any]:
-        supported_params = cls.supported_invocation_parameters()
-        params = {param.invocation_name: param for param in supported_params}
+        # Use start_span (not start_as_current_span) and span.end() in finally so we never
+        # attach contextvars in the generator. Avoids "Failed to detach context" /
+        # "Token was created in a different Context" when the generator is closed in another task.
+        # otel_context can be passed as OtelContext() by callers that want to prevent the
+        # ambient OTel context from leaking its trace_id into the playground span.
+        span = tracer_.start_span(
+            "ChatCompletion",
+            context=otel_context,
+            attributes=attributes,
+            set_status_on_exception=False,  # we set status manually
+        )
+        try:
+            async for chunk in self._chat_completion_create(
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+                stream_model_output=stream_model_output,
+            ):
+                yield chunk
+            span.set_status(Status(StatusCode.OK))
+        except Exception as e:
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            span.record_exception(e)
+            raise
+        finally:
+            span.end()
 
-        formatted_invocation_parameters = dict()
-
-        for param_input in invocation_parameters:
-            invocation_name = param_input.invocation_name
-            if invocation_name not in params:
-                raise ValueError(f"Unsupported invocation parameter: {invocation_name}")
-
-            param_def = params[invocation_name]
-            value = extract_parameter(param_def, param_input)
-            if value is not UNSET:
-                formatted_invocation_parameters[invocation_name] = value
-        validate_invocation_parameters(supported_params, formatted_invocation_parameters)
-        return formatted_invocation_parameters
+    @abstractmethod
+    def _chat_completion_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
+    ) -> AsyncIterator[ChatCompletionChunk]: ...
 
     @classmethod
     def dependencies_are_installed(cls) -> bool:
@@ -245,218 +268,970 @@ class PlaygroundStreamingClient(ABC):
             # happens in some cases if the spec is None
             return False
 
+    def get_rate_limit_key(self) -> Hashable:
+        """Return a hashable key for rate limit bucketing.
+
+        Clients sharing the same key will share rate limit capacity.
+        Delegates to the client factory which has the full context.
+        """
+        return self._client_factory.rate_limit_key
+
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        """Check if the exception is a rate limit error for this provider.
+
+        Subclasses should override this method with provider-specific logic.
+        Default implementation uses class name heuristics.
+        """
+        error_name = type(e).__name__.lower()
+        return "ratelimit" in error_name or "throttl" in error_name
+
+    def is_transient_error(self, e: Exception) -> bool:
+        """Check if the exception is a transient error that should be retried.
+
+        Subclasses should override this method with provider-specific logic.
+        Default implementation checks for common transient patterns.
+        """
+        error_name = type(e).__name__.lower()
+        if "timeout" in error_name or "connection" in error_name:
+            return True
+        # Check HTTP status code if available
+        status_code = getattr(e, "status_code", None)
+        if status_code and 500 <= status_code < 600:
+            return True
+        return False
+
+    def get_retry_after_seconds(self, e: Exception) -> Optional[float]:
+        """Extract retry-after duration from the error response, if available.
+
+        Subclasses should override this method with provider-specific logic.
+        Default implementation checks for common header patterns.
+        """
+        response = getattr(e, "response", None)
+        if response is None:
+            return None
+
+        headers = getattr(response, "headers", None)
+        if headers is None:
+            return None
+
+        # Try retry-after-ms first (non-standard but more precise)
+        retry_ms = headers.get("retry-after-ms")
+        if retry_ms:
+            try:
+                return float(retry_ms) / 1000
+            except (TypeError, ValueError):
+                pass
+
+        # Try retry-after as seconds
+        retry_after = headers.get("retry-after")
+        if retry_after:
+            try:
+                return float(retry_after)
+            except (TypeError, ValueError):
+                pass
+
+        return None
+
+
+class OpenAICompatibleClient(PlaygroundClient["AsyncOpenAI"]):
     @property
-    def attributes(self) -> dict[str, Any]:
-        return self._attributes
+    def llm_system(self) -> str:
+        return OpenInferenceLLMSystemValues.OPENAI.value
 
-
-class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
         *,
-        client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        client_factory: ClientFactory["AsyncOpenAI"],
+        model_name: str,
+        provider: str,
     ) -> None:
-        from openai import RateLimitError as OpenAIRateLimitError
+        if not model_name:
+            raise BadRequest("A model name is required for OpenAI models")
 
-        super().__init__(model=model, credentials=credentials)
-        self.client = client
-        self.model_name = model.name
-        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
-        self.client._client = _HttpxClient(self.client._client, self._attributes)
+        super().__init__(
+            client_factory=client_factory,
+            provider=provider,
+            model_name=model_name,
+        )
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="openai")]
 
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-        return [
-            BoundedFloatInvocationParameter(
-                invocation_name="temperature",
-                canonical_name=CanonicalParameterName.TEMPERATURE,
-                label="Temperature",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=2.0,
-            ),
-            IntInvocationParameter(
-                invocation_name="max_tokens",
-                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Tokens",
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="frequency_penalty",
-                label="Frequency Penalty",
-                default_value=0.0,
-                min_value=-2.0,
-                max_value=2.0,
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="presence_penalty",
-                label="Presence Penalty",
-                default_value=0.0,
-                min_value=-2.0,
-                max_value=2.0,
-            ),
-            StringListInvocationParameter(
-                invocation_name="stop",
-                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
-                label="Stop Sequences",
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="top_p",
-                canonical_name=CanonicalParameterName.TOP_P,
-                label="Top P",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            IntInvocationParameter(
-                invocation_name="seed",
-                canonical_name=CanonicalParameterName.RANDOM_SEED,
-                label="Seed",
-            ),
-            JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
-            JSONInvocationParameter(
-                invocation_name="response_format",
-                label="Response Format",
-                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
-            ),
-        ]
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        from openai import APIStatusError
 
-    async def chat_completion_create(
+        return isinstance(e, APIStatusError) and e.status_code == 429
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        from openai import APIConnectionError, APIStatusError, APITimeoutError
+
+        if isinstance(e, (APIConnectionError, APITimeoutError)):
+            return True
+        return isinstance(e, APIStatusError) and 500 <= e.status_code
+
+    def _openai_chat_completion_build_params(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
-        from openai.types.chat import ChatCompletionStreamOptionsParam
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptOpenAIInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> tuple[CompletionCreateParamsBase, dict[str, Any] | None]:
+        from openai.types.chat import ChatCompletionFunctionToolParam
+        from openai.types.chat.completion_create_params import CompletionCreateParamsBase
+        from openai.types.shared_params import ResponseFormatJSONSchema
+        from openai.types.shared_params.function_definition import FunctionDefinition
+        from openai.types.shared_params.response_format_json_schema import JSONSchema
 
-        # Convert standard messages to OpenAI messages
         openai_messages = []
         for message in messages:
-            openai_message = self.to_openai_chat_completion_param(*message)
+            openai_message = self._to_openai_chat_completion_message_param(message)
             if openai_message is not None:
                 openai_messages.append(openai_message)
-        tool_call_ids: dict[int, str] = {}
-        token_usage: Optional["CompletionUsage"] = None
-        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        async for chunk in await throttled_create(
+
+        params = CompletionCreateParamsBase(
             messages=openai_messages,
             model=self.model_name,
-            stream=True,
-            stream_options=ChatCompletionStreamOptionsParam(include_usage=True),
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        ):
-            if (usage := chunk.usage) is not None:
-                token_usage = usage
-            if not chunk.choices:
-                # for Azure, initial chunk contains the content filter
-                continue
-            choice = chunk.choices[0]
-            delta = choice.delta
-            if choice.finish_reason is None:
-                if isinstance(chunk_content := delta.content, str):
-                    text_chunk = TextChunk(content=chunk_content)
-                    yield text_chunk
-                if (tool_calls := delta.tool_calls) is not None:
-                    for tool_call_index, tool_call in enumerate(tool_calls):
-                        tool_call_id = (
-                            tool_call.id
-                            if tool_call.id is not None
-                            else tool_call_ids[tool_call_index]
-                        )
-                        tool_call_ids[tool_call_index] = tool_call_id
-                        if (function := tool_call.function) is not None:
-                            tool_call_chunk = ToolCallChunk(
-                                id=tool_call_id,
-                                function=FunctionCallChunk(
-                                    name=function.name or "",
-                                    arguments=function.arguments or "",
-                                ),
-                            )
-                            yield tool_call_chunk
-        if token_usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(token_usage)))
+        )
 
-    def to_openai_chat_completion_param(
+        if tools:
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    params["tool_choice"] = "none"
+                elif tc.type == "zero_or_more":
+                    params["tool_choice"] = "auto"
+                elif tc.type == "one_or_more":
+                    params["tool_choice"] = "required"
+                elif tc.type == "specific_function":
+                    params["tool_choice"] = {
+                        "type": "function",
+                        "function": {"name": tc.function_name},
+                    }
+                else:
+                    assert_never(tc.type)
+            if tools.disable_parallel_tool_calls:
+                params["parallel_tool_calls"] = False
+            if dt := tools.tools:
+                tool_list: list[ChatCompletionFunctionToolParam] = []
+                for tool in dt:
+                    if tool.type == "raw":
+                        continue
+                    assert tool.type == "function"
+                    f = tool.function
+                    fn_def = FunctionDefinition(
+                        name=f.name,
+                        parameters=f.parameters if f.parameters else {},
+                        strict=f.strict if isinstance(f.strict, bool) else None,
+                    )
+                    if f.description:
+                        fn_def["description"] = f.description
+                    tool_list.append(
+                        ChatCompletionFunctionToolParam(type="function", function=fn_def)
+                    )
+                params["tools"] = tool_list
+
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                json_schema: JSONSchema = {"name": js.name}
+                if js.description:
+                    json_schema["description"] = js.description
+                if js.schema_:
+                    json_schema["schema"] = js.schema_
+                if isinstance(js.strict, bool):
+                    json_schema["strict"] = js.strict
+                params["response_format"] = ResponseFormatJSONSchema(
+                    type="json_schema", json_schema=json_schema
+                )
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        extra_body: dict[str, Any] | None = None
+
+        if invocation_parameters:
+            if isinstance(invocation_parameters.openai.temperature, float):
+                params["temperature"] = invocation_parameters.openai.temperature
+            if isinstance(invocation_parameters.openai.max_completion_tokens, int):
+                params["max_completion_tokens"] = invocation_parameters.openai.max_completion_tokens
+            if isinstance(invocation_parameters.openai.max_tokens, int):
+                params["max_completion_tokens"] = invocation_parameters.openai.max_tokens
+            if isinstance(invocation_parameters.openai.frequency_penalty, float):
+                params["frequency_penalty"] = invocation_parameters.openai.frequency_penalty
+            if isinstance(invocation_parameters.openai.presence_penalty, float):
+                params["presence_penalty"] = invocation_parameters.openai.presence_penalty
+            if isinstance(invocation_parameters.openai.top_p, float):
+                params["top_p"] = invocation_parameters.openai.top_p
+            if isinstance(invocation_parameters.openai.seed, int):
+                params["seed"] = invocation_parameters.openai.seed
+            if isinstance(invocation_parameters.openai.stop, list):
+                params["stop"] = invocation_parameters.openai.stop
+            if invocation_parameters.openai.reasoning_effort:
+                params["reasoning_effort"] = invocation_parameters.openai.reasoning_effort
+            if isinstance(invocation_parameters.openai.extra_body, dict):
+                extra_body = invocation_parameters.openai.extra_body
+
+        if tool_params := params.get("tools"):
+            for i, tool_param in enumerate(tool_params):
+                span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
+        input_value = dict(params)
+        if extra_body:
+            input_value["extra_body"] = extra_body
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("messages", None)
+        input_value.pop("model", None)
+        input_value.pop("tools", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
+
+        return params, extra_body
+
+    async def _openai_chat_completion_create_stream(
         self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
+        *,
+        client: AsyncOpenAI,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptOpenAIInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> AsyncStream[OpenAIChatCompletionChunk]:
+        from openai.types.chat import ChatCompletionStreamOptionsParam
+
+        params, extra_body = self._openai_chat_completion_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
+        params["stream_options"] = ChatCompletionStreamOptionsParam(include_usage=True)
+
+        chat_completion_stream = await client.chat.completions.create(
+            **params,
+            extra_body=extra_body,
+            stream=True,
+        )
+        return chat_completion_stream
+
+    async def _openai_chat_completion_create_non_stream(
+        self,
+        *,
+        client: AsyncOpenAI,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptOpenAIInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> "ChatCompletion":
+        from openai.types.chat import ChatCompletion
+
+        params, extra_body = self._openai_chat_completion_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
+        result = await client.chat.completions.create(
+            **params,
+            extra_body=extra_body,
+            stream=False,
+        )
+        assert isinstance(result, ChatCompletion)
+        return result
+
+    @staticmethod
+    def _chunks_from_openai_chat_completion(
+        completion: "ChatCompletion",
+    ) -> Iterator[ChatCompletionChunk]:
+        from openai.types.chat import ChatCompletion
+
+        assert isinstance(completion, ChatCompletion)
+        if not completion.choices:
+            return
+        choice = completion.choices[0]
+        msg = choice.message
+        if msg.content is not None:
+            if isinstance(msg.content, str):
+                yield TextChunk(content=msg.content)
+            else:
+                for part in msg.content:
+                    if part.type == "text" and part.text:
+                        yield TextChunk(content=part.text)
+        if msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.type == "function":
+                    yield ToolCallChunk(
+                        id=tc.id,
+                        function=FunctionCallChunk(
+                            name=tc.function.name,
+                            arguments=tc.function.arguments or "",
+                        ),
+                    )
+                elif tc.type == "custom":
+                    pass
+                elif TYPE_CHECKING:
+                    assert_never(tc.type)
+
+    def _openai_response_build_params(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptOpenAIInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> tuple[Any, dict[str, Any] | None]:
+        from openai.types.responses.function_tool_param import FunctionToolParam
+        from openai.types.responses.response_create_params import ResponseCreateParamsBase
+        from openai.types.responses.response_format_text_json_schema_config_param import (
+            ResponseFormatTextJSONSchemaConfigParam,
+        )
+        from openai.types.responses.response_text_config_param import (
+            ResponseTextConfigParam,
+        )
+        from openai.types.responses.tool_choice_function_param import ToolChoiceFunctionParam
+        from openai.types.responses.tool_param import ToolParam
+        from openai.types.shared_params.reasoning import Reasoning
+
+        params = ResponseCreateParamsBase(
+            input=self._to_openai_response_input_item_param(messages),
+            model=self.model_name,
+        )
+
+        if tools:
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    params["tool_choice"] = "none"
+                elif tc.type == "zero_or_more":
+                    params["tool_choice"] = "auto"
+                elif tc.type == "one_or_more":
+                    params["tool_choice"] = "required"
+                elif tc.type == "specific_function":
+                    params["tool_choice"] = ToolChoiceFunctionParam(
+                        type="function",
+                        name=tc.function_name,
+                    )
+                else:
+                    assert_never(tc.type)
+            if tools.disable_parallel_tool_calls:
+                params["parallel_tool_calls"] = False
+            if tools.tools:
+                resp_tool_list: list[ToolParam] = []
+                for tool in tools.tools:
+                    if tool.type == "raw":
+                        resp_tool_list.append(cast(ToolParam, tool.raw))
+                        continue
+                    assert tool.type == "function"
+                    f = tool.function
+                    t = FunctionToolParam(
+                        type="function",
+                        name=f.name,
+                        parameters=f.parameters if f.parameters else None,
+                        strict=f.strict if isinstance(f.strict, bool) else None,
+                    )
+                    if f.description:
+                        t["description"] = f.description
+                    resp_tool_list.append(t)
+                params["tools"] = resp_tool_list
+
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                fmt = ResponseFormatTextJSONSchemaConfigParam(
+                    type="json_schema",
+                    name=js.name,
+                    schema=js.schema_ if js.schema_ else {},
+                )
+                if js.description:
+                    fmt["description"] = js.description
+                if isinstance(js.strict, bool):
+                    fmt["strict"] = js.strict
+                params["text"] = ResponseTextConfigParam(format=fmt)
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        extra_body: dict[str, Any] | None = None
+        reasoning: Reasoning = Reasoning()
+        if invocation_parameters:
+            if isinstance(invocation_parameters.openai.temperature, float):
+                params["temperature"] = invocation_parameters.openai.temperature
+            if isinstance(invocation_parameters.openai.max_completion_tokens, int):
+                params["max_output_tokens"] = invocation_parameters.openai.max_completion_tokens
+            if isinstance(invocation_parameters.openai.top_p, float):
+                params["top_p"] = invocation_parameters.openai.top_p
+            if invocation_parameters.openai.reasoning_effort:
+                reasoning["effort"] = invocation_parameters.openai.reasoning_effort
+            if isinstance(invocation_parameters.openai.extra_body, dict):
+                extra_body = invocation_parameters.openai.extra_body
+        if reasoning:
+            params["reasoning"] = reasoning
+        if tool_params := params.get("tools"):
+            for i, tool_param in enumerate(tool_params):
+                span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
+        input_value = dict(params)
+        if extra_body:
+            input_value["extra_body"] = extra_body
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("input", None)
+        input_value.pop("model", None)
+        input_value.pop("tools", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
+
+        return params, extra_body
+
+    def _to_openai_response_stream_manager(
+        self,
+        *,
+        client: AsyncOpenAI,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptOpenAIInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> AsyncResponseStreamManager[Any]:
+        params, extra_body = self._openai_response_build_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
+        return client.responses.stream(
+            **params,
+            extra_body=extra_body,
+        )
+
+    async def _chat_completion_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        if invocation_parameters is not None and not isinstance(
+            invocation_parameters, PromptOpenAIInvocationParameters
+        ):
+            raise ValueError("invocation_parameters must be a PromptOpenAIInvocationParameters")
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        if not stream_model_output:
+            async with AsyncExitStack() as stack:
+                client = await stack.enter_async_context(self._client_factory())
+                client._client = _HttpxClient(client._client, span=span)
+                completion = await self._openai_chat_completion_create_non_stream(
+                    client=client,
+                    messages=messages,
+                    tools=tools,
+                    response_format=response_format,
+                    invocation_parameters=invocation_parameters,
+                    span=span,
+                )
+                if completion.usage is not None:
+                    span.set_attributes(dict(self._llm_token_counts(completion.usage)))
+                span.set_attribute(OUTPUT_VALUE, completion.model_dump_json(exclude_none=True))
+                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+                for chunk in self._chunks_from_openai_chat_completion(completion):
+                    if isinstance(chunk, TextChunk):
+                        text_chunks.append(chunk)
+                    elif isinstance(chunk, ToolCallChunk):
+                        tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
+            if text_chunks or tool_call_chunks:
+                span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            return
+
+        tool_call_ids: dict[int, str] = {}
+        token_usage: CompletionUsage | None = None
+        async with AsyncExitStack() as stack:
+            client = await stack.enter_async_context(self._client_factory())
+            client._client = _HttpxClient(client._client, span=span)
+            openai_stream = await self._openai_chat_completion_create_stream(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+            )
+            async for oai_chunk in openai_stream:
+                if (usage := oai_chunk.usage) is not None:
+                    token_usage = usage
+                if not oai_chunk.choices:
+                    # for Azure, initial chunk contains the content filter
+                    continue
+                choice = oai_chunk.choices[0]
+                delta = choice.delta
+                if choice.finish_reason is None:
+                    if isinstance(chunk_content := delta.content, str):
+                        tc = TextChunk(content=chunk_content)
+                        text_chunks.append(tc)
+                        yield tc
+                    if (tool_calls := delta.tool_calls) is not None:
+                        for tool_call_index, tool_call in enumerate(tool_calls):
+                            tool_call_id = (
+                                tool_call.id
+                                if tool_call.id is not None
+                                else tool_call_ids[tool_call_index]
+                            )
+                            tool_call_ids[tool_call_index] = tool_call_id
+                            if (function := tool_call.function) is not None:
+                                tcc = ToolCallChunk(
+                                    id=tool_call_id,
+                                    function=FunctionCallChunk(
+                                        name=function.name or "",
+                                        arguments=function.arguments or "",
+                                    ),
+                                )
+                                tool_call_chunks[tcc.id].append(tcc)
+                                yield tcc
+
+            if token_usage is not None:
+                span.set_attributes(dict(self._llm_token_counts(token_usage)))
+        if text_chunks or tool_call_chunks:
+            span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
+                span.set_attributes(output_attrs)
+
+    @staticmethod
+    def _to_openai_response_input_item_param(
+        messages: Sequence[PlaygroundMessage],
+    ) -> list["ResponseInputItemParam"]:
+        from openai.types.responses.easy_input_message_param import EasyInputMessageParam
+        from openai.types.responses.response_function_tool_call_param import (
+            ResponseFunctionToolCallParam,
+        )
+        from openai.types.responses.response_input_item_param import FunctionCallOutput
+
+        result: list["ResponseInputItemParam"] = []
+        for message in messages:
+            role = message["role"]
+            content = message["content"] or ""
+            if role is ChatCompletionMessageRole.USER:
+                result.append(
+                    EasyInputMessageParam(
+                        role="user",
+                        content=content,
+                        type="message",
+                    )
+                )
+            elif role is ChatCompletionMessageRole.SYSTEM:
+                result.append(
+                    EasyInputMessageParam(
+                        role="system",
+                        content=content,
+                        type="message",
+                    )
+                )
+            elif role is ChatCompletionMessageRole.AI:
+                result.append(
+                    EasyInputMessageParam(
+                        role="assistant",
+                        content=content,
+                        type="message",
+                    )
+                )
+                tool_calls = message.get("tool_calls")
+                if tool_calls:
+                    for tc in tool_calls:
+                        fn = tc["function"]
+                        result.append(
+                            ResponseFunctionToolCallParam(
+                                call_id=tc["id"],
+                                name=fn["name"],
+                                arguments=safe_json_dumps(fn["arguments"]),
+                                type="function_call",
+                            )
+                        )
+            elif role is ChatCompletionMessageRole.TOOL:
+                tool_call_id = message.get("tool_call_id")
+                if tool_call_id is not None:
+                    result.append(
+                        FunctionCallOutput(
+                            call_id=tool_call_id,
+                            output=content,
+                            type="function_call_output",
+                        )
+                    )
+            else:
+                assert_never(role)
+        return result
+
+    @staticmethod
+    def _chunks_from_openai_responses_response(resp: "Response") -> Iterator[ChatCompletionChunk]:
+        for item in resp.output or []:
+            if item.type == "message":
+                for block in item.content or []:
+                    if block.type == "output_text":
+                        yield TextChunk(content=block.text)
+            elif item.type == "function_call":
+                yield ToolCallChunk(
+                    id=item.call_id,
+                    function=FunctionCallChunk(
+                        name=item.name,
+                        arguments=item.arguments or "",
+                    ),
+                )
+            elif item.type == "custom_tool_call":
+                yield ToolCallChunk(
+                    id=item.call_id,
+                    function=FunctionCallChunk(
+                        name=item.name,
+                        arguments=item.input or "",
+                    ),
+                )
+
+    async def _responses_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptOpenAIInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        """
+        OpenAI Responses API (responses.create) streaming. Yields TextChunk and
+        ToolCallChunk; sets span attributes from the completed response at the end.
+        """
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        completed_response: Optional["Response"] = None
+        if not stream_model_output:
+            async with AsyncExitStack() as stack:
+                client = await stack.enter_async_context(self._client_factory())
+                client._client = _HttpxClient(client._client, span=span)
+                params, extra_body = self._openai_response_build_params(
+                    messages=messages,
+                    tools=tools,
+                    response_format=response_format,
+                    invocation_parameters=invocation_parameters,
+                    span=span,
+                )
+                resp = await client.responses.create(**params, extra_body=extra_body)
+                completed_response = resp
+                for chunk in self._chunks_from_openai_responses_response(resp):
+                    if isinstance(chunk, TextChunk):
+                        text_chunks.append(chunk)
+                    elif isinstance(chunk, ToolCallChunk):
+                        tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
+            if completed_response is not None:
+                span.set_attribute(
+                    OUTPUT_VALUE, completed_response.model_dump_json(exclude_none=True)
+                )
+                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+                span.set_attributes(
+                    dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
+                )
+            elif text_chunks or tool_call_chunks:
+                span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            return
+
+        async with AsyncExitStack() as stack:
+            client = await stack.enter_async_context(self._client_factory())
+            client._client = _HttpxClient(client._client, span=span)
+            stream_manager = self._to_openai_response_stream_manager(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+            )
+            event_stream = await stack.enter_async_context(stream_manager)
+            async for event in event_stream:
+                if event.type == "response.output_text.delta":
+                    delta = event.delta
+                    if delta and isinstance(delta, str):
+                        tc = TextChunk(content=delta)
+                        text_chunks.append(tc)
+                        yield tc
+                elif event.type == "response.output_text.done":
+                    pass
+                elif event.type == "response.output_item.added":
+                    pass
+                elif event.type == "response.output_item.done":
+                    item = event.item
+                    if item.type == "function_call":
+                        tcc = ToolCallChunk(
+                            id=item.call_id,
+                            function=FunctionCallChunk(
+                                name=item.name,
+                                arguments=item.arguments,
+                            ),
+                        )
+                        tool_call_chunks[tcc.id].append(tcc)
+                        yield tcc
+                    elif item.type == "custom_tool_call":
+                        tcc = ToolCallChunk(
+                            id=item.call_id,
+                            function=FunctionCallChunk(
+                                name=item.name,
+                                arguments=item.input,
+                            ),
+                        )
+                        tool_call_chunks[tcc.id].append(tcc)
+                        yield tcc
+                    elif item.type == "message":
+                        pass
+                    elif item.type == "file_search_call":
+                        pass
+                    elif item.type == "web_search_call":
+                        pass
+                    elif item.type == "computer_call":
+                        pass
+                    elif item.type == "reasoning":
+                        pass
+                    elif item.type == "compaction":
+                        pass
+                    elif item.type == "image_generation_call":
+                        pass
+                    elif item.type == "code_interpreter_call":
+                        pass
+                    elif item.type == "local_shell_call":
+                        pass
+                    elif item.type == "shell_call":
+                        pass
+                    elif item.type == "shell_call_output":
+                        pass
+                    elif item.type == "apply_patch_call":
+                        pass
+                    elif item.type == "apply_patch_call_output":
+                        pass
+                    elif item.type == "mcp_call":
+                        pass
+                    elif item.type == "mcp_list_tools":
+                        pass
+                    elif item.type == "mcp_approval_request":
+                        pass
+                    elif item.type == "tool_search_call":
+                        pass
+                    elif item.type == "tool_search_output":
+                        pass
+                    elif item.type == "function_call_output":
+                        pass
+                    elif item.type == "computer_call_output":
+                        pass
+                    elif item.type == "local_shell_call_output":
+                        pass
+                    elif item.type == "mcp_approval_response":
+                        pass
+                    elif item.type == "custom_tool_call_output":
+                        pass
+                    elif item.type == "additional_tools":
+                        pass
+                    elif item.type == "program":
+                        pass
+                    elif item.type == "program_output":
+                        pass
+                    elif TYPE_CHECKING:
+                        assert_never(item.type)
+                elif event.type == "response.completed":
+                    completed_response = event.response
+                elif event.type == "response.failed":
+                    resp = event.response
+                    msg = "OpenAI Responses API request failed"
+                    if (err := resp.error) is not None:
+                        msg = err.message
+                        if err.code:
+                            msg = f"{msg} (code: {err.code})"
+                    raise RuntimeError(msg)
+                elif event.type == "response.incomplete":
+                    resp = event.response
+                    msg = "OpenAI Responses API request incomplete"
+                    if (err := resp.error) is not None:
+                        msg = err.message
+                    raise RuntimeError(msg)
+                elif event.type == "error":
+                    msg = event.message
+                    if event.code:
+                        msg = f"{msg} (code: {event.code})"
+                    if event.param:
+                        msg = f"{msg} (param: {event.param})"
+                    raise RuntimeError(msg)
+                elif event.type == "response.audio.delta":
+                    pass
+                elif event.type == "response.audio.done":
+                    pass
+                elif event.type == "response.audio.transcript.delta":
+                    pass
+                elif event.type == "response.audio.transcript.done":
+                    pass
+                elif event.type == "response.code_interpreter_call_code.delta":
+                    pass
+                elif event.type == "response.code_interpreter_call_code.done":
+                    pass
+                elif event.type == "response.code_interpreter_call.completed":
+                    pass
+                elif event.type == "response.code_interpreter_call.in_progress":
+                    pass
+                elif event.type == "response.code_interpreter_call.interpreting":
+                    pass
+                elif event.type == "response.content_part.added":
+                    pass
+                elif event.type == "response.content_part.done":
+                    pass
+                elif event.type == "response.created":
+                    pass
+                elif event.type == "response.file_search_call.completed":
+                    pass
+                elif event.type == "response.file_search_call.in_progress":
+                    pass
+                elif event.type == "response.file_search_call.searching":
+                    pass
+                elif event.type == "response.function_call_arguments.delta":
+                    pass
+                elif event.type == "response.function_call_arguments.done":
+                    pass
+                elif event.type == "response.custom_tool_call_input.done":
+                    pass
+                elif event.type == "response.in_progress":
+                    pass
+                elif event.type == "response.reasoning_summary_part.added":
+                    pass
+                elif event.type == "response.reasoning_summary_part.done":
+                    pass
+                elif event.type == "response.reasoning_summary_text.delta":
+                    pass
+                elif event.type == "response.reasoning_summary_text.done":
+                    pass
+                elif event.type == "response.reasoning_text.delta":
+                    pass
+                elif event.type == "response.reasoning_text.done":
+                    pass
+                elif event.type == "response.refusal.delta":
+                    pass
+                elif event.type == "response.refusal.done":
+                    pass
+                elif event.type == "response.web_search_call.completed":
+                    pass
+                elif event.type == "response.web_search_call.in_progress":
+                    pass
+                elif event.type == "response.web_search_call.searching":
+                    pass
+                elif event.type == "response.image_generation_call.completed":
+                    pass
+                elif event.type == "response.image_generation_call.generating":
+                    pass
+                elif event.type == "response.image_generation_call.in_progress":
+                    pass
+                elif event.type == "response.image_generation_call.partial_image":
+                    pass
+                elif event.type == "response.mcp_call_arguments.delta":
+                    pass
+                elif event.type == "response.mcp_call_arguments.done":
+                    pass
+                elif event.type == "response.mcp_call.completed":
+                    pass
+                elif event.type == "response.mcp_call.failed":
+                    pass
+                elif event.type == "response.mcp_call.in_progress":
+                    pass
+                elif event.type == "response.mcp_list_tools.completed":
+                    pass
+                elif event.type == "response.mcp_list_tools.failed":
+                    pass
+                elif event.type == "response.mcp_list_tools.in_progress":
+                    pass
+                elif event.type == "response.output_text.annotation.added":
+                    pass
+                elif event.type == "response.queued":
+                    pass
+                elif event.type == "response.custom_tool_call_input.delta":
+                    pass
+                elif event.type == "response.shell_call_command.added":
+                    pass
+                elif event.type == "response.shell_call_command.delta":
+                    pass
+                elif event.type == "response.shell_call_command.done":
+                    pass
+                elif event.type == "response.shell_call_output_content.delta":
+                    pass
+                elif event.type == "response.shell_call_output_content.done":
+                    pass
+                elif event.type == "response.compaction.compacting":
+                    pass
+                elif TYPE_CHECKING:
+                    assert_never(event.type)
+
+        if completed_response is not None:
+            span.set_attribute(OUTPUT_VALUE, completed_response.model_dump_json(exclude_none=True))
+            span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+            span.set_attributes(
+                dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
+            )
+        elif text_chunks or tool_call_chunks:
+            span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+
+    def _to_openai_chat_completion_message_param(
+        self,
+        message: PlaygroundMessage,
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
+            ChatCompletionMessageToolCallParam,
             ChatCompletionSystemMessageParam,
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
+        from openai.types.chat.chat_completion_message_function_tool_call_param import Function
+
+        role = message["role"]
+        content = message["content"]
+        tool_call_id = message.get("tool_call_id")
+        tool_calls = message.get("tool_calls")
 
         if role is ChatCompletionMessageRole.USER:
             return ChatCompletionUserMessageParam(
-                {
-                    "content": content,
-                    "role": "user",
-                }
+                content=content,
+                role="user",
             )
         if role is ChatCompletionMessageRole.SYSTEM:
             return ChatCompletionSystemMessageParam(
-                {
-                    "content": content,
-                    "role": "system",
-                }
+                content=content,
+                role="system",
             )
         if role is ChatCompletionMessageRole.AI:
             if tool_calls is None:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                    }
+                    content=content,
+                    role="assistant",
                 )
             else:
                 return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                        "tool_calls": [
-                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
-                        ],
-                    }
+                    content=content,
+                    role="assistant",
+                    tool_calls=[
+                        ChatCompletionMessageToolCallParam(
+                            type="function",
+                            id=tool_call["id"],
+                            function=Function(
+                                name=tool_call["function"]["name"],
+                                arguments=safe_json_dumps(tool_call["function"]["arguments"]),
+                            ),
+                        )
+                        for tool_call in tool_calls
+                    ],
                 )
         if role is ChatCompletionMessageRole.TOOL:
             if tool_call_id is None:
                 raise ValueError("tool_call_id is required for tool messages")
             return ChatCompletionToolMessageParam(
-                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
+                content=content,
+                role="tool",
+                tool_call_id=tool_call_id,
             )
         assert_never(role)
-
-    def to_openai_tool_call_param(
-        self,
-        tool_call: JSONScalarType,
-    ) -> "ChatCompletionMessageToolCallParam":
-        from openai.types.chat import ChatCompletionMessageToolCallParam
-
-        return ChatCompletionMessageToolCallParam(
-            id=tool_call.get("id", ""),
-            function={
-                "name": tool_call.get("function", {}).get("name", ""),
-                "arguments": safe_json_dumps(tool_call.get("function", {}).get("arguments", "")),
-            },
-            type="function",
-        )
 
     @staticmethod
     def _llm_token_counts(usage: "CompletionUsage") -> Iterator[tuple[str, Any]]:
@@ -494,66 +1269,14 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
                 yield LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO, completion_details.audio_tokens
 
 
-def _get_credential_value(
-    credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str
-) -> Optional[str]:
-    """Helper function to extract credential value from credentials list."""
-    if not credentials:
-        return None
-    return next(
-        (credential.value for credential in credentials if credential.env_var_name == env_var_name),
-        None,
-    )
-
-
-def _require_credential(
-    credentials: Optional[list[PlaygroundClientCredential]], env_var_name: str, provider_name: str
-) -> str:
-    """Helper function to require a credential value, raising an exception if not found."""
-    value = _get_credential_value(credentials, env_var_name)
-    if value is None:
-        raise BadRequest(f"Missing required credential '{env_var_name}' for {provider_name}")
-    return value
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.DEEPSEEK,
     model_names=[
         PROVIDER_DEFAULT,
-        "deepseek-chat",
-        "deepseek-reasoner",
     ],
 )
-class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
-
-        base_url = model.base_url or getenv("DEEPSEEK_BASE_URL")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "DEEPSEEK_API_KEY") or getenv(
-            "DEEPSEEK_API_KEY"
-        )
-
-        if not api_key:
-            if not base_url:
-                raise BadRequest("An API key is required for DeepSeek models")
-            api_key = "sk-fake-api-key"
-
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url or "https://api.deepseek.com",
-            default_headers=model.custom_headers or None,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        # DeepSeek uses OpenAI-compatible API but we'll track it as a separate provider
-        # Adding a custom "deepseek" provider value to make it distinguishable in traces
-        self._attributes[LLM_PROVIDER] = "deepseek"
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+class DeepSeekClient(OpenAICompatibleClient):
+    pass
 
 
 @register_llm_client(
@@ -568,34 +1291,8 @@ class DeepSeekStreamingClient(OpenAIBaseStreamingClient):
         "grok-2-vision-1212",
     ],
 )
-class XAIStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
-
-        base_url = model.base_url or getenv("XAI_BASE_URL")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "XAI_API_KEY") or getenv("XAI_API_KEY")
-
-        if not api_key:
-            if not base_url:
-                raise BadRequest("An API key is required for xAI models")
-            api_key = "sk-fake-api-key"
-
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url or "https://api.x.ai/v1",
-            default_headers=model.custom_headers or None,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        # xAI uses OpenAI-compatible API but we'll track it as a separate provider
-        # Adding a custom "xai" provider value to make it distinguishable in traces
-        self._attributes[LLM_PROVIDER] = "xai"
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+class XAIClient(OpenAICompatibleClient):
+    pass
 
 
 @register_llm_client(
@@ -615,39 +1312,162 @@ class XAIStreamingClient(OpenAIBaseStreamingClient):
         "gemma2",
     ],
 )
-class OllamaStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
+class OllamaClient(OpenAICompatibleClient):
+    pass
 
-        base_url = model.base_url or getenv("OLLAMA_BASE_URL")
-        if not base_url:
-            raise BadRequest("An Ollama base URL is required for Ollama models")
-        api_key = "ollama"
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            default_headers=model.custom_headers or None,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        # Ollama uses OpenAI-compatible API but we'll track it as a separate provider
-        # Adding a custom "ollama" provider value to make it distinguishable in traces
-        self._attributes[LLM_PROVIDER] = "ollama"
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.CEREBRAS,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "qwen-3.8-27b",
+        "llama3.1-8b",
+        "gpt-oss-120b",
+    ],
+)
+class CerebrasClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.FIREWORKS,
+    model_names=[
+        PROVIDER_DEFAULT,
+    ],
+)
+class FireworksClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.GROQ,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+    ],
+)
+class GroqClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.MOONSHOT,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "kimi-k3",
+        "kimi-k2.7-code",
+        "kimi-k2.6",
+        "kimi-k2-turbo-preview",
+        "kimi-k2-thinking-turbo",
+        "kimi-k2-thinking",
+        "kimi-k2.5",
+        "moonshot-v1-128k",
+        "moonshot-v1-32k",
+        "moonshot-v1-8k",
+        "moonshot-v1-auto",
+    ],
+)
+class MoonshotClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.MINIMAX,
+    model_names=[
+        PROVIDER_DEFAULT,
+        *MINIMAX_MODEL_NAMES,
+    ],
+)
+class MiniMaxClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.PERPLEXITY,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "sonar-pro",
+        "sonar-reasoning-pro",
+        "sonar",
+        "sonar-deep-research",
+    ],
+)
+class PerplexityClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.TOGETHER,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "moonshotai/Kimi-K3",
+        "moonshotai/Kimi-K2.5",
+        "deepseek-ai/DeepSeek-V4.1-Flash",
+        "openai/gpt-oss-120b",
+        "zai-org/GLM-5.3",
+        "Qwen/Qwen3-235B-A22B-Thinking-2507",
+        "deepseek-ai/DeepSeek-R1",
+    ],
+)
+class TogetherClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.ZAI,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "glm-5.3",
+        "glm-5.3-flash",
+        "glm-5.2",
+        "glm-5.1",
+        "glm-5",
+        "glm-4.7",
+        "glm-4.6",
+        "glm-4.5",
+        "glm-4.5-air",
+    ],
+)
+class ZAIClient(OpenAICompatibleClient):
+    pass
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.META,
+    model_names=[
+        PROVIDER_DEFAULT,
+        "muse-wonder-1.0",
+        "muse-spark-1.3",
+        "muse-spark-1.3-contributor",
+        "muse-spark-1.2",
+        "muse-spark-1.2-contributor",
+        "muse-spark-1.1",
+    ],
+)
+class MetaClient(OpenAICompatibleClient):
+    pass
 
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
-        "anthropic.claude-3-5-sonnet-20240620-v1:0",
-        "anthropic.claude-3-7-sonnet-20250219-v1:0",
-        "anthropic.claude-3-haiku-20240307-v1:0",
-        "anthropic.claude-3-5-sonnet-20241022-v2:0",
-        "anthropic.claude-3-5-haiku-20241022-v1:0",
+        "anthropic.claude-fable-5-1",
+        "anthropic.claude-fable-5",
+        "anthropic.claude-opus-5-5",
+        "anthropic.claude-opus-5",
+        "anthropic.claude-opus-4-8",
+        "anthropic.claude-opus-4-7",
+        "anthropic.claude-sonnet-5-5",
+        "anthropic.claude-sonnet-5",
+        "anthropic.claude-haiku-5-5",
+        "anthropic.claude-opus-4-6-v1",
+        "anthropic.claude-sonnet-4-6",
+        "anthropic.claude-opus-4-5-20251101-v1:0",
+        "anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "anthropic.claude-haiku-4-5-20251001-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
         "anthropic.claude-sonnet-4-20250514-v1:0",
         "amazon.titan-embed-text-v2:0",
@@ -675,626 +1495,569 @@ class OllamaStreamingClient(OpenAIBaseStreamingClient):
         "meta.llama4-maverick-17b-instruct-v1:0",
     ],
 )
-class BedrockStreamingClient(PlaygroundStreamingClient):
+class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
+    @property
+    def llm_system(self) -> str:
+        return "aws"
+
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        is_anthropic_model = "anthropic." in self.model_name.lower()
+        return not is_anthropic_model or anthropic_model_supports_forced_tool_choice(
+            self.model_name
+        )
+
+    # AWS Bedrock throttling error codes
+    _THROTTLE_ERROR_CODES = frozenset(
+        [
+            "ThrottlingException",
+            "TooManyRequestsException",
+            "ServiceQuotaExceededException",
+            "ProvisionedThroughputExceededException",
+            "RequestLimitExceeded",
+            "BandwidthLimitExceeded",
+            "LimitExceededException",
+        ]
+    )
+    _TRANSIENT_ERROR_CODES = frozenset(
+        [
+            "ServiceUnavailableException",
+            "InternalServerException",
+            "ModelNotReadyException",
+            "RequestTimeout",
+            "RequestTimeoutException",
+        ]
+    )
+
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: ClientFactory["BedrockRuntimeClient"],
+        model_name: str,
+        provider: str = "aws",
     ) -> None:
-        import boto3  # type: ignore[import-untyped]
-
-        super().__init__(model=model, credentials=credentials)
-        self.region = model.region or "us-east-1"
-        self.api = "converse"
-        self.custom_headers = model.custom_headers or {}
-        self.aws_access_key_id = _get_credential_value(credentials, "AWS_ACCESS_KEY_ID") or getenv(
-            "AWS_ACCESS_KEY_ID"
-        )
-        self.aws_secret_access_key = _get_credential_value(
-            credentials, "AWS_SECRET_ACCESS_KEY"
-        ) or getenv("AWS_SECRET_ACCESS_KEY")
-        self.aws_session_token = _get_credential_value(credentials, "AWS_SESSION_TOKEN") or getenv(
-            "AWS_SESSION_TOKEN"
-        )
-        self.model_name = model.name
-        self.client = boto3.client(
-            service_name="bedrock-runtime",
-            region_name="us-east-1",  # match the default region in the UI
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            aws_session_token=self.aws_session_token,
-        )
-
-        # Add custom headers support via boto3 event system
-        if self.custom_headers:
-            self._setup_custom_headers(self.client, self.custom_headers)
-
-        self._attributes[LLM_PROVIDER] = "aws"
-        self._attributes[LLM_SYSTEM] = "aws"
-
-    @staticmethod
-    def _setup_custom_headers(client: Any, custom_headers: Mapping[str, str]) -> None:
-        """Setup custom headers using boto3's event system."""
-        if not custom_headers:
-            return
-
-        def add_custom_headers(request: "AWSPreparedRequest", **kwargs: Any) -> None:
-            request.headers.update(custom_headers)
-
-        client.meta.events.register("before-send.*", add_custom_headers)
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
-        return [Dependency(name="boto3")]
+        return [Dependency(name="aioboto3")]
 
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-        return [
-            IntInvocationParameter(
-                invocation_name="max_tokens",
-                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Tokens",
-                default_value=1024,
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="temperature",
-                canonical_name=CanonicalParameterName.TEMPERATURE,
-                label="Temperature",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="top_p",
-                canonical_name=CanonicalParameterName.TOP_P,
-                label="Top P",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
-        ]
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
-    async def chat_completion_create(
+        if isinstance(e, ClientError):
+            error_code = e.response.get("Error", {}).get("Code", "")
+            return error_code in self._THROTTLE_ERROR_CODES
+        return False
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        from botocore.exceptions import (
+            ClientError,
+            ConnectionError,
+            ConnectTimeoutError,
+            HTTPClientError,
+            ReadTimeoutError,
+        )
+
+        # Connection/timeout errors are transient
+        if isinstance(e, (ConnectionError, ConnectTimeoutError, ReadTimeoutError, HTTPClientError)):
+            return True
+
+        if isinstance(e, ClientError):
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code in self._TRANSIENT_ERROR_CODES:
+                return True
+            # Also check HTTP status for 5xx
+            status_code = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            if status_code and 500 <= status_code < 600:
+                return True
+        return False
+
+    @override
+    def get_retry_after_seconds(self, e: Exception) -> Optional[float]:
+        # AWS doesn't typically provide retry-after headers
+        # Return None to use exponential backoff
+        return None
+
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """Bedrock has per-model, per-region rate limits."""
+        return (self._client_factory.rate_limit_key, self.model_name)
+
+    async def _chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        import boto3
+        if invocation_parameters is not None and not isinstance(
+            invocation_parameters, PromptAwsInvocationParameters
+        ):
+            raise ValueError("invocation_parameters must be a PromptAwsInvocationParameters")
+        async for chunk in self._handle_converse_api(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            span=span,
+            invocation_parameters=invocation_parameters,
+            stream_model_output=stream_model_output,
+        ):
+            yield chunk
 
-        if (
-            self.client.meta.region_name != self.region
-        ):  # override the region if it's different from the default
-            self.client = boto3.client(
-                "bedrock-runtime",
-                region_name=self.region,
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key,
-                aws_session_token=self.aws_session_token,
+    def _converse_build_request(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptAwsInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> "ConverseStreamRequestTypeDef":
+        from types_aiobotocore_bedrock_runtime.type_defs import (
+            ConverseStreamRequestTypeDef,
+            InferenceConfigurationTypeDef,
+            JsonSchemaDefinitionTypeDef,
+            OutputConfigTypeDef,
+            OutputFormatStructureTypeDef,
+            OutputFormatTypeDef,
+            SpecificToolChoiceTypeDef,
+            ToolChoiceTypeDef,
+            ToolConfigurationTypeDef,
+            ToolInputSchemaTypeDef,
+            ToolSpecificationTypeDef,
+            ToolTypeDef,
+        )
+
+        request = ConverseStreamRequestTypeDef(modelId=self.model_name)
+
+        request["messages"] = self._build_converse_messages(messages)
+
+        system_prompt = self._extract_system_prompt(messages)
+        if system_prompt:
+            request["system"] = [{"text": system_prompt}]
+
+        inference_config = InferenceConfigurationTypeDef()
+        if invocation_parameters:
+            if isinstance(invocation_parameters.aws.max_tokens, int):
+                inference_config["maxTokens"] = invocation_parameters.aws.max_tokens
+            if isinstance(invocation_parameters.aws.temperature, float):
+                inference_config["temperature"] = invocation_parameters.aws.temperature
+            if isinstance(invocation_parameters.aws.top_p, float):
+                inference_config["topP"] = invocation_parameters.aws.top_p
+            if isinstance(invocation_parameters.aws.stop_sequences, list):
+                inference_config["stopSequences"] = invocation_parameters.aws.stop_sequences
+        if inference_config:
+            request["inferenceConfig"] = inference_config
+
+        if tools:
+            tool_list: list[ToolTypeDef] = []
+            for tool in tools.tools:
+                if tool.type == "raw":
+                    tool_list.append(cast(ToolTypeDef, tool.raw))
+                    continue
+                assert tool.type == "function"
+                fn = tool.function
+                tool_spec = ToolSpecificationTypeDef(
+                    name=fn.name,
+                    inputSchema=ToolInputSchemaTypeDef(
+                        json=fn.parameters if fn.parameters else {"type": "object"}
+                    ),
+                )
+                if fn.description:
+                    tool_spec["description"] = fn.description
+                if isinstance(fn.strict, bool):
+                    tool_spec["strict"] = fn.strict
+                tool_list.append(ToolTypeDef(toolSpec=tool_spec))
+
+            tool_config = ToolConfigurationTypeDef(tools=tool_list)
+
+            # The Converse API has no disable-parallel-tool-use setting, so
+            # tools.disable_parallel_tool_calls cannot be honored here.
+            send_tools = True
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    # Converse has no "none" tool choice; withholding the
+                    # tools entirely is the only way to prevent tool calls.
+                    send_tools = False
+                elif tc.type == "zero_or_more":
+                    tool_config["toolChoice"] = ToolChoiceTypeDef(auto={})
+                elif tc.type == "one_or_more":
+                    tool_config["toolChoice"] = ToolChoiceTypeDef(any={})
+                elif tc.type == "specific_function":
+                    tool_config["toolChoice"] = ToolChoiceTypeDef(
+                        tool=SpecificToolChoiceTypeDef(name=tc.function_name)
+                    )
+                elif TYPE_CHECKING:
+                    assert_never(tc.type)
+
+            if send_tools:
+                request["toolConfig"] = tool_config
+
+        if response_format:
+            json_schema = JsonSchemaDefinitionTypeDef(
+                schema=safe_json_dumps(response_format.json_schema.schema_ or {}),
             )
-            # Re-setup custom headers for the new client
-            if self.custom_headers:
-                self._setup_custom_headers(self.client, self.custom_headers)
-        if self.api == "invoke":
-            async for chunk in self._handle_invoke_api(messages, tools, invocation_parameters):
-                yield chunk
-        else:
-            async for chunk in self._handle_converse_api(messages, tools, invocation_parameters):
-                yield chunk
+            if response_format.json_schema.name:
+                json_schema["name"] = response_format.json_schema.name
+            if response_format.json_schema.description:
+                json_schema["description"] = response_format.json_schema.description
+            request["outputConfig"] = OutputConfigTypeDef(
+                textFormat=OutputFormatTypeDef(
+                    type="json_schema",
+                    structure=OutputFormatStructureTypeDef(jsonSchema=json_schema),
+                ),
+            )
+
+        input_value: dict[str, Any] = dict(request)
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("messages", None)
+        input_value.pop("modelId", None)
+        if "toolConfig" in request:
+            if "tools" in request["toolConfig"]:
+                input_value["toolConfig"] = dict(request["toolConfig"])
+                for i, tool_param in enumerate(input_value["toolConfig"].pop("tools")):
+                    span.set_attribute(
+                        f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param)
+                    )
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
+
+        return request
+
+    def _chunks_from_converse_response(
+        self,
+        response: "ConverseResponseTypeDef",
+        span: OTelSpan,
+    ) -> Iterator[ChatCompletionChunk]:
+        usage = response.get("usage") or {}
+        if usage:
+            span.set_attributes(
+                {
+                    LLM_TOKEN_COUNT_PROMPT: usage.get("inputTokens", 0),
+                    LLM_TOKEN_COUNT_COMPLETION: usage.get("outputTokens", 0),
+                    LLM_TOKEN_COUNT_TOTAL: usage.get("totalTokens", 0),
+                }
+            )
+        output = response.get("output") or {}
+        optional_message: MessageOutputTypeDef | None = output.get("message")
+        for block in optional_message["content"] if optional_message else []:
+            if "text" in block and (text := block.get("text")):
+                yield TextChunk(content=text)
+            elif "toolUse" in block and (tool_use := block.get("toolUse")):
+                raw_input = tool_use.get("input")
+                if isinstance(raw_input, str):
+                    args_str = raw_input
+                elif raw_input is not None:
+                    args_str = safe_json_dumps(raw_input)
+                else:
+                    args_str = ""
+                yield ToolCallChunk(
+                    id=tool_use.get("toolUseId"),
+                    function=FunctionCallChunk(
+                        name=tool_use.get("name") or "",
+                        arguments=args_str,
+                    ),
+                )
+
+    async def _converse_stream(
+        self,
+        *,
+        client: BedrockRuntimeClient,
+        request: "ConverseStreamRequestTypeDef",
+    ) -> ConverseStreamResponseTypeDef:
+        return await client.converse_stream(**request)
 
     async def _handle_converse_api(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        invocation_parameters: dict[str, Any],
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptAwsInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        """
-        Handle the converse API.
-        """
-        # Build messages in Converse API format
-        converse_messages = self._build_converse_messages(messages)
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        async with self._client_factory() as client:
+            request = self._converse_build_request(
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+            )
+            if not stream_model_output:
+                converse_response = await client.converse(**request)
+                span.set_attribute(OUTPUT_VALUE, safe_json_dumps(converse_response))
+                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+                for chunk in self._chunks_from_converse_response(converse_response, span):
+                    if isinstance(chunk, TextChunk):
+                        text_chunks.append(chunk)
+                    elif isinstance(chunk, ToolCallChunk):
+                        tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
+                if text_chunks or tool_call_chunks:
+                    span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+                return
 
-        # Build the request parameters for Converse API
-        converse_params: dict[str, Any] = {
-            "modelId": f"us.{self.model_name}",
-            "messages": converse_messages,
-            "inferenceConfig": {
-                "maxTokens": invocation_parameters["max_tokens"],
-                "temperature": invocation_parameters["temperature"],
-                "topP": invocation_parameters["top_p"],
-            },
-        }
+            response = await self._converse_stream(client=client, request=request)
 
-        # Add system prompt if available
-        system_prompt = self._extract_system_prompt(messages)
-        if system_prompt:
-            converse_params["system"] = [{"text": system_prompt}]
+            # Track active tool calls
+            active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
 
-        # Add tools if provided
-        if tools:
-            converse_params["toolConfig"] = {"tools": tools}
-            if (
-                "tool_choice" in invocation_parameters
-                and invocation_parameters["tool_choice"]["type"] != "none"
-            ):
-                converse_params["toolConfig"]["toolChoice"] = {}
+            # Process the event stream asynchronously
+            event_stream = response.get("stream")
+            if event_stream is None:
+                return
 
-                if invocation_parameters["tool_choice"]["type"] == "auto":
-                    converse_params["toolConfig"]["toolChoice"]["auto"] = {}
-                elif invocation_parameters["tool_choice"]["type"] == "any":
-                    converse_params["toolConfig"]["toolChoice"]["any"] = {}
-                else:
-                    converse_params["toolConfig"]["toolChoice"]["tool"] = {
-                        "name": invocation_parameters["tool_choice"]["name"],
-                    }
+            async for event in event_stream:
+                # Handle content block start events
+                if "contentBlockStart" in event:
+                    content_block_start = event["contentBlockStart"]
+                    start_event = content_block_start.get("start", {})
+                    block_index = content_block_start.get(
+                        "contentBlockIndex", 0
+                    )  # Get the actual index
 
-        # Make the streaming API call
-        response = self.client.converse_stream(**converse_params)
-
-        # Track active tool calls
-        active_tool_calls = {}  # contentBlockIndex -> {id, name, arguments_buffer}
-
-        # Process the event stream
-        event_stream = response.get("stream")
-
-        for event in event_stream:
-            # Handle content block start events
-            if "contentBlockStart" in event:
-                content_block_start = event["contentBlockStart"]
-                start_event = content_block_start.get("start", {})
-                block_index = content_block_start.get(
-                    "contentBlockIndex", 0
-                )  # Get the actual index
-
-                if "toolUse" in start_event:
-                    tool_use = start_event["toolUse"]
-                    active_tool_calls[block_index] = {  # Use the actual block index
-                        "id": tool_use.get("toolUseId"),
-                        "name": tool_use.get("name"),
-                        "arguments_buffer": "",
-                    }
-
-                    # Yield initial tool call chunk
-                    yield ToolCallChunk(
-                        id=tool_use.get("toolUseId"),
-                        function=FunctionCallChunk(
-                            name=tool_use.get("name"),
-                            arguments="",
-                        ),
-                    )
-
-            # Handle content block delta events
-            elif "contentBlockDelta" in event:
-                content_delta = event["contentBlockDelta"]
-                delta = content_delta.get("delta", {})
-                delta_index = content_delta.get("contentBlockIndex", 0)
-
-                # Handle text delta
-                if "text" in delta:
-                    yield TextChunk(content=delta["text"])
-
-                # Handle tool use delta
-                elif "toolUse" in delta:
-                    tool_delta = delta["toolUse"]
-                    if "input" in tool_delta and delta_index in active_tool_calls:
-                        # Accumulate tool arguments
-                        json_chunk = tool_delta["input"]
-                        active_tool_calls[delta_index]["arguments_buffer"] += json_chunk
-
-                        # Yield incremental argument update
-                        yield ToolCallChunk(
-                            id=active_tool_calls[delta_index]["id"],
-                            function=FunctionCallChunk(
-                                name=active_tool_calls[delta_index]["name"],
-                                arguments=json_chunk,
-                            ),
-                        )
-
-            # Handle content block stop events
-            elif "contentBlockStop" in event:
-                stop_index = event["contentBlockStop"].get("contentBlockIndex", 0)
-                if stop_index in active_tool_calls:
-                    del active_tool_calls[stop_index]
-
-            elif "metadata" in event:
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
-                        .get("usage", {})
-                        .get("inputTokens", 0)
-                    }
-                )
-
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
-                        .get("usage", {})
-                        .get("outputTokens", 0)
-                    }
-                )
-
-                self._attributes.update(
-                    {
-                        LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
-                        .get("usage", {})
-                        .get("totalTokens", 0)
-                    }
-                )
-
-    async def _handle_invoke_api(
-        self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        invocation_parameters: dict[str, Any],
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        if "anthropic" not in self.model_name:
-            raise ValueError("Invoke API is only supported for Anthropic models")
-
-        bedrock_messages, system_prompt = self._build_bedrock_messages(messages)
-        bedrock_params = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": invocation_parameters["max_tokens"],
-            "messages": bedrock_messages,
-            "system": system_prompt,
-            "temperature": invocation_parameters["temperature"],
-            "top_p": invocation_parameters["top_p"],
-            "tools": tools,
-        }
-
-        response = self.client.invoke_model_with_response_stream(
-            modelId=f"us.{self.model_name}",  # or another Claude model
-            contentType="application/json",
-            accept="application/json",
-            body=json.dumps(bedrock_params),
-            trace="ENABLED_FULL",
-        )
-
-        # The response['body'] is an EventStream object
-        event_stream = response["body"]
-
-        # Track active tool calls and their accumulating arguments
-        active_tool_calls: dict[int, dict[str, Any]] = {}  # index -> {id, name, arguments_buffer}
-
-        for event in event_stream:
-            if "chunk" in event:
-                chunk_data = json.loads(event["chunk"]["bytes"].decode("utf-8"))
-
-                # Handle text content
-                if chunk_data.get("type") == "content_block_delta":
-                    delta = chunk_data.get("delta", {})
-                    index = chunk_data.get("index", 0)
-
-                    if delta.get("type") == "text_delta" and "text" in delta:
-                        yield TextChunk(content=delta["text"])
-
-                    elif delta.get("type") == "input_json_delta":
-                        # Accumulate tool arguments
-                        if index in active_tool_calls:
-                            active_tool_calls[index]["arguments_buffer"] += delta.get(
-                                "partial_json", ""
-                            )
-                            # Yield incremental argument update
-                            yield ToolCallChunk(
-                                id=active_tool_calls[index]["id"],
-                                function=FunctionCallChunk(
-                                    name=active_tool_calls[index]["name"],
-                                    arguments=delta.get("partial_json", ""),
-                                ),
-                            )
-
-                # Handle tool call start
-                elif chunk_data.get("type") == "content_block_start":
-                    content_block = chunk_data.get("content_block", {})
-                    index = chunk_data.get("index", 0)
-
-                    if content_block.get("type") == "tool_use":
-                        # Initialize tool call tracking
-                        active_tool_calls[index] = {
-                            "id": content_block.get("id"),
-                            "name": content_block.get("name"),
+                    if "toolUse" in start_event:
+                        tool_use = start_event["toolUse"]
+                        active_tool_calls[block_index] = {  # Use the actual block index
+                            "id": tool_use.get("toolUseId"),
+                            "name": tool_use.get("name"),
                             "arguments_buffer": "",
                         }
 
                         # Yield initial tool call chunk
-                        yield ToolCallChunk(
-                            id=content_block.get("id"),
+                        tcc = ToolCallChunk(
+                            id=tool_use.get("toolUseId"),
                             function=FunctionCallChunk(
-                                name=content_block.get("name"),
-                                arguments="",  # Start with empty, will be filled by deltas
+                                name=tool_use.get("name"),
+                                arguments="",
                             ),
                         )
+                        tool_call_chunks[tcc.id].append(tcc)
+                        yield tcc
 
-                # Handle content block stop (tool call complete)
-                elif chunk_data.get("type") == "content_block_stop":
-                    index = chunk_data.get("index", 0)
-                    if index in active_tool_calls:
-                        # Tool call is complete, clean up
-                        del active_tool_calls[index]
+                # Handle content block delta events
+                elif "contentBlockDelta" in event:
+                    content_delta = event["contentBlockDelta"]
+                    delta = content_delta.get("delta", {})
+                    delta_index = content_delta.get("contentBlockIndex", 0)
 
-                elif chunk_data.get("type") == "message_stop":
-                    self._attributes.update(
+                    # Handle text delta
+                    if "text" in delta:
+                        tc = TextChunk(content=delta["text"])
+                        text_chunks.append(tc)
+                        yield tc
+
+                    # Handle tool use delta
+                    elif "toolUse" in delta:
+                        tool_delta = delta["toolUse"]
+                        if "input" in tool_delta and delta_index in active_tool_calls:
+                            # Accumulate tool arguments
+                            json_chunk = tool_delta["input"]
+                            active_tool_calls[delta_index]["arguments_buffer"] += json_chunk
+
+                            # Yield incremental argument update
+                            tcc = ToolCallChunk(
+                                id=active_tool_calls[delta_index]["id"],
+                                function=FunctionCallChunk(
+                                    name=active_tool_calls[delta_index]["name"],
+                                    arguments=json_chunk,
+                                ),
+                            )
+                            tool_call_chunks[tcc.id].append(tcc)
+                            yield tcc
+
+                # Handle content block stop events
+                elif "contentBlockStop" in event:
+                    stop_index = event["contentBlockStop"].get("contentBlockIndex", 0)
+                    if stop_index in active_tool_calls:
+                        del active_tool_calls[stop_index]
+
+                elif "metadata" in event:
+                    span.set_attributes(
                         {
-                            LLM_TOKEN_COUNT_COMPLETION: chunk_data.get(
-                                "amazon-bedrock-invocationMetrics", {}
-                            ).get("outputTokenCount", 0)
+                            LLM_TOKEN_COUNT_PROMPT: event.get("metadata")
+                            .get("usage", {})
+                            .get("inputTokens", 0),
+                            LLM_TOKEN_COUNT_COMPLETION: event.get("metadata")
+                            .get("usage", {})
+                            .get("outputTokens", 0),
+                            LLM_TOKEN_COUNT_TOTAL: event.get("metadata")
+                            .get("usage", {})
+                            .get("totalTokens", 0),
                         }
                     )
-
-                    self._attributes.update(
-                        {
-                            LLM_TOKEN_COUNT_PROMPT: chunk_data.get(
-                                "amazon-bedrock-invocationMetrics", {}
-                            ).get("inputTokenCount", 0)
-                        }
-                    )
-
-    def _build_bedrock_messages(
-        self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-    ) -> tuple[list[dict[str, Any]], str]:
-        bedrock_messages = []
-        system_prompt = ""
-        for role, content, _, _ in messages:
-            if role == ChatCompletionMessageRole.USER:
-                bedrock_messages.append(
-                    {
-                        "role": "user",
-                        "content": content,
-                    }
-                )
-            elif role == ChatCompletionMessageRole.AI:
-                bedrock_messages.append(
-                    {
-                        "role": "assistant",
-                        "content": content,
-                    }
-                )
-            elif role == ChatCompletionMessageRole.SYSTEM:
-                system_prompt += content + "\n"
-        return bedrock_messages, system_prompt
+        if text_chunks or tool_call_chunks:
+            span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
+                span.set_attributes(output_attrs)
 
     def _extract_system_prompt(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
+        messages: Sequence[PlaygroundMessage],
     ) -> str:
         """Extract system prompt from messages."""
         system_prompts = []
-        for role, content, _, _ in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
         return "\n".join(system_prompts)
 
     def _build_converse_messages(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-    ) -> list[dict[str, Any]]:
+        messages: Sequence[PlaygroundMessage],
+    ) -> list[MessageTypeDef]:
         """Convert messages to Converse API format."""
-        converse_messages: list[dict[str, Any]] = []
-        for role, content, _id, tool_calls in messages:
-            if role == ChatCompletionMessageRole.USER:
-                converse_messages.append({"role": "user", "content": [{"text": content}]})
-            elif role == ChatCompletionMessageRole.TOOL:
-                converse_messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "toolResult": {
-                                    "toolUseId": _id,
-                                    "content": [{"json": json.loads(content)}],
-                                }
-                            }
-                        ],
-                    }
-                )
+        from types_aiobotocore_bedrock_runtime.type_defs import (
+            ContentBlockTypeDef,
+            MessageTypeDef,
+            ToolResultBlockTypeDef,
+            ToolResultContentBlockTypeDef,
+        )
 
+        converse_messages: list[MessageTypeDef] = []
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            tool_call_id = msg.get("tool_call_id")
+            tool_calls = msg.get("tool_calls")
+            if role == ChatCompletionMessageRole.USER:
+                converse_messages.append(
+                    MessageTypeDef(
+                        role="user",
+                        content=[ContentBlockTypeDef(text=content)],
+                    )
+                )
+            elif role == ChatCompletionMessageRole.TOOL:
+                tool_result = ToolResultBlockTypeDef(
+                    toolUseId=tool_call_id or "",
+                    content=[ToolResultContentBlockTypeDef(text=content)],
+                )
+                converse_messages.append(
+                    MessageTypeDef(
+                        role="user", content=[ContentBlockTypeDef(toolResult=tool_result)]
+                    )
+                )
             elif role == ChatCompletionMessageRole.AI:
-                # Handle assistant messages with potential tool calls
-                message: dict[str, Any] = {"role": "assistant", "content": []}
+                blocks: list[ContentBlockTypeDef] = []
                 if content:
-                    message["content"].append({"text": content})
+                    blocks.append(ContentBlockTypeDef(text=content))
                 if tool_calls:
-                    for tool_call in tool_calls:
-                        message["content"].append(tool_call)
-                converse_messages.append(message)
+                    # tool_calls are already in Bedrock ContentBlock format
+                    # ({"toolUse": {...}}) from prior AI responses
+                    blocks.extend(cast(Any, tool_calls))
+                converse_messages.append(MessageTypeDef(role="assistant", content=blocks))
         return converse_messages
 
 
+OPENAI_CHAT_COMPLETIONS_MODELS = [
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-4",
+    "gpt-3.5-turbo",
+]
+"""OpenAI models that default to /v1/chat/completions. Any other name, known or
+not, defaults to the Responses API. See ``get_openai_client_class``."""
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
-        "gpt-4.1",
-        "gpt-4.1-mini",
-        "gpt-4.1-nano",
-        "gpt-4.1-2025-04-14",
-        "gpt-4.1-mini-2025-04-14",
-        "gpt-4.1-nano-2025-04-14",
-        "gpt-4o",
-        "gpt-4o-2024-11-20",
-        "gpt-4o-2024-08-06",
-        "gpt-4o-2024-05-13",
-        "chatgpt-4o-latest",
-        "gpt-4o-mini",
-        "gpt-4o-mini-2024-07-18",
-        "gpt-4-turbo",
-        "gpt-4-turbo-2024-04-09",
-        "gpt-4-turbo-preview",
-        "gpt-4-0125-preview",
-        "gpt-4-1106-preview",
-        "gpt-4",
-        "gpt-4-0613",
-        "gpt-3.5-turbo-0125",
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-1106",
-        # preview models
-        "gpt-4.5-preview",
+        *OPENAI_CHAT_COMPLETIONS_MODELS,
     ],
 )
-class OpenAIStreamingClient(OpenAIBaseStreamingClient):
-    def __init__(
-        self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ) -> None:
-        from openai import AsyncOpenAI
-
-        base_url = model.base_url or getenv("OPENAI_BASE_URL")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "OPENAI_API_KEY") or getenv("OPENAI_API_KEY")
-
-        if not api_key:
-            if not base_url:
-                raise BadRequest("An API key is required for OpenAI models")
-            api_key = "sk-fake-api-key"
-
-        client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            default_headers=model.custom_headers or None,
-            timeout=30,
-        )
-        super().__init__(client=client, model=model, credentials=credentials)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+class OpenAIChatCompletionsClient(OpenAICompatibleClient):
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """OpenAI has per-model rate limits within an organization."""
+        return (self._client_factory.rate_limit_key, self.model_name)
 
 
-_OPENAI_REASONING_MODELS = [
+OPENAI_REASONING_MODELS = [
+    "gpt-6.1-sol",
+    "gpt-6-astra",
+    "gpt-6-sol",
+    "gpt-6-luna",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+    "gpt-5.5",
+    "gpt-5.5-pro",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    "gpt-5.4-pro",
+    "gpt-5.2",
+    "gpt-5.2-pro",
+    "gpt-5.1",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
-    "gpt-5-chat-latest",
+    "gpt-5-pro",
     "o1",
     "o1-pro",
-    "o1-2024-12-17",
-    "o1-pro-2025-03-19",
-    "o1-mini",
-    "o1-mini-2024-09-12",
-    "o1-preview",
-    "o1-preview-2024-09-12",
     "o3",
     "o3-pro",
-    "o3-2025-04-16",
     "o3-mini",
-    "o3-mini-2025-01-31",
     "o4-mini",
-    "o4-mini-2025-04-16",
 ]
-
-
-class OpenAIReasoningReasoningModelsMixin:
-    """Mixin class for OpenAI-style reasoning model clients (o1, o3 series)."""
-
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-        return [
-            StringInvocationParameter(
-                invocation_name="reasoning_effort",
-                label="Reasoning Effort",
-                canonical_name=CanonicalParameterName.REASONING_EFFORT,
-            ),
-            IntInvocationParameter(
-                invocation_name="max_completion_tokens",
-                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Completion Tokens",
-            ),
-            IntInvocationParameter(
-                invocation_name="seed",
-                canonical_name=CanonicalParameterName.RANDOM_SEED,
-                label="Seed",
-            ),
-            JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
-            JSONInvocationParameter(
-                invocation_name="response_format",
-                label="Response Format",
-                canonical_name=CanonicalParameterName.RESPONSE_FORMAT,
-            ),
-        ]
 
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.OPENAI,
-    model_names=_OPENAI_REASONING_MODELS,
+    model_names=[
+        PROVIDER_DEFAULT,
+        *OPENAI_REASONING_MODELS,
+    ],
 )
-class OpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    OpenAIStreamingClient,
-):
-    def to_openai_chat_completion_param(
-        self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
-    ) -> Optional["ChatCompletionMessageParam"]:
-        from openai.types.chat import (
-            ChatCompletionAssistantMessageParam,
-            ChatCompletionDeveloperMessageParam,
-            ChatCompletionToolMessageParam,
-            ChatCompletionUserMessageParam,
-        )
+class OpenAIResponsesClient(OpenAIChatCompletionsClient):
+    """OpenAI Responses API (responses.create) client.
 
-        if role is ChatCompletionMessageRole.USER:
-            return ChatCompletionUserMessageParam(
-                {
-                    "content": content,
-                    "role": "user",
-                }
-            )
-        if role is ChatCompletionMessageRole.SYSTEM:
-            return ChatCompletionDeveloperMessageParam(
-                {
-                    "content": content,
-                    "role": "developer",
-                }
-            )
-        if role is ChatCompletionMessageRole.AI:
-            if tool_calls is None:
-                return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                    }
-                )
-            else:
-                return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                        "tool_calls": [
-                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
-                        ],
-                    }
-                )
-        if role is ChatCompletionMessageRole.TOOL:
-            if tool_call_id is None:
-                raise ValueError("tool_call_id is required for tool messages")
-            return ChatCompletionToolMessageParam(
-                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
-            )
-        assert_never(role)
+    Encodes reasoning effort as ``reasoning: {"effort": ...}``, which is the only
+    form OpenAI accepts alongside function tools.
+    """
+
+    @override
+    async def _chat_completion_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        if invocation_parameters is not None and not isinstance(
+            invocation_parameters, PromptOpenAIInvocationParameters
+        ):
+            raise ValueError("invocation_parameters must be a PromptOpenAIInvocationParameters")
+        async for chunk in self._responses_create(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+            stream_model_output=stream_model_output,
+        ):
+            yield chunk
 
 
 @register_llm_client(
@@ -1303,270 +2066,486 @@ class OpenAIReasoningNonStreamingClient(
         PROVIDER_DEFAULT,
     ],
 )
-class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
+class AzureOpenAIChatCompletionsClient(OpenAICompatibleClient):
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
-    ):
-        from openai import AsyncAzureOpenAI
-
-        if not (endpoint := model.endpoint or getenv("AZURE_OPENAI_ENDPOINT")):
-            raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
-        if not (api_version := model.api_version or getenv("OPENAI_API_VERSION")):
-            raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "AZURE_OPENAI_API_KEY") or getenv(
-            "AZURE_OPENAI_API_KEY"
-        )
-
-        if api_key:
-            client = AsyncAzureOpenAI(
-                api_key=api_key,
-                azure_endpoint=endpoint,
-                api_version=api_version,
-                default_headers=model.custom_headers or None,
-            )
-        else:
-            try:
-                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
-            except ImportError:
-                raise BadRequest(
-                    "Provide an API key for Azure OpenAI models or use azure-identity, see. e.g. "
-                    "https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.environmentcredential?view=azure-python"  # noqa: E501
-                )
-
-            client = AsyncAzureOpenAI(
-                azure_ad_token_provider=get_bearer_token_provider(
-                    DefaultAzureCredential(),
-                    "https://cognitiveservices.azure.com/.default",
-                ),
-                azure_endpoint=endpoint,
-                api_version=api_version,
-                default_headers=model.custom_headers or None,
-            )
-        super().__init__(client=client, model=model, credentials=credentials)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
+        *,
+        client_factory: ClientFactory["AsyncOpenAI"],
+        model_name: str,
+        provider: str = "azure",
+    ) -> None:
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = OpenInferenceLLMProviderValues.AZURE.value
 
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.AZURE_OPENAI,
-    model_names=_OPENAI_REASONING_MODELS,
+    model_names=OPENAI_REASONING_MODELS,
 )
-class AzureOpenAIReasoningNonStreamingClient(
-    OpenAIReasoningReasoningModelsMixin,
-    AzureOpenAIStreamingClient,
-):
+class AzureOpenAIResponsesClient(AzureOpenAIChatCompletionsClient):
+    """Azure OpenAI Responses API (responses.create) for gpt-5.2, gpt-5.1, etc."""
+
     @override
-    async def chat_completion_create(
+    async def _chat_completion_create(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
     ) -> AsyncIterator[ChatCompletionChunk]:
-        from openai import NOT_GIVEN
+        if invocation_parameters is not None and not isinstance(
+            invocation_parameters, PromptOpenAIInvocationParameters
+        ):
+            raise ValueError("invocation_parameters must be a PromptOpenAIInvocationParameters")
+        async for chunk in self._responses_create(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+            stream_model_output=stream_model_output,
+        ):
+            yield chunk
 
-        # Convert standard messages to OpenAI messages
-        openai_messages = []
-        for message in messages:
-            openai_message = self.to_openai_chat_completion_param(*message)
-            if openai_message is not None:
-                openai_messages.append(openai_message)
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """Azure has per-deployment rate limits (endpoint + model_name)."""
+        return (self._client_factory.rate_limit_key, self.model_name)
 
-        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
-        response = await throttled_create(
-            messages=openai_messages,
-            model=self.model_name,
-            stream=False,
-            tools=tools or NOT_GIVEN,
-            **invocation_parameters,
-        )
 
-        if response.usage is not None:
-            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+def _anthropic_beta_headers_for_tools(
+    tools: Iterable[Mapping[str, Any]],
+) -> dict[str, str] | None:
+    """Return the ``anthropic-beta`` header required to use the given tools, if any.
 
-        choice = response.choices[0]
-        if choice.message.content:
-            yield TextChunk(content=choice.message.content)
+    Anthropic's computer-use tools (e.g. ``computer_20250124``) are gated behind a
+    dated beta flag that must be sent as the ``anthropic-beta`` request header
+    (e.g. ``computer-use-2025-01-24``). This inspects the tool definitions, derives
+    the beta flag for each computer-use tool version present, and returns them as
+    a comma-separated header value. Returns ``None`` when no such tools are used.
+    """
+    betas: list[str] = []
+    for tool in tools:
+        tool_type = tool.get("type")
+        if not isinstance(tool_type, str) or not tool_type.startswith("computer_"):
+            continue
+        version = tool_type.removeprefix("computer_")
+        if len(version) != 8 or not version.isdigit():
+            continue
+        beta = f"computer-use-{version[:4]}-{version[4:6]}-{version[6:]}"
+        if beta not in betas:
+            betas.append(beta)
+    if not betas:
+        return None
+    return {"anthropic-beta": ",".join(betas)}
 
-        if choice.message.tool_calls:
-            for tool_call in choice.message.tool_calls:
-                yield ToolCallChunk(
-                    id=tool_call.id,
-                    function=FunctionCallChunk(
-                        name=tool_call.function.name,
-                        arguments=tool_call.function.arguments,
-                    ),
-                )
 
-    def to_openai_chat_completion_param(
-        self,
-        role: ChatCompletionMessageRole,
-        content: JSONScalarType,
-        tool_call_id: Optional[str] = None,
-        tool_calls: Optional[list[JSONScalarType]] = None,
-    ) -> Optional["ChatCompletionMessageParam"]:
-        from openai.types.chat import (
-            ChatCompletionAssistantMessageParam,
-            ChatCompletionDeveloperMessageParam,
-            ChatCompletionToolMessageParam,
-            ChatCompletionUserMessageParam,
-        )
+# `messages.create()` accepts no sampling parameters. `extra_body` merges them into
+# the request JSON, which is how the models that support them receive them.
+_ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 
-        if role is ChatCompletionMessageRole.USER:
-            return ChatCompletionUserMessageParam(
-                {
-                    "content": content,
-                    "role": "user",
-                }
-            )
-        if role is ChatCompletionMessageRole.SYSTEM:
-            return ChatCompletionDeveloperMessageParam(
-                {
-                    "content": content,
-                    "role": "developer",
-                }
-            )
-        if role is ChatCompletionMessageRole.AI:
-            if tool_calls is None:
-                return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                    }
-                )
-            else:
-                return ChatCompletionAssistantMessageParam(
-                    {
-                        "content": content,
-                        "role": "assistant",
-                        "tool_calls": [
-                            self.to_openai_tool_call_param(tool_call) for tool_call in tool_calls
-                        ],
-                    }
-                )
-        if role is ChatCompletionMessageRole.TOOL:
-            if tool_call_id is None:
-                raise ValueError("tool_call_id is required for tool messages")
-            return ChatCompletionToolMessageParam(
-                {"content": content, "role": "tool", "tool_call_id": tool_call_id}
-            )
-        assert_never(role)
+
+# Anthropic models that use adaptive thinking (`thinking: {"type": "adaptive"}`).
+# These models removed `temperature`, `top_p`, `top_k`, and extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
+# surface; sending any of them returns a 400.
+ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5-1",
+    "claude-fable-5",
+    "claude-opus-5-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5-5",
+    "claude-sonnet-5",
+    "claude-haiku-5-5",
+]
+
+# Older Anthropic models that still accept extended thinking
+# (`thinking: {"type": "enabled", "budget_tokens": N}`) alongside the sampling
+# parameters. Kept as a distinct group because the request surface differs, not
+# because they use a different client.
+ANTHROPIC_EXTENDED_THINKING_MODELS = [
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-0",
+    "claude-opus-4-0",
+]
+
+# Anthropic models that accept a `tool_choice` of type `any` or `tool`. Newer models
+# such as `claude-opus-5-5` accept only `auto` and `none`, so a model missing from
+# this list is treated as rejecting a required tool call.
+ANTHROPIC_MODELS_WITH_FORCED_TOOL_CHOICE = [
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+    "claude-haiku-5-5",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-0",
+    "claude-opus-4-0",
+    "claude-sonnet-4",
+    "claude-opus-4",
+]
+
+# A name must be followed by the end of the ID, a snapshot date, or a Bedrock version,
+# so `claude-opus-5` doesn't match `claude-opus-5-5`.
+_ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE = re.compile(
+    r"(?:^|[./])(?:"
+    + "|".join(map(re.escape, ANTHROPIC_MODELS_WITH_FORCED_TOOL_CHOICE))
+    + r")(?:$|[@:]|-\d{8}|-v\d)",
+    re.IGNORECASE,
+)
+
+
+def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
+    """Checks whether an Anthropic model accepts a `tool_choice` of `any` or `tool`.
+
+    Args:
+        model_name: A model name or ID, in any case. It can be an Anthropic name such
+            as `claude-opus-5@20260801`, a Bedrock ID such as
+            `us-gov.anthropic.claude-opus-5-v1:0`, or an inference-profile ARN.
+            An unknown name counts as unsupported.
+    """
+    return _ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE.search(model_name) is not None
 
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
-        "claude-3-5-sonnet-latest",
-        "claude-3-5-haiku-latest",
-        "claude-3-5-sonnet-20241022",
-        "claude-3-5-haiku-20241022",
-        "claude-3-5-sonnet-20240620",
-        "claude-3-opus-latest",
-        "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307",
+        *ANTHROPIC_ADAPTIVE_THINKING_MODELS,
+        *ANTHROPIC_EXTENDED_THINKING_MODELS,
     ],
 )
-class AnthropicStreamingClient(PlaygroundStreamingClient):
+class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
+    @property
+    def llm_system(self) -> str:
+        return OpenInferenceLLMSystemValues.ANTHROPIC.value
+
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        return anthropic_model_supports_forced_tool_choice(self.model_name)
+
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: ClientFactory["AsyncAnthropic"],
+        model_name: str,
+        provider: str = "anthropic",
     ) -> None:
         import anthropic
 
-        super().__init__(model=model, credentials=credentials)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = _get_credential_value(credentials, "ANTHROPIC_API_KEY") or getenv(
-            "ANTHROPIC_API_KEY"
-        )
-
-        if not api_key:
-            raise BadRequest("An API key is required for Anthropic models")
-
-        self.client = anthropic.AsyncAnthropic(
-            api_key=api_key,
-            default_headers=model.custom_headers or None,
-        )
-        self.model_name = model.name
-        self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
-        self.client._client = _HttpxClient(self.client._client, self._attributes)
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = OpenInferenceLLMProviderValues.ANTHROPIC.value
+        self._anthropic = anthropic
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="anthropic")]
 
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-        return [
-            IntInvocationParameter(
-                invocation_name="max_tokens",
-                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Tokens",
-                default_value=1024,
-                required=True,
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="temperature",
-                canonical_name=CanonicalParameterName.TEMPERATURE,
-                label="Temperature",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            StringListInvocationParameter(
-                invocation_name="stop_sequences",
-                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
-                label="Stop Sequences",
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="top_p",
-                canonical_name=CanonicalParameterName.TOP_P,
-                label="Top P",
-                default_value=None,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            JSONInvocationParameter(
-                invocation_name="tool_choice",
-                label="Tool Choice",
-                canonical_name=CanonicalParameterName.TOOL_CHOICE,
-            ),
-        ]
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        from anthropic import APIStatusError
 
-    async def chat_completion_create(
+        return isinstance(e, APIStatusError) and e.status_code == 429
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        from anthropic import APIConnectionError, APIStatusError, APITimeoutError
+
+        if isinstance(e, (APIConnectionError, APITimeoutError)):
+            return True
+        return isinstance(e, APIStatusError) and 500 <= e.status_code
+
+    def _anthropic_message_params(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionChunk]:
-        import anthropic.lib.streaming as anthropic_streaming
-        import anthropic.types as anthropic_types
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptAnthropicInvocationParameters | None = None,
+    ) -> tuple["MessageCreateParamsBase", dict[str, Any] | None, dict[str, str] | None]:
+        from anthropic.types import JSONOutputFormatParam, OutputConfigParam, ToolParam
+        from anthropic.types.message_create_params import MessageCreateParamsBase
+        from anthropic.types.thinking_config_adaptive_param import ThinkingConfigAdaptiveParam
+        from anthropic.types.thinking_config_disabled_param import ThinkingConfigDisabledParam
+        from anthropic.types.thinking_config_enabled_param import ThinkingConfigEnabledParam
+        from anthropic.types.tool_choice_any_param import ToolChoiceAnyParam
+        from anthropic.types.tool_choice_auto_param import ToolChoiceAutoParam
+        from anthropic.types.tool_choice_none_param import ToolChoiceNoneParam
+        from anthropic.types.tool_choice_tool_param import ToolChoiceToolParam
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
-        anthropic_params = {
-            "messages": anthropic_messages,
-            "model": self.model_name,
-            "system": system_prompt,
-            "tools": tools,
-            **invocation_parameters,
-        }
-        throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
-        async with await throttled_stream(**anthropic_params) as stream:
-            async for event in stream:
-                if isinstance(event, anthropic_types.RawMessageStartEvent):
-                    usage = event.message.usage
 
+        params = MessageCreateParamsBase(
+            messages=anthropic_messages,
+            model=self.model_name,
+            max_tokens=invocation_parameters.anthropic.max_tokens
+            if invocation_parameters
+            else 1024,
+        )
+
+        if system_prompt:
+            params["system"] = system_prompt
+
+        extra_headers: dict[str, str] | None = None
+        if tools:
+            if tc := tools.tool_choice:
+                if tc.type == "none":
+                    params["tool_choice"] = ToolChoiceNoneParam(type="none")
+                elif tc.type == "zero_or_more":
+                    choice_auto = ToolChoiceAutoParam(type="auto")
+                    if tools.disable_parallel_tool_calls:
+                        choice_auto["disable_parallel_tool_use"] = True
+                    params["tool_choice"] = choice_auto
+                elif tc.type == "one_or_more":
+                    choice_any = ToolChoiceAnyParam(type="any")
+                    if tools.disable_parallel_tool_calls:
+                        choice_any["disable_parallel_tool_use"] = True
+                    params["tool_choice"] = choice_any
+                elif tc.type == "specific_function":
+                    choice_tool = ToolChoiceToolParam(type="tool", name=tc.function_name)
+                    if tools.disable_parallel_tool_calls:
+                        choice_tool["disable_parallel_tool_use"] = True
+                    params["tool_choice"] = choice_tool
+                else:
+                    assert_never(tc.type)
+            elif tools.disable_parallel_tool_calls:
+                params["tool_choice"] = ToolChoiceAutoParam(
+                    type="auto", disable_parallel_tool_use=True
+                )
+            if tools.tools:
+                tool_list: list[ToolParam] = []
+                for tool in tools.tools:
+                    if tool.type == "raw":
+                        tool_list.append(cast(ToolParam, tool.raw))
+                        continue
+                    assert tool.type == "function"
+                    f = tool.function
+                    t = ToolParam(
+                        input_schema=f.parameters if f.parameters else {"type": "object"},
+                        name=f.name,
+                    )
+                    if f.description:
+                        t["description"] = f.description
+                    if isinstance(f.strict, bool):
+                        t["strict"] = f.strict
+                    tool_list.append(t)
+                params["tools"] = tool_list
+                extra_headers = _anthropic_beta_headers_for_tools(tool_list)
+
+        output_config: OutputConfigParam | None = None
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                output_config = OutputConfigParam(
+                    format=JSONOutputFormatParam(
+                        type="json_schema",
+                        schema=js.schema_ if js.schema_ else {},
+                    )
+                )
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        extra_body: dict[str, Any] | None = None
+        if invocation_parameters:
+            anthropic_params = invocation_parameters.anthropic
+            # Sampling parameters reach the request JSON through `extra_body`.
+            sampling_params: dict[str, Any] = {}
+            if isinstance(anthropic_params.temperature, float):
+                sampling_params["temperature"] = anthropic_params.temperature
+            if isinstance(anthropic_params.stop_sequences, list):
+                params["stop_sequences"] = anthropic_params.stop_sequences
+            if isinstance(anthropic_params.top_p, float):
+                sampling_params["top_p"] = anthropic_params.top_p
+            output_config_in = anthropic_params.output_config
+            if isinstance(output_config_in, PromptAnthropicOutputConfig):
+                if output_config is None:
+                    output_config = OutputConfigParam()
+                if output_config_in.effort:
+                    output_config["effort"] = output_config_in.effort
+            thinking = anthropic_params.thinking
+            if isinstance(thinking, PromptAnthropicThinkingConfigEnabled):
+                enabled_param = ThinkingConfigEnabledParam(
+                    type="enabled",
+                    budget_tokens=thinking.budget_tokens,
+                )
+                if thinking.display:
+                    enabled_param["display"] = thinking.display
+                params["thinking"] = enabled_param
+            elif isinstance(thinking, PromptAnthropicThinkingConfigDisabled):
+                params["thinking"] = ThinkingConfigDisabledParam(type="disabled")
+            elif isinstance(thinking, PromptAnthropicThinkingConfigAdaptive):
+                adaptive_param = ThinkingConfigAdaptiveParam(type="adaptive")
+                if thinking.display:
+                    adaptive_param["display"] = thinking.display
+                params["thinking"] = adaptive_param
+            # A configured `extra_body` overrides the sampling parameters above.
+            if isinstance(anthropic_params.extra_body, dict):
+                extra_body = {**sampling_params, **anthropic_params.extra_body}
+            elif sampling_params:
+                extra_body = sampling_params
+
+        if output_config is not None:
+            params["output_config"] = output_config
+
+        return params, extra_body, extra_headers
+
+    def _anthropic_record_message_request_on_span(
+        self,
+        span: OTelSpan,
+        params: "MessageCreateParamsBase",
+        extra_body: dict[str, Any] | None = None,
+    ) -> None:
+        if "tools" in params:
+            for i, tool_param in enumerate(params["tools"]):
+                span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
+        input_value: dict[str, Any] = dict(params)
+        if extra_body:
+            # Sampling parameters are top-level fields on the wire, so record them as
+            # such; the nested entry is for keys the caller asked to pass through.
+            input_value.update(
+                {k: v for k, v in extra_body.items() if k in _ANTHROPIC_SAMPLING_PARAM_KEYS}
+            )
+            if passthrough := {
+                k: v for k, v in extra_body.items() if k not in _ANTHROPIC_SAMPLING_PARAM_KEYS
+            }:
+                input_value["extra_body"] = passthrough
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        input_value.pop("messages", None)
+        input_value.pop("model", None)
+        input_value.pop("tools", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(input_value))
+
+    def _get_anthropic_message_stream_manager(
+        self,
+        *,
+        client: AsyncAnthropic,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptAnthropicInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> AsyncMessageStreamManager[Any]:
+        params, extra_body, extra_headers = self._anthropic_message_params(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+        )
+        self._anthropic_record_message_request_on_span(span, params, extra_body)
+        request_options: dict[str, Any] = {"extra_body": extra_body}
+        if extra_headers:
+            request_options["extra_headers"] = extra_headers
+        stream_manager = client.messages.stream(**params, **request_options)
+        return stream_manager
+
+    def _anthropic_apply_usage_to_span(self, span: OTelSpan, usage: Usage) -> None:
+        token_counts: dict[str, AttributeValue] = {}
+        if prompt_tokens := (
+            (usage.input_tokens or 0)
+            + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+            + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+        ):
+            token_counts[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+        if cache_creation_tokens := getattr(usage, "cache_creation_input_tokens", None):
+            if cache_creation_tokens is not None:
+                token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = cache_creation_tokens
+        if token_counts:
+            span.set_attributes(token_counts)
+        output_token_counts: dict[str, Any] = {}
+        if usage.output_tokens:
+            output_token_counts[LLM_TOKEN_COUNT_COMPLETION] = usage.output_tokens
+        if cache_read_tokens := getattr(usage, "cache_read_input_tokens", None):
+            if cache_read_tokens is not None:
+                output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = cache_read_tokens
+        if output_token_counts:
+            span.set_attributes(output_token_counts)
+
+    async def _chat_completion_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        if invocation_parameters is not None and not isinstance(
+            invocation_parameters, PromptAnthropicInvocationParameters
+        ):
+            raise ValueError("invocation_parameters must be a PromptAnthropicInvocationParameters")
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        if not stream_model_output:
+            async with AsyncExitStack() as stack:
+                client = await stack.enter_async_context(self._client_factory())
+                client._client = _HttpxClient(client._client, span=span)
+                params, extra_body, extra_headers = self._anthropic_message_params(
+                    messages=messages,
+                    tools=tools,
+                    response_format=response_format,
+                    invocation_parameters=invocation_parameters,
+                )
+                self._anthropic_record_message_request_on_span(span, params, extra_body)
+                request_options: dict[str, Any] = {"extra_body": extra_body}
+                if extra_headers:
+                    request_options["extra_headers"] = extra_headers
+                message = await client.messages.create(**params, **request_options)
+                if message.usage:
+                    self._anthropic_apply_usage_to_span(span, message.usage)
+                span.set_attribute(OUTPUT_VALUE, message.model_dump_json(exclude_none=True))
+                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+                for block in message.content:
+                    if block.type == "text":
+                        tc = TextChunk(content=block.text)
+                        text_chunks.append(tc)
+                        yield tc
+                    elif block.type == "tool_use":
+                        tcc = ToolCallChunk(
+                            id=block.id,
+                            function=FunctionCallChunk(
+                                name=block.name,
+                                arguments=safe_json_dumps(block.input),
+                            ),
+                        )
+                        tool_call_chunks[tcc.id].append(tcc)
+                        yield tcc
+            if text_chunks or tool_call_chunks:
+                span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            return
+
+        async with AsyncExitStack() as stack:
+            client = await stack.enter_async_context(self._client_factory())
+            # Wrap httpx client for instrumentation (fresh client each request)
+            client._client = _HttpxClient(client._client, span=span)
+            stream_manager = self._get_anthropic_message_stream_manager(
+                client=client,
+                messages=messages,
+                tools=tools,
+                response_format=response_format,
+                invocation_parameters=invocation_parameters,
+                span=span,
+            )
+            anthropic_stream = await stack.enter_async_context(stream_manager)
+            async for event in anthropic_stream:
+                if event.type == "message_start":
+                    usage = event.message.usage
                     token_counts: dict[str, Any] = {}
                     if prompt_tokens := (
                         (usage.input_tokens or 0)
@@ -1579,10 +2558,17 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                             token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = (
                                 cache_creation_tokens
                             )
-                    self._attributes.update(token_counts)
-                elif isinstance(event, anthropic_streaming.TextEvent):
-                    yield TextChunk(content=event.text)
-                elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                    if token_counts:
+                        span.set_attributes(token_counts)
+                elif event.type == "text":
+                    tc = TextChunk(content=event.text)
+                    text_chunks.append(tc)
+                    yield tc
+                elif event.type == "message_stop":
+                    span.set_attribute(
+                        OUTPUT_VALUE, event.message.model_dump_json(exclude_none=True)
+                    )
+                    span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
                     usage = event.message.usage
                     output_token_counts: dict[str, Any] = {}
                     if usage.output_tokens:
@@ -1592,68 +2578,75 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                             output_token_counts[LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = (
                                 cache_read_tokens
                             )
-                    self._attributes.update(output_token_counts)
-                elif (
-                    isinstance(event, anthropic_streaming.ContentBlockStopEvent)
-                    and event.content_block.type == "tool_use"
-                ):
+                    if output_token_counts:
+                        span.set_attributes(output_token_counts)
+                elif event.type == "content_block_stop" and event.content_block.type == "tool_use":
                     tool_call_chunk = ToolCallChunk(
                         id=event.content_block.id,
                         function=FunctionCallChunk(
                             name=event.content_block.name,
-                            arguments=json.dumps(event.content_block.input),
+                            arguments=safe_json_dumps(event.content_block.input),
                         ),
                     )
+                    tool_call_chunks[tool_call_chunk.id].append(tool_call_chunk)
                     yield tool_call_chunk
-                elif isinstance(
-                    event,
-                    (
-                        anthropic_types.RawContentBlockStartEvent,
-                        anthropic_types.RawContentBlockDeltaEvent,
-                        anthropic_types.RawMessageDeltaEvent,
-                        anthropic_streaming.ContentBlockStopEvent,
-                        anthropic_streaming.InputJsonEvent,
-                    ),
-                ):
-                    # event types emitted by the stream that don't contain useful information
+                elif event.type == "content_block_start":
                     pass
-                elif isinstance(event, anthropic_streaming.InputJsonEvent):
-                    raise NotImplementedError
-                elif isinstance(event, anthropic_streaming._types.CitationEvent):
-                    raise NotImplementedError
-                elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                elif event.type == "content_block_delta":
                     pass
-                elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                elif event.type == "message_delta":
                     pass
-                else:
+                elif event.type == "content_block_stop":
+                    # non-tool_use case; tool_use already yielded above
+                    pass
+                elif event.type == "input_json":
+                    # Incremental tool-call JSON; uses the complete block at content_block_stop
+                    pass
+                elif event.type == "citation":
+                    pass
+                elif event.type == "thinking":
+                    pass
+                elif event.type == "signature":
+                    pass
+                elif TYPE_CHECKING:
                     assert_never(event)
+        if text_chunks or tool_call_chunks:
+            span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
 
     def _build_anthropic_messages(
         self,
-        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
+        messages: Sequence[PlaygroundMessage],
     ) -> tuple[list["MessageParam"], str]:
-        anthropic_messages: list["MessageParam"] = []
+        from anthropic.types import MessageParam, ToolResultBlockParam
+
+        anthropic_messages: list[MessageParam] = []
         system_prompt = ""
-        for role, content, _tool_call_id, _tool_calls in messages:
-            tool_aware_content = self._anthropic_message_content(content, _tool_calls)
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
+            tool_call_id = msg.get("tool_call_id")
+            tool_calls = msg.get("tool_calls")
+            tool_aware_content = self._anthropic_message_content(content, tool_calls)
             if role == ChatCompletionMessageRole.USER:
-                anthropic_messages.append({"role": "user", "content": tool_aware_content})
+                anthropic_messages.append(MessageParam(role="user", content=tool_aware_content))
             elif role == ChatCompletionMessageRole.AI:
-                anthropic_messages.append({"role": "assistant", "content": tool_aware_content})
+                anthropic_messages.append(
+                    MessageParam(role="assistant", content=tool_aware_content)
+                )
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
                 anthropic_messages.append(
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": _tool_call_id or "",
-                                "content": content or "",
-                            }
+                    MessageParam(
+                        role="user",
+                        content=[
+                            ToolResultBlockParam(
+                                type="tool_result",
+                                tool_use_id=tool_call_id or "",
+                                content=content or "",
+                            )
                         ],
-                    }
+                    )
                 )
             else:
                 assert_never(role)
@@ -1661,174 +2654,379 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         return anthropic_messages, system_prompt
 
     def _anthropic_message_content(
-        self, content: str, tool_calls: Optional[list[JSONScalarType]]
-    ) -> Union[str, list[Union["ToolResultBlockParam", "TextBlockParam"]]]:
+        self, content: str, tool_calls: Optional[Sequence[PlaygroundToolCall]]
+    ) -> Union[str, list[ToolUseBlockParam | TextBlockParam]]:
+        from anthropic.types import TextBlockParam, ToolUseBlockParam
+
         if tool_calls:
             # Anthropic combines tool calls and the reasoning text into a single message object
-            tool_use_content: list[Union["ToolResultBlockParam", "TextBlockParam"]] = []
+            tool_use_content: list[ToolUseBlockParam | TextBlockParam] = []
             if content:
-                tool_use_content.append({"type": "text", "text": content})
-            tool_use_content.extend(tool_calls)
+                tool_use_content.append(TextBlockParam(type="text", text=content))
+            tool_use_content.extend(
+                ToolUseBlockParam(
+                    type="tool_use",
+                    id=tc.get("id", ""),
+                    name=tc.get("function", {}).get("name", ""),
+                    input=tc.get("function", {}).get("arguments", {}),
+                )
+                for tc in tool_calls
+            )
             return tool_use_content
 
         return content
 
 
-@register_llm_client(
-    provider_key=GenerativeProviderKey.ANTHROPIC,
-    model_names=[
-        "claude-sonnet-4-5",
-        "claude-sonnet-4-0",
-        "claude-sonnet-4-20250514",
-        "claude-opus-4-1",
-        "claude-opus-4-1-20250805",
-        "claude-opus-4-0",
-        "claude-opus-4-20250514",
-        "claude-3-7-sonnet-latest",
-        "claude-3-7-sonnet-20250219",
-    ],
-)
-class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-        invocation_params = super().supported_invocation_parameters()
-        invocation_params.append(
-            JSONInvocationParameter(
-                invocation_name="thinking",
-                canonical_name=CanonicalParameterName.ANTHROPIC_EXTENDED_THINKING,
-                label="Thinking Budget",
-            )
-        )
-        return invocation_params
+GEMINI_2_5_MODELS = [
+    "gemini-2.5-pro",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash",  # Will be deprecated and will be shut down on June 17, 2026.
+    "gemini-2.5-flash-lite",  # Will be deprecated and will be shut down on July 22, 2026.
+]
 
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
-        "gemini-2.0-flash-lite",
-        "gemini-2.0-flash-001",
-        "gemini-2.0-flash-thinking-exp-01-21",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
-        "gemini-1.5-pro",
-        "gemini-1.0-pro",
+        *GEMINI_2_5_MODELS,
     ],
 )
-class GoogleStreamingClient(PlaygroundStreamingClient):
+class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
+    @property
+    def llm_system(self) -> str:
+        return OpenInferenceLLMSystemValues.VERTEXAI.value
+
     def __init__(
         self,
-        model: GenerativeModelInput,
-        credentials: Optional[list[PlaygroundClientCredential]] = None,
+        *,
+        client_factory: ClientFactory["GoogleAsyncClient"],
+        model_name: str,
+        provider: str = "google",
     ) -> None:
-        import google.genai as google_genai
-
-        super().__init__(model=model, credentials=credentials)
-        self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
-        self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
-
-        # Try to get API key from credentials first, then fallback to env
-        api_key = (
-            _get_credential_value(credentials, "GEMINI_API_KEY")
-            or _get_credential_value(credentials, "GOOGLE_API_KEY")
-            or getenv("GEMINI_API_KEY")
-            or getenv("GOOGLE_API_KEY")
-        )
-
-        if not api_key:
-            raise BadRequest("An API key is required for Gemini models")
-
-        self.client = google_genai.Client(api_key=api_key)
-        self.model_name = model.name
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = OpenInferenceLLMProviderValues.GOOGLE.value
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
         return [Dependency(name="google-genai", module_name="google.genai")]
 
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-        return [
-            BoundedFloatInvocationParameter(
-                invocation_name="temperature",
-                canonical_name=CanonicalParameterName.TEMPERATURE,
-                label="Temperature",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=2.0,
-            ),
-            IntInvocationParameter(
-                invocation_name="max_output_tokens",
-                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Output Tokens",
-            ),
-            StringListInvocationParameter(
-                invocation_name="stop_sequences",
-                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
-                label="Stop Sequences",
-            ),
-            FloatInvocationParameter(
-                invocation_name="presence_penalty",
-                label="Presence Penalty",
-                default_value=0.0,
-            ),
-            FloatInvocationParameter(
-                invocation_name="frequency_penalty",
-                label="Frequency Penalty",
-                default_value=0.0,
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="top_p",
-                canonical_name=CanonicalParameterName.TOP_P,
-                label="Top P",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            IntInvocationParameter(
-                invocation_name="top_k",
-                label="Top K",
-            ),
-        ]
+    @override
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        from google.genai.errors import APIError
 
-    async def chat_completion_create(
+        return isinstance(e, APIError) and e.code == 429
+
+    @override
+    def is_transient_error(self, e: Exception) -> bool:
+        from google.genai.errors import APIError
+
+        if isinstance(e, APIError):
+            return 500 <= e.code < 600
+        return super().is_transient_error(e)
+
+    @override
+    def get_rate_limit_key(self) -> Hashable:
+        """Google has per-model rate limits within a project."""
+        return (self._client_factory.rate_limit_key, self.model_name)
+
+    def _google_prepare_generate_content(
         self,
-        messages: list[
-            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
-        ],
-        tools: list[JSONScalarType],
-        **invocation_parameters: Any,
-    ) -> AsyncIterator[ChatCompletionChunk]:
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptGoogleInvocationParameters | None = None,
+        span: OTelSpan,
+    ) -> tuple[list[ContentUnionDict], GenerateContentConfig]:
+        from google.genai import types
+
         contents, system_prompt = self._build_google_messages(messages)
 
-        # Build config object for the new API
-        config = invocation_parameters
+        system_instruction: str | None = None
         if system_prompt:
-            config["system_instruction"] = system_prompt
+            system_instruction = system_prompt
 
-        # Use the client's async models.generate_content_stream method
-        stream = await self.client.aio.models.generate_content_stream(
-            model=f"models/{self.model_name}",
-            contents=contents,
-            config=config if config else None,
+        google_tools: list[types.Tool] = []
+        google_tool_config: types.ToolConfig | None = None
+        function_declarations: list[types.FunctionDeclaration] = []
+        if tools:
+            if dt := tools.tools:
+                for tool in dt:
+                    if tool.type == "raw":
+                        google_tools.append(types.Tool.model_validate(tool.raw))
+                        continue
+                    assert tool.type == "function"
+                    fn = tool.function
+                    fd_kwargs: dict[str, Any] = {"name": fn.name}
+                    if fn.description:
+                        fd_kwargs["description"] = fn.description
+                    if fn.parameters:
+                        fd_kwargs["parameters_json_schema"] = fn.parameters
+                    function_declarations.append(types.FunctionDeclaration(**fd_kwargs))
+                google_tools.extend([types.Tool(function_declarations=function_declarations)])
+
+            # function_calling_config only applies when function_declarations
+            # are present — Google rejects it for built-in tools like google_search.
+            if function_declarations and (tc := tools.tool_choice):
+                if tc.type == "none":
+                    fcc = types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.NONE)
+                elif tc.type == "zero_or_more":
+                    fcc = types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.AUTO)
+                elif tc.type == "one_or_more":
+                    fcc = types.FunctionCallingConfig(mode=types.FunctionCallingConfigMode.ANY)
+                elif tc.type == "specific_function":
+                    fcc = types.FunctionCallingConfig(
+                        mode=types.FunctionCallingConfigMode.ANY,
+                        allowed_function_names=[tc.function_name],
+                    )
+                else:
+                    assert_never(tc.type)
+                google_tool_config = types.ToolConfig(function_calling_config=fcc)
+
+        response_mime_type: str | None = None
+        response_json_schema: dict[str, Any] | None = None
+        if response_format:
+            if response_format.type == "json_schema":
+                js = response_format.json_schema
+                response_mime_type = "application/json"
+                if js.schema_:
+                    response_json_schema = js.schema_
+            elif TYPE_CHECKING:
+                assert_never(response_format.type)
+
+        temperature: float | None = None
+        max_output_tokens: int | None = None
+        stop_sequences: list[str] | None = None
+        top_p: float | None = None
+        top_k: int | None = None
+        presence_penalty: float | None = None
+        frequency_penalty: float | None = None
+        thinking_config: types.ThinkingConfig | None = None
+        if invocation_parameters:
+            if isinstance(invocation_parameters.google.temperature, float):
+                temperature = invocation_parameters.google.temperature
+            if isinstance(invocation_parameters.google.max_output_tokens, int):
+                max_output_tokens = invocation_parameters.google.max_output_tokens
+            if invocation_parameters.google.stop_sequences:
+                stop_sequences = invocation_parameters.google.stop_sequences
+            if isinstance(invocation_parameters.google.top_p, float):
+                top_p = invocation_parameters.google.top_p
+            if isinstance(invocation_parameters.google.top_k, int):
+                top_k = invocation_parameters.google.top_k
+            if isinstance(invocation_parameters.google.presence_penalty, float):
+                presence_penalty = invocation_parameters.google.presence_penalty
+            if isinstance(invocation_parameters.google.frequency_penalty, float):
+                frequency_penalty = invocation_parameters.google.frequency_penalty
+            if isinstance(invocation_parameters.google.thinking_config, PromptGoogleThinkingConfig):
+                tc_in = invocation_parameters.google.thinking_config
+                tc_kwargs: dict[str, Any] = {}
+                if isinstance(tc_in.thinking_budget, int):
+                    tc_kwargs["thinking_budget"] = tc_in.thinking_budget
+                if tc_in.thinking_level:
+                    try:
+                        import google.genai
+                        from packaging.version import parse as parse_version
+
+                        if parse_version(google.genai.__version__) < parse_version("1.50.0"):
+                            raise ImportError
+                    except (ImportError, AttributeError):
+                        raise BadRequest(
+                            "Reasoning capabilities for Gemini models require "
+                            "`google-genai>=1.50.0` and Python >= 3.10."
+                        )
+                    tc_kwargs["thinking_level"] = tc_in.thinking_level.upper()
+                if isinstance(tc_in.include_thoughts, bool):
+                    tc_kwargs["include_thoughts"] = tc_in.include_thoughts
+                if tc_kwargs:
+                    thinking_config = types.ThinkingConfig.model_validate(tc_kwargs)
+
+        config = types.GenerateContentConfig(
+            tools=google_tools,
+            tool_config=google_tool_config,
+            system_instruction=system_instruction,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            stop_sequences=stop_sequences,
+            top_p=top_p,
+            top_k=top_k,
+            presence_penalty=presence_penalty,
+            frequency_penalty=frequency_penalty,
+            thinking_config=thinking_config,
+            response_mime_type=response_mime_type,
+            response_json_schema=response_json_schema,
         )
-        async for event in stream:
-            self._attributes.update(
-                {
-                    LLM_TOKEN_COUNT_PROMPT: event.usage_metadata.prompt_token_count,
-                    LLM_TOKEN_COUNT_COMPLETION: event.usage_metadata.candidates_token_count,
-                    LLM_TOKEN_COUNT_TOTAL: event.usage_metadata.total_token_count,
-                }
+
+        if google_tools:
+            tool_idx = 0
+            for google_tool in google_tools:
+                if google_tool.function_declarations:
+                    for fn_decl in google_tool.function_declarations:
+                        span.set_attribute(
+                            f"llm.tools.{tool_idx}.tool.json_schema",
+                            safe_json_dumps(fn_decl.model_dump(exclude_none=True)),
+                        )
+                        tool_idx += 1
+
+        config_dict = config.model_dump(exclude_none=True)
+        input_value: dict[str, Any] = {
+            "model": self.model_name,
+            "contents": contents,
+            "config": config_dict,
+        }
+        span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
+        span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+        config_dict.pop("tools", None)
+        config_dict.pop("system_instruction", None)
+        span.set_attribute(SpanAttributes.LLM_INVOCATION_PARAMETERS, safe_json_dumps(config_dict))
+
+        return contents, config
+
+    def _iter_gemini_response_chunks(
+        self,
+        event: "GenerateContentResponse",
+        span: OTelSpan,
+    ) -> Iterator[ChatCompletionChunk]:
+        if event.usage_metadata:
+            token_counts = {}
+            if event.usage_metadata.prompt_token_count is not None:
+                token_counts[LLM_TOKEN_COUNT_PROMPT] = event.usage_metadata.prompt_token_count
+            if event.usage_metadata.candidates_token_count is not None:
+                token_counts[LLM_TOKEN_COUNT_COMPLETION] = (
+                    event.usage_metadata.candidates_token_count
+                )
+            if event.usage_metadata.total_token_count is not None:
+                token_counts[LLM_TOKEN_COUNT_TOTAL] = event.usage_metadata.total_token_count
+            if token_counts:
+                span.set_attributes(token_counts)
+
+        if event.candidates:
+            candidate = event.candidates[0]
+            if candidate.content and candidate.content.parts:
+                for part in candidate.content.parts:
+                    if function_call := part.function_call:
+                        # Gemini often returns an empty or ``None``
+                        # ``id`` on ``FunctionCall``.  The frontend
+                        # merges streamed tool-call chunks by ``id``,
+                        # so when every call arrives as ``""`` they all
+                        # collapse into one entry with garbled
+                        # arguments.  This class assigns a stable
+                        # synthetic ID (``tool_call_0``,
+                        # ``tool_call_1``, …) whenever the upstream
+                        # ``id`` is falsy, while preserving real IDs
+                        # when Gemini provides them.
+
+                        # This converter assumes each ``FunctionCall``
+                        # is self-contained — i.e. ``name`` and
+                        # ``args`` are both present on the same
+                        # object.  If they were ever split across
+                        # separate ``FunctionCall`` messages, the
+                        # converter would emit two incorrect
+                        # ``ToolCallChunk`` objects (one with the
+                        # name but empty args, another with args but
+                        # an empty name).  This assumption is safe
+                        # today: the Gemini API always delivers
+                        # complete function calls, and the SDK itself
+                        # makes the same assumption — it performs no
+                        # reassembly of ``FunctionCall`` fields
+                        # (``_Candidate_from_mldev`` passes
+                        # ``content`` through to Pydantic's
+                        # ``model_validate`` as-is).
+
+                        # The only mechanism that could disassociate
+                        # ``name`` and ``args`` is the
+                        # ``will_continue`` / ``partial_args``
+                        # incremental streaming protocol.  As of this
+                        # writing, both fields are rejected by the
+                        # Gemini API with ``ValueError`` (see
+                        # ``google.genai.models``).  They are only
+                        # supported by the Vertex AI surface behind
+                        # the ``stream_function_call_arguments``
+                        # tool-config flag.  If Vertex AI support is
+                        # added in the future, this class should be
+                        # extended to buffer partial calls
+                        # (``will_continue=True``) and reassemble
+                        # ``partial_args`` using their ``json_path``
+                        # keys.
+                        yield ToolCallChunk(
+                            id=function_call.id or token_hex(4),
+                            function=FunctionCallChunk(
+                                name=function_call.name or "",
+                                arguments=safe_json_dumps(function_call.args or {}),
+                            ),
+                        )
+                    elif text := part.text:
+                        yield TextChunk(content=text)
+
+    async def _chat_completion_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        span: OTelSpan,
+        stream_model_output: bool = True,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        if invocation_parameters is not None and not isinstance(
+            invocation_parameters, PromptGoogleInvocationParameters
+        ):
+            raise ValueError("invocation_parameters must be a PromptGoogleInvocationParameters")
+        text_chunks: list[TextChunk] = []
+        tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
+        contents, config = self._google_prepare_generate_content(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            span=span,
+        )
+        if not stream_model_output:
+            async with self._client_factory() as client:
+                response = await client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents,
+                    config=config,
+                )
+                span.set_attribute(OUTPUT_VALUE, response.model_dump_json(exclude_none=True))
+                span.set_attribute(OUTPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
+                for chunk in self._iter_gemini_response_chunks(response, span):
+                    if isinstance(chunk, TextChunk):
+                        text_chunks.append(chunk)
+                    elif isinstance(chunk, ToolCallChunk):
+                        tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
+            if text_chunks or tool_call_chunks:
+                span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            return
+
+        async with self._client_factory() as client:
+            gemini_stream = await client.models.generate_content_stream(
+                model=self.model_name,
+                contents=contents,
+                config=config,
             )
-            yield TextChunk(content=event.text)
+            async for event in gemini_stream:
+                for chunk in self._iter_gemini_response_chunks(event, span):
+                    if isinstance(chunk, TextChunk):
+                        text_chunks.append(chunk)
+                    elif isinstance(chunk, ToolCallChunk):
+                        tool_call_chunks[chunk.id].append(chunk)
+                    yield chunk
+        if text_chunks or tool_call_chunks:
+            span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
+            if output_attrs := _output_attributes(text_chunks, tool_call_chunks):
+                span.set_attributes(output_attrs)
 
     def _build_google_messages(
         self,
-        messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
-    ) -> tuple[list["ContentType"], str]:
+        messages: Sequence[PlaygroundMessage],
+    ) -> tuple[list["ContentUnionDict"], str]:
         """Build Google messages following the standard pattern - process ALL messages."""
-        google_messages: list["ContentType"] = []
+        google_messages: list["ContentUnionDict"] = []
         system_prompts = []
-        for role, content, _tool_call_id, _tool_calls in messages:
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"]
             if role == ChatCompletionMessageRole.USER:
                 google_messages.append({"role": "user", "parts": [{"text": content}]})
             elif role == ChatCompletionMessageRole.AI:
@@ -1843,51 +3041,52 @@ class GoogleStreamingClient(PlaygroundStreamingClient):
         return google_messages, "\n".join(system_prompts)
 
 
+GEMINI_4_MODELS = [
+    "gemini-4-argon",
+]
+
+GEMINI_3_MODELS = [
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview",
+]
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=[
-        PROVIDER_DEFAULT,
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro-preview-03-25",
-    ],
+    model_names=[*GEMINI_4_MODELS, *GEMINI_3_MODELS],
 )
-class Gemini25GoogleStreamingClient(GoogleStreamingClient):
-    @classmethod
-    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
-        return [
-            BoundedFloatInvocationParameter(
-                invocation_name="temperature",
-                canonical_name=CanonicalParameterName.TEMPERATURE,
-                label="Temperature",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=2.0,
-            ),
-            IntInvocationParameter(
-                invocation_name="max_output_tokens",
-                canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
-                label="Max Output Tokens",
-            ),
-            StringListInvocationParameter(
-                invocation_name="stop_sequences",
-                canonical_name=CanonicalParameterName.STOP_SEQUENCES,
-                label="Stop Sequences",
-            ),
-            BoundedFloatInvocationParameter(
-                invocation_name="top_p",
-                canonical_name=CanonicalParameterName.TOP_P,
-                label="Top P",
-                default_value=1.0,
-                min_value=0.0,
-                max_value=1.0,
-            ),
-            FloatInvocationParameter(
-                invocation_name="top_k",
-                label="Top K",
-            ),
-        ]
+class GoogleGemini3Client(GoogleClient):
+    async def chat_completion_create(
+        self,
+        *,
+        messages: Sequence[PlaygroundMessage],
+        tools: PromptTools | None,
+        response_format: PromptResponseFormat | None = None,
+        invocation_parameters: PromptInvocationParameters | None = None,
+        tracer: Tracer | None = None,
+        otel_context: OtelContext | None = None,
+        stream_model_output: bool = True,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        if invocation_parameters is not None and not isinstance(
+            invocation_parameters, PromptGoogleInvocationParameters
+        ):
+            raise ValueError("invocation_parameters must be a PromptGoogleInvocationParameters")
+        async for chunk in super().chat_completion_create(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            tracer=tracer,
+            otel_context=otel_context,
+            stream_model_output=stream_model_output,
+        ):
+            yield chunk
 
 
 def initialize_playground_clients() -> None:
@@ -1897,8 +3096,6 @@ def initialize_playground_clients() -> None:
     pass
 
 
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
-LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
@@ -1913,13 +3110,1278 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
 LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
 
 
-class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
-    def __init__(self, wrapped: httpx.AsyncClient, attributes: MutableMapping[str, Any]):
-        super().__init__(wrapped)
-        self._self_attributes = attributes
+if TYPE_CHECKING:
 
-    async def send(self, request: httpx.Request, **kwargs: Any) -> Any:
-        self._self_attributes["url.full"] = str(request.url)
-        self._self_attributes["url.path"] = request.url.path.removeprefix(self.base_url.path)
-        response = await self.__wrapped__.send(request, **kwargs)
-        return response
+    class _HttpxClientBase(wrapt.ObjectProxy[httpx2.AsyncClient], httpx2.AsyncClient):  # type: ignore[misc]
+        pass
+
+else:
+    _HttpxClientBase = wrapt.ObjectProxy
+
+
+class _HttpxClient(_HttpxClientBase):
+    """Records the outgoing request URL on the span without altering the request."""
+
+    def __init__(
+        self,
+        wrapped: httpx2.AsyncClient,
+        span: OTelSpan,
+    ):
+        super().__init__(wrapped)
+        self._self_span = span
+
+    async def send(self, request: httpx2.Request, **kwargs: Any) -> httpx2.Response:
+        self._self_span.set_attribute(URL_FULL, str(request.url))
+        self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
+        return await self.__wrapped__.send(request, **kwargs)
+
+
+CustomProviderId: TypeAlias = int
+
+
+async def get_playground_client(
+    *,
+    model_provider: ModelProvider,
+    model_name: str,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+    connection: CustomProviderId | ConnectionConfig | None = None,
+    headers: dict[str, str] | None = None,
+) -> "PlaygroundClient[Any]":
+    """
+    Create a playground client for the given model configuration.
+
+    Resolves credentials and configuration, then returns a client ready for
+    chat completions.  This is the single public entry point; callers should
+    never need to call the builtin/custom helpers directly.
+
+    Args:
+        model_provider: Canonical model provider enum (DB-level type).
+        model_name: Model name (or Azure deployment name).
+        session: Async database session (used for secret resolution and
+            custom-provider lookup).
+        decrypt: Decryption function for encrypted values in the database.
+        credentials: Optional explicit credentials (highest priority).
+        connection: ``None`` = builtin provider with defaults. A positive int =
+            custom provider row id. Otherwise an SDK-specific ``ConnectionConfig``
+            for builtin provider overrides.
+        headers: Extra HTTP headers passed to the SDK client (ephemeral,
+            not persisted in ConnectionConfig).
+    """
+    if isinstance(connection, int):
+        custom_provider_id = connection
+        provider_record = await session.get(
+            models.GenerativeModelCustomProvider, custom_provider_id
+        )
+        if not provider_record:
+            raise NotFound(f"Custom provider with ID {custom_provider_id} not found")
+
+        if not is_sdk_compatible_with_model_provider(provider_record.sdk, model_provider):
+            raise BadRequest(
+                f"Custom provider '{provider_record.name}' has SDK '{provider_record.sdk}' "
+                f"which is not compatible with model provider '{model_provider.value}'."
+            )
+
+        return await _get_custom_provider_client(
+            provider_record=provider_record,
+            model_name=model_name,
+            extra_headers=headers,
+            decrypt=decrypt,
+        )
+
+    return await _get_builtin_provider_client(
+        model_provider=model_provider,
+        model_name=model_name,
+        connection=connection,
+        headers=headers,
+        session=session,
+        decrypt=decrypt,
+        credentials=credentials,
+    )
+
+
+async def _resolve_secrets(
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    *keys: str,
+) -> dict[str, str]:
+    """
+    Resolve secrets from the database.
+
+    Args:
+        db: Database session factory.
+        decrypt: Decryption function.
+        *keys: Secret keys to look up.
+
+    Returns:
+        Dictionary mapping key names to their decrypted values.
+        Keys not found in the database are omitted.
+
+    Raises:
+        BadRequest: If a secret exists but cannot be decrypted.
+    """
+    secrets = (
+        await session.scalars(sa.select(models.Secret).where(models.Secret.key.in_(keys)))
+    ).all()
+    result: dict[str, str] = {}
+    for secret in secrets:
+        try:
+            result[secret.key] = decrypt(secret.value).decode("utf-8")
+        except Exception:
+            raise BadRequest(f"Failed to decrypt secret: {secret.key}")
+    return result
+
+
+def _get_credential_from_input(
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    env_var_name: str,
+) -> str | None:
+    """Extract a credential value from the input credentials list."""
+    if not credentials:
+        return None
+    return next(
+        (c.value.get_secret_value() for c in credentials if c.env_var_name == env_var_name),
+        None,
+    )
+
+
+async def _resolve_provider_api_key(
+    *,
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    env_var_name: str,
+    client_base_url: str | None,
+    provider_label: str,
+) -> str | None:
+    """Resolve a provider API key and enforce the custom-base-URL guard.
+
+    Resolution priority: client-supplied credential -> DB-encrypted secret ->
+    process environment variable.
+
+    Security: a server-configured (environment variable) API key must never be
+    sent to a client-supplied base URL — doing so would leak that credential to
+    the client-controlled host (SSRF / credential exfiltration). When the key
+    would fall through to an environment variable and the caller also supplied a
+    custom ``base_url``, the request is rejected. A key from the request itself or
+    from a DB secret is allowed with a custom base URL.
+    """
+    if from_input := _get_credential_from_input(credentials, env_var_name):
+        return from_input
+    if from_secret := (await _resolve_secrets(session, decrypt, env_var_name)).get(env_var_name):
+        return from_secret
+    from_env = getenv(env_var_name)
+    if from_env and client_base_url:
+        raise BadRequest(
+            f"A custom base URL cannot be used with the server-configured "
+            f"{provider_label} API key. Provide an API key with the request, "
+            f"or store one as a Phoenix secret, to use a custom base URL."
+        )
+    return from_env
+
+
+def get_openai_client_class(
+    provider_key: "GenerativeProviderKey",
+    model_name: str,
+    openai_api_type: Optional["OpenAIApiType"] = None,
+) -> Optional[type["PlaygroundClient[Any]"]]:
+    """
+    Select the OpenAI/Azure client class for a provider, model, and API type.
+
+    The source of truth for the builtin-provider path, including the default when no
+    API type is configured. The playground registry is not consulted: it carries the
+    model catalog, not routing.
+
+    Custom providers do not resolve through here -- their SDK type does not identify
+    the model family, so model-name-based specialization is not sound for them.
+
+    Args:
+        provider_key: The generative provider (OPENAI, AZURE_OPENAI, etc.)
+        model_name: The name of the model
+        openai_api_type: The API type (CHAT_COMPLETIONS or RESPONSES). If None,
+            the provider's default for that model applies.
+
+    Returns:
+        The client class, or None for non-OpenAI providers, whose callers fall
+        back to the registry.
+    """
+    from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+
+    if provider_key == GenerativeProviderKey.OPENAI:
+        if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
+            return OpenAIChatCompletionsClient
+        elif openai_api_type == OpenAIApiType.RESPONSES:
+            return OpenAIResponsesClient
+        # Unconfigured default: Responses, except the models predating it. Reasoning
+        # models cannot use /v1/chat/completions when function tools are present.
+        if model_name in OPENAI_CHAT_COMPLETIONS_MODELS:
+            return OpenAIChatCompletionsClient
+        return OpenAIResponsesClient
+
+    elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
+        if openai_api_type == OpenAIApiType.CHAT_COMPLETIONS:
+            return AzureOpenAIChatCompletionsClient
+        elif openai_api_type == OpenAIApiType.RESPONSES:
+            return AzureOpenAIResponsesClient
+        # Unconfigured default: Chat Completions, since an Azure deployment may not
+        # expose /v1/responses. Reasoning models go to Responses regardless -- they
+        # cannot use /v1/chat/completions when function tools are present.
+        if model_name in OPENAI_REASONING_MODELS:
+            return AzureOpenAIResponsesClient
+        return AzureOpenAIChatCompletionsClient
+
+    # For non-OpenAI providers, return None to signal caller should use registry
+    return None
+
+
+class _BuiltinSDKFields(NamedTuple):
+    base_url: str | None = None
+    endpoint: str | None = None  # Azure
+    region: str | None = None  # AWS
+    openai_api_type: OpenAIApiType | None = None
+
+
+def _builtin_sdk_fields_from_connection(
+    model_provider: ModelProvider,
+    connection: ConnectionConfig | None,
+) -> _BuiltinSDKFields:
+    """Map persisted ConnectionConfig to fields used by builtin SDK client setup."""
+    if connection is None:
+        return _BuiltinSDKFields()
+    provider_key = GenerativeProviderKey.from_model_provider(model_provider)
+    if connection.type == "openai" and provider_key in OPENAI_SDK_STYLE_PROVIDER_KEYS:
+        return _BuiltinSDKFields(
+            base_url=connection.base_url,
+            openai_api_type=OpenAIApiType(connection.openai_api_type),
+        )
+    if connection.type == "azure_openai" and provider_key is GenerativeProviderKey.AZURE_OPENAI:
+        return _BuiltinSDKFields(
+            endpoint=connection.azure_endpoint,
+            openai_api_type=OpenAIApiType(connection.openai_api_type),
+        )
+    if connection.type == "anthropic" and provider_key is GenerativeProviderKey.ANTHROPIC:
+        return _BuiltinSDKFields(base_url=connection.base_url)
+    if connection.type == "google_genai" and provider_key is GenerativeProviderKey.GOOGLE:
+        return _BuiltinSDKFields(base_url=connection.base_url)
+    if connection.type == "aws_bedrock" and provider_key is GenerativeProviderKey.AWS:
+        return _BuiltinSDKFields(region=connection.region_name)
+    return _BuiltinSDKFields()
+
+
+async def _get_builtin_provider_client(
+    model_provider: ModelProvider,
+    model_name: str,
+    connection: ConnectionConfig | None,
+    headers: dict[str, str] | None,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    credentials: Sequence[GenerativeCredentialInput] | None = None,
+) -> "PlaygroundClient[Any]":
+    """
+    Create a playground client from a builtin provider configuration.
+
+    Credentials are resolved in priority order:
+    1. Explicitly provided credentials
+    2. Encrypted secrets in the database
+    3. Environment variables
+    """
+    headers = dict(headers) if headers else None
+    provider_key = GenerativeProviderKey.from_model_provider(model_provider)
+    provider = GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING[provider_key]
+
+    sdk = _builtin_sdk_fields_from_connection(model_provider, connection)
+    base_url = sdk.base_url
+    # The client-supplied base URL, captured before any environment-variable fallback.
+    # Used to reject pairing a server-owned env-var API key with a client-controlled URL.
+    client_base_url = sdk.base_url or None
+    endpoint = sdk.endpoint
+    region = sdk.region
+    openai_api_type = sdk.openai_api_type
+
+    if provider_key == GenerativeProviderKey.OPENAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="OPENAI_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="OpenAI",
+        )
+        base_url = base_url or getenv("OPENAI_BASE_URL")
+
+        if not api_key:
+            if not base_url:
+                raise BadRequest(
+                    "An API key is required for OpenAI models. "
+                    "Set the OPENAI_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"  # Some OpenAI-compatible APIs don't need a key
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_openai_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+                timeout=30,
+            )
+
+        client_factory: ClientFactory[AsyncOpenAI] = LLMClientFactory(
+            create_openai_client, openai_rate_limit_key(api_key, base_url)
+        )
+        client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
+        if client_class is None:
+            raise BadRequest(f"No client found for OpenAI model: {model_name}")
+        return client_class(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.AZURE_OPENAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = (
+            _get_credential_from_input(credentials, "AZURE_OPENAI_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "AZURE_OPENAI_API_KEY")).get(
+                "AZURE_OPENAI_API_KEY"
+            )
+            or getenv("AZURE_OPENAI_API_KEY")
+        )
+        endpoint = endpoint or getenv("AZURE_OPENAI_ENDPOINT")
+
+        if not endpoint:
+            raise BadRequest(
+                "An Azure endpoint is required for Azure OpenAI models. "
+                "Set the AZURE_OPENAI_ENDPOINT environment variable or use a custom provider."
+            )
+
+        # Construct the v1 API base URL
+        endpoint = endpoint.rstrip("/")
+        base_url = (endpoint if endpoint.endswith("/openai/v1") else f"{endpoint}/openai/v1") + "/"
+
+        # Create factory that returns fresh Azure OpenAI client (native async context manager)
+        # Uses AsyncOpenAI with base_url (cleaner than AsyncAzureOpenAI)
+        rate_limit_key = azure_rate_limit_key(endpoint, api_key)
+        if api_key:
+
+            def create_azure_client() -> AsyncOpenAI:
+                return AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=base_url,
+                    default_headers=headers,
+                )
+
+            client_factory = LLMClientFactory(create_azure_client, rate_limit_key)
+        else:
+            try:
+                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
+            except ImportError:
+                raise BadRequest(
+                    "Provide an API key for Azure OpenAI models or install azure-identity"
+                )
+            # Capture token provider in closure for fresh client creation
+            # Passing token_provider as api_key requires openai>=1.106.0
+            token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(),
+                "https://cognitiveservices.azure.com/.default",
+            )
+
+            def create_client_with_token() -> AsyncOpenAI:
+                return AsyncOpenAI(
+                    api_key=token_provider,
+                    base_url=base_url,
+                    default_headers=headers,
+                )
+
+            client_factory = LLMClientFactory(
+                create_client_with_token, azure_rate_limit_key(endpoint, None)
+            )
+        client_class = get_openai_client_class(provider_key, model_name, openai_api_type)
+        if client_class is None:
+            raise BadRequest(f"No client found for Azure OpenAI model: {model_name}")
+        return client_class(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.ANTHROPIC:
+        try:
+            import anthropic
+        except ImportError:
+            raise BadRequest("Anthropic package not installed. Run: pip install anthropic")
+
+        api_key = (
+            _get_credential_from_input(credentials, "ANTHROPIC_API_KEY")
+            or (await _resolve_secrets(session, decrypt, "ANTHROPIC_API_KEY")).get(
+                "ANTHROPIC_API_KEY"
+            )
+            or getenv("ANTHROPIC_API_KEY")
+        )
+        if not api_key:
+            raise BadRequest(
+                "An API key is required for Anthropic models. "
+                "Set the ANTHROPIC_API_KEY environment variable or use a custom provider."
+            )
+
+        # Create factory that returns fresh Anthropic client (native async context manager)
+        # AsyncAnthropic implements __aenter__/__aexit__ so it IS a context manager
+        def create_anthropic_client() -> AbstractAsyncContextManager["AsyncAnthropic"]:
+            return anthropic.AsyncAnthropic(api_key=api_key, default_headers=headers)
+
+        anthropic_client_factory: ClientFactory["AsyncAnthropic"] = LLMClientFactory(
+            create_anthropic_client, anthropic_rate_limit_key(api_key, None)
+        )
+        return AnthropicClient(
+            client_factory=anthropic_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.GOOGLE:
+        try:
+            from google.genai.client import Client as GoogleGenAIClient
+        except ImportError:
+            raise BadRequest("Google GenAI package not installed. Run: pip install google-genai")
+
+        # Try input credentials first
+        api_key = _get_credential_from_input(
+            credentials, "GEMINI_API_KEY"
+        ) or _get_credential_from_input(credentials, "GOOGLE_API_KEY")
+
+        # Fall back to database secrets
+        if not api_key:
+            secrets = await _resolve_secrets(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
+            api_key = secrets.get("GEMINI_API_KEY") or secrets.get("GOOGLE_API_KEY")
+
+        # Fall back to environment variables
+        if not api_key:
+            api_key = getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")
+
+        if not api_key:
+            raise BadRequest(
+                "An API key is required for Google GenAI models. "
+                "Set the GEMINI_API_KEY environment variable or use a custom provider."
+            )
+
+        # Wrapped with @asynccontextmanager because Google's AsyncClient has
+        # a non-standard __aexit__ signature that doesn't conform to
+        # AbstractAsyncContextManager (returns None instead of bool | None).
+        @asynccontextmanager
+        async def create_google_client() -> "AsyncIterator[GoogleAsyncClient]":
+            async with GoogleGenAIClient(api_key=api_key).aio as client:
+                yield client
+
+        google_client_factory = cast(
+            "LLMClientFactory[GoogleAsyncClient]",
+            LLMClientFactory(create_google_client, google_rate_limit_key(api_key, None)),
+        )
+        if model_name in GEMINI_2_5_MODELS:
+            return GoogleClient(
+                client_factory=google_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return GoogleGemini3Client(
+            client_factory=google_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.AWS:
+        try:
+            import aioboto3  # type: ignore[import-untyped]
+        except ImportError:
+            raise BadRequest("aioboto3 package not installed. Run: pip install aioboto3")
+
+        region = region or getenv("AWS_REGION") or "us-east-1"
+
+        # Collect credentials from input
+        aws_access_key_id = _get_credential_from_input(credentials, "AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = _get_credential_from_input(credentials, "AWS_SECRET_ACCESS_KEY")
+        aws_session_token = _get_credential_from_input(credentials, "AWS_SESSION_TOKEN")
+
+        # Fall back to database secrets for missing credentials
+        if not aws_access_key_id or not aws_secret_access_key:
+            secrets = await _resolve_secrets(
+                session, decrypt, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"
+            )
+            aws_access_key_id = aws_access_key_id or secrets.get("AWS_ACCESS_KEY_ID")
+            aws_secret_access_key = aws_secret_access_key or secrets.get("AWS_SECRET_ACCESS_KEY")
+            aws_session_token = aws_session_token or secrets.get("AWS_SESSION_TOKEN")
+
+        # Fall back to environment variables
+        aws_access_key_id = aws_access_key_id or getenv("AWS_ACCESS_KEY_ID")
+        aws_secret_access_key = aws_secret_access_key or getenv("AWS_SECRET_ACCESS_KEY")
+        aws_session_token = aws_session_token or getenv("AWS_SESSION_TOKEN")
+
+        aioboto3_session = aioboto3.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            region_name=region,
+        )
+
+        # Create factory that returns aioboto3's ClientCreatorContext (async context manager)
+        def create_bedrock_client() -> AbstractAsyncContextManager["BedrockRuntimeClient"]:
+            return aioboto3_session.client(service_name="bedrock-runtime")  # type: ignore[no-any-return]
+
+        bedrock_client_factory: ClientFactory["BedrockRuntimeClient"] = LLMClientFactory(
+            create_bedrock_client, bedrock_rate_limit_key(region, aws_access_key_id)
+        )
+
+        return BedrockClient(
+            client_factory=bedrock_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.DEEPSEEK:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="DEEPSEEK_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="DeepSeek",
+        )
+        base_url = base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
+
+        if not api_key:
+            if base_url == "https://api.deepseek.com":
+                raise BadRequest(
+                    "An API key is required for DeepSeek models. "
+                    "Set the DEEPSEEK_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"  # Custom endpoints may not need a key
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_deepseek_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_deepseek_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.XAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="XAI_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="xAI",
+        )
+        base_url = base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
+
+        if not api_key:
+            if base_url == "https://api.x.ai/v1":
+                raise BadRequest(
+                    "An API key is required for xAI models. "
+                    "Set the XAI_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"  # Custom endpoints may not need a key
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_xai_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_xai_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.OLLAMA:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        base_url = base_url or getenv("OLLAMA_BASE_URL")
+        if not base_url:
+            raise BadRequest(
+                "A base URL is required for Ollama models. "
+                "Set the OLLAMA_BASE_URL environment variable (e.g., http://localhost:11434/v1) "
+                "or use a custom provider."
+            )
+
+        # Create factory that returns fresh OpenAI client (native async context manager)
+        def create_ollama_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key="ollama",
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_ollama_client, openai_rate_limit_key(None, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.CEREBRAS:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="CEREBRAS_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Cerebras",
+        )
+        base_url = base_url or getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1"
+
+        if not api_key:
+            if base_url == "https://api.cerebras.ai/v1":
+                raise BadRequest(
+                    "An API key is required for Cerebras models. "
+                    "Set the CEREBRAS_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_cerebras_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_cerebras_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.FIREWORKS:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="FIREWORKS_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Fireworks",
+        )
+        base_url = (
+            base_url or getenv("FIREWORKS_BASE_URL") or "https://api.fireworks.ai/inference/v1"
+        )
+
+        if not api_key:
+            if base_url == "https://api.fireworks.ai/inference/v1":
+                raise BadRequest(
+                    "An API key is required for Fireworks models. "
+                    "Set the FIREWORKS_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_fireworks_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_fireworks_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.GROQ:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="GROQ_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Groq",
+        )
+        base_url = base_url or getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1"
+
+        if not api_key:
+            if base_url == "https://api.groq.com/openai/v1":
+                raise BadRequest(
+                    "An API key is required for Groq models. "
+                    "Set the GROQ_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_groq_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_groq_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.MOONSHOT:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="MOONSHOT_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Moonshot",
+        )
+        base_url = base_url or getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1"
+
+        if not api_key:
+            if base_url == "https://api.moonshot.ai/v1":
+                raise BadRequest(
+                    "An API key is required for Moonshot models. "
+                    "Set the MOONSHOT_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_moonshot_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_moonshot_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.MINIMAX:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="MINIMAX_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="MiniMax",
+        )
+        base_url = base_url or getenv("MINIMAX_BASE_URL") or "https://api.minimax.io/v1"
+
+        if not api_key:
+            if base_url == "https://api.minimax.io/v1":
+                raise BadRequest(
+                    "An API key is required for MiniMax models. "
+                    "Set the MINIMAX_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_minimax_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_minimax_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.PERPLEXITY:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="PERPLEXITY_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Perplexity",
+        )
+        base_url = base_url or getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai"
+
+        if not api_key:
+            if base_url == "https://api.perplexity.ai":
+                raise BadRequest(
+                    "An API key is required for Perplexity models. "
+                    "Set the PERPLEXITY_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_perplexity_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_perplexity_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.TOGETHER:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="TOGETHER_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Together",
+        )
+        base_url = base_url or getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1"
+
+        if not api_key:
+            if base_url == "https://api.together.xyz/v1":
+                raise BadRequest(
+                    "An API key is required for Together AI models. "
+                    "Set the TOGETHER_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_together_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_together_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.ZAI:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="ZAI_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Z.ai",
+        )
+        base_url = base_url or getenv("ZAI_BASE_URL") or "https://api.z.ai/api/paas/v4"
+
+        if not api_key:
+            if base_url.startswith("https://api.z.ai/"):
+                raise BadRequest(
+                    "An API key is required for Z.ai models. "
+                    "Set the ZAI_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_zai_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_zai_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    elif provider_key == GenerativeProviderKey.META:
+        try:
+            from openai import AsyncOpenAI
+        except ImportError:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="META_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Meta",
+        )
+        base_url = base_url or getenv("META_BASE_URL") or "https://api.meta.ai/v1"
+
+        if not api_key:
+            if base_url.startswith("https://api.meta.ai/"):
+                raise BadRequest(
+                    "An API key is required for Meta models. "
+                    "Set the META_API_KEY environment variable or use a custom provider."
+                )
+            api_key = "sk-placeholder"
+
+        def create_meta_client() -> AsyncOpenAI:
+            return AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                default_headers=headers,
+            )
+
+        client_factory = LLMClientFactory(
+            create_meta_client, openai_rate_limit_key(api_key, base_url)
+        )
+        return OpenAIChatCompletionsClient(
+            client_factory=client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+
+    else:
+        assert_never(provider_key)
+
+
+async def _get_custom_provider_client(
+    provider_record: models.GenerativeModelCustomProvider,
+    model_name: str,
+    extra_headers: dict[str, str] | None,
+    decrypt: Callable[[bytes], bytes],
+) -> "PlaygroundClient[Any]":
+    """
+    Create a playground client from a custom provider stored in the database.
+
+    Decrypts the provider configuration and creates the appropriate SDK client.
+
+    Args:
+        provider_record: The custom provider DB record (already fetched).
+        model_name: The model name to use.
+        extra_headers: Optional extra HTTP headers for the client.
+        decrypt: Decryption function for the stored config.
+
+    Returns:
+        A configured PlaygroundClient.
+
+    Raises:
+        BadRequest: If decryption or parsing fails, or client creation fails.
+    """
+
+    try:
+        decrypted_data = decrypt(provider_record.config)
+    except Exception:
+        raise BadRequest("Failed to decrypt custom provider config")
+
+    try:
+        config = GenerativeModelCustomerProviderConfig.model_validate_json(decrypted_data)
+    except ValidationError:
+        raise BadRequest("Failed to parse custom provider config")
+
+    provider = provider_record.provider
+    headers = dict(extra_headers) if extra_headers else None
+    cfg = config.root
+
+    # The openai/azure_openai SDK configs serve any OpenAI-compatible endpoint --
+    # DeepSeek, xAI, Ollama, Groq, Together and others (see
+    # is_sdk_compatible_with_model_provider). A model name matching an OpenAI model
+    # does not mean OpenAI is behind it, so the reasoning-model specializations,
+    # which rewrite `system` to `developer`, are deliberately not applied here.
+    if cfg.type == "openai":
+        try:
+            openai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        if cfg.openai_api_type == "responses":
+            return OpenAIResponsesClient(
+                client_factory=openai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return OpenAIChatCompletionsClient(
+            client_factory=openai_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "azure_openai":
+        try:
+            azure_openai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        if cfg.openai_api_type == "responses":
+            return AzureOpenAIResponsesClient(
+                client_factory=azure_openai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return AzureOpenAIChatCompletionsClient(
+            client_factory=azure_openai_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "anthropic":
+        try:
+            anthropic_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        return AnthropicClient(
+            client_factory=anthropic_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "aws_bedrock":
+        try:
+            aws_bedrock_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        return BedrockClient(
+            client_factory=aws_bedrock_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    elif cfg.type == "google_genai":
+        try:
+            google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
+        except Exception as e:
+            raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
+        if model_name in GEMINI_2_5_MODELS:
+            return GoogleClient(
+                client_factory=google_genai_client_factory,
+                model_name=model_name,
+                provider=provider,
+            )
+        return GoogleGemini3Client(
+            client_factory=google_genai_client_factory,
+            model_name=model_name,
+            provider=provider,
+        )
+    else:
+        assert_never(cfg)
+
+
+def llm_span_kind() -> Iterator[tuple[str, Any]]:
+    yield OPENINFERENCE_SPAN_KIND, LLM
+
+
+def llm_model_name(model_name: str) -> Iterator[tuple[str, Any]]:
+    yield LLM_MODEL_NAME, model_name
+
+
+def llm_input_messages(
+    messages: Iterable[PlaygroundMessage],
+) -> Iterator[tuple[str, Any]]:
+    oi_messages = [_playground_message_to_oi_message(message) for message in messages]
+    yield from oi.get_llm_input_message_attributes(oi_messages).items()
+
+
+def _playground_message_to_oi_message(message: PlaygroundMessage) -> oi.Message:
+    oi_message = oi.Message()
+    if (role := message.get("role")) is not None:
+        oi_message["role"] = role.value.lower()
+    if (content := message.get("content")) is not None:
+        oi_message["content"] = content
+    if (tool_call_id := message.get("tool_call_id")) is not None:
+        oi_message["tool_call_id"] = tool_call_id
+    if (tool_calls := message.get("tool_calls")) is not None:
+        oi_message["tool_calls"] = [
+            _playground_tool_call_to_oi_tool_call(tool_call) for tool_call in tool_calls
+        ]
+    return oi_message
+
+
+def _playground_tool_call_to_oi_tool_call(tool_call: PlaygroundToolCall) -> oi.ToolCall:
+    oi_tool_call = oi.ToolCall()
+    if (id := tool_call.get("id")) is not None:
+        oi_tool_call["id"] = id
+    if (function := tool_call.get("function")) is not None:
+        oi_tool_call_function = oi.ToolCallFunction()
+        if (name := function.get("name")) is not None:
+            oi_tool_call_function["name"] = name
+        if (arguments := function.get("arguments")) is not None:
+            oi_tool_call_function["arguments"] = safe_json_dumps(arguments)
+        if oi_tool_call_function:
+            oi_tool_call["function"] = oi_tool_call_function
+    return oi_tool_call
+
+
+def _merge_tool_call_chunks_for_output(
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> list[dict[str, Any]]:
+    merged = []
+    for tool_id, chunks in tool_call_chunks.items():
+        if not chunks:
+            continue
+        first = chunks[0]
+        if not first or not hasattr(first, "function"):
+            continue
+        arguments = "".join(c.function.arguments for c in chunks if c and hasattr(c, "function"))
+        merged.append(
+            {
+                "id": tool_id,
+                "function": {
+                    "name": first.function.name or "",
+                    "arguments": arguments or "{}",
+                },
+            }
+        )
+    return merged
+
+
+def _output_attributes(
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> dict[str, Any]:
+    """Return output span attributes via openinference-instrumentation.
+
+    For text-only responses, the output value is the plain text string.
+    When tool calls are present, the output is wrapped in a messages structure
+    to match the standard chat completion response format.
+    """
+    content = "".join(chunk.content for chunk in text_chunks)
+    merged_tool_calls = _merge_tool_call_chunks_for_output(tool_call_chunks)
+    if merged_tool_calls:
+        message: dict[str, Any] = {"role": "assistant"}
+        if content:
+            message["content"] = content
+        message["tool_calls"] = jsonify(merged_tool_calls)
+        return get_output_attributes({"messages": [message]})
+    if content:
+        return get_output_attributes(content)
+    return {}
+
+
+def _llm_output_messages(
+    text_chunks: list[TextChunk],
+    tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]],
+) -> Iterator[tuple[str, Any]]:
+    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
+    if content := "".join(chunk.content for chunk in text_chunks):
+        yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", content
+    for tool_call_index, (_tool_call_id, tool_call_chunks_) in enumerate(tool_call_chunks.items()):
+        if _tool_call_id:
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
+                _tool_call_id,
+            )
+        if tool_call_chunks_ and (name := tool_call_chunks_[0].function.name):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
+                name,
+            )
+        if arguments := "".join(chunk.function.arguments for chunk in tool_call_chunks_):
+            yield (
+                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+                arguments,
+            )
+
+
+JSON = OpenInferenceMimeTypeValues.JSON.value
+TEXT = OpenInferenceMimeTypeValues.TEXT.value
+
+LLM = OpenInferenceSpanKindValues.LLM.value
+
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
+LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
+LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
+LLM_TOOLS = SpanAttributes.LLM_TOOLS
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+METADATA = SpanAttributes.METADATA
+
+MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
+MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
+TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
+MESSAGE_TOOL_CALL_ID = MessageAttributes.MESSAGE_TOOL_CALL_ID
+TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA

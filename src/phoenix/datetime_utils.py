@@ -2,13 +2,12 @@ from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any, Iterator, Literal, Optional, cast
 
 import pandas as pd
-import pytz
 from pandas import Timestamp, to_datetime
 from pandas.core.dtypes.common import (
     is_datetime64_any_dtype,
-    is_datetime64tz_dtype,
     is_numeric_dtype,
     is_object_dtype,
+    is_string_dtype,
 )
 from typing_extensions import assert_never
 
@@ -24,8 +23,8 @@ def normalize_datetime(
     tz: Optional[tzinfo] = None,
 ) -> Optional[datetime]:
     """
-    If the input datetime is timezone-naive, it is localized as local timezone
-    unless tzinfo is specified.
+    If the input datetime is timezone-naive, it is localized to the local
+    timezone unless tzinfo is specified.
     """
     if not isinstance(dt, datetime):
         return None
@@ -45,15 +44,18 @@ def normalize_timestamps(
     """
     if is_numeric_dtype(timestamps):
         return to_datetime(timestamps, unit="s", utc=True)
-    if is_datetime64tz_dtype(timestamps):
-        return timestamps.dt.tz_convert(pytz.utc)
+    if isinstance(timestamps.dtype, pd.DatetimeTZDtype):
+        return cast("pd.Series[Timestamp]", timestamps.dt.tz_convert(timezone.utc))
     if is_datetime64_any_dtype(timestamps):
-        return timestamps.dt.tz_localize(
-            datetime.now().astimezone().tzinfo,
-        ).dt.tz_convert(
-            timezone.utc,
+        return cast(
+            "pd.Series[Timestamp]",
+            timestamps.dt.tz_localize(
+                datetime.now().astimezone().tzinfo,
+            ).dt.tz_convert(
+                timezone.utc,
+            ),
         )
-    if is_object_dtype(timestamps):
+    if is_object_dtype(timestamps) or is_string_dtype(timestamps):
         timestamps = to_datetime(timestamps)
         if timestamps.dt.tz is None:
             timestamps = timestamps.dt.tz_localize(
@@ -154,16 +156,16 @@ def get_timestamp_range(
         >>> start = datetime(2024, 1, 1, 12, 30, 45, tzinfo=timezone.utc)
         >>> end = datetime(2024, 1, 1, 12, 33, 0, tzinfo=timezone.utc)
         >>> list(get_timestamp_range(start, end, "minute"))
-        [datetime(2024, 1, 1, 12, 30, tzinfo=timezone.utc),
-         datetime(2024, 1, 1, 12, 31, tzinfo=timezone.utc),
-         datetime(2024, 1, 1, 12, 32, tzinfo=timezone.utc)]
+        [datetime.datetime(2024, 1, 1, 12, 30, tzinfo=datetime.timezone.utc),
+         datetime.datetime(2024, 1, 1, 12, 31, tzinfo=datetime.timezone.utc),
+         datetime.datetime(2024, 1, 1, 12, 32, tzinfo=datetime.timezone.utc)]
 
-        >>> # Week stride rounds down to Monday
+        >>> # Week stride rounds down to Monday (2024-01-08), then the next Monday
         >>> start = datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc)  # Wednesday
         >>> end = datetime(2024, 1, 22, 0, 0, tzinfo=timezone.utc)
         >>> list(get_timestamp_range(start, end, "week"))
-        [datetime(2024, 1, 8, 0, 0, tzinfo=timezone.utc),   # Monday
-         datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc)]  # Next Monday
+        [datetime.datetime(2024, 1, 8, 0, 0, tzinfo=datetime.timezone.utc),
+         datetime.datetime(2024, 1, 15, 0, 0, tzinfo=datetime.timezone.utc)]
 
     Note:
         - If end_time <= start_time (after rounding), returns an empty iterator
@@ -178,7 +180,7 @@ def get_timestamp_range(
     offset_delta = timedelta(minutes=utc_offset_minutes)
     local_start_time = start_time + offset_delta
 
-    # round down start_time to the nearest stride in local timezone
+    # Round down start_time to the nearest stride boundary in local timezone
     if stride == "minute":
         t = local_start_time.replace(second=0, microsecond=0)
     elif stride == "hour":

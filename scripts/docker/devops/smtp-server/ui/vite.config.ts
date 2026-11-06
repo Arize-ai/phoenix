@@ -1,5 +1,5 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
@@ -8,10 +8,15 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     sourcemap: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom"],
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor",
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
+          ],
         },
       },
     },

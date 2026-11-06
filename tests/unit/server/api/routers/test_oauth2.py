@@ -1,460 +1,354 @@
+import base64
+import contextlib
+import html
+import json
+from collections.abc import AsyncIterator
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any, Optional
+from typing import Any, Optional, cast
+from urllib.parse import parse_qs, urlparse
 
+import httpx2
+import jmespath
 import pytest
+from fastapi import FastAPI
 from sqlalchemy import insert, select
+from starlette.requests import Request
+from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.types import ASGIApp
 
+from phoenix.auth import (
+    PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
+    PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+    PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+)
+from phoenix.config import AssignableUserRoleName
 from phoenix.db import models
 from phoenix.server.api.routers.oauth2 import (
     InvalidUserInfo,
     MissingEmailScope,
     SignInNotAllowed,
     UserInfo,
-    _get_existing_oauth2_user,
+    _create_or_update_user,
+    _create_redirect_response,
+    _encode_oauth2_login_context,
+    _is_relative_url,
+    _login_origin_url,
     _parse_user_info,
+    _process_oauth2_user,
+    _sign_in_existing_oauth2_user,
+    _sign_oauth2_login_context,
+    create_tokens_rate_limiter,
+    login_rate_limiter,
+    router,
 )
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.oauth2 import OAuth2Client
+from phoenix.server.types import AccessToken, DbSessionFactory, RefreshToken
 
 
-@pytest.mark.parametrize(
-    "user,oauth2_client_id,user_info,allowed",
-    [
-        # Test Case: User with password hash cannot sign in with OAuth2
-        # Verifies that users who have set a password must use password authentication
-        # and cannot switch to OAuth2 authentication.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=b"password_hash",
-                password_salt=b"password_salt",
-                reset_password=False,
-                oauth2_client_id=None,
-                oauth2_user_id=None,
-                auth_method="LOCAL",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            False,
-            id="user_with_password_hash",
-        ),
-        # Test Case: User with matching OAuth2 credentials can sign in
-        # Verifies that users with matching OAuth2 credentials can successfully sign in
-        # without any credential updates needed.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_with_matching_oauth2_credentials",
-        ),
-        # Test Case: User with different OAuth2 client ID can sign in
-        # Verifies that users found by email can have their OAuth2 client ID updated
-        # when signing in with a different client ID.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_with_different_oauth2_client_id",
-        ),
-        # Test Case: User with different OAuth2 user ID cannot sign in
-        # Verifies that users cannot sign in when their OAuth2 user ID doesn't match,
-        # even if the client ID matches.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890987654321",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            False,
-            id="user_with_different_oauth2_user_id",
-        ),
-        # Test Case: User with missing OAuth2 client ID can sign in
-        # Verifies that users found by email can have their OAuth2 client ID set
-        # when signing in for the first time with OAuth2.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id=None,
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_with_missing_oauth2_client_id",
-        ),
-        # Test Case: User with missing OAuth2 user ID can sign in
-        # Verifies that users can sign in when their OAuth2 user ID is missing,
-        # if the client ID matches.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id=None,
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_with_missing_oauth2_user_id",
-        ),
-        # Test Case: User with missing OAuth2 client ID but different user ID can sign in
-        # Verifies that users found by email can have both their OAuth2 client ID and user ID
-        # updated when signing in for the first time with OAuth2.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id=None,
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890987654321",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_with_missing_oauth2_client_id_and_different_user_id",
-        ),
-        # Test Case: User with missing OAuth2 user ID but different client ID can sign in
-        # Verifies that users found by email can have both their OAuth2 client ID and user ID
-        # updated when signing in with different credentials.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
-                oauth2_user_id=None,
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_with_missing_oauth2_user_id_and_different_client_id",
-        ),
-        # Test Case: User found by email with no OAuth2 credentials can sign in
-        # Verifies that users found by email can have their OAuth2 credentials set
-        # when signing in for the first time with OAuth2.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id=None,
-                oauth2_user_id=None,
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_found_by_email_no_oauth2_credentials",
-        ),
-        # Test Case: User found by email with matching OAuth2 credentials can sign in
-        # Verifies that users found by email with matching OAuth2 credentials
-        # can sign in without any credential updates.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_found_by_email_matching_oauth2_credentials",
-        ),
-        # Test Case: User found by email with different OAuth2 credentials can sign in
-        # Verifies that users found by email can have their OAuth2 credentials updated
-        # when signing in with different credentials.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890987654321",
-                auth_method="OAUTH2",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_found_by_email_different_oauth2_credentials",
-        ),
-        # Test Case: User with updated profile picture can sign in
-        # Verifies that users can have their profile picture URL updated
-        # when signing in with a new URL.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-                profile_picture_url="https://old-picture.com/avatar.jpg",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url="https://new-picture.com/avatar.jpg",
-            ),
-            True,
-            id="user_with_updated_profile_picture",
-        ),
-        # Test Case: User with changed OAuth2 client ID and profile picture can sign in
-        # Verifies that users can have both their OAuth2 client ID and profile picture
-        # updated simultaneously when signing in.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=token_hex(8),
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-                profile_picture_url="https://old-picture.com/avatar.jpg",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url="https://new-picture.com/avatar.jpg",
-            ),
-            True,
-            id="user_with_changed_client_id_and_profile_picture",
-        ),
-        # Test Case: User with removed profile picture can sign in
-        # Verifies that users can have their profile picture URL removed (set to None)
-        # when signing in with no profile picture URL provided.
-        pytest.param(
-            dict(
-                user_role_id=1,
-                username=f"test_username{token_hex(8)}",
-                password_hash=None,
-                password_salt=None,
-                reset_password=False,
-                oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="118234567890123456789",
-                auth_method="OAUTH2",
-                profile_picture_url="https://example.com/avatar.jpg",
-            ),
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=f"test_username{token_hex(8)}",
-                profile_picture_url=None,
-            ),
-            True,
-            id="user_with_removed_profile_picture",
-        ),
-        # Test Case: Non-existent user cannot sign in
-        # Verifies that sign-in is rejected when no user is found
-        # by either OAuth2 credentials or email.
-        pytest.param(
-            None,
-            "123456789012-abcdef.apps.googleusercontent.com",
-            UserInfo(
-                idp_user_id="118234567890123456789",
-                email=f"{token_hex(8)}@example.com",
-                username=None,
-                profile_picture_url=None,
-            ),
-            False,
-            id="non_existent_user",
-        ),
-    ],
-)
-async def test_get_existing_oauth2_user(
-    app: ASGIApp,
-    db: DbSessionFactory,
-    user: Optional[dict[str, Any]],
-    oauth2_client_id: str,
-    user_info: UserInfo,
-    allowed: bool,
-) -> None:
-    """Test the OAuth2 user sign-in and update process.
+class TestSignInExistingOAuth2User:
+    """Comprehensive test for _sign_in_existing_oauth2_user covering all authentication scenarios."""
 
-    This test verifies the behavior of _get_existing_oauth2_user function, which handles:
-    1. OAuth2 user authentication
-    2. User profile updates (profile picture)
-    3. OAuth2 credential updates (client_id, user_id)
-    4. Error cases and rejections
-
-    The test covers various scenarios:
-    - Users with/without passwords
-    - Users with matching/different OAuth2 credentials
-    - Users found by OAuth2 credentials or email
-    - Profile information updates
-    - Error conditions
-
-    Args:
-        app: The FastAPI application instance
-        db: Database session factory
-        user: Optional existing user in the database
-        oauth2_client_id: OAuth2 client ID to use for sign-in
-        user_info: User information from the OAuth2 provider
-        allowed: Whether the sign-in should be allowed
-    """
-    if user:
+    @pytest.fixture(autouse=True)
+    async def _setup_role_ids(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
+        """Query role IDs upfront to avoid hardcoding numeric values."""
         async with db() as session:
-            # For some strange reason PostgreSQL insists on UPDATE instead of
-            # INSERT when using session.add(user), so we INSERT manually.
+            result = await session.execute(select(models.UserRole.name, models.UserRole.id))
+            self.role_ids: dict[str, int] = {name: id_ for name, id_ in result.all()}
+
+    async def test_all_scenarios(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
+        """Single comprehensive test covering all sign-in scenarios."""
+        client_id = "123456789012-abcdef.apps.googleusercontent.com"
+        role_ids = self.role_ids
+
+        async def create_user(email: str, uid: Optional[str], role: str, **kw: Any) -> None:
+            async with db() as session:
+                is_local = kw.get("auth_method") == "LOCAL"
+                await session.execute(
+                    insert(models.User).values(
+                        email=email,
+                        user_role_id=role_ids[role],
+                        username=kw.get("username", token_hex(8)),
+                        reset_password=False,
+                        auth_method=kw.get("auth_method", "OAUTH2"),
+                        oauth2_client_id=None if is_local else kw.get("cid"),
+                        oauth2_user_id=None if is_local else uid,
+                        password_hash=kw.get("pw_hash"),
+                        password_salt=kw.get("pw_salt"),
+                        profile_picture_url=kw.get("pic"),
+                    )
+                )
+
+        async def sign_in(
+            email: str, uid: str, role: Optional[AssignableUserRoleName], pic: Optional[str] = None
+        ) -> models.User:
+            async with db() as session:
+                return await _sign_in_existing_oauth2_user(
+                    session,
+                    oauth2_client_id=client_id,
+                    user_info=UserInfo(
+                        idp_user_id=uid, email=email, username=None, profile_picture_url=pic
+                    ),
+                    role_name=role,
+                )
+
+        # Test 1: LOCAL user cannot sign in with OAuth2
+        e1 = f"{token_hex(8)}@example.com"
+        await create_user(e1, "uid1", "VIEWER", auth_method="LOCAL", pw_hash=b"h", pw_salt=b"s")
+        async with db() as session:
+            with pytest.raises(SignInNotAllowed):
+                await _sign_in_existing_oauth2_user(
+                    session,
+                    oauth2_client_id=client_id,
+                    user_info=UserInfo(
+                        idp_user_id="uid1", email=e1, username=None, profile_picture_url=None
+                    ),
+                    role_name="VIEWER",
+                )
+
+        # Test 2: Non-existent user
+        async with db() as session:
+            with pytest.raises(SignInNotAllowed):
+                await _sign_in_existing_oauth2_user(
+                    session,
+                    oauth2_client_id=client_id,
+                    user_info=UserInfo(
+                        idp_user_id="uid_new",
+                        email=f"{token_hex(8)}@example.com",
+                        username=None,
+                        profile_picture_url=None,
+                    ),
+                    role_name="VIEWER",
+                )
+
+        # Test 3: Mismatched OAuth2 user ID
+        e2 = f"{token_hex(8)}@example.com"
+        await create_user(e2, "uid2", "VIEWER", cid=client_id)
+        async with db() as session:
+            with pytest.raises(SignInNotAllowed):
+                await _sign_in_existing_oauth2_user(
+                    session,
+                    oauth2_client_id=client_id,
+                    user_info=UserInfo(
+                        idp_user_id="uid_wrong", email=e2, username=None, profile_picture_url=None
+                    ),
+                    role_name="VIEWER",
+                )
+
+        # Test 4-8: OAuth2 credential updates (each with unique user)
+        for uid_suffix in range(5):
+            e = f"{token_hex(8)}@example.com"
+            uid = f"uid3_{uid_suffix}"
+            await create_user(e, uid, "VIEWER", cid=client_id)
+            u = await sign_in(e, uid, "VIEWER")
+            assert (
+                u.role.name == "VIEWER"
+                and u.oauth2_client_id == client_id
+                and u.oauth2_user_id == uid
+            )
+
+        # Test 9: Profile picture update
+        e3 = f"{token_hex(8)}@example.com"
+        await create_user(e3, "uid4", "VIEWER", cid=client_id, pic="old.jpg")
+        u = await sign_in(e3, "uid4", "VIEWER", "new.jpg")
+        assert u.role.name == "VIEWER"
+
+        # Test 10-13: Role updates when mapping configured
+        for idx, (initial, target) in enumerate(
+            [("VIEWER", "ADMIN"), ("ADMIN", "VIEWER"), ("MEMBER", "ADMIN"), ("VIEWER", "VIEWER")]
+        ):
+            e = f"{token_hex(8)}@example.com"
+            uid = f"uid5_{idx}"
+            await create_user(e, uid, initial, cid=client_id)
+            u = await sign_in(e, uid, cast(AssignableUserRoleName, target))
+            assert u.role.name == target
+
+        # Test 14-16: CRITICAL backward compatibility - role preservation
+        for idx, role in enumerate(["ADMIN", "MEMBER", "VIEWER"]):
+            e = f"{token_hex(8)}@example.com"
+            uid = f"uid6_{idx}"
+            await create_user(e, uid, role, cid=client_id)
+            u = await sign_in(e, uid, None)  # None = role mapping NOT configured
+            assert u.role.name == role
+
+        # Test 17: Combined role + picture update
+        e4 = f"{token_hex(8)}@example.com"
+        await create_user(e4, "uid7", "MEMBER", cid=client_id, pic="old.jpg")
+        u = await sign_in(e4, "uid7", "ADMIN", "new.jpg")
+        assert u.role.name == "ADMIN"
+
+
+class TestRoleResync:
+    """role_resync=False preserves a manually-set role on re-login while mapping stays active."""
+
+    @pytest.fixture(autouse=True)
+    async def _setup_role_ids(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
+        async with db() as session:
+            result = await session.execute(select(models.UserRole.name, models.UserRole.id))
+            self.role_ids: dict[str, int] = {name: id_ for name, id_ in result.all()}
+
+    async def _create_oauth2_user(
+        self, db: DbSessionFactory, email: str, uid: str, role: str, client_id: str
+    ) -> None:
+        async with db() as session:
             await session.execute(
                 insert(models.User).values(
-                    email=user_info.email,
-                    user_role_id=user.get("user_role_id"),
-                    username=user.get("username"),
-                    password_hash=user.get("password_hash"),
-                    password_salt=user.get("password_salt"),
-                    reset_password=user.get("reset_password"),
-                    oauth2_client_id=user.get("oauth2_client_id"),
-                    oauth2_user_id=user.get("oauth2_user_id"),
-                    auth_method=user.get("auth_method"),
+                    email=email,
+                    user_role_id=self.role_ids[role],
+                    username=token_hex(8),
+                    reset_password=False,
+                    auth_method="OAUTH2",
+                    oauth2_client_id=client_id,
+                    oauth2_user_id=uid,
                 )
             )
-    async with db() as session:
-        if not user or not allowed:
-            with pytest.raises(SignInNotAllowed):
-                await _get_existing_oauth2_user(
-                    session,
-                    oauth2_client_id=oauth2_client_id,
-                    user_info=user_info,
-                )
-            return
-        oauth2_user = await _get_existing_oauth2_user(
-            session,
-            oauth2_client_id=oauth2_client_id,
-            user_info=user_info,
-        )
-    # Verify the returned user object has the correct OAuth2 credentials
-    assert oauth2_user
-    assert oauth2_user.oauth2_client_id == oauth2_client_id
-    assert oauth2_user.oauth2_user_id == user_info.idp_user_id
 
-    # Verify the database state after the update
-    async with db() as session:
-        db_user = await session.scalar(select(models.User).filter_by(email=user_info.email))
-    assert db_user
-    # Verify OAuth2 credentials are correctly updated
-    assert db_user.oauth2_client_id == oauth2_client_id
-    assert db_user.oauth2_user_id == user_info.idp_user_id
-    # Verify profile picture URL is updated if provided in user_info
-    if user_info.profile_picture_url is not None:
-        assert db_user.profile_picture_url == user_info.profile_picture_url
-    # Verify username remains unchanged
-    assert db_user.username == user.get("username")
+    async def test_role_resync_disabled_preserves_existing_role(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """With role_resync=False, an admin-promoted role survives an IDP login mapping to VIEWER."""
+        client_id = "client-skip"
+        email = f"{token_hex(8)}@example.com"
+        # Admin manually promoted this user to MEMBER in the UI.
+        await self._create_oauth2_user(db, email, "uid-skip", "MEMBER", client_id)
+
+        async with db() as session:
+            user = await _sign_in_existing_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-skip", email=email, username=None, profile_picture_url=None
+                ),
+                role_name="VIEWER",  # IDP would downgrade to VIEWER
+                role_resync=False,
+            )
+        assert user.role.name == "MEMBER"  # manual promotion preserved
+
+    async def test_role_resync_enabled_overwrites(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """Default behavior (role_resync=True) still re-syncs the role from the IDP."""
+        client_id = "client-noskip"
+        email = f"{token_hex(8)}@example.com"
+        await self._create_oauth2_user(db, email, "uid-noskip", "MEMBER", client_id)
+
+        async with db() as session:
+            user = await _sign_in_existing_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-noskip", email=email, username=None, profile_picture_url=None
+                ),
+                role_name="VIEWER",
+                role_resync=True,
+            )
+        assert user.role.name == "VIEWER"  # re-synced from IDP
+
+    async def test_create_or_update_role_resync_disabled_preserves_existing(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """role_resync=False also preserves roles in the sign-up-enabled path for existing users."""
+        client_id = "client-skip-cou"
+        email = f"{token_hex(8)}@example.com"
+        await self._create_oauth2_user(db, email, "uid-cou", "ADMIN", client_id)
+
+        async with db() as session:
+            user = await _create_or_update_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-cou", email=email, username=None, profile_picture_url=None
+                ),
+                role_name="VIEWER",
+                role_resync=False,
+            )
+        assert user.role.name == "ADMIN"
+
+    async def test_new_user_role_resync_disabled_still_uses_mapped_role(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """role_resync=False does not affect new users: they are provisioned with their mapped role."""
+        client_id = "client-newuser-skip"
+        email = f"{token_hex(8)}@example.com"
+
+        async with db() as session:
+            user = await _create_or_update_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-newskip",
+                    email=email,
+                    username=token_hex(8),
+                    profile_picture_url=None,
+                ),
+                role_name="ADMIN",  # mapped role from IDP
+                role_resync=False,
+            )
+        assert user.role.name == "ADMIN"  # mapping still active for provisioning
+
+    async def test_process_oauth2_user_forwards_role_resync(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """_process_oauth2_user forwards role_resync down to the existing-user update path."""
+        client_id = "client-process-forward"
+        email = f"{token_hex(8)}@example.com"
+        # Admin manually promoted this user to MEMBER in the UI.
+        await self._create_oauth2_user(db, email, "uid-forward", "MEMBER", client_id)
+
+        async with db() as session:
+            user = await _process_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-forward", email=email, username=None, profile_picture_url=None
+                ),
+                allow_sign_up=True,  # routes through _create_or_update_user
+                role_name="VIEWER",  # IDP would downgrade to VIEWER
+                role_resync=False,
+            )
+        assert user.role.name == "MEMBER"  # forwarded role_resync preserved the promotion
+
+    async def test_role_resync_disabled_preserves_role_against_fallback_viewer(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """Security caveat: with role_resync=False, the non-strict VIEWER fallback for a
+        missing/unmapped IDP claim does NOT downgrade an existing user.
+
+        This chains the two stages the behavior actually spans: extract_and_map_role turns a
+        missing role claim into the fail-safe VIEWER, and the existing-user update path must then
+        preserve the higher role rather than apply that VIEWER.
+        """
+        client_id = "client-fallback-viewer"
+        email = f"{token_hex(8)}@example.com"
+        # Admin assigned manually in the Phoenix UI.
+        await self._create_oauth2_user(db, email, "uid-fallback", "ADMIN", client_id)
+
+        # Non-strict role mapping: a claim with no role resolves to the VIEWER fail-safe.
+        client = OAuth2Client(
+            name="test",
+            client_id="test_id",
+            client_secret="test_secret",
+            server_metadata_url="https://test.example.com/.well-known/openid-configuration",
+            display_name="Test IDP",
+            allow_sign_up=False,
+            auto_login=False,
+            role_attribute_path="role",
+        )
+        role_name = client.extract_and_map_role({"email": email})  # no "role" claim
+        assert role_name == "VIEWER"  # non-strict fail-safe
+
+        async with db() as session:
+            user = await _sign_in_existing_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-fallback", email=email, username=None, profile_picture_url=None
+                ),
+                role_name=role_name,
+                role_resync=False,
+            )
+        assert user.role.name == "ADMIN"  # fail-safe VIEWER did not demote the existing admin
 
 
 class TestParseUserInfo:
@@ -844,3 +738,574 @@ class TestParseUserInfo:
         assert result.claims["https://myapp.com/groups"] == ["admin", "users"]
         assert result.claims["cognito:groups"] == ["Administrators"]
         assert result.claims["resource_access"]["my-app"]["roles"] == ["developer"]
+
+    def test_email_attribute_path_default(self) -> None:
+        """Test that default behavior uses 'email' claim."""
+        token = {
+            "sub": "user-123",
+            "email": "user@example.com",
+        }
+
+        result = _parse_user_info(token)
+
+        assert result.email == "user@example.com"
+
+    def test_email_attribute_path_preferred_username(self) -> None:
+        """Test extracting email from preferred_username (Azure AD scenario)."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "user@company.onmicrosoft.com",
+            # email claim is missing/null
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+        assert result.email == "user@company.onmicrosoft.com"
+
+    def test_email_attribute_path_upn(self) -> None:
+        """Test extracting email from upn claim."""
+        token = {
+            "sub": "user-123",
+            "upn": "user@company.com",
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("upn"))
+
+        assert result.email == "user@company.com"
+
+    def test_email_attribute_path_nested(self) -> None:
+        """Test extracting email from nested path."""
+        token = {
+            "sub": "user-123",
+            "attributes": {
+                "email": "user@example.com",
+            },
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("attributes.email"))
+
+        assert result.email == "user@example.com"
+
+    def test_email_attribute_path_missing_claim(self) -> None:
+        """Test that missing claim with custom path raises MissingEmailScope."""
+        token = {
+            "sub": "user-123",
+            "email": "user@example.com",  # Standard claim exists
+        }
+
+        with pytest.raises(
+            MissingEmailScope, match="Missing or invalid 'preferred_username' claim"
+        ):
+            _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+    def test_email_attribute_path_empty_value(self) -> None:
+        """Test that empty value with custom path raises MissingEmailScope."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "   ",  # Empty whitespace
+        }
+
+        with pytest.raises(
+            MissingEmailScope, match="Missing or invalid 'preferred_username' claim"
+        ):
+            _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+    def test_email_attribute_path_case_handling(self) -> None:
+        """Test that extracted values are lowercased."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "User@Company.COM",
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+        assert result.email == "user@company.com"
+
+    def test_email_attribute_path_whitespace_trimmed(self) -> None:
+        """Test that whitespace is trimmed from extracted values."""
+        token = {
+            "sub": "user-123",
+            "preferred_username": "  user@example.com  ",
+        }
+
+        result = _parse_user_info(token, email_path=jmespath.compile("preferred_username"))
+
+        assert result.email == "user@example.com"
+
+
+class TestLoginOriginUrl:
+    """The origin the IdP callback is built on must not be attacker-influenced
+    when the operator has declared the canonical public origin: the Referer is
+    whatever page sent the user to /oauth2/{idp}/login — during an
+    /oauth2/authorize login redirect it is the OAuth client's own UI — and
+    building the callback on it would make the IdP deliver the authorization
+    code to a foreign origin."""
+
+    @staticmethod
+    def _request(headers: Optional[dict[str, str]] = None) -> Request:
+        return Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/oauth2/dev/login",
+                "root_path": "",
+                "scheme": "http",
+                "server": ("phoenix.internal", 6006),
+                "query_string": b"",
+                "headers": [
+                    (key.lower().encode(), value.encode()) for key, value in (headers or {}).items()
+                ],
+            }
+        )
+
+    def test_declared_root_url_wins_over_referer(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ROOT_URL", "http://localhost:18273/phoenix")
+        monkeypatch.setenv("PHOENIX_HOST_ROOT_PATH", "/phoenix")
+        request = self._request({"referer": "http://localhost:6274/"})
+        assert _login_origin_url(request) == "http://localhost:18273/phoenix"
+
+    def test_referer_is_used_when_no_root_url_is_declared(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+        request = self._request({"referer": "http://example.com:1234/some/page"})
+        assert _login_origin_url(request) == "http://example.com:1234"
+
+    def test_base_url_is_the_last_resort(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+        request = self._request()
+        assert _login_origin_url(request) == "http://phoenix.internal:6006/"
+
+
+class TestOAuth2TokensRedirect:
+    @staticmethod
+    def _request(root_path: str = "") -> Request:
+        return Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/oauth2/google/tokens",
+                "root_path": root_path,
+                "scheme": "http",
+                "server": ("phoenix.internal", 6006),
+                "query_string": b"",
+                "headers": [],
+            }
+        )
+
+    @pytest.mark.parametrize(
+        "root_path,return_url,expected_location",
+        [
+            ("", None, "/"),
+            ("", "/projects", "/projects"),
+            ("", "/oauth2/consent", "/oauth2/consent"),
+            ("", "/oauth2/authorized", "/oauth2/authorized"),
+            ("/phoenix", "/projects", "/phoenix/projects"),
+            ("", "/projects?next=http://127.0.0.1:8765/", "/projects?next=http://127.0.0.1:8765/"),
+        ],
+    )
+    def test_redirects_302_for_non_server_owned_paths(
+        self, root_path: str, return_url: Optional[str], expected_location: str
+    ) -> None:
+        response = _create_redirect_response(self._request(root_path), return_url)
+        assert isinstance(response, RedirectResponse)
+        assert response.status_code == 302
+        assert response.headers["location"] == expected_location
+
+    @pytest.mark.parametrize(
+        "root_path,return_url,expected_target",
+        [
+            ("", "/oauth2/authorize", "/oauth2/authorize"),
+            (
+                "",
+                "/oauth2/authorize?client_id=mcp-gateway&state=xyz&redirect_uri=http://127.0.0.1:8765/",
+                "/oauth2/authorize?client_id=mcp-gateway&state=xyz&redirect_uri=http://127.0.0.1:8765/",
+            ),
+            (
+                "/phoenix",
+                "/oauth2/authorize?client_id=mcp-gateway&state=xyz",
+                "/phoenix/oauth2/authorize?client_id=mcp-gateway&state=xyz",
+            ),
+        ],
+    )
+    def test_serves_html_navigation_for_server_owned_paths(
+        self, root_path: str, return_url: str, expected_target: str
+    ) -> None:
+        response = _create_redirect_response(self._request(root_path), return_url)
+        assert isinstance(response, HTMLResponse)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        body = bytes(response.body).decode("utf-8")
+        assert f'window.location.replace("{expected_target}");' in body
+        assert f'href="{html.escape(expected_target)}"' in body
+
+    def test_server_owned_redirect_escapes_script_and_attribute_breakout(self) -> None:
+        return_url = '/oauth2/authorize?q="></script><script>alert(1)</script>'
+        response = _create_redirect_response(self._request(), return_url)
+        body = bytes(response.body).decode("utf-8")
+        script_content = body.split("<script>", 1)[1].split("</script>", 1)[0]
+        assert "</script>" not in script_content
+        assert "\\u003c/script\\u003e\\u003cscript\\u003e" in script_content
+        assert 'href="/oauth2/authorize?q=&quot;&gt;&lt;/script&gt;' in body
+
+
+_LOGIN_CONTEXT_KEY = b"\x33" * 32
+_DEFAULT_STATE = "state-token"
+
+
+def _b64(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _signed_raw(
+    raw: bytes,
+    *,
+    key: bytes = _LOGIN_CONTEXT_KEY,
+    state: str = _DEFAULT_STATE,
+) -> str:
+    encoded_payload = _b64(raw)
+    signature = _sign_oauth2_login_context(key=key, state=state, encoded_payload=encoded_payload)
+    return f"{encoded_payload}.{signature}"
+
+
+def _redirect_error(response: httpx2.Response) -> str:
+    assert response.status_code == 307
+    error = parse_qs(urlparse(response.headers["location"]).query)["error"]
+    assert len(error) == 1
+    return error[0]
+
+
+def _assert_oauth2_cookies_deleted(response: httpx2.Response) -> None:
+    headers = response.headers.get_list("set-cookie")
+    for name in (
+        PHOENIX_OAUTH2_STATE_COOKIE_NAME,
+        PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
+        PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
+        PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+    ):
+        assert any(header.startswith(f"{name}=") and "Max-Age=0" in header for header in headers)
+
+
+async def _skip_rate_limit(request: Request) -> Request:
+    return request
+
+
+class TestOAuth2CallbackLoginContext:
+    _app: Optional[FastAPI] = None
+
+    @classmethod
+    def _callback_app(cls) -> FastAPI:
+        if cls._app is not None:
+            return cls._app
+
+        class _Client:
+            client_id = "dev-client"
+            use_pkce = False
+            email_path = jmespath.compile("email")
+            allow_sign_up = True
+            role_resync = False
+
+            async def create_authorization_url(
+                self, *, redirect_uri: str, state: str
+            ) -> dict[str, str]:
+                return {
+                    "url": f"https://idp.example/authorize?state={state}",
+                    "state": state,
+                    "nonce": "nonce",
+                }
+
+            async def fetch_access_token(self, **kwargs: Any) -> dict[str, Any]:
+                return {
+                    "access_token": "idp-access-token",
+                    "token_type": "Bearer",
+                    "id_token": "idp-id-token",
+                }
+
+            async def parse_id_token(
+                self, token_data: dict[str, Any], nonce: str
+            ) -> dict[str, Any]:
+                return {"sub": "user-1", "email": "alice@example.com"}
+
+            def has_sufficient_claims(self, claims: dict[str, Any]) -> bool:
+                return True
+
+            def validate_access(self, claims: dict[str, Any]) -> None:
+                pass
+
+            def extract_and_map_role(
+                self, claims: dict[str, Any]
+            ) -> Optional[AssignableUserRoleName]:
+                return None
+
+        class _Clients:
+            def get_client(self, idp_name: str) -> object:
+                return _Client()
+
+        app = FastAPI()
+        app.state.oauth2_clients = _Clients()
+        app.state.oauth2_login_context_key = _LOGIN_CONTEXT_KEY
+        app.state.access_token_expiry = timedelta(minutes=15)
+        app.state.refresh_token_expiry = timedelta(days=7)
+        app.state.get_token_store = lambda: object()
+        app.include_router(router)
+        app.dependency_overrides[login_rate_limiter] = _skip_rate_limit
+        app.dependency_overrides[create_tokens_rate_limiter] = _skip_rate_limit
+        cls._app = app
+        return app
+
+    async def _callback(
+        self,
+        *,
+        state: str = _DEFAULT_STATE,
+        stored_state: str = _DEFAULT_STATE,
+        login_context: Optional[str] = None,
+    ) -> httpx2.Response:
+        cookies = {
+            PHOENIX_OAUTH2_STATE_COOKIE_NAME: stored_state,
+            PHOENIX_OAUTH2_NONCE_COOKIE_NAME: "nonce",
+        }
+        if login_context is not None:
+            cookies[PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME] = login_context
+        cookie_header = "; ".join(f"{k}={v}" for k, v in cookies.items())
+        async with httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=self._callback_app()),
+            base_url="http://test",
+        ) as client:
+            return await client.get(
+                "/oauth2/dev/tokens",
+                params={"state": state, "code": "auth-code"},
+                headers=httpx2.Headers({"cookie": cookie_header}, encoding="latin-1"),
+                follow_redirects=False,
+            )
+
+    async def test_login_and_callback_round_trip_preserves_encoded_cli_return_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        @contextlib.asynccontextmanager
+        async def _fake_db() -> AsyncIterator[None]:
+            yield None
+
+        async def _fake_process_user(*args: Any, **kwargs: Any) -> object:
+            return object()
+
+        async def _fake_create_tokens(
+            *args: Any, **kwargs: Any
+        ) -> tuple[AccessToken, RefreshToken]:
+            return AccessToken("access-jwt"), RefreshToken("refresh-jwt")
+
+        app = self._callback_app()
+        monkeypatch.setattr(app.state, "db", _fake_db, raising=False)
+        monkeypatch.setattr(
+            "phoenix.server.api.routers.oauth2._process_oauth2_user", _fake_process_user
+        )
+        monkeypatch.setattr(
+            "phoenix.server.api.routers.oauth2.create_access_and_refresh_tokens",
+            _fake_create_tokens,
+        )
+        return_url = (
+            "/oauth2/authorize?client_id=phoenix-cli"
+            "&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcallback"
+        )
+        async with httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            login_response = await client.get(
+                "/oauth2/dev/login",
+                params={"returnUrl": return_url},
+                follow_redirects=False,
+            )
+            assert login_response.status_code == 302
+            state = parse_qs(urlparse(login_response.headers["location"]).query)["state"][0]
+            assert return_url not in login_response.headers["location"]
+            callback_response = await client.get(
+                "/oauth2/dev/tokens",
+                params={"state": state, "code": "auth-code"},
+                follow_redirects=False,
+            )
+        assert callback_response.status_code == 200
+        assert f'window.location.replace("{return_url}");' in callback_response.text
+        _assert_oauth2_cookies_deleted(callback_response)
+
+    @pytest.mark.parametrize(
+        "state,stored_state",
+        [
+            pytest.param("from-idp", "from-browser", id="mismatch"),
+            pytest.param("é", "é", id="non_ascii"),
+        ],
+    )
+    async def test_invalid_state_is_rejected(self, state: str, stored_state: str) -> None:
+        login_context = _encode_oauth2_login_context(
+            key=_LOGIN_CONTEXT_KEY,
+            state=stored_state,
+            origin_url="http://testserver",
+            return_url="/projects",
+        )
+        response = await self._callback(
+            state=state, stored_state=stored_state, login_context=login_context
+        )
+        assert _redirect_error(response) == "invalid_state"
+
+    async def test_state_mismatch_is_rejected_before_return_url_check(self) -> None:
+        login_context = _encode_oauth2_login_context(
+            key=_LOGIN_CONTEXT_KEY,
+            state="from-browser",
+            origin_url="http://testserver",
+            return_url="https://evil.example/phish",
+        )
+        response = await self._callback(
+            state="from-idp", stored_state="from-browser", login_context=login_context
+        )
+        assert _redirect_error(response) == "invalid_state"
+
+    @pytest.mark.parametrize(
+        "login_context",
+        [
+            pytest.param(None, id="missing"),
+            pytest.param("!!!!", id="not_base64"),
+            pytest.param(
+                _b64(b'{"origin_url":"http://testserver","exp":9999999999}') + ".é",
+                id="non_ascii_signature",
+            ),
+            pytest.param(
+                _b64(b'{"origin_url":"http://testserver","exp":9999999999}'),
+                id="unsigned",
+            ),
+            pytest.param(
+                _b64(b'{"origin_url":"https://evil.example","exp":9999999999}')
+                + "."
+                + _encode_oauth2_login_context(
+                    key=_LOGIN_CONTEXT_KEY,
+                    state=_DEFAULT_STATE,
+                    origin_url="http://testserver",
+                    return_url="/projects",
+                ).partition(".")[2],
+                id="tampered_payload",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(
+                    key=_LOGIN_CONTEXT_KEY,
+                    state="other-login-attempt",
+                    origin_url="http://testserver",
+                    return_url="/projects",
+                ),
+                id="reused_across_login_attempts",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(
+                    key=b"\x44" * 32,
+                    state=_DEFAULT_STATE,
+                    origin_url="http://testserver",
+                    return_url="/projects",
+                ),
+                id="wrong_key",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(
+                    key=_LOGIN_CONTEXT_KEY,
+                    state=_DEFAULT_STATE,
+                    origin_url="http://testserver",
+                    return_url="/projects",
+                    expires_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
+                ),
+                id="expired",
+            ),
+            pytest.param(_signed_raw(b"not-json"), id="not_json"),
+            pytest.param(_signed_raw(b"[]"), id="not_object"),
+            pytest.param(_signed_raw(b"{}"), id="empty_object"),
+            pytest.param(_signed_raw(b'{"origin_url":1,"exp":9999999999}'), id="non_string_origin"),
+            pytest.param(
+                _signed_raw(b'{"return_url":"/projects","exp":9999999999}'), id="missing_origin"
+            ),
+            pytest.param(_signed_raw(b'{"origin_url":"http://testserver"}'), id="missing_exp"),
+            pytest.param(
+                _signed_raw(b'{"origin_url":"http://testserver","exp":true}'), id="bool_exp"
+            ),
+            pytest.param(
+                _signed_raw(
+                    b'{"origin_url":"http://testserver","return_url":"/projects","exp":9999999999,"extra":1}'
+                ),
+                id="extra_key",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(
+                    key=_LOGIN_CONTEXT_KEY,
+                    state=_DEFAULT_STATE,
+                    origin_url="http://[",
+                    return_url=None,
+                ),
+                id="malformed_origin",
+            ),
+            pytest.param(
+                _encode_oauth2_login_context(
+                    key=_LOGIN_CONTEXT_KEY,
+                    state=_DEFAULT_STATE,
+                    origin_url="javascript:alert(1)",
+                    return_url=None,
+                ),
+                id="non_http_origin",
+            ),
+            pytest.param("a" * 4097, id="oversized"),
+            pytest.param(
+                _signed_raw(
+                    json.dumps({"origin_url": "https://\ud800", "exp": 9999999999}).encode()
+                ),
+                id="lone_surrogate_origin",
+            ),
+            pytest.param(
+                _signed_raw(
+                    json.dumps(
+                        {
+                            "origin_url": "https://example.com",
+                            "return_url": "/\ud800",
+                            "exp": 9999999999,
+                        }
+                    ).encode()
+                ),
+                id="lone_surrogate_return_url",
+            ),
+            pytest.param(_signed_raw(("[" * 1000 + "0" + "]" * 1000).encode()), id="deeply_nested"),
+        ],
+    )
+    async def test_invalid_login_context_is_rejected(self, login_context: str | None) -> None:
+        response = await self._callback(login_context=login_context)
+        assert _redirect_error(response) == "invalid_state"
+        _assert_oauth2_cookies_deleted(response)
+
+    @pytest.mark.parametrize(
+        "return_url",
+        [
+            "https://evil.example/phish",
+            "//evil.example",
+            "/\\evil.example",
+            "%2Foauth2%2Fauthorize",
+            "%2F%2Fevil.example",
+            "/%2Fevil.example",
+            "/projects\nLocation: https://evil.example",
+            "",
+        ],
+    )
+    async def test_non_relative_return_url_is_rejected(self, return_url: str) -> None:
+        login_context = _encode_oauth2_login_context(
+            key=_LOGIN_CONTEXT_KEY,
+            state=_DEFAULT_STATE,
+            origin_url="http://testserver",
+            return_url=return_url,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+        )
+        assert "=" not in login_context
+        response = await self._callback(login_context=login_context)
+        assert _redirect_error(response) == "unsafe_return_url"
+
+    @pytest.mark.parametrize(
+        "return_url",
+        [
+            "/",
+            "/?tab=traces",
+            "/#section",
+            "/projects",
+            "/oauth2/authorize?client_id=phoenix-cli&redirect_uri=http%3A%2F%2F127.0.0.1%3A8765%2Fcallback",
+        ],
+    )
+    def test_valid_relative_return_url_is_accepted(self, return_url: str) -> None:
+        assert _is_relative_url(return_url) is True

@@ -87,6 +87,9 @@ class AnalyzeData(Skill):
                         },
                     ],
                 )
+            if not response.choices:
+                span.set_attribute(SpanAttributes.OUTPUT_VALUE, "")
+                return "No response from the model."
             analysis_result = response.choices[0].message.content
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, analysis_result)
             return analysis_result

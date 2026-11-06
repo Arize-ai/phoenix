@@ -1,0 +1,249 @@
+---
+title: "Using a prompt"
+---
+
+This guide shows how to pull a prompt into your code and use it to prompt an LLM. Before you start, [tag](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) a prompt version as ready (for example, "staging").
+
+<Accordion title="ℹ️ A caution about using prompts inside your application code">
+Phoenix treats prompts as code, but stores them outside your codebase. This has these effects on your application:
+
+**Key Implementation Impacts**
+
+* Your application must use the network to get prompts.
+
+* Debugging is more complex.
+
+* Your application depends on an external system.
+
+**Current Status**
+
+The Phoenix team is adding safeguards to decrease these risks:
+
+* Caching mechanisms
+
+* Fallback systems
+
+**Best Practices**
+
+If you use Phoenix prompts in your application, do these steps:
+
+1. Implement robust caching.
+
+2. Implement fallback mechanisms.
+
+3. Examine the effect on the reliability requirements of your application.
+
+To give feedback on these improvements, open an issue: [https://github.com/Arize-ai/phoenix/issues/6290](https://github.com/Arize-ai/docs/phoenix/issues/6290)
+
+</Accordion>
+
+Install the phoenix client library.
+
+For Python:
+
+```sh
+pip install arize-phoenix-client
+```
+
+For JavaScript / TypeScript:
+
+```javascript
+npm install @arizeai/phoenix-client
+```
+
+## Pulling a prompt
+
+You can pull a prompt in three ways: by [name or ID](/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt#pulling-a-prompt-by-name-or-id) (latest version), by version, or by tag.
+
+### Pulling a prompt by Name or ID
+
+Pull a prompt by its name or ID (the identifier) to get the latest version of the prompt. This is the easiest method.
+
+A name or ID does not identify a specific version, so you always get the latest version. Thus, use this method only during development.
+
+<Tabs>
+
+  <Tab title="Python" icon="python">
+
+    ```python
+    from phoenix.client import Client
+
+    # Initialize a phoenix client with your phoenix endpoint
+    # By default it will read from your environment variables
+    client = Client(
+    # base_url="https://my-phoenix.com",
+    )
+
+    # Pulling a prompt by name
+    prompt_name = "my-prompt-name"
+    prompt = client.prompts.get(prompt_identifier=prompt_name)
+    print(prompt.id)
+    ```
+
+    Prompt names and IDs are synonymous.
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+    ```typescript
+    import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+    const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
+    // ^ the latest version of the prompt named "my-prompt"
+
+    const promptById = await getPrompt({ prompt: { promptId: "a1234" } })
+    // ^ the latest version of the prompt with Id "a1234"
+    ```
+    
+    Prompt names and IDs are synonymous.
+
+  </Tab>
+
+</Tabs>
+
+### Pulling a prompt by Version ID
+
+Pull a prompt by version ID to get the content of a prompt at a specific point in time. A version cannot change and you cannot delete it. Thus, you can use it in production-like use cases.
+
+<Frame caption="The ID of a specific prompt version can be found in the prompt history.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/6c02bb6f-image.jpeg" alt="Phoenix saved prompt showing its version identifier" />
+</Frame>
+
+<Tabs>
+
+  <Tab title="Python" icon="python">
+
+    ```python
+    # Initialize a phoenix client with your phoenix endpoint
+    # By default it will read from your environment variables
+    client = Client(
+    # base_url="https://my-phoenix.com",
+    )
+
+    # The version ID can be found in the versions tab in the UI
+    prompt = client.prompts.get(prompt_version_id="UHJvbXB0VmVyc2lvbjoy")
+    print(prompt.id)
+    ```
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+    ```typescript
+    import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+    const promptByVersionId = await getPrompt({ prompt: { versionId: "b5678" } })
+    // ^ the latest version of the prompt with Id "a1234"
+    ```
+
+  </Tab>
+
+</Tabs>
+
+### Pulling a prompt by Tag
+
+Pull a prompt by tag to use a specific prompt version automatically in an environment (for example, "staging"). Before you pull by tag, [Tag a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt) in the UI.
+
+<Frame caption="You can control the prompt version tags in the UI.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d216c9ac-image.jpeg" alt="Phoenix saved prompt showing its assigned tag" />
+</Frame>
+
+
+<Tabs>
+
+  <Tab title="Python" icon="python">
+
+    ```python
+    # By default it will read from your environment variables
+    client = Client(
+    # base_url="https://my-phoenix.com",
+    )
+
+    # Since tags don't uniquely identify a prompt version
+    #  it must be paired with the prompt identifier (e.g. name)
+    prompt = client.prompts.get(prompt_identifier="my-prompt-name", tag="staging")
+    print(prompt.id)
+    ```
+
+    Tags are unique per prompt. Thus, you must pair the tag with the **prompt\_identifier**.
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+    ```typescript
+    import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+    const promptByTag = await getPrompt({ prompt: { tag: "staging", name: "my-prompt" } });
+    // ^ the specific prompt version tagged "production", for prompt "my-prompt"
+    ```
+
+  </Tab>
+
+</Tabs>
+
+To update a prompt pulled by tag in your application, move the "staging" tag to a different prompt version. Your application then gets the new version automatically.
+
+## Using a prompt
+
+Use the Phoenix client to format the prompt with variables. The client gives the messages, model information, [tools](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#tools), and response format (if applicable).
+
+The Phoenix client libraries transform prompts to the format of your SDK. You do not need a proxy.
+
+<Tabs>
+
+  <Tab title="Python" icon="python">
+
+    ```python
+    from openai import OpenAI
+
+    prompt_vars = {"topic": "Sports", "article": "Surrey have signed Australia all-rounder Moises Henriques for this summer's NatWest T20 Blast. Henriques will join Surrey immediately after the Indian Premier League season concludes at the end of next month and will be with them throughout their Blast campaign and also as overseas cover for Kumar Sangakkara - depending on the veteran Sri Lanka batsman's Test commitments in the second half of the summer. Australian all-rounder Moises Henriques has signed a deal to play in the T20 Blast for Surrey . Henriques, pictured in the Big Bash (left) and in ODI action for Australia (right), will join after the IPL . Twenty-eight-year-old Henriques, capped by his country in all formats but not selected for the forthcoming Ashes, said: 'I'm really looking forward to playing for Surrey this season. It's a club with a proud history and an exciting squad, and I hope to play my part in achieving success this summer. 'I've seen some of the names that are coming to England to be involved in the NatWest T20 Blast this summer, so am looking forward to testing myself against some of the best players in the world.' Surrey director of cricket Alec Stewart added: 'Moises is a fine all-round cricketer and will add great depth to our squad.'"}
+    formatted_prompt = prompt.format(variables=prompt_vars)
+
+    # Make a request with your Prompt
+    oai_client = OpenAI()
+    resp = oai_client.chat.completions.create(**formatted_prompt)
+    ```
+
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+
+    ```typescript
+    import { getPrompt, toSDK } from "@arizeai/phoenix-client/prompts";
+    import OpenAI from "openai";
+
+    const openai = new OpenAI()
+    const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
+
+    // openaiParameters is fully typed, and safe to use directly in the openai client
+    const openaiParameters = toSDK({
+      // sdk does not have to match the provider saved in your prompt
+      // if it differs, we will apply a best effort conversion between providers automatically
+      sdk: "openai",
+      prompt,
+      // variables within your prompt template can be replaced across messages
+      variables: { question: "How do I write 'Hello World' in JavaScript?" }
+    });
+
+    const response = await openai.chat.completions.create({
+      ...openaiParameters,
+      // you can still override any of the invocation parameters as needed
+      // for example, you can change the model or stream the response
+      model: "gpt-4o-mini",
+      stream: false
+    })
+    ```
+
+  </Tab>
+
+</Tabs>
+
+The Python and TypeScript SDKs can transform your prompts to these SDKs. You do not need a proprietary SDK.
+
+* Python - OpenAI, Anthropic, Gemini
+
+* TypeScript - OpenAI, Anthropic, and the Vercel AI SDK
+
+

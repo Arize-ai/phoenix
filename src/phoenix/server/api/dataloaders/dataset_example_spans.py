@@ -20,7 +20,7 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
         example_ids = keys
-        async with self._db() as session:
+        async with self._db.read() as session:
             spans = {
                 example_id: span
                 async for example_id, span in await session.stream(

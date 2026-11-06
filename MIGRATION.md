@@ -1,5 +1,566 @@
 # Migrations
 
+## v20.x to v21.0.0
+
+### Bind address and authentication
+
+- **The default bind address is loopback.** `PHOENIX_HOST` defaults to `127.0.0.1` for HTTP, gRPC, and Prometheus.
+  To accept connections from other machines, set `PHOENIX_HOST=0.0.0.0` or `::`.
+- **Authentication follows the bind address.** When `PHOENIX_ENABLE_AUTH` is unset, authentication is enabled for
+  non-loopback addresses and disabled for loopback. An explicit `PHOENIX_ENABLE_AUTH` setting takes precedence.
+- **Docker requires authentication by default.** The image sets `PHOENIX_HOST=::`. Create an API key and configure
+  trace exporters and other API clients to use it. Unauthenticated requests are rejected with HTTP 401 or gRPC
+  unauthenticated errors. To keep authentication disabled, set `PHOENIX_ENABLE_AUTH=false`.
+  Helm already enables authentication explicitly; its authentication default is unchanged.
+- **Notebooks now honor authentication settings.** `launch_app` previously disabled authentication regardless of
+  `PHOENIX_ENABLE_AUTH`. It now honors that setting and otherwise follows the bind-address rule above, including
+  an explicit `host` argument. When authentication is enabled, configure `PHOENIX_API_KEY` for `register()`,
+  `px.Client()`, and other notebook clients. Databricks defaults to `0.0.0.0`, so authentication is enabled there
+  by default. Set `PHOENIX_ENABLE_AUTH=false` to restore the previous behavior.
+
+### Replace `phoenix serve --host` with `PHOENIX_HOST`
+
+The `--host` option is removed. Set the bind address through `PHOENIX_HOST` instead.
+
+**Before:**
+
+```shell
+phoenix serve --host 0.0.0.0 --port 6006
+```
+
+**After:**
+
+```shell
+PHOENIX_HOST=0.0.0.0 phoenix serve --port 6006
+```
+
+### Default-admin credentials
+
+The initial admin account is `admin@localhost`. Set `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` to an unpredictable
+password before starting Phoenix. Otherwise, the default password is `admin`, which must be changed before
+opening a session. Scripted logins with this default receive HTTP 403 and a reset token; use
+`POST /auth/password-reset` to change the password. A custom initial password does not require this reset.
+
+On an existing database, startup applies `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` only if the local admin
+still requires a password reset and its password is still `admin`. Customized credentials are preserved;
+this variable is not a general password-rotation mechanism. Replacing the default password revokes existing
+browser and OAuth2 sessions and invalidates pending password-reset tokens and OAuth2 authorization codes.
+API keys remain valid. Review the admin account's API keys and revoke any you do not recognize.
+
+**To invalidate old sessions immediately during this credential replacement, stop all replicas first.**
+Running replicas can continue accepting cached tokens until they stop. Configure the same initial password
+on all replacement replicas, then start v21. Verify login with the configured password before restoring
+external traffic. This stop requirement does not apply to upgrades that preserve customized admin credentials.
+
+### `PHOENIX_SECRET` and saved credentials
+
+`PHOENIX_SECRET` is now optional for authentication. Without it, anyone with a copy of the database can decrypt
+saved credentials, including provider API keys, workspace secrets, and GitHub tokens.
+Set `PHOENIX_SECRET` to protect these credentials.
+
+**Setting or changing `PHOENIX_SECRET` makes previously saved credentials unreadable.** Re-enter credentials
+you still need, or delete unused ones, in **Settings → Secrets**, custom model settings, or sandbox provider
+settings, as applicable.
+
+### Browser sign-out no longer ends OAuth2 sessions
+
+Signing out of the Phoenix UI still ends the user's sessions in every browser. It no longer ends OAuth2
+sessions used by the CLI or MCP clients. To end an OAuth2 session, run `px auth logout` or revoke the client
+from the user's authorized applications. Password changes, password resets, and role changes still end
+both browser and OAuth2 sessions.
+
+## v19.x to v20.0.0
+
+The upgrade from v19.x to v20.0.0 needs no manual steps, but it introduces persisted agent sessions, which carry a
+few operational consequences.
+
+### Agent session persistence
+
+Conversations with the Phoenix agent are now persisted server-side. Sessions survive page reloads and can be browsed,
+restored, and continued later — from the browser or from the `phoenix-cli pxi` terminal client, interchangeably. The terminal
+client gains session management commands (`/new`, `/temporary`, `/sessions`, `/model`, and `/compact` for summarizing
+older context into a checkpoint on long-running sessions).
+
+### What changes for operators
+
+- **New database tables.** The startup migration creates `agent_sessions`, `agent_session_messages`, and
+  `agent_session_snapshots` (with their indexes) to hold conversations, their messages, and per-session bash state.
+- **Conversations are subject to retention.** Persisted agent sessions do not accumulate forever. By default Phoenix
+  deletes a user's chats after 30 idle days and keeps at most 30 chats per user, evicting the rest on an hourly sweep;
+  temporary chats are removed 24 hours after their last activity. Administrators can change the persisted-chat limits
+  under **Settings → Assistant** (set a limit to 0 to disable it); the 24-hour temporary window is fixed. See
+  [Data Retention](https://arize.com/docs/phoenix/settings/data-retention#agent-session-retention).
+- **`phoenix-cli pxi` requires a matching server.** The `phoenix-cli pxi` terminal client, and the `/v1/agent_sessions`
+  routes it depends on, require a Phoenix server on 20.0.0 or newer. `phoenix-cli pxi` 20+ checks the server version at
+  startup and exits with an upgrade message against an older server, so upgrade the server before or alongside the CLI.
+- **A legacy chat route is deprecated.** `POST /agents/server/sessions/{session_id}/chat` still works but is marked
+  deprecated in the OpenAPI spec; new integrations should use the `/v1/agent_sessions` routes instead.
+- **The OTel `session.id` format changed.** Recorded assistant sessions now use a new `session.id` shape, so saved
+  filters or dashboards built on the old shape in the `assistant_agent` project need to be rebuilt.
+
+## v18.x to v19.0.0
+
+### Built-in OAuth2 authorization server
+
+Phoenix now serves a built-in OAuth2 authorization server whenever authentication is enabled. It provides browser-based
+login for OAuth2 public clients — most notably `px auth login` in the Phoenix CLI — and advertises itself through the
+standard discovery documents (`/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`).
+It is on by default and requires no configuration.
+
+Operators who do not want this surface exposed — for example, deployments that mandate API-key-only access — can disable
+it with the new environment variable:
+
+- `PHOENIX_ENABLE_OAUTH2_AUTHORIZATION_SERVER` (default `true`). When set to `false`, every `/oauth2/*` endpoint and the
+  `/.well-known/oauth-authorization-server` discovery document respond with `404`, and the protected-resource metadata
+  stops advertising an authorization server. API keys, browser login, and password-based access tokens are unaffected.
+  OAuth2 access tokens minted before the switch was flipped remain valid until they expire, but their grants can no
+  longer be refreshed. The CLI reports "This Phoenix server does not support OAuth login; use an API key" when it
+  encounters such a deployment. The variable has no effect when authentication is disabled.
+
+Related dials for deployments that keep the authorization server enabled:
+
+- `PHOENIX_OAUTH2_DYNAMIC_CLIENT_REGISTRATION` (default `enabled`) controls dynamic client registration (RFC 7591) and
+  which redirect URIs registered clients may use. The default admits HTTPS redirect URIs in addition to loopback and
+  private-use schemes, because MCP clients in the wild (Cursor, for example) register an HTTPS callback as part of
+  standard registration and rejecting it breaks those clients out of the box. Registration by itself grants no access:
+  a token is minted only after a logged-in user approves the consent page, the authorization code is delivered only to
+  the exact registered redirect URI, and PKCE binds the token exchange to the client that started the flow. Set
+  `local_only` to restrict code delivery to processes on the approving user's machine (loopback and private-use schemes
+  only), or `disabled` to turn dynamic registration off entirely.
+- `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS` (unset by default) restricts which hosts may appear in HTTPS redirect URIs
+  when registration is `enabled` — for example, `PHOENIX_OAUTH2_ALLOWED_REDIRECT_HOSTS=www.cursor.com` admits Cursor
+  and nothing else.
+
+A note on CORS: the anonymous OAuth surfaces (`/.well-known/*` discovery documents, `/oauth2/register`, `/oauth2/token`,
+and `/oauth2/revoke`) answer cross-origin requests from any origin with non-credentialed wildcard CORS, so browser-based
+OAuth clients work without configuration. These endpoints honor no cookies; the cookie-authenticated app API remains
+governed by the `PHOENIX_ALLOWED_ORIGINS` allowlist, and the OAuth consent endpoint keeps its strict same-origin check.
+
+### In-process MCP server
+
+Phoenix now mounts an in-process MCP server at `/mcp` by default. The endpoint speaks Streamable HTTP and, when
+authentication is enabled, reuses Phoenix's existing bearer-token authentication (including the OAuth2 authorization
+server's access tokens and API keys). When authentication is disabled, `/mcp` is reachable without credentials.
+
+Operators who do not want the MCP surface exposed can disable it with:
+
+- `PHOENIX_ENABLE_MCP_SERVER` (default `true`). When set to `false`, the `/mcp` mount and the path-inserted protected
+  resource metadata at `/.well-known/oauth-protected-resource/mcp` respond with `404`.
+
+By default the `/mcp` endpoint now presents FastMCP's **code-mode** tool surface: instead of the `/v1`-derived tool
+list, clients see discovery meta-tools (`search`, `get_schema`, `tags`, `list_tools`) and an `execute` tool that runs
+model-written Python in a `pydantic-monty` sandbox where `call_tool(name, params)` is the only function in scope. The
+`execute` tool can only invoke tools the caller is already authorized for, and runs it in sandbox worker subprocesses
+that Phoenix starts on first use. To restore the previous group-gated progressive-disclosure tool list instead, set:
+
+- `PHOENIX_ENABLE_MCP_CODE_MODE` (default `true`). When set to `false`, `/mcp` presents the group-gated tool surface. Has no
+  effect unless `PHOENIX_ENABLE_MCP_SERVER` is also set.
+
+### Deployments behind a reverse proxy
+
+The authorization server and the MCP endpoint place requirements on a fronting reverse proxy that ordinary UI and API
+traffic never did. Deployments that expose Phoenix directly need none of this. For everyone else:
+
+- **Set `PHOENIX_ROOT_URL`** (and `PHOENIX_HOST_ROOT_PATH` when Phoenix is served under a subpath). The OAuth2 issuer,
+  every discovery URL, and the MCP 401 challenge are derived from `PHOENIX_ROOT_URL`, never from request `Host` headers,
+  so this is what makes the deployment's advertised identity match the URL clients actually use.
+- **Forward host-root `/.well-known/*` to Phoenix unmodified** when Phoenix is served under a subpath. RFC 8414 §3 and
+  RFC 9728 §3.1 place the well-known segment *between the host and the path*: for a deployment at
+  `https://example.com/phoenix`, clients fetch `https://example.com/.well-known/oauth-authorization-server/phoenix` —
+  a URL at the host root, outside the subpath the proxy routes to Phoenix. Phoenix registers matching routes for these
+  path-inserted documents whenever `PHOENIX_HOST_ROOT_PATH` is set; the proxy only needs to deliver them without
+  stripping or rewriting the path.
+- **Do not put proxy-level authentication in front of the anonymous surfaces**: `/mcp`, `/oauth2/register`,
+  `/oauth2/token`, `/oauth2/revoke`, and `/.well-known/*`. OAuth and MCP clients bootstrap from Phoenix's own `401`
+  response and its `WWW-Authenticate` header; a proxy that answers with a `302` to a login page or an SSO interstitial
+  ends the flow before it starts. These endpoints are safe to expose without a proxy gate — they honor no cookies, and
+  each validates its own inputs (see the CORS note above for the same boundary).
+- **Let `OPTIONS` requests through untouched** on those same paths. Browsers send a preflight `OPTIONS` before
+  cross-origin requests, and preflights carry no credentials by specification; one intercepted by a proxy auth layer
+  fails the real request with an opaque CORS error.
+- **Do not buffer or time out the MCP response stream.** `/mcp` holds a long-lived `text/event-stream` response open
+  for server-to-client messages. Response buffering (`proxy_buffering` in nginx, for example) or short read/write
+  timeouts silently break the session.
+- **Pass response headers through unmodified**, in particular `WWW-Authenticate`, `Mcp-Session-Id`, and the
+  `Access-Control-*` family — clients read all three, and browser-based clients cannot see the first two at all if a
+  proxy strips the CORS header that exposes them.
+- **Let 404s stay 404s.** Discovery clients probe several candidate `/.well-known/*` URLs and rely on a clean `404` to
+  move to the next one. A proxy that substitutes a custom HTML error page (or any `200`) makes the probe look like a
+  malformed discovery document, and clients abort instead of falling through.
+
+### GraphQL API keys can no longer create API keys
+
+Through Phoenix 18, the GraphQL mutations `createUserApiKey` and `createSystemApiKey` accepted API-key-authenticated callers for backward compatibility: a user API key could mint another user key for the same owner, and an `ADMIN`-role user key could mint a system key. This allowed a compromised key to issue a durable replacement before the original was revoked.
+
+As of Phoenix 19, both GraphQL mutations reject API-key-authenticated callers with an `Unauthorized` error, matching the policy the REST API-key endpoints (`POST /v1/user/api_keys`, `POST /v1/system/api_keys`) have enforced since their introduction:
+
+- User API keys are created from an authenticated human session.
+- System API keys are created from a human `ADMIN` session or with `PHOENIX_ADMIN_SECRET`.
+- API keys (user or system) cannot create API keys, on either surface.
+
+The GraphQL schema is unchanged, and listing and revoking keys work exactly as before, including with API-key authentication where previously permitted.
+
+**Migration:** If you have automation that uses an existing API key to mint new keys through GraphQL, switch it to one of the supported issuance origins:
+
+- Create keys interactively under **Settings → API Keys**, or
+- Authenticate the automation as a session (log in with user credentials to obtain an access token), or
+- For system keys, authenticate with `PHOENIX_ADMIN_SECRET` and call `POST /v1/system/api_keys` (or the GraphQL mutation).
+
+Keys created before the upgrade remain valid; only the ability of a key to create further keys is removed.
+
+## v17.x to v18.0.0
+
+### DB Index for Sessions Time Range
+
+The sessions time-range filter now uses interval-overlap semantics (a session is included if and only if it had activity
+inside the window). A single migration restructures the indexes:
+
+- Creates the composite index `ix_project_sessions_project_id_end_time` on `project_sessions (project_id, end_time DESC)`, which the new filter relies on.
+- Creates four foreign-key indexes on the experiment log tables so that experiment/dataset deletions no longer trigger sequential scans: `ix_experiment_logs_experiment_id`, `ix_experiment_eval_logs_experiment_run_id`, `ix_experiment_eval_logs_dataset_evaluator_id`, and `ix_experiment_task_logs_dataset_example_id`.
+- Creates `user_id` indexes on seven tables with an unindexed `ON DELETE SET NULL` foreign key to `users`, so a user deletion no longer sequential-scans each of them: `span_annotations`, `trace_annotations`, `document_annotations`, `project_session_annotations`, `datasets`, `dataset_versions`, and `experiments`.
+- Drops seven redundant single-column indexes: five whose lookups are served by the leading columns of existing unique indexes (`ix_project_annotation_configs_project_id`, `ix_prompts_prompt_labels_prompt_label_id`, `ix_token_prices_model_id`, `ix_dataset_examples_dataset_id`, `ix_dataset_evaluators_dataset_id`); `ix_dataset_examples_external_id`, which no query uses on its own — `external_id` lookups are always scoped to a dataset and are served by the unique `(dataset_id, external_id)` index; and `ix_project_sessions_end_time`, which is superseded by the new composite (created before the drop, so there is never a window without an end_time index).
+
+**Rolling deployments:** the migration honors `PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true` (see [v12.x to v13.0.0](#v12x-to-v1300) below) for all index creates and drops. The `project_sessions` table holds one row per session, so the composite build is quick; index pre-creation is typically unnecessary. The migration verifies every index it creates before dropping anything: if a prior concurrent build failed and left an INVALID index behind, it fails with recovery instructions (drop the invalid index with `DROP INDEX CONCURRENTLY IF EXISTS <index name>` and rerun) instead of proceeding.
+
+## v16.x to v17.0.0
+
+### Agent assistant (PXI)
+
+Phoenix v17 ships **PXI**, an in-app assistant that helps you investigate traces, iterate on prompts, and navigate Phoenix without leaving the page you're on.
+
+To turn PXI off for an entire deployment, set:
+
+```shell
+PHOENIX_DISABLE_AGENT_ASSISTANT=true
+```
+
+## v15.x to v16.0.0
+
+### Sandbox provider allowlist (`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`)
+
+A new optional environment variable, `PHOENIX_ALLOWED_SANDBOX_PROVIDERS`, restricts which sandbox provider families are available for code-evaluator execution. 
+
+*When unset, all providers remain available. Set to `NONE` to disable all sandbox providers.*
+
+To restrict the set of usable sandboxes, set the variable to a comma-separated list of family names:
+
+```shell
+PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
+```
+
+Accepted values: `WASM`, `E2B`, `DAYTONA`, `VERCEL`, `DENO`, `MODAL` (case-insensitive). Listing a family covers all of its language variants — for example, `VERCEL` covers both `VERCEL_PYTHON` and `VERCEL_TYPESCRIPT`.
+
+### Sandbox and code-evaluator permissions
+
+v16.0.0 introduces sandbox configuration and code evaluators as new API surfaces. When authentication is enabled, access to these surfaces is governed by user role:
+
+| API Surface | Operation | Admin | Member | Viewer |
+| --- | --- | --- | --- | --- |
+| View code evaluator source | Read | ✅ | ✅ | ✅ |
+| View code evaluator identity | Read | ✅ | ✅ | ✅ |
+| View safe sandbox identity | Read | ✅ | ✅ | ✅ |
+| View backend capability metadata | Read | ✅ | ✅ | ✅ |
+| View sandbox config values | Read | ✅ | ✅ | ✅ |
+| View provider config values | Read | ✅ | ✅ | ✅ |
+| Create sandbox config | Write | ✅ | ❌ | ❌ |
+| Update sandbox config | Write | ✅ | ❌ | ❌ |
+| Delete sandbox config | Write | ✅ | ❌ | ❌ |
+| Update sandbox provider | Write | ✅ | ❌ | ❌ |
+| Create code evaluator | Write | ✅ | ✅ | ❌ |
+| Patch code evaluator / rebind sandbox | Write | ✅ | ✅ | ❌ |
+| Append code evaluator version | Write | ✅ | ✅ | ❌ |
+| Create / update dataset code evaluator | Write | ✅ | ✅ | ❌ |
+| Preview sandbox-backed code evaluator | Write | ✅ | ✅ | ❌ |
+
+Sandbox configuration is admin-only. Code-evaluator authoring and preview are available to members and admins but not viewers. All read surfaces are unrestricted. When authentication is disabled, no role checks apply.
+
+## v14.x to v15.0.0
+
+No action is required to upgrade from v14.x to v15.0.0.
+
+## v13.x to v14.0.0
+
+### Phoenix server CLI (`phoenix` / `python -m phoenix.server.main`)
+
+The CLI is now **subcommand-first**: you choose `serve` or `db`, then pass options for that command. In v13.x, many flags could appear **before** the subcommand (for example `--dev` and `--dev-vite-port` before `serve`); those must now come **after** the subcommand.
+
+**Before:**
+
+```shell
+python -m phoenix.server.main --dev --dev-vite-port 5173 serve
+phoenix --host 0.0.0.0 --port 6006 serve
+```
+
+**After:**
+
+```shell
+python -m phoenix.server.main serve --dev --dev-vite-port 5173
+phoenix serve --host 0.0.0.0 --port 6006
+```
+
+Pass `--database-url` on the subcommand that needs a database (or rely on `PHOENIX_SQL_DATABASE_URL` / the default). 
+
+```shell
+python -m phoenix.server.main serve --database-url "postgresql://..."
+python -m phoenix.server.main db migrate --database-url "postgresql://..."
+```
+
+`db migrate` is unchanged as a two-word subcommand: `python -m phoenix.server.main db migrate` (or `phoenix db migrate`).
+
+Top-level `--help` only shows global usage; use `phoenix serve --help`, or `phoenix db migrate --help` for subcommand options.
+
+### PostgreSQL Driver: `psycopg` Removed
+
+The `psycopg` driver has been removed. Phoenix now uses `asyncpg` as the sole PostgreSQL driver for both runtime queries and migrations. If you have `psycopg` installed only for Phoenix, it can be uninstalled.
+
+The `pg` extra no longer includes `psycopg`:
+
+```shell
+pip install arize-phoenix[pg]  # only installs asyncpg
+```
+
+No configuration changes are needed — `PHOENIX_SQL_DATABASE_URL` continues to work with the same `postgresql://` connection strings.
+
+### Legacy Client Removed
+
+The legacy `phoenix.session.client.Client` (accessed via `px.Client()`) has been removed. All client interactions now go through the `arize-phoenix-client` package.
+
+```shell
+pip install arize-phoenix-client
+```
+
+**Before:**
+
+```python
+import phoenix as px
+
+client = px.Client(endpoint="http://localhost:6006")
+```
+
+**After:**
+
+```python
+from phoenix.client import Client
+
+client = Client(base_url="http://localhost:6006")
+```
+
+The constructor parameter `endpoint` has been renamed to `base_url`. If omitted, it falls back to environment variables or `http://localhost:6006`. The `phoenix.session.client` module no longer exists, so importing it raises a `ModuleNotFoundError`.
+
+### Client Method Changes
+
+The new client organizes methods under resource namespaces (`.spans`, `.datasets`, `.experiments`) instead of flat methods on the client object. Return types have also changed — the new client uses TypedDicts generated from the OpenAPI schema rather than custom dataclasses.
+
+#### Spans and Traces
+
+| Legacy (`px.Client()`)             | New (`phoenix.client.Client()`)                 |
+| :--------------------------------- | :---------------------------------------------- |
+| `client.get_spans_dataframe()`     | `client.spans.get_spans_dataframe()`            |
+| `client.query_spans(query)`        | `client.spans.get_spans_dataframe(query=query)` |
+| `client.get_evaluations()`         | `client.spans.get_span_annotations()`           |
+| `client.log_evaluations(evals)`    | `client.spans.log_span_annotations(...)`        |
+| `client.log_traces(trace_dataset)` | `client.spans.log_spans(...)`                   |
+
+The `query_spans` method accepted `SpanQuery` objects as positional args and could return either a single DataFrame or a list. The new `get_spans_dataframe` takes a single `query` keyword argument and always returns a single DataFrame. If you previously passed multiple queries, call `get_spans_dataframe` once per query and join the results with pandas.
+
+#### Datasets
+
+| Legacy (`px.Client()`)                    | New (`phoenix.client.Client()`)             |
+| :---------------------------------------- | :------------------------------------------ |
+| `client.get_dataset(id=..., name=...)`    | `client.datasets.get_dataset(...)`          |
+| `client.get_dataset_versions(dataset_id)` | `client.datasets.get_dataset_versions(...)` |
+| `client.upload_dataset(...)`              | `client.datasets.create_dataset(...)`       |
+
+The legacy `get_dataset` returned a `phoenix.experiments.types.Dataset` dataclass. The new client returns a `Dataset` object with the same conceptual fields (`.id`, `.examples`, `.version_id`) but backed by TypedDicts from the generated API schema.
+
+#### Evaluations to Annotations
+
+The concept formerly called "evaluations" is now called "annotations" throughout the new client. `SpanEvaluations` and `log_evaluations` are replaced:
+
+**Before:**
+
+```python
+from phoenix.trace import SpanEvaluations
+
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
+```
+
+**After:**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+### Experiments
+
+The experiments API has moved from `phoenix.experiments` to `phoenix.client.experiments`. The `Example` type used in task functions now comes from the generated API types.
+
+**Before:**
+
+```python
+from phoenix.experiments.types import Example
+from phoenix.experiments.evaluators import create_evaluator
+```
+
+**After:**
+
+```python
+from phoenix.client.__generated__.v1 import DatasetExample as Example
+from phoenix.client.experiments import create_evaluator
+```
+
+`run_experiment` and `evaluate_experiment` now require keyword arguments for `dataset`, `task`, and `experiment`:
+
+```python
+from phoenix.client.experiments import run_experiment, evaluate_experiment
+
+experiment = run_experiment(dataset=dataset, task=task, evaluators=[...])
+experiment = evaluate_experiment(experiment=experiment, evaluators=[...])
+```
+
+### Removed Helper Functions
+
+The pre-defined query helpers `get_retrieved_documents`, `get_qa_with_reference`, and `get_called_tools` (from `phoenix.trace.dsl.helpers`) have been removed. Use `SpanQuery` with `client.spans.get_spans_dataframe(query=...)` directly instead. The documentation for [extracting data from spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans) has updated examples.
+
+### Removed Top-Level Convenience Functions
+
+- `px.Client` — use `from phoenix.client import Client` instead
+- `px.log_evaluations(...)` — use `client.spans.log_span_annotations(...)` instead
+- `session.query_spans(...)` — use `client.spans.get_spans_dataframe(...)` instead
+- `session.get_evaluations(...)` — use `client.spans.get_span_annotations(...)` instead
+
+### `/v1/evaluations` Endpoint Removed
+
+The `POST /v1/evaluations` and `GET /v1/evaluations` REST endpoints have been removed. Use the annotations API instead, choosing the replacement by evaluation kind:
+
+#### Ingestion (`POST /v1/evaluations` replacements)
+
+| Evaluation kind | SDK replacement                                        | REST replacement                  |
+| :-------------- | :----------------------------------------------------- | :-------------------------------- |
+| span            | `client.spans.log_span_annotations_dataframe(...)`     | `POST /v1/span_annotations`       |
+| trace           | `client.traces.log_trace_annotations_dataframe(...)`   | `POST /v1/trace_annotations`      |
+| document        | `client.spans.log_document_annotations_dataframe(...)` | `POST /v1/document_annotations`   |
+
+#### Retrieval (`GET /v1/evaluations` replacement)
+
+The old `GET /v1/evaluations` only returned span annotations. Its replacement is `client.spans.get_span_annotations(...)`.
+
+> **Note:** Trace annotation retrieval is available via `GET /projects/{id}/trace_annotations`, but this was not part of the old evaluations endpoint — it is a new capability, not a direct replacement.
+
+**Before:**
+
+```python
+from phoenix.trace import SpanEvaluations
+import phoenix as px
+
+px.Client().log_evaluations(SpanEvaluations(eval_name="Hallucination", dataframe=results_df))
+```
+
+**After (span annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_span_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+**After (trace annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().traces.log_trace_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Hallucination",
+    annotator_kind="LLM",
+)
+```
+
+**After (document annotations):**
+
+```python
+from phoenix.client import Client
+
+Client().spans.log_document_annotations_dataframe(
+    dataframe=results_df,
+    annotation_name="Relevance",
+    annotator_kind="LLM",
+)
+```
+
+**Removed dependencies:** `protobuf` is no longer a direct dependency of the Phoenix server (it remains a transitive dependency via OpenTelemetry gRPC packages).
+
+## v12.x to v13.0.0
+
+### DB Index for Session ID
+
+A partial index on `spans.attributes` for session id is added by migration. Migration run time is estimated at approximately 200 seconds per 100 GiB on a MacBook Pro. Cloud environments may take longer depending on instance size and I/O throughput.
+
+**Rolling deployments:** If an existing Phoenix instance is still serving traffic while a new instance starts and runs migrations, the default `CREATE INDEX` acquires a table lock that blocks writes from the old instance. To avoid this, set the following environment variable before starting the new instance:
+
+```
+PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true
+```
+
+This uses `CREATE INDEX CONCURRENTLY`, which avoids the table lock but is roughly 2-3x slower. The new instance still blocks on startup until the index build completes.
+
+**Large PostgreSQL databases (hundreds of GiB+):** For very large `spans` tables, even `CONCURRENTLY` can take hours. To make the migration instant, pre-create a no-op index with the same name before upgrading (while the old version is still running):
+
+Step 1 — Create a no-op index (instant, no table scan):
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_spans_session_id
+ON spans ((attributes #>> '{session,id}'))
+WHERE false;
+```
+
+Step 2 — Upgrade Phoenix. The migration's `IF NOT EXISTS` sees the index name and skips.
+
+Step 3 — Backfill the real index at your convenience (while the app is running):
+
+```sql
+DROP INDEX CONCURRENTLY IF EXISTS ix_spans_session_id;
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_spans_session_id
+ON spans (((attributes #>> '{session,id}')::varchar))
+WHERE ((attributes #>> '{session,id}')::varchar) IS NOT NULL;
+```
+
+Note: On PostgreSQL, the index uses the `#>>` path operator (e.g., `attributes #>> '{session,id}'`). Queries using chained arrow operators (`attributes -> 'session' ->> 'id'`) will not match the index. Phoenix's built-in query layer always uses the `#>>` form, so this only affects custom SQL queries run directly against the database.
+
+### Azure OpenAI v1 API
+
+Azure OpenAI integration now uses the OpenAI v1 API, which simplifies configuration by eliminating explicit API versioning. The `api_version` parameter is no longer required—versioning is now handled implicitly by the v1 API endpoint.
+
+This change requires `openai>=2.14.0`.
+
+**References**:
+
+- [Azure OpenAI API Version Lifecycle](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/api-version-lifecycle)
+- [Migration from Azure AI Inference to OpenAI SDK](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-inference-to-openai-migration)
+
+### AWS Bedrock Async Client
+
+AWS Bedrock integration now uses `aioboto3` instead of `boto3` for fully async client operations. If you have `boto3` installed for Bedrock support, you should install `aioboto3` instead:
+
+```shell
+pip install aioboto3
+```
+
+### Inferences, dimensions, embeddings, and pointcloud (UMAP)
+
+**Breaking change:** Model inferences, dimensions, embeddings, and the pointcloud (UMAP) visualization have been removed from Phoenix, along with their GraphQL and REST APIs. The UI no longer includes the `/model`, `/dimensions`, or `/embeddings` routes.
+
 ## v11.0.0 to v12.0.0
 
 Instrumentation helpers are being moved to `openinference-instrumentation`.
@@ -28,18 +589,19 @@ with dangerously_using_project(project_name="change-project"):
 **Breaking Change**: Specifying port numbers in `PHOENIX_POSTGRES_HOST` is no longer supported.
 
 **Before**:
+
 ```shell
 export PHOENIX_POSTGRES_HOST=localhost:5432
 ```
 
 **After**:
+
 ```shell
 export PHOENIX_POSTGRES_HOST=localhost
 export PHOENIX_POSTGRES_PORT=5432
 ```
 
 **Impact**: If you were setting `PHOENIX_POSTGRES_HOST` with a port (e.g., `localhost:5432`), you must now separate the host and port into their respective environment variables.
-
 
 ## v10.0.0 to v11.0.0
 
@@ -199,7 +761,6 @@ from phoenix.experimental.evals import OpenAIModel
 from phoenix.experimental.evals import llm_classify
 
 model = OpenAIModel()
-
 ```
 
 #### New
@@ -219,7 +780,7 @@ from phoenix.evals import llm_classify
 
 ```python
 from phoenix.experimental.evals import OpenAIModel
-from phoenix.experimental.evals import processing # no longer supported in phoenix.evals
+from phoenix.experimental.evals import processing  # no longer supported in phoenix.evals
 
 model = OpenAIModel()
 model.max_context_size  # no longer supported in phoenix.evals

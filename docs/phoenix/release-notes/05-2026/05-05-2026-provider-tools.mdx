@@ -1,0 +1,57 @@
+---
+title: "05.05.2026: Provider Tools in Playground and Prompts"
+description: "Phoenix Playground and Prompts now support vendor-native tools — web search, code execution, computer use, grounding, and more — alongside existing function tools."
+---
+
+**Available in arize-phoenix 15.4.0+**
+
+Phoenix Playground and the Prompts library now support **provider tools** — built-in, vendor-hosted capabilities like web search, code execution, computer use, and grounding. Paste any provider's tool JSON into the Playground and Phoenix stores and round-trips it verbatim, so your prompt runs against the underlying provider exactly as defined.
+
+Provider tools sit alongside Phoenix's existing portable function tools: function tools stay normalized and provider-agnostic; provider tools preserve provider-specific JSON for capabilities only that vendor offers.
+
+## What Phoenix forwards
+
+Phoenix doesn't maintain a hardcoded list of supported provider tools — anything the
+underlying provider SDK accepts is round-tripped as-is. Examples that have been verified
+end-to-end against the playground:
+
+| Provider | Examples verified in Phoenix |
+|----------|-------------------------------|
+| **Anthropic** | `web_search`, `code_execution`, `computer_use` |
+| **OpenAI Responses API** | `web_search`, `file_search`, `code_interpreter`, `computer_use_preview`, `tool_search` |
+| **Google Gemini** | `google_search` grounding |
+| **Amazon Bedrock** | provider-specific tool blocks are forwarded verbatim |
+
+If a provider ships a new built-in tool, it works in Phoenix immediately — no library
+update required. Mismatches surface as errors from the provider SDK at request time.
+
+## Using provider tools
+
+**In the Playground** — open the tool editor, switch to JSON mode, and paste the provider's tool definition. Phoenix detects the shape automatically: function-tool shapes are stored as function tools; everything else is stored as a provider tool.
+
+**"Open in Playground" on a captured trace** — replays the exact tool payload that hit the model, including any provider tools that were active.
+
+**Mix with function tools** — function tools and provider tools coexist on the same prompt version. Switching the provider or API type drops attached provider tools (since the JSON is provider-specific), while function tools survive provider changes.
+
+## SDK prompt export
+
+Both the Python and TypeScript clients preserve provider tools when exporting prompts:
+
+```python
+from phoenix.client import Client
+
+client = Client()
+prompt = client.prompts.get(name="my-research-prompt")
+
+# Provider tools are included in the formatted prompt
+openai_messages = prompt.format(formatter="openai")
+# openai_messages["tools"] contains both function tools and provider tools
+```
+
+```typescript
+import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+const prompt = await getPrompt({ name: "my-research-prompt" });
+const formatted = prompt.format({ formatter: "openai" });
+// formatted.tools includes provider tools verbatim
+```

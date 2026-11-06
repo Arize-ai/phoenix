@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     )
     from openai.types.chat.chat_completion_named_tool_choice_param import Function
 
-    from phoenix.server.api.helpers.prompts.models import (
+    from phoenix.db.types.prompts import (
         PromptToolChoiceNone,
         PromptToolChoiceOneOrMore,
         PromptToolChoiceSpecificFunctionTool,
@@ -52,7 +52,7 @@ class OpenAIToolChoiceConversion:
         PromptToolChoiceOneOrMore,
         PromptToolChoiceSpecificFunctionTool,
     ]:
-        from phoenix.server.api.helpers.prompts.models import (
+        from phoenix.db.types.prompts import (
             PromptToolChoiceNone,
             PromptToolChoiceOneOrMore,
             PromptToolChoiceSpecificFunctionTool,
@@ -75,4 +75,8 @@ class OpenAIToolChoiceConversion:
                 function_name=function["name"],
             )
             return choice_function_tool
+        if obj["type"] == "allowed_tools":
+            raise NotImplementedError("allowed_tools is not supported")
+        if obj["type"] == "custom":
+            raise NotImplementedError("custom is not supported")
         assert_never(obj["type"])

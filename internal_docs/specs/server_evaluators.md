@@ -53,14 +53,14 @@ Annotations capture the scores that are the result of evaluation. They are named
 
 ### Evaluator Definitions
 
-As a user of Phoenix, I want to define different evaluation metrics to be re-used across the platform. These metric definitions will have various types:
+As a user of Phoenix, I want to define different evaluation metrics to be reused across the platform. These metric definitions will have various types:
 
 - LLM-as-a-judge
 - Heuristic / Code (e.g., JSON distance, exact match, similarity, contains regex)
 - Custom Code
 - Remote (webhook-based)
 
-To make the eval definitions re-usable across various targets, the evaluators will be described as having:
+To make the eval definitions reusable across various targets, the evaluators will be described as having:
 
 - `input schema` - what data is required to perform the evaluation at a record level
 - `annotation config` - the definition of the score it produces
@@ -91,7 +91,7 @@ These evaluators will run by default when an experiment is performed using the d
 
 Metaphorically speaking, datasets now define a workbench. When you load a particular dataset into the prompt playground, it automatically sets up the evaluators, which form a metaphorical "unit" testing suite.
 
-### Project Evaluators (e.g. online evals)
+### Project Evaluators
 
 As a user of Phoenix, once I start production tracing, I want certain segments of my data to be automatically evaluated at or after ingestion so that I can monitor and triage critical or potential failures. Project evaluators are the use of the above evaluation methodologies but with an associated automation. An example of a project evaluator definition might be:
 

@@ -1,0 +1,1629 @@
+import { css } from "@emotion/react";
+import type {
+  AccessorFnColumnDef,
+  AccessorKeyColumnDef,
+  RowData,
+  SortingState,
+} from "@tanstack/react-table";
+import {
+  createColumnHelper,
+  flexRender,
+  useTable,
+} from "@tanstack/react-table";
+import type { VirtualItem } from "@tanstack/react-virtual";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { PreloadedQuery } from "react-relay";
+import {
+  graphql,
+  useFragment,
+  usePaginationFragment,
+  usePreloadedQuery,
+} from "react-relay";
+import { useSearchParams } from "react-router";
+
+import {
+  ColorSwatch,
+  Flex,
+  Icon,
+  IconButton,
+  Icons,
+  IDBadge,
+  ProgressBar,
+  Text,
+  View,
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components";
+import {
+  AnnotationColorSwatch,
+  type AnnotationConfig,
+  AnnotationScoreText,
+  getAnnotationScoreColorProps,
+  getOptimizationValueFromConfig,
+} from "@phoenix/components/annotation";
+import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
+import { JSONText } from "@phoenix/components/code/JSONText";
+import {
+  RichTooltip,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@phoenix/components/core/tooltip";
+import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useExperimentColors } from "@phoenix/components/experiment";
+import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
+import type {
+  AppTableFeatures,
+  HeaderContext,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
+import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
+import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
+import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
+import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
+import { isObject } from "@phoenix/typeUtils";
+import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
+import {
+  costFormatter,
+  floatFormatter,
+  intFormatter,
+  latencyMsFormatter,
+  numberFormatter,
+} from "@phoenix/utils/numberFormatUtils";
+import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
+
+import type {
+  ExperimentCompareListPage_aggregateData$data,
+  ExperimentCompareListPage_aggregateData$key,
+} from "./__generated__/ExperimentCompareListPage_aggregateData.graphql";
+import type {
+  ExperimentCompareListPage_comparisons$data,
+  ExperimentCompareListPage_comparisons$key,
+} from "./__generated__/ExperimentCompareListPage_comparisons.graphql";
+import type {
+  ExperimentRunMetric,
+  ExperimentRunSort,
+  SortDir,
+} from "./__generated__/ExperimentCompareListPageQuery.graphql";
+import { calculateAnnotationScorePercentile } from "./utils";
+
+const PAGE_SIZE = 50;
+
+const tableWrapCSS = css`
+  flex: 1 1 auto;
+  overflow: auto;
+  // Make sure the table fills up the remaining space
+  table {
+    min-width: 100%;
+    td {
+      vertical-align: top;
+    }
+  }
+`;
+
+interface Annotation {
+  name: string;
+  score: number | null;
+  label: string | null;
+}
+type AnnotationName = string;
+type ExperimentId = string;
+type BaseExperimentRun = NonNullable<
+  ExperimentCompareListPage_comparisons$data["experiment"]["runs"]
+>["edges"][number]["run"];
+type BaseExperimentRunAnnotation =
+  BaseExperimentRun["annotations"]["edges"][number]["annotation"];
+type CompareExperimentRun =
+  BaseExperimentRun["example"]["experimentRepeatedRunGroups"][number]["runs"][number];
+type CompareExperimentRunAnnotation =
+  CompareExperimentRun["annotations"]["edges"][number]["annotation"];
+
+type Experiment = NonNullable<
+  ExperimentCompareListPage_aggregateData$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
+
+export function ExperimentCompareListPage({
+  queryRef,
+}: {
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
+}) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const clearSelectedSpanSearchParam = useCallback(() => {
+    // Clear the URL search params for the span selection
+    setSearchParams(
+      (prev) => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return newParams;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+  const experimentIds = useMemo(
+    () => searchParams.getAll("experimentId"),
+    [searchParams]
+  );
+
+  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
+    number | null
+  >(null);
+  const [selectedTraceDetails, setSelectedTraceDetails] = useState<{
+    traceId: string;
+    projectId: string;
+    dialogTitle: string;
+  } | null>(null);
+
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const isFirstRender = useRef<boolean>(true);
+  const { getExperimentColor, baseExperimentColor } = useExperimentColors();
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const preloadedData =
+    usePreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>(
+      ExperimentComparePageQueriesCompareListQuery,
+      queryRef
+    );
+
+  const aggregateData =
+    useFragment<ExperimentCompareListPage_aggregateData$key>(
+      graphql`
+        fragment ExperimentCompareListPage_aggregateData on Query
+        @argumentDefinitions(
+          datasetId: { type: "ID!" }
+          experimentIds: { type: "[ID!]!" }
+        ) {
+          dataset: node(id: $datasetId) {
+            ... on Dataset {
+              id
+              experimentAnnotationSummaries(includeEphemeral: true) {
+                annotationName
+                minScore
+                maxScore
+              }
+              experiments(filterIds: $experimentIds, includeEphemeral: true) {
+                edges {
+                  experiment: node {
+                    id
+                    repetitions
+                    datasetVersion {
+                      id
+                    }
+                    averageRunLatencyMs
+                    runCount
+                    costSummary {
+                      total {
+                        tokens
+                        cost
+                      }
+                    }
+                    annotationSummaries {
+                      annotationName
+                      meanScore
+                    }
+                  }
+                }
+              }
+              datasetEvaluators(first: 100) {
+                edges {
+                  node {
+                    name
+                    outputConfigs {
+                      __typename
+                      ... on CategoricalAnnotationConfig {
+                        name
+                        optimizationDirection
+                        values {
+                          label
+                          score
+                        }
+                      }
+                      ... on ContinuousAnnotationConfig {
+                        name
+                        optimizationDirection
+                        lowerBound
+                        upperBound
+                      }
+                      ... on FreeformAnnotationConfig {
+                        name
+                        optimizationDirection
+                        threshold
+                        lowerBound
+                        upperBound
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      preloadedData
+    );
+
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<
+      ExperimentCompareListPageQuery,
+      ExperimentCompareListPage_comparisons$key
+    >(
+      graphql`
+        fragment ExperimentCompareListPage_comparisons on Query
+        @refetchable(queryName: "ExperimentCompareListPageQuery")
+        @argumentDefinitions(
+          first: { type: "Int", defaultValue: 50 }
+          after: { type: "String", defaultValue: null }
+          baseExperimentId: { type: "ID!" }
+          compareExperimentIds: { type: "[ID!]!" }
+          sort: { type: "ExperimentRunSort", defaultValue: null }
+        ) {
+          experiment: node(id: $baseExperimentId) {
+            ... on Experiment {
+              id
+              runs(first: $first, after: $after, sort: $sort)
+                @connection(key: "ExperimentCompareListPage_runs") {
+                edges {
+                  run: node {
+                    id
+                    repetitionNumber
+                    output
+                    startTime
+                    endTime
+                    trace {
+                      traceId
+                      projectId
+                    }
+                    costSummary {
+                      total {
+                        tokens
+                        cost
+                      }
+                    }
+                    annotations {
+                      edges {
+                        annotation: node {
+                          name
+                          score
+                          label
+                          id
+                        }
+                      }
+                    }
+                    example {
+                      id
+                      externalId
+                      revision {
+                        input
+                        referenceOutput: output
+                      }
+                      experimentRepeatedRunGroups(
+                        experimentIds: $compareExperimentIds
+                      ) {
+                        experimentId
+                        runs {
+                          id
+                          experimentId
+                          output
+                          startTime
+                          endTime
+                          costSummary {
+                            total {
+                              tokens
+                              cost
+                            }
+                          }
+                          annotations {
+                            edges {
+                              annotation: node {
+                                name
+                                score
+                                label
+                                id
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      preloadedData
+    );
+
+  const experiments = useMemo(() => {
+    const experimentsById: Record<string, Experiment> = {};
+    aggregateData?.dataset.experiments?.edges.forEach((edge) => {
+      experimentsById[edge.experiment.id] = edge.experiment;
+    });
+    const orderedExperiments = experimentIds
+      .map((experimentId) => experimentsById[experimentId])
+      // if a new experiment was just added, data may not be fully loaded yet
+      .filter((experiment) => experiment != null);
+    return orderedExperiments;
+  }, [aggregateData?.dataset.experiments?.edges, experimentIds]);
+
+  const annotationSummaries = useMemo(() => {
+    const baseExperiment =
+      aggregateData?.dataset.experiments?.edges[0]?.experiment;
+    return aggregateData?.dataset.experimentAnnotationSummaries?.filter(
+      (summary) =>
+        baseExperiment?.annotationSummaries?.some(
+          (annotation) => annotation.annotationName === summary.annotationName
+        )
+    );
+  }, [aggregateData?.dataset]);
+
+  const annotationConfigs = useMemo(() => {
+    const evaluators =
+      aggregateData?.dataset.datasetEvaluators?.edges.map(
+        (edge) => edge.node
+      ) ?? [];
+    return datasetEvaluatorsToAnnotationConfigs(evaluators);
+  }, [aggregateData?.dataset.datasetEvaluators?.edges]);
+
+  const annotationConfigsByName = useMemo(() => {
+    return annotationConfigs.reduce<Record<string, AnnotationConfig>>(
+      (acc, config) => {
+        acc[config.name] = config;
+        return acc;
+      },
+      {}
+    );
+  }, [annotationConfigs]);
+
+  const datasetId = aggregateData?.dataset.id;
+  const baseExperiment = experiments[0];
+  const compareExperimentIds = useMemo(
+    () => experiments.slice(1).map((experiment) => experiment.id),
+    [experiments]
+  );
+
+  const tableData = useMemo(() => {
+    return (
+      data?.experiment.runs?.edges.map((edge) => {
+        const run = edge.run;
+        const example = run.example;
+        const repeatedRunGroups = example.experimentRepeatedRunGroups
+          // prevent layout shift when an experiment is removed
+          .filter((group) => experimentIds.includes(group.experimentId));
+
+        const baseExperimentRun: BaseExperimentRun = run;
+        const compareExperimentRuns: (CompareExperimentRun | undefined)[] =
+          repeatedRunGroups.map((group) => group.runs[0]);
+
+        const baseExperimentRunAnnotationsByName: Record<
+          AnnotationName,
+          BaseExperimentRunAnnotation
+        > = {};
+        run.annotations.edges.forEach((edge) => {
+          const annotation = edge.annotation;
+          baseExperimentRunAnnotationsByName[annotation.name] = annotation;
+        });
+
+        const compareExperimentRunAnnotationsByNameAndExperimentId: Record<
+          AnnotationName,
+          Record<ExperimentId, CompareExperimentRunAnnotation>
+        > = {};
+
+        run.example.experimentRepeatedRunGroups.forEach((group) => {
+          group.runs.forEach((run) => {
+            const experimentId = run.experimentId;
+            run.annotations.edges.forEach((edge) => {
+              const annotation = edge.annotation;
+              if (
+                !compareExperimentRunAnnotationsByNameAndExperimentId[
+                  annotation.name
+                ]
+              ) {
+                compareExperimentRunAnnotationsByNameAndExperimentId[
+                  annotation.name
+                ] = {};
+              }
+              compareExperimentRunAnnotationsByNameAndExperimentId[
+                annotation.name
+              ][experimentId] = annotation;
+            });
+          });
+        });
+        const compareExperimentRunAnnotationsByName: Record<
+          AnnotationName,
+          (CompareExperimentRunAnnotation | undefined)[]
+        > = {};
+        annotationSummaries?.forEach((annotationSummary) => {
+          const annotationName = annotationSummary.annotationName;
+          if (!compareExperimentRunAnnotationsByName[annotationName]) {
+            compareExperimentRunAnnotationsByName[annotationName] = [];
+          }
+          if (
+            !compareExperimentRunAnnotationsByNameAndExperimentId[
+              annotationName
+            ]
+          ) {
+            compareExperimentRunAnnotationsByNameAndExperimentId[
+              annotationName
+            ] = {};
+          }
+          compareExperimentIds.forEach((experimentId) => {
+            const annotation =
+              compareExperimentRunAnnotationsByNameAndExperimentId[
+                annotationName
+              ][experimentId];
+            compareExperimentRunAnnotationsByName[annotationName].push(
+              annotation
+            );
+          });
+        });
+
+        const tableData = {
+          id: example.id,
+          example: example.id,
+          externalId: example.externalId,
+          repetitionNumber: baseExperimentRun.repetitionNumber,
+          input: example.revision.input,
+          referenceOutput: example.revision.referenceOutput,
+          outputs: {
+            baseExperimentValue: baseExperimentRun.output,
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) => run?.output
+            ),
+          },
+          tokens: {
+            baseExperimentValue: baseExperimentRun.costSummary.total.tokens,
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) => run?.costSummary.total.tokens
+            ),
+          },
+          latencyMs: {
+            baseExperimentValue:
+              new Date(baseExperimentRun.endTime).getTime() -
+              new Date(baseExperimentRun.startTime).getTime(),
+            compareExperimentValues: compareExperimentRuns.map((run) =>
+              run
+                ? new Date(run.endTime).getTime() -
+                  new Date(run.startTime).getTime()
+                : undefined
+            ),
+          },
+          cost: {
+            baseExperimentValue: baseExperimentRun.costSummary.total.cost,
+            compareExperimentValues: compareExperimentRuns.map(
+              (run) => run?.costSummary.total.cost
+            ),
+          },
+          baseExperimentRunAnnotationsByName,
+          compareExperimentRunAnnotationsByName,
+        };
+        return tableData;
+      }) ?? []
+    );
+  }, [data, annotationSummaries, compareExperimentIds, experimentIds]);
+
+  type TableRow = (typeof tableData)[number];
+  const columnHelper = useMemo(
+    () => createColumnHelper<AppTableFeatures, TableRow>(),
+    []
+  );
+
+  const fetchMoreOnBottomReached = useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
+        }
+      }
+    },
+    [hasNext, isLoadingNext, loadNext]
+  );
+
+  const columns = useMemo(() => {
+    // getting the column types right here is challenging, so we type hint each column individually and allow typescript to infer the list type
+    const exampleColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["example"]
+    > = {
+      header: "example",
+      accessorKey: "example",
+      size: 110,
+      cell: ({ row }) => {
+        return (
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <IDBadge
+              id={row.original.externalId ?? row.original.example}
+              variant="quiet"
+              tooltipText="Copy example ID"
+            />
+            <TooltipTrigger>
+              <IconButton
+                size="S"
+                aria-label="View experiment run details"
+                onPress={() => {
+                  setSelectedExampleIndex(row.index);
+                }}
+                css={css`
+                  flex: none;
+                `}
+              >
+                <Icon svg={<Icons.Expand />} />
+              </IconButton>
+              <Tooltip>
+                <TooltipArrow />
+                view experiment runs
+              </Tooltip>
+            </TooltipTrigger>
+          </Flex>
+        );
+      },
+    };
+    const repetitionNumberColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["repetitionNumber"]
+    > = {
+      header: "repetition",
+      size: 64,
+      accessorKey: "repetitionNumber",
+      cell: ({ getValue }) => {
+        const value = getValue();
+        return (
+          <Text size="S" fontFamily="mono">
+            {value}
+          </Text>
+        );
+      },
+    };
+    const inputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["input"]
+    > = {
+      header: "input",
+      accessorKey: "input",
+      cell: ({ getValue }) => {
+        const value = getValue();
+        return (
+          <ContentPreviewTooltip content={value}>
+            <LineClamp lines={experiments.length}>
+              <JSONText json={value} disableTitle />
+            </LineClamp>
+          </ContentPreviewTooltip>
+        );
+      },
+    };
+    const referenceOutputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["referenceOutput"]
+    > = {
+      header: "reference output",
+      accessorKey: "referenceOutput",
+      cell: ({ getValue }) => {
+        const value = getValue();
+        return (
+          <ContentPreviewTooltip content={value}>
+            <LineClamp lines={experiments.length}>
+              <JSONText json={value} disableTitle />
+            </LineClamp>
+          </ContentPreviewTooltip>
+        );
+      },
+    };
+    const outputColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["outputs"]
+    > = {
+      header: "output",
+      accessorKey: "outputs",
+      cell: ({ getValue }) => {
+        const value = getValue();
+        return (
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--global-dimension-size-50);
+            `}
+          >
+            <li>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <span
+                  css={css`
+                    flex-shrink: 0;
+                  `}
+                >
+                  <ColorSwatch color={baseExperimentColor} shape="circle" />
+                </span>
+                <ContentPreviewTooltip content={value.baseExperimentValue}>
+                  <TextOverflow>
+                    <Text size="S" fontFamily="mono">
+                      {isObject(value.baseExperimentValue)
+                        ? JSON.stringify(value.baseExperimentValue)
+                        : String(value.baseExperimentValue)}
+                    </Text>
+                  </TextOverflow>
+                </ContentPreviewTooltip>
+              </Flex>
+            </li>
+            {value.compareExperimentValues.map((value, index) => (
+              <li key={index}>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <span
+                    css={css`
+                      flex-shrink: 0;
+                    `}
+                  >
+                    <ColorSwatch
+                      color={getExperimentColor(index)}
+                      shape="circle"
+                    />
+                  </span>
+                  {value ? (
+                    <ContentPreviewTooltip content={value}>
+                      <TextOverflow>
+                        <Text size="S" fontFamily="mono">
+                          {isObject(value)
+                            ? JSON.stringify(value)
+                            : String(value)}
+                        </Text>
+                      </TextOverflow>
+                    </ContentPreviewTooltip>
+                  ) : (
+                    <Text size="S" fontFamily="mono" color="gray-500">
+                      not run
+                    </Text>
+                  )}
+                </Flex>
+              </li>
+            ))}
+          </ul>
+        );
+      },
+    };
+    const tokensColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["tokens"]
+    > = {
+      header: () => (
+        <Flex direction="column" gap="size-100">
+          <Text size="S" weight="heavy">
+            tokens
+          </Text>
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--global-dimension-size-50);
+            `}
+          >
+            {experiments.map((experiment) => {
+              const averageTotalTokens = calculateAverage(
+                experiment.costSummary.total.tokens,
+                experiment.runCount
+              );
+              return (
+                <li key={experiment.id}>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <Text size="S" fontFamily="mono" color="gray-500">
+                      AVG
+                    </Text>
+                    <Text size="S" fontFamily="mono">
+                      {floatFormatter(averageTotalTokens)}
+                    </Text>
+                  </Flex>
+                </li>
+              );
+            })}
+          </ul>
+        </Flex>
+      ),
+      accessorKey: "tokens",
+      minSize: 150,
+      enableResizing: false,
+      cell: ({ getValue }) => {
+        const tokens = getValue();
+        return (
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--global-dimension-size-50);
+            `}
+          >
+            <li>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <ColorSwatch color={baseExperimentColor} shape="circle" />
+                <Text size="S" fontFamily="mono">
+                  {intFormatter(tokens.baseExperimentValue)}
+                </Text>
+              </Flex>
+            </li>
+            {tokens.compareExperimentValues.map((value, index) => (
+              <li key={index}>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch
+                    color={getExperimentColor(index)}
+                    shape="circle"
+                  />
+                  <Text size="S" fontFamily="mono">
+                    {intFormatter(value)}
+                  </Text>
+                </Flex>
+              </li>
+            ))}
+          </ul>
+        );
+      },
+    };
+    const latencyMsColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["latencyMs"]
+    > = columnHelper.accessor("latencyMs", {
+      // the columnHelper pattern is used here because it gives us access to the sorting state within the cell, which is needed to place the sort icon in a reasonable place in the header
+      header: ({ column }) => (
+        <Flex direction="column" gap="size-100">
+          <div
+            {...{
+              className: column.getCanSort() ? "sort" : "",
+              onClick: column.getToggleSortingHandler(),
+              style: {
+                left: column.getStart(),
+                width: column.getSize(),
+              },
+            }}
+          >
+            <Text size="S" weight="heavy">
+              latency
+            </Text>
+            {column.getIsSorted() ? (
+              <Icon
+                className="sort-icon"
+                svg={
+                  column.getIsSorted() === "asc" ? (
+                    <Icons.CaretUpFilled />
+                  ) : (
+                    <Icons.CaretDownFilled />
+                  )
+                }
+              />
+            ) : null}
+          </div>
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--global-dimension-size-50);
+            `}
+          >
+            {experiments.map((experiment) => (
+              <li key={experiment.id}>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <Text size="S" fontFamily="mono" color="gray-500">
+                    AVG
+                  </Text>
+                  <Text size="S" fontFamily="mono">
+                    {latencyMsFormatter(experiment.averageRunLatencyMs)}
+                  </Text>
+                </Flex>
+              </li>
+            ))}
+          </ul>
+        </Flex>
+      ),
+      minSize: 150,
+      enableResizing: false,
+      enableSorting: true,
+      cell: ({ getValue }) => {
+        const latencyMs = getValue();
+        return (
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--global-dimension-size-50);
+            `}
+          >
+            <li>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <ColorSwatch color={baseExperimentColor} shape="circle" />
+                <Text size="S" fontFamily="mono">
+                  {latencyMsFormatter(latencyMs.baseExperimentValue)}
+                </Text>
+              </Flex>
+            </li>
+            {latencyMs.compareExperimentValues.map((value, index) => (
+              <li key={index}>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch
+                    color={getExperimentColor(index)}
+                    shape="circle"
+                  />
+                  <Text size="S" fontFamily="mono">
+                    {latencyMsFormatter(value)}
+                  </Text>
+                </Flex>
+              </li>
+            ))}
+          </ul>
+        );
+      },
+    });
+    const costColumn: AccessorKeyColumnDef<
+      AppTableFeatures,
+      TableRow,
+      TableRow["cost"]
+    > = {
+      header: () => (
+        <Flex direction="column" gap="size-100">
+          <Text size="S" weight="heavy">
+            cost
+          </Text>
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--global-dimension-size-50);
+            `}
+          >
+            {experiments.map((experiment) => {
+              const averageTotalCost = calculateAverage(
+                experiment.costSummary.total.cost,
+                experiment.runCount
+              );
+              return (
+                <li key={experiment.id}>
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <Text size="S" fontFamily="mono" color="gray-500">
+                      AVG
+                    </Text>
+                    <Text size="S" fontFamily="mono">
+                      {costFormatter(averageTotalCost)}
+                    </Text>
+                  </Flex>
+                </li>
+              );
+            })}
+          </ul>
+        </Flex>
+      ),
+      accessorKey: "cost",
+      minSize: 150,
+      enableResizing: false,
+      cell: ({ getValue }) => {
+        const cost = getValue() as TableRow["cost"];
+        return (
+          <ul
+            css={css`
+              display: flex;
+              flex-direction: column;
+              gap: var(--global-dimension-size-50);
+            `}
+          >
+            <li>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <ColorSwatch color={baseExperimentColor} shape="circle" />
+                <Text size="S" fontFamily="mono">
+                  {costFormatter(cost.baseExperimentValue)}
+                </Text>
+              </Flex>
+            </li>
+            {cost.compareExperimentValues.map((value, index) => (
+              <li key={index}>
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <ColorSwatch
+                    color={getExperimentColor(index)}
+                    shape="circle"
+                  />
+                  <Text size="S" fontFamily="mono">
+                    {costFormatter(value)}
+                  </Text>
+                </Flex>
+              </li>
+            ))}
+          </ul>
+        );
+      },
+    };
+    type AnnotationColumnGetValueReturnType = {
+      baseExperimentRunAnnotation: BaseExperimentRunAnnotation;
+      compareExperimentRunAnnotations: (
+        | CompareExperimentRunAnnotation
+        | undefined
+      )[];
+    };
+    const annotationColumns: AccessorFnColumnDef<
+      AppTableFeatures,
+      TableRow,
+      AnnotationColumnGetValueReturnType
+    >[] =
+      annotationSummaries?.map((annotationSummary) =>
+        columnHelper.accessor(
+          // the columnHelper pattern is used here because it gives us access to the sorting state within the cell, which is needed to place the sort icon in a reasonable place in the header
+
+          (row: TableRow) => {
+            const baseExperimentRunAnnotation =
+              row.baseExperimentRunAnnotationsByName[
+                annotationSummary.annotationName
+              ];
+            const compareExperimentRunAnnotations =
+              row.compareExperimentRunAnnotationsByName[
+                annotationSummary.annotationName
+              ];
+            const value: AnnotationColumnGetValueReturnType = {
+              baseExperimentRunAnnotation,
+              compareExperimentRunAnnotations,
+            };
+            return value;
+          },
+          {
+            id: annotationSummary.annotationName,
+            header: (
+              headerContext: HeaderContext<
+                TableRow,
+                AnnotationColumnGetValueReturnType
+              >
+            ) => {
+              return (
+                <Flex direction="column" gap="size-100">
+                  <Flex
+                    direction="row"
+                    gap="size-100"
+                    alignItems="center"
+                    minWidth={0}
+                  >
+                    <AnnotationColorSwatch
+                      annotationName={annotationSummary.annotationName}
+                    />
+                    <div
+                      css={css`
+                        flex: 1 1 auto;
+                        min-width: 0;
+                      `}
+                      {...{
+                        className: headerContext.column.getCanSort()
+                          ? "sort"
+                          : "",
+                        onClick: headerContext.column.getToggleSortingHandler(),
+                      }}
+                    >
+                      <Truncate
+                        maxWidth="100%"
+                        title={annotationSummary.annotationName}
+                      >
+                        <Text size="S" weight="heavy">
+                          {annotationSummary.annotationName}
+                        </Text>
+                      </Truncate>
+                      {headerContext.column.getIsSorted() ? (
+                        <Icon
+                          className="sort-icon"
+                          svg={
+                            headerContext.column.getIsSorted() === "asc" ? (
+                              <Icons.CaretUpFilled />
+                            ) : (
+                              <Icons.CaretDownFilled />
+                            )
+                          }
+                        />
+                      ) : null}
+                    </div>
+                  </Flex>
+                  <ul
+                    css={css`
+                      display: flex;
+                      flex-direction: column;
+                      gap: var(--global-dimension-size-25);
+                    `}
+                  >
+                    {experiments.map((experiment, index) => {
+                      const experimentAnnotationSummary =
+                        experiment.annotationSummaries?.find(
+                          (summary) =>
+                            summary.annotationName ===
+                            annotationSummary.annotationName
+                        );
+                      const color =
+                        index === 0
+                          ? baseExperimentColor
+                          : getExperimentColor(index - 1);
+                      return (
+                        <li
+                          key={experiment.id}
+                          css={css`
+                            --mod-barloader-fill-color: ${color};
+                          `}
+                        >
+                          <Flex
+                            direction="row"
+                            gap="size-100"
+                            alignItems="center"
+                          >
+                            <Text size="S" fontFamily="mono" color="gray-500">
+                              AVG
+                            </Text>
+                            <Text size="S" fontFamily="mono">
+                              {numberFormatter(
+                                experimentAnnotationSummary?.meanScore
+                              )}
+                            </Text>
+                          </Flex>
+                          {typeof experimentAnnotationSummary?.meanScore ===
+                          "number" ? (
+                            <ProgressBar
+                              width="100%"
+                              height="var(--global-dimension-size-25)"
+                              value={calculateAnnotationScorePercentile(
+                                experimentAnnotationSummary.meanScore,
+                                annotationSummary.minScore,
+                                annotationSummary.maxScore
+                              )}
+                              aria-label={`${annotationSummary.annotationName} mean score`}
+                            />
+                          ) : (
+                            <ProgressBarPlaceholder />
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Flex>
+              );
+            },
+            minSize: 200,
+            enableResizing: false,
+            cell: ({ getValue }) => {
+              const {
+                baseExperimentRunAnnotation,
+                compareExperimentRunAnnotations,
+              } = getValue();
+              const annotationConfig =
+                annotationConfigsByName[annotationSummary.annotationName];
+
+              return (
+                <ul
+                  css={css`
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--global-dimension-size-25);
+                  `}
+                >
+                  <AnnotationValueItem
+                    annotation={baseExperimentRunAnnotation}
+                    annotationConfig={annotationConfig}
+                    barColor={baseExperimentColor}
+                    minScore={annotationSummary.minScore}
+                    maxScore={annotationSummary.maxScore}
+                    annotationName={annotationSummary.annotationName}
+                  />
+                  {compareExperimentRunAnnotations.map(
+                    (
+                      annotation: CompareExperimentRunAnnotation | undefined,
+                      index: number
+                    ) => {
+                      return (
+                        <AnnotationValueItem
+                          key={index}
+                          annotation={annotation}
+                          annotationConfig={annotationConfig}
+                          barColor={getExperimentColor(index)}
+                          minScore={annotationSummary.minScore}
+                          maxScore={annotationSummary.maxScore}
+                          annotationName={annotationSummary.annotationName}
+                        />
+                      );
+                    }
+                  )}
+                </ul>
+              );
+            },
+          }
+        )
+      ) ?? [];
+    const columns = columnHelper.columns([
+      exampleColumn,
+      repetitionNumberColumn,
+      inputColumn,
+      referenceOutputColumn,
+      outputColumn,
+      tokensColumn,
+      latencyMsColumn,
+      costColumn,
+      ...annotationColumns,
+    ]);
+    return columns;
+  }, [
+    annotationConfigsByName,
+    annotationSummaries,
+    baseExperimentColor,
+    columnHelper,
+    experiments,
+    getExperimentColor,
+  ]);
+
+  // This component isn't compiled (it calls `useVirtualizer`), so memoize by
+  // hand: TanStack v9 compares state slices by reference, and a new object on
+  // every render makes each render a real table update
+  const columnVisibility = useMemo(
+    () => ({ repetitionNumber: baseExperiment.repetitions > 1 }),
+    [baseExperiment.repetitions]
+  );
+  const table = useTable({
+    features: appTableFeatures,
+    data: tableData,
+    columns,
+    onSortingChange: setSorting,
+    columnResizeMode: "onChange",
+    state: {
+      sorting,
+      columnVisibility,
+    },
+    manualSorting: true,
+  });
+
+  // Refetch data when sorting changes
+  useEffect(() => {
+    // Skip the first render. It's been loaded by the parent
+    if (isFirstRender.current === true) {
+      isFirstRender.current = false;
+      return;
+    }
+    let gqlSort: ExperimentRunSort | undefined = undefined;
+    if (sorting.length > 0) {
+      const sort = sorting[0];
+      const dir: SortDir = sort.desc ? "desc" : "asc";
+      const sortId = sort.id;
+      gqlSort = {
+        col: isExperimentRunMetric(sortId)
+          ? { metric: sortId }
+          : { annotationName: sortId },
+        dir,
+      };
+    }
+    startTransition(() => {
+      refetch(
+        {
+          after: null,
+          first: 50,
+          sort: gqlSort,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
+  }, [sorting, refetch]);
+
+  const rows = table.getRowModel().rows;
+  // eslint-disable-next-line react/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => {
+      const numExperiments = experiments.length;
+      // 29px [cell padding + border]
+      // + 20px * numExperiments [line height per experiment metric line]
+      // + 4px * (numExperiments - 1) [gap between experiment metric lines]
+      return 29 + numExperiments * 20 + 4 * (numExperiments - 1);
+    },
+    overscan: 10,
+  });
+
+  /**
+   * Instead of calling `column.getSize()` on every render for every header
+   * and especially every data cell (very expensive),
+   * we calculate all column sizes at once at the root table level
+   * and pass the column sizes down as CSS variables to the <table> element.
+   */
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
+
+  const exampleIds = useMemo(() => {
+    return rows.map((row) => row.original.example);
+  }, [rows]);
+
+  return (
+    <View overflow="auto">
+      <Flex direction="column" height="100%">
+        <div
+          css={tableWrapCSS}
+          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          ref={tableContainerRef}
+        >
+          <table
+            css={css(tableCSS, borderedTableCSS)}
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+              tableLayout: "fixed",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header, index) => (
+                    <th
+                      key={header.id + "-" + index}
+                      style={{
+                        width: `calc(var(--header-${makeSafeColumnId(header?.id)}-size) * 1px)`,
+                        padding:
+                          "var(--global-dimension-size-175) var(--global-dimension-size-200)",
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          {header.column.getCanResize() && (
+                            <div
+                              {...{
+                                onMouseDown: header.getResizeHandler(),
+                                onTouchStart: header.getResizeHandler(),
+                                className: `resizer ${
+                                  header.column.getIsResizing()
+                                    ? "isResizing"
+                                    : ""
+                                }`,
+                              }}
+                            />
+                          )}
+                        </>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {table.state.columnResizing.isResizingColumn ? (
+              /* When resizing any column we will render this special memoized version of our table body */
+              <MemoizedTableBody
+                table={table}
+                virtualRows={virtualizer.getVirtualItems()}
+                totalHeight={virtualizer.getTotalSize()}
+              />
+            ) : (
+              <TableBody
+                table={table}
+                virtualRows={virtualizer.getVirtualItems()}
+                totalHeight={virtualizer.getTotalSize()}
+              />
+            )}
+          </table>
+        </div>
+      </Flex>
+      <ViewportModalOverlay
+        isOpen={selectedExampleIndex !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setSelectedExampleIndex(null);
+          }
+        }}
+      >
+        <ViewportModal size="fullscreen">
+          {selectedExampleIndex !== null &&
+            datasetId &&
+            rows[selectedExampleIndex] && (
+              <ExperimentCompareDetailsDialog
+                repetitionNumber={
+                  baseExperiment?.repetitions > 1
+                    ? rows[selectedExampleIndex].original.repetitionNumber
+                    : undefined
+                }
+                datasetId={datasetId}
+                datasetVersionId={baseExperiment?.datasetVersion?.id}
+                selectedExampleIndex={selectedExampleIndex}
+                selectedExampleId={rows[selectedExampleIndex].original.example}
+                selectedExampleExternalId={
+                  rows[selectedExampleIndex].original.externalId
+                }
+                baseExperimentId={baseExperiment?.id}
+                compareExperimentIds={compareExperimentIds}
+                exampleIds={exampleIds}
+                onExampleChange={(exampleIndex) => {
+                  if (
+                    exampleIndex === exampleIds.length - 1 &&
+                    !isLoadingNext &&
+                    hasNext
+                  ) {
+                    loadNext(PAGE_SIZE);
+                  }
+                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
+                    setSelectedExampleIndex(exampleIndex);
+                  }
+                }}
+                openTraceDialog={(traceId, projectId, title) => {
+                  // A span selection left in the URL by another view (e.g.
+                  // the grid view's trace drawer) belongs to a different
+                  // trace, so drop it before this trace renders.
+                  clearSelectedSpanSearchParam();
+                  setSelectedTraceDetails({
+                    traceId,
+                    projectId,
+                    dialogTitle: title,
+                  });
+                }}
+              />
+            )}
+        </ViewportModal>
+      </ViewportModalOverlay>
+      <ViewportModalOverlay
+        isOpen={selectedTraceDetails !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            clearSelectedSpanSearchParam();
+            setSelectedTraceDetails(null);
+          }
+        }}
+      >
+        <ViewportModal size="fullscreen">
+          {selectedTraceDetails !== null && (
+            <TraceDetailsDialog
+              traceId={selectedTraceDetails.traceId}
+              projectId={selectedTraceDetails.projectId}
+              title={selectedTraceDetails.dialogTitle}
+            />
+          )}
+        </ViewportModal>
+      </ViewportModalOverlay>
+    </View>
+  );
+}
+
+/**
+ * One experiment's annotation value in a compare list cell: the score (or
+ * label) colored by the annotation config's optimization direction, on a
+ * full-width tint, over a bar in the score's color. Without a direction the
+ * bar takes the experiment's color.
+ */
+export function AnnotationValueItem({
+  annotation,
+  annotationConfig,
+  barColor,
+  minScore,
+  maxScore,
+  annotationName,
+}: {
+  annotation: Annotation | undefined;
+  annotationConfig: AnnotationOptimizationConfig | undefined;
+  barColor: string;
+  minScore: number | null;
+  maxScore: number | null;
+  annotationName: string;
+}) {
+  const numericValue = getAnnotationValue(annotation);
+  const value =
+    typeof numericValue === "number"
+      ? numberFormatter(numericValue)
+      : numericValue;
+  const optimizationValue = getOptimizationValueFromConfig({
+    config: annotationConfig,
+    score: annotation?.score,
+  });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
+  return (
+    <li
+      data-direction={direction}
+      css={css(
+        scoreColorCSS,
+        css`
+          --mod-barloader-fill-color: var(
+            --annotation-score-color,
+            ${barColor}
+          );
+          background-color: var(--annotation-score-background-color);
+          padding: var(--global-dimension-size-25)
+            var(--global-dimension-size-50);
+          border-radius: var(--global-rounding-small);
+          margin: calc(-1 * var(--global-dimension-size-25))
+            calc(-1 * var(--global-dimension-size-50));
+        `
+      )}
+    >
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <AnnotationScoreText
+          size="S"
+          fontFamily="mono"
+          optimizationValue={optimizationValue}
+          hasBackground={false}
+        >
+          {value}
+        </AnnotationScoreText>
+      </Flex>
+      {typeof numericValue === "number" ? (
+        <ProgressBar
+          width="100%"
+          height="var(--global-dimension-size-25)"
+          value={calculateAnnotationScorePercentile(
+            numericValue,
+            minScore,
+            maxScore
+          )}
+          aria-label={`${annotationName} score`}
+        />
+      ) : (
+        <ProgressBarPlaceholder />
+      )}
+    </li>
+  );
+}
+
+//un-memoized normal table body component - see memoized version below
+function TableBody<T extends RowData>({
+  table,
+  virtualRows,
+  totalHeight,
+}: {
+  table: Table<T>;
+  /**
+   * Read from the virtualizer by the caller: the virtualizer is a stable
+   * object, so a compiled body reading it directly would never see new rows.
+   */
+  virtualRows: VirtualItem[];
+  totalHeight: number;
+}) {
+  const rows = table.getRowModel().rows;
+  const spacerRowHeight = useMemo(() => {
+    return totalHeight - virtualRows.reduce((acc, item) => acc + item.size, 0);
+  }, [totalHeight, virtualRows]);
+
+  return (
+    <tbody>
+      {virtualRows.map((virtualRow, index) => {
+        const row = rows[virtualRow.index];
+        return (
+          <tr
+            key={row.id}
+            style={{
+              height: `${virtualRow.size}px`,
+              transform: `translateY(${
+                virtualRow.start - index * virtualRow.size
+              }px)`,
+            }}
+          >
+            {row.getVisibleCells().map((cell, index) => (
+              <td
+                key={cell.id + "-" + index}
+                style={{
+                  width: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                  maxWidth: `calc(var(--col-${makeSafeColumnId(cell.column.id)}-size) * 1px)`,
+                  padding:
+                    "var(--global-dimension-size-175) var(--global-dimension-size-200)",
+                  verticalAlign: "middle",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        );
+      })}
+      {/* Add a spacer row to ensure the sticky header does not scroll out of view and to make scrolling smoother */}
+      <tr>
+        <td
+          style={{
+            height: `${spacerRowHeight}px`,
+            padding: 0,
+          }}
+          colSpan={table.getVisibleLeafColumns().length}
+        />
+      </tr>
+    </tbody>
+  );
+}
+
+//special memoized wrapper for our table body that we will use during column resizing
+export const MemoizedTableBody = memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
+
+const getAnnotationValue = (annotation: Annotation | undefined) => {
+  return annotation?.score ?? annotation?.label ?? "--";
+};
+
+const calculateAverage = (
+  total: number | null,
+  runCount: number
+): number | null => {
+  return total === null || runCount === 0 ? null : total / runCount;
+};
+
+function ContentPreviewTooltip({
+  content,
+  children,
+}: {
+  content: unknown;
+  children: React.ReactNode;
+}) {
+  return (
+    <TooltipTrigger>
+      <TriggerWrap
+        css={css`
+          overflow: hidden;
+        `}
+      >
+        {children}
+      </TriggerWrap>
+      <RichTooltip
+        placement="right"
+        offset={3}
+        css={css`
+          overflow-y: auto;
+        `}
+      >
+        {isObject(content) ? (
+          <JSONText json={content} disableTitle space={2} />
+        ) : (
+          <Text size="S" fontFamily="mono">
+            {String(content)}
+          </Text>
+        )}
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
+
+const textOverflowCSS = css`
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+
+  // prevent default behavior of title tooltip showing on safari
+  &::after {
+    content: "";
+    display: block;
+  }
+`;
+
+function TextOverflow({ children }: { children: React.ReactNode }) {
+  return <div css={textOverflowCSS}>{children}</div>;
+}
+
+const progressBarPlaceholderCSS = css`
+  width: 100%;
+  height: var(--global-dimension-size-25);
+`;
+
+function ProgressBarPlaceholder() {
+  return <div css={progressBarPlaceholderCSS} />;
+}
+
+/**
+ * Type guard for ExperimentRunMetric
+ */
+function isExperimentRunMetric(sortId: string): sortId is ExperimentRunMetric {
+  return sortId === "latencyMs";
+}

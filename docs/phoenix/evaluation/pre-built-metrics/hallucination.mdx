@@ -1,0 +1,275 @@
+---
+title: "Hallucination"
+description: "Detect whether an assistant response contains claims unsupported by the conversation."
+---
+
+## Overview
+
+The **Hallucination** evaluator determines whether an assistant's response contains claims that are unsupported by, or that contradict, the conversation it had access to. Unlike [Faithfulness](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) — which grounds a single response in a single block of retrieved context — Hallucination grounds the response in the broader conversation: earlier user and assistant turns, tool calls, tool results, and any retrieved context.
+
+### When to Use
+
+Use the Hallucination evaluator when you need to:
+
+- **Evaluate multi-turn agents and assistants** - Check whether a response invents facts that were never established across the conversation
+- **Catch fabricated tool results** - Detect when a response asserts data that a tool never returned (or returned an error for)
+- **Verify grounding beyond a single RAG context** - Judge responses against everything the model saw, not just one retrieved document
+
+<Info>
+This evaluator judges the response against the **conversation** as its source of truth. It is the conversation-level counterpart to [Faithfulness](/docs/phoenix/evaluation/pre-built-metrics/faithfulness); reach for Faithfulness when you have a single retrieved context block and Hallucination when grounding lives across the conversation and tool activity.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply to an LLM span, using its message history as the `input` and its latest response as the `output`. |
+| **Trace** | Yes | Apply across a trace whose spans form the conversation available to the response. |
+| **Session** | Yes | Apply across a multi-turn session, using the ordered turns as the `input`. |
+
+**Relevant span kinds:** LLM and agent spans, particularly in multi-turn or tool-using pipelines.
+
+## Input Requirements
+
+The Hallucination evaluator requires two inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The full record the assistant had access to before responding — prior user and assistant turns, tool calls, and tool results, plus any retrieved or provided content — rendered as a single, readable transcript with **every turn labeled by its role**. Treated as the only source of truth. |
+| `output` | `string` | The assistant's latest response to classify. |
+
+### Formatting the input
+
+Pass `input` as a single, human-readable transcript of the whole record — not raw JSON. Label every turn with its role, and mark tool calls and their results clearly:
+
+```
+User: What's our refund window?
+Tool (lookup_policy): Refunds: 30 days from delivery.
+Assistant: 30 days from delivery.
+User: And for electronics?
+```
+
+<Warning>
+**Keep the role labels on every turn.** The evaluator weighs evidence by its source: user messages, tool results, and retrieved or provided content are treated as authoritative ground truth, while the assistant's own earlier turns are **not** counted as independent evidence for a claim. If you strip the roles and pass an unlabeled blob, the evaluator can't tell an authoritative tool result from an unverified assistant claim, and its grounding judgments degrade. Always keep the role on every turn in the `input`, and label tool outputs as tool results.
+</Warning>
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"hallucinated"` or `"grounded"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = hallucinated, 0.0 = grounded) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"minimize"` | Lower scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **Grounded (0.0)**: Every claim in the response restates, or follows necessarily from, the input (ordinary general knowledge is allowed as long as it doesn't contradict the input)
+- **Hallucinated (1.0)**: The response asserts situation-specific facts not present in the input, or contradicts it
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import HallucinationEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    hallucination_eval = HallucinationEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(hallucination_eval.describe())
+
+    # Evaluate a single example
+    eval_input = {
+        "input": (
+            "User: What's our refund window?\n"
+            "Tool (lookup_policy): Refunds: 30 days from delivery.\n"
+            "Assistant: 30 days from delivery.\n"
+            "User: And for electronics?"
+        ),
+        "output": "Electronics can be returned within 90 days.",
+    }
+
+    scores = hallucination_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='hallucination', score=1.0, label='hallucinated', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const hallucinationEvaluator = createHallucinationEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate an example
+    const result = await hallucinationEvaluator.evaluate({
+      input:
+        "User: What's our refund window?\nTool (lookup_policy): Refunds: 30 days from delivery.\nAssistant: 30 days from delivery.\nUser: And for electronics?",
+      output: "Electronics can be returned within 90 days.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "hallucinated", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names or requires transformation, use input mapping. This is especially useful when you need to assemble a readable conversation from a list of messages.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import HallucinationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    hallucination_eval = HallucinationEvaluator(llm=llm)
+
+    # Example with a list of messages and a separate response
+    eval_input = {
+        "messages": [
+            {"role": "user", "content": "What's our refund window?"},
+            {"role": "tool", "content": "Refunds: 30 days from delivery."},
+            {"role": "assistant", "content": "30 days from delivery."},
+            {"role": "user", "content": "And for electronics?"},
+        ],
+        "response": "Electronics can be returned within 90 days.",
+    }
+
+    # Use input mapping with a lambda to render the conversation as a transcript
+    input_mapping = {
+        "input": lambda x: "\n".join(
+            f"{m['role'].capitalize()}: {m['content']}" for m in x["messages"]
+        ),
+        "output": "response",
+    }
+
+    scores = hallucination_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const hallucinationEvaluator = createHallucinationEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Bind with input mapping for different field names
+    const boundEvaluator = bindEvaluator(hallucinationEvaluator, {
+      inputMapping: {
+        input: (data) =>
+          data.messages
+            .map((m) => `${m.role[0].toUpperCase()}${m.role.slice(1)}: ${m.content}`)
+            .join("\n"),
+        output: "response",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      messages: [
+        { role: "user", content: "What's our refund window?" },
+        { role: "tool", content: "Refunds: 30 days from delivery." },
+        { role: "assistant", content: "30 days from delivery." },
+        { role: "user", content: "And for electronics?" },
+      ],
+      response: "Electronics can be returned within 90 days.",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import HallucinationEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = HallucinationEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="hallucination",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"hallucinated": 1.0, "grounded": 0.0},
+        direction="minimize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG, createHallucinationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createHallucinationEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: HALLUCINATION_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Hallucination evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [HallucinationEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createHallucinationEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Faithfulness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/faithfulness) - Grounds a single response in a single retrieved context
+- [User Friction Evaluator](/docs/phoenix/evaluation/pre-built-metrics/user-friction) - Detects friction expressed across a conversation

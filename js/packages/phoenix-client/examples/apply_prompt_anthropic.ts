@@ -1,8 +1,9 @@
+import { Anthropic } from "@anthropic-ai/sdk";
+
 /* eslint-disable no-console */
 import { createClient } from "../src";
 import { getPrompt, toSDK } from "../src/prompts";
-import { Anthropic } from "@anthropic-ai/sdk";
-import { PromptSelector } from "../src/types/prompts";
+import type { PromptSelector } from "../src/types/prompts";
 
 const PROMPT_NAME = process.env.PROMPT_NAME!;
 const PROMPT_TAG = process.env.PROMPT_TAG!;

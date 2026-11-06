@@ -6,10 +6,10 @@ Validate persistence configuration to prevent conflicts
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "phoenix.fullname" . }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: {{ .Release.Name }}
+    app: {{ include "phoenix.fullname" . }}
 spec:
   replicas: {{ .Values.replicaCount | default 1 }}
   {{- if .Values.deployment.strategy }}
@@ -18,14 +18,29 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      app: {{ include "phoenix.fullname" . }}
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}
+        {{- /* `app` is merged in last and wins: it is the immutable Deployment selector, and
+               emitting it twice yields a manifest the API server rejects. Values are quoted
+               because labels must be strings and the common ones look boolean. */}}
+        {{- $podLabels := .Values.deployment.podLabels }}
+        {{- /* Checked before defaulting. `default` substitutes on any empty value, so false,
+               0, "" and [] would otherwise render as no labels at all — a mis-wired value
+               silently dropping azure.workload.identity/use rather than failing here. nil is
+               `invalid` to Sprig and stays allowed, so the key can be unset or cleared. */}}
+        {{- if not (or (kindIs "invalid" $podLabels) (kindIs "map" $podLabels)) }}
+        {{- fail (printf "deployment.podLabels must be a map, got %s" (kindOf $podLabels)) }}
+        {{- end }}
+        {{- $podLabels = merge (dict "app" (include "phoenix.fullname" .)) ($podLabels | default dict) }}
+        {{- range $key, $value := $podLabels }}
+        {{ $key }}: {{ $value | quote }}
+        {{- end }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.deployment.terminationGracePeriodSeconds }}
       {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
-      serviceAccountName: {{ .Values.serviceAccount.name | default .Release.Name }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "phoenix.fullname" .) }}
       {{- end }}
       {{- if .Values.securityContext.pod.enabled }}
       securityContext: {{- omit .Values.securityContext.pod "enabled" | toYaml | nindent 8 }}
@@ -76,16 +91,20 @@ spec:
           {{- end }}
           envFrom:
             - configMapRef:
-                name: {{ .Release.Name }}-configmap
-          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) }}
+                name: {{ include "phoenix.fullname" . }}-configmap
+          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) (and .Values.auth.ldap.enabled .Values.auth.ldap.bindPassword) (and .Values.additionalEnv (gt (len .Values.additionalEnv) 0)) }}
           env:
           {{- if .Values.auth.secret }}
           {{- range $authSecrets := .Values.auth.secret }}
             - name: {{ $authSecrets.key }}
               valueFrom:
+              {{- if $authSecrets.valueFrom }}
+                {{- $authSecrets.valueFrom | toYaml | nindent 16 }}
+              {{- else }}
                 secretKeyRef:
                   name: {{ $.Values.auth.name }}
                   key: {{ $authSecrets.key }}
+              {{- end }}
           {{- end }}
           {{- end }}
           {{- if and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers }}
@@ -99,6 +118,16 @@ spec:
                   key: PHOENIX_OAUTH2_{{ $provider_upper }}_CLIENT_SECRET
           {{- end }}
           {{- end }}
+          {{- end }}
+          {{- if and .Values.auth.ldap.enabled .Values.auth.ldap.bindPassword }}
+            - name: PHOENIX_LDAP_BIND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.name }}
+                  key: PHOENIX_LDAP_BIND_PASSWORD
+          {{- end }}
+          {{- if and .Values.additionalEnv (gt (len .Values.additionalEnv) 0) }}
+          {{- .Values.additionalEnv | toYaml | nindent 12 }}
           {{- end }}
           {{- end }}
 
@@ -134,7 +163,7 @@ spec:
         {{- if and (.Values.persistence.enabled | toString | eq "true") (not $isMemoryDatabase) }}
         - name: data
           persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-data-pvc
+            claimName: {{ include "phoenix.fullname" . }}-data-pvc
         {{- else }}
         - name: data
           emptyDir: {}

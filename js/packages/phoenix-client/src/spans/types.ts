@@ -1,5 +1,5 @@
-import { paths } from "../__generated__/api/v1";
-import { Annotation } from "../types/annotations";
+import type { paths } from "../__generated__/api/v1";
+import type { Annotation } from "../types/annotations";
 
 type SpanAnnotationData =
   paths["/v1/span_annotations"]["post"]["requestBody"]["content"]["application/json"]["data"][0];
@@ -17,7 +17,7 @@ export interface SpanAnnotation extends Annotation {
   spanId: string;
   /**
    * The kind of annotator used for the annotation
-   * Can be "HUMAN", "LLM", or "CODE"
+   * Can be "HUMAN", "LLM", "CODE", "DECISION", or "AGENT"
    * @default "HUMAN"
    */
   annotatorKind?: SpanAnnotationData["annotator_kind"];
@@ -33,7 +33,7 @@ export interface DocumentAnnotation extends SpanAnnotation {
   documentPosition: number;
   /**
    * The kind of annotator used for the annotation
-   * Can be "HUMAN", "LLM", or "CODE"
+   * Can be "HUMAN", "LLM", "CODE", "DECISION", or "AGENT"
    * @default "HUMAN"
    */
   annotatorKind?: SpanDocumentAnnotationData["annotator_kind"];

@@ -10,7 +10,7 @@ from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, num_docs_col
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -89,8 +89,8 @@ class DocumentEvaluationSummaryDataLoader(DataLoader[Key, Result]):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
         for segment, params in arguments.items():
-            async with self._db() as session:
-                dialect = SupportedSQLDialect(session.bind.dialect.name)
+            async with self._db.read() as session:
+                dialect = SupportedSQLDialect(session.get_bind().dialect.name)
                 stmt = _get_stmt(dialect, segment, *params.keys())
                 data = await session.stream(stmt)
                 async for eval_name, group in groupby(data, lambda d: d.name):
@@ -115,14 +115,14 @@ def _get_stmt(
     dialect: SupportedSQLDialect,
     segment: Segment,
     *eval_names: Param,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     project_rowid, (start_time, end_time), filter_condition = segment
     mda = models.DocumentAnnotation
     stmt = (
         select(
             mda.name,
             models.Span.id,
-            num_docs_col(dialect),
+            models.Span.num_documents.label("num_docs"),
             mda.score,
             mda.document_position,
         )

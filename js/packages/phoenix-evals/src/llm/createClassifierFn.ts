@@ -1,11 +1,11 @@
-import {
+import { formatTemplate } from "../template";
+import type {
   ClassificationChoicesMap,
-  EvaluationResult,
   CreateClassifierArgs,
+  EvaluationResult,
   EvaluatorFn,
 } from "../types/evals";
 import { generateClassification } from "./generateClassification";
-import { formatTemplate } from "../template";
 
 /**
  * Convert a mapping of choices to labels

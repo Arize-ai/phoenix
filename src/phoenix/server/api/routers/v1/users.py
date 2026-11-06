@@ -1,17 +1,15 @@
 import asyncio
 import logging
 import secrets
-from datetime import datetime
 from functools import partial
 from typing import Annotated, Literal, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
-from pydantic import Field
-from sqlalchemy import select
+from pydantic import Field, SecretStr
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
@@ -27,8 +25,8 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.db import models
-from phoenix.db.types.db_models import UNDEFINED
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.api.routers.v1.models import IsoDatetime, V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -36,6 +34,15 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked, require_admin
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.types import (
+    AccessTokenId,
+    ApiKeyId,
+    PasswordResetTokenId,
+    RefreshTokenId,
+    TokenId,
+    TokenStore,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +66,14 @@ class OAuth2UserData(UserData):
     oauth2_user_id: str = UNDEFINED
 
 
+class LDAPUserData(UserData):
+    auth_method: Literal["LDAP"]
+
+
 class DbUser(V1RoutesBaseModel):
     id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
 
 
 class LocalUser(LocalUserData, DbUser):
@@ -73,7 +84,23 @@ class OAuth2User(OAuth2UserData, DbUser):
     profile_picture_url: str = UNDEFINED
 
 
-User: TypeAlias = Annotated[Union[LocalUser, OAuth2User], Field(..., discriminator="auth_method")]
+class LDAPUser(LDAPUserData, DbUser):
+    pass
+
+
+User: TypeAlias = Annotated[
+    Union[LocalUser, OAuth2User, LDAPUser], Field(..., discriminator="auth_method")
+]
+
+
+class AnonymousUser(V1RoutesBaseModel):
+    auth_method: Literal["ANONYMOUS"]
+
+
+ViewerUser: TypeAlias = Annotated[
+    Union[LocalUser, OAuth2User, LDAPUser, AnonymousUser],
+    Field(..., discriminator="auth_method"),
+]
 
 
 class GetUsersResponseBody(PaginatedResponseBody[User]):
@@ -84,8 +111,14 @@ class GetUserResponseBody(ResponseBody[User]):
     pass
 
 
+class GetViewerResponseBody(ResponseBody[ViewerUser]):
+    pass
+
+
 class CreateUserRequestBody(V1RoutesBaseModel):
-    user: Annotated[Union[LocalUserData, OAuth2UserData], Field(..., discriminator="auth_method")]
+    user: Annotated[
+        Union[LocalUserData, OAuth2UserData, LDAPUserData], Field(..., discriminator="auth_method")
+    ]
     send_welcome_email: bool = True
 
 
@@ -94,6 +127,85 @@ class CreateUserResponseBody(ResponseBody[User]):
 
 
 DEFAULT_PAGINATION_PAGE_LIMIT = 100
+
+
+def _db_user_to_response(user: models.User) -> User:
+    """Convert a database User model to a REST API User response."""
+    global_id = str(GlobalID("User", str(user.id)))
+    if isinstance(user, models.LocalUser):
+        return LocalUser(
+            id=global_id,
+            username=user.username,
+            email=user.email,
+            role=user.role.name,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            auth_method="LOCAL",
+            password_needs_reset=user.reset_password,
+        )
+    elif isinstance(user, models.LDAPUser):
+        return LDAPUser(
+            id=global_id,
+            username=user.username,
+            email=user.email or "",
+            role=user.role.name,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            auth_method="LDAP",
+        )
+    elif isinstance(user, models.OAuth2User):
+        oauth2_user = OAuth2User(
+            id=global_id,
+            username=user.username,
+            email=user.email,
+            role=user.role.name,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            auth_method="OAUTH2",
+        )
+        if user.oauth2_client_id:
+            oauth2_user.oauth2_client_id = user.oauth2_client_id
+        if user.oauth2_user_id:
+            oauth2_user.oauth2_user_id = user.oauth2_user_id
+        if user.profile_picture_url:
+            oauth2_user.profile_picture_url = user.profile_picture_url
+        return oauth2_user
+    raise ValueError(f"Unknown user type: {type(user)}")
+
+
+@router.get(
+    "/user",
+    operation_id="getViewer",
+    summary="Get the authenticated user",
+    description=(
+        "Returns the profile of the currently authenticated user. "
+        "When authentication is disabled, returns an anonymous user representation."
+    ),
+    response_description="The authenticated user's profile.",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 401, "description": "User not found."},
+        ],
+    ),
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
+)
+async def get_viewer(
+    request: Request,
+) -> GetViewerResponseBody:
+    if not request.app.state.authentication_enabled:
+        return GetViewerResponseBody(data=AnonymousUser(auth_method="ANONYMOUS"))
+    if not isinstance(request.user, PhoenixUser):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = int(request.user.identity)
+    async with request.app.state.db() as session:
+        user = await session.scalar(
+            select(models.User).options(joinedload(models.User.role)).filter_by(id=user_id)
+        )
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return GetViewerResponseBody(data=_db_user_to_response(user))
 
 
 @router.get(
@@ -137,38 +249,7 @@ async def list_users(
         last_user = result[-1]
         next_cursor = str(GlobalID("User", str(last_user.id)))
         result = result[:-1]
-    data: list[User] = []
-    for user in result:
-        if isinstance(user, models.LocalUser):
-            data.append(
-                LocalUser(
-                    id=str(GlobalID("User", str(user.id))),
-                    username=user.username,
-                    email=user.email,
-                    role=user.role.name,
-                    created_at=user.created_at,
-                    updated_at=user.updated_at,
-                    auth_method="LOCAL",
-                    password_needs_reset=user.reset_password,
-                )
-            )
-        elif isinstance(user, models.OAuth2User):
-            oauth2_user = OAuth2User(
-                id=str(GlobalID("User", str(user.id))),
-                username=user.username,
-                email=user.email,
-                role=user.role.name,
-                created_at=user.created_at,
-                updated_at=user.updated_at,
-                auth_method="OAUTH2",
-            )
-            if user.oauth2_client_id:
-                oauth2_user.oauth2_client_id = user.oauth2_client_id
-            if user.oauth2_user_id:
-                oauth2_user.oauth2_user_id = user.oauth2_user_id
-            if user.profile_picture_url:
-                oauth2_user.profile_picture_url = user.profile_picture_url
-            data.append(oauth2_user)
+    data: list[User] = [_db_user_to_response(user) for user in result]
     return GetUsersResponseBody(next_cursor=next_cursor, data=data)
 
 
@@ -215,7 +296,7 @@ async def create_user(
 
         # Generate salt and hash password using the same method as in context.py
         salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-        compute = partial(compute_password_hash, password=Secret(password), salt=salt)
+        compute = partial(compute_password_hash, password=SecretStr(password), salt=salt)
         password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
 
         user = models.LocalUser(
@@ -232,6 +313,11 @@ async def create_user(
             oauth2_client_id=user_data.oauth2_client_id or None,
             oauth2_user_id=user_data.oauth2_user_id or None,
         )
+    elif isinstance(user_data, LDAPUserData):
+        user = models.LDAPUser(
+            email=email,
+            username=username,
+        )
     else:
         assert_never(user_data)
     try:
@@ -241,6 +327,9 @@ async def create_user(
                 raise HTTPException(status_code=400, detail=f"Role '{role}' not found")
             user.user_role_id = user_role_id
             session.add(user)
+            await session.flush()
+            await session.refresh(user, ["role"])
+            data = _db_user_to_response(user)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
         if "users.username" in str(e):
             raise HTTPException(status_code=409, detail="Username already exists")
@@ -251,44 +340,16 @@ async def create_user(
                 status_code=409,
                 detail="Failed to create user due to a conflict with existing data",
             )
-    id_ = str(GlobalID("User", str(user.id)))
-    data: User
-    if isinstance(user_data, LocalUserData):
-        data = LocalUser(
-            id=id_,
-            email=email,
-            username=username,
-            auth_method="LOCAL",
-            role=user_data.role,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            password_needs_reset=user.reset_password,
-        )
-    elif isinstance(user_data, OAuth2UserData):
-        data = OAuth2User(
-            id=id_,
-            email=email,
-            username=username,
-            auth_method="OAUTH2",
-            role=user_data.role,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-        )
-        if user.oauth2_client_id:
-            data.oauth2_client_id = user.oauth2_client_id
-        if user.oauth2_user_id:
-            data.oauth2_user_id = user.oauth2_user_id
-        if user.profile_picture_url:
-            data.profile_picture_url = user.profile_picture_url
-    else:
-        assert_never(user_data)
     # Send welcome email if requested
-    if request_body.send_welcome_email and request.app.state.email_sender is not None:
+    if (
+        request_body.send_welcome_email
+        and request.app.state.email_sender is not None
+        and user.email
+    ):
         try:
             await request.app.state.email_sender.send_welcome_email(user.email, user.username)
         except Exception as error:
-            # Log the error but do not raise it
-            logger.error(f"Failed to send welcome email: {error}")
+            logger.error("Failed to send welcome email (%s)", type(error).__name__)
     return CreateUserResponseBody(data=data)
 
 
@@ -336,5 +397,36 @@ async def delete_user(
             raise HTTPException(
                 status_code=403, detail="Cannot delete the default admin or system user"
             )
-        await session.delete(user)
+        # The delete cascades to the user's tokens, so their ids are collected first; the
+        # token store would otherwise keep serving cached ones until its next reload.
+        token_ids: list[TokenId] = [
+            *map(
+                PasswordResetTokenId,
+                await session.scalars(
+                    select(models.PasswordResetToken.id).where(
+                        models.PasswordResetToken.user_id == id_
+                    )
+                ),
+            ),
+            *map(
+                AccessTokenId,
+                await session.scalars(
+                    select(models.AccessToken.id).where(models.AccessToken.user_id == id_)
+                ),
+            ),
+            *map(
+                RefreshTokenId,
+                await session.scalars(
+                    select(models.RefreshToken.id).where(models.RefreshToken.user_id == id_)
+                ),
+            ),
+            *map(
+                ApiKeyId,
+                await session.scalars(select(models.ApiKey.id).where(models.ApiKey.user_id == id_)),
+            ),
+        ]
+        await session.execute(delete(models.User).where(models.User.id == id_))
+    if token_ids and request.app.state.authentication_enabled:
+        token_store: TokenStore = request.app.state.get_token_store()
+        await token_store.revoke(*token_ids)
     return None

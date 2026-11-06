@@ -1,0 +1,60 @@
+---
+title: "Tutorial"
+sidebarTitle: "Overview"
+description: Learn to find, test, compare, and optimize a prompt in Phoenix, from one trace to an automated optimization loop.
+---
+
+In this tutorial, you improve the prompt of a support agent that classifies customer queries. You start with one wrong classification in a trace. At the end, you have an optimized prompt, measured on a full dataset.
+
+For background on prompts, prompt templates, and prompt versions, see [Prompts Concepts](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts).
+
+<Info>
+**Follow along with code**: This guide has a companion notebook with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/prompts/phoenix_prompt_tutorial.ipynb).
+</Info>
+
+***
+
+## **Tutorial Structure**
+
+Do the parts in this order. Each part uses the result of the part before it.
+
+### [Identify & Edit Prompts](/docs/phoenix/prompt-engineering/tutorial/identify-and-edit-prompts)
+
+**Goal:** Find and fix a wrong classification in a trace.\
+You find the failing span, replay it in the Playground, and edit the prompt.\
+You save the original prompt and the edited prompt as two versions.
+
+***
+
+### [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale)
+
+**Goal:** Measure the prompt on a labeled dataset.\
+You run the prompt on every example in the dataset and get an accuracy score.\
+You use an LLM evaluator to explain why each wrong output failed.
+
+***
+
+### [Compare Prompt Versions](/docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions)
+
+**Goal:** Measure whether your edits improve the prompt.\
+You create one version with a new instruction and one version with new model parameters.\
+You run both versions on the dataset and compare the results.
+
+***
+
+### [Optimize Prompts Automatically](/docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically)
+
+**Goal:** Let an algorithm improve the prompt for you.\
+You give your experiment results to Prompt Learning, which generates a new prompt version.\
+You run the new version on the dataset and measure the improvement.
+
+***
+
+## **What You’ll Have by the End**
+
+When you complete the tutorial, you have:
+
+* A dataset and an experiment workflow to test prompts.
+* Multiple prompt versions that Phoenix tracks.
+* Evaluation feedback that explains each failure.
+* An automated optimization loop that uses Prompt Learning.

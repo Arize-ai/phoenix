@@ -1,0 +1,5 @@
+arize-phoenix-otel
+arize-phoenix-client
+arize-phoenix-evals
+openai
+openinference-instrumentation-openai

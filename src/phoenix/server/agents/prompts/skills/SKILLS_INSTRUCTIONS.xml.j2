@@ -1,0 +1,15 @@
+<skills>
+  <description>Skills carry task-specific instructions for working with Phoenix. If you find yourself working on a task that is relevant to one of the skills below, call `load_skill` to read instructions for that particular skill.</description>
+  <available_skills>
+{% for skill in skills %}
+    <skill>
+      <name>{{ skill.name }}</name>
+      <description>{{ skill.description }}</description>
+    </skill>
+{% endfor %}
+  </available_skills>
+  <usage>
+    Load each skill at most once per conversation: if a successful load already appears in the conversation, reuse it.
+    A loaded skill may list reference files; load one with `load_skill_reference`, using the exact names the skill lists.
+  </usage>
+</skills>

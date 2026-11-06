@@ -1,0 +1,106 @@
+---
+title: "CrewAI Tracing"
+description: Instrument multi-agent applications using CrewAI
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+<Frame>
+<iframe src="https://cdn.iframe.ly/ImIYqHG" className="w-full h-full aspect-video"></iframe>
+</Frame>
+
+<Card horizontal href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/crewai_tracing_tutorial.ipynb" title="Google Colab" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal>
+colab.research.google.com
+</Card>
+
+## Install
+
+```bash
+pip install openinference-instrumentation-crewai openinference-instrumentation-litellm \
+  crewai crewai-tools
+```
+
+CrewAI uses either Langchain or LiteLLM under the hood to call models, depending on the version.
+
+If you're using **CrewAI\<0.63.0**, we recommend installing our `openinference-instrumentation-langchain` library to get visibility of LLM calls.
+
+If you're using **CrewAI>= 0.63.0**, we recommend instead adding our `openinference-instrumentation-litellm` library to get visibility of LLM calls.
+
+## Setup
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run CrewAI
+
+From here, you can run CrewAI as normal
+
+```python expandable
+import os
+from crewai import Agent, Task, Crew, Process
+
+os.environ.setdefault("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY")
+
+# Define your agents with roles and goals
+researcher = Agent(
+  role='Senior Research Analyst',
+  goal='Uncover cutting-edge developments in AI and data science',
+  backstory="""You work at a leading tech think tank.
+  Your expertise lies in identifying emerging trends.
+  You have a knack for dissecting complex data and presenting actionable insights.""",
+  verbose=True,
+  allow_delegation=False,
+  llm="gpt-4o-mini",
+)
+writer = Agent(
+  role='Tech Content Strategist',
+  goal='Craft compelling content on tech advancements',
+  backstory="""You are a renowned Content Strategist, known for your insightful and engaging articles.
+  You transform complex concepts into compelling narratives.""",
+  verbose=True,
+  allow_delegation=True,
+  llm="gpt-4o-mini",
+)
+
+# Create tasks for your agents
+task1 = Task(
+  description="""Conduct a comprehensive analysis of the latest advancements in AI in 2024.
+  Identify key trends, breakthrough technologies, and potential industry impacts.""",
+  expected_output="Full analysis report in bullet points",
+  agent=researcher
+)
+
+task2 = Task(
+  description="""Using the insights provided, develop an engaging blog
+  post that highlights the most significant AI advancements.
+  Your post should be informative yet accessible, catering to a tech-savvy audience.
+  Make it sound cool, avoid complex words so it doesn't sound like AI.""",
+  expected_output="Full blog post of at least 4 paragraphs",
+  agent=writer
+)
+
+# Instantiate your crew with a sequential process
+crew = Crew(
+  agents=[researcher, writer],
+  tasks=[task1, task2],
+  verbose=True, # Enable verbose logging
+  process = Process.sequential
+)
+
+# Get your crew to work!
+result = crew.kickoff()
+
+print("######################")
+print(result)
+```
+
+## Observe
+
+Now that you have tracing setup, all calls to your Crew will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-crewai)
+
+* [Example Notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/crewai_tracing_tutorial.ipynb)
+
+

@@ -1,30 +1,32 @@
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, Tuple
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Connection, Engine, text
+from sqlalchemy import Connection, text
+from sqlalchemy.ext.asyncio import AsyncEngine
 from typing_extensions import assert_never
 
-from . import _down, _up, _version_num
+from . import _down, _run_async, _up, _version_num
 
 
-def test_annotation_config_migration(
-    _engine: Engine,
+async def test_annotation_config_migration(
+    _engine: AsyncEngine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
     _schema: str,
 ) -> None:
     # no migrations applied yet
     with pytest.raises(BaseException, match="alembic_version"):
-        _version_num(_engine, _schema)
+        await _version_num(_engine, _schema)
 
     # apply migrations up to right before annotation config migration
-    _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
+    await _up(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
     # insert entities to be annotated
     now = datetime.now(timezone.utc)
-    with _engine.connect() as conn:
+
+    def _insert_entities(conn: Connection) -> Tuple[int, int]:
         # create a project
         project_id = conn.execute(
             text(
@@ -96,10 +98,13 @@ def test_annotation_config_migration(
         ).scalar()
         assert isinstance(span_rowid, int)
         conn.commit()
+        return trace_rowid, span_rowid
+
+    trace_rowid, span_rowid = await _run_async(_engine, _insert_entities)
 
     for iteration_index in range(2):
         # test behavior before up migration
-        with _engine.connect() as conn:
+        def _verify_pre_migration(conn: Connection) -> Tuple[int, int, int, int, int, int]:
             # verify columns
             if _db_backend == "sqlite":
                 trace_annotations_table_def = _get_sqlite_table_info(conn, "trace_annotations")
@@ -343,7 +348,25 @@ def test_annotation_config_migration(
             )
             conn.commit()
 
-        with _engine.connect() as conn:
+            return (
+                trace_annotation_from_llm_id,
+                trace_annotation_from_human_id,
+                span_annotation_from_llm_id,
+                span_annotation_from_human_id,
+                document_annotation_from_llm_id,
+                document_annotation_from_human_id,
+            )
+
+        (
+            trace_annotation_from_llm_id,
+            trace_annotation_from_human_id,
+            span_annotation_from_llm_id,
+            span_annotation_from_human_id,
+            document_annotation_from_llm_id,
+            document_annotation_from_human_id,
+        ) = await _run_async(_engine, _verify_pre_migration)
+
+        def _test_code_not_allowed_trace(conn: Connection) -> None:
             # verify that 'CODE' annotator_kind is not allowed for trace annotations before migration
             with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_pre_migration(
@@ -359,7 +382,9 @@ def test_annotation_config_migration(
                 # conn.commit()
             assert "valid_annotator_kind" in str(exc_info.value)
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_code_not_allowed_trace)
+
+        def _test_code_not_allowed_span(conn: Connection) -> None:
             # verify that 'CODE' annotator_kind is not allowed for span annotations before migration
             with pytest.raises(Exception) as exc_info:
                 _create_span_annotation_pre_migration(
@@ -375,7 +400,9 @@ def test_annotation_config_migration(
                 conn.commit()
             assert "valid_annotator_kind" in str(exc_info.value)
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_code_not_allowed_span)
+
+        def _test_code_not_allowed_document(conn: Connection) -> None:
             # Verify that 'CODE' annotator_kind is not allowed for document annotations before migration
             with pytest.raises(Exception) as exc_info:
                 _create_document_annotation_pre_migration(
@@ -392,11 +419,13 @@ def test_annotation_config_migration(
                 conn.commit()
             assert "valid_annotator_kind" in str(exc_info.value)
 
+        await _run_async(_engine, _test_code_not_allowed_document)
+
         # run the annotation config migration
-        _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
+        await _up(_engine, _alembic_config, "2f9d1a65945f", _schema)
 
         # verify new columns exist and have been backfilled
-        with _engine.connect() as conn:
+        def _verify_post_migration(conn: Connection) -> None:
             # verify expected columns and constraints exist
             if _db_backend == "sqlite":
                 trace_annotations_table_def = _get_sqlite_table_info(conn, "trace_annotations")
@@ -499,9 +528,9 @@ def test_annotation_config_migration(
 
             elif _db_backend == "postgresql":
                 # Get table information for all three tables
-                trace_annotations_info = _get_postgres_table_info(conn, "trace_annotations")
-                span_annotations_info = _get_postgres_table_info(conn, "span_annotations")
-                document_annotations_info = _get_postgres_table_info(conn, "document_annotations")
+                _get_postgres_table_info(conn, "trace_annotations")
+                _get_postgres_table_info(conn, "span_annotations")
+                _get_postgres_table_info(conn, "document_annotations")
             else:
                 assert_never(_db_backend)
 
@@ -607,7 +636,9 @@ def test_annotation_config_migration(
             assert source == "APP"
             assert user_id is None
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _verify_post_migration)
+
+        def _test_source_nonnull_trace(conn: Connection) -> None:
             # verify source is non-nullable for trace annotations
             with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_post_migration(
@@ -631,7 +662,9 @@ def test_annotation_config_migration(
             )
             assert "source" in error_message
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_source_nonnull_trace)
+
+        def _test_source_nonnull_span(conn: Connection) -> None:
             # verify source is non-nullable for span annotations
             with pytest.raises(Exception) as exc_info:
                 _create_span_annotation_post_migration(
@@ -655,7 +688,9 @@ def test_annotation_config_migration(
             )
             assert "source" in error_message
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_source_nonnull_span)
+
+        def _test_source_nonnull_document(conn: Connection) -> None:
             # verify source is non-nullable for document annotations
             with pytest.raises(Exception) as exc_info:
                 _create_document_annotation_post_migration(
@@ -680,7 +715,9 @@ def test_annotation_config_migration(
             )
             assert "source" in error_message
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_source_nonnull_document)
+
+        def _test_identifier_nonnull_trace(conn: Connection) -> None:
             # verify identifier is non-nullable for trace annotations
             with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_post_migration(
@@ -704,7 +741,9 @@ def test_annotation_config_migration(
             )
             assert "identifier" in error_message
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_identifier_nonnull_trace)
+
+        def _test_identifier_nonnull_span(conn: Connection) -> None:
             # verify identifier is non-nullable for span annotations
             with pytest.raises(Exception) as exc_info:
                 _create_span_annotation_post_migration(
@@ -728,7 +767,9 @@ def test_annotation_config_migration(
             )
             assert "identifier" in error_message
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_identifier_nonnull_span)
+
+        def _test_identifier_nonnull_document(conn: Connection) -> None:
             # verify identifier is non-nullable for document annotations
             with pytest.raises(Exception) as exc_info:
                 _create_document_annotation_post_migration(
@@ -753,7 +794,9 @@ def test_annotation_config_migration(
             )
             assert "identifier" in error_message
 
-        with _engine.connect() as conn:
+        await _run_async(_engine, _test_identifier_nonnull_document)
+
+        def _test_code_allowed_and_cleanup(conn: Connection) -> None:
             # verify that after migration, 'CODE' is allowed
             trace_annotation_from_code_id = _create_trace_annotation_post_migration(
                 conn=conn,
@@ -818,7 +861,9 @@ def test_annotation_config_migration(
             )
             conn.commit()
 
-        _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
+        await _run_async(_engine, _test_code_allowed_and_cleanup)
+
+        await _down(_engine, _alembic_config, "bc8fea3c2bc8", _schema)
 
 
 def _create_trace_annotation_pre_migration(

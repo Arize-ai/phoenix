@@ -2,9 +2,9 @@
 import { createDataset } from "../src/datasets";
 import {
   asEvaluator,
-  runExperiment,
   evaluateExperiment,
   getExperiment,
+  runExperiment,
 } from "../src/experiments";
 
 async function main() {

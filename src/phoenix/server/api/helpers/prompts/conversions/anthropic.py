@@ -12,7 +12,7 @@ if TYPE_CHECKING:
         ToolChoiceToolParam,
     )
 
-    from phoenix.server.api.helpers.prompts.models import (
+    from phoenix.db.types.prompts import (
         PromptToolChoiceNone,
         PromptToolChoiceOneOrMore,
         PromptToolChoiceSpecificFunctionTool,
@@ -62,7 +62,7 @@ class AnthropicToolChoiceConversion:
         ],
         Optional[bool],
     ]:
-        from phoenix.server.api.helpers.prompts.models import (
+        from phoenix.db.types.prompts import (
             PromptToolChoiceNone,
             PromptToolChoiceOneOrMore,
             PromptToolChoiceSpecificFunctionTool,

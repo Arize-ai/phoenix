@@ -7,3 +7,4 @@ import strawberry
 class AuthMethod(Enum):
     LOCAL = "LOCAL"
     OAUTH2 = "OAUTH2"
+    LDAP = "LDAP"

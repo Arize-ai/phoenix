@@ -1,16 +1,26 @@
 import createOpenApiClient, {
-  type Middleware,
   type ClientOptions,
+  type Middleware,
 } from "openapi-fetch";
+
 import type {
-  paths as oapiPathsV1,
   components as oapiComponentsV1,
   operations as oapiOperationsV1,
+  paths as oapiPathsV1,
 } from "./__generated__/api/v1.d.ts";
 import {
+  type BaseUrlSource,
   defaultGetEnvironmentOptions,
   makeDefaultClientOptions,
 } from "./config";
+import { HttpError } from "./errors";
+import type { SemanticVersion } from "./types/semver";
+import { parseSemanticVersion } from "./utils/semverUtils";
+
+/**
+ * The HTTP response header that carries the Phoenix server version string.
+ */
+export const PHOENIX_SERVER_VERSION_HEADER = "x-phoenix-server-version";
 
 export type pathsV1 = oapiPathsV1;
 export type componentsV1 = oapiComponentsV1;
@@ -28,6 +38,14 @@ export type Types = {
 };
 
 /**
+ * The client's resolved options, tagged with where the base URL came from so
+ * consumers can tell deliberate configuration from an ambient environment.
+ */
+export type PhoenixClientOptions = ClientOptions & {
+  baseUrlSource: BaseUrlSource;
+};
+
+/**
  * Merge all configuration options according to priority:
  * defaults < environment < explicit options
  *
@@ -42,13 +60,20 @@ export const getMergedOptions = ({
 }: {
   options?: Partial<ClientOptions>;
   getEnvironmentOptions?: () => Partial<ClientOptions>;
-} = {}): ClientOptions => {
+} = {}): PhoenixClientOptions => {
   const defaultOptions = makeDefaultClientOptions();
   const environmentOptions = getEnvironmentOptions();
+  const baseUrlSource: BaseUrlSource =
+    options.baseUrl !== undefined
+      ? "explicit"
+      : environmentOptions.baseUrl !== undefined
+        ? "environment"
+        : "default";
   return {
     ...defaultOptions,
     ...environmentOptions,
     ...options,
+    baseUrlSource,
   };
 };
 
@@ -58,10 +83,7 @@ export const getMergedOptions = ({
 const middleware: Middleware = {
   onResponse({ response }) {
     if (!response.ok) {
-      // Will produce error messages like "https://example.org/api/v1/example: 404 Not Found".
-      throw new Error(
-        `${response.url}: ${response.status} ${response.statusText}`
-      );
+      throw new HttpError(response);
     }
   },
 };
@@ -97,10 +119,65 @@ export const createClient = (
 ) => {
   const mergedOptions = getMergedOptions(config);
   const openApiClient = createOpenApiClient<pathsV1>(mergedOptions);
+
+  // Lazily populated by versionMiddleware from the x-phoenix-server-version
+  // response header on the first successful API call. Read via getServerVersion().
+  let serverVersion: SemanticVersion | null | undefined;
+
+  const versionMiddleware: Middleware = {
+    onResponse({ response }) {
+      if (serverVersion === undefined) {
+        const header = response.headers.get(PHOENIX_SERVER_VERSION_HEADER);
+        if (header) {
+          serverVersion = parseSemanticVersion(header);
+        }
+      }
+    },
+  };
+
+  openApiClient.use(versionMiddleware);
   openApiClient.use(middleware);
+
   return {
     ...openApiClient,
     config: mergedOptions,
+    /**
+     * Get the Phoenix server version, returning a cached value if available.
+     *
+     * The version is first populated from the `x-phoenix-server-version`
+     * response header on any API call. If no version has been seen yet,
+     * this method fetches `GET /arize_phoenix_version` to populate the cache.
+     *
+     * @throws {Error} If the server version cannot be determined (e.g. the
+     * server is unreachable or returned an unparseable version string).
+     */
+    getServerVersion: async (): Promise<SemanticVersion> => {
+      if (serverVersion != null) return serverVersion;
+      try {
+        const baseUrl = mergedOptions.baseUrl ?? "";
+        const headers = mergedOptions.headers
+          ? { ...(mergedOptions.headers as Record<string, string>) }
+          : {};
+        const fetchImpl = mergedOptions.fetch ?? globalThis.fetch;
+        const resp = await fetchImpl(
+          new Request(`${baseUrl}/arize_phoenix_version`, { headers })
+        );
+        if (resp.ok) {
+          const text = await resp.text();
+          const parsed = parseSemanticVersion(text);
+          if (parsed) {
+            serverVersion = parsed;
+            return serverVersion;
+          }
+        }
+      } catch {
+        // fall through to throw below
+      }
+      throw new Error(
+        "Phoenix server version could not be determined. " +
+          "Please ensure you are connecting to a supported Phoenix server."
+      );
+    },
   };
 };
 

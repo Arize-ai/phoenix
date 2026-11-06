@@ -38,6 +38,7 @@ class AnnotateSpanDocumentsResponseBody(ResponseBody[list[InsertedSpanDocumentAn
     "/document_annotations",
     dependencies=[Depends(is_not_locked)],
     operation_id="annotateSpanDocuments",
+    summary="Create span document annotations",
     responses=add_errors_to_responses(
         [
             {
@@ -115,7 +116,7 @@ async def annotate_span_documents(
                 )
 
         inserted_document_annotation_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for anno in precursors:
             span_rowid, _ = existing_spans[anno.span_id]
             values = dict(as_kv(anno.as_insertable(span_rowid).row))

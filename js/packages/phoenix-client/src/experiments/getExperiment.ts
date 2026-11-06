@@ -1,6 +1,6 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { ExperimentRunsMap, RanExperiment } from "../types/experiments";
+import type { ClientFn } from "../types/core";
+import type { ExperimentRunsMap, RanExperiment } from "../types/experiments";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentRuns } from "./getExperimentRuns";
 
@@ -25,13 +25,10 @@ export async function getExperiment({
     getExperimentRuns({ client, experimentId }),
   ]);
   const experimentRunsMap: ExperimentRunsMap = {
-    runs: experimentRuns.runs.reduce(
-      (acc, run) => {
-        acc[run.id] = run;
-        return acc;
-      },
-      {} as ExperimentRunsMap["runs"]
-    ),
+    runs: experimentRuns.runs.reduce<ExperimentRunsMap["runs"]>((acc, run) => {
+      acc[run.id] = run;
+      return acc;
+    }, {}),
   };
   return {
     ...experiment,

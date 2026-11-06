@@ -6,6 +6,7 @@ import sqlalchemy as sa
 import strawberry
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
@@ -16,9 +17,15 @@ from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.GenerativeModel import GenerativeModel, to_gql_generative_model
+from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeProvider import KNOWN_LLM_PROVIDER_STRINGS
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TokenPrice import TokenKind
+from phoenix.server.cost_tracking.token_types import (
+    INPUT_TOKEN_TYPE,
+    KNOWN_TOKEN_TYPES,
+    OUTPUT_TOKEN_TYPE,
+)
 
 
 @strawberry.input
@@ -31,7 +38,7 @@ class TokenPriceInput:
     def token_prices(self) -> models.TokenPrice:
         """Generate TokenPrice instances based on the input."""
         return models.TokenPrice(
-            token_type=self.token_type,
+            token_type=_normalize_token_type(self.token_type),
             is_prompt=self.kind == TokenKind.PROMPT,
             base_rate=self.cost_per_million_tokens / 1_000_000,
         )
@@ -87,30 +94,37 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: CreateModelMutationInput,
     ) -> CreateModelMutationPayload:
-        cost_types = set(cost.token_type for cost in input.costs)
-        if "input" not in cost_types:
-            raise BadRequest("input cost is required")
-        if "output" not in cost_types:
-            raise BadRequest("output cost is required")
+        token_prices = _normalized_token_prices(input.costs)
         name_pattern = _compile_regular_expression(input.name_pattern)
-        token_prices = [cost.token_prices for cost in input.costs]
+        provider = _normalize_provider(input.provider)
         model = models.GenerativeModel(
             name=input.name,
-            provider=input.provider,
+            provider=provider,
             name_pattern=name_pattern,
             is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
         )
         async with info.context.db() as session:
-            session.add(model)
+            await _raise_on_case_only_provider_collision(
+                session, name_pattern=name_pattern, provider=provider
+            )
             try:
-                await session.flush()
+                # The savepoint keeps the session usable after a rejected write, so the
+                # conflict can be diagnosed without the happy path paying for a pre-check.
+                async with session.begin_nested():
+                    session.add(model)
+                    await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict(f"Model with name '{input.name}' already exists")
+                raise await _conflicting_model_error(
+                    session,
+                    name=input.name,
+                    provider=provider,
+                    name_pattern=name_pattern,
+                )
 
         return CreateModelMutationPayload(
-            model=to_gql_generative_model(model),
+            model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),
         )
 
@@ -125,13 +139,9 @@ class ModelMutationMixin:
         except ValueError:
             raise BadRequest(f'Invalid model id: "{input.id}"')
 
-        cost_types = set(cost.token_type for cost in input.costs)
-        if "input" not in cost_types:
-            raise BadRequest("input cost is required")
-        if "output" not in cost_types:
-            raise BadRequest("output cost is required")
+        token_prices = _normalized_token_prices(input.costs)
         name_pattern = _compile_regular_expression(input.name_pattern)
-        token_prices = [cost.token_prices for cost in input.costs]
+        provider = _normalize_provider(input.provider)
         async with info.context.db() as session:
             model = await session.scalar(
                 sa.select(models.GenerativeModel)
@@ -143,6 +153,12 @@ class ModelMutationMixin:
                 raise NotFound(f'Model "{input.id}" not found')
             if model.is_built_in:
                 raise BadRequest("Cannot update built-in model")
+            await _raise_on_case_only_provider_collision(
+                session,
+                name_pattern=name_pattern,
+                provider=provider,
+                exclude_model_id=model_id,
+            )
 
             await session.execute(
                 delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
@@ -151,19 +167,28 @@ class ModelMutationMixin:
             await session.refresh(model)
 
             model.name = input.name
-            model.provider = input.provider or ""
+            model.provider = provider
             model.name_pattern = name_pattern
             model.token_prices = token_prices
             model.start_time = input.start_time
+            # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
+            # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
+            model.updated_at = datetime.now(timezone.utc)
             session.add(model)
             try:
-                await session.flush()
+                async with session.begin_nested():
+                    await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict(f"Model with name '{input.name}' already exists")
-            await session.refresh(model)
+                raise await _conflicting_model_error(
+                    session,
+                    name=input.name,
+                    provider=provider,
+                    name_pattern=name_pattern,
+                    exclude_model_id=model_id,
+                )
 
         return UpdateModelMutationPayload(
-            model=to_gql_generative_model(model),
+            model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),
         )
 
@@ -192,9 +217,134 @@ class ModelMutationMixin:
                 await session.rollback()
                 raise BadRequest("Cannot delete built-in model")
         return DeleteModelMutationPayload(
-            model=to_gql_generative_model(model),
+            model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),
         )
+
+
+async def _conflicting_model_error(
+    session: AsyncSession,
+    *,
+    name: str,
+    provider: str,
+    name_pattern: re.Pattern[str],
+    exclude_model_id: Optional[int] = None,
+) -> Conflict:
+    """
+    Describe the constraint that a rejected write actually violated.
+
+    Custom models are covered by two partial unique indexes over non-deleted rows:
+    `(name, is_built_in)` and `(name_pattern, provider, is_built_in)`. The failure
+    alone cannot tell them apart, because the backends describe it differently --
+    PostgreSQL names the index, SQLite names the columns -- so this looks up the
+    offending row rather than guessing, which is how an unrelated failure used to
+    be reported as a name conflict.
+
+    Only called once a write has been rejected, so the happy path does not pay for
+    it. Autoflush is suppressed because the rejected changes are still pending in
+    the session and would otherwise be retried by this query.
+    """
+    stmt = (
+        sa.select(models.GenerativeModel.name)
+        .where(models.GenerativeModel.deleted_at.is_(None))
+        .where(models.GenerativeModel.is_built_in.is_(False))
+        .where(
+            sa.or_(
+                models.GenerativeModel.name == name,
+                sa.and_(
+                    models.GenerativeModel.name_pattern == name_pattern,
+                    models.GenerativeModel.provider == provider,
+                ),
+            )
+        )
+    )
+    if exclude_model_id is not None:
+        stmt = stmt.where(models.GenerativeModel.id != exclude_model_id)
+    with session.no_autoflush:
+        conflicting_names = list(await session.scalars(stmt))
+    if name in conflicting_names:
+        return Conflict(f"Model with name '{name}' already exists")
+    if conflicting_names:
+        described_provider = f"provider '{provider}'" if provider else "no provider"
+        return Conflict(
+            f"Model '{conflicting_names[0]}' already uses name pattern "
+            f"'{name_pattern.pattern}' with {described_provider}"
+        )
+    # Some other constraint rejected the write, e.g. duplicate token prices.
+    return Conflict(f"Model '{name}' conflicts with an existing model")
+
+
+def _normalize_provider(provider: Optional[str]) -> str:
+    """
+    Trim the provider and snap known providers to their canonical lowercase
+    value, keeping custom providers as typed. The empty string is how a
+    provider-agnostic model is stored.
+    """
+    return _trim_and_snap_to_known(provider or "", KNOWN_LLM_PROVIDER_STRINGS)
+
+
+def _normalize_token_type(token_type: str) -> str:
+    return _trim_and_snap_to_known(token_type, KNOWN_TOKEN_TYPES)
+
+
+def _trim_and_snap_to_known(value: str, known_values: frozenset[str]) -> str:
+    """Trim the value and lowercase it if that makes it one of the known values."""
+    value = value.strip()
+    lowered = value.lower()
+    return lowered if lowered in known_values else value
+
+
+def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenPrice]:
+    token_prices = [cost.token_prices for cost in costs]
+    seen: set[tuple[bool, str]] = set()
+    for token_price in token_prices:
+        if not token_price.token_type:
+            raise BadRequest("token type is required")
+        key = (token_price.is_prompt, token_price.token_type.lower())
+        if key in seen:
+            kind = "prompt" if token_price.is_prompt else "completion"
+            raise BadRequest(f"Duplicate {kind} token type '{token_price.token_type}'")
+        seen.add(key)
+    token_types = {token_price.token_type for token_price in token_prices}
+    if INPUT_TOKEN_TYPE not in token_types:
+        raise BadRequest("input cost is required")
+    if OUTPUT_TOKEN_TYPE not in token_types:
+        raise BadRequest("output cost is required")
+    return token_prices
+
+
+async def _raise_on_case_only_provider_collision(
+    session: AsyncSession,
+    *,
+    name_pattern: re.Pattern[str],
+    provider: str,
+    exclude_model_id: Optional[int] = None,
+) -> None:
+    """
+    Reject a provider that differs only in case from the provider of another
+    custom model with the same name pattern, since a span whose provider matches
+    neither spelling would be priced by an arbitrary one of them.
+
+    Case is compared in Python because SQLite's lower() only folds ASCII. Without
+    a case-insensitive index the check is not atomic, so concurrent writes could
+    still both pass it.
+    """
+    if not provider:
+        return
+    stmt = (
+        sa.select(models.GenerativeModel.name, models.GenerativeModel.provider)
+        .where(models.GenerativeModel.deleted_at.is_(None))
+        .where(models.GenerativeModel.is_built_in.is_(False))
+        .where(models.GenerativeModel.name_pattern == name_pattern)
+    )
+    if exclude_model_id is not None:
+        stmt = stmt.where(models.GenerativeModel.id != exclude_model_id)
+    for name, existing_provider in await session.execute(stmt):
+        if existing_provider != provider and existing_provider.lower() == provider.lower():
+            raise Conflict(
+                f"Model '{name}' already uses name pattern '{name_pattern.pattern}' "
+                f"with provider '{existing_provider}'"
+            )
 
 
 def _compile_regular_expression(maybe_regex: str) -> re.Pattern[str]:

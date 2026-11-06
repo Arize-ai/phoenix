@@ -1,7 +1,19 @@
 import logging
+from binascii import hexlify
 from functools import wraps
 from inspect import BoundArguments, iscoroutinefunction, signature
-from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence, TypeVar, cast, overload
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 import opentelemetry.trace as trace_api
 from openinference.instrumentation import OITracer, TraceConfig
@@ -45,10 +57,22 @@ FnParams = ParamSpec("FnParams")
 ReturnValue = TypeVar("ReturnValue")
 
 
+def _format_trace_id(trace_id: int) -> str:
+    """Format an integer trace ID to a hex string.
+
+    Args:
+        trace_id: The integer trace ID from a span context.
+
+    Returns:
+        A hex-encoded string representation of the trace ID.
+    """
+    return hexlify(trace_id.to_bytes(16, "big")).decode()
+
+
 @overload
 def trace(
     *,
-    span_name: Optional[str] = None,
+    span_name: Union[str, Callable[[BoundArguments], str], None] = None,
     span_kind: Optional[OpenInferenceSpanKindValues] = None,
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
@@ -59,7 +83,7 @@ def trace(
 @overload
 def trace(
     *,
-    span_name: Optional[str] = None,
+    span_name: Union[str, Callable[[BoundArguments], str], None] = None,
     span_kind: Optional[OpenInferenceSpanKindValues] = None,
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
@@ -71,7 +95,7 @@ def trace(
 
 def trace(
     *,
-    span_name: Optional[str] = None,
+    span_name: Union[str, Callable[[BoundArguments], str], None] = None,
     span_kind: Optional[OpenInferenceSpanKindValues] = None,
     tracer: Optional[Tracer] = None,
     process_input: Optional[Mapping[str, Callable[[BoundArguments], Any]]] = None,
@@ -81,6 +105,9 @@ def trace(
 
     If the decorated function has a `tracer` argument, it will be used to trace the function.
     Otherwise the global TracerProvider will be used.
+
+    If the decorated function has a `trace_id` parameter, it will be automatically injected with
+    the hex-encoded trace ID from the span context.
 
     Args:
         span_name (Optional[str]): The name of the span to trace. If not provided, the function's
@@ -105,14 +132,8 @@ def trace(
     ) -> Callable[FnParams, Any]:
         @wraps(func)
         def _wrapper_sync(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
-            span_label = (
-                span_name
-                if span_name is not None
-                else cast(str, getattr(func, "__qualname__", func.__name__))
-            )
-            _span_name: str = span_label
-
             bound: Optional[BoundArguments]
+            has_trace_id_param: bool = False
             try:
                 sig = signature(func)
                 bound = sig.bind_partial(*args, **kwargs)
@@ -120,8 +141,19 @@ def trace(
                     bound.apply_defaults()
                 except Exception:
                     pass
+                # Check if function has a trace_id parameter
+                has_trace_id_param = "trace_id" in sig.parameters
             except Exception:
                 bound = None
+
+            # Determine span name
+            _span_name: str
+            if callable(span_name):
+                _span_name = span_name(bound) if bound is not None else func.__qualname__
+            elif span_name is not None:
+                _span_name = span_name
+            else:
+                _span_name = cast(str, getattr(func, "__qualname__", func.__name__))
 
             tracer_from_args: Optional[Tracer] = None
             if bound is not None:
@@ -142,6 +174,7 @@ def trace(
                             )
                         except Exception:
                             pass
+
                     if process_input is not None and bound is not None:
                         for attr_key, input_mapper_fn in process_input.items():
                             try:
@@ -149,6 +182,18 @@ def trace(
                                 span.set_attribute(attr_key, _otel_attribute_value(value))
                             except Exception:
                                 continue
+
+                    # Inject trace_id if the function has a trace_id parameter
+                    if has_trace_id_param:
+                        try:
+                            span_context = span.get_span_context()
+                            if span_context is not None and span_context.trace_id != 0:
+                                trace_id_hex = _format_trace_id(span_context.trace_id)
+                                kwargs["trace_id"] = trace_id_hex
+                        except Exception:
+                            # If trace_id injection fails, continue without it
+                            pass
+
                     try:
                         result = func(*args, **kwargs)
                         function_executed = True
@@ -184,14 +229,8 @@ def trace(
 
         @wraps(func)
         async def _wrapper_async(*args: FnParams.args, **kwargs: FnParams.kwargs) -> ReturnValue:
-            span_label = (
-                span_name
-                if span_name is not None
-                else cast(str, getattr(func, "__qualname__", func.__name__))
-            )
-            _span_name: str = span_label
-
             bound: Optional[BoundArguments]
+            has_trace_id_param: bool = False
             try:
                 sig = signature(func)
                 bound = sig.bind_partial(*args, **kwargs)
@@ -199,8 +238,19 @@ def trace(
                     bound.apply_defaults()
                 except Exception:
                     pass
+                # Check if function has a trace_id parameter
+                has_trace_id_param = "trace_id" in sig.parameters
             except Exception:
                 bound = None
+
+            # Determine span name
+            _span_name: str
+            if callable(span_name):
+                _span_name = span_name(bound) if bound is not None else func.__qualname__
+            elif span_name is not None:
+                _span_name = span_name
+            else:
+                _span_name = cast(str, getattr(func, "__qualname__", func.__name__))
 
             tracer_from_args: Optional[Tracer] = None
             if bound is not None:
@@ -221,6 +271,7 @@ def trace(
                             )
                         except Exception:
                             pass
+
                     if process_input is not None and bound is not None:
                         for attr_key, input_mapper_fn in process_input.items():
                             try:
@@ -228,6 +279,18 @@ def trace(
                                 span.set_attribute(attr_key, _otel_attribute_value(value))
                             except Exception:
                                 continue
+
+                    # Inject trace_id if the function has a trace_id parameter
+                    if has_trace_id_param:
+                        try:
+                            span_context = span.get_span_context()
+                            if span_context is not None and span_context.trace_id != 0:
+                                trace_id_hex = _format_trace_id(span_context.trace_id)
+                                kwargs["trace_id"] = trace_id_hex
+                        except Exception:
+                            # If trace_id injection fails, continue without it
+                            pass
+
                     try:
                         result = await func(*args, **kwargs)
                         function_executed = True

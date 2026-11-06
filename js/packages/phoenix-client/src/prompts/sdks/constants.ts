@@ -1,4 +1,4 @@
-import { PromptModelProvider } from "../../types/prompts";
+import type { PromptModelProvider } from "../../types/prompts";
 
 export const SUPPORTED_SDKS = ["openai", "anthropic", "ai"] as const;
 

@@ -1,11 +1,18 @@
 from enum import Enum
-from typing import Any, ClassVar, Optional, Union
+from types import MappingProxyType
+from typing import Any, ClassVar, Mapping, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
+from strawberry.types import Info
+from typing_extensions import assert_never
 
 from phoenix.config import getenv
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
+
+MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
 
 
 @strawberry.enum
@@ -13,11 +20,144 @@ class GenerativeProviderKey(Enum):
     OPENAI = "OpenAI"
     ANTHROPIC = "Anthropic"
     AZURE_OPENAI = "Azure OpenAI"
-    GOOGLE = "Google AI Studio"
+    GOOGLE = "Google Gemini"
     DEEPSEEK = "DeepSeek"
     XAI = "xAI"
     OLLAMA = "Ollama"
     AWS = "AWS Bedrock"
+    CEREBRAS = "Cerebras"
+    FIREWORKS = "Fireworks"
+    GROQ = "Groq"
+    MOONSHOT = "Moonshot"
+    MINIMAX = "MiniMax"
+    PERPLEXITY = "Perplexity"
+    TOGETHER = "Together"
+    ZAI = "Z.ai"
+    META = "Meta"
+
+    @classmethod
+    def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
+        """Convert a ModelProvider to a GenerativeProviderKey."""
+
+        if model_provider is ModelProvider.OPENAI:
+            return cls.OPENAI
+        elif model_provider is ModelProvider.AZURE_OPENAI:
+            return cls.AZURE_OPENAI
+        elif model_provider is ModelProvider.ANTHROPIC:
+            return cls.ANTHROPIC
+        elif model_provider is ModelProvider.GOOGLE:
+            return cls.GOOGLE
+        elif model_provider is ModelProvider.DEEPSEEK:
+            return cls.DEEPSEEK
+        elif model_provider is ModelProvider.XAI:
+            return cls.XAI
+        elif model_provider is ModelProvider.OLLAMA:
+            return cls.OLLAMA
+        elif model_provider is ModelProvider.AWS:
+            return cls.AWS
+        elif model_provider is ModelProvider.CEREBRAS:
+            return cls.CEREBRAS
+        elif model_provider is ModelProvider.FIREWORKS:
+            return cls.FIREWORKS
+        elif model_provider is ModelProvider.GROQ:
+            return cls.GROQ
+        elif model_provider is ModelProvider.MOONSHOT:
+            return cls.MOONSHOT
+        elif model_provider is ModelProvider.MINIMAX:
+            return cls.MINIMAX
+        elif model_provider is ModelProvider.PERPLEXITY:
+            return cls.PERPLEXITY
+        elif model_provider is ModelProvider.TOGETHER:
+            return cls.TOGETHER
+        elif model_provider is ModelProvider.ZAI:
+            return cls.ZAI
+        elif model_provider is ModelProvider.META:
+            return cls.META
+        assert_never(model_provider)
+
+    def to_model_provider(self) -> "ModelProvider":
+        if self is GenerativeProviderKey.OPENAI:
+            return ModelProvider.OPENAI
+        if self is GenerativeProviderKey.AZURE_OPENAI:
+            return ModelProvider.AZURE_OPENAI
+        if self is GenerativeProviderKey.ANTHROPIC:
+            return ModelProvider.ANTHROPIC
+        if self is GenerativeProviderKey.GOOGLE:
+            return ModelProvider.GOOGLE
+        if self is GenerativeProviderKey.AWS:
+            return ModelProvider.AWS
+        if self is GenerativeProviderKey.DEEPSEEK:
+            return ModelProvider.DEEPSEEK
+        if self is GenerativeProviderKey.XAI:
+            return ModelProvider.XAI
+        if self is GenerativeProviderKey.OLLAMA:
+            return ModelProvider.OLLAMA
+        if self is GenerativeProviderKey.CEREBRAS:
+            return ModelProvider.CEREBRAS
+        if self is GenerativeProviderKey.FIREWORKS:
+            return ModelProvider.FIREWORKS
+        if self is GenerativeProviderKey.GROQ:
+            return ModelProvider.GROQ
+        if self is GenerativeProviderKey.MOONSHOT:
+            return ModelProvider.MOONSHOT
+        if self is GenerativeProviderKey.MINIMAX:
+            return ModelProvider.MINIMAX
+        if self is GenerativeProviderKey.PERPLEXITY:
+            return ModelProvider.PERPLEXITY
+        if self is GenerativeProviderKey.TOGETHER:
+            return ModelProvider.TOGETHER
+        if self is GenerativeProviderKey.ZAI:
+            return ModelProvider.ZAI
+        if self is GenerativeProviderKey.META:
+            return ModelProvider.META
+        assert_never(self)
+
+
+GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] = MappingProxyType(
+    {
+        GenerativeProviderKey.OPENAI: OpenInferenceLLMProviderValues.OPENAI.value,
+        GenerativeProviderKey.AZURE_OPENAI: OpenInferenceLLMProviderValues.AZURE.value,
+        GenerativeProviderKey.ANTHROPIC: OpenInferenceLLMProviderValues.ANTHROPIC.value,
+        GenerativeProviderKey.AWS: OpenInferenceLLMProviderValues.AWS.value,
+        GenerativeProviderKey.GOOGLE: OpenInferenceLLMProviderValues.GOOGLE.value,
+        GenerativeProviderKey.OLLAMA: "ollama",
+        GenerativeProviderKey.DEEPSEEK: OpenInferenceLLMProviderValues.DEEPSEEK.value,
+        GenerativeProviderKey.XAI: OpenInferenceLLMProviderValues.XAI.value,
+        GenerativeProviderKey.CEREBRAS: "cerebras",
+        GenerativeProviderKey.FIREWORKS: "fireworks",
+        GenerativeProviderKey.GROQ: "groq",
+        GenerativeProviderKey.MOONSHOT: "moonshot",
+        GenerativeProviderKey.MINIMAX: "minimax",
+        GenerativeProviderKey.PERPLEXITY: "perplexity",
+        GenerativeProviderKey.TOGETHER: "together",
+        # OpenInference semconv has no `zai` provider value yet; ship a plain
+        # string literal until an upstream semconv PR lands.
+        GenerativeProviderKey.ZAI: "zai",
+        # OpenInference semconv has no `meta` provider value yet; ship a plain
+        # string literal until an upstream semconv PR lands.
+        GenerativeProviderKey.META: "meta",
+    }
+)
+
+assert len(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING) == len(GenerativeProviderKey)
+
+# Every provider value that instrumentors are known to emit on spans (always
+# lowercase): the OpenInference semantic conventions values plus the values of
+# the playground providers, some of which the conventions do not include yet.
+KNOWN_LLM_PROVIDER_STRINGS: frozenset[str] = frozenset(
+    {provider.value for provider in OpenInferenceLLMProviderValues}
+    | set(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING.values())
+)
+
+CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = MappingProxyType(
+    {
+        "openai": GenerativeProviderKey.OPENAI,
+        "azure_openai": GenerativeProviderKey.AZURE_OPENAI,
+        "anthropic": GenerativeProviderKey.ANTHROPIC,
+        "aws_bedrock": GenerativeProviderKey.AWS,
+        "google_genai": GenerativeProviderKey.GOOGLE,
+    }
+)
 
 
 @strawberry.type
@@ -40,6 +180,15 @@ class GenerativeProvider:
         GenerativeProviderKey.XAI: ["grok"],
         GenerativeProviderKey.OLLAMA: ["llama", "mistral", "codellama", "phi", "qwen", "gemma"],
         GenerativeProviderKey.AWS: ["nova", "titan"],
+        GenerativeProviderKey.CEREBRAS: [],
+        GenerativeProviderKey.FIREWORKS: ["accounts/fireworks"],
+        GenerativeProviderKey.GROQ: [],
+        GenerativeProviderKey.MOONSHOT: ["moonshot", "kimi"],
+        GenerativeProviderKey.MINIMAX: ["minimax"],
+        GenerativeProviderKey.PERPLEXITY: ["sonar"],
+        GenerativeProviderKey.TOGETHER: [],
+        GenerativeProviderKey.ZAI: ["glm"],
+        GenerativeProviderKey.META: ["muse"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -84,6 +233,33 @@ class GenerativeProvider:
             GenerativeProviderCredentialConfig(env_var_name="XAI_API_KEY", is_required=True)
         ],
         GenerativeProviderKey.OLLAMA: [],
+        GenerativeProviderKey.CEREBRAS: [
+            GenerativeProviderCredentialConfig(env_var_name="CEREBRAS_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.FIREWORKS: [
+            GenerativeProviderCredentialConfig(env_var_name="FIREWORKS_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.GROQ: [
+            GenerativeProviderCredentialConfig(env_var_name="GROQ_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.MOONSHOT: [
+            GenerativeProviderCredentialConfig(env_var_name="MOONSHOT_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.MINIMAX: [
+            GenerativeProviderCredentialConfig(env_var_name="MINIMAX_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.PERPLEXITY: [
+            GenerativeProviderCredentialConfig(env_var_name="PERPLEXITY_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.TOGETHER: [
+            GenerativeProviderCredentialConfig(env_var_name="TOGETHER_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.ZAI: [
+            GenerativeProviderCredentialConfig(env_var_name="ZAI_API_KEY", is_required=True)
+        ],
+        GenerativeProviderKey.META: [
+            GenerativeProviderCredentialConfig(env_var_name="META_API_KEY", is_required=True)
+        ],
         GenerativeProviderKey.AWS: [
             GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),
             GenerativeProviderCredentialConfig(
@@ -126,12 +302,28 @@ class GenerativeProvider:
         return self.model_provider_to_credential_requirements_map[self.key]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
-    async def credentials_set(self) -> bool:
-        # Check if every required credential is set
-        return all(
-            getenv(credential_config.env_var_name) is not None or not credential_config.is_required
-            for credential_config in await self.credential_requirements()
-        )
+    async def credentials_set(self, info: Info[Context, None]) -> bool:
+        credential_requirements = self.model_provider_to_credential_requirements_map.get(self.key)
+        if credential_requirements is None:
+            return True
+        secret_keys = []
+        for credential_config in credential_requirements:
+            if (
+                not credential_config.is_required
+                or getenv(credential_config.env_var_name) is not None
+            ):
+                continue
+            secret_keys.append(credential_config.env_var_name)
+        if not secret_keys:
+            return True
+        for secret in await info.context.data_loaders.secrets.load_many(secret_keys):
+            if secret is None:
+                return False
+            try:
+                info.context.decrypt(secret.value)
+            except Exception:
+                return False
+        return True
 
     @classmethod
     def _infer_model_provider_from_model_name(

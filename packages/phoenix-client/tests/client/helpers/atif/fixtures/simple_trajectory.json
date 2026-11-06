@@ -1,0 +1,66 @@
+{
+  "schema_version": "ATIF-v1.4",
+  "session_id": "sess-abc123-simple",
+  "agent": {
+    "name": "finance-assistant",
+    "version": "1.0.0",
+    "model_name": "gpt-4"
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2025-01-15T10:30:00Z",
+      "source": "user",
+      "message": "What is the current price of GOOGL?"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2025-01-15T10:30:02Z",
+      "source": "agent",
+      "message": "Let me look that up for you.",
+      "model_name": "gpt-4",
+      "reasoning_content": "User wants current stock price for GOOGL. I should use the financial_search tool to fetch the latest quote.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_9f1a2b3c",
+          "function_name": "financial_search",
+          "arguments": {
+            "ticker": "GOOGL",
+            "metric": "price"
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_9f1a2b3c",
+            "content": "GOOGL (Alphabet Inc.) is currently trading at $185.35, up 1.2% today. Market cap: $2.3T."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 520,
+        "completion_tokens": 80,
+        "cost_usd": 0.00045
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2025-01-15T10:30:05Z",
+      "source": "agent",
+      "message": "Alphabet (GOOGL) is currently trading at $185.35, which is up 1.2% on the day. The company has a market capitalization of approximately $2.3 trillion.",
+      "model_name": "gpt-4",
+      "metrics": {
+        "prompt_tokens": 600,
+        "completion_tokens": 44,
+        "cost_usd": 0.00033
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 1120,
+    "total_completion_tokens": 124,
+    "total_cost_usd": 0.00078,
+    "total_steps": 3
+  }
+}

@@ -1,0 +1,195 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Deploys Arize Phoenix to Azure Container Instances with authentication enabled by default and an Azure Database for PostgreSQL flexible server for persistent storage. Note: Azure Container Instances does not terminate TLS, so the endpoint serves plain HTTP; front it with an Application Gateway or another TLS proxy before production use."
+  },
+  "parameters": {
+    "containerGroupName": {
+      "type": "string",
+      "defaultValue": "phoenix",
+      "metadata": {
+        "description": "Name of the Azure Container Instances container group."
+      }
+    },
+    "imageTag": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "Tag of the arizephoenix/phoenix image to deploy."
+      }
+    },
+    "phoenixSecret": {
+      "type": "securestring",
+      "defaultValue": "[concat(newGuid(), 'a1')]",
+      "metadata": {
+        "description": "Secret used to sign authentication tokens (at least 32 characters with a digit and a lowercase letter). A random value is generated per deployment; override it to supply your own."
+      }
+    },
+    "adminInitialPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Initial password for the default admin account (email: admin@localhost). Only applied on first startup. You will still be required to choose a new password on first login."
+      }
+    },
+    "databaseAdminPassword": {
+      "type": "securestring",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+        "description": "Administrator password for the PostgreSQL flexible server. A random value is generated per deployment; override it to supply your own."
+      }
+    },
+    "cpuCores": {
+      "type": "int",
+      "defaultValue": 2,
+      "metadata": {
+        "description": "Number of CPU cores to allocate to the Phoenix container."
+      }
+    },
+    "memoryInGb": {
+      "type": "int",
+      "defaultValue": 4,
+      "metadata": {
+        "description": "Amount of memory (in GB) to allocate to the Phoenix container."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for all resources."
+      }
+    }
+  },
+  "variables": {
+    "dnsNameLabel": "[concat('phoenix-', uniqueString(resourceGroup().id))]",
+    "image": "[concat('docker.io/arizephoenix/phoenix:', parameters('imageTag'))]",
+    "dbServerName": "[concat('phoenix-', uniqueString(resourceGroup().id))]",
+    "dbName": "phoenix",
+    "dbAdminLogin": "phoenix"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "apiVersion": "2022-12-01",
+      "name": "[variables('dbServerName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_B1ms",
+        "tier": "Burstable"
+      },
+      "properties": {
+        "version": "15",
+        "administratorLogin": "[variables('dbAdminLogin')]",
+        "administratorLoginPassword": "[parameters('databaseAdminPassword')]",
+        "storage": {
+          "storageSizeGB": 32
+        },
+        "backup": {
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2022-12-01",
+      "name": "[format('{0}/{1}', variables('dbServerName'), variables('dbName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('dbServerName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+      "apiVersion": "2022-12-01",
+      "name": "[format('{0}/AllowAllAzureServices', variables('dbServerName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('dbServerName'))]"
+      ],
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      }
+    },
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[parameters('containerGroupName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', variables('dbServerName'), variables('dbName'))]",
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/firewallRules', variables('dbServerName'), 'AllowAllAzureServices')]"
+      ],
+      "properties": {
+        "osType": "Linux",
+        "restartPolicy": "Always",
+        "ipAddress": {
+          "type": "Public",
+          "dnsNameLabel": "[variables('dnsNameLabel')]",
+          "ports": [
+            {
+              "protocol": "TCP",
+              "port": 6006
+            }
+          ]
+        },
+        "containers": [
+          {
+            "name": "phoenix",
+            "properties": {
+              "image": "[variables('image')]",
+              "ports": [
+                {
+                  "protocol": "TCP",
+                  "port": 6006
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": "[parameters('cpuCores')]",
+                  "memoryInGB": "[parameters('memoryInGb')]"
+                }
+              },
+              "environmentVariables": [
+                {
+                  "name": "PHOENIX_PORT",
+                  "value": "6006"
+                },
+                {
+                  "name": "PHOENIX_ENABLE_AUTH",
+                  "value": "true"
+                },
+                {
+                  "name": "PHOENIX_SECRET",
+                  "secureValue": "[parameters('phoenixSecret')]"
+                },
+                {
+                  "name": "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD",
+                  "secureValue": "[parameters('adminInitialPassword')]"
+                },
+                {
+                  "name": "PHOENIX_SQL_DATABASE_URL",
+                  "secureValue": "[concat('postgresql://', variables('dbAdminLogin'), ':', parameters('databaseAdminPassword'), '@', variables('dbServerName'), '.postgres.database.azure.com:5432/', variables('dbName'), '?sslmode=require')]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "phoenixUrl": {
+      "type": "string",
+      "value": "[concat('http://', reference(resourceId('Microsoft.ContainerInstance/containerGroups', parameters('containerGroupName'))).ipAddress.fqdn, ':6006')]"
+    },
+    "adminEmail": {
+      "type": "string",
+      "value": "admin@localhost"
+    },
+    "securityWarning": {
+      "type": "string",
+      "value": "This endpoint serves plain HTTP (Azure Container Instances does not terminate TLS). Login credentials and auth cookies are unencrypted in transit. Front the container group with an Application Gateway or another TLS-terminating proxy before production use."
+    }
+  }
+}

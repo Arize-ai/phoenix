@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, NamedTuple
 
-import httpx
+import httpx2
 import pytest
 from strawberry.relay import GlobalID
 
@@ -10,8 +10,12 @@ from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
+from tests.unit.graphql import AsyncGraphQLClient
 
 from ...._helpers import _add_project, _add_project_session, _add_span, _add_trace, _node
+
+_LONG_FIRST_INPUT = "i" * 110
+_LONG_LAST_OUTPUT = "o" * 110
 
 
 class _Data(NamedTuple):
@@ -27,7 +31,7 @@ class TestProjectSession:
     async def _node(
         field: str,
         project_session: models.ProjectSession,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> Any:
         return await _node(
             field,
@@ -67,9 +71,14 @@ class TestProjectSession:
                 await _add_span(
                     session,
                     traces[-1],
-                    attributes={"input": {"value": "123"}, "output": {"value": "321"}},
+                    attributes={
+                        "input": {"value": _LONG_FIRST_INPUT},
+                        "output": {"value": "321"},
+                    },
                     cumulative_llm_token_count_prompt=1,
                     cumulative_llm_token_count_completion=2,
+                    llm_token_count_prompt=1,
+                    llm_token_count_completion=2,
                     cumulative_error_count=2,
                 )
             )
@@ -85,9 +94,14 @@ class TestProjectSession:
                 await _add_span(
                     session,
                     traces[-1],
-                    attributes={"input": {"value": "1234"}, "output": {"value": "4321"}},
+                    attributes={
+                        "input": {"value": "1234"},
+                        "output": {"value": _LONG_LAST_OUTPUT},
+                    },
                     cumulative_llm_token_count_prompt=3,
                     cumulative_llm_token_count_completion=4,
+                    llm_token_count_prompt=3,
+                    llm_token_count_completion=4,
                 )
             )
 
@@ -147,7 +161,7 @@ class TestProjectSession:
     async def test_num_traces(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "numTraces"
@@ -156,7 +170,7 @@ class TestProjectSession:
     async def test_num_traces_with_error(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "numTracesWithError"
@@ -165,44 +179,95 @@ class TestProjectSession:
     async def test_first_input(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "firstInput{value mimeType}"
+        field = "firstInput{value truncatedValue mimeType}"
         assert await self._node(field, project_session, httpx_client) == {
-            "value": "123",
+            "value": _LONG_FIRST_INPUT,
+            "truncatedValue": f"{'i' * 97}...",
             "mimeType": "text",
         }
 
     async def test_last_output(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "lastOutput{value mimeType}"
+        field = "lastOutput{value truncatedValue mimeType}"
         assert await self._node(field, project_session, httpx_client) == {
-            "value": "4321",
+            "value": _LONG_LAST_OUTPUT,
+            "truncatedValue": f"{'o' * 97}...",
             "mimeType": "text",
         }
 
     async def test_traces(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
-        field = "traces{edges{node{id traceId}}}"
+        field = "traces(first: 50){edges{node{id traceId}}}"
         traces = await self._node(field, project_session, httpx_client)
         assert traces["edges"]
         assert {(edge["node"]["id"], edge["node"]["traceId"]) for edge in traces["edges"]} == {
             (str(GlobalID(Trace.__name__, str(trace.id))), trace.trace_id) for trace in _data.traces
         }
 
+    async def test_user_id(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx2.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session)
+            start_time = datetime.now(timezone.utc)
+            session_with_user = await _add_project_session(
+                session,
+                project,
+                start_time=start_time,
+            )
+            trace_without_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time,
+            )
+            await _add_span(session, trace_without_user_id)
+            first_trace_with_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time + timedelta(seconds=1),
+            )
+            await _add_span(
+                session,
+                first_trace_with_user_id,
+                attributes={"user": {"id": "user-1"}},
+            )
+            second_trace_with_user_id = await _add_trace(
+                session,
+                project,
+                session_with_user,
+                start_time=start_time + timedelta(seconds=2),
+            )
+            await _add_span(
+                session,
+                second_trace_with_user_id,
+                attributes={"user": {"id": "user-2"}},
+            )
+            session_without_user = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, session_without_user)
+            await _add_span(session, trace)
+        field = "userId"
+        assert await self._node(field, session_with_user, httpx_client) == "user-1"
+        assert await self._node(field, session_without_user, httpx_client) is None
+
     async def test_token_usage(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_sessions = _data.project_sessions
         field = "tokenUsage{prompt completion total}"
@@ -215,7 +280,7 @@ class TestProjectSession:
     async def test_trace_latency_ms_quantile(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_sessions = _data.project_sessions
         field = "traceLatencyMsQuantile(probability: 0.5)"
@@ -224,7 +289,7 @@ class TestProjectSession:
     async def test_project(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         project = _data.projects[0]
@@ -239,11 +304,12 @@ class TestProjectSession:
     async def test_session_annotations(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = (
-            "sessionAnnotations{id name label score explanation annotatorKind source identifier}"
+            "sessionAnnotations{id name label score explanation annotatorKind source identifier "
+            "createdAt updatedAt}"
         )
         result = await self._node(field, project_session, httpx_client)
 
@@ -269,11 +335,13 @@ class TestProjectSession:
             assert annotation["explanation"] is not None
             assert annotation["source"] in ["APP", "API"]
             assert annotation["identifier"] is not None
+            assert annotation["createdAt"] is not None
+            assert annotation["updatedAt"] is not None
 
     async def test_session_annotation_summaries(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "sessionAnnotationSummaries{name meanScore labelFractions{label fraction}}"
@@ -309,7 +377,7 @@ class TestProjectSession:
     async def test_session_annotations_empty_for_second_session(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         # Test that the second session (no annotations) returns empty results
         project_session = _data.project_sessions[1]
@@ -323,3 +391,78 @@ class TestProjectSession:
         summaries_field = "sessionAnnotationSummaries{name meanScore}"
         summaries_result = await self._node(summaries_field, project_session, httpx_client)
         assert summaries_result == []
+
+
+async def test_project_session_traces_require_first(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        await _add_trace(session, project, project_session)
+
+    project_session_id = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
+    query = """
+        query ($projectSessionId: ID!) {
+            node(id: $projectSessionId) {
+                ... on ProjectSession {
+                    traces {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectSessionId": project_session_id},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert (
+        response.errors[0].message
+        == "Argument 'ProjectSession.traces(first:)' of type 'Int!' is required, but it was not provided."
+    )
+
+
+async def test_project_session_traces_limit_first_page_size(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    monkeypatch.setenv("PHOENIX_MASK_INTERNAL_SERVER_ERRORS", "false")
+    async with db() as session:
+        project = await _add_project(session)
+        project_session = await _add_project_session(session, project)
+        await _add_trace(session, project, project_session)
+
+    project_session_id = str(GlobalID(ProjectSession.__name__, str(project_session.id)))
+    query = """
+        query ($projectSessionId: ID!, $first: Int!) {
+            node(id: $projectSessionId) {
+                ... on ProjectSession {
+                    traces(first: $first) {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectSessionId": project_session_id, "first": 1001},
+    )
+    assert response.errors
+    assert len(response.errors) == 1
+    assert response.errors[0].message == "`first` must be less than or equal to 1000"

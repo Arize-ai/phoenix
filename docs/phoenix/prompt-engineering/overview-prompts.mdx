@@ -1,0 +1,46 @@
+---
+title: "Overview: Prompts"
+sidebarTitle: "Overview"
+---
+
+<Frame caption="Use the playground to engineer the optimal prompt for your task">
+  <video controls autoPlay muted loop playsInline preload="metadata" aria-label="Comparing prompt configurations and responses in the Phoenix playground" width="100%">
+    <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/docs/playground_3.mp4" type="video/mp4" />
+    Comparing prompt configurations and responses in the Phoenix playground
+  </video>
+</Frame>
+
+Prompt engineering in Phoenix helps you create, store, and change the prompts that your application sends to LLMs. When you manage prompts systematically, you can reuse them, keep them consistent, and test variations across different models and inputs.
+
+AI applications are different from traditional software. They are non-deterministic, and they use natural language to give context and guide model output. A **prompt** is the natural language and the model parameters that your program contains.
+
+A better prompt is often the change with the highest leverage on the behavior of your application. But prompt changes have a risk: you must be confident that each change has the intended effect and does not cause regressions. Phoenix features help you test prompt changes before you deploy them.
+
+To get started, see [Get Started: Prompts](/docs/phoenix/get-started/get-started-evaluations).
+
+## Prompt Engineering Features
+
+* [Prompt Management](/docs/phoenix/prompt-engineering/overview-prompts/prompt-management): Create, store, change, and deploy the prompts that your application sends to LLMs.
+
+* [Prompt Playground](/docs/phoenix/prompt-engineering/overview-prompts/prompt-playground): Try different prompts, models, and invocation parameters, and track your progress with traces and experiments.
+
+* [Span Replay](/docs/phoenix/prompt-engineering/overview-prompts/span-replay): Replay an LLM invocation from your application, such as an LLM step in a workflow or a router query. See if a change to the invocation gives a better outcome.
+
+* [Prompts in Code](/docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code): Use the Phoenix client SDKs to keep your prompts in sync across different applications and environments.
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Prompt Concepts" icon="lightbulb" href="/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts">
+    Understand prompt engineering fundamentals and best practices
+  </Card>
+  <Card title="Using the Playground" icon="play" href="/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground">
+    Deep dive into playground features and workflows
+  </Card>
+  <Card title="Test Prompts at Scale" icon="flask" href="/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale">
+    Run prompts over datasets to evaluate performance
+  </Card>
+  <Card title="Prompts in Code" icon="code" href="/docs/phoenix/prompt-engineering/overview-prompts/prompts-in-code">
+    Use prompts programmatically in your applications
+  </Card>
+</CardGroup>

@@ -32,8 +32,7 @@ logger = logging.getLogger(__name__)
 
 EvalsRateLimitError: type[BaseException]
 try:
-    # TODO: update import path after evals 2.0 is released
-    from phoenix.evals.models.rate_limiters import RateLimitError as EvalsRateLimitError
+    from phoenix.evals.rate_limiters import RateLimitError as EvalsRateLimitError
 except ImportError:
 
     class _EvalsRateLimitErrorFallback(Exception):
@@ -195,8 +194,8 @@ class AsyncExecutor(Executor):
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar.
             Defaults to None.
 
-        max_retries (int, optional): The maximum number of times to retry on exceptions.
-            Defaults to 10.
+        max_retries (int, optional): The maximum number of times to retry on exceptions or
+            timeouts. Defaults to 10.
 
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
             Defaults to True.
@@ -336,7 +335,6 @@ class AsyncExecutor(Executor):
                     marked_done = True
                     continue
                 else:
-                    tqdm.write("Worker timeout, requeuing")
                     # Best-effort cancel the timed-out task without blocking the loop
                     if not generate_task.done():
                         generate_task.cancel()
@@ -344,12 +342,21 @@ class AsyncExecutor(Executor):
                             await asyncio.wait_for(generate_task, timeout=1)
                         except (asyncio.TimeoutError, asyncio.CancelledError):
                             pass
-                    # task timeouts are requeued at the same priority
-                    await queue.put((priority, item))
                     details = cast(ExecutionDetails, execution_details[index])
+                    details.log_exception(TimeoutError(f"Task timed out after {self.timeout}s"))
                     details.log_runtime(task_start_time)
                     if self._concurrency_controller is not None:
                         self._concurrency_controller.record_timeout()
+                    if (retry_count := abs(priority)) < self.max_retries:
+                        tqdm.write(f"Worker timeout on attempt {retry_count + 1}, requeuing")
+                        await queue.put((priority - 1, item))
+                    else:
+                        details.fail()
+                        tqdm.write(f"Retries exhausted after {retry_count + 1} attempts: timeout")
+                        if self.exit_on_error:
+                            termination_event.set()
+                        else:
+                            progress_bar.update()
             except Exception as exc:
                 details = cast(ExecutionDetails, execution_details[index])
                 details.log_exception(exc)
@@ -557,7 +564,14 @@ class SyncExecutor(Executor):
                             break
                         except Exception as exc:
                             execution_details[index].log_exception(exc)
-                            is_phoenix_exception = isinstance(exc, PhoenixException)
+                            is_client_rate_limit_error = isinstance(exc, RateLimitError)
+                            is_evals_rate_limit_error = isinstance(exc, EvalsRateLimitError)
+                            is_rate_limit_error = (
+                                is_client_rate_limit_error or is_evals_rate_limit_error
+                            )
+                            is_phoenix_exception = (
+                                isinstance(exc, PhoenixException) and not is_rate_limit_error
+                            )
                             if attempt >= self.max_retries or is_phoenix_exception:
                                 raise exc
                             else:

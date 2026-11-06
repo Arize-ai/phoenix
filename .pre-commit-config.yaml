@@ -1,48 +1,62 @@
 repos:
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.12.5"
-    hooks:
-      - id: ruff-format
-      - id: ruff
-        args: [ --fix ]
   - repo: local
     hooks:
-      - id: clean-notebooks
-        name: clean-notebooks
-        files: \.ipynb$
-        exclude: ^tutorials/evals/.*\.ipynb$
-        stages: [ pre-commit ]
+      - id: format-python
+        name: format python
         language: system
-        entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
-  - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.9.1
-    hooks:
-      - id: nbqa-ruff
-        name: format-notebooks
+        entry: make format-python
+        files: \.py$
+        pass_filenames: false
+      - id: lint-python
+        name: lint python
+        language: system
+        entry: make lint-python
+        files: \.py$
+        pass_filenames: false
+      - id: clean-notebooks
+        name: clean notebooks
+        entry: >-
+          uv run jupyter nbconvert
+          --ClearOutputPreprocessor.enabled=True
+          --ClearMetadataPreprocessor.enabled=True
+          --inplace
+        language: system
         files: \.ipynb$
-        stages: [ pre-commit ]
-        args: [ "--fix", "--ignore=E402", "--ignore=E501", "--ignore=F704" ]
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: "6f3cb139ef36133b6f903b97facc57b07cef57c9"
-    hooks:
-      - id: prettier
-        files: \.(jsx?|tsx?|css|.md)$
-        exclude: \.*__generated__.*$
-        additional_dependencies:
-          - prettier@3.6.2
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: "8ddcbd412c0b348841f0f82c837702f432539652"
-    hooks:
-      - id: eslint
-        additional_dependencies:
-          - eslint@8.57.1
-          - eslint-plugin-react@7.37.5
-          - eslint-plugin-react-hooks@5.2.0
-          - eslint-plugin-simple-import-sort@10.0.0
-  - repo: local
-    hooks:
+        exclude: ^tutorials/evals/
+        stages: [pre-commit]
+      - id: oxfmt-app
+        name: oxfmt (app)
+        entry: pnpm --dir app run fmt
+        language: system
+        files: ^app/.*\.(jsx?|tsx?|css|md|json|ya?ml)$
+        pass_filenames: false
+      - id: oxfmt-js
+        name: oxfmt (js)
+        entry: pnpm --dir js run fmt
+        language: system
+        files: ^js/.*\.(jsx?|tsx?|md|json|ya?ml)$
+        pass_filenames: false
+      - id: oxlint-app
+        name: oxlint (app)
+        entry: pnpm --dir app run lint
+        language: system
+        files: ^app/.*\.[jt]sx?$
+        pass_filenames: false
+      - id: oxlint-js
+        name: oxlint (js)
+        entry: pnpm --dir js run lint
+        language: system
+        files: ^js/.*\.[jt]sx?$
+        pass_filenames: false
       - id: forbid-commit-to-local-main-branch
         name: Check branch before committing
         entry: bash -c '[[ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]] || { echo "Should not commit to local main branch."; exit 1; }'
         language: system
-        stages: [ pre-commit ]
+        stages: [pre-commit]
+      - id: uv-lock-check
+        name: uv lock --check
+        entry: uv lock --check
+        language: system
+        files: (pyproject\.toml$|^uv\.lock$)
+        pass_filenames: false
+        stages: [pre-commit]

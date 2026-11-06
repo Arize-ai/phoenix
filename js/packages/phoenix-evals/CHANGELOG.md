@@ -1,5 +1,214 @@
 # @arizeai/phoenix-evals
 
+## 2.7.1
+
+### Patch Changes
+
+- 0128562: fix(phoenix-evals): keep `metadata` returned by custom evaluator functions wrapped with `createEvaluator`
+
+## 2.7.0
+
+### Minor Changes
+
+- b00c105: Classification evaluators, including every built-in, can now run on AI SDK decision models such as `openai.decisionModel("gpt-6-luna")`. The label comes from `experimental_decide`, with label probabilities (and the provider's confidence, when reported) in `metadata`. The rendered prompt is sent as plain text, and refusals throw the AI SDK's `Experimental_DecisionRefusalError`. Decide spans now record the decision state, question and answer. New exports: `isDecisionModel` and the `DecisionModel` type.
+  
+  This replaces the evaluation model support from the previous release, and changes what evaluation models such as TypeSafe's Jev are sent. They now go through `experimental_decide` too. Message prompts are joined into plain text instead of being serialized as JSON state.
+  
+  `ai` is pinned to `7.0.137` and `@ai-sdk/otel` to `1.0.137`, because the decision API is experimental and has changed in patch releases, and `@ai-sdk/otel` depends on one exact `ai` version. Use `@ai-sdk/openai` 4.0.89 or later with OpenAI decision models. Earlier versions receive the state as JSON-encoded text instead of plain text.
+
+## 2.6.0
+
+### Minor Changes
+
+- b7b7dfb: Classification evaluators now accept AI SDK evaluation models such as TypeSafe's Jev. When an evaluation model is passed as `model`, the classification is routed through `experimental_evaluate` as a single choice question instead of `generateObject`. Results carry a `label` and `score` but no `explanation`, since evaluation models do not generate text.
+
+## 2.5.0
+
+### Minor Changes
+
+- 63805d0: Add `createCompletenessEvaluator` to judge whether every active user request in a conversation was actually completed.
+
+### Patch Changes
+
+- d67ea3f: Deprecate `createDocumentRelevanceEvaluator` in favor of
+  `createRetrievalRelevanceEvaluator`. Rename `documentText` to `context` and the
+  `unrelated` label to `irrelevant`. The deprecated factory and its types will be
+  removed in the next major release.
+
+## 2.4.0
+
+### Minor Changes
+
+- 0e3b2c2: Add a built-in PII detection evaluator (`createPiiDetectionEvaluator`) that screens a conversation record for personally identifiable information, including system instructions, tool calls and results, and retrieved content the end user may never have seen.
+
+## 2.3.0
+
+### Minor Changes
+
+- 7efa7b2: Add a built-in retrieval relevance evaluator (createRetrievalRelevanceEvaluator) that checks whether the external information retrieved during a step is relevant to the request it was serving. Unlike document relevance, it is source-agnostic and scores the retrieved information holistically, whether it came from a vector search, a tool or MCP call, a web search, or content embedded in an LLM turn.
+
+## 2.2.0
+
+### Minor Changes
+
+- 1aa1a84: Redesign `createHallucinationEvaluator` as a conversation-grounding evaluator.
+
+  This changes the evaluator input to `input` and `output`, where `input` is the conversation available to the assistant and `output` is the response being judged. A separate `context` field is no longer accepted.
+
+  Labels change from `factual`/`hallucinated` to `grounded`/`hallucinated`. Scores are minimized, with `hallucinated` equal to `1` and `grounded` equal to `0`. Existing stored evaluations, dashboards, thresholds, and label filters may require migration and should not be compared directly with results from the previous evaluator.
+
+## 2.1.0
+
+### Minor Changes
+
+- 899dece: Add a built-in toxicity evaluator (createToxicityEvaluator) for classifying text as toxic or non-toxic.
+
+## 2.0.0
+
+### Major Changes
+
+- 5a8f3f7: Upgrade `@arizeai/phoenix-evals` to AI SDK v7. Evaluator telemetry uses the AI SDK v7 telemetry API with a per-call `OpenTelemetry` integration from `@ai-sdk/otel`, while preserving all globally registered integrations (logging, metrics, and tracing to other backends); a Phoenix tracing integration is appended unless a global integration already traces with the same tracer. Evaluator spans now follow the OpenTelemetry `gen_ai.*` conventions emitted by `@ai-sdk/otel` instead of the AI SDK v6 `ai.*` span format. The `telemetry.tracer` and `telemetry.isEnabled` options keep working as before, and system messages in prompt templates continue to be supported. Requires Node.js >=22.12 and AI SDK v7-compatible model providers (e.g. `@ai-sdk/openai` v4).
+
+## 1.2.0
+
+### Minor Changes
+
+- f94067b: Add px setup script for agent onboarding
+
+## 1.1.0
+
+### Minor Changes
+
+- 1f7d5f0: Add built-in code (non-LLM) evaluators for classification metrics: `createPrecisionEvaluator`, `createRecallEvaluator`, `createF1Evaluator`, `createFBetaEvaluator`, and the bundling helper `createPrecisionRecallFScoreEvaluators`, plus the underlying `computePrecisionRecallFScore` function. These support binary (via `positiveLabel`) and multi-class (`macro`/`micro`/`weighted` averaging) classification, mirroring the Python `PrecisionRecallFScore` evaluator.
+
+## 1.0.3
+
+### Patch Changes
+
+- 5d14f23: Add LinkedIn link to the Community section of the README.
+
+## 1.0.2
+
+### Patch Changes
+
+- 1028be5: Bundle curated package docs and examples into npm packages under `docs/`.
+
+## 1.0.1
+
+### Patch Changes
+
+- b4ded15: Update package READMEs with latest capabilities
+  - phoenix-client: Add Sessions section documenting `listSessions`, `getSession`, and `addSessionAnnotation`
+  - phoenix-evals: Add full pre-built evaluators table (conciseness, correctness, document relevance, refusal, tool evaluators), fix import paths for `bindEvaluator`
+  - phoenix-mcp: Expand Tool Coverage section with complete, accurate tool list
+  - phoenix-config: Full documentation replacing the one-line placeholder (installation, environment variables, usage examples)
+  - phoenix-cli: Add `px annotation-config` command documentation
+
+## 1.0.0
+
+### Major Changes
+
+- 03b10a8: feat: upgrade zod from v3 to v4
+
+  BREAKING CHANGE: Upgraded zod from v3 to v4. This changes inferred TypeScript types
+  for schemas using `z.looseObject()` (previously `.passthrough()`) which now include
+  `[x: string]: unknown` in their output types. Consumers using these types may need
+  to update their code. Additionally, `ZodError.errors` has been replaced with
+  `ZodError.issues`, `z.record()` now requires explicit key schemas, and
+  `zod-to-json-schema` has been replaced with native `z.toJSONSchema()`.
+
+## 0.10.0
+
+### Minor Changes
+
+- b18325b: feat: upgrade AI SDK to v6
+- d43c4ee: feat: add conciseness evaluator
+
+## 0.9.0
+
+### Minor Changes
+
+- 0738cb9: Add tool response handling llm evaluator.
+- d6d1953: Add createToolSelectionEvaluator for evaluating LLM tool selection decisions. This evaluator determines whether the correct tool was selected for a given context, checking if the LLM chose the best available tool for the user query.
+
+## 0.8.0
+
+### Minor Changes
+
+- d1c89bf: Add createToolInvocationEvaluator for evaluating LLM tool invocations
+
+## 0.7.0
+
+### Minor Changes
+
+- da13ad5: add generic correctness evaluator
+
+## 0.6.5
+
+### Patch Changes
+
+- 4208604: trigger changeset publish
+
+## 0.6.4
+
+### Patch Changes
+
+- c96475c: trigger changeset publish
+
+## 0.6.3
+
+### Patch Changes
+
+- 857b617: add links to packages
+
+## 0.6.2
+
+### Patch Changes
+
+- 0589fc3: create evaluator helper
+
+## 0.6.1
+
+### Patch Changes
+
+- 5cacc22: create evaluator helper function
+
+## 0.6.0
+
+### Minor Changes
+
+- 84877d6: add data mapping helpers for evaluators
+
+## 0.5.1
+
+### Patch Changes
+
+- 9408838: add message template support
+
+## 0.5.0
+
+### Minor Changes
+
+- aa5dc26: serialize nested values in templates as JSON
+
+## 0.4.0
+
+### Minor Changes
+
+- 885be2a: make phoenix-client be able to take in phoenix evals directly
+
+## 0.3.1
+
+### Patch Changes
+
+- a756a95: fix Mustache.render by disabling HTML escape
+
+## 0.3.0
+
+### Minor Changes
+
+- f66c5b6: refactor: change source to kind for evaluators
+
 ## 0.2.2
 
 ### Patch Changes

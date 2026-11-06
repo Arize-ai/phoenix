@@ -1,0 +1,101 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "test-session-context-summarization-summarization-1-summary",
+  "agent": {
+    "name": "terminus-2-summarization-summary",
+    "version": "2.0.0",
+    "model_name": "openai/gpt-4o",
+    "extra": {
+      "parent_session_id": "NORMALIZED_SESSION_ID",
+      "summarization_index": 1
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "source": "user",
+      "message": "You are an AI assistant tasked with solving command-line tasks in a Linux environment. You will be given a task description and the output from previously executed commands. Your goal is to solve the task by providing batches of shell commands.\n\nFormat your response as JSON with the following structure:\n\n{\n  \"analysis\": \"Analyze the current state based on the terminal output provided. What do you see? What has been accomplished? What still needs to be done?\",\n  \"plan\": \"Describe your plan for the next steps. What commands will you run and why? Be specific about what you expect each command to accomplish.\",\n  \"commands\": [\n    {\n      \"keystrokes\": \"ls -la\\n\",\n      \"duration\": 0.1\n    },\n    {\n      \"keystrokes\": \"cd project\\n\",\n      \"duration\": 0.1\n    }\n  ],\n  \"task_complete\": true\n}\n\nRequired fields:\n- \"analysis\": Your analysis of the current situation\n- \"plan\": Your plan for the next steps\n- \"commands\": Array of command objects to execute\n\nOptional fields:\n- \"task_complete\": Boolean indicating if the task is complete (defaults to false if not present)\n\nCommand object structure:\n- \"keystrokes\": String containing the exact keystrokes to send to the terminal (required)\n- \"duration\": Number of seconds to wait for the command to complete before the next command will be executed (defaults to 1.0 if not present)\n\nIMPORTANT: The text inside \"keystrokes\" will be used completely verbatim as keystrokes. Write commands exactly as you want them sent to the terminal:\n- You must end every command with a newline (\\n) or it will not execute.\n- For special key sequences, use tmux-style escape sequences:\n  - C-c for Ctrl+C\n  - C-d for Ctrl+D\n\nThe \"duration\" attribute specifies the number of seconds to wait for the command to complete (default: 1.0) before the next command will be executed. On immediate tasks (e.g., cd, ls, echo, cat) set a duration of 0.1 seconds. On commands (e.g., gcc, find, rustc) set a duration of 1.0 seconds. On slow commands (e.g., make, python3 [long running script], wget [file]) set an appropriate duration as you determine necessary.\n\nIt is better to set a smaller duration than a longer duration. It is always possible to wait again if the prior output has not finished, by running {\"keystrokes\": \"\", \"duration\": 10.0} on subsequent requests to wait longer. Never wait longer than 60 seconds; prefer to poll to see intermediate result status.\n\nImportant notes:\n- Each command's keystrokes are sent exactly as written to the terminal\n- Do not include extra whitespace before or after the keystrokes unless it's part of the intended command\n- Extra text before or after the JSON will generate warnings but be tolerated\n- The JSON must be valid - use proper escaping for quotes and special characters within strings\n- Commands array can be empty if you want to wait without taking action\n\nTask Description:\nCreate a file called hello.txt with \"Hello, world!\" as the content.\n\nCurrent terminal state:\nCurrent Terminal Screen:\n\n",
+      "is_copied_context": true
+    },
+    {
+      "step_id": 2,
+      "source": "agent",
+      "model_name": "gpt-4o",
+      "message": "Analysis: Terminal is ready. Let me create a test directory first.\nPlan: Create test_dir to set up some context.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "mkdir test_dir\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@CONTAINER_ID:/app# mkdir test_dir\n\n"
+          }
+        ]
+      },
+      "is_copied_context": true,
+      "extra": {
+        "note": "Metrics omitted to avoid duplication - already recorded in parent trajectory"
+      }
+    },
+    {
+      "step_id": 3,
+      "source": "agent",
+      "model_name": "gpt-4o",
+      "message": "Analysis: Created test directory. Let me add some files.\nPlan: Create test files.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "echo 'test1' > test_dir/file1.txt\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@CONTAINER_ID:/app# echo 'test1' > test_dir/file1.txt\n\n"
+          }
+        ]
+      },
+      "is_copied_context": true,
+      "extra": {
+        "note": "Metrics omitted to avoid duplication - already recorded in parent trajectory"
+      }
+    },
+    {
+      "step_id": 4,
+      "source": "user",
+      "message": "You are about to hand off your work to another AI agent.\n            Please provide a comprehensive summary of what you have\n            accomplished so far on this task:\n\nOriginal Task: Create a file called hello.txt with \"Hello, world!\" as the content.\n\nBased on the conversation history, please provide a detailed summary covering:\n1. **Major Actions Completed** - List each significant command you executed\n            and what you learned from it.\n2. **Important Information Learned** - A summary of crucial findings, file\n            locations, configurations, error messages, or system state discovered.\n3. **Challenging Problems Addressed** - Any significant issues you\n            encountered and how you resolved them.\n4. **Current Status** - Exactly where you are in the task completion process.\n\nBe comprehensive and detailed. The next agent needs to understand everything\n            that has happened so far in order to continue."
+    },
+    {
+      "step_id": 5,
+      "source": "agent",
+      "model_name": "gpt-4o",
+      "message": "I have been working on creating hello.txt. Here's what I've accomplished:\n\n1. **Major Actions Completed**:\n   - Created a test directory with `mkdir test_dir`\n   - Created file1.txt, file2.txt in the test directory\n   - Attempted to list files to verify creation\n\n2. **Important Information Learned**:\n   - All test files are located in /app/test_dir/\n   - The working directory is /app/\n   - The terminal environment is working correctly\n\n3. **Challenging Problems Addressed**:\n   - None so far, everything has been straightforward\n\n4. **Current Status**:\n   - Test setup is partially complete\n   - Still need to create the main hello.txt file with \"Hello, world!\" content in /app/",
+      "metrics": {
+        "prompt_tokens": 500,
+        "completion_tokens": 200,
+        "cached_tokens": 0,
+        "cost_usd": 0.0032500000000000003,
+        "prompt_token_ids": [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 421, 422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440, 441, 442, 443, 444, 445, 446, 447, 448, 449, 450, 451, 452, 453, 454, 455, 456, 457, 458, 459, 460, 461, 462, 463, 464, 465, 466, 467, 468, 469, 470, 471, 472, 473, 474, 475, 476, 477, 478, 479, 480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493, 494, 495, 496, 497, 498, 499, 500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599],
+        "completion_token_ids": [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040, 1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049, 1050, 1051, 1052, 1053, 1054, 1055, 1056, 1057, 1058, 1059, 1060, 1061, 1062, 1063, 1064, 1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072, 1073, 1074, 1075, 1076, 1077, 1078, 1079, 1080, 1081, 1082, 1083, 1084, 1085, 1086, 1087, 1088, 1089, 1090, 1091, 1092, 1093, 1094, 1095, 1096, 1097, 1098, 1099, 1100, 1101, 1102, 1103, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115, 1116, 1117, 1118, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128, 1129, 1130, 1131, 1132, 1133, 1134, 1135, 1136, 1137, 1138, 1139, 1140, 1141, 1142, 1143, 1144, 1145, 1146, 1147, 1148, 1149, 1150, 1151, 1152, 1153, 1154, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167, 1168, 1169, 1170, 1171, 1172, 1173, 1174, 1175, 1176, 1177, 1178, 1179, 1180, 1181, 1182, 1183, 1184, 1185, 1186, 1187, 1188, 1189, 1190, 1191, 1192, 1193, 1194, 1195, 1196, 1197, 1198, 1199],
+        "logprobs": [-0.1, -0.2, -0.30000000000000004, -0.4, -0.5, -0.6000000000000001, -0.7000000000000001, -0.8, -0.9, -1.0, -1.1, -1.2000000000000002, -1.3, -1.4000000000000001, -1.5, -1.6, -1.7000000000000002, -1.8, -1.9000000000000001, -2.0, -2.1, -2.2, -2.3000000000000003, -2.4000000000000004, -2.5, -2.6, -2.7, -2.8000000000000003, -2.9000000000000004, -3.0, -3.1, -3.2, -3.3000000000000003, -3.4000000000000004, -3.5, -3.6, -3.7, -3.8000000000000003, -3.9000000000000004, -4.0, -4.1000000000000005, -4.2, -4.3, -4.4, -4.5, -4.6000000000000005, -4.7, -4.800000000000001, -4.9, -5.0, -5.1000000000000005, -5.2, -5.300000000000001, -5.4, -5.5, -5.6000000000000005, -5.7, -5.800000000000001, -5.9, -6.0, -6.1000000000000005, -6.2, -6.300000000000001, -6.4, -6.5, -6.6000000000000005, -6.7, -6.800000000000001, -6.9, -7.0, -7.1000000000000005, -7.2, -7.300000000000001, -7.4, -7.5, -7.6000000000000005, -7.7, -7.800000000000001, -7.9, -8.0, -8.1, -8.200000000000001, -8.3, -8.4, -8.5, -8.6, -8.700000000000001, -8.8, -8.9, -9.0, -9.1, -9.200000000000001, -9.3, -9.4, -9.5, -9.600000000000001, -9.700000000000001, -9.8, -9.9, -10.0, -10.100000000000001, -10.200000000000001, -10.3, -10.4, -10.5, -10.600000000000001, -10.700000000000001, -10.8, -10.9, -11.0, -11.100000000000001, -11.200000000000001, -11.3, -11.4, -11.5, -11.600000000000001, -11.700000000000001, -11.8, -11.9, -12.0, -12.100000000000001, -12.200000000000001, -12.3, -12.4, -12.5, -12.600000000000001, -12.700000000000001, -12.8, -12.9, -13.0, -13.100000000000001, -13.200000000000001, -13.3, -13.4, -13.5, -13.600000000000001, -13.700000000000001, -13.8, -13.9, -14.0, -14.100000000000001, -14.200000000000001, -14.3, -14.4, -14.5, -14.600000000000001, -14.700000000000001, -14.8, -14.9, -15.0, -15.100000000000001, -15.200000000000001, -15.3, -15.4, -15.5, -15.600000000000001, -15.700000000000001, -15.8, -15.9, -16.0, -16.1, -16.2, -16.3, -16.400000000000002, -16.5, -16.6, -16.7, -16.8, -16.900000000000002, -17.0, -17.1, -17.2, -17.3, -17.400000000000002, -17.5, -17.6, -17.7, -17.8, -17.900000000000002, -18.0, -18.1, -18.2, -18.3, -18.400000000000002, -18.5, -18.6, -18.7, -18.8, -18.900000000000002, -19.0, -19.1, -19.200000000000003, -19.3, -19.400000000000002, -19.5, -19.6, -19.700000000000003, -19.8, -19.900000000000002, -20.0]
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 500,
+    "total_completion_tokens": 200,
+    "total_cached_tokens": 0,
+    "total_cost_usd": 0.0032500000000000003
+  }
+}

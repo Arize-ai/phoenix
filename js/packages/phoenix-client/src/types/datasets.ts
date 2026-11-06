@@ -1,17 +1,18 @@
-import { Node } from "./core";
+import type { components } from "../__generated__/api/v1";
+import type { Node } from "./core";
+
+/** A named subset of examples in a dataset. */
+export type DatasetSplit = components["schemas"]["DatasetSplit"];
+
+type DatasetSelectorBase = { versionId?: string; splits?: string[] };
+
+/** A dataset identified by either its GlobalID or name. */
+export type DatasetIdentifier = { datasetId: string } | { datasetName: string };
 
 /**
  * A dataset can be identified by its datasetId, datasetName, or datasetVersionId
  */
-export type DatasetSelector = { datasetId: string } | { datasetName: string };
-
-/**
- * Parameters for selecting a specific version of a dataset
- */
-export interface DatasetVersionSelector {
-  dataset: DatasetSelector;
-  versionId?: string;
-}
+export type DatasetSelector = DatasetSelectorBase & DatasetIdentifier;
 
 /**
  * Overview information about a dataset
@@ -49,12 +50,34 @@ export interface Example {
   input: Record<string, unknown>;
   output?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
+  /**
+   * Split assignment for this example. Can be:
+   * - A single string for one split: "train"
+   * - An array of strings for multiple splits: ["train", "easy"]
+   * - null for no split assignment
+   */
+  splits?: string | string[] | null;
+  /**
+   * OpenTelemetry span ID to link this example back to its source span.
+   * When provided, the dataset example will be associated with the span
+   * in the Phoenix UI, enabling traceability from datasets back to traces.
+   */
+  spanId?: string | null;
+  /**
+   * Optional user-provided ID for this example.
+   * If not provided, the server will generate an ID.
+   */
+  id?: string | null;
 }
 
 /**
  * An example that has been synced to the server
  */
-export interface ExampleWithId extends Example, Node {
+export interface ExampleWithId extends Example {
+  /** The user-provided or server-generated ID for this example. */
+  id: string;
+  /** Server-generated node ID for this example. */
+  nodeId: string;
   updatedAt: Date;
 }
 

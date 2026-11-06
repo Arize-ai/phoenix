@@ -1,25 +1,35 @@
+import operator
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, ClassVar, Optional, Type
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import pandas as pd
 import strawberry
+from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import select
-from strawberry import UNSET, Info, Private, lazy
+from sqlalchemy.sql.expression import tuple_
+from strawberry import UNSET, Info, lazy
 from strawberry.relay import Connection, Node, NodeID
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.extensions import RequireForwardPaginationExtension
 from phoenix.server.api.input_types.AnnotationFilter import AnnotationFilter, satisfies_filter
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
+from phoenix.server.api.types.pagination import (
+    Cursor,
+    CursorSortColumn,
+    CursorSortColumnDataType,
+    CursorString,
+    connection_from_cursors_and_nodes,
+)
 from phoenix.server.api.types.SpanCostDetailSummaryEntry import SpanCostDetailSummaryEntry
 from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
-from phoenix.server.api.types.SpanIOValue import SpanIOValue
+from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
 from phoenix.server.api.types.TokenUsage import TokenUsage
 
 if TYPE_CHECKING:
@@ -30,12 +40,51 @@ if TYPE_CHECKING:
 
 @strawberry.type
 class ProjectSession(Node):
-    _table: ClassVar[Type[models.ProjectSession]] = models.ProjectSession
-    id_attr: NodeID[int]
-    project_rowid: Private[int]
-    session_id: str
-    start_time: datetime
-    end_time: datetime
+    id: NodeID[int]
+    db_record: strawberry.Private[Optional[models.ProjectSession]] = None
+
+    def __post_init__(self) -> None:
+        if self.db_record and self.id != self.db_record.id:
+            raise ValueError("ProjectSession ID mismatch")
+
+    @strawberry.field
+    async def session_id(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_record:
+            val = self.db_record.session_id
+        else:
+            val = await info.context.data_loaders.project_session_fields.load(
+                (self.id, models.ProjectSession.session_id),
+            )
+        return val
+
+    @strawberry.field
+    async def start_time(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_record:
+            val = self.db_record.start_time
+        else:
+            val = await info.context.data_loaders.project_session_fields.load(
+                (self.id, models.ProjectSession.start_time),
+            )
+        return val
+
+    @strawberry.field
+    async def end_time(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_record:
+            val = self.db_record.end_time
+        else:
+            val = await info.context.data_loaders.project_session_fields.load(
+                (self.id, models.ProjectSession.end_time),
+            )
+        return val
 
     @strawberry.field
     async def project(
@@ -44,33 +93,41 @@ class ProjectSession(Node):
     ) -> Annotated["Project", lazy(".Project")]:
         from phoenix.server.api.types.Project import Project
 
-        return Project(project_rowid=self.project_rowid)
+        if self.db_record:
+            project_rowid = self.db_record.project_id
+        else:
+            project_rowid = await info.context.data_loaders.project_session_fields.load(
+                (self.id, models.ProjectSession.project_id),
+            )
+        return Project(id=project_rowid)
 
     @strawberry.field
     async def num_traces(
         self,
         info: Info[Context, None],
     ) -> int:
-        return await info.context.data_loaders.session_num_traces.load(self.id_attr)
+        return await info.context.data_loaders.session_num_traces.load(self.id)
 
     @strawberry.field
     async def num_traces_with_error(
         self,
         info: Info[Context, None],
     ) -> int:
-        return await info.context.data_loaders.session_num_traces_with_error.load(self.id_attr)
+        return await info.context.data_loaders.session_num_traces_with_error.load(self.id)
 
     @strawberry.field
     async def first_input(
         self,
         info: Info[Context, None],
     ) -> Optional[SpanIOValue]:
-        record = await info.context.data_loaders.session_first_inputs.load(self.id_attr)
+        record = await info.context.data_loaders.session_first_inputs.load(self.id)
         if record is None:
             return None
         return SpanIOValue(
             mime_type=MimeType(record.mime_type.value),
-            cached_value=record.value,
+            span_rowid=record.span_rowid,
+            attr=models.Span.input_value,
+            truncated_value=truncate_value(record.truncated_value),
         )
 
     @strawberry.field
@@ -78,51 +135,86 @@ class ProjectSession(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[SpanIOValue]:
-        record = await info.context.data_loaders.session_last_outputs.load(self.id_attr)
+        record = await info.context.data_loaders.session_last_outputs.load(self.id)
         if record is None:
             return None
         return SpanIOValue(
             mime_type=MimeType(record.mime_type.value),
-            cached_value=record.value,
+            span_rowid=record.span_rowid,
+            attr=models.Span.output_value,
+            truncated_value=truncate_value(record.truncated_value),
         )
+
+    @strawberry.field(
+        description='The first non-null "user.id" span attribute in the session, '
+        "identifying the end user of the traced application.",
+    )  # type: ignore
+    async def user_id(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        return await info.context.data_loaders.session_user_ids.load(self.id)
 
     @strawberry.field
     async def token_usage(
         self,
         info: Info[Context, None],
     ) -> TokenUsage:
-        usage = await info.context.data_loaders.session_token_usages.load(self.id_attr)
+        usage = await info.context.data_loaders.session_token_usages.load(self.id)
         return TokenUsage(
             prompt=usage.prompt,
             completion=usage.completion,
         )
 
-    @strawberry.field
+    @strawberry.field(extensions=[RequireForwardPaginationExtension()])  # type: ignore[untyped-decorator]
     async def traces(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: int,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
     ) -> Connection[Annotated["Trace", lazy(".Trace")]]:
         from phoenix.server.api.types.Trace import Trace
 
-        args = ConnectionArgs(
-            first=first,
-            after=after if isinstance(after, CursorString) else None,
-            last=last,
-            before=before if isinstance(before, CursorString) else None,
-        )
-        stmt = (
-            select(models.Trace)
-            .filter_by(project_session_rowid=self.id_attr)
-            .order_by(models.Trace.start_time)
-        )
-        async with info.context.db() as session:
+        stmt = select(models.Trace).filter_by(project_session_rowid=self.id)
+        if after:
+            cursor = Cursor.from_string(after)
+            if cursor.sort_column:
+                stmt = stmt.where(
+                    operator.gt(
+                        tuple_(models.Trace.start_time, models.Trace.id),
+                        (cursor.sort_column.value, cursor.rowid),
+                    )
+                )
+            else:
+                stmt = stmt.where(models.Trace.id > cursor.rowid)
+        stmt = stmt.order_by(
+            models.Trace.start_time.asc(),
+            models.Trace.id.asc(),
+        ).limit(first + 1)
+        cursors_and_nodes = []
+        async with info.context.db.read() as session:
             traces = await session.stream_scalars(stmt)
-            data = [Trace(trace_rowid=trace.id, db_trace=trace) async for trace in traces]
-        return connection_from_list(data=data, args=args)
+            async for trace in islice(traces, first):
+                cursor = Cursor(
+                    rowid=trace.id,
+                    sort_column=CursorSortColumn(
+                        type=CursorSortColumnDataType.DATETIME,
+                        value=trace.start_time,
+                    ),
+                )
+                cursors_and_nodes.append((cursor, Trace(id=trace.id, db_record=trace)))
+            has_next_page = True
+            try:
+                await traces.__anext__()
+            except StopAsyncIteration:
+                has_next_page = False
+        return connection_from_cursors_and_nodes(
+            cursors_and_nodes,
+            has_previous_page=False,
+            has_next_page=has_next_page,
+        )
 
     @strawberry.field
     async def trace_latency_ms_quantile(
@@ -131,7 +223,7 @@ class ProjectSession(Node):
         probability: float,
     ) -> Optional[float]:
         return await info.context.data_loaders.session_trace_latency_ms_quantile.load(
-            (self.id_attr, probability)
+            (self.id, probability)
         )
 
     @strawberry.field
@@ -140,7 +232,7 @@ class ProjectSession(Node):
         info: Info[Context, None],
     ) -> SpanCostSummary:
         loader = info.context.data_loaders.span_cost_summary_by_project_session
-        summary = await loader.load(self.id_attr)
+        summary = await loader.load(self.id)
         return SpanCostSummary(
             prompt=CostBreakdown(
                 tokens=summary.prompt.tokens,
@@ -162,7 +254,7 @@ class ProjectSession(Node):
         info: Info[Context, None],
     ) -> list[SpanCostDetailSummaryEntry]:
         loader = info.context.data_loaders.span_cost_detail_summary_entries_by_project_session
-        summary = await loader.load(self.id_attr)
+        summary = await loader.load(self.id)
         return [
             SpanCostDetailSummaryEntry(
                 token_type=entry.token_type,
@@ -181,16 +273,13 @@ class ProjectSession(Node):
         info: Info[Context, None],
     ) -> list[Annotated["ProjectSessionAnnotation", lazy(".ProjectSessionAnnotation")]]:
         """Get all annotations for this session."""
-        from phoenix.server.api.types.ProjectSessionAnnotation import (
-            to_gql_project_session_annotation,
-        )
+        from .ProjectSessionAnnotation import ProjectSessionAnnotation
 
-        stmt = select(models.ProjectSessionAnnotation).filter_by(project_session_id=self.id_attr)
-        async with info.context.db() as session:
-            annotations = await session.stream_scalars(stmt)
-            return [
-                to_gql_project_session_annotation(annotation) async for annotation in annotations
-            ]
+        annotations = await info.context.data_loaders.session_annotations_by_session.load(self.id)
+        return [
+            ProjectSessionAnnotation(id=annotation.id, db_record=annotation)
+            for annotation in annotations
+        ]
 
     @strawberry.field(
         description="Summarizes each annotation (by name) associated with the session"
@@ -217,9 +306,7 @@ class ProjectSession(Node):
             - data: A list of dictionaries with label statistics
         """
         # Load all annotations for this span from the data loader
-        annotations = await info.context.data_loaders.session_annotations_by_session.load(
-            self.id_attr
-        )
+        annotations = await info.context.data_loaders.session_annotations_by_session.load(self.id)
 
         # Apply filter if provided to narrow down the annotations
         if filter:
@@ -244,21 +331,12 @@ class ProjectSession(Node):
             metrics.score_sum += annotation.score or 0
             metrics.score_count += int(annotation.score is not None)
 
+        # Stable order for position-keyed client caches; see Span.span_annotation_summaries
         result: list[AnnotationSummary] = []
-        for name, label_metrics in summaries.items():
+        for name, label_metrics in sorted(summaries.items()):
             rows = [{"label": label, **asdict(metrics)} for label, metrics in label_metrics.items()]
             result.append(AnnotationSummary(name=name, df=pd.DataFrame(rows), simple_avg=True))
         return result
-
-
-def to_gql_project_session(project_session: models.ProjectSession) -> ProjectSession:
-    return ProjectSession(
-        id_attr=project_session.id,
-        session_id=project_session.session_id,
-        start_time=project_session.start_time,
-        project_rowid=project_session.project_id,
-        end_time=project_session.end_time,
-    )
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

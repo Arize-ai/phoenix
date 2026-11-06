@@ -1,0 +1,17 @@
+interactions:
+- request:
+    body: '{"messages":[{"content":"Say hello","role":"user"}],"model":"gpt-4o-mini","stream":true,"stream_options":{"include_usage":true},"temperature":0.1}'
+    headers: {}
+    method: POST
+    uri: https://api.openai.com/v1/chat/completions
+  response:
+    body:
+      string: "{\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-01234*6789.
+        You can find your API key at https://platform.openai.com/account/api-keys.\",\n
+        \   \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n
+        \   \"param\": null\n  },\n  \"status\": 401\n}"
+    headers: {}
+    status:
+      code: 401
+      message: Unauthorized
+version: 1

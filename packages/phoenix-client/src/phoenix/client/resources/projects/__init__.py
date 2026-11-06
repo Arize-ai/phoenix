@@ -7,6 +7,10 @@ import httpx
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.encode_path_param import encode_path_param
+from phoenix.client.utils.server_requirements import (
+    AsyncServerVersionGuard,
+    ServerVersionGuard,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +52,19 @@ class Projects:
             client.projects.delete(project_id=new_project["id"])
     """
 
-    def __init__(self, client: httpx.Client) -> None:
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        _guard: ServerVersionGuard | None = None,
+    ) -> None:
         """Initialize the Projects client.
 
         Args:
             client (httpx.Client): The httpx client to use for making requests.
         """
         self._client = client
+        self._guard = _guard or ServerVersionGuard(client)
 
     def get(
         self,
@@ -103,8 +113,14 @@ class Projects:
 
     def list(
         self,
+        *,
+        name_contains: Optional[str] = None,
     ) -> list[v1.Project]:
         """List all projects.
+
+        Args:
+            name_contains (Optional[str]): If provided, only return projects whose
+                name contains this substring (case-insensitive).
 
         Returns:
             A list of all projects.
@@ -121,12 +137,19 @@ class Projects:
             projects = client.projects.list()
             for project in projects:
                 print(f"Project name: {project['name']}")
+
+            # Filter by a substring of the project name
+            projects = client.projects.list(name_contains="agent")
         """  # noqa: E501
         all_projects: list[v1.Project] = []
         next_cursor: Optional[str] = None
         while True:
             url = "v1/projects"
-            params = {"cursor": next_cursor} if next_cursor else {}
+            params: dict[str, str] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            if name_contains:
+                params["name_contains"] = name_contains
             response = self._client.get(url, params=params)
             response.raise_for_status()
             data = cast(v1.GetProjectsResponseBody, response.json())
@@ -310,13 +333,19 @@ class AsyncProjects:
             await async_client.projects.delete(project_id=new_project["id"])
     """
 
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        *,
+        _guard: AsyncServerVersionGuard | None = None,
+    ) -> None:
         """Initialize the AsyncProjects client.
 
         Args:
             client (httpx.AsyncClient): The httpx async client to use for making requests.
         """
         self._client = client
+        self._guard = _guard or AsyncServerVersionGuard(client)
 
     async def get(
         self,
@@ -366,8 +395,14 @@ class AsyncProjects:
 
     async def list(
         self,
+        *,
+        name_contains: Optional[str] = None,
     ) -> list[v1.Project]:
         """List all projects.
+
+        Args:
+            name_contains (Optional[str]): If provided, only return projects whose
+                name contains this substring (case-insensitive).
 
         Returns:
             A list of all projects.
@@ -384,12 +419,19 @@ class AsyncProjects:
             projects = await async_client.projects.list()
             for project in projects:
                 print(f"Project name: {project['name']}")
+
+            # Filter by a substring of the project name
+            projects = await async_client.projects.list(name_contains="agent")
         """  # noqa: E501
         all_projects: list[v1.Project] = []
         next_cursor: Optional[str] = None
         while True:
             url = "v1/projects"
-            params = {"cursor": next_cursor} if next_cursor else {}
+            params: dict[str, str] = {}
+            if next_cursor:
+                params["cursor"] = next_cursor
+            if name_contains:
+                params["name_contains"] = name_contains
             response = await self._client.get(url, params=params)
             response.raise_for_status()
             data = cast(v1.GetProjectsResponseBody, response.json())

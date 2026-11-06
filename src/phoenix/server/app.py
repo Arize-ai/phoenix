@@ -3,11 +3,12 @@ import contextlib
 import importlib
 import json
 import logging
+import mimetypes
 import os
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from functools import cached_property
+from functools import cached_property, partial
 from pathlib import Path
 from types import MethodType
 from typing import (
@@ -31,143 +32,152 @@ import grpc
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
+from fastapi.telemetry import TelemetryConfig
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
+from pydantic import SecretStr
+from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.datastructures import URL, Secret
+from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from starlette.requests import Request
+from starlette.requests import ClientDisconnect, Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
-from strawberry.extensions import SchemaExtension
+from strawberry.extensions import MaxAliasesLimiter, QueryDepthLimiter, SchemaExtension
 from strawberry.fastapi import GraphQLRouter
-from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
+from strawberry.subscriptions import MULTIPART_SUBSCRIPTION_PROTOCOL
 from typing_extensions import TypeAlias, override
 
-import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_agents_mcp_code_mode,
     get_env_allow_external_resources,
+    get_env_allowed_providers,
+    get_env_allowed_sandbox_providers,
     get_env_csrf_trusted_origins,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
+    get_env_disable_agent_assistant,
+    get_env_enable_mcp_server,
+    get_env_enable_oauth2_authorization_server,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
+    get_env_grpc_port,
     get_env_host,
+    get_env_host_root_path,
     get_env_max_spans_queue_size,
+    get_env_mcp_code_mode,
+    get_env_model_cost_manifest_url,
+    get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
+    server_log_export_is_enabled,
     verify_server_environment_variables,
 )
-from phoenix.core.model_schema import Model
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
-from phoenix.db.engines import create_engine
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.exceptions import PhoenixMigrationError
-from phoenix.pointcloud.umap_parameters import UMAPParameters
+from phoenix.db.insertion.types import AnnotationPrecursor
+from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
-from phoenix.server.api.context import Context, DataLoaders
-from phoenix.server.api.dataloaders import (
-    AnnotationConfigsByProjectDataLoader,
-    AnnotationSummaryDataLoader,
-    AverageExperimentRepeatedRunGroupLatencyDataLoader,
-    AverageExperimentRunLatencyDataLoader,
-    CacheForDataLoaders,
-    DatasetDatasetSplitsDataLoader,
-    DatasetExampleRevisionsDataLoader,
-    DatasetExamplesAndVersionsByExperimentRunDataLoader,
-    DatasetExampleSpansDataLoader,
-    DatasetExampleSplitsDataLoader,
-    DocumentEvaluationsDataLoader,
-    DocumentEvaluationSummaryDataLoader,
-    DocumentRetrievalMetricsDataLoader,
-    ExperimentAnnotationSummaryDataLoader,
-    ExperimentErrorRatesDataLoader,
-    ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
-    ExperimentRepeatedRunGroupsDataLoader,
-    ExperimentRunAnnotations,
-    ExperimentRunCountsDataLoader,
-    ExperimentSequenceNumberDataLoader,
-    LastUsedTimesByGenerativeModelIdDataLoader,
-    LatencyMsQuantileDataLoader,
-    MinStartOrMaxEndTimeDataLoader,
-    NumChildSpansDataLoader,
-    NumSpansPerTraceDataLoader,
-    ProjectByNameDataLoader,
-    ProjectIdsByTraceRetentionPolicyIdDataLoader,
-    PromptVersionSequenceNumberDataLoader,
-    RecordCountDataLoader,
-    SessionAnnotationsBySessionDataLoader,
-    SessionIODataLoader,
-    SessionNumTracesDataLoader,
-    SessionNumTracesWithErrorDataLoader,
-    SessionTokenUsagesDataLoader,
-    SessionTraceLatencyMsQuantileDataLoader,
-    SpanAnnotationsDataLoader,
-    SpanByIdDataLoader,
-    SpanCostBySpanDataLoader,
-    SpanCostDetailsBySpanCostDataLoader,
-    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
-    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
-    SpanCostDetailSummaryEntriesBySpanDataLoader,
-    SpanCostDetailSummaryEntriesByTraceDataLoader,
-    SpanCostSummaryByExperimentDataLoader,
-    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
-    SpanCostSummaryByExperimentRunDataLoader,
-    SpanCostSummaryByGenerativeModelDataLoader,
-    SpanCostSummaryByProjectDataLoader,
-    SpanCostSummaryByProjectSessionDataLoader,
-    SpanCostSummaryByTraceDataLoader,
-    SpanDatasetExamplesDataLoader,
-    SpanDescendantsDataLoader,
-    SpanProjectsDataLoader,
-    TableFieldsDataLoader,
-    TokenCountDataLoader,
-    TraceAnnotationsByTraceDataLoader,
-    TraceByTraceIdsDataLoader,
-    TraceRetentionPolicyIdByProjectIdDataLoader,
-    TraceRootSpansDataLoader,
-    UserRolesDataLoader,
-    UsersDataLoader,
-)
-from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
+from phoenix.server.api.context import Context, build_context
+from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.api.redaction import RedactingOpenTelemetryExtension
 from phoenix.server.api.routers import (
-    auth_router,
-    create_embeddings_router,
+    AgentSessionConflict,
+    agent_session_conflict_handler,
+    create_agents_router,
+    create_auth_router,
+    create_client_errors_router,
+    create_legacy_agents_router,
     create_v1_router,
+    oauth2_as_router,
+    oauth2_as_well_known_router,
     oauth2_router,
+)
+from phoenix.server.api.routers.auth_md import (
+    mcp_protected_resource_metadata,
+    protected_resource_metadata,
+)
+from phoenix.server.api.routers.auth_md import router as auth_md_router
+from phoenix.server.api.routers.oauth2_authorization_server import (
+    authorization_server_enabled,
+    authorization_server_metadata,
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
-from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
+from phoenix.server.authorization import insufficient_storage_message
+from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
+from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
+from phoenix.server.daemons.experiment_runner import ExperimentRunner
+from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.daemons.model_cost_manifest_fetcher import ModelCostManifestFetcher
+from phoenix.server.daemons.system_settings import SystemSettings
+from phoenix.server.deployment_secret import (
+    OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
+    REDACTION_KEY_PURPOSE,
+    TOKEN_SIGNING_KEY_PURPOSE,
+    derive_deployment_key,
+    load_deployment_seed,
+)
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.mcp.skills import (
+    PXI_SKILLS_ROOTS,
+    load_external_skills,
+    load_skills,
+    merge_skills,
+)
+from phoenix.server.mcp_server import (
+    MCP_MOUNT_PATH,
+    BearerAuthGuard,
+    MountPathNormalizer,
+    build_phoenix_mcp_server,
+    create_phoenix_mcp_app,
+)
+from phoenix.server.middleware.anonymous_cors import (
+    AnonymousCorsMiddleware,
+    AnonymousPaths,
+    anonymous_paths,
+)
 from phoenix.server.middleware.gzip import GZipMiddleware
+from phoenix.server.middleware.js_sandbox_worker_csp import JSSandboxWorkerCSPMiddleware
+from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
-from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
+from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
+from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.sandbox.types import SandboxRuntimeContext
+from phoenix.server.settings.registry import SETTINGS_REGISTRY
+from phoenix.server.telemetry import (
+    initialize_opentelemetry_logger_provider,
+    initialize_opentelemetry_tracer_provider,
+)
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -180,26 +190,38 @@ from phoenix.server.utils import get_root_path, prepend_root_path
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
+    get_annotation_precursors_from_fixture,
     get_dataset_fixtures,
-    get_evals_from_fixture,
     get_trace_fixture_by_name,
     load_example_traces,
+    remap_precursor_ids,
     reset_fixture_span_ids_and_timestamps,
     send_dataset_fixtures,
 )
 from phoenix.trace.otel import decode_otlp_span, encode_span_to_otlp
 from phoenix.trace.schemas import Span
+from phoenix.tracers import Tracer
 from phoenix.utilities.client import PHOENIX_SERVER_VERSION_HEADER
 from phoenix.version import __version__ as phoenix_version
 
 if TYPE_CHECKING:
+    from opentelemetry._logs import LoggerProvider
     from opentelemetry.trace import TracerProvider
+
+    from phoenix.config import LDAPConfig
+
+# Fix incorrect MIME types on Windows where the registry may have wrong entries.
+# See: https://github.com/python/cpython/issues/88141
+# Using text/javascript per RFC 9239: https://www.rfc-editor.org/rfc/rfc9239
+mimetypes.add_type("text/javascript", ".js", strict=True)
+mimetypes.add_type("text/javascript", ".mjs", strict=True)
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(include_in_schema=False)
+router = APIRouter()
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+_RESERVED_OAUTH2_IDP_NAMES = frozenset({"authorize", "token", "revoke", "register", "consent"})
 
 """
 Threshold (in minutes) to determine if database is booted up for the first time.
@@ -211,6 +233,7 @@ NEW_DB_AGE_THRESHOLD_MINUTES = 2
 
 ProjectName: TypeAlias = str
 _Callback: TypeAlias = Callable[[], Union[None, Awaitable[None]]]
+_WelcomeMessage: TypeAlias = Callable[[SystemSettings], str]
 
 
 def import_object_from_file(file_path: str, object_name: str) -> Any:
@@ -241,12 +264,6 @@ class OAuth2Idp(TypedDict):
 
 
 class AppConfig(NamedTuple):
-    has_inferences: bool
-    """ Whether the model has inferences (e.g. a primary dataset) """
-    has_corpus: bool
-    min_dist: float
-    n_neighbors: int
-    n_samples: int
     is_development: bool
     web_manifest_path: Path
     authentication_enabled: bool
@@ -254,10 +271,18 @@ class AppConfig(NamedTuple):
     auth_error_messages: dict[AuthErrorCode, str]
     """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
+    password_reset_email_enabled: bool = False
+    """ Whether password reset emails can be sent """
     basic_auth_disabled: bool = False
+    ldap_enabled: bool = False
+    """ Whether LDAP authentication is configured """
+    ldap_manual_user_creation_enabled: bool = False
+    """ Whether manual LDAP user creation is allowed (False when LDAP disabled or no email attr) """
     auto_login_idp_name: Optional[str] = None
     fullstory_org: Optional[str] = None
     """ FullStory organization ID for web analytics tracking """
+    scarf_sh_pixel_id: Optional[str] = None
+    """ Scarf.sh pixel ID for open-source analytics and usage """
     management_url: Optional[str] = None
     """ URL for a phoenix management interface, only visible to management users """
     support_email: Optional[str] = None
@@ -266,6 +291,16 @@ class AppConfig(NamedTuple):
     """ Whether the database has a threshold for usage """
     allow_external_resources: bool = True
     """ Whether to allow external resources like Google Fonts in the web interface """
+    agent_assistant_disabled: bool = False
+    """ Whether the agent assistant feature is disabled at the deployment level"""
+    agent_bash_disabled: bool = False
+    """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
+    mcp_server_enabled: bool = False
+    """ Whether the in-process MCP server is mounted at /mcp """
+    mcp_code_mode_enabled: bool = False
+    """ Whether the MCP server presents the code-mode tool surface """
+    dev_vite_port: int = 5173
+    """ Port the Vite dev server runs on. Only used in development mode. """
 
 
 class Static(StaticFiles):
@@ -305,30 +340,40 @@ class Static(StaticFiles):
         except HTTPException as e:
             if e.status_code != 404:
                 raise e
+            # Never mask a missing well-known document with index.html: RFC 8615
+            # consumers (OAuth/OIDC discovery, MCP clients) probe several
+            # /.well-known/ URLs and rely on a 404 to move to the next candidate;
+            # a 200 with HTML reads as a malformed discovery document instead.
+            if path == ".well-known" or path.startswith(".well-known/"):
+                raise e
             # Fallback to the index.html
             request = Request(scope)
             response = templates.TemplateResponse(
-                "index.html",
+                request=request,
+                name="index.html",
                 context={
-                    "has_inferences": self._app_config.has_inferences,
-                    "has_corpus": self._app_config.has_corpus,
-                    "min_dist": self._app_config.min_dist,
-                    "n_neighbors": self._app_config.n_neighbors,
-                    "n_samples": self._app_config.n_samples,
                     "basename": get_root_path(scope),
                     "platform_version": phoenix_version,
-                    "request": request,
                     "is_development": self._app_config.is_development,
+                    "vite_port": self._app_config.dev_vite_port,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
+                    "password_reset_email_enabled": self._app_config.password_reset_email_enabled,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
+                    "ldap_enabled": self._app_config.ldap_enabled,
+                    "ldap_manual_user_creation_enabled": self._app_config.ldap_manual_user_creation_enabled,  # noqa: E501
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
+                    "scarf_sh_pixel_id": self._app_config.scarf_sh_pixel_id,
                     "management_url": self._app_config.management_url,
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
+                    "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
+                    "agent_bash_disabled": self._app_config.agent_bash_disabled,
+                    "mcp_server_enabled": self._app_config.mcp_server_enabled,
+                    "mcp_code_mode_enabled": self._app_config.mcp_code_mode_enabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -338,15 +383,29 @@ class Static(StaticFiles):
 
 
 class RequestOriginHostnameValidator(BaseHTTPMiddleware):
-    def __init__(self, *args: Any, trusted_hostnames: list[str], **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *args: Any,
+        trusted_hostnames: list[str],
+        anonymous_paths: AnonymousPaths,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._trusted_hostnames = trusted_hostnames
+        self._anonymous_paths = anonymous_paths
 
     async def dispatch(
         self,
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        # The anonymous OAuth/MCP surfaces are deliberately open to arbitrary
+        # browser origins (see AnonymousCorsMiddleware): they honor no cookies,
+        # so an origin check protects nothing there and would 401 exactly the
+        # requests whose preflights the CORS layer approved. Cookie-honoring
+        # endpoints (/oauth2/authorize, the consent decision) are not in the set.
+        if self._anonymous_paths.matches(request.scope):
+            return await call_next(request)
         headers = request.headers
         for key in "origin", "referer":
             if not (url := headers.get(key)):
@@ -370,6 +429,21 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RedactorMiddleware(BaseHTTPMiddleware):
+    """Binds the per-app Redactor to the `current_redactor` ContextVar."""
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        token = current_redactor.set(request.app.state.redactor)
+        try:
+            return await call_next(request)
+        finally:
+            current_redactor.reset(token)
+
+
 def user_fastapi_middlewares() -> list[Middleware]:
     paths = get_env_fastapi_middleware_paths()
     middlewares = []
@@ -381,7 +455,7 @@ def user_fastapi_middlewares() -> list[Middleware]:
     return middlewares
 
 
-def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]:
+def user_gql_extensions() -> list[type[SchemaExtension]]:
     paths = get_env_gql_extension_paths()
     extensions = []
     for file_path, object_name in paths:
@@ -394,7 +468,7 @@ def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]
 
 def user_grpc_interceptors() -> list[ServerInterceptor]:
     paths = get_env_grpc_interceptor_paths()
-    interceptors = []
+    interceptors: list[ServerInterceptor] = []
     for file_path, object_name in paths:
         interceptor_class = import_object_from_file(file_path, object_name)
         if not issubclass(interceptor_class, ServerInterceptor):
@@ -411,17 +485,13 @@ async def version() -> PlainTextResponse:
     return PlainTextResponse(f"{phoenix_version}")
 
 
-def _db(
-    engine: AsyncEngine,
-) -> Callable[[Optional[asyncio.Lock]], AbstractAsyncContextManager[AsyncSession]]:
+def _db(engine: AsyncEngine) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
     Session = async_sessionmaker(engine, expire_on_commit=False)
 
     @contextlib.asynccontextmanager
-    async def factory(lock: Optional[asyncio.Lock] = None) -> AsyncIterator[AsyncSession]:
-        async with contextlib.AsyncExitStack() as stack:
-            if lock:
-                await stack.enter_async_context(lock)
-            yield await stack.enter_async_context(Session.begin())
+    async def factory() -> AsyncIterator[AsyncSession]:
+        async with Session.begin() as session:
+            yield session
 
     return factory
 
@@ -440,12 +510,12 @@ class Scaffolder(DaemonTask):
         self,
         config: ScaffolderConfig,
         enqueue_span: Callable[[Span, ProjectName], Awaitable[None]],
-        enqueue_evaluation: Callable[[pb.Evaluation], Awaitable[None]],
+        enqueue_annotations: Callable[..., Awaitable[None]],
     ) -> None:
         super().__init__()
         self._db = config.db
         self._enqueue_span = enqueue_span
-        self._enqueue_evaluation = enqueue_evaluation
+        self._enqueue_annotations = enqueue_annotations
         self._tracing_fixtures = [
             get_trace_fixture_by_name(name) for name in set(config.tracing_fixture_names)
         ]
@@ -497,16 +567,15 @@ class Scaffolder(DaemonTask):
             try:
                 trace_ds = await loop.run_in_executor(None, load_example_traces, fixture.name)
 
-                fixture_spans, fixture_evals = await loop.run_in_executor(
+                fixture_spans, trace_id_mapping, span_id_mapping = await loop.run_in_executor(
                     None,
                     reset_fixture_span_ids_and_timestamps,
-                    (
+                    [
                         # Apply `encode` here because legacy jsonl files contains UUIDs as strings.
                         # `encode` removes the hyphens in the UUIDs.
                         decode_otlp_span(encode_span_to_otlp(span))
                         for span in trace_ds.to_spans()
-                    ),
-                    get_evals_from_fixture(fixture.name),
+                    ],
                 )
 
                 # Ingest dataset fixtures
@@ -517,8 +586,25 @@ class Scaffolder(DaemonTask):
                 logger.info(f"Loading '{project_name}' fixtures...")
                 for span in fixture_spans:
                     await self._enqueue_span(span, project_name)
-                for evaluation in fixture_evals:
-                    await self._enqueue_evaluation(evaluation)
+
+                for eval_name, precursors_batch in get_annotation_precursors_from_fixture(
+                    fixture.name
+                ):
+                    remapped = [
+                        remap_precursor_ids(
+                            p,
+                            trace_id_mapping=trace_id_mapping,
+                            span_id_mapping=span_id_mapping,
+                        )
+                        for p in precursors_batch
+                    ]
+                    for precursor in remapped:
+                        await self._enqueue_annotations(precursor)
+                    logger.info(
+                        "Enqueued %s eval annotations for '%s'",
+                        len(remapped),
+                        eval_name,
+                    )
 
             except FileNotFoundError:
                 logger.warning(f"Fixture file not found for '{fixture.name}'")
@@ -547,7 +633,7 @@ class _CapacityIndicator(Protocol):
 
 
 class CapacityInterceptor(AsyncServerInterceptor):
-    def __init__(self, indicator: _CapacityIndicator):
+    def __init__(self, indicator: _CapacityIndicator) -> None:
         self._indicator = indicator
 
     @override
@@ -560,7 +646,9 @@ class CapacityInterceptor(AsyncServerInterceptor):
     ) -> Any:
         if self._indicator.is_full:
             SPAN_QUEUE_REJECTIONS.inc()
-            context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+            # OTLP clients treat RESOURCE_EXHAUSTED without RetryInfo as non-retryable,
+            # and the spec names UNAVAILABLE as the backpressure signal.
+            context.set_code(grpc.StatusCode.UNAVAILABLE)
             context.set_details("Server is at capacity and cannot process more requests")
             return
 
@@ -573,29 +661,65 @@ def _lifespan(
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
     trace_data_sweeper: Optional[TraceDataSweeper],
-    span_cost_calculator: SpanCostCalculator,
+    agent_session_sweeper: AgentSessionSweeper,
+    experiment_sweeper: ExperimentSweeper,
     generative_model_store: GenerativeModelStore,
+    model_cost_manifest_fetcher: Optional[ModelCostManifestFetcher],
+    system_settings: SystemSettings,
     db_disk_usage_monitor: DbDiskUsageMonitor,
+    experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
     read_only: bool = False,
+    grpc_port: Optional[int] = None,
+    grpc_host: str,
+    initial_annotation_precursors: Iterable[AnnotationPrecursor] = (),
     scaffolder_config: Optional[ScaffolderConfig] = None,
-    grpc_interceptors: Iterable[AsyncServerInterceptor] = (),
+    grpc_interceptors: Iterable[ServerInterceptor] = (),
+    welcome_message: Optional[_WelcomeMessage] = None,
+    docs_mcp_server: Optional[MCPToolset[Any]] = None,
+    secret: Optional[SecretStr] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
-    async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
+    async def lifespan(app: FastAPI) -> AsyncIterator[dict[str, Any]]:
+        seed = await load_deployment_seed(db)
+        effective_secret = secret or SecretStr("")
+        app.state.redactor = Redactor(
+            derive_deployment_key(
+                seed=seed,
+                secret=effective_secret,
+                purpose=REDACTION_KEY_PURPOSE,
+            )
+        )
+        app.state.oauth2_login_context_key = derive_deployment_key(
+            seed=seed,
+            secret=effective_secret,
+            purpose=OAUTH2_LOGIN_CONTEXT_KEY_PURPOSE,
+        )
+        if isinstance(token_store, JwtStore):
+            if secret:
+                token_store.set_signing_key(secret.get_secret_value(), require_stored_hash=False)
+            else:
+                token_store.set_signing_key(
+                    derive_deployment_key(
+                        seed=seed, secret=SecretStr(""), purpose=TOKEN_SIGNING_KEY_PURPOSE
+                    ),
+                    require_stored_hash=True,
+                )
+        resolved_grpc_port = get_env_grpc_port() if grpc_port is None else grpc_port
         for callback in startup_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
-        db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
+        await system_settings.bootstrap()
         async with AsyncExitStack() as stack:
             (
                 enqueue_annotations,
                 enqueue_span,
-                enqueue_evaluation,
                 enqueue_operation,
             ) = await stack.enter_async_context(bulk_inserter)
             interceptors = [
@@ -605,6 +729,8 @@ def _lifespan(
             ]
             grpc_server = GrpcServer(
                 enqueue_span,
+                port=resolved_grpc_port,
+                host=grpc_host,
                 disabled=read_only,
                 tracer_provider=tracer_provider,
                 enable_prometheus=enable_prometheus,
@@ -613,27 +739,81 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
+            for precursor in initial_annotation_precursors:
+                await enqueue_annotations(precursor)
             if trace_data_sweeper:
                 await stack.enter_async_context(trace_data_sweeper)
-            await stack.enter_async_context(span_cost_calculator)
+            await stack.enter_async_context(agent_session_sweeper)
+            await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(generative_model_store)
+            if model_cost_manifest_fetcher:
+                await stack.enter_async_context(model_cost_manifest_fetcher)
+            await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
+            await stack.enter_async_context(sandbox_runtime.monty)
+            # ``sandbox_session_manager`` must enter before ``experiment_runner``
+            # so ``AsyncExitStack`` tears them down in reverse and the runner
+            # (which consumes the manager) stops first. If the runner outlived
+            # its manager, any ``acquire`` it issued after the manager's
+            # shutdown snapshot would leak a provider session past the daemon.
+            await stack.enter_async_context(sandbox_session_manager)
+            await stack.enter_async_context(experiment_runner)
+            if docs_mcp_server is not None:
+                # The docs MCP server connects to an external host during
+                # startup. Never let its initialization (which can hang until a
+                # deadline when egress is blocked) abort server startup; degrade
+                # to the assistant running without docs tools instead.
+                try:
+                    await stack.enter_async_context(docs_mcp_server)
+                except Exception:
+                    logger.warning(
+                        "Failed to initialize docs MCP server; continuing without docs capability.",
+                        exc_info=True,
+                    )
+            # Probe the shared runtime once when any consumer can use it.
+            # Failure is non-fatal because Monty is an optional server feature.
+            mounted_mcp_code_mode = getattr(app.state, "mcp_code_mode_sandbox", None) is not None
+            agent_mcp_code_mode = getattr(app.state, "pxi_mcp_sandbox", None) is not None
+            monty_allowed_by_config = "MONTY" in get_env_allowed_sandbox_providers()
+            if mounted_mcp_code_mode or agent_mcp_code_mode or monty_allowed_by_config:
+                try:
+                    await sandbox_runtime.monty.probe_runtime()
+                except Exception:
+                    logger.warning(
+                        "Monty runtime startup probe failed; continuing startup.",
+                        exc_info=True,
+                    )
+            # Start the mounted MCP server's session manager (set in create_app).
+            if (mcp_http_app := getattr(app.state, "mcp_http_app", None)) is not None:
+                await stack.enter_async_context(mcp_http_app.lifespan(app))
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
                     enqueue_span=enqueue_span,
-                    enqueue_evaluation=enqueue_evaluation,
+                    enqueue_annotations=enqueue_annotations,
                 )
                 await stack.enter_async_context(scaffolder)
             if isinstance(token_store, AbstractAsyncContextManager):
                 await stack.enter_async_context(token_store)
-            yield {
+            _warn_if_missing_aioboto3()
+            if welcome_message:
+                # The banner is cosmetic and renders after migrations have run and
+                # ports are bound, so a defect in it must not abort a started server.
+                try:
+                    print(welcome_message(system_settings), flush=True)
+                except Exception:
+                    logger.exception("Failed to render the startup banner")
+            lifespan_state: dict[str, Any] = {
                 "event_queue": dml_event_handler,
                 "enqueue_annotations": enqueue_annotations,
                 "enqueue_span": enqueue_span,
-                "enqueue_evaluation": enqueue_evaluation,
                 "enqueue_operation": enqueue_operation,
+                "experiment_runner": experiment_runner,
             }
+            # Read by the in-process MCP dispatch, which has no server to copy
+            # the yielded state into its request scopes.
+            app.state.lifespan_state = lifespan_state
+            yield lifespan_state
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):
                 await res
@@ -661,31 +841,31 @@ def create_graphql_router(
     *,
     graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
-    model: Model,
-    export_path: Path,
+    system_settings: SystemSettings,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
-    corpus: Optional[Model] = None,
+    experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
-    secret: Optional[Secret] = None,
+    secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
     Args:
-        schema (BaseSchema): The GraphQL schema.
+        graphql_schema (strawberry.Schema): The GraphQL schema.
         db (DbSessionFactory): The database session factory pointing to a SQL database.
-        model (Model): The Model representing inferences (legacy)
-        export_path (Path): the file path to export data to for download (legacy)
         last_updated_at (CanGetLastUpdatedAt): How to get the last updated timestamp for updates.
         authentication_enabled (bool): Whether authentication is enabled.
         span_cost_calculator (SpanCostCalculator): The span cost calculator for calculating costs.
         event_queue (CanPutItem[DmlEvent]): The event queue for DML events.
-        corpus (Optional[Model], optional): the corpus for UMAP projection. Defaults to None.
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
         read_only (bool, optional): Marks the app as read-only. Defaults to False.
         secret (Optional[Secret], optional): The application secret for auth. Defaults to None.
@@ -696,185 +876,39 @@ def create_graphql_router(
         GraphQLRouter: The router mounted at /graphql
     """
 
+    allowed_provider_names = get_env_allowed_providers()
+
     def get_context() -> Context:
-        return Context(
+        return build_context(
             db=db,
-            model=model,
-            corpus=corpus,
-            export_path=export_path,
+            settings=system_settings,
+            span_cost_calculator=span_cost_calculator,
+            experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
+            encrypt=encrypt,
+            decrypt=decrypt,
+            cache_for_dataloaders=cache_for_dataloaders,
             last_updated_at=last_updated_at,
             event_queue=event_queue,
-            data_loaders=DataLoaders(
-                annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
-                average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
-                    db
-                ),
-                average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
-                dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
-                dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
-                dataset_example_spans=DatasetExampleSpansDataLoader(db),
-                dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
-                    db
-                ),
-                dataset_example_splits=DatasetExampleSplitsDataLoader(db),
-                dataset_labels=DatasetLabelsDataLoader(db),
-                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.document_evaluation_summary
-                        if cache_for_dataloaders
-                        else None
-                    ),
-                ),
-                document_evaluations=DocumentEvaluationsDataLoader(db),
-                document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
-                annotation_summaries=AnnotationSummaryDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None
-                    ),
-                ),
-                experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
-                experiment_error_rates=ExperimentErrorRatesDataLoader(db),
-                experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
-                    db
-                ),
-                experiment_repeated_run_groups=ExperimentRepeatedRunGroupsDataLoader(db),
-                experiment_run_annotations=ExperimentRunAnnotations(db),
-                experiment_run_counts=ExperimentRunCountsDataLoader(db),
-                experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
-                last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
-                    db
-                ),
-                latency_ms_quantile=LatencyMsQuantileDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
-                    ),
-                ),
-                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.min_start_or_max_end_time
-                        if cache_for_dataloaders
-                        else None
-                    ),
-                ),
-                num_child_spans=NumChildSpansDataLoader(db),
-                num_spans_per_trace=NumSpansPerTraceDataLoader(db),
-                project_fields=TableFieldsDataLoader(db, models.Project),
-                projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
-                    db
-                ),
-                prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
-                record_counts=RecordCountDataLoader(
-                    db,
-                    cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
-                ),
-                session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
-                session_first_inputs=SessionIODataLoader(db, "first_input"),
-                session_last_outputs=SessionIODataLoader(db, "last_output"),
-                session_num_traces=SessionNumTracesDataLoader(db),
-                session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
-                session_token_usages=SessionTokenUsagesDataLoader(db),
-                session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
-                span_annotations=SpanAnnotationsDataLoader(db),
-                span_fields=TableFieldsDataLoader(db, models.Span),
-                span_by_id=SpanByIdDataLoader(db),
-                span_cost_by_span=SpanCostBySpanDataLoader(db),
-                span_cost_detail_summary_entries_by_generative_model=SpanCostDetailSummaryEntriesByGenerativeModelDataLoader(
-                    db
-                ),
-                span_cost_detail_summary_entries_by_project_session=SpanCostDetailSummaryEntriesByProjectSessionDataLoader(
-                    db
-                ),
-                span_cost_detail_summary_entries_by_span=SpanCostDetailSummaryEntriesBySpanDataLoader(
-                    db
-                ),
-                span_cost_detail_summary_entries_by_trace=SpanCostDetailSummaryEntriesByTraceDataLoader(
-                    db
-                ),
-                span_cost_details_by_span_cost=SpanCostDetailsBySpanCostDataLoader(db),
-                span_cost_detail_fields=TableFieldsDataLoader(db, models.SpanCostDetail),
-                span_cost_fields=TableFieldsDataLoader(db, models.SpanCost),
-                span_cost_summary_by_experiment=SpanCostSummaryByExperimentDataLoader(db),
-                span_cost_summary_by_experiment_repeated_run_group=SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(
-                    db
-                ),
-                span_cost_summary_by_experiment_run=SpanCostSummaryByExperimentRunDataLoader(db),
-                span_cost_summary_by_generative_model=SpanCostSummaryByGenerativeModelDataLoader(
-                    db
-                ),
-                span_cost_summary_by_project=SpanCostSummaryByProjectDataLoader(
-                    db,
-                    cache_map=cache_for_dataloaders.token_cost if cache_for_dataloaders else None,
-                ),
-                span_cost_summary_by_project_session=SpanCostSummaryByProjectSessionDataLoader(db),
-                span_cost_summary_by_trace=SpanCostSummaryByTraceDataLoader(db),
-                span_dataset_examples=SpanDatasetExamplesDataLoader(db),
-                span_descendants=SpanDescendantsDataLoader(db),
-                span_projects=SpanProjectsDataLoader(db),
-                token_counts=TokenCountDataLoader(
-                    db,
-                    cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
-                ),
-                trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
-                trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
-                trace_fields=TableFieldsDataLoader(db, models.Trace),
-                trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
-                    db
-                ),
-                project_trace_retention_policy_fields=TableFieldsDataLoader(
-                    db, models.ProjectTraceRetentionPolicy
-                ),
-                trace_root_spans=TraceRootSpansDataLoader(db),
-                project_by_name=ProjectByNameDataLoader(db),
-                users=UsersDataLoader(db),
-                user_roles=UserRolesDataLoader(db),
-            ),
-            cache_for_dataloaders=cache_for_dataloaders,
+            allowed_provider_names=allowed_provider_names,
             read_only=read_only,
             auth_enabled=authentication_enabled,
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,
-            span_cost_calculator=span_cost_calculator,
         )
 
-    return GraphQLRouter(
+    router = GraphQLRouter(
         graphql_schema,
         graphql_ide="graphiql",
         context_getter=get_context,
         include_in_schema=False,
         prefix="/graphql",
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
-        subscription_protocols=[GRAPHQL_TRANSPORT_WS_PROTOCOL],
+        subscription_protocols=[MULTIPART_SUBSCRIPTION_PROTOCOL],
     )
-
-
-def create_engine_and_run_migrations(
-    database_url: str,
-) -> AsyncEngine:
-    try:
-        return create_engine(
-            connection_str=database_url,
-            migrate=not Settings.disable_migrations,
-            log_to_stdout=False,
-        )
-    except PhoenixMigrationError as e:
-        msg = (
-            "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
-            "The database may be in a dirty state. To resolve this, the Alembic CLI can be used\n"
-            "from the `src/phoenix/db` directory inside the Phoenix project root. From here,\n"
-            "revert any partial migrations and run `alembic stamp` to reset the migration state,\n"
-            "then try starting Phoenix again.\n\n"
-            "If issues persist, please reach out for support in the Arize community Slack:\n"
-            "https://arize-ai.slack.com\n\n"
-            "You can also refer to the Alembic documentation for more information:\n"
-            "https://alembic.sqlalchemy.org/en/latest/tutorial.html\n\n"
-            ""
-        )
-        raise PhoenixMigrationError(msg) from e
+    return router
 
 
 def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
@@ -897,10 +931,32 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     response instead of a JSON response. For the original source code, see
     https://github.com/tiangolo/fastapi/blob/d3cdd3bbd14109f3b268df7ca496e24bb64593aa/fastapi/exception_handlers.py#L11
     """
-    headers = getattr(exc, "headers", None)
+    headers = dict(getattr(exc, "headers", None) or {})
+    if exc.status_code == 401 and getattr(request.app.state, "authentication_enabled", False):
+        # public_origin, not request.base_url: behind a proxy that does not
+        # rewrite forwarded headers the latter names the internal host. The
+        # challenge must name the same document the discovery routes serve,
+        # honoring PHOENIX_ROOT_URL and the configured root path.
+        prm_url = f"{public_origin(request)}/.well-known/oauth-protected-resource"
+        headers.setdefault(
+            "WWW-Authenticate",
+            f'Bearer realm="Arize Phoenix", resource_metadata="{prm_url}"',
+        )
     if not is_body_allowed_for_status_code(exc.status_code):
         return Response(status_code=exc.status_code, headers=headers)
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
+
+
+async def client_disconnect_handler(request: Request, exc: ClientDisconnect) -> Response:
+    """
+    Ends a request quietly when the client hangs up before its body is read,
+    e.g. an OTLP exporter timing out mid-upload or a browser cancelling a
+    GraphQL request. Nobody is left to receive the response, so this only keeps
+    the disconnect from surfacing as an unhandled exception and a 500.
+    """
+    logger.debug("Client disconnected before the request body was read: %s", request.url.path)
+    # 499 (Client Closed Request) is the nginx convention for this case.
+    return Response(status_code=499)
 
 
 class _HasDbStatus(Protocol):
@@ -924,59 +980,51 @@ class DbDiskUsageInterceptor(AsyncServerInterceptor):
             method_name.endswith("trace.v1.TraceService/Export")
             and self._db.should_not_insert_or_update
         ):
-            details = (
-                "Database operations are disabled due to insufficient storage. "
-                "Please delete old data or increase storage."
+            await context.abort(
+                grpc.StatusCode.RESOURCE_EXHAUSTED,
+                insufficient_storage_message(),
             )
-            if support_email := get_env_support_email():
-                details += f" Need help? Contact us at {support_email}"
-            await context.abort(grpc.StatusCode.RESOURCE_EXHAUSTED, details)
         return await method(request_or_iterator, context)
 
 
 def create_app(
     db: DbSessionFactory,
-    export_path: Path,
-    model: Model,
     authentication_enabled: bool,
-    umap_params: UMAPParameters,
-    corpus: Optional[Model] = None,
     debug: bool = False,
     dev: bool = False,
+    dev_vite_port: int = 5173,
     read_only: bool = False,
+    grpc_port: Optional[int] = None,
+    grpc_host: Optional[str] = None,
     enable_prometheus: bool = False,
     initial_spans: Optional[Iterable[Union[Span, tuple[Span, str]]]] = None,
-    initial_evaluations: Optional[Iterable[pb.Evaluation]] = None,
+    initial_annotation_precursors: Optional[Iterable[AnnotationPrecursor]] = None,
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
-    secret: Optional[Secret] = None,
+    secret: Optional[SecretStr] = None,
     password_reset_token_expiry: Optional[timedelta] = None,
     access_token_expiry: Optional[timedelta] = None,
     refresh_token_expiry: Optional[timedelta] = None,
     scaffolder_config: Optional[ScaffolderConfig] = None,
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
+    ldap_config: Optional["LDAPConfig"] = None,
     basic_auth_disabled: bool = False,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
     allowed_origins: Optional[list[str]] = None,
     management_url: Optional[str] = None,
+    welcome_message: Optional[_WelcomeMessage] = None,
 ) -> FastAPI:
+    if grpc_host is None:
+        grpc_host = get_env_host()
     verify_server_environment_variables()
-    if model.embedding_dimensions:
-        try:
-            import fast_hdbscan  # noqa: F401
-            import umap  # noqa: F401
-        except ImportError as exc:
-            raise ImportError(
-                "To visualize embeddings, please install `umap-learn` and `fast-hdbscan` "
-                "via `pip install arize-phoenix[embeddings]`"
-            ) from exc
-    logger.info(f"Server umap params: {umap_params}")
+    _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
+    startup_callbacks_list.append(prefetch_wasm_binary_if_needed)
     initial_batch_of_spans: Iterable[tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -985,12 +1033,25 @@ def create_app(
             for item in initial_spans
         )
     )
-    initial_batch_of_evaluations = () if initial_evaluations is None else initial_evaluations
+    startup_annotation_precursors = (
+        () if initial_annotation_precursors is None else initial_annotation_precursors
+    )
     cache_for_dataloaders = (
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
+    # Resolved before the middleware stack: the anonymous-surface path set feeds
+    # both the CSRF origin validator below and AnonymousCorsMiddleware at the end
+    # of this function, and it depends on whether the MCP endpoint is mounted
+    # (the mount itself happens after the routers).
+    mcp_mount_path: Optional[str] = None
+    if get_env_enable_mcp_server():
+        mcp_mount_path = MCP_MOUNT_PATH
+    anonymous_surfaces = anonymous_paths(mcp_mount_path)
+    middlewares: list[Middleware] = [
+        Middleware(HeadersMiddleware),
+        Middleware(RedactorMiddleware),
+    ]
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
@@ -998,6 +1059,7 @@ def create_app(
             Middleware(
                 RequestOriginHostnameValidator,
                 trusted_hostnames=trusted_hostnames,
+                anonymous_paths=anonymous_surfaces,
             )
         )
     elif email_sender or oauth2_client_configs:
@@ -1007,8 +1069,8 @@ def create_app(
             "This is recommended when setting up OAuth2 clients or sending "
             "password reset emails."
         )
-    if authentication_enabled and secret:
-        token_store = JwtStore(db, secret)
+    if authentication_enabled:
+        token_store = JwtStore(db)
         middlewares.append(
             Middleware(
                 AuthenticationMiddleware,
@@ -1026,46 +1088,57 @@ def create_app(
         db=db,
         dml_event_handler=dml_event_handler,
     )
+    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
+    agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
+    experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
-    span_cost_calculator = SpanCostCalculator(db, generative_model_store)
+    # A read-only server leaves the built-in prices to the server that writes.
+    model_cost_manifest_url = None if read_only else get_env_model_cost_manifest_url()
+    model_cost_manifest_fetcher = (
+        ModelCostManifestFetcher(db, model_cost_manifest_url) if model_cost_manifest_url else None
+    )
+    span_cost_calculator = SpanCostCalculator(generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
         span_cost_calculator=span_cost_calculator,
         event_queue=dml_event_handler,
         initial_batch_of_spans=initial_batch_of_spans,
-        initial_batch_of_evaluations=initial_batch_of_evaluations,
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
     tracer_provider = None
-    graphql_schema_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
+    graphql_schema_extensions: list[Union[type[SchemaExtension], Callable[[], SchemaExtension]]] = [
+        lambda: QueryDepthLimiter(max_depth=20),
+        lambda: MaxAliasesLimiter(max_alias_count=50),
+    ]
     graphql_schema_extensions.extend(user_gql_extensions())
 
     if server_instrumentation_is_enabled():
         tracer_provider = initialize_opentelemetry_tracer_provider()
-        from opentelemetry.trace import TracerProvider
-        from strawberry.extensions.tracing import OpenTelemetryExtension
-
-        if TYPE_CHECKING:
-            # Type-check the class before monkey-patching its private attribute.
-            assert OpenTelemetryExtension._tracer
-
-        class _OpenTelemetryExtension(OpenTelemetryExtension):
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                super().__init__(*args, **kwargs)
-                # Monkey-patch its private tracer to eliminate usage of the global
-                # TracerProvider, which in a notebook setting could be the one
-                # used by OpenInference.
-                self._tracer = cast(TracerProvider, tracer_provider).get_tracer("strawberry")
-
-        graphql_schema_extensions.append(_OpenTelemetryExtension)
-
+        # Bound to this provider rather than the global one, which in a notebook
+        # could be the provider OpenInference is using.
+        graphql_schema_extensions.append(
+            partial(RedactingOpenTelemetryExtension, tracer_provider=tracer_provider)
+        )
+    logger_provider = None
+    if server_log_export_is_enabled():
+        logger_provider = initialize_opentelemetry_logger_provider()
+        shutdown_callbacks_list.append(logger_provider.shutdown)
+    encryption_service = EncryptionService(secret=secret)
+    sandbox_runtime = SandboxRuntimeContext(monty=MontyRuntime())
+    sandbox_session_manager = SandboxSessionManager()
+    experiment_runner = ExperimentRunner(
+        db,
+        decrypt=encryption_service.decrypt,
+        tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
+    )
+    graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
-        graphql_schema=build_graphql_schema(graphql_schema_extensions),
-        model=model,
-        corpus=corpus,
+        system_settings=system_settings,
+        graphql_schema=graphql_schema,
         authentication_enabled=authentication_enabled,
-        export_path=export_path,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,
         cache_for_dataloaders=cache_for_dataloaders,
@@ -1074,25 +1147,44 @@ def create_app(
         token_store=token_store,
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
+        encrypt=encryption_service.encrypt,
+        decrypt=encryption_service.decrypt,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
 
         middlewares.append(Middleware(PrometheusMiddleware))
-    grpc_interceptors: list[AsyncServerInterceptor] = []
+    grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
+    docs_mcp_server = (
+        MintlifyDocsMCPServer()
+        if not get_env_disable_agent_assistant() and get_env_allow_external_resources()
+        else None
+    )
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         lifespan=_lifespan(
             db=db,
             read_only=read_only,
+            grpc_port=grpc_port,
+            grpc_host=grpc_host,
+            initial_annotation_precursors=startup_annotation_precursors,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
             trace_data_sweeper=trace_data_sweeper,
-            span_cost_calculator=span_cost_calculator,
+            agent_session_sweeper=agent_session_sweeper,
+            experiment_sweeper=experiment_sweeper,
             generative_model_store=generative_model_store,
+            model_cost_manifest_fetcher=model_cost_manifest_fetcher,
+            system_settings=system_settings,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
+            experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1100,26 +1192,166 @@ def create_app(
             shutdown_callbacks=shutdown_callbacks_list,
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
+            welcome_message=welcome_message,
+            docs_mcp_server=docs_mcp_server,
+            secret=secret,
         ),
         middleware=middlewares,
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
+            AgentSessionConflict: agent_session_conflict_handler,
+            ClientDisconnect: client_disconnect_handler,
         },
         debug=debug,
+        telemetry=_native_telemetry_config(
+            tracer_provider=tracer_provider, logger_provider=logger_provider
+        ),
         swagger_ui_parameters={
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
-    app.include_router(create_embeddings_router(authentication_enabled))
+    app.include_router(create_client_errors_router(authentication_enabled))
+    if not get_env_disable_agent_assistant():
+        app.include_router(create_legacy_agents_router(authentication_enabled))
+        app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
+    app.include_router(auth_md_router)
     if authentication_enabled:
-        app.include_router(auth_router)
+        app.include_router(oauth2_as_well_known_router)
+        # Only register LDAP endpoint if LDAP is configured
+        app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
+        app.include_router(oauth2_as_router)
         app.include_router(oauth2_router)
+    # RFC 8414 §3 / RFC 9728 §3.1 path-inserted well-known aliases. Under a root
+    # path the issuer carries a path component, and spec-following discovery puts
+    # the well-known segment between host and path — a URL at the *host root*,
+    # outside the root path. Starlette matches such routes as-is (root_path is
+    # only stripped when present), so registering them here makes discovery work
+    # for any reverse proxy that forwards /.well-known/* to Phoenix unmodified.
+    if host_root_path := get_env_host_root_path():
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}",
+            protected_resource_metadata,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
+        # The MCP PRM handler 404s by itself when the mount is disabled. The /mcp
+        # literal mirrors the path-appended route in auth_md.py, whose handler
+        # verifies it against the mcp_mount_path state so drift cannot be silent.
+        app.add_api_route(
+            f"/.well-known/oauth-protected-resource{host_root_path}/mcp",
+            mcp_protected_resource_metadata,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
+        if authentication_enabled:
+            for well_known in ("oauth-authorization-server", "openid-configuration"):
+                app.add_api_route(
+                    f"/.well-known/{well_known}{host_root_path}",
+                    authorization_server_metadata,
+                    methods=["GET", "HEAD"],
+                    include_in_schema=False,
+                    dependencies=[Depends(authorization_server_enabled)],
+                )
+
+    def _openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI.
+
+        In production, only routes under ``/v1`` are included. In dev mode,
+        agent routes (``/agents``) are also exposed so they appear in Swagger UI.
+        """
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+            separate_input_output_schemas=False,
+        )
+        prefixes = ("/v1", "/agents") if dev else ("/v1",)
+        schema["paths"] = {
+            path: ops for path, ops in schema["paths"].items() if path.startswith(prefixes)
+        }
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = _openapi  # type: ignore[method-assign]
+    external_skills = load_external_skills()
+    app.state.agent_skills = merge_skills(load_skills(PXI_SKILLS_ROOTS), external_skills)
+    mcp_http_app = None
+    mcp_code_mode_sandbox = None
+    if mcp_mount_path is not None:
+        # Build after ``app.openapi`` is customized so the generated tools mirror
+        # the same /v1 schema, and mount before the static UI ("/") catch-all so
+        # requests to the MCP endpoint are not swallowed by it. The app's
+        # lifespan (its session manager) is entered in ``_lifespan`` above.
+        mcp_http_app, mcp_code_mode_sandbox = create_phoenix_mcp_app(
+            app,
+            monty_runtime=sandbox_runtime.monty,
+            db=db,
+            read_only=read_only,
+            external_skills=external_skills,
+        )
+        # The guard reads scope["user"], so it is installed exactly when the
+        # AuthenticationMiddleware that populates it is (token_store above).
+        app.mount(
+            mcp_mount_path,
+            BearerAuthGuard(mcp_http_app) if token_store is not None else mcp_http_app,
+        )
+        # Starlette mounts do not match the bare mount path, which is the URL MCP
+        # clients are configured with; rewrite it to the mount root before routing.
+        app.add_middleware(MountPathNormalizer)
+    app.state.mcp_http_app = mcp_http_app
+    # FastMCP adapter backed by ``sandbox_runtime.monty``. None unless code mode
+    # is enabled for the mount.
+    app.state.mcp_code_mode_sandbox = mcp_code_mode_sandbox
+    # Consumed by the OAuth2 authorization server (resource-indicator validation)
+    # and the protected-resource metadata routes; None when the mount is disabled.
+    app.state.mcp_mount_path = mcp_mount_path
+    # The agent's own instance, independent of the mount and its configuration:
+    # PHOENIX_AGENTS_ENABLE_MCP_CODE_MODE, not PHOENIX_ENABLE_MCP_CODE_MODE,
+    # selects its code-mode surface. Read-only: mutations belong to the agent's
+    # editing tools, which route approval through the user. Its sandbox takes
+    # the ``agent`` admission class, capped one below the worker pool size:
+    # consumers compete for workers and a loser waits at checkout, but no
+    # consumer can hold them all.
+    pxi_mcp_server = None
+    pxi_mcp_sandbox = None
+    if not get_env_disable_agent_assistant():
+        pxi_mcp_server, pxi_mcp_sandbox = build_phoenix_mcp_server(
+            app,
+            monty_runtime=sandbox_runtime.monty,
+            code_mode=get_env_agents_mcp_code_mode(),
+            monty_consumer="agent",
+            read_only=True,
+            db=db,
+            # PXI reaches GraphQL through the `phoenix-gql` shell builtin, which
+            # carries the mutation policy and the approval gate. These tools
+            # stand in only where the bash capability, and the builtin with it,
+            # is off.
+            graphql_tools=get_env_phoenix_agents_disable_bash(),
+            skills_roots=PXI_SKILLS_ROOTS,
+            external_skills=external_skills,
+        )
+    app.state.pxi_mcp_server = pxi_mcp_server
+    app.state.pxi_mcp_sandbox = pxi_mcp_sandbox
     app.add_middleware(GZipMiddleware)
-    web_manifest_path = SERVER_DIR / "static" / ".vite" / "manifest.json"
-    if serve_ui and web_manifest_path.is_file():
+    static_dir = SERVER_DIR / "static"
+    web_manifest_path = static_dir / ".vite" / "manifest.json"
+    has_built_ui = web_manifest_path.is_file()
+    if dev:
+        static_dir.mkdir(parents=True, exist_ok=True)
+    if serve_ui and not dev and not has_built_ui:
+        logger.warning(
+            "Phoenix UI is not mounted because built frontend assets are missing at %s. "
+            "The package may be missing bundled UI files.",
+            web_manifest_path,
+        )
+    if serve_ui and (dev or has_built_ui):
         oauth2_idps = [
             OAuth2Idp(name=config.idp_name, displayName=config.idp_display_name)
             for config in oauth2_client_configs or []
@@ -1130,20 +1362,22 @@ def create_app(
         app.mount(
             "/",
             app=Static(
-                directory=SERVER_DIR / "static",
+                directory=static_dir,
                 app_config=AppConfig(
-                    has_inferences=model.is_empty is not True,
-                    has_corpus=corpus is not None,
-                    min_dist=umap_params.min_dist,
-                    n_neighbors=umap_params.n_neighbors,
-                    n_samples=umap_params.n_samples,
                     is_development=dev,
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    password_reset_email_enabled=email_sender is not None,
                     basic_auth_disabled=basic_auth_disabled,
+                    ldap_enabled=ldap_config is not None,
+                    # Disable manual user creation when LDAP disabled or no email attr
+                    ldap_manual_user_creation_enabled=(
+                        ldap_config.attr_email is not None if ldap_config else False
+                    ),
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
+                    scarf_sh_pixel_id=Settings.scarf_sh_pixel_id,
                     management_url=management_url,
                     support_email=get_env_support_email(),
                     has_db_threshold=bool(
@@ -1151,30 +1385,67 @@ def create_app(
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
+                    agent_assistant_disabled=get_env_disable_agent_assistant(),
+                    agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
+                    # The mount decision above is the source of truth for whether
+                    # /mcp exists; code mode only matters when the mount is live.
+                    mcp_server_enabled=mcp_mount_path is not None,
+                    mcp_code_mode_enabled=mcp_mount_path is not None and get_env_mcp_code_mode(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
+                    dev_vite_port=dev_vite_port,
                 ),
             ),
             name="static",
         )
     app.state.authentication_enabled = authentication_enabled
+    app.state.oauth2_authorization_server_enabled = (
+        authentication_enabled and get_env_enable_oauth2_authorization_server()
+    )
     app.state.read_only = read_only
-    app.state.export_path = export_path
     app.state.password_reset_token_expiry = password_reset_token_expiry
     app.state.access_token_expiry = access_token_expiry
     app.state.refresh_token_expiry = refresh_token_expiry
     app.state.oauth2_clients = OAuth2Clients.from_configs(oauth2_client_configs or [])
+    # Cache LDAPAuthenticator to avoid re-parsing TLS config on every login
+    if ldap_config:
+        from phoenix.server.ldap import LDAPAuthenticator
+
+        app.state.ldap_authenticator = LDAPAuthenticator(ldap_config)
     app.state.db = db
+    app.state.system_settings = system_settings
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator
+    app.state.encrypt = encryption_service.encrypt
+    app.state.decrypt = encryption_service.decrypt
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
-    app = _add_get_secret_method(app=app, secret=secret)
+    app.state.docs_mcp_server = docs_mcp_server
+    app.state.sandbox_session_manager = sandbox_session_manager
+    app.state.sandbox_runtime = sandbox_runtime
+    app.state.graphql_schema = graphql_schema
+    # Snapshot the provider allow-list once at app creation so the REST and
+    # GraphQL surfaces answer from the same (startup-validated) value.
+    allowed_provider_names = get_env_allowed_providers()
+    app.state.allowed_provider_names = allowed_provider_names
+    app.state.build_graphql_context = _get_build_graphql_context_function(
+        db=db,
+        system_settings=system_settings,
+        span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
+        encrypt=encryption_service.encrypt,
+        decrypt=encryption_service.decrypt,
+        cache_for_dataloaders=cache_for_dataloaders,
+        last_updated_at=last_updated_at,
+        event_queue=dml_event_handler,
+        allowed_provider_names=allowed_provider_names,
+        read_only=read_only,
+        authentication_enabled=authentication_enabled,
+        secret=secret,
+        token_store=token_store,
+        email_sender=email_sender,
+    )
     app = _add_get_token_store_method(app=app, token_store=token_store)
-    if tracer_provider:
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-        FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
-        FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
-        shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
     if allowed_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -1183,23 +1454,67 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
+    # Added after (= outside) the credentialed allowlist middleware so it wins
+    # on its paths: browser-based OAuth public clients fetch these anonymous
+    # endpoints from origins that cannot be known in advance. The cookie-honoring
+    # OAuth endpoints (/oauth2/authorize is navigated to; the consent decision
+    # endpoint enforces a strict Origin check) are deliberately not listed.
+    #
+    # The MCP endpoint joins the set when mounted: browser-based MCP clients call
+    # it directly with a bearer token, which is not an ambient credential (a
+    # hostile page cannot make the browser attach it), and they must be able to
+    # read the session id and the 401 challenge that bootstraps their OAuth flow.
+    # The path set is shared with the CSRF origin validator, which bypasses
+    # exactly these surfaces.
+    app.add_middleware(
+        AnonymousCorsMiddleware,
+        paths=anonymous_surfaces,
+        expose_headers="Mcp-Session-Id, WWW-Authenticate" if mcp_mount_path is not None else "",
+    )
+    # Sandboxes execute_browser_action scripts at the platform level: a worker adopts the
+    # CSP of its script response, so the worker asset gets connect-src 'none'
+    # (see the middleware's docstring).
+    app.add_middleware(JSSandboxWorkerCSPMiddleware)
     return app
 
 
-def _add_get_secret_method(*, app: FastAPI, secret: Optional[Secret]) -> FastAPI:
-    """
-    Dynamically adds a `get_secret` method to the app's `state`.
-    """
-    app.state._secret = secret
+def _validate_oauth2_idp_names(oauth2_client_configs: Sequence[OAuth2ClientConfig]) -> None:
+    collisions = sorted(
+        config.idp_name
+        for config in oauth2_client_configs
+        if config.idp_name.lower() in _RESERVED_OAUTH2_IDP_NAMES
+    )
+    if collisions:
+        names = ", ".join(collisions)
+        reserved = ", ".join(sorted(_RESERVED_OAUTH2_IDP_NAMES))
+        raise ValueError(
+            f"OAuth2 identity provider names cannot use reserved authorization server paths: "
+            f"{names}. Reserved names: {reserved}."
+        )
 
-    def get_secret(self: StarletteState) -> Secret:
-        if (secret := self._secret) is None:
-            raise ValueError("app secret is not set")
-        assert isinstance(secret, Secret)
-        return secret
 
-    app.state.get_secret = MethodType(get_secret, app.state)
-    return app
+def _native_telemetry_config(
+    *,
+    tracer_provider: Optional["TracerProvider"],
+    logger_provider: Optional["LoggerProvider"],
+) -> TelemetryConfig:
+    """Configure FastAPI's native OpenTelemetry support.
+
+    Request spans and log events go only to Phoenix's own providers (when server
+    instrumentation or log export is enabled), never to global providers that a host
+    process may have configured. Metrics stay off because the server exposes its
+    metrics through Prometheus instead.
+    """
+    config: TelemetryConfig = {"metrics": False}
+    if tracer_provider is not None:
+        config["tracer_provider"] = tracer_provider
+    else:
+        config["tracing"] = False
+    if logger_provider is not None:
+        config["logger_provider"] = logger_provider
+    else:
+        config["logs"] = False
+    return config
 
 
 def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]) -> FastAPI:
@@ -1216,3 +1531,78 @@ def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]
 
     app.state.get_token_store = MethodType(get_token_store, app.state)
     return app
+
+
+def _get_build_graphql_context_function(
+    *,
+    db: DbSessionFactory,
+    system_settings: SystemSettings,
+    span_cost_calculator: SpanCostCalculator,
+    experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
+    cache_for_dataloaders: Optional[CacheForDataLoaders],
+    last_updated_at: CanGetLastUpdatedAt,
+    event_queue: CanPutItem[DmlEvent],
+    allowed_provider_names: Optional[frozenset[str]],
+    read_only: bool,
+    authentication_enabled: bool,
+    secret: Optional[SecretStr],
+    token_store: Optional[TokenStore],
+    email_sender: Optional[EmailSender],
+) -> Callable[[Optional[PhoenixUser]], Context]:
+    """Factory for creating GraphQL context."""
+
+    def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
+        scope: dict[str, Any] = {"type": "http"}
+        if user is not None:
+            scope["user"] = user
+        request = Request(scope)
+        return build_context(
+            db=db,
+            settings=system_settings,
+            span_cost_calculator=span_cost_calculator,
+            experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
+            sandbox_runtime=sandbox_runtime,
+            encrypt=encrypt,
+            decrypt=decrypt,
+            cache_for_dataloaders=cache_for_dataloaders,
+            last_updated_at=last_updated_at,
+            event_queue=event_queue,
+            allowed_provider_names=allowed_provider_names,
+            read_only=read_only,
+            auth_enabled=authentication_enabled,
+            secret=secret,
+            token_store=token_store,
+            email_sender=email_sender,
+            request=request,
+        )
+
+    return build_graphql_context
+
+
+def _warn_if_missing_aioboto3() -> None:
+    """
+    Check if boto3 is installed without aioboto3 and log a warning.
+
+    This helps users who have boto3 installed but haven't migrated to
+    aioboto3 for Phoenix's AWS Bedrock integration in Playground.
+    """
+
+    try:
+        import aioboto3  # type: ignore[import-untyped] # noqa: F401
+
+        return
+    except ImportError:
+        try:
+            import boto3  # type: ignore[import-untyped] # noqa: F401
+
+            logger.warning(
+                "boto3 is installed but aioboto3 is not. To use AWS Bedrock models "
+                "in Playground, install aioboto3: pip install aioboto3"
+            )
+        except ImportError:
+            pass

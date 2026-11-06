@@ -2,6 +2,8 @@ name: Typescript Packages Publish
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
+
 on:
   push:
     branches:
@@ -14,22 +16,31 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - name: checkout code repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: setup node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: lts/*
+          node-version-file: .nvmrc
           registry-url: https://registry.npmjs.org/
           scope: "@arizeai"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Setup PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
-          version: 10.2.0
+          package_json_file: js/package.json
       - name: setup pnpm config
         run: pnpm config set store-dir $PNPM_CACHE_FOLDER
       - name: Install Dependencies
@@ -43,17 +54,23 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: create and publish versions
-        uses: changesets/action@06245a4e0a36c064a573d4150030f5ec548e4fcc
+        # Using PAT instead of GITHUB_TOKEN so that PRs created by this action
+        # can trigger subsequent workflows (like publish) when merged
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
-          version: pnpm ci:version
-          commit: "chore(js): update versions"
-          title: "chore(js): update versions"
-          publish: pnpm ci:publish
-          cwd: "./js"
+          github-token: ${{ steps.factory-token.outputs.token }}
+          version-script: pnpm ci:version
+          commit-message: "chore(js): update versions"
+          pr-title: "chore(js): update versions"
+          publish-script: pnpm ci:publish
+          create-github-releases: true
+          cwd: js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # `changeset publish` builds its own publish flags and never passes
+          # --provenance, so request it through npm config instead.
+          NPM_CONFIG_PROVENANCE: true
       # - name: Release docs
       # Run pnpm run docs in js/packages/phoenix-client
       # Deploy the static files in js/packages/phoenix-client/docs to github pages

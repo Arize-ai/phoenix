@@ -1,5 +1,9 @@
-import { LanguageModel } from "ai";
-import { WithTelemetry } from "./otel";
+import type { LanguageModel } from "ai";
+
+import type { DecisionModel } from "../utils/isDecisionModel";
+import type { ObjectMapping } from "./data";
+import type { WithTelemetry } from "./otel";
+import type { PromptTemplate } from "./templating";
 
 /**
  * A specific AI example that is under evaluation
@@ -12,7 +16,14 @@ export interface ExampleRecord<OutputType, InputType> {
 }
 
 export interface WithLLM {
-  model: LanguageModel;
+  /**
+   * Either a regular AI SDK {@link LanguageModel}, or an AI SDK
+   * {@link DecisionModel} (e.g. `openai.decisionModel("gpt-6-luna")`) which
+   * classifies without generating text and therefore cannot produce an
+   * explanation. With a decision model, label probabilities are returned in
+   * the result's `metadata.probabilities`.
+   */
+  model: LanguageModel | DecisionModel;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -37,6 +48,11 @@ export interface EvaluationResult {
    * @example "The model correctly identified the sentiment of the text."
    */
   explanation?: string;
+  /**
+   * Additional information about how the result was produced, e.g. the
+   * label probabilities reported by a decision model.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -45,6 +61,7 @@ export interface EvaluationResult {
 export interface ClassificationResult {
   label: string;
   explanation?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -65,9 +82,9 @@ export type ClassificationChoicesMap = Record<string, number>;
  */
 export interface CreateClassifierArgs extends WithTelemetry {
   /*
-   * The LLM to use for classification / evaluation
+   * The model to use for classification / evaluation
    */
-  model: LanguageModel;
+  model: LanguageModel | DecisionModel;
   /**
    * The choices to classify the example into.
    * e.g. { "correct": 1, "incorrect": 0 }
@@ -76,40 +93,59 @@ export interface CreateClassifierArgs extends WithTelemetry {
   /**
    * The prompt template to use for classification
    */
-  promptTemplate: string;
+  promptTemplate: PromptTemplate;
 }
 
-export interface CreateEvaluatorArgs {
+export interface CreateEvaluatorArgs<
+  ExampleType extends Record<string, unknown> = Record<string, unknown>,
+> extends WithTelemetry {
   /**
    * The name of the metric that the evaluator produces
    * E.x. "correctness"
    */
   name: string;
   /**
+   * The kind of the evaluation. Also known as the "kind" of evaluator.
+   */
+  kind: EvaluationKind;
+  /**
    * If present, represents the direction in which you want the metric to be optimized
    * E.x. "MAXIMIZE" means you want the number to be higher.
    */
   optimizationDirection?: OptimizationDirection;
+  /**
+   * The mapping of the input to evaluate to the shape that the evaluator expects
+   */
+  inputMapping?: ObjectMapping<ExampleType>;
 }
 
-export interface CreateClassificationEvaluatorArgs
-  extends CreateClassifierArgs,
-    CreateEvaluatorArgs {}
+export type CreateLLMEvaluatorArgs<RecordType extends Record<string, unknown>> =
+  Omit<CreateEvaluatorArgs<RecordType>, "kind">;
+
+export interface CreateClassificationEvaluatorArgs<
+  RecordType extends Record<string, unknown>,
+>
+  extends CreateClassifierArgs, CreateLLMEvaluatorArgs<RecordType> {
+  /**
+   * The prompt template to use for classification
+   */
+  promptTemplate: PromptTemplate;
+}
 
 export type EvaluatorFn<ExampleType extends Record<string, unknown>> = (
   args: ExampleType
 ) => Promise<EvaluationResult>;
 
 /**
- * The source of the evaluation
+ * The kind of the evaluation
  */
-export type EvaluationSource = "LLM" | "CODE";
+export type EvaluationKind = "LLM" | "CODE";
 
 /**
  * The direction to optimize the numeric evaluation score
  * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
  */
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NEUTRAL";
 
 /**
  * The description of an evaluator
@@ -120,9 +156,9 @@ interface EvaluatorDescription {
    */
   name: string;
   /**
-   * The source of the evaluation. Also known as the "kind" of evaluator.
+   * The kind of the evaluation. Also known as the "kind" of evaluator.
    */
-  source: EvaluationSource;
+  kind: EvaluationKind;
   /**
    * The direction to optimize the numeric evaluation score
    * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
@@ -134,8 +170,9 @@ interface EvaluatorDescription {
  * The Base Evaluator interface
  * This is the interface that all evaluators must implement
  */
-export interface Evaluator<ExampleType extends Record<string, unknown>>
-  extends EvaluatorDescription {
+export interface EvaluatorInterface<
+  ExampleType extends Record<string, unknown>,
+> extends EvaluatorDescription {
   /**
    * The function that evaluates the example
    */

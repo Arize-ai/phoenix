@@ -7,16 +7,16 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptChatTemplate as PromptChatTemplateModel,
 )
-from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMessageModel
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import PromptMessage as PromptMessageModel
+from phoenix.db.types.prompts import (
     PromptMessageRole,
     PromptTemplateType,
     RoleConversion,
 )
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptStringTemplate as PromptStringTemplateModel,
 )
 
@@ -111,7 +111,7 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
                         ToolResultContentPart(
                             tool_result=ToolResultContentValue(
                                 tool_call_id=part.tool_call_id,
-                                result=json.dumps(part.tool_result),
+                                result=JSON(json.dumps(part.tool_result)),
                             )
                         )
                     )

@@ -1,5 +1,5 @@
-import { paths } from "../__generated__/api/v1";
-import { Annotation, AnnotationResult } from "../types/annotations";
+import type { paths } from "../__generated__/api/v1";
+import type { Annotation, AnnotationResult } from "../types/annotations";
 
 type SessionAnnotationData =
   paths["/v1/session_annotations"]["post"]["requestBody"]["content"]["application/json"]["data"][0];

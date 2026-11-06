@@ -35,7 +35,7 @@ class SpanCostSummaryByGenerativeModelDataLoader(DataLoader[Key, Result]):
             .group_by(pk)
         )
         results: defaultdict[Key, Result] = defaultdict(SpanCostSummary)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for (
                 id_,
@@ -46,6 +46,7 @@ class SpanCostSummaryByGenerativeModelDataLoader(DataLoader[Key, Result]):
                 completion_tokens,
                 total_tokens,
             ) in data:
+                assert id_ is not None
                 summary = SpanCostSummary(
                     prompt=CostBreakdown(tokens=prompt_tokens, cost=prompt_cost),
                     completion=CostBreakdown(tokens=completion_tokens, cost=completion_cost),

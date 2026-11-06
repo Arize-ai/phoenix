@@ -1,0 +1,10 @@
+/* Layer order, weakest first. Anything NOT in a layer beats everything that
+   is, so component styles win by default and never have to out-specify these.
+     reset -- third-party normalization (normalize.css)
+     base  -- our own app-wide element defaults (GlobalStyles.tsx)
+   Declared here, and imported first in index.tsx, because layer precedence is
+   set by first mention and Emotion injects its <style> tags in an order we
+   don't control. */
+@layer reset, base;
+
+@import "normalize.css" layer(reset);

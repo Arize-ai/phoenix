@@ -1,0 +1,385 @@
+import { css } from "@emotion/react";
+import {
+  startTransition,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
+import type { PreloadedQuery } from "react-relay";
+import {
+  graphql,
+  useFragment,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+import invariant from "tiny-invariant";
+
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { Alert, Flex, OverflowRow, View } from "@phoenix/components";
+import {
+  ExperimentNameWithColorSwatch,
+  useExperimentColors,
+} from "@phoenix/components/experiment";
+import type { ExperimentCompareViewMode } from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
+import {
+  ExperimentCompareViewModeToggle,
+  isExperimentCompareViewMode,
+} from "@phoenix/components/experiment/ExperimentCompareViewModeToggle";
+import { TableSkeleton } from "@phoenix/components/table";
+import type { ExperimentComparePageQueriesCompareGridQuery as ExperimentComparePageQueriesCompareGridQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareGridQuery.graphql";
+import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
+import type { ExperimentComparePageQueriesCompareMetricsQuery as ExperimentComparePageQueriesCompareMetricsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareMetricsQuery.graphql";
+import type { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
+import type { ExperimentComparePageQueriesSelectedCompareExperimentsQuery as ExperimentComparePageQueriesSelectedCompareExperimentsQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesSelectedCompareExperimentsQuery.graphql";
+import {
+  ExperimentComparePageQueriesCompareGridQuery,
+  ExperimentComparePageQueriesCompareListQuery,
+  ExperimentComparePageQueriesCompareMetricsQuery,
+  ExperimentComparePageQueriesMultiSelectorQuery,
+  ExperimentComparePageQueriesSelectedCompareExperimentsQuery,
+} from "@phoenix/pages/experiment/ExperimentComparePageQueries";
+import { assertUnreachable } from "@phoenix/typeUtils";
+
+import type {
+  ExperimentComparePage_selectedCompareExperiments$data,
+  ExperimentComparePage_selectedCompareExperiments$key,
+} from "./__generated__/ExperimentComparePage_selectedCompareExperiments.graphql";
+import {
+  ExperimentCompareGridPage,
+  ExperimentCompareGridPageSkeleton,
+} from "./ExperimentCompareGridPage";
+import { ExperimentCompareListPage } from "./ExperimentCompareListPage";
+import {
+  ExperimentCompareMetricsPage,
+  ExperimentCompareMetricsPageSkeleton,
+} from "./ExperimentCompareMetricsPage";
+import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
+
+type Experiment = NonNullable<
+  ExperimentComparePage_selectedCompareExperiments$data["dataset"]["experiments"]
+>["edges"][number]["experiment"];
+
+export function ExperimentComparePage() {
+  const [multiSelectorQueryReference, loadMultiSelectorQuery] =
+    useQueryLoader<ExperimentComparePageQueriesMultiSelectorQueryType>(
+      ExperimentComparePageQueriesMultiSelectorQuery
+    );
+
+  const [
+    selectedCompareExperimentsQueryReference,
+    loadSelectedCompareExperimentsQuery,
+  ] =
+    useQueryLoader<ExperimentComparePageQueriesSelectedCompareExperimentsQueryType>(
+      ExperimentComparePageQueriesSelectedCompareExperimentsQuery
+    );
+
+  const [compareGridQueryReference, loadCompareGridQuery] =
+    useQueryLoader<ExperimentComparePageQueriesCompareGridQueryType>(
+      ExperimentComparePageQueriesCompareGridQuery
+    );
+
+  const [compareListQueryReference, loadCompareListQuery] =
+    useQueryLoader<ExperimentComparePageQueriesCompareListQueryType>(
+      ExperimentComparePageQueriesCompareListQuery
+    );
+
+  const [compareMetricsQueryReference, loadCompareMetricsQuery] =
+    useQueryLoader<ExperimentComparePageQueriesCompareMetricsQueryType>(
+      ExperimentComparePageQueriesCompareMetricsQuery
+    );
+
+  const { datasetId } = useParams();
+  invariant(datasetId != null, "datasetId is required");
+  const advertisedDatasetContext = useMemo(
+    () => ({
+      type: "dataset" as const,
+      datasetNodeId: datasetId,
+    }),
+    [datasetId]
+  );
+  useAdvertiseAgentContext(advertisedDatasetContext);
+  const [searchParams] = useSearchParams();
+  const { baseExperimentId, compareExperimentIds } = useMemo(() => {
+    const [baseExperimentId, ...compareExperimentIds] =
+      searchParams.getAll("experimentId");
+    return { baseExperimentId, compareExperimentIds };
+  }, [searchParams]);
+  const viewMode: ExperimentCompareViewMode = useMemo(() => {
+    const viewMode = searchParams.get("view");
+    if (isExperimentCompareViewMode(viewMode)) {
+      return viewMode;
+    }
+    return "grid";
+  }, [searchParams]);
+  const navigate = useNavigate();
+
+  const onViewModeChange = useCallback(
+    (viewMode: ExperimentCompareViewMode) => {
+      searchParams.set("view", viewMode);
+      navigate(`/datasets/${datasetId}/compare?${searchParams.toString()}`);
+    },
+    [datasetId, navigate, searchParams]
+  );
+
+  useEffect(() => {
+    const experimentIds = [
+      ...(baseExperimentId ? [baseExperimentId] : []),
+      ...compareExperimentIds,
+    ];
+    loadMultiSelectorQuery({
+      datasetId,
+      hasBaseExperiment: baseExperimentId != null,
+      baseExperimentId: baseExperimentId ?? "",
+    });
+    loadSelectedCompareExperimentsQuery({
+      datasetId,
+      experimentIds,
+    });
+
+    if (baseExperimentId != null) {
+      switch (viewMode) {
+        case "grid":
+          loadCompareGridQuery({
+            datasetId,
+            experimentIds,
+            baseExperimentId,
+            compareExperimentIds,
+          });
+          break;
+        case "list":
+          loadCompareListQuery({
+            datasetId,
+            experimentIds,
+            baseExperimentId,
+            compareExperimentIds,
+          });
+          break;
+        case "metrics":
+          loadCompareMetricsQuery({
+            datasetId,
+            experimentIds,
+            baseExperimentId,
+            compareExperimentIds,
+            hasCompareExperiments: compareExperimentIds.length > 0,
+          });
+          break;
+        default:
+          assertUnreachable(viewMode);
+      }
+    }
+  }, [
+    baseExperimentId,
+    compareExperimentIds,
+    datasetId,
+    loadMultiSelectorQuery,
+    loadSelectedCompareExperimentsQuery,
+    loadCompareGridQuery,
+    loadCompareListQuery,
+    loadCompareMetricsQuery,
+    viewMode,
+  ]);
+
+  if (multiSelectorQueryReference == null) {
+    return null;
+  }
+
+  return (
+    <main
+      css={css`
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      `}
+    >
+      <View
+        paddingX="size-200"
+        paddingTop="size-100"
+        paddingBottom="size-200"
+        borderBottomColor="default"
+        borderBottomWidth="thin"
+        flex="none"
+      >
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          gap="size-150"
+          alignItems="end"
+        >
+          <ExperimentMultiSelector
+            queryRef={multiSelectorQueryReference}
+            selectedBaseExperimentId={baseExperimentId}
+            selectedCompareExperimentIds={compareExperimentIds}
+            onChange={(newBaseExperimentId, newCompareExperimentIds) => {
+              startTransition(() => {
+                if (newBaseExperimentId == null) {
+                  navigate(`/datasets/${datasetId}/compare`);
+                } else {
+                  searchParams.delete("experimentId");
+                  [newBaseExperimentId, ...newCompareExperimentIds].forEach(
+                    (experimentId) => {
+                      searchParams.append("experimentId", experimentId);
+                    }
+                  );
+                  navigate(
+                    `/datasets/${datasetId}/compare?${searchParams.toString()}`
+                  );
+                }
+              });
+            }}
+          />
+          <View flex="1" minWidth={0} paddingBottom={5}>
+            <Suspense>
+              {selectedCompareExperimentsQueryReference && (
+                <SelectedCompareExperiments
+                  queryRef={selectedCompareExperimentsQueryReference}
+                />
+              )}
+            </Suspense>
+          </View>
+          <ExperimentCompareViewModeToggle
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
+        </Flex>
+      </View>
+      {baseExperimentId == null ? (
+        <View padding="size-200">
+          <Alert variant="info" title="No Experiment Selected">
+            Please select an experiment.
+          </Alert>
+        </View>
+      ) : (
+        <ExperimentComparePageContent
+          compareGridQueryReference={compareGridQueryReference ?? null}
+          compareListQueryReference={compareListQueryReference ?? null}
+          compareMetricsQueryReference={compareMetricsQueryReference ?? null}
+        />
+      )}
+    </main>
+  );
+}
+
+function ExperimentComparePageContent({
+  compareGridQueryReference,
+  compareListQueryReference,
+  compareMetricsQueryReference,
+}: {
+  compareGridQueryReference: PreloadedQuery<ExperimentComparePageQueriesCompareGridQueryType> | null;
+  compareListQueryReference: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType> | null;
+  compareMetricsQueryReference: PreloadedQuery<ExperimentComparePageQueriesCompareMetricsQueryType> | null;
+}) {
+  const [searchParams] = useSearchParams();
+  const viewMode = searchParams.get("view") ?? "grid";
+  if (viewMode === "grid") {
+    return compareGridQueryReference ? (
+      <Suspense fallback={<ExperimentCompareGridPageSkeleton />}>
+        <ExperimentCompareGridPage queryRef={compareGridQueryReference} />
+      </Suspense>
+    ) : (
+      <ExperimentCompareGridPageSkeleton />
+    );
+  } else if (viewMode === "metrics") {
+    return compareMetricsQueryReference ? (
+      <Suspense fallback={<ExperimentCompareMetricsPageSkeleton />}>
+        <ExperimentCompareMetricsPage queryRef={compareMetricsQueryReference} />
+      </Suspense>
+    ) : (
+      <ExperimentCompareMetricsPageSkeleton />
+    );
+  } else if (viewMode === "list") {
+    return compareListQueryReference ? (
+      <Suspense fallback={<TableSkeleton rowCount="fill" />}>
+        <ExperimentCompareListPage queryRef={compareListQueryReference} />
+      </Suspense>
+    ) : (
+      <TableSkeleton rowCount="fill" />
+    );
+  }
+  return (
+    <View padding="size-200">
+      <Alert variant="info" title={`Invalid View Mode Requested`}>
+        {`Please enter a valid view ("grid" or "metrics") in the URL query parameters.`}
+      </Alert>
+    </View>
+  );
+}
+
+/** Caps each name so one long name cannot crowd out the rest of the row */
+const compareExperimentNameCSS = css`
+  max-width: 280px;
+`;
+
+export function SelectedCompareExperiments({
+  queryRef,
+}: {
+  queryRef: PreloadedQuery<ExperimentComparePageQueriesSelectedCompareExperimentsQueryType>;
+}) {
+  const [searchParams] = useSearchParams();
+  const [, ...compareExperimentIds] = searchParams.getAll("experimentId");
+  const { getExperimentColor } = useExperimentColors();
+
+  const preloadedData =
+    usePreloadedQuery<ExperimentComparePageQueriesSelectedCompareExperimentsQueryType>(
+      ExperimentComparePageQueriesSelectedCompareExperimentsQuery,
+      queryRef
+    );
+  const data =
+    useFragment<ExperimentComparePage_selectedCompareExperiments$key>(
+      graphql`
+        fragment ExperimentComparePage_selectedCompareExperiments on Query
+        @argumentDefinitions(
+          datasetId: { type: "ID!" }
+          experimentIds: { type: "[ID!]!" }
+        ) {
+          dataset: node(id: $datasetId) {
+            ... on Dataset {
+              experiments(filterIds: $experimentIds, includeEphemeral: true) {
+                edges {
+                  experiment: node {
+                    id
+                    sequenceNumber
+                    name
+                    isBaseline
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      preloadedData
+    );
+  const idToExperiment = useMemo(() => {
+    const idToExperiment: Record<string, Experiment> = {};
+    data.dataset.experiments?.edges.forEach((edge) => {
+      idToExperiment[edge.experiment.id] = edge.experiment;
+    });
+    return idToExperiment;
+  }, [data]);
+  if (compareExperimentIds.length === 0) {
+    return null;
+  }
+  return (
+    <OverflowRow>
+      {compareExperimentIds.map((experimentId, experimentIndex) => {
+        const experiment = idToExperiment[experimentId];
+        // if a new experiment was just added, data may not be fully loaded yet
+        if (experiment == null) {
+          return null;
+        }
+        return (
+          <div key={experiment.id} css={compareExperimentNameCSS}>
+            <ExperimentNameWithColorSwatch
+              color={getExperimentColor(experimentIndex)}
+              name={experiment.name}
+              isBaseline={experiment.isBaseline}
+            />
+          </div>
+        );
+      })}
+    </OverflowRow>
+  );
+}

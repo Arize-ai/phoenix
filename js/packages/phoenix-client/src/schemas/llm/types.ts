@@ -1,28 +1,28 @@
-import { ZodType, ZodTypeAny, ZodTypeDef } from "zod";
+import type { ZodType } from "zod";
 
-import type { OpenAIChatPart } from "./openai/messagePartSchemas";
+import type { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
 import type { AnthropicMessagePart } from "./anthropic/messagePartSchemas";
+import type { AnthropicMessage } from "./anthropic/messageSchemas";
+import type { AnthropicToolCall } from "./anthropic/toolCallSchemas";
+import type { AnthropicToolChoice } from "./anthropic/toolChoiceSchemas";
+import type { AnthropicToolDefinition } from "./anthropic/toolSchemas";
+import type { OpenAIChatPart } from "./openai/messagePartSchemas";
+import type { OpenAIMessage } from "./openai/messageSchemas";
+import type { OpenAIResponseFormat } from "./openai/responseFormatSchema";
+import type { OpenAIToolCall } from "./openai/toolCallSchemas";
+import type { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
+import type { OpenAIToolDefinition } from "./openai/toolSchemas";
+import type { PhoenixContentPart } from "./phoenixPrompt/messagePartSchemas";
+import type { PhoenixMessage } from "./phoenixPrompt/messageSchemas";
+import type { PhoenixToolCall } from "./phoenixPrompt/toolCallSchemas";
+import type { PhoenixToolDefinition } from "./phoenixPrompt/toolSchemas";
 import type {
   VercelAIChatPart,
   VercelAIChatPartToolCall,
 } from "./vercel/messagePartSchemas";
-import { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
-import { OpenAIMessage } from "./openai/messageSchemas";
-import { AnthropicMessage } from "./anthropic/messageSchemas";
-import { OpenAIToolCall } from "./openai/toolCallSchemas";
-import { AnthropicToolCall } from "./anthropic/toolCallSchemas";
-import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
-import { AnthropicToolChoice } from "./anthropic/toolChoiceSchemas";
-import { VercelAIMessage } from "./vercel/messageSchemas";
-import { PhoenixToolCall } from "./phoenixPrompt/toolCallSchemas";
-import { PhoenixMessage } from "./phoenixPrompt/messageSchemas";
-import { VercelAIToolChoice } from "./vercel/toolChoiceSchemas";
-import { OpenAIToolDefinition } from "./openai/toolSchemas";
-import { OpenAIResponseFormat } from "./openai/responseFormatSchema";
-import { AnthropicToolDefinition } from "./anthropic/toolSchemas";
-import { PhoenixToolDefinition } from "./phoenixPrompt/toolSchemas";
-import { PhoenixContentPart } from "./phoenixPrompt/messagePartSchemas";
-import { VercelAIToolDefinition } from "./vercel/toolSchemas";
+import type { VercelAIMessage } from "./vercel/messageSchemas";
+import type { VercelAIToolChoice } from "./vercel/toolChoiceSchemas";
+import type { VercelAIToolDefinition } from "./vercel/toolSchemas";
 
 export type PromptSDKFormat = PromptProviderSDKs | null;
 
@@ -33,35 +33,35 @@ export type LLMMessagePart =
   | VercelAIChatPart;
 
 export type SDKConverters<
-  MessageSchema extends ZodTypeAny = never,
-  MessagePartSchema extends ZodTypeAny = never,
-  ToolChoiceSchema extends ZodTypeAny = never,
-  ToolCallSchema extends ZodTypeAny = never,
-  ToolDefinitionSchema extends ZodTypeAny = never,
-  ResponseFormatSchema extends ZodTypeAny = never,
+  MessageSchema extends ZodType = never,
+  MessagePartSchema extends ZodType = never,
+  ToolChoiceSchema extends ZodType = never,
+  ToolCallSchema extends ZodType = never,
+  ToolDefinitionSchema extends ZodType = never,
+  ResponseFormatSchema extends ZodType = never,
 > = {
   messages: {
-    toOpenAI: ZodType<OpenAIMessage | null, ZodTypeDef, unknown>;
+    toOpenAI: ZodType<OpenAIMessage | null, unknown>;
     fromOpenAI: MessageSchema;
   };
   messageParts: {
-    toOpenAI: ZodType<OpenAIChatPart | null, ZodTypeDef, unknown>;
+    toOpenAI: ZodType<OpenAIChatPart | null, unknown>;
     fromOpenAI: MessagePartSchema;
   };
   toolChoices: {
-    toOpenAI: ZodType<OpenaiToolChoice | null, ZodTypeDef, unknown>;
+    toOpenAI: ZodType<OpenaiToolChoice | null, unknown>;
     fromOpenAI: ToolChoiceSchema;
   };
   toolCalls: {
-    toOpenAI: ZodType<OpenAIToolCall | null, ZodTypeDef, unknown>;
+    toOpenAI: ZodType<OpenAIToolCall | null, unknown>;
     fromOpenAI: ToolCallSchema;
   };
   toolDefinitions: {
-    toOpenAI: ZodType<OpenAIToolDefinition | null, ZodTypeDef, unknown>;
+    toOpenAI: ZodType<OpenAIToolDefinition | null, unknown>;
     fromOpenAI: ToolDefinitionSchema;
   };
   responseFormat?: {
-    toOpenAI: ZodType<OpenAIResponseFormat | null, ZodTypeDef, unknown>;
+    toOpenAI: ZodType<OpenAIResponseFormat | null, unknown>;
     fromOpenAI: ResponseFormatSchema;
   };
 };

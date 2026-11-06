@@ -1,0 +1,111 @@
+import { css } from "@emotion/react";
+import { useState } from "react";
+
+import { Alert } from "@phoenix/components/core/alert";
+import { Button } from "@phoenix/components/core/button";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/core/dialog";
+import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
+import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+
+export const EditBuiltInEvaluatorDialogContent = ({
+  onSubmit,
+  isSubmitting,
+  mode,
+  error,
+  evaluatorInputSchema,
+}: {
+  onClose: () => void;
+  onSubmit: () => void;
+  isSubmitting: boolean;
+  mode: "create" | "update";
+  error?: string;
+  evaluatorInputSchema: unknown;
+}) => {
+  const store = useEvaluatorStoreInstance();
+  const [showValidationError, setShowValidationError] = useState(false);
+  const handleSubmit = async () => {
+    const isValid = await store.getState().validateAll();
+    if (!isValid) {
+      setShowValidationError(true);
+      return;
+    }
+    setShowValidationError(false);
+    onSubmit();
+  };
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>
+          {mode === "create"
+            ? "Create Built-in Code Evaluator"
+            : "Edit Built-in Code Evaluator"}
+        </DialogTitle>
+        <DialogTitleExtra>
+          <DialogCloseButton />
+        </DialogTitleExtra>
+      </DialogHeader>
+      <fieldset
+        disabled={isSubmitting}
+        css={css`
+          all: unset;
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          gap: var(--global-dimension-size-200);
+          overflow: auto;
+          // keep trackpad overscroll from chaining to the dialog and
+          // dragging the header/footer with it
+          overscroll-behavior: contain;
+        `}
+      >
+        {showValidationError && (
+          <Alert
+            variant="danger"
+            title="Please fix the highlighted errors before submitting."
+          />
+        )}
+        {error && (
+          <Alert
+            variant="danger"
+            title={
+              mode === "create"
+                ? "Failed to create evaluator"
+                : "Failed to update evaluator"
+            }
+          >
+            {error}
+          </Alert>
+        )}
+        <CodeEvaluatorInputVariablesProvider
+          evaluatorInputSchema={evaluatorInputSchema}
+        >
+          <EvaluatorForm />
+        </CodeEvaluatorInputVariablesProvider>
+      </fieldset>
+      <DialogFooter>
+        <Button slot="close" isDisabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button
+          data-testid="builtin-evaluator-form-submit-button"
+          data-mode={mode}
+          variant="primary"
+          isDisabled={isSubmitting}
+          isPending={isSubmitting}
+          onPress={handleSubmit}
+        >
+          {mode === "create" ? "Create" : "Update"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+};

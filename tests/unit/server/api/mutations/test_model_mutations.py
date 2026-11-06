@@ -1,7 +1,9 @@
 import re
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Optional
 
 import pytest
+import sqlalchemy as sa
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -305,6 +307,141 @@ class TestModelMutations:
         assert result.data is None
 
     @pytest.mark.parametrize(
+        "provider_input",
+        [
+            pytest.param({"provider": None}, id="explicit-null-provider"),
+            pytest.param({}, id="omitted-provider"),
+            pytest.param({"provider": ""}, id="empty-string-provider"),
+        ],
+    )
+    async def test_create_model_without_provider_succeeds(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        provider_input: dict[str, Any],
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        """
+        A null or omitted provider is a provider-agnostic model, not a conflict.
+
+        Regression test for a bug where any name failed with "Model with name 'X'
+        already exists" whenever the provider was null, because the non-nullable
+        column raised an IntegrityError that was reported as a name conflict.
+        """
+        variables = {
+            "input": {
+                "name": "provider-agnostic-model",
+                "namePattern": "^provider-agnostic-model$",
+                "costs": [
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 1.0,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 2.0,
+                    },
+                ],
+                **provider_input,
+            }
+        }
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        model = result.data["createModel"]["model"]
+        assert model["name"] == "provider-agnostic-model"
+        # A provider-agnostic model reads back as null (`provider or None`) and is
+        # stored as the empty string the non-nullable column requires.
+        assert model["provider"] is None
+        async with db() as session:
+            stored_provider = await session.scalar(
+                sa.select(models.GenerativeModel.provider).where(
+                    models.GenerativeModel.name == "provider-agnostic-model"
+                )
+            )
+        assert stored_provider == ""
+
+    async def test_create_model_reusing_name_pattern_reports_pattern_conflict(
+        self,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        """
+        A duplicate (name_pattern, provider) is reported as such rather than as a
+        name conflict, which is what the blanket IntegrityError handler produced.
+        """
+        variables = {
+            "input": {
+                "name": "a-name-that-does-not-exist",
+                "provider": "anthropic",
+                "namePattern": "claude-*",
+                "costs": [
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 1.0,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 2.0,
+                    },
+                ],
+            }
+        }
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="CreateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == (
+            "Model 'custom-model' already uses name pattern 'claude-*' with provider 'anthropic'"
+        )
+        assert result.data is None
+
+    async def test_updating_model_to_its_own_values_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        custom_model: models.GenerativeModel,
+    ) -> None:
+        """The conflict pre-check must not treat a model as conflicting with itself."""
+        variables = {
+            "input": {
+                "id": str(GlobalID(GenerativeModel.__name__, str(custom_model.id))),
+                "name": "custom-model",
+                "provider": "anthropic",
+                "namePattern": "claude-*",
+                "costs": [
+                    {
+                        "tokenType": "input",
+                        "kind": "PROMPT",
+                        "costPerMillionTokens": 5.0,
+                    },
+                    {
+                        "tokenType": "output",
+                        "kind": "COMPLETION",
+                        "costPerMillionTokens": 6.0,
+                    },
+                ],
+            }
+        }
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["updateModel"]["model"]["name"] == "custom-model"
+
+    @pytest.mark.parametrize(
         "variables,expected_error_message",
         [
             pytest.param(
@@ -527,6 +664,351 @@ class TestModelMutations:
         assert len(result.errors) == 1
         assert result.errors[0].message == "Cannot delete built-in model"
         assert result.data is None
+
+    @pytest.mark.parametrize(
+        "provider,expected_stored_provider",
+        [
+            pytest.param("OpenAI", "openai", id="known-provider-is-lowercased"),
+            pytest.param("Meta", "meta", id="form-preset-meta"),
+            pytest.param("ZAI", "zai", id="form-preset-zai"),
+            pytest.param("Groq", "groq", id="playground-provider-is-lowercased"),
+            pytest.param(" AcmeAI  ", "AcmeAI", id="custom-provider-keeps-case-and-is-trimmed"),
+            pytest.param("   ", "", id="whitespace-only-provider-is-provider-agnostic"),
+        ],
+    )
+    async def test_create_model_normalizes_provider(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        provider: str,
+        expected_stored_provider: str,
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(provider=provider),
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        async with db() as session:
+            stored_provider = await session.scalar(
+                sa.select(models.GenerativeModel.provider).where(
+                    models.GenerativeModel.name == "my-model"
+                )
+            )
+        assert stored_provider == expected_stored_provider
+
+    async def test_create_model_normalizes_token_types(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Known token types are lowercased so `Input` satisfies the input requirement."""
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(
+                costs=[
+                    ("Input", "PROMPT"),
+                    (" CacheRead ", "PROMPT"),
+                    ("Cache_Write", "PROMPT"),
+                    ("OUTPUT", "COMPLETION"),
+                ]
+            ),
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        token_types = {
+            (price["tokenType"], price["kind"])
+            for price in result.data["createModel"]["model"]["tokenPrices"]
+        }
+        assert token_types == {
+            ("input", "PROMPT"),
+            ("CacheRead", "PROMPT"),
+            ("cache_write", "PROMPT"),
+            ("output", "COMPLETION"),
+        }
+
+    @pytest.mark.parametrize(
+        "costs,expected_error_message",
+        [
+            pytest.param(
+                [("input", "PROMPT"), ("Cache_Read", "PROMPT"), ("cache_read", "PROMPT")],
+                "Duplicate prompt token type 'cache_read'",
+                id="known-token-type-differing-in-case",
+            ),
+            pytest.param(
+                [("input", "PROMPT"), ("CacheRead", "PROMPT"), ("cacheread", "PROMPT")],
+                "Duplicate prompt token type 'cacheread'",
+                id="custom-token-type-differing-in-case",
+            ),
+            pytest.param(
+                [("input", "PROMPT"), ("output", "COMPLETION"), ("Output", "COMPLETION")],
+                "Duplicate completion token type 'output'",
+                id="completion-side",
+            ),
+            pytest.param(
+                [("input", "PROMPT"), ("", "PROMPT"), ("output", "COMPLETION")],
+                "token type is required",
+                id="empty-token-type",
+            ),
+            pytest.param(
+                [("input", "PROMPT"), ("output", "COMPLETION"), ("   ", "COMPLETION")],
+                "token type is required",
+                id="whitespace-only-token-type",
+            ),
+        ],
+    )
+    async def test_create_model_with_invalid_token_types_fails(
+        self,
+        gql_client: AsyncGraphQLClient,
+        costs: list[tuple[str, str]],
+        expected_error_message: str,
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(costs=costs),
+            operation_name="CreateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == expected_error_message
+        assert result.data is None
+
+    async def test_create_model_with_same_token_type_on_both_sides_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(
+                costs=[
+                    ("input", "PROMPT"),
+                    ("audio", "PROMPT"),
+                    ("output", "COMPLETION"),
+                    ("audio", "COMPLETION"),
+                ]
+            ),
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+
+    async def test_create_model_with_case_only_provider_collision_fails(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        first = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(name="first-model", provider="AcmeAI"),
+            operation_name="CreateModelMutation",
+        )
+        assert not first.errors
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(name="second-model", provider="acmeai"),
+            operation_name="CreateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == (
+            "Model 'first-model' already uses name pattern '^my-model$' with provider 'AcmeAI'"
+        )
+        assert result.data is None
+
+    async def test_update_model_with_case_only_provider_collision_fails(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        first = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(name="first-model", provider="AcmeAI"),
+            operation_name="CreateModelMutation",
+        )
+        assert not first.errors
+        second = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(
+                name="second-model", provider="acmeai", name_pattern="^other-model$"
+            ),
+            operation_name="CreateModelMutation",
+        )
+        assert second.data is not None
+        variables = _create_model_variables(name="second-model", provider="acmeai")
+        variables["input"]["id"] = second.data["createModel"]["model"]["id"]
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == (
+            "Model 'first-model' already uses name pattern '^my-model$' with provider 'AcmeAI'"
+        )
+        assert result.data is None
+
+    async def test_update_model_changing_only_its_provider_case_succeeds(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """The collision check must not treat a model as colliding with itself."""
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(provider="acmeai"),
+            operation_name="CreateModelMutation",
+        )
+        assert created.data is not None
+        variables = _create_model_variables(provider="AcmeAI")
+        variables["input"]["id"] = created.data["createModel"]["model"]["id"]
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["updateModel"]["model"]["provider"] == "AcmeAI"
+
+    @pytest.mark.parametrize(
+        "provider,expected_stored_provider",
+        [
+            pytest.param("OpenAI", "openai", id="known-provider-is-lowercased"),
+            pytest.param("   ", "", id="whitespace-only-provider-is-provider-agnostic"),
+        ],
+    )
+    async def test_update_model_normalizes_provider(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        provider: str,
+        expected_stored_provider: str,
+    ) -> None:
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(provider="AcmeAI"),
+            operation_name="CreateModelMutation",
+        )
+        assert created.data is not None
+        variables = _create_model_variables(provider=provider)
+        variables["input"]["id"] = created.data["createModel"]["model"]["id"]
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert not result.errors
+        async with db() as session:
+            stored_provider = await session.scalar(
+                sa.select(models.GenerativeModel.provider).where(
+                    models.GenerativeModel.name == "my-model"
+                )
+            )
+        assert stored_provider == expected_stored_provider
+
+    async def test_update_model_normalizes_token_types(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(),
+            operation_name="CreateModelMutation",
+        )
+        assert created.data is not None
+        variables = _create_model_variables(
+            costs=[("Input", "PROMPT"), (" CacheRead ", "PROMPT"), ("OUTPUT", "COMPLETION")]
+        )
+        variables["input"]["id"] = created.data["createModel"]["model"]["id"]
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        token_types = {
+            (price["tokenType"], price["kind"])
+            for price in result.data["updateModel"]["model"]["tokenPrices"]
+        }
+        assert token_types == {
+            ("input", "PROMPT"),
+            ("CacheRead", "PROMPT"),
+            ("output", "COMPLETION"),
+        }
+
+    async def test_update_model_with_duplicate_token_types_fails(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        created = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(),
+            operation_name="CreateModelMutation",
+        )
+        assert created.data is not None
+        variables = _create_model_variables(
+            costs=[("input", "PROMPT"), ("CacheRead", "PROMPT"), ("cacheread", "PROMPT")]
+        )
+        variables["input"]["id"] = created.data["createModel"]["model"]["id"]
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=variables,
+            operation_name="UpdateModelMutation",
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == "Duplicate prompt token type 'cacheread'"
+        assert result.data is None
+
+    @pytest.mark.parametrize(
+        "is_built_in,is_deleted",
+        [
+            pytest.param(True, False, id="built-in-model"),
+            pytest.param(False, True, id="soft-deleted-custom-model"),
+        ],
+    )
+    async def test_create_model_ignores_built_in_and_deleted_models_for_provider_collision(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        is_built_in: bool,
+        is_deleted: bool,
+    ) -> None:
+        async with db() as session:
+            session.add(
+                models.GenerativeModel(
+                    name="existing-model",
+                    provider="AcmeAI",
+                    name_pattern=re.compile("^my-model$"),
+                    is_built_in=is_built_in,
+                    deleted_at=datetime.now(timezone.utc) if is_deleted else None,
+                    token_prices=[],
+                )
+            )
+        result = await gql_client.execute(
+            query=self.QUERY,
+            variables=_create_model_variables(provider="acmeai"),
+            operation_name="CreateModelMutation",
+        )
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["createModel"]["model"]["provider"] == "acmeai"
+
+
+def _create_model_variables(
+    *,
+    name: str = "my-model",
+    provider: str = "",
+    name_pattern: str = "^my-model$",
+    costs: Optional[list[tuple[str, str]]] = None,
+) -> dict[str, Any]:
+    if costs is None:
+        costs = [("input", "PROMPT"), ("output", "COMPLETION")]
+    return {
+        "input": {
+            "name": name,
+            "provider": provider,
+            "namePattern": name_pattern,
+            "costs": [
+                {"tokenType": token_type, "kind": kind, "costPerMillionTokens": 1.0}
+                for token_type, kind in costs
+            ],
+        }
+    }
 
 
 @pytest.fixture

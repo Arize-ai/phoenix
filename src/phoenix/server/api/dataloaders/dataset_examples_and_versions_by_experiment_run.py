@@ -36,7 +36,7 @@ class DatasetExamplesAndVersionsByExperimentRunDataLoader(DataLoader[Key, Result
             )
             .where(models.ExperimentRun.id.in_(experiment_run_ids))
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             examples_and_versions = {
                 experiment_run_id: (example, version_id)
                 for experiment_run_id, example, version_id in (

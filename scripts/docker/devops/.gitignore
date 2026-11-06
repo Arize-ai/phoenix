@@ -35,3 +35,7 @@ certs/
 docker-compose.override.yml
 .env.local
 .env.*.local
+
+# pnpm lock files (not checked in for scripts)
+pnpm-lock.yaml
+**/pnpm-lock.yaml

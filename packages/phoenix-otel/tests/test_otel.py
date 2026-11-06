@@ -1,4 +1,6 @@
-from typing import Any, Generator, Optional
+import os
+from pathlib import Path
+from typing import Any, Generator, Literal, Optional, Type, Union
 from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import urlparse
 
@@ -17,9 +19,12 @@ from phoenix.otel.otel import (
     OTLPTransportProtocol,
     SimpleSpanProcessor,
     TracerProvider,
+    _construct_http_endpoint,
     _construct_phoenix_cloud_endpoint,
+    _exporter_headers,
     register,
 )
+from phoenix.otel.settings import clear_env_file_cache
 
 
 def _get_exporter_from_processor(span_processor: Any) -> Optional[SpanExporter]:
@@ -122,6 +127,20 @@ class TestRegister:
         exporter = _get_exporter_from_processor(processors[0])
 
         assert "authorization" in [h[0].lower() for h in exporter._headers]
+
+    def test_register_with_http_endpoint_masks_headers_in_tracing_details(self) -> None:
+        tracer_provider = register(
+            endpoint="http://localhost:6006/v1/traces",
+            headers={"Authorization": "Bearer token123"},
+            verbose=False,
+            set_global_tracer_provider=False,
+        )
+
+        details = tracer_provider._tracing_details()
+
+        assert "Transport: HTTP + protobuf" in details
+        assert "Transport Headers: {'authorization': '****'}" in details
+        assert "token123" not in details
 
     def test_register_with_http_protocol(self) -> None:
         tracer_provider = register(
@@ -378,6 +397,32 @@ class TestTracerProvider:
         # Both processors should be present
         assert len(tracer_provider._active_span_processor._span_processors) == initial_count + 1
 
+    def test_add_span_processor_replaces_only_default(self) -> None:
+        tracer_provider = TracerProvider(verbose=False)
+        default_processor = tracer_provider._active_span_processor._span_processors[0]
+        first_custom_processor = Mock(spec=_SimpleSpanProcessor)
+        tracer_provider.add_span_processor(first_custom_processor, replace_default_processor=False)
+
+        second_custom_processor = Mock(spec=_SimpleSpanProcessor)
+        tracer_provider.add_span_processor(second_custom_processor)
+
+        processors = tracer_provider._active_span_processor._span_processors
+        assert default_processor not in processors
+        assert processors == (first_custom_processor, second_custom_processor)
+        first_custom_processor.shutdown.assert_not_called()
+
+    def test_add_span_processor_removes_default_before_shutdown(self) -> None:
+        tracer_provider = TracerProvider(verbose=False)
+        default_processor = tracer_provider._default_processor
+        assert default_processor is not None
+
+        def assert_default_is_inactive() -> None:
+            assert default_processor not in tracer_provider._active_span_processor._span_processors
+            assert tracer_provider._default_processor is None
+
+        with patch.object(default_processor, "shutdown", side_effect=assert_default_is_inactive):
+            tracer_provider.add_span_processor(Mock(spec=_SimpleSpanProcessor))
+
     @patch("builtins.print")
     def test_tracer_provider_verbose(self, mock_print: Any) -> None:
         TracerProvider(verbose=True)
@@ -444,7 +489,7 @@ class TestSpanExporters:
         mock_auth_header.assert_called_once()
 
         # Check headers were set
-        headers_dict = {h.lower(): v for h, v in exporter._headers.items()}
+        headers_dict = {h.lower(): v for h, v in _exporter_headers(exporter).items()}
         assert headers_dict.get("x-custom") == "value"
         assert headers_dict.get("authorization") == "Bearer token"
 
@@ -471,7 +516,7 @@ class TestSpanExporters:
         headers = {"Custom-Header": "custom-value"}
         exporter = HTTPSpanExporter(headers=headers)
 
-        headers_dict = {h.lower(): v for h, v in exporter._headers.items()}
+        headers_dict = {h.lower(): v for h, v in _exporter_headers(exporter).items()}
         assert headers_dict.get("custom-header") == "custom-value"
 
     def test_grpc_span_exporter_with_explicit_headers(self) -> None:
@@ -481,6 +526,24 @@ class TestSpanExporters:
         if exporter._headers:
             headers_dict = {h[0].lower(): h[1] for h in exporter._headers}
             assert headers_dict.get("custom-header") == "custom-value"
+
+    def test_explicit_headers_with_file_endpoint_warns_and_continues(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        env_file = tmp_path / ".env.phoenix"
+        env_file.write_text("PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\n")
+        env_file.chmod(0o600)
+        clear_env_file_cache()
+
+        with patch.dict(os.environ, {}, clear=True):
+            with caplog.at_level("WARNING"):
+                exporter = HTTPSpanExporter(headers={"Authorization": "Bearer explicit-token"})
+
+        assert exporter._endpoint == "http://file-host:6006/v1/traces"
+        assert [record.message for record in caplog.records if record.levelname == "WARNING"] == [
+            "Credentials from explicit arguments will be sent to "
+            f"PHOENIX_COLLECTOR_ENDPOINT set by {env_file}."
+        ]
 
 
 class TestEndpointNormalization:
@@ -527,6 +590,186 @@ class TestEndpointNormalization:
                 parsed, endpoint = _normalized_endpoint(None, use_http=False)
                 assert parsed.scheme == "http"
                 assert parsed.netloc == "localhost:4317"
+
+    def test_construct_http_endpoint_preserves_path_prefix(self) -> None:
+        parsed = urlparse("http://example.com/phoenix")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+    def test_construct_http_endpoint_preserves_path_prefix_with_trailing_slash(self) -> None:
+        parsed = urlparse("http://example.com/phoenix/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+    def test_construct_http_endpoint_keeps_existing_traces_path(self) -> None:
+        parsed = urlparse("http://example.com/v1/traces")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/v1/traces"
+
+    def test_construct_http_endpoint_normalizes_traces_path_with_trailing_slash(self) -> None:
+        parsed = urlparse("http://example.com/v1/traces/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/v1/traces"
+
+    def test_construct_http_endpoint_keeps_prefixed_traces_path(self) -> None:
+        parsed = urlparse("http://example.com/phoenix/v1/traces/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+
+class TestProtocolInference:
+    @pytest.mark.parametrize(
+        "env_endpoint, protocol, exporter_cls, expected_endpoint",
+        [
+            pytest.param(
+                "http://localhost:6006",
+                None,
+                GRPCSpanExporter,
+                "localhost:4317",
+                id="bare-origin-uses-grpc",
+            ),
+            pytest.param(
+                "http://localhost:6006/",
+                None,
+                GRPCSpanExporter,
+                "localhost:4317",
+                id="trailing-slash-is-bare-origin",
+            ),
+            pytest.param(
+                "http://localhost:6006/v1/traces",
+                None,
+                HTTPSpanExporter,
+                "http://localhost:6006/v1/traces",
+                id="v1-traces-path-keeps-http-port",
+            ),
+            pytest.param(
+                "http://example.com/phoenix",
+                None,
+                HTTPSpanExporter,
+                "http://example.com/phoenix/v1/traces",
+                id="path-prefix-uses-http",
+            ),
+            pytest.param(
+                "http://example.com/phoenix/v1/traces",
+                None,
+                HTTPSpanExporter,
+                "http://example.com/phoenix/v1/traces",
+                id="path-prefix-with-v1-traces-uses-http",
+            ),
+            pytest.param(
+                "http://localhost:6006/v1/traces",
+                "grpc",
+                GRPCSpanExporter,
+                "localhost:4317",
+                id="explicit-grpc-beats-path",
+            ),
+            pytest.param(
+                "http://localhost:6006",
+                "http/protobuf",
+                HTTPSpanExporter,
+                "http://localhost:6006/v1/traces",
+                id="explicit-http-beats-bare-origin",
+            ),
+            pytest.param(
+                "http://localhost:4317",
+                None,
+                GRPCSpanExporter,
+                "localhost:4317",
+                id="grpc-port-uses-grpc",
+            ),
+            pytest.param(
+                "https://app.phoenix.arize.com/s/myspace",
+                None,
+                HTTPSpanExporter,
+                "https://app.phoenix.arize.com/s/myspace/v1/traces",
+                id="phoenix-cloud-space-uses-http",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("batch", [False, True], ids=["simple", "batch"])
+    def test_register_with_env_endpoint(
+        self,
+        env_endpoint: str,
+        protocol: Optional[Literal["http/protobuf", "grpc"]],
+        exporter_cls: Type[Union[HTTPSpanExporter, GRPCSpanExporter]],
+        expected_endpoint: str,
+        batch: bool,
+        monkeypatch: pytest.MonkeyPatch,
+        recwarn: pytest.WarningsRecorder,
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", env_endpoint)
+
+        tracer_provider = register(
+            protocol=protocol, batch=batch, verbose=False, set_global_tracer_provider=False
+        )
+
+        (processor,) = tracer_provider._active_span_processor._span_processors
+        exporter = _get_exporter_from_processor(processor)
+        tracer_provider.shutdown()
+        assert isinstance(exporter, exporter_cls)
+        assert exporter._endpoint == expected_endpoint
+        assert not recwarn.list
+
+    @pytest.mark.parametrize(
+        "endpoint, exporter_cls, expected_endpoint",
+        [
+            pytest.param(
+                "http://example.com/phoenix/v1/traces",
+                HTTPSpanExporter,
+                "http://example.com/phoenix/v1/traces",
+                id="path-prefix-uses-http",
+            ),
+            pytest.param(
+                "https://app.phoenix.arize.com/s/myspace/v1/traces",
+                HTTPSpanExporter,
+                "https://app.phoenix.arize.com/s/myspace/v1/traces",
+                id="phoenix-cloud-space-uses-http",
+            ),
+            pytest.param(
+                "http://localhost:4317",
+                GRPCSpanExporter,
+                "localhost:4317",
+                id="grpc-port-uses-grpc",
+            ),
+            pytest.param(
+                "http://localhost:9999",
+                GRPCSpanExporter,
+                "localhost:9999",
+                id="bare-origin-uses-grpc-as-given",
+            ),
+        ],
+    )
+    def test_explicit_endpoint(
+        self,
+        endpoint: str,
+        exporter_cls: Type[Union[HTTPSpanExporter, GRPCSpanExporter]],
+        expected_endpoint: str,
+        recwarn: pytest.WarningsRecorder,
+    ) -> None:
+        tracer_provider = TracerProvider(endpoint=endpoint, verbose=False)
+        batch_processor = BatchSpanProcessor(endpoint=endpoint)
+        batch_processor.shutdown()
+        processors = (
+            *tracer_provider._active_span_processor._span_processors,
+            SimpleSpanProcessor(endpoint=endpoint),
+            batch_processor,
+        )
+
+        for processor in processors:
+            exporter = _get_exporter_from_processor(processor)
+            assert isinstance(exporter, exporter_cls)
+            assert exporter._endpoint == expected_endpoint
+        assert not recwarn.list
 
 
 class TestPhoenixCloudEndpoint:

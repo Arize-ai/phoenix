@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Server box -->
+  <rect x="4" y="6" width="24" height="20" rx="2" fill="#1f2937" stroke="#10b981" stroke-width="2"/>
+  <!-- Server lines (representing activity) -->
+  <line x1="8" y1="12" x2="18" y2="12" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+  <line x1="8" y1="16" x2="14" y2="16" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+  <line x1="8" y1="20" x2="16" y2="20" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+  <!-- Status indicator -->
+  <circle cx="23" cy="12" r="2" fill="#10b981"/>
+</svg>

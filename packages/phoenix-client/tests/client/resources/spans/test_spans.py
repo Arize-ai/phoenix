@@ -1,0 +1,654 @@
+import json
+import warnings
+from urllib.parse import parse_qs, urlparse
+
+import httpx
+import pandas as pd
+import pytest
+
+from phoenix.client import AsyncClient, Client
+from phoenix.client.__generated__ import v1
+from phoenix.client.resources.spans import AsyncSpans, Spans
+
+
+@pytest.mark.parametrize(
+    ("span_id", "document_position", "expected_message"),
+    [
+        pytest.param(
+            "span-1",
+            "not-an-int",
+            "document_position values must be of type int",
+            id="non-integer-document-position",
+        ),
+        pytest.param(
+            "span-1",
+            None,
+            "document_position values cannot be None",
+            id="missing-document-position",
+        ),
+        pytest.param(
+            "",
+            0,
+            "span_id values must be non-empty strings",
+            id="empty-span-id",
+        ),
+    ],
+)
+def test_log_document_annotations_dataframe_rejects_invalid_identifiers(
+    span_id: object,
+    document_position: object,
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame(
+        {
+            "name": ["relevance"],
+            "annotator_kind": ["HUMAN"],
+            "span_id": [span_id],
+            "document_position": [document_position],
+            "label": ["relevant"],
+        }
+    )
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    http_client = httpx.Client(transport=transport, base_url="http://test")
+    client = Client(http_client=http_client)
+
+    with pytest.raises(ValueError, match=expected_message):
+        client.spans.log_document_annotations_dataframe(dataframe=dataframe)
+
+
+@pytest.mark.parametrize("missing", [None, float("nan"), pd.NA, pd.NaT])
+@pytest.mark.parametrize("column", ["label", "score", "explanation", "metadata", "identifier"])
+def test_log_span_annotations_dataframe_omits_missing_cells(column: str, missing: object) -> None:
+    values: dict[str, object] = {
+        "span_id": "span1",
+        "label": "good",
+        "score": 0.0,
+        "explanation": "details",
+        "metadata": {"tags": ["reviewed"]},
+        "identifier": "evaluation-1",
+    }
+    dataframe = pd.DataFrame([{**values, column: missing}])
+    requests: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    with httpx.Client(transport=httpx.MockTransport(handle), base_url="http://test") as http_client:
+        client = Client(http_client=http_client)
+        client.spans.log_span_annotations_dataframe(
+            dataframe=dataframe, annotation_name="quality", annotator_kind="HUMAN"
+        )
+
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.method == "POST"
+    assert request.url.path == "/v1/span_annotations"
+    assert json.loads(request.content)["data"] == [
+        {
+            "name": "quality",
+            "annotator_kind": "HUMAN",
+            "span_id": "span1",
+            "result": {
+                key: values[key] for key in ("label", "score", "explanation") if key != column
+            },
+            **{key: values[key] for key in ("metadata", "identifier") if key != column},
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("columns", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            r"DataFrame must contain columns: \{'annotator_kind'\}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+def test_log_span_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"span_id": ["span1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    with httpx.Client(transport=transport, base_url="http://test") as http_client:
+        client = Client(http_client=http_client)
+        with pytest.raises(ValueError, match=expected_message):
+            client.spans.log_span_annotations_dataframe(dataframe=dataframe)
+
+
+@pytest.mark.parametrize(
+    ("columns", "expected_message"),
+    [
+        pytest.param(
+            {"name": ["quality"]},
+            r"DataFrame must contain columns: \{'annotator_kind'\}",
+            id="missing-annotator-kind",
+        ),
+        pytest.param(
+            {"annotator_kind": ["HUMAN"]},
+            "DataFrame must contain either 'name' or 'annotation_name' column",
+            id="missing-name",
+        ),
+    ],
+)
+async def test_async_log_span_annotations_dataframe_requires_name_and_annotator_kind(
+    columns: dict[str, list[str]],
+    expected_message: str,
+) -> None:
+    dataframe = pd.DataFrame({"span_id": ["span1"], "label": ["good"], **columns})
+    transport = httpx.MockTransport(lambda request: pytest.fail("request must not be sent"))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http_client:
+        client = AsyncClient(http_client=http_client)
+        with pytest.raises(ValueError, match=expected_message):
+            await client.spans.log_span_annotations_dataframe(dataframe=dataframe)
+
+
+def _make_span(
+    *,
+    name: str = "test-span",
+    span_kind: str = "CHAIN",
+    status_code: str = "OK",
+) -> v1.Span:
+    return v1.Span(
+        name=name,
+        context=v1.SpanContext(trace_id="trace-1", span_id="span-1"),
+        span_kind=span_kind,
+        start_time="2024-01-01T00:00:00Z",
+        end_time="2024-01-01T00:01:00Z",
+        status_code=status_code,
+    )
+
+
+def _make_handler(
+    expected_params: dict[str, list[str]] | None = None,
+) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "/v1/projects/my-project/spans" in str(request.url)
+        if expected_params:
+            query_string = parse_qs(urlparse(str(request.url)).query)
+            for key, values in expected_params.items():
+                assert key in query_string, (
+                    f"Expected query param '{key}' not found in {query_string}"
+                )
+                assert sorted(query_string[key]) == sorted(values)
+        return httpx.Response(
+            200,
+            json={"data": [_make_span()], "next_cursor": None},
+        )
+
+    return httpx.MockTransport(handler)
+
+
+class TestGetSpansFilters:
+    def test_single_name_filter(self) -> None:
+        transport = _make_handler(expected_params={"name": ["my-span"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            name="my-span",
+        )
+        assert len(spans) == 1
+
+    def test_multiple_name_filter(self) -> None:
+        transport = _make_handler(expected_params={"name": ["span-a", "span-b"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            name=["span-a", "span-b"],
+        )
+        assert len(spans) == 1
+
+    def test_single_span_kind_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_kind": ["LLM"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_kind="LLM",
+        )
+        assert len(spans) == 1
+
+    def test_multiple_span_kind_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_kind": ["CHAIN", "LLM"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_kind=["LLM", "CHAIN"],
+        )
+        assert len(spans) == 1
+
+    def test_single_status_code_filter(self) -> None:
+        transport = _make_handler(expected_params={"status_code": ["ERROR"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            status_code="ERROR",
+        )
+        assert len(spans) == 1
+
+    def test_multiple_status_code_filter(self) -> None:
+        transport = _make_handler(expected_params={"status_code": ["ERROR", "OK"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            status_code=["OK", "ERROR"],
+        )
+        assert len(spans) == 1
+
+    def test_no_filters_omits_params(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            query_string = parse_qs(urlparse(str(request.url)).query)
+            assert "name" not in query_string
+            assert "span_kind" not in query_string
+            assert "status_code" not in query_string
+            assert "trace_id" not in query_string
+            assert "span_id" not in query_string
+            return httpx.Response(
+                200,
+                json={"data": [_make_span()], "next_cursor": None},
+            )
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+
+class TestGetSpansIdFilters:
+    def test_single_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1"],
+        )
+        assert len(spans) == 1
+
+    def test_multiple_span_id_filter(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1", "span-2"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1", "span-2"],
+        )
+        assert len(spans) == 1
+
+    def test_trace_id_and_span_id_filters_combined(self) -> None:
+        transport = _make_handler(expected_params={"trace_id": ["trace-1"], "span_id": ["span-1"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            trace_ids=["trace-1"],
+            span_ids=["span-1"],
+        )
+        assert len(spans) == 1
+
+    async def test_span_ids_wired_through_async_client(self) -> None:
+        transport = _make_handler(expected_params={"span_id": ["span-1", "span-2"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            span_ids=["span-1", "span-2"],
+        )
+        assert len(spans) == 1
+
+
+class TestGetSpansAttributeFilters:
+    def test_single_attribute_filter(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"llm.model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+    def test_multiple_attribute_filters(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["llm.model:gpt-4", "user.id:abc"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"llm.model": "gpt-4", "user.id": "abc"},
+        )
+        assert len(spans) == 1
+
+    def test_no_attribute_filters_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            query_string = parse_qs(urlparse(str(request.url)).query)
+            assert "attribute" not in query_string
+            return httpx.Response(
+                200,
+                json={"data": [_make_span()], "next_cursor": None},
+            )
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+    def test_attribute_filters_combined_with_other_filters(self) -> None:
+        transport = _make_handler(
+            expected_params={
+                "span_kind": ["LLM"],
+                "attribute": ["llm.model:gpt-4"],
+            }
+        )
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            span_kind="LLM",
+            attributes={"llm.model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+    def test_int_value_serialized_bare(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["count:42"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"count": 42},
+        )
+        assert len(spans) == 1
+
+    def test_float_value_serialized_bare(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["score:3.14"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"score": 3.14},
+        )
+        assert len(spans) == 1
+
+    def test_bool_true_serialized_lowercase(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["cached:true"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"cached": True},
+        )
+        assert len(spans) == 1
+
+    def test_bool_false_serialized_lowercase(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["cached:false"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"cached": False},
+        )
+        assert len(spans) == 1
+
+    def test_string_true_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['cached:"true"']})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"cached": "true"},
+        )
+        assert len(spans) == 1
+
+    def test_string_numeric_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['count:"42"']})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"count": "42"},
+        )
+        assert len(spans) == 1
+
+    @pytest.mark.parametrize("value", ['"hello"', '""', ' "hello" ', r'"line\nbreak"'])
+    def test_json_string_value_preserved_on_wire(self, value: str) -> None:
+        transport = _make_handler(
+            expected_params={"attribute": [f"input.value:{json.dumps(value)}"]}
+        )
+        with httpx.Client(transport=transport, base_url="http://test") as client:
+            spans = Spans(client).get_spans(
+                project_identifier="my-project",
+                attributes={"input.value": value},
+            )
+        assert len(spans) == 1
+
+    def test_empty_string_value_quoted_on_wire(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ['model:""']})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"model": ""},
+        )
+        assert len(spans) == 1
+
+    def test_plain_string_value_unquoted(self) -> None:
+        transport = _make_handler(expected_params={"attribute": ["model:gpt-4"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"model": "gpt-4"},
+        )
+        assert len(spans) == 1
+
+    def test_non_finite_float_raises_value_error(self) -> None:
+        import math
+
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
+        )
+        with pytest.raises(ValueError):
+            Spans(client).get_spans(
+                project_identifier="my-project",
+                attributes={"score": float("nan")},
+            )
+        with pytest.raises(ValueError):
+            Spans(client).get_spans(
+                project_identifier="my-project",
+                attributes={"score": math.inf},
+            )
+
+    def test_non_scalar_value_raises_type_error(self) -> None:
+        client = httpx.Client(
+            transport=httpx.MockTransport(lambda r: httpx.Response(200)), base_url="http://test"
+        )
+        with pytest.raises(TypeError):
+            Spans(client).get_spans(
+                project_identifier="my-project",
+                attributes={"tags": ["a", "b"]},  # type: ignore[dict-item]
+            )
+
+
+class TestAsyncGetSpansFilters:
+    @pytest.mark.anyio
+    async def test_single_name_filter(self) -> None:
+        transport = _make_handler(expected_params={"name": ["my-span"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            name="my-span",
+        )
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_combined_filters(self) -> None:
+        transport = _make_handler(
+            expected_params={
+                "name": ["my-span"],
+                "span_kind": ["LLM"],
+                "status_code": ["OK"],
+            }
+        )
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            name="my-span",
+            span_kind="LLM",
+            status_code="OK",
+        )
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("value", ["gpt-4", '"gpt-4"'])
+    async def test_attribute_filter_wired_through_async_client(self, value: str) -> None:
+        """Async client routes the `attributes` kwarg through the shared
+        `_serialize_attributes` helper — serialization cases live in
+        the sync suite; this test just pins async wiring."""
+        expected = value if value == "gpt-4" else json.dumps(value)
+        transport = _make_handler(expected_params={"attribute": [f"llm.model:{expected}"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project",
+            attributes={"llm.model": value},
+        )
+        assert len(spans) == 1
+
+
+class _GuardSentinel(Exception):
+    """Distinctive exception to pin the guard call-site for `attributes`."""
+
+
+def test_get_spans_with_attributes_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_BY_ATTRIBUTE
+
+    class _Guard:
+        def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_BY_ATTRIBUTE:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.Client(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        Spans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", attributes={"k": "v"}
+        )
+
+
+@pytest.mark.anyio
+async def test_async_get_spans_with_attributes_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_BY_ATTRIBUTE
+
+    class _Guard:
+        async def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_BY_ATTRIBUTE:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.AsyncClient(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", attributes={"k": "v"}
+        )
+
+
+def test_get_spans_with_span_ids_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_SPAN_IDS
+
+    class _Guard:
+        def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_SPAN_IDS:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.Client(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        Spans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", span_ids=["span-1"]
+        )
+
+
+@pytest.mark.anyio
+async def test_async_get_spans_with_span_ids_calls_guard_before_request() -> None:
+    from phoenix.client.constants.server_requirements import GET_SPANS_SPAN_IDS
+
+    class _Guard:
+        async def require(self, requirement: object) -> None:
+            if requirement is GET_SPANS_SPAN_IDS:
+                raise _GuardSentinel
+
+    transport = httpx.MockTransport(lambda r: pytest.fail("transport must not be reached"))
+    client = httpx.AsyncClient(transport=transport, base_url="http://test")
+    with pytest.raises(_GuardSentinel):
+        await AsyncSpans(client, _guard=_Guard()).get_spans(  # type: ignore[arg-type]
+            project_identifier="my-project", span_ids=["span-1"]
+        )
+
+
+def _make_dataframe_handler(expected_root_spans_only: object) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url).endswith("/v1/spans")
+        body = json.loads(request.content)
+        assert body["root_spans_only"] == expected_root_spans_only
+        return httpx.Response(200, json={"data": []})
+
+    return httpx.MockTransport(handler)
+
+
+class TestGetSpansDataframeRootSpansOnlyDeprecation:
+    def test_root_spans_only_warns_and_is_still_sent(self) -> None:
+        client = httpx.Client(
+            transport=_make_dataframe_handler(expected_root_spans_only=True),
+            base_url="http://test",
+        )
+        with pytest.warns(DeprecationWarning, match="parent_span is None"):
+            Spans(client).get_spans_dataframe(root_spans_only=True)
+
+    def test_omitting_root_spans_only_does_not_warn(self) -> None:
+        client = httpx.Client(
+            transport=_make_dataframe_handler(expected_root_spans_only=None),
+            base_url="http://test",
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            Spans(client).get_spans_dataframe()
+
+    @pytest.mark.anyio
+    async def test_async_root_spans_only_warns(self) -> None:
+        client = httpx.AsyncClient(
+            transport=_make_dataframe_handler(expected_root_spans_only=False),
+            base_url="http://test",
+        )
+        with pytest.warns(DeprecationWarning, match="root_spans_only is deprecated"):
+            await AsyncSpans(client).get_spans_dataframe(root_spans_only=False)
+
+
+class TestGetSpansSort:
+    def test_sort_by_start_time_is_sent(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project", sort="start_time")
+        assert len(spans) == 1
+
+    def test_no_sort_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "sort" not in parse_qs(urlparse(str(request.url)).query)
+            return httpx.Response(200, json={"data": [_make_span()], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1
+
+    @pytest.mark.anyio
+    async def test_sort_wired_through_async_client(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"]})
+        client = httpx.AsyncClient(transport=transport, base_url="http://test")
+        spans = await AsyncSpans(client).get_spans(
+            project_identifier="my-project", sort="start_time"
+        )
+        assert len(spans) == 1
+
+    def test_order_is_sent(self) -> None:
+        transport = _make_handler(expected_params={"sort": ["start_time"], "order": ["asc"]})
+        client = httpx.Client(transport=transport, base_url="http://test")
+        spans = Spans(client).get_spans(
+            project_identifier="my-project", sort="start_time", order="asc"
+        )
+        assert len(spans) == 1
+
+    def test_no_order_omits_param(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert "order" not in parse_qs(urlparse(str(request.url)).query)
+            return httpx.Response(200, json={"data": [_make_span()], "next_cursor": None})
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        spans = Spans(client).get_spans(project_identifier="my-project")
+        assert len(spans) == 1

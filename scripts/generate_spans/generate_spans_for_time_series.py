@@ -19,7 +19,6 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import StatusCode, format_span_id
-
 from phoenix.client import Client
 
 endpoint = "http://localhost:6006/v1/traces"

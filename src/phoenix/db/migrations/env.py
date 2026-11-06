@@ -1,11 +1,12 @@
 import asyncio
 
 from alembic import context
-from sqlalchemy import Connection, engine_from_config, pool
+from sqlalchemy import Connection, engine_from_config, make_url, pool, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from phoenix.config import get_env_database_connection_str
-from phoenix.db.engines import get_async_db_url
+from phoenix.config import get_env_database_connection_str, get_env_database_schema
+from phoenix.db.engines import get_async_db_url, sqlite_migration_engine
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import Base
 from phoenix.settings import Settings
 
@@ -21,6 +22,13 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+
+# Resolve schema: empty string must become None so Alembic uses the default
+# search path. When _schema is "", Alembic's has_table() checks for the
+# version table in the "" namespace (which doesn't exist), misses the table
+# in "public", and then CREATE TABLE fails with DuplicateTableError.
+_schema = get_env_database_schema() or None
 
 
 def run_migrations_offline() -> None:
@@ -42,6 +50,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         transaction_per_migration=True,
+        version_table_schema=_schema,
     )
 
     with context.begin_transaction():
@@ -63,15 +72,19 @@ def run_migrations_online() -> None:
             config["sqlalchemy.url"] = get_async_db_url(connection_str).render_as_string(
                 hide_password=False
             )
-        connectable = AsyncEngine(
-            engine_from_config(
-                config,
-                prefix="sqlalchemy.",
-                poolclass=pool.NullPool,
-                future=True,
-                echo=Settings.log_migrations,
+        url = make_url(config["sqlalchemy.url"])
+        if url.get_backend_name() == SupportedSQLDialect.SQLITE.value:
+            connectable = sqlite_migration_engine(url, echo=Settings.log_migrations)
+        else:
+            connectable = AsyncEngine(
+                engine_from_config(
+                    config,
+                    prefix="sqlalchemy.",
+                    poolclass=pool.NullPool,
+                    future=True,
+                    echo=Settings.log_migrations,
+                )
             )
-        )
 
     if isinstance(connectable, AsyncEngine):
         try:
@@ -90,6 +103,11 @@ async def run_async_migrations(connectable: AsyncEngine) -> None:
 
 
 def run_migrations(connection: Connection) -> None:
+    if _schema:
+        connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {_schema}"))
+        connection.execute(text(f"SET search_path TO {_schema}"))
+    if connection.in_transaction():
+        connection.commit()
     transaction = connection.begin()
     try:
         context.configure(
@@ -98,14 +116,13 @@ def run_migrations(connection: Connection) -> None:
             compare_type=True,
             transactional_ddl=True,
             transaction_per_migration=True,
+            version_table_schema=_schema,
         )
         context.run_migrations()
         transaction.commit()
     except Exception:
         transaction.rollback()
         raise
-    finally:
-        connection.close()
 
 
 if context.is_offline_mode():

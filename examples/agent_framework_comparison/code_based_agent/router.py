@@ -43,6 +43,10 @@ def router(messages, parent_context):
                 tools=skill_map.get_combined_function_description_for_openai(),
             )
 
+        if not response.choices:
+            span.set_attribute(SpanAttributes.OUTPUT_VALUE, "")
+            return None
+
         messages.append(response.choices[0].message)
         tool_calls = response.choices[0].message.tool_calls
         if tool_calls:

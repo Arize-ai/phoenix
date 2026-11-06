@@ -1,6 +1,7 @@
 import z from "zod";
+
+import type { PromptResponseFormat } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
-import { PromptResponseFormat } from "../../../types/prompts";
 
 /**
  * Phoenix response format schema
@@ -12,7 +13,7 @@ export const phoenixResponseFormatSchema =
       json_schema: z.object({
         name: z.string(),
         description: z.string().optional(),
-        schema: z.record(z.unknown()).optional(),
+        schema: z.record(z.string(), z.unknown()).optional(),
         strict: z.boolean().optional(),
       }),
     })

@@ -1,0 +1,94 @@
+---
+title: "05.13.2026: Session Enhancements and Annotation Identifiers"
+description: "Session turn messages are now expandable, notes accept caller-supplied identifiers for upsert semantics, and new CLI commands manage annotation bulk-delete."
+---
+
+# Expandable Session Turn Messages
+
+**Available in arize-phoenix 15.7.0+**
+
+Long messages in the Session Details view are now collapsed by default with an expand button. This keeps the turn list scannable without losing any content — click to expand a message, click again to collapse it. The change applies to both user turns and model responses.
+
+# Note Identifier Support
+
+**Available in arize-phoenix 15.7.0+**
+
+The `POST /v1/{trace,span,session}_notes` endpoints now accept an optional `identifier` field on the request body. When provided, the note is upserted on `(entity_id, name='note', identifier)` — matching the semantics of structured annotations. Repeated calls with the same identifier overwrite the existing note. When omitted, the server stamps a unique `px-<kind>-note:<uuid>` identifier, preserving the existing append behavior.
+
+```http
+POST /v1/trace_notes
+Content-Type: application/json
+
+{
+  "trace_id": "abc123",
+  "note": "Reviewed — context loss detected at turn 3",
+  "identifier": "coding-session:chatbot-analysis-2026-05-13"
+}
+```
+
+The same `identifier` field is available on span and session notes:
+
+```http
+POST /v1/span_notes
+{
+  "span_id": "def456",
+  "note": "Retrieval step returned stale document",
+  "identifier": "coding-session:chatbot-analysis-2026-05-13"
+}
+```
+
+Combined with the existing filter-based DELETE endpoints, this lets you tag every note in a coding session with a shared identifier and remove them all in one call:
+
+```bash
+curl -X DELETE \
+  "https://your-phoenix/v1/projects/my-project/trace_annotations?identifier=coding-session:chatbot-analysis-2026-05-13&delete_all=true" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+# New CLI Annotation Commands
+
+**Available in arize-phoenix 15.7.0+ (server), @arizeai/phoenix-cli (next minor release)**
+
+New `px` commands let you manage annotations without needing curl or GraphQL.
+
+**Bulk delete annotations by identifier or time range**
+
+```bash
+# Delete all annotations tagged with a coding session identifier
+px trace-annotations delete --identifier "coding-session:chatbot-analysis-2026-05-13" --all -y
+px span-annotations delete  --identifier "coding-session:chatbot-analysis-2026-05-13" --all -y
+px session-annotations delete --identifier "coding-session:chatbot-analysis-2026-05-13" --all -y
+
+# Delete by time range
+px trace-annotations delete --start-time 2026-05-01T00:00:00Z --end-time 2026-05-13T00:00:00Z -y
+```
+
+**Get a project by name**
+
+```bash
+px project get my-project
+px project get my-project --format raw --no-progress | jq -r '.id'
+```
+
+**`--identifier` flag on annotate and add-note**
+
+```bash
+# Annotate with a reusable identifier (upserts on repeated calls)
+px trace annotate <trace-id> \
+  --name quality \
+  --label pass \
+  --identifier "coding-session:chatbot-analysis-2026-05-13"
+
+# Add a note with a reusable identifier
+px trace add-note <trace-id> \
+  --text "Context loss detected at turn 3" \
+  --identifier "coding-session:chatbot-analysis-2026-05-13"
+```
+
+The TypeScript client's `addTraceNote`, `addSpanNote`, and `addSessionNote` functions also accept an `identifier` parameter in the same upcoming release.
+
+# Security: Format-String Injection Prevention
+
+**Available in arize-phoenix 15.7.0+**
+
+The f-string template formatter now blocks access to private and dunder attributes in template expressions. Templates like `{user.__class__.__globals__}` raised an error instead of resolving, preventing a format-string injection path that could expose process state (environment variables, module globals) through user-supplied template variables. Normal attribute access (`{user.name}`, `{items[0].value}`) is unaffected.

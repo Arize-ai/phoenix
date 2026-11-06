@@ -1,9 +1,16 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
-from phoenix.evals.legacy.templates import MultimodalPrompt
+from .prompts import PromptLike
+
+__all__ = [
+    "ObjectGenerationMethod",
+    "BaseLLMAdapter",
+    "AdapterRegistration",
+    "ProviderRegistration",
+]
 
 
 class ObjectGenerationMethod(str, Enum):
@@ -26,9 +33,10 @@ class BaseLLMAdapter(ABC):
     tool calling, structured output, and fallback mechanisms internally.
     """
 
-    def __init__(self, client: Any) -> None:
+    def __init__(self, client: Any, model: str) -> None:
         """Initialize the adapter with a client."""
         self.client = client
+        self.model = model  # store the model name since the client might not store it
 
     @classmethod
     @abstractmethod
@@ -37,19 +45,27 @@ class BaseLLMAdapter(ABC):
         pass
 
     @abstractmethod
-    def generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
-        """Generate text response from the model."""
+    def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+        """Generate text response from the model.
+
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+        """
         pass
 
     @abstractmethod
-    async def async_generate_text(self, prompt: Union[str, MultimodalPrompt], **kwargs: Any) -> str:
-        """Async version of generate_text."""
+    async def async_generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
+        """Async version of generate_text.
+
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+        """
         pass
 
     @abstractmethod
     def generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
@@ -60,6 +76,11 @@ class BaseLLMAdapter(ABC):
         The adapter handles all implementation details internally (native structured output,
         tool calling, text parsing, etc.).
 
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+            schema: JSON schema for the structured output.
+            method: Method to use for generation (auto, tool_calling, structured_output).
+
         Returns:
             A dictionary containing the structured data that conforms to the provided schema.
         """
@@ -68,13 +89,18 @@ class BaseLLMAdapter(ABC):
     @abstractmethod
     async def async_generate_object(
         self,
-        prompt: Union[str, MultimodalPrompt],
+        prompt: PromptLike,
         schema: Dict[str, Any],
         method: ObjectGenerationMethod = ObjectGenerationMethod.AUTO,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Async version of generate_object.
+
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+            schema: JSON schema for the structured output.
+            method: Method to use for generation (auto, tool_calling, structured_output).
 
         Returns:
             A dictionary containing the structured data that conforms to the provided schema.

@@ -1,0 +1,16 @@
+interactions:
+- request:
+    body: '{"max_tokens":32,"messages":[{"role":"user","content":[{"text":"What
+      is the capital of France?","type":"text"}]}],"model":"claude-haiku-4-5","stream":false,"system":"Reply
+      with exactly the following sentence and nothing else: The capital of France is Paris.","temperature":0.0}'
+    headers: {}
+    method: POST
+    uri: https://api.anthropic.com/v1/messages?beta=true
+  response:
+    body:
+      string: '{"model":"claude-haiku-4-5-20251001","id":"msg_013aLhuzsXzEezcdZYWa6mJD","type":"message","role":"assistant","content":[{"type":"text","text":"The capital of France is Paris."}],"stop_reason":"end_turn","stop_sequence":null,"stop_details":null,"usage":{"input_tokens":29,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":10,"service_tier":"standard","inference_geo":"not_available"}}'
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

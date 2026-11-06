@@ -1,0 +1,49 @@
+import { Suspense } from "react";
+import { Pressable } from "react-aria";
+
+import type { TextProps } from "@phoenix/components";
+import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
+
+import { SessionTokenCostsDetails } from "./SessionTokenCostsDetails";
+import { TokenCosts } from "./TokenCosts";
+import { TokenDetailsBreakdownSkeleton } from "./TokenDetailsBreakdown";
+
+type SessionTokenCostsProps = {
+  /**
+   * The total cost of the session
+   */
+  totalCost: number;
+  /**
+   * The id of the session node
+   */
+  nodeId: string;
+  /**
+   * The size of the icon and text
+   */
+  size?: TextProps["size"];
+};
+
+/**
+ * Displays the cost of a session with detailed breakdown
+ */
+export function SessionTokenCosts(props: SessionTokenCostsProps) {
+  return (
+    <TooltipTrigger>
+      <Pressable>
+        <TokenCosts size={props.size} role="button" tabIndex={0}>
+          {props.totalCost}
+        </TokenCosts>
+      </Pressable>
+      <RichTooltip placement="end">
+        <TooltipArrow />
+        <Suspense
+          fallback={
+            <TokenDetailsBreakdownSkeleton costs={{ total: props.totalCost }} />
+          }
+        >
+          <SessionTokenCostsDetails sessionNodeId={props.nodeId} />
+        </Suspense>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}

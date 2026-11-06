@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, cast
+from typing import Optional
 
 import pandas as pd
 import pyarrow as pa
@@ -9,7 +9,7 @@ def table_to_bytes(table: pa.Table) -> bytes:
     sink = pa.BufferOutputStream()
     with pa.ipc.new_stream(sink, table.schema) as writer:
         writer.write_table(table)
-    return cast(bytes, sink.getvalue().to_pybytes())
+    return sink.getvalue().to_pybytes()
 
 
 def from_iso_format(value: Optional[str]) -> Optional[datetime]:

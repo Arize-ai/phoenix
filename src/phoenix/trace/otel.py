@@ -13,17 +13,19 @@ from openinference.semconv.trace import (
     SpanAttributes,
 )
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.trace.attributes import (
     JSON_STRING_ATTRIBUTES,
+    Attributes,
+    AttributeValue,
     flatten,
     get_attribute_value,
     has_mapping,
     load_json_strings,
     unflatten,
 )
+from phoenix.trace.gen_ai.conversion import get_openinference_attributes
 from phoenix.trace.schemas import (
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
@@ -66,6 +68,32 @@ def coerce_otlp_span_attributes(
         yield key, value
 
 
+_MESSAGE_NAMESPACES = (SpanAttributes.LLM_INPUT_MESSAGES, SpanAttributes.LLM_OUTPUT_MESSAGES)
+
+
+def _merge_synthesized_attributes(
+    raw_attributes: dict[str, Any],
+    synthesized: Mapping[str, Any],
+) -> None:
+    """Fill in OpenInference attributes synthesized from ``gen_ai.*`` without
+    overriding any the span already carries.
+
+    Message namespaces are skipped wholesale once the span has written into them:
+    their keys are positional, and a client-side mapping can number messages
+    differently from the synthesized one (see #14961), so filling gaps key by key
+    would splice the two into messages that were never emitted.
+    """
+    occupied_namespaces = tuple(
+        f"{namespace}."
+        for namespace in _MESSAGE_NAMESPACES
+        if any(key.startswith(f"{namespace}.") for key in raw_attributes)
+    )
+    for key, value in synthesized.items():
+        if key.startswith(occupied_namespaces):
+            continue
+        raw_attributes.setdefault(key, value)
+
+
 def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     trace_id = cast(TraceID, _decode_identifier(otlp_span.trace_id))
     span_id = cast(SpanID, _decode_identifier(otlp_span.span_id))
@@ -74,9 +102,9 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     start_time = _decode_unix_nano(otlp_span.start_time_unix_nano)
     end_time = _decode_unix_nano(otlp_span.end_time_unix_nano)
 
-    attributes = unflatten(
-        load_json_strings(coerce_otlp_span_attributes(_decode_key_values(otlp_span.attributes)))
-    )
+    raw_attributes = dict(_decode_key_values(otlp_span.attributes))
+    _merge_synthesized_attributes(raw_attributes, get_openinference_attributes(raw_attributes))
+    attributes = unflatten(load_json_strings(coerce_otlp_span_attributes(raw_attributes.items())))
     span_kind = SpanKind(get_attribute_value(attributes, OPENINFERENCE_SPAN_KIND))
 
     status_code, status_message = _decode_status(otlp_span.status)
@@ -160,6 +188,10 @@ def _decode_value(any_value: AnyValue) -> Any:
         return dict(_decode_key_values(any_value.kvlist_value.values))
     if which == "bytes_value":
         return any_value.bytes_value
+    if which == "string_value_strindex":
+        # Reference into ProfilesDictionary.string_table (profiles signal);
+        # not resolvable in isolation and never present on span attributes.
+        return None
     if which is None:
         return None
     assert_never(which)

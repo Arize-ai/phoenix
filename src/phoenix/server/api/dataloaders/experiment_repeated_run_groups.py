@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from sqlalchemy import select, tuple_
-from sqlalchemy.orm import joinedload
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -38,10 +37,9 @@ class ExperimentRepeatedRunGroupsDataLoader(DataLoader[Key, Result]):
                 ).in_(set(keys))
             )
             .order_by(models.ExperimentRun.repetition_number)
-            .options(joinedload(models.ExperimentRun.trace).load_only(models.Trace.trace_id))
         )
 
-        async with self._db() as session:
+        async with self._db.read() as session:
             runs_by_key: dict[Key, list[models.ExperimentRun]] = {}
             for run in (await session.scalars(repeated_run_groups_query)).all():
                 key = (run.experiment_id, run.dataset_example_id)

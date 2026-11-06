@@ -1,11 +1,10 @@
 import inspect
 import os
 import re
-import sys
 import warnings
 from enum import Enum
 from importlib.metadata import entry_points
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, Literal, Optional, Tuple, Type, Union
 from urllib.parse import ParseResult, urlparse
 
 from openinference.instrumentation import TracerProvider as _TracerProvider
@@ -29,6 +28,7 @@ from .settings import (
     get_env_grpc_port,
     get_env_phoenix_auth_header,
     get_env_project_name,
+    warn_if_using_file_endpoint_with_credentials,
 )
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
@@ -85,8 +85,7 @@ def register(
 
     Args:
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used. The
-            export protocol will be inferred from the endpoint.
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used.
         project_name (str, optional): The name of the project to which spans will be associated. If
             not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
         batch (bool): If True, spans will be processed using a BatchSpanprocessor. If False, spans
@@ -96,7 +95,9 @@ def register(
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` environment variable will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
         verbose (bool): If True, configuration details will be printed to stdout.
         auto_instrument (bool): If True, automatically instruments all installed OpenInference
             libraries.
@@ -175,8 +176,7 @@ def register(
         span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
     else:
         span_processor = SimpleSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
-    tracer_provider.add_span_processor(span_processor)
-    tracer_provider._default_processor = True
+    tracer_provider._set_default_processor(span_processor)
 
     if set_global_tracer_provider:
         trace_api.set_tracer_provider(tracer_provider)
@@ -206,14 +206,13 @@ class TracerProvider(_TracerProvider):
     the OpenTelemetry documentation at https://opentelemetry.io/docs/specs/otel/trace/sdk/.
 
     Args:
-        endpoint (str, optional): The collector endpoint to which spans will be exported. If
-            specified, a default SpanProcessor will be created and added to this TracerProvider.
-            If not provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be
-            used to infer which collector endpoint to use, defaults to the gRPC endpoint. When
-            specifying the endpoint, the transport method (HTTP or gRPC) will be inferred from the
-            URL.
+        endpoint (str, optional): The collector endpoint to which the default SpanProcessor
+            exports spans. If not provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable
+            will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
         verbose (bool): If True, configuration details will be printed to stdout.
 
     Examples:
@@ -261,22 +260,10 @@ class TracerProvider(_TracerProvider):
             )
         super().__init__(*bound_args.args, **bound_args.kwargs)
 
-        validated_protocol = OTLPTransportProtocol(protocol)
-        use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-        parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
-        self._default_processor = False
-
-        if (
-            _maybe_http_endpoint(parsed_url)
-            or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-        ):
-            http_exporter: SpanExporter = HTTPSpanExporter(endpoint=endpoint)
-            self.add_span_processor(SimpleSpanProcessor(span_exporter=http_exporter))
-            self._default_processor = True
-        elif _maybe_grpc_endpoint(parsed_url) or validated_protocol == OTLPTransportProtocol.GRPC:
-            grpc_exporter: SpanExporter = GRPCSpanExporter(endpoint=endpoint)
-            self.add_span_processor(SimpleSpanProcessor(span_exporter=grpc_exporter))
-            self._default_processor = True
+        self._default_processor: Optional[SpanProcessor] = None
+        self._set_default_processor(
+            SimpleSpanProcessor(span_exporter=_default_exporter(endpoint, protocol))
+        )
         if verbose:
             print(self._tracing_details())
 
@@ -287,13 +274,31 @@ class TracerProvider(_TracerProvider):
         Registers a new `SpanProcessor` for this `TracerProvider`.
 
         If this `TracerProvider` has a default processor, it will be removed.
+        Pass `replace_default_processor=False` to keep the default processor
+        alongside the newly added one.
         """
 
-        if self._default_processor and replace_default_processor:
-            self._active_span_processor.shutdown()
-            self._active_span_processor._span_processors = tuple()  # remove default processors
-            self._default_processor = False
+        if self._default_processor is not None and replace_default_processor:
+            self._shutdown_default_processor()
         return super().add_span_processor(*args, **kwargs)
+
+    def _set_default_processor(self, span_processor: SpanProcessor) -> None:
+        self._shutdown_default_processor()
+        super().add_span_processor(span_processor)
+        self._default_processor = span_processor
+
+    def _shutdown_default_processor(self) -> None:
+        with self._active_span_processor._lock:
+            default_processor = self._default_processor
+            if default_processor is None:
+                return
+            self._active_span_processor._span_processors = tuple(
+                processor
+                for processor in self._active_span_processor._span_processors
+                if processor is not default_processor
+            )
+            self._default_processor = None
+        default_processor.shutdown()
 
     def _tracing_details(self) -> str:
         project = self.resource.attributes.get(PROJECT_NAME)
@@ -319,7 +324,7 @@ class TracerProvider(_TracerProvider):
                         processor_name = span_processor.__class__.__name__
                         endpoint = exporter._endpoint
                         transport = _exporter_transport(exporter)
-                        headers = _printable_headers(exporter._headers)
+                        headers = _printable_headers(_exporter_headers(exporter))
                 else:
                     processor_name = "Multiple Span Processors"
                     endpoint = "Multiple Span Exporters"
@@ -358,7 +363,7 @@ class TracerProvider(_TracerProvider):
             f"|  Transport: {transport}\n"
             f"|  Transport Headers: {headers}\n"
             "|  \n"
-            f"{configuration_msg if self._default_processor else ''}"
+            f"{configuration_msg if self._default_processor is not None else ''}"
             f"{span_processor_warning if using_simple_processor else ''}"
         )
         return details_msg
@@ -375,14 +380,14 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
-            infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
-            the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used.
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
             environment variable will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
 
     Examples:
         Basic usage with automatic endpoint inference::
@@ -418,21 +423,7 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     ):
         if span_exporter is None:
-            validated_protocol = OTLPTransportProtocol(protocol)
-            use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
-            if (
-                _maybe_http_endpoint(parsed_url)
-                or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            ):
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
-            elif (
-                _maybe_grpc_endpoint(parsed_url) or validated_protocol == OTLPTransportProtocol.GRPC
-            ):
-                span_exporter = GRPCSpanExporter(endpoint=endpoint, headers=headers)
-            else:
-                warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
+            span_exporter = _default_exporter(endpoint, protocol, headers)
         super().__init__(span_exporter)
 
 
@@ -455,14 +446,14 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
-            infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
-            the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used.
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
             environment variable will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
         max_queue_size (int, optional): The maximum queue size.
         schedule_delay_millis (float, optional): The delay between two consecutive exports in
             milliseconds.
@@ -505,21 +496,7 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     ):
         if span_exporter is None:
-            validated_protocol = OTLPTransportProtocol(protocol)
-            use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
-            if (
-                _maybe_http_endpoint(parsed_url)
-                or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            ):
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
-            elif (
-                _maybe_grpc_endpoint(parsed_url) or validated_protocol == OTLPTransportProtocol.GRPC
-            ):
-                span_exporter = GRPCSpanExporter(endpoint=endpoint, headers=headers)
-            else:
-                warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
+            span_exporter = _default_exporter(endpoint, protocol, headers)
         super().__init__(span_exporter)
 
 
@@ -568,6 +545,7 @@ class HTTPSpanExporter(_HTTPSpanExporter):
         sig = _get_class_signature(_HTTPSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
+        has_explicit_headers = bool(bound_args.arguments.get("headers"))
 
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
@@ -593,6 +571,8 @@ class HTTPSpanExporter(_HTTPSpanExporter):
                 bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
+            if has_explicit_headers:
+                warn_if_using_file_endpoint_with_credentials(credential_source="explicit arguments")
             _, endpoint = _normalized_endpoint(None, use_http=True)
             bound_args.arguments["endpoint"] = endpoint
         super().__init__(*bound_args.args, **bound_args.kwargs)
@@ -653,6 +633,7 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         sig = _get_class_signature(_GRPCSpanExporter)
         bound_args = sig.bind_partial(*args, **kwargs)
         bound_args.apply_defaults()
+        has_explicit_headers = bool(bound_args.arguments.get("headers"))
 
         if not bound_args.arguments.get("headers"):
             env_headers = get_env_client_headers()
@@ -678,21 +659,11 @@ class GRPCSpanExporter(_GRPCSpanExporter):
                 bound_args.arguments["headers"] = headers
 
         if bound_args.arguments.get("endpoint") is None:
+            if has_explicit_headers:
+                warn_if_using_file_endpoint_with_credentials(credential_source="explicit arguments")
             _, endpoint = _normalized_endpoint(None)
             bound_args.arguments["endpoint"] = endpoint
         super().__init__(*bound_args.args, **bound_args.kwargs)
-
-
-def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
-    if parsed_endpoint.path == "/v1/traces":
-        return True
-    return False
-
-
-def _maybe_grpc_endpoint(parsed_endpoint: ParseResult) -> bool:
-    if not parsed_endpoint.path and parsed_endpoint.port == get_env_grpc_port():
-        return True
-    return False
 
 
 def _exporter_transport(exporter: SpanExporter) -> str:
@@ -704,20 +675,30 @@ def _exporter_transport(exporter: SpanExporter) -> str:
         return exporter.__class__.__name__
 
 
-def _printable_headers(headers: Union[List[Tuple[str, str]], Dict[str, str]]) -> Dict[str, str]:
-    """
-    Mask header values for safe printing/logging.
+_OTLP_HTTP_EXPORTER_OWN_HEADERS = frozenset({"content-encoding", "content-type", "user-agent"})
 
-    Args:
-        headers (Union[List[Tuple[str, str]], Dict[str, str]]): Headers as either
-            a list of key-value tuples or a dictionary.
 
-    Returns:
-        Dict[str, str]: Dictionary with header keys preserved but values masked as "****".
+def _exporter_headers(exporter: SpanExporter) -> Dict[str, str]:
     """
-    if isinstance(headers, dict):
-        return {key: "****" for key, _ in headers.items()}
-    return {key: "****" for key, _ in headers}
+    Get the headers configured on an OTLP span exporter, without the ones the HTTP exporter
+    adds on its own.
+    """
+    if isinstance(exporter, _HTTPSpanExporter):
+        return {
+            key: value
+            for key, value in exporter._client._headers.items()
+            if key.lower() not in _OTLP_HTTP_EXPORTER_OWN_HEADERS
+        }
+    if isinstance(exporter, _GRPCSpanExporter):
+        headers = exporter._headers
+        if isinstance(headers, (dict, list, tuple)):
+            return dict(headers)
+    return {}
+
+
+def _printable_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Mask header values for safe printing/logging."""
+    return {key: "****" for key in headers}
 
 
 def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
@@ -727,9 +708,13 @@ def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
         parsed_endpoint (ParseResult): Parsed URL endpoint.
 
     Returns:
-        ParseResult: Modified endpoint with "/v1/traces" path.
+        ParseResult: Endpoint with "/v1/traces" appended to any existing path prefix.
     """
-    return parsed_endpoint._replace(path="/v1/traces")
+    traces_suffix = "/v1/traces"
+    path = parsed_endpoint.path.rstrip("/")
+    if path.endswith(traces_suffix):
+        return parsed_endpoint._replace(path=path)
+    return parsed_endpoint._replace(path=f"{path}{traces_suffix}")
 
 
 def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
@@ -787,23 +772,39 @@ def _normalized_endpoint(
     return parsed, parsed.geturl()
 
 
+def _infer_protocol(
+    endpoint: Optional[str], protocol: OTLPTransportProtocol
+) -> OTLPTransportProtocol:
+    # OTLP/gRPC has no room for a URL path, so a path means HTTP; a bare origin keeps gRPC.
+    if protocol != OTLPTransportProtocol.INFER:
+        return protocol
+    if endpoint is None:
+        endpoint = get_env_collector_endpoint() or "http://localhost:6006"
+    parsed = urlparse(endpoint if _has_scheme(endpoint) else f"//{endpoint}")
+    if parsed.hostname in _KNOWN_PROVIDERS or parsed.path.strip("/"):
+        return OTLPTransportProtocol.HTTP_PROTOBUF
+    return OTLPTransportProtocol.GRPC
+
+
+def _default_exporter(
+    endpoint: Optional[str],
+    protocol: Optional[Literal["http/protobuf", "grpc"]],
+    headers: Optional[Dict[str, str]] = None,
+) -> SpanExporter:
+    inferred = _infer_protocol(endpoint, OTLPTransportProtocol(protocol))
+    use_http = inferred == OTLPTransportProtocol.HTTP_PROTOBUF
+    _, url = _normalized_endpoint(endpoint, use_http=use_http)
+    if use_http:
+        return HTTPSpanExporter(endpoint=url, headers=headers)
+    return GRPCSpanExporter(endpoint=url, headers=headers)
+
+
 def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
-    if sys.version_info >= (3, 9):
-        return inspect.signature(fn)
-    elif sys.version_info >= (3, 8):
-        init_signature = inspect.signature(fn.__init__)
-        new_params = list(init_signature.parameters.values())[1:]  # Skip 'self'
-        new_sig = init_signature.replace(parameters=new_params)
-        return new_sig
-    else:
-        raise RuntimeError("Unsupported Python version")
+    return inspect.signature(fn)
 
 
 def _auto_instrument_installed_openinference_libraries(tracer_provider: TracerProvider) -> None:
-    if sys.version_info < (3, 10):
-        openinference_entry_points = entry_points().get("openinference_instrumentor", [])
-    else:
-        openinference_entry_points = entry_points(group="openinference_instrumentor")
+    openinference_entry_points = entry_points(group="openinference_instrumentor")
     if not openinference_entry_points:
         warnings.warn(
             "No OpenInference instrumentors found. "

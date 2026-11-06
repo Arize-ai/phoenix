@@ -1,14 +1,14 @@
+# type: ignore
 import dotenv
 from database import save_df_to_db
-
-import phoenix as px
+from phoenix.client import Client
 
 dotenv.load_dotenv()
 
 
 def save_traces_to_db():
-    df = px.Client().get_trace_dataset()
-    save_df_to_db(df.dataframe)
+    df = Client().spans.get_spans_dataframe()
+    save_df_to_db(df)
 
 
 if __name__ == "__main__":

@@ -1,15 +1,38 @@
 import json
+from copy import deepcopy
 from datetime import datetime
 from secrets import token_hex
-from typing import Any, Sequence
+from typing import Any, AsyncIterator, Sequence
 
 import pytest
 import sqlalchemy as sa
 from deepdiff.diff import DeepDiff
 from sqlalchemy import select
+from sqlalchemy.dialects import postgresql as postgresql_dialect
+from sqlalchemy.dialects import sqlite as sqlite_dialect
+from sqlalchemy.orm import RelationshipDirection, selectinload
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    OptimizationDirection,
+    OutputConfigType,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptStringTemplate,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -651,3 +674,1288 @@ def _decode_if_sqlite(values: Sequence[Any], dialect: SupportedSQLDialect) -> li
     queries on mapped columns already return Python objects across dialects.
     """
     return list(map(json.loads, values)) if dialect is SupportedSQLDialect.SQLITE else list(values)
+
+
+class TestNumDocuments:
+    """Test NumDocuments SQL expression handles non-array values gracefully."""
+
+    async def test_num_documents_handles_non_array_values(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """num_documents returns array length for arrays and 0 for non-array values."""
+        start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        end_time = datetime.fromisoformat("2024-01-01T00:01:00+00:00")
+
+        # Test cases: (span_kind, attributes, expected_num_documents)
+        test_cases: list[tuple[str, dict[str, Any], int]] = [
+            # RETRIEVER: Valid array - should return count
+            (
+                "RETRIEVER",
+                {
+                    "retrieval": {
+                        "documents": [
+                            {"document": {"content": "doc1"}},
+                            {"document": {"content": "doc2"}},
+                            {"document": {"content": "doc3"}},
+                        ]
+                    }
+                },
+                3,
+            ),
+            # RETRIEVER: Scalar string - should return 0
+            ("RETRIEVER", {"retrieval": {"documents": "not an array"}}, 0),
+            # RETRIEVER: Object - should return 0
+            ("RETRIEVER", {"retrieval": {"documents": {"key": "value"}}}, 0),
+            # RETRIEVER: Number - should return 0
+            ("RETRIEVER", {"retrieval": {"documents": 42}}, 0),
+            # RETRIEVER: Null/missing - should return 0
+            ("RETRIEVER", {}, 0),
+            # RETRIEVER: Parent key exists but documents missing - should return 0
+            ("RETRIEVER", {"retrieval": {}}, 0),
+            # RETRIEVER: Parent key is a scalar - should return 0
+            ("RETRIEVER", {"retrieval": 42}, 0),
+            # RERANKER: Valid array - should return count
+            (
+                "RERANKER",
+                {
+                    "reranker": {
+                        "output_documents": [
+                            {"document": {"content": "doc1"}},
+                            {"document": {"content": "doc2"}},
+                        ]
+                    }
+                },
+                2,
+            ),
+            # RERANKER: Scalar string - should return 0
+            ("RERANKER", {"reranker": {"output_documents": "not an array"}}, 0),
+            # RERANKER: Object - should return 0
+            ("RERANKER", {"reranker": {"output_documents": {"key": "value"}}}, 0),
+            # RERANKER: Null/missing - should return 0
+            ("RERANKER", {}, 0),
+            # RERANKER: Parent key exists but output_documents missing - should return 0
+            ("RERANKER", {"reranker": {}}, 0),
+            # RERANKER: Parent key is a scalar - should return 0
+            ("RERANKER", {"reranker": 42}, 0),
+        ]
+
+        async with db() as session:
+            project = models.Project(name=f"test_project_{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=f"test-trace-{token_hex(4)}",
+                start_time=start_time,
+                end_time=end_time,
+            )
+            session.add(trace)
+            await session.flush()
+
+            for i, (span_kind, attributes, expected) in enumerate(test_cases):
+                span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"span-{i}-{token_hex(4)}",
+                    name="test-span",
+                    span_kind=span_kind,
+                    start_time=start_time,
+                    end_time=end_time,
+                    attributes=attributes,
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(span)
+                await session.flush()
+
+                stmt = select(models.Span.num_documents).where(models.Span.id == span.id)
+                result = await session.scalar(stmt)
+                assert result == expected, (
+                    f"Case {i} ({span_kind}): expected {expected}, got {result}"
+                )
+
+
+class TestSpanCostPerToken:
+    """The cost-per-token hybrids agree in Python and SQL for missing, $0 and priced costs."""
+
+    async def test_span_cost_per_token_hybrids_agree(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        # (cost, tokens, expected cost per token)
+        test_cases: list[tuple[float | None, float | None, float | None]] = [
+            (None, 100, None),  # no price applies
+            (0.0, 100, 0.0),  # $0 rate
+            (0.5, 100, 0.005),
+        ]
+        async with db() as session:
+            project = models.Project(name=f"test_project_{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+            trace = models.Trace(
+                project_rowid=project.id,
+                trace_id=f"test-trace-{token_hex(4)}",
+                start_time=start_time,
+                end_time=start_time,
+            )
+            session.add(trace)
+            await session.flush()
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span-{token_hex(4)}",
+                name="test-span",
+                span_kind="LLM",
+                start_time=start_time,
+                end_time=start_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            await session.flush()
+
+            for i, (cost, tokens, expected) in enumerate(test_cases):
+                span_cost = models.SpanCost(
+                    span_rowid=span.id,
+                    trace_rowid=trace.id,
+                    span_start_time=start_time,
+                    total_cost=cost,
+                    total_tokens=tokens,
+                    prompt_cost=cost,
+                    prompt_tokens=tokens,
+                    completion_cost=cost,
+                    completion_tokens=tokens,
+                )
+                session.add(span_cost)
+                await session.flush()
+
+                python_values = (
+                    span_cost.total_cost_per_token,
+                    span_cost.prompt_cost_per_token,
+                    span_cost.completion_cost_per_token,
+                )
+                stmt = select(
+                    models.SpanCost.total_cost_per_token,
+                    models.SpanCost.prompt_cost_per_token,
+                    models.SpanCost.completion_cost_per_token,
+                ).where(models.SpanCost.id == span_cost.id)
+                sql_values = tuple((await session.execute(stmt)).one())
+                assert python_values == pytest.approx((expected,) * 3), f"Case {i} (Python)"
+                assert sql_values == pytest.approx((expected,) * 3), f"Case {i} (SQL)"
+
+
+@pytest.mark.pristine_db
+class TestEvaluatorPolymorphism:
+    """Test polymorphic evaluator models with dataset relationships.
+
+    Validates table inheritance, relationships, and dataset associations.
+    """
+
+    @pytest.fixture
+    async def _evaluator_setup(
+        self, db: DbSessionFactory
+    ) -> AsyncIterator[
+        tuple[
+            models.Dataset,
+            models.LLMEvaluator,
+            models.LLMEvaluator,
+            models.Prompt,
+            models.PromptVersionTag,
+            models.Prompt,
+            models.PromptVersionTag,
+        ]
+    ]:
+        """Create evaluators with dataset relationships and return (dataset_id, eval_id)."""
+        async with db() as session:
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add_all([dataset, prompt])
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Evaluate: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            eval_1 = models.LLMEvaluator(
+                name=Identifier(root=f"eval-1-{token_hex(4)}"),
+                description="First evaluator",
+                kind="LLM",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="goodness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="goodness description",
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    )
+                ],
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            eval_2 = models.LLMEvaluator(
+                name=Identifier(root=f"eval-2-{token_hex(4)}"),
+                description="Second evaluator",
+                kind="LLM",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="correctness",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="correctness description",
+                        values=[
+                            CategoricalAnnotationValue(label="correct", score=1.0),
+                            CategoricalAnnotationValue(label="incorrect", score=0.0),
+                        ],
+                    )
+                ],
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add_all([eval_1, eval_2])
+            await session.flush()
+
+            session.add_all(
+                [
+                    models.DatasetEvaluators(
+                        dataset_id=dataset.id,
+                        evaluator_id=eval_1.id,
+                        name=eval_1.name,
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                        output_configs=[],
+                        project=models.Project(
+                            name=f"{dataset.name}/{eval_1.name}",
+                            description="Project for evaluator 1",
+                        ),
+                    ),
+                    models.DatasetEvaluators(
+                        dataset_id=dataset.id,
+                        evaluator_id=eval_2.id,
+                        name=eval_2.name,
+                        input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                        output_configs=[],
+                        project=models.Project(
+                            name=f"{dataset.name}/{eval_2.name}",
+                            description="Project for evaluator 2",
+                        ),
+                    ),
+                ]
+            )
+
+            # Create a second prompt for testing relationship updates
+            new_prompt = models.Prompt(
+                name=Identifier(root=f"updated-prompt-{token_hex(4)}"),
+                description="Updated prompt",
+                metadata_={},
+            )
+            session.add(new_prompt)
+            await session.flush()
+
+            new_prompt_version = models.PromptVersion(
+                prompt_id=new_prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Updated: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(new_prompt_version)
+            await session.flush()
+
+            new_prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v2-{token_hex(4)}"),
+                prompt_id=new_prompt.id,
+                prompt_version_id=new_prompt_version.id,
+            )
+            session.add(new_prompt_tag)
+            await session.flush()
+
+        yield dataset, eval_1, eval_2, prompt, prompt_tag, new_prompt, new_prompt_tag
+
+    async def test_llm_evaluator_polymorphism_and_dataset_relationships(
+        self,
+        db: DbSessionFactory,
+        _evaluator_setup: tuple[
+            models.Dataset,
+            models.LLMEvaluator,
+            models.LLMEvaluator,
+            models.Prompt,
+            models.PromptVersionTag,
+            models.Prompt,
+            models.PromptVersionTag,
+        ],
+    ) -> None:
+        """Test LLM evaluator polymorphism, dataset relationships, and CRUD operations."""
+        dataset, eval_1, eval_2, prompt, prompt_tag, new_prompt, new_prompt_tag = _evaluator_setup
+        dataset_id = dataset.id
+        eval_id = eval_1.id
+        eval_1_name = eval_1.name
+        eval_2_name = eval_2.name
+        prompt_name = prompt.name
+        prompt_tag_name = prompt_tag.name
+
+        # ===== READ: Verify polymorphism and relationships =====
+        async with db() as session:
+            # Base class query returns subclass instances
+            evaluators = (await session.scalars(select(models.Evaluator))).all()
+            assert len(evaluators) == 2
+            assert all(isinstance(e, models.LLMEvaluator) and e.kind == "LLM" for e in evaluators)
+
+            # Subclass query with eager-loaded relationships
+            evaluator = await session.scalar(
+                select(models.LLMEvaluator)
+                .where(models.LLMEvaluator.id == eval_id)
+                .options(
+                    selectinload(models.LLMEvaluator.prompt),
+                    selectinload(models.LLMEvaluator.prompt_version_tag),
+                )
+            )
+            assert evaluator is not None
+            assert evaluator.name == eval_1_name
+            assert evaluator.prompt.name == prompt_name
+            assert evaluator.prompt_version_tag is not None
+            assert evaluator.prompt_version_tag.name == prompt_tag_name
+
+        async with db() as session:
+            # Table-level integrity (discriminator column and composite FK)
+            assert (
+                await session.scalar(
+                    sa.text("SELECT kind FROM evaluators WHERE id = :id").bindparams(id=eval_id)
+                )
+            ) == "LLM"
+            assert (
+                await session.scalar(
+                    sa.text("SELECT id FROM llm_evaluators WHERE id = :id").bindparams(id=eval_id)
+                )
+            ) == eval_id
+
+        async with db() as session:
+            # Dataset relationships (junction table)
+            dataset_result = await session.get(
+                models.Dataset,
+                dataset_id,
+                options=(selectinload(models.Dataset.dataset_evaluators),),
+            )
+            assert dataset_result is not None
+            dataset = dataset_result
+            assert len(dataset.dataset_evaluators) == 2
+
+            # Verify evaluators via join query
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetEvaluators)
+                    .where(models.DatasetEvaluators.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 2
+            assert {e.name for e in evaluators} == {eval_1_name, eval_2_name}
+            assert all(isinstance(e, models.LLMEvaluator) for e in evaluators)
+
+        # ===== INSERT: Create a new evaluator =====
+        async with db() as session:
+            # Create new evaluator using existing prompt and tag IDs
+            new_eval = models.LLMEvaluator(
+                name=Identifier(root=f"eval-3-{token_hex(4)}"),
+                description="Third evaluator",
+                kind="LLM",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="hallucination",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        description="thirdness description",
+                        values=[
+                            CategoricalAnnotationValue(label="hallucinated", score=1.0),
+                            CategoricalAnnotationValue(label="not_hallucinated", score=0.0),
+                        ],
+                    )
+                ],
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(new_eval)
+            await session.flush()
+            new_eval_id = new_eval.id
+            new_eval_name = new_eval.name
+
+            # Associate with dataset
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset_id,
+                evaluator_id=new_eval_id,
+                name=new_eval_name,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                project=models.Project(
+                    name=f"{new_eval_name}-project",
+                    description="Project for new evaluator",
+                ),
+            )
+            session.add(dataset_evaluator)
+
+        # Verify insertion
+        async with db() as session:
+            evaluators = (await session.scalars(select(models.Evaluator))).all()
+            assert len(evaluators) == 3
+            new_evaluator = await session.get(models.LLMEvaluator, new_eval_id)
+            assert new_evaluator is not None
+            assert new_evaluator.name == new_eval_name
+
+        # Verify dataset relationship
+        async with db() as session:
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetEvaluators)
+                    .where(models.DatasetEvaluators.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 3
+            assert {e.name for e in evaluators} == {
+                eval_1_name,
+                eval_2_name,
+                new_eval_name,
+            }
+
+        # ===== UPDATE: Change evaluator's prompt relationship =====
+        async with db() as session:
+            # Update evaluator to use the second prompt from fixture
+            evaluator = await session.get(models.LLMEvaluator, eval_id)
+            assert evaluator is not None
+            evaluator.prompt_id = new_prompt.id
+            evaluator.prompt_version_tag_id = new_prompt_tag.id
+            await session.flush()
+
+        # Verify update with eager-loaded relationships
+        async with db() as session:
+            evaluator = await session.scalar(
+                select(models.LLMEvaluator)
+                .where(models.LLMEvaluator.id == eval_id)
+                .options(
+                    selectinload(models.LLMEvaluator.prompt),
+                    selectinload(models.LLMEvaluator.prompt_version_tag),
+                )
+            )
+            assert evaluator is not None
+            assert evaluator.prompt.name == new_prompt.name
+            assert evaluator.prompt_version_tag is not None
+            assert evaluator.prompt_version_tag.name == new_prompt_tag.name
+            assert evaluator.prompt_id == new_prompt.id
+            assert evaluator.prompt_version_tag_id == new_prompt_tag.id
+
+        # ===== DELETE: Remove an evaluator =====
+        async with db() as session:
+            # Delete the newly created evaluator
+            evaluator_to_delete = await session.get(models.LLMEvaluator, new_eval_id)
+            assert evaluator_to_delete is not None
+            await session.delete(evaluator_to_delete)
+
+        # Verify deletion
+        async with db() as session:
+            evaluators = (await session.scalars(select(models.Evaluator))).all()
+            assert len(evaluators) == 2
+
+            deleted_evaluator = await session.get(models.LLMEvaluator, new_eval_id)
+            assert deleted_evaluator is None
+
+        # Verify dataset relationship updated (junction table entry should be deleted)
+        async with db() as session:
+            evaluators = (
+                await session.scalars(
+                    select(models.LLMEvaluator)
+                    .join(models.DatasetEvaluators)
+                    .where(models.DatasetEvaluators.dataset_id == dataset_id)
+                )
+            ).all()
+            assert len(evaluators) == 2
+            assert {e.name for e in evaluators} == {eval_1_name, eval_2_name}
+
+        # ===== RESTRICT: Cannot delete prompt in use by evaluators =====
+        # Attempt to delete prompt that is being used by eval_1
+        with pytest.raises(Exception, match=r"(?i)foreign key"):
+            async with db() as session:
+                prompt_to_delete = await session.get(models.Prompt, new_prompt.id)
+                assert prompt_to_delete is not None
+                await session.delete(prompt_to_delete)
+
+
+class TestPromptVersion:
+    @pytest.mark.parametrize(
+        "patch_attrs",
+        [
+            pytest.param(
+                {},
+                id="identical-prompt-versions",
+            ),
+            pytest.param(
+                {"user_id": 42},
+                id="user-id-differs",
+            ),
+        ],
+    )
+    def test_has_identical_content_returns_true_when_content_fields_are_equal(
+        self,
+        patch_attrs: dict[str, Any],
+    ) -> None:
+        base_attrs = {
+            "prompt_id": 1,
+            "user_id": 1,
+            "description": "Test prompt version",
+            "template_type": PromptTemplateType.STRING,
+            "template_format": PromptTemplateFormat.F_STRING,
+            "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
+            "invocation_parameters": PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            "tools": None,
+            "response_format": None,
+            "model_provider": ModelProvider.OPENAI,
+            "custom_provider_id": None,
+            "model_name": "gpt-4",
+            "metadata_": {"key": "value"},
+        }
+        assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
+            "Each patch attribute should differ from the corresponding base attribute"
+        )
+        version1_attrs = deepcopy(base_attrs)
+        version2_attrs = {**deepcopy(base_attrs), **deepcopy(patch_attrs)}
+        version1 = models.PromptVersion(**version1_attrs)
+        version2 = models.PromptVersion(**version2_attrs)
+        assert version1.has_identical_content(version2)
+        assert version2.has_identical_content(version1)
+
+    @pytest.mark.parametrize(
+        "patch_attrs",
+        [
+            pytest.param(
+                {"description": "Different description"},
+                id="description-differs",
+            ),
+            pytest.param(
+                {"template_type": PromptTemplateType.CHAT},
+                id="template-type-differs",
+            ),
+            pytest.param(
+                {"template_format": PromptTemplateFormat.MUSTACHE},
+                id="template-format-differs",
+            ),
+            pytest.param(
+                {"template": PromptStringTemplate(type="string", template="Different: {input}")},
+                id="template-differs",
+            ),
+            pytest.param(
+                {
+                    "invocation_parameters": PromptOpenAIInvocationParameters(
+                        type="openai",
+                        openai=PromptOpenAIInvocationParametersContent(temperature=0.5),
+                    )
+                },
+                id="invocation-parameters-differ",
+            ),
+            pytest.param(
+                {"model_provider": ModelProvider.ANTHROPIC},
+                id="model-provider-differs",
+            ),
+            pytest.param(
+                {"custom_provider_id": 7},
+                id="custom-provider-differs",
+            ),
+            pytest.param(
+                {"model_name": "gpt-3.5-turbo"},
+                id="model-name-differs",
+            ),
+            pytest.param(
+                {"metadata_": {"key": "different_value"}},
+                id="metadata-differs",
+            ),
+            pytest.param(
+                {"description": "Different", "model_name": "gpt-3.5-turbo", "metadata_": {}},
+                id="multiple-fields-differ",
+            ),
+        ],
+    )
+    def test_has_identical_content_returns_false_when_content_fields_differ(
+        self,
+        patch_attrs: dict[str, Any],
+    ) -> None:
+        base_attrs = {
+            "prompt_id": 1,
+            "user_id": 1,
+            "description": "Test prompt version",
+            "template_type": PromptTemplateType.STRING,
+            "template_format": PromptTemplateFormat.F_STRING,
+            "template": PromptStringTemplate(type="string", template="Evaluate: {input}"),
+            "invocation_parameters": PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            "tools": None,
+            "response_format": None,
+            "model_provider": ModelProvider.OPENAI,
+            "custom_provider_id": None,
+            "model_name": "gpt-4",
+            "metadata_": {"key": "value"},
+        }
+        assert all(base_attrs[attr_name] != patch_attrs[attr_name] for attr_name in patch_attrs), (
+            "Each patch attribute should differ from the corresponding base attribute"
+        )
+        version1_attrs = deepcopy(base_attrs)
+        version2_attrs = {**deepcopy(base_attrs), **deepcopy(patch_attrs)}
+        version1 = models.PromptVersion(**version1_attrs)
+        version2 = models.PromptVersion(**version2_attrs)
+        assert not version1.has_identical_content(version2)
+        assert not version2.has_identical_content(version1)
+
+
+class TestAnnotationConfigTypeDecorators:
+    """Test serialization/deserialization of annotation config TypeDecorators.
+
+    Validates _OutputConfigList works correctly for multi-output evaluator support.
+    """
+
+    async def test_annotation_config_list_serialization(self, db: DbSessionFactory) -> None:
+        """Test _OutputConfigList serializes and deserializes correctly."""
+        async with db() as session:
+            # Create prompt dependencies for evaluator
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Test: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            # Create evaluator with multiple output configs
+            multi_output_configs: list[AnnotationConfigType] = [
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="quality",
+                    description="Quality assessment",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="high", score=1.0),
+                        CategoricalAnnotationValue(label="low", score=0.0),
+                    ],
+                ),
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="relevance",
+                    description="Relevance assessment",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="relevant", score=1.0),
+                        CategoricalAnnotationValue(label="irrelevant", score=0.0),
+                    ],
+                ),
+            ]
+
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"multi-output-eval-{token_hex(4)}"),
+                description="Multi-output evaluator",
+                kind="LLM",
+                output_configs=multi_output_configs,
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+            evaluator_id = evaluator.id
+
+        # Verify deserialization returns correct types
+        async with db() as session:
+            loaded_eval = await session.get(models.LLMEvaluator, evaluator_id)
+            assert loaded_eval is not None
+            assert len(loaded_eval.output_configs) == 2
+
+            # Verify first config
+            config_1 = loaded_eval.output_configs[0]
+            assert isinstance(config_1, CategoricalAnnotationConfig)
+            assert config_1.name == "quality"
+            assert config_1.description == "Quality assessment"
+            assert config_1.optimization_direction == OptimizationDirection.MAXIMIZE
+            assert len(config_1.values) == 2
+            assert config_1.values[0].label == "high"
+            assert config_1.values[0].score == 1.0
+
+            # Verify second config
+            config_2 = loaded_eval.output_configs[1]
+            assert isinstance(config_2, CategoricalAnnotationConfig)
+            assert config_2.name == "relevance"
+            assert config_2.description == "Relevance assessment"
+
+    async def test_continuous_annotation_config_list_round_trip(self, db: DbSessionFactory) -> None:
+        """Test ContinuousAnnotationConfig round-trip through _OutputConfigList.
+
+        Verifies all fields (name, description, optimization_direction,
+        lower_bound, upper_bound) survive serialization and deserialization.
+        Uses BuiltinEvaluator since it uses _OutputConfigList (categorical + continuous);
+        LLMEvaluator only accepts categorical configs.
+        """
+        async with db() as session:
+            continuous_configs: list[OutputConfigType] = [
+                ContinuousOutputConfig(
+                    type="CONTINUOUS",
+                    name="similarity_score",
+                    description="Measures semantic similarity",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    lower_bound=0.0,
+                    upper_bound=1.0,
+                ),
+                ContinuousOutputConfig(
+                    type="CONTINUOUS",
+                    name="latency",
+                    description="Response latency in seconds",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    lower_bound=0.0,
+                    upper_bound=None,
+                ),
+            ]
+
+            builtin_eval = models.BuiltinEvaluator(
+                name=Identifier(root=f"continuous-round-trip-{token_hex(4)}"),
+                description="Continuous config round-trip test",
+                metadata_={},
+                key=f"continuous_round_trip_{token_hex(4)}",
+                input_schema={"type": "object"},
+                output_configs=continuous_configs,
+            )
+            session.add(builtin_eval)
+            await session.flush()
+            evaluator_id = builtin_eval.id
+
+        async with db() as session:
+            loaded_eval = await session.get(models.BuiltinEvaluator, evaluator_id)
+            assert loaded_eval is not None
+            assert len(loaded_eval.output_configs) == 2
+
+            config_1 = loaded_eval.output_configs[0]
+            assert isinstance(config_1, ContinuousOutputConfig)
+            assert config_1.name == "similarity_score"
+            assert config_1.description == "Measures semantic similarity"
+            assert config_1.lower_bound == 0.0
+            assert config_1.upper_bound == 1.0
+
+            config_2 = loaded_eval.output_configs[1]
+            assert isinstance(config_2, ContinuousOutputConfig)
+            assert config_2.name == "latency"
+            assert config_2.description == "Response latency in seconds"
+            assert config_2.lower_bound == 0.0
+            assert config_2.upper_bound is None
+
+    async def test_dataset_evaluator_output_configs_serialization(
+        self, db: DbSessionFactory
+    ) -> None:
+        """Test DatasetEvaluators.output_configs serializes and deserializes correctly."""
+        async with db() as session:
+            # Create dataset
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            # Create prompt dependencies for evaluator
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Evaluate: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            # Create evaluator
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                description="Test evaluator",
+                kind="LLM",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+
+            # Create dataset evaluator with output configs
+            configs: list[OutputConfigType] = [
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="quality",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="excellent", score=2.0),
+                        CategoricalAnnotationValue(label="poor", score=-1.0),
+                    ],
+                ),
+            ]
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=evaluator.id,
+                name=evaluator.name,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=configs,
+                project=models.Project(
+                    name=f"{dataset.name}/{evaluator.name}",
+                    description="Test project",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            dataset_evaluator_id = dataset_evaluator.id
+
+        # Verify deserialization returns correct types
+        async with db() as session:
+            loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert loaded is not None
+            assert loaded.output_configs is not None
+            assert len(loaded.output_configs) == 1
+
+            config = loaded.output_configs[0]
+            assert isinstance(config, CategoricalOutputConfig)
+            assert config.name == "quality"
+            assert config.optimization_direction == OptimizationDirection.MINIMIZE
+            assert config.values is not None
+            assert len(config.values) == 2
+            assert config.values[0].label == "excellent"
+            assert config.values[0].score == 2.0
+
+    async def test_dataset_evaluator_empty_output_configs(self, db: DbSessionFactory) -> None:
+        """Test DatasetEvaluators.output_configs handles empty list correctly."""
+        async with db() as session:
+            # Create dataset
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            # Create prompt dependencies for evaluator
+            prompt = models.Prompt(
+                name=Identifier(root=f"test-prompt-{token_hex(4)}"),
+                description="Test prompt",
+                metadata_={},
+            )
+            session.add(prompt)
+            await session.flush()
+
+            prompt_version = models.PromptVersion(
+                prompt_id=prompt.id,
+                template_type=PromptTemplateType.STRING,
+                template_format=PromptTemplateFormat.F_STRING,
+                template=PromptStringTemplate(type="string", template="Test: {input}"),
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai", openai=PromptOpenAIInvocationParametersContent()
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                metadata_={},
+            )
+            session.add(prompt_version)
+            await session.flush()
+
+            prompt_tag = models.PromptVersionTag(
+                name=Identifier(root=f"v1-{token_hex(4)}"),
+                prompt_id=prompt.id,
+                prompt_version_id=prompt_version.id,
+            )
+            session.add(prompt_tag)
+            await session.flush()
+
+            # Create evaluator
+            evaluator = models.LLMEvaluator(
+                name=Identifier(root=f"eval-{token_hex(4)}"),
+                description="Test evaluator",
+                kind="LLM",
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+                prompt_id=prompt.id,
+                prompt_version_tag_id=prompt_tag.id,
+            )
+            session.add(evaluator)
+            await session.flush()
+
+            # Create dataset evaluator with empty output configs
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=evaluator.id,
+                name=evaluator.name,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                project=models.Project(
+                    name=f"{dataset.name}/{evaluator.name}",
+                    description="Test project",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            dataset_evaluator_id = dataset_evaluator.id
+
+        # Verify empty list is preserved
+        async with db() as session:
+            loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert loaded is not None
+            assert loaded.output_configs == []
+
+
+class TestBuiltinEvaluatorMultiOutput:
+    """Test BuiltinEvaluator with multi-output configs."""
+
+    async def test_builtin_evaluator_with_list_configs(self, db: DbSessionFactory) -> None:
+        """Test BuiltinEvaluator correctly stores and retrieves list of output configs."""
+        async with db() as session:
+            # Create a builtin evaluator with multiple output configs
+            multi_output_configs: list[OutputConfigType] = [
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="hallucination",
+                    description="Detects hallucinations",
+                    optimization_direction=OptimizationDirection.MINIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="hallucinated", score=1.0),
+                        CategoricalAnnotationValue(label="factual", score=0.0),
+                    ],
+                ),
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="confidence",
+                    description="Confidence level",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="high", score=1.0),
+                        CategoricalAnnotationValue(label="medium", score=0.5),
+                        CategoricalAnnotationValue(label="low", score=0.0),
+                    ],
+                ),
+            ]
+
+            builtin_eval = models.BuiltinEvaluator(
+                name=Identifier(root=f"builtin-multi-{token_hex(4)}"),
+                description="Multi-output builtin evaluator",
+                kind="BUILTIN",
+                key=f"MULTI_OUTPUT_{token_hex(4)}",
+                input_schema={"type": "object", "properties": {"input": {"type": "string"}}},
+                output_configs=multi_output_configs,
+            )
+            session.add(builtin_eval)
+            await session.flush()
+            builtin_id = builtin_eval.id
+
+        # Verify retrieval
+        async with db() as session:
+            loaded = await session.get(models.BuiltinEvaluator, builtin_id)
+            assert loaded is not None
+            assert len(loaded.output_configs) == 2
+
+            # Verify first config
+            config_1 = loaded.output_configs[0]
+            assert isinstance(config_1, CategoricalOutputConfig)
+            assert config_1.name == "hallucination"
+            assert config_1.optimization_direction == OptimizationDirection.MINIMIZE
+
+            # Verify second config
+            config_2 = loaded.output_configs[1]
+            assert isinstance(config_2, CategoricalOutputConfig)
+            assert config_2.name == "confidence"
+            assert len(config_2.values) == 3
+
+    async def test_builtin_evaluator_with_dataset_output_configs(
+        self, db: DbSessionFactory
+    ) -> None:
+        """Test BuiltinEvaluator can be associated with dataset and have output configs."""
+        async with db() as session:
+            # Create dataset
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            # Create builtin evaluator
+            builtin_eval = models.BuiltinEvaluator(
+                name=Identifier(root=f"builtin-{token_hex(4)}"),
+                description="Builtin evaluator",
+                kind="BUILTIN",
+                key=f"BUILTIN_{token_hex(4)}",
+                input_schema={"type": "object", "properties": {"input": {"type": "string"}}},
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MAXIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+            )
+            session.add(builtin_eval)
+            await session.flush()
+
+            # Associate with dataset using custom output configs
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=builtin_eval.id,
+                name=builtin_eval.name,
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[
+                    CategoricalOutputConfig(
+                        type="CATEGORICAL",
+                        name="quality",
+                        optimization_direction=OptimizationDirection.MINIMIZE,
+                        values=[
+                            CategoricalAnnotationValue(label="good", score=1.0),
+                            CategoricalAnnotationValue(label="bad", score=0.0),
+                        ],
+                    ),
+                ],
+                project=models.Project(
+                    name=f"{dataset.name}/{builtin_eval.name}",
+                    description="Test project",
+                ),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+            dataset_evaluator_id = dataset_evaluator.id
+
+        # Verify retrieval
+        async with db() as session:
+            loaded = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert loaded is not None
+            assert loaded.output_configs is not None
+            assert len(loaded.output_configs) == 1
+
+            config = loaded.output_configs[0]
+            assert isinstance(config, CategoricalOutputConfig)
+            assert config.name == "quality"
+            assert config.optimization_direction == OptimizationDirection.MINIMIZE
+
+
+class TestExperimentJobPolymorphism:
+    """Test polymorphic dispatch for ExperimentJob subclasses."""
+
+    async def test_polymorphic_dispatch(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            dataset = models.Dataset(name=f"test-dataset-{token_hex(6)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            version = models.DatasetVersion(dataset_id=dataset.id, description=None, metadata_={})
+            session.add(version)
+            await session.flush()
+
+            exp1 = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name=f"prompt-exp-{token_hex(6)}",
+                repetitions=1,
+                metadata_={},
+            )
+            exp2 = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name=f"eval-only-exp-{token_hex(6)}",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add_all([exp1, exp2])
+            await session.flush()
+
+            session.add(
+                models.ExperimentPromptTask(
+                    id=exp1.id,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4",
+                    template_type=PromptTemplateType.STRING,
+                    template_format=PromptTemplateFormat.F_STRING,
+                    template=PromptStringTemplate(type="string", template="t: {input}"),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                )
+            )
+            session.add(models.ExperimentEvalOnlyConfig(id=exp2.id))
+            await session.flush()
+            exp1_id, exp2_id = exp1.id, exp2.id
+
+        # Query base class returns correct subclass types
+        async with db() as session:
+            configs = (await session.scalars(select(models.ExperimentJob))).all()
+            assert len(configs) == 2
+            by_id = {c.id: c for c in configs}
+
+            prompt_config = by_id[exp1_id]
+            assert isinstance(prompt_config, models.ExperimentPromptTask)
+            assert prompt_config.type == "PROMPT"
+            await session.refresh(prompt_config)
+            assert prompt_config.model_name == "gpt-4"
+
+            eval_config = by_id[exp2_id]
+            assert isinstance(eval_config, models.ExperimentEvalOnlyConfig)
+            assert not isinstance(eval_config, models.ExperimentPromptTask)
+            assert eval_config.type == "EVAL_ONLY"
+
+
+class TestJSONBReflection:
+    def test_sqlite_reflects_jsonb_as_jsonb(self) -> None:
+        engine = sa.create_engine("sqlite://")
+        with engine.connect() as conn:
+            conn.exec_driver_sql("CREATE TABLE t (doc JSONB NOT NULL)")
+            conn.commit()
+        metadata = sa.MetaData()
+        metadata.reflect(bind=engine)
+        reflected = metadata.tables["t"].columns["doc"].type
+        assert isinstance(reflected, models.JSONB)
+        assert reflected.compile(sqlite_dialect.dialect()) == "JSONB"
+
+    @pytest.mark.parametrize(
+        "dialect,expected",
+        [
+            (sqlite_dialect.dialect(), "JSONB"),
+            (postgresql_dialect.dialect(), "JSONB"),  # type: ignore[no-untyped-call]
+        ],
+        ids=["sqlite", "postgresql"],
+    )
+    def test_json_columns_compile_to_jsonb_on_both_backends(
+        self, dialect: Any, expected: str
+    ) -> None:
+        for table_name, column_name in [
+            ("datasets", "metadata"),
+            ("dataset_versions", "metadata"),
+            ("experiments", "metadata"),
+            ("span_annotations", "metadata"),
+            ("spans", "attributes"),
+            ("experiment_runs", "output"),
+        ]:
+            column = models.Base.metadata.tables[table_name].columns[column_name]
+            actual = column.type.compile(dialect)
+            assert actual == expected, f"{table_name}.{column_name} -> {actual}"
+
+
+# Relationships where the ORM deliberately does not follow the FK rule.
+# users.user_role_id is ON DELETE CASCADE; following it would delete every user in a deleted role.
+_ORM_DELETE_EXCEPTIONS = {("UserRole", "users")}
+
+
+def test_orm_delete_behavior_agrees_with_foreign_keys() -> None:
+    """`session.delete(parent)` must do what the FK's ON DELETE rule says.
+
+    A one-to-many relationship left at SQLAlchemy's defaults loads its children and nulls
+    their foreign keys before deleting the parent, so the database's CASCADE or RESTRICT
+    never runs. A relationship either matches the FK (delete cascade for CASCADE, nulling
+    for SET NULL) or sets passive_deletes="all" and leaves the children to the database.
+    """
+    mismatches = []
+    for mapper in models.Base.registry.mappers:
+        for rel in mapper.relationships:
+            if rel.parent is not mapper or rel.direction is not RelationshipDirection.ONETOMANY:
+                continue  # inherited properties are checked on the mapper that defines them
+            if (mapper.class_.__name__, rel.key) in _ORM_DELETE_EXCEPTIONS:
+                continue
+            if rel.passive_deletes == "all":
+                continue
+            orm = "CASCADE" if rel.cascade.delete else "SET NULL"
+            for col in rel.remote_side:
+                for fk in col.foreign_keys:
+                    if fk.column.table not in mapper.tables:
+                        continue  # an FK to some other table, not this relationship's parent
+                    db = (fk.ondelete or "NO ACTION").upper()
+                    if db != orm:
+                        mismatches.append(f"{mapper.class_.__name__}.{rel.key}: FK {db}, ORM {orm}")
+    assert not mismatches, "\n".join(sorted(mismatches))

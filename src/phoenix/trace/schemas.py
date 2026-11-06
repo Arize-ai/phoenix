@@ -34,12 +34,14 @@ class SpanKind(Enum):
     TOOL = "TOOL"
     CHAIN = "CHAIN"
     LLM = "LLM"
+    PROMPT = "PROMPT"
     RETRIEVER = "RETRIEVER"
     EMBEDDING = "EMBEDDING"
     AGENT = "AGENT"
     RERANKER = "RERANKER"
     EVALUATOR = "EVALUATOR"
     GUARDRAIL = "GUARDRAIL"
+    DECISION = "DECISION"
     UNKNOWN = "UNKNOWN"
 
     def __str__(self) -> str:
@@ -183,8 +185,9 @@ class MimeType(Enum):
     JSON = "application/json"
 
     @classmethod
-    def _missing_(cls, v: Any) -> Optional["MimeType"]:
-        return None if v else cls.TEXT
+    def _missing_(cls, v: Any) -> "MimeType":
+        # Unrecognized or empty mime types fall back to text instead of raising.
+        return cls.TEXT
 
 
 @dataclass(frozen=True)

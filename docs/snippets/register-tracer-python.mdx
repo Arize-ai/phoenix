@@ -1,0 +1,11 @@
+Connect your application to Phoenix with the `register` function:
+
+<CodeBlock language="python">
+{`from phoenix.otel import register
+
+# configure the Phoenix tracer
+tracer_provider = register(
+  project_name="${projectName}", # Default is 'default'
+  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
+)`}
+</CodeBlock>

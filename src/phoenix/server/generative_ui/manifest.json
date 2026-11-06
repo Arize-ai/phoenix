@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "toolName": "render_generative_ui",
+  "components": [
+    "BarChart",
+    "VerticalBarChart",
+    "StackedBarChart",
+    "LineChart"
+  ],
+  "actions": []
+}

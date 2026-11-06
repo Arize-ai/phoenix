@@ -1,0 +1,102 @@
+---
+title: "Resource"
+sidebarTitle: "Resource"
+description: "The immutable metadata that describes who is producing telemetry — service name, environment, host, and Phoenix attributes that route spans to your project."
+keywords: ['resource', 'OpenTelemetry', 'service.name', 'openinference.project.name', 'x-project-name', 'resource attributes']
+---
+
+A **Resource** is immutable metadata that describes the entity producing telemetry. It's the answer to one question: *who is sending this data?*
+
+Every span, metric, and log your application emits carries the same Resource. It's set once, when the [Tracer Provider](/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider) is created, and it never changes for the lifetime of the process.
+
+Picking the right Resource attributes is what makes your traces routable and queryable downstream.
+
+# Anatomy of a Resource
+
+| Term | What it means |
+| :--- | :--- |
+| **Describes** | Answers the question "who is sending this telemetry?" |
+| **Entity** | Service name, environment, host, pod, container — anything that identifies the producer. |
+| **Immutable** | Does not change during the process lifetime. The same Resource is attached to every span, metric, and log. |
+| **Metadata** | Key-value pairs. |
+
+Resource attributes should generally follow [OpenTelemetry resource semantic conventions](https://opentelemetry.io/docs/specs/semconv/resource/) so any OTel-compatible backend can interpret them.
+
+# Configuring a Resource
+
+```python
+from opentelemetry.sdk.resources import Resource
+
+resource = Resource.create(
+    {
+        # Service attributes
+        "service.name": "checkout",
+        "service.namespace": "acme-webstore",
+        "service.version": "v1.2.3",
+        "service.instance.id": "instance-12345",
+
+        # Environment / infrastructure attributes
+        "deployment.environment.name": "production",
+        "cloud.region": "us-east-1",
+
+        # Phoenix project routing
+        "openinference.project.name": "webstore-prod",
+    }
+)
+```
+
+For the full set of supported parameters, see the [Resource API reference](https://opentelemetry-python.readthedocs.io/en/latest/sdk/resources.html).
+
+Always use `Resource.create(...)` rather than the class constructor `Resource(attributes=...)`. `create()` merges your attributes with the defaults from the built-in resource detectors.
+
+# Phoenix–Specific Project Routing
+
+Phoenix resolves the project for an incoming OTLP request in this order of precedence:
+
+| Source | Status | Notes |
+| :--- | :--- | :--- |
+| `x-project-name` HTTP header | Highest precedence | Set per request to override the resource attribute. Useful when one application sends to multiple projects without re-creating a Tracer Provider. Pass via `register(headers={"x-project-name": "..."})` or set on the OTLP exporter directly. |
+| `openinference.project.name` resource attribute | Canonical | The name of the project in Phoenix. Defined by the OpenInference resource semconv — exposed as `ResourceAttributes.PROJECT_NAME` in the `openinference.semconv.resource` Python package, and as `SEMRESATTRS_PROJECT_NAME` in `@arizeai/openinference-semantic-conventions` for JS/TS. |
+| Server default project | Fallback | If neither of the above is set, spans land in the default project. |
+
+For the common case, set `openinference.project.name` on the Resource and forget about it.
+
+# Environment Variables
+
+The OpenTelemetry SDK can auto-detect Resource attributes from the environment, so you can avoid hardcoding them:
+
+| Environment variable | Purpose |
+| :--- | :--- |
+| `OTEL_SERVICE_NAME` | Sets `service.name`. |
+| `OTEL_RESOURCE_ATTRIBUTES` | Comma-separated `key=value` pairs. Sets arbitrary resource attributes. |
+| `OTEL_EXPERIMENTAL_RESOURCE_DETECTORS` | Comma-separated list of built-in detectors to enable or disable. |
+
+**Code wins over environment variables.** If you set the same key in both, the value passed to `Resource.create(...)` takes precedence.
+
+The SDK also runs **built-in resource detectors** by default — they automatically fill in host, OS, process, and other infrastructure attributes. Disable them with `OTEL_EXPERIMENTAL_RESOURCE_DETECTORS=""` if you don't want them.
+
+For the full list, see the [OpenTelemetry SDK environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) reference.
+
+# Common Pitfalls
+
+<Warning>
+**Don't try to change the Resource per request or per span.** Only one Resource is allowed per Tracer Provider, and it's intentionally immutable. If you need per-request context (a user ID, a session ID, a customer tier), set it as a **span attribute** instead — see [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans) and the [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers).
+</Warning>
+
+A few more things that trip people up:
+
+- **Not following semantic conventions** — using your own attribute names instead of `service.name`, `deployment.environment.name`, etc. means other tools (and Phoenix) can't interpret them. Stick with the [resource semconv](https://opentelemetry.io/docs/specs/semconv/resource/) whenever there's a standard key.
+- **Using the class constructor `Resource(attributes=...)` instead of `Resource.create(...)`** — bypasses built-in detectors, so you lose the auto-populated host/process attributes.
+- **Forgetting to set a project name** — without `openinference.project.name` on the Resource or an `x-project-name` request header, spans land in the default project and are hard to organize.
+
+# Where Resource Fits in the Pipeline
+
+The Resource is held by the [Tracer Provider](/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider) alongside the [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor) pipeline (which in turn owns the [Exporter](/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter)). Every span the provider hands out gets the same Resource stamped on it before export.
+
+---
+
+## Next step
+
+The Resource describes who is sending data. The Exporter sends it:
+
+<Card title="Next: Exporter and OTLP" icon="arrow-right" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter" />

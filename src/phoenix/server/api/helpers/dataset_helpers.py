@@ -1,15 +1,17 @@
 import json
 from collections.abc import Mapping
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Sequence, TypedDict
 
 from openinference.semconv.trace import (
     MessageAttributes,
+    MessageContentAttributes,
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
     ToolAttributes,
     ToolCallAttributes,
 )
+from typing_extensions import NotRequired
 
 from phoenix.db.models import Span
 from phoenix.trace.attributes import get_attribute_value
@@ -59,11 +61,57 @@ def get_dataset_example_output(span: Span) -> dict[str, Any]:
     output_messages = get_attribute_value(attributes, LLM_OUTPUT_MESSAGES)
     retrieval_documents = get_attribute_value(attributes, RETRIEVAL_DOCUMENTS)
     if span_kind == LLM:
-        return _get_llm_span_output(
+        messages_or_output = _get_llm_span_output(
             output_messages=output_messages,
             output_value=output_value,
             output_mime_type=output_mime_type,
         )
+        return {
+            **messages_or_output,
+        }
+    if span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
+        return _get_retriever_span_output(
+            retrieval_documents=retrieval_documents,
+            output_value=output_value,
+            output_mime_type=output_mime_type,
+        )
+    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
+
+
+def get_experiment_example_output(span: Span) -> dict[str, Any]:
+    """
+    Extracts the output value from an experiment run span and returns it as a dictionary. Output
+    values from LLM spans are extracted from the output messages (if present).
+    Output from retriever spans are extracted from the retrieval documents (if
+    present). For other span kinds, the output is extracted from the output
+    value and output mime type attributes.
+    """
+    span_kind = span.span_kind
+    attributes = span.attributes
+    output_value = get_attribute_value(attributes, OUTPUT_VALUE)
+    output_mime_type = get_attribute_value(attributes, OUTPUT_MIME_TYPE)
+    output_messages = get_attribute_value(attributes, LLM_OUTPUT_MESSAGES)
+    retrieval_documents = get_attribute_value(attributes, RETRIEVAL_DOCUMENTS)
+    if span_kind == LLM:
+        messages_or_output = _get_llm_span_output(
+            output_messages=output_messages,
+            output_value=output_value,
+            output_mime_type=output_mime_type,
+        )
+        tool_definitions = []
+        if tools := get_attribute_value(attributes, LLM_TOOLS):
+            for tool in tools:
+                if definition := get_attribute_value(tool, TOOL_DEFINITION):
+                    tool_definitions.append(definition)
+        tool_definitions_data = [
+            decoded
+            for tool_definition in tool_definitions
+            if (decoded := _safely_json_decode(tool_definition)) is not None
+        ]
+        return {
+            **messages_or_output,
+            "available_tools": tool_definitions_data,
+        }
     if span_kind == OpenInferenceSpanKindValues.RETRIEVER.value:
         return _get_retriever_span_output(
             retrieval_documents=retrieval_documents,
@@ -108,9 +156,15 @@ def _get_llm_span_output(
     Extracts the output value from an LLM span and returns it as a dictionary.
     The output is extracted from the output messages (if present).
     """
-    if messages := [_get_message(m) for m in output_messages or ()]:
-        return {"messages": messages}
-    return _get_generic_io_value(io_value=output_value, mime_type=output_mime_type, kind="output")
+    raw = [_get_message(m) for m in output_messages or ()]
+    if not raw:
+        return _get_generic_io_value(
+            io_value=output_value, mime_type=output_mime_type, kind="output"
+        )
+    # OpenAI Responses API emits one output item per message/tool_call; merge
+    # consecutive assistant items into one (content + tool_calls).
+    messages = _merge_assistant_output_items(raw)
+    return {"messages": messages}
 
 
 def _get_retriever_span_output(
@@ -147,32 +201,124 @@ def _get_generic_io_value(
     return {}
 
 
-def _get_message(message: Mapping[str, Any]) -> dict[str, Any]:
+class _Function(TypedDict):
+    name: str
+    arguments: Any
+
+
+class _ToolCall(TypedDict):
+    function: _Function
+
+
+class _Message(TypedDict):
+    role: str
+    content: NotRequired[Any]
+    name: NotRequired[str]
+    tool_calls: NotRequired[Sequence[_ToolCall]]
+
+
+def _merge_assistant_output_items(raw: list[_Message]) -> list[_Message]:
+    """
+    Merge consecutive assistant-role items into a single ``_Message``.
+
+    The OpenAI Responses API instrumentor emits one ``LLM_OUTPUT_MESSAGES``
+    item per output item (a text block *or* a tool-call), so a single
+    assistant turn can arrive as two or three separate messages.  This
+    function collapses each *run* of consecutive assistant items into one
+    ``_Message`` that carries both ``content`` and ``tool_calls``.
+
+    Non-assistant messages are passed through unchanged.
+    """
+    result: list[_Message] = []
+    i = 0
+    while i < len(raw):
+        msg = raw[i]
+        if msg["role"] != "assistant":
+            result.append(msg)
+            i += 1
+            continue
+        # Start a new merged assistant message from the first item in the run.
+        content = msg.get("content")
+        tool_calls: list[_ToolCall] = list(msg.get("tool_calls") or [])
+        j = i + 1
+        while j < len(raw) and raw[j]["role"] == "assistant":
+            next_msg = raw[j]
+            if next_tool_calls := next_msg.get("tool_calls"):
+                tool_calls.extend(next_tool_calls)
+            if content is None and next_msg.get("content") is not None:
+                content = next_msg["content"]
+            j += 1
+        merged = _Message(role="assistant")
+        if content is not None:
+            merged["content"] = content
+        if tool_calls:
+            merged["tool_calls"] = tool_calls
+        result.append(merged)
+        i = j
+    return result
+
+
+def _get_content_from_message_contents(message: Mapping[str, Any]) -> Optional[str]:
+    """
+    Extract plain-text content from OpenInference message.contents.
+
+    The OpenAI Responses API instrumentor emits output under
+    LLM_OUTPUT_MESSAGES.{i}.MESSAGE_CONTENTS.{j}.MESSAGE_CONTENT_TEXT (and
+    MESSAGE_CONTENT_TYPE) for each content block, so after unflatten
+    message.contents is a list of blocks; we take message_content.text from each.
+    """
+    contents = get_attribute_value(message, MESSAGE_CONTENTS)
+    if not isinstance(contents, Sequence) or isinstance(contents, str):
+        return None
+    parts: list[str] = []
+    for item in contents:
+        if isinstance(item, Mapping):
+            text = get_attribute_value(item, MESSAGE_CONTENT_TEXT)
+            if isinstance(text, str):
+                parts.append(text)
+    return "\n\n".join(parts) if parts else None
+
+
+def _get_message(message: Mapping[str, Any]) -> _Message:
     content = get_attribute_value(message, MESSAGE_CONTENT)
+    if content is None:
+        content = _get_content_from_message_contents(message)
     name = get_attribute_value(message, MESSAGE_NAME)
-    function_call_name = get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME)
-    function_call_arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
-    function_call = (
-        {"name": function_call_name, "arguments": function_call_arguments}
-        if function_call_name is not None or function_call_arguments is not None
-        else None
-    )
-    tool_calls = [
-        {
-            "function": {
-                "name": get_attribute_value(tool_call, TOOL_CALL_FUNCTION_NAME),
-                "arguments": get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON),
-            }
-        }
-        for tool_call in get_attribute_value(message, MESSAGE_TOOL_CALLS) or ()
-    ]
-    return {
-        "role": get_attribute_value(message, MESSAGE_ROLE),
-        **({"content": content} if content is not None else {}),
-        **({"name": name} if name is not None else {}),
-        **({"function_call": function_call} if function_call is not None else {}),
-        **({"tool_calls": tool_calls} if tool_calls else {}),
-    }
+    # Collect tool_calls from both legacy function_call and modern tool_calls attributes.
+    tool_calls: list[_ToolCall] = []
+    # Legacy: single function_call is folded into tool_calls.
+    fn_name = get_attribute_value(message, MESSAGE_FUNCTION_CALL_NAME)
+    arguments = get_attribute_value(message, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON)
+    if fn_name is not None or arguments is not None:
+        fn_arguments = _safely_json_decode(arguments)
+        if fn_arguments is None:
+            fn_arguments = arguments
+        function = _Function(name=fn_name or "", arguments=fn_arguments)
+        tool_calls.append(_ToolCall(function=function))
+    # Instrumentor emits MESSAGE_TOOL_CALLS.{j}.* with integer j; unflatten gives a list.
+    raw_tool_calls = get_attribute_value(message, MESSAGE_TOOL_CALLS)
+    if not isinstance(raw_tool_calls, Sequence) or isinstance(raw_tool_calls, str):
+        raw_tool_calls = ()
+    for tool_call in raw_tool_calls:
+        if not isinstance(tool_call, Mapping):
+            continue
+        fn_name = get_attribute_value(tool_call, TOOL_CALL_FUNCTION_NAME)
+        arguments = get_attribute_value(tool_call, TOOL_CALL_FUNCTION_ARGUMENTS_JSON)
+        fn_arguments = _safely_json_decode(arguments)
+        if fn_arguments is None:
+            fn_arguments = arguments
+        if fn_name is not None or arguments is not None:
+            tc = _ToolCall(function=_Function(name=fn_name or "", arguments=fn_arguments))
+            tool_calls.append(tc)
+    role = get_attribute_value(message, MESSAGE_ROLE) or "assistant"
+    msg = _Message(role=role)
+    if content is not None:
+        msg["content"] = content
+    if name is not None:
+        msg["name"] = name
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    return msg
 
 
 def _parse_retrieval_documents(retrieval_documents: Any) -> Optional[list[dict[str, Any]]]:
@@ -207,11 +353,15 @@ def _safely_json_decode(value: Any) -> Any:
 
 # MessageAttributes
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
+MESSAGE_CONTENTS = MessageAttributes.MESSAGE_CONTENTS
 MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON = MessageAttributes.MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON
 MESSAGE_FUNCTION_CALL_NAME = MessageAttributes.MESSAGE_FUNCTION_CALL_NAME
 MESSAGE_NAME = MessageAttributes.MESSAGE_NAME
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
+
+# MessageContentAttributes (e.g. OpenAI Responses API output)
+MESSAGE_CONTENT_TEXT = MessageContentAttributes.MESSAGE_CONTENT_TEXT
 
 # OpenInferenceSpanKindValues
 LLM = OpenInferenceSpanKindValues.LLM.value

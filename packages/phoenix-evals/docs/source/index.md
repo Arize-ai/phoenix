@@ -45,7 +45,7 @@ scores[0].pretty_print()
 # With input mapping for nested data
 scores = evaluator.evaluate(
     {"data": {"query": "How do I reset?", "response": "Go to settings > reset."}},
-    input_mapping={"input": "data.query", "output": "data.response"}
+    input_mapping={"input": "data.query", "output": "data.response"},
 )
 scores[0].pretty_print()
 ```
@@ -58,7 +58,6 @@ The main evaluation functions that power the package:
 - **`create_evaluator`**: Create custom evaluators from functions
 - **`bind_evaluator`**: Bind evaluators with input mappings
 - **`evaluate_dataframe`**: Evaluate dataframes with multiple evaluators
-- **Legacy functions**: `llm_classify`, `llm_generate`, and `run_evals` (available in `phoenix.evals.legacy`)
 
 ## Usage Examples
 
@@ -86,10 +85,15 @@ helpfulness_evaluator = create_classifier(
 )
 
 # Prepare your dataframe
-df = pd.DataFrame([
-    {"input": "How do I reset my password?", "output": "Go to settings > account > reset password."},
-    {"input": "What's the weather like?", "output": "I can help you with password resets."},
-])
+df = pd.DataFrame(
+    [
+        {
+            "input": "How do I reset my password?",
+            "output": "Go to settings > account > reset password.",
+        },
+        {"input": "What's the weather like?", "output": "I can help you with password resets."},
+    ]
+)
 
 # Evaluate the dataframe
 results_df = evaluate_dataframe(
@@ -113,7 +117,6 @@ print(results_df.head())
 :caption: API Reference
 
 api/evals
-api/legacy
 ```
 
 ## Indices and tables

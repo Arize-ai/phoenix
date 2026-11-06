@@ -153,7 +153,7 @@ If I am managing prompts in Phoenix, I might want to know which traces are assoc
 
 ### Testing an alternative prompt template on an LLM Span
 
-Say I used a prompt template to invoke an LLM, I then want to re-use the data stored on the span to test an alternative prompt template.
+Say I used a prompt template to invoke an LLM. I then want to reuse the data stored on the span to test an alternative prompt template.
 
 1. I export the span to a dataset
 2. I load the dataset in step 1 into the prompt playground

@@ -22,12 +22,11 @@ import bs4
 import jwt
 import pytest
 import smtpdfix
-from httpx import HTTPStatusError
+from httpx2 import HTTPStatusError
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from strawberry.relay import GlobalID
 
-from phoenix.auth import sanitize_email
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
@@ -38,14 +37,17 @@ from .._helpers import (
     _DEFAULT_ADMIN,
     _DENIED,
     _EXPECTATION_401,
-    _EXPECTATION_404,
     _MEMBER,
     _OK,
     _OK_OR_DENIED,
+    _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS,
     _SYSTEM_USER_GID,
     _VIEWER,
+    _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+    _VIEWER_ALLOWED_WRITE_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AccessToken,
+    _admin_auth,
     _AdminSecret,
     _ApiKey,
     _AppInfo,
@@ -55,7 +57,6 @@ from .._helpers import (
     _Email,
     _ExistingSpan,
     _Expectation,
-    _export_embeddings,
     _extract_html,
     _GetUser,
     _GqlId,
@@ -65,7 +66,6 @@ from .._helpers import (
     _log_in,
     _log_out,
     _LoggedInUser,
-    _OIDCServer,
     _Password,
     _patch_user,
     _patch_viewer,
@@ -79,1018 +79,8 @@ from .._helpers import (
 )
 
 NOW = datetime.now(timezone.utc)
-_decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
+_decode_jwt = partial(jwt.decode, options={"verify_signature": False})
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
-
-
-class TestOIDC:
-    """Tests for OpenID Connect (OIDC) authentication flow.
-
-    This class tests the OIDC sign-in and sign-up processes, including:
-    - User authentication via OIDC
-    - New user creation during OIDC sign-in
-    - Token generation and validation
-    - Handling of conflicts with existing users
-    - Configuration options like allow_sign_up
-    - Error handling for invalid credentials
-    """
-
-    @pytest.mark.parametrize("allow_sign_up", [True, False])
-    async def test_sign_in(
-        self,
-        allow_sign_up: bool,
-        _oidc_server: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test the complete OIDC sign-in flow with different allow_sign_up settings.
-
-        This test verifies:
-        1. The OAuth2 flow redirects correctly to the OIDC provider
-        2. When allow_sign_up is True:
-           - A new user is created with MEMBER role
-           - Access and refresh tokens are generated
-           - Subsequent OIDC flows generate new tokens for the same user
-        3. When allow_sign_up is False:
-           - Users are redirected to login with an error message
-           - No access tokens are granted
-           - If a user without a password exists, they can still sign in
-        """
-        client = _httpx_client(_app)
-        url = (
-            f"oauth2/{_oidc_server}/login"
-            if allow_sign_up
-            else f"oauth2/{_oidc_server}_no_sign_up/login"
-        )
-
-        # Start the OAuth2 flow
-        response = client.post(url)
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify required OAuth2 cookies are set (non-PKCE: state and nonce only)
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" not in cookies  # PKCE not enabled
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Verify that the user is not already created
-        assert _oidc_server.user_email, "Fixture should have initialized a (random) user"
-        assert (email := sanitize_email(_oidc_server.user_email))
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
-        assert email not in users
-
-        # Complete the flow by calling the token endpoint
-        response = client.get(callback_url)
-
-        if not allow_sign_up:
-            # Verify that user is redirected to /login
-            assert response.status_code == 307
-            assert "/login" in response.headers["location"]
-
-            # Verify no access is granted
-            assert not response.cookies.get("phoenix-access-token")
-            assert not response.cookies.get("phoenix-refresh-token")
-
-            # Verify sensitive cookies are cleaned up even on error
-            set_cookie_headers = response.headers.get_list("set-cookie")
-            assert any(
-                "phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers
-            )
-            assert any(
-                "phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers
-            )
-
-            # Create the user without password
-            # Casing should not matter
-            case_insensitive_email = _randomize_casing(email)
-            admin.create_user(
-                _app, profile=_Profile(case_insensitive_email, "", token_hex(8)), local=False
-            )
-
-            # If user go through OIDC flow again, access should be granted
-            response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-            # Verify that user is redirected not to /login
-            assert response.status_code == 302
-            assert "/login" not in response.headers["location"]
-
-            # Verify we got access
-            assert (access_token := response.cookies.get("phoenix-access-token"))
-            assert (refresh_token := response.cookies.get("phoenix-refresh-token"))
-
-            # Verify that the user was created
-            users = {u.profile.email: u for u in admin.list_users(_app)}
-            assert email in users
-            assert users[email].role is UserRoleInput.MEMBER
-
-            # If user go through OIDC flow again, new access token should be created
-            response = _httpx_client(_app, cookies=cookies).get(callback_url)
-            assert (new_access_token := response.cookies.get("phoenix-access-token"))
-            assert (new_refresh_token := response.cookies.get("phoenix-refresh-token"))
-            assert new_access_token != access_token
-            assert new_refresh_token != refresh_token
-            return
-
-        # Verify we got access
-        assert response.status_code == 302
-        assert (access_token := response.cookies.get("phoenix-access-token"))
-        assert (refresh_token := response.cookies.get("phoenix-refresh-token"))
-
-        # Verify sensitive cookies are cleaned up after successful authentication
-        set_cookie_headers = response.headers.get_list("set-cookie")
-        assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any("phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-
-        # Verify that the user was created
-        users = {u.profile.email: u for u in admin.list_users(_app)}
-        assert email in users
-        assert users[email].role is UserRoleInput.MEMBER
-
-        # If user go through OIDC flow again, new access token should be created
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-        assert (new_access_token := response.cookies.get("phoenix-access-token"))
-        assert (new_refresh_token := response.cookies.get("phoenix-refresh-token"))
-        assert new_access_token != access_token
-        assert new_refresh_token != refresh_token
-
-    @pytest.mark.parametrize("allow_sign_up", [True, False])
-    async def test_sign_in_conflict_for_local_user_with_password(
-        self,
-        allow_sign_up: bool,
-        _oidc_server: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test OIDC sign-in when a user with the same email already exists with password authentication.
-
-        This test verifies:
-        1. The system detects the email conflict with an existing user
-        2. The user is redirected to the login page with an appropriate error message
-        3. No access tokens are granted to the OIDC user
-        4. The existing user's credentials remain unchanged
-        5. This behavior is consistent regardless of the allow_sign_up setting
-        """
-        client = _httpx_client(_app)
-        url = (
-            f"oauth2/{_oidc_server}/login"
-            if allow_sign_up
-            else f"oauth2/{_oidc_server}_no_sign_up/login"
-        )
-
-        # Start the OAuth2 flow
-        response = client.post(url)
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify required OAuth2 cookies are set (non-PKCE: state and nonce only)
-        assert "phoenix-oauth2-state" in response.cookies
-        assert "phoenix-oauth2-nonce" in response.cookies
-        assert "phoenix-oauth2-code-verifier" not in response.cookies  # PKCE not enabled
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Verify that the user is not already created
-        assert (email := _oidc_server.user_email)
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {u.profile.email: u for u in admin.list_users(_app)}
-        assert email not in users
-
-        # Create the user with password
-        admin.create_user(_app, profile=_Profile(email, token_hex(8), token_hex(8)))
-
-        # Verify that user is redirected to /login
-        response = client.get(callback_url)
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-        # Verify sensitive cookies are cleaned up after conflict error
-        set_cookie_headers = response.headers.get_list("set-cookie")
-        assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any("phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-
-    async def test_state_mismatch_is_rejected(
-        self,
-        _oidc_server: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that state parameter mismatch is rejected (CSRF protection).
-
-        This test verifies that an attacker cannot intercept the authorization code
-        and use it with a different state value. The state parameter binds the
-        authorization request to the token request, preventing CSRF attacks.
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 flow
-        response = client.post(f"oauth2/{_oidc_server}/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-        cookies = dict(response.cookies)
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Tamper with the state parameter in the callback URL
-        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
-
-        parsed = urlparse(callback_url)
-        query_params = parse_qs(parsed.query)
-        query_params["state"] = ["tampered_state_value"]
-        tampered_url = urlunparse(
-            (
-                parsed.scheme,
-                parsed.netloc,
-                parsed.path,
-                parsed.params,
-                urlencode(query_params, doseq=True),
-                parsed.fragment,
-            )
-        )
-
-        # Try to complete the flow with tampered state
-        response = _httpx_client(_app, cookies=cookies).get(tampered_url)
-
-        # Verify that user is redirected to login with error
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-        assert "error=" in response.headers["location"]
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-    async def test_missing_state_cookie_is_rejected(
-        self,
-        _oidc_server: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that missing state cookie causes proper error handling.
-
-        This verifies that if a user's cookies are deleted or expire before
-        completing the OAuth2 flow, the system handles it gracefully.
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 flow
-        response = client.post(f"oauth2/{_oidc_server}/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Try to complete the flow WITHOUT cookies (simulating deleted cookies)
-        response = _httpx_client(_app).get(callback_url)
-
-        # Verify proper error handling (422 Unprocessable Entity for missing cookie)
-        assert response.status_code == 422
-
-    async def test_unsafe_return_url_is_rejected(
-        self,
-        _oidc_server: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that absolute URLs in returnUrl parameter are rejected (open redirect protection).
-
-        This test verifies protection against open redirect attacks where an attacker
-        could trick users into authenticating and then redirect them to a malicious site.
-        """
-        client = _httpx_client(_app)
-
-        # Try to start OAuth2 flow with an absolute URL (potential open redirect)
-        response = client.post(
-            f"oauth2/{_oidc_server}/login",
-            params={"returnUrl": "https://evil.com/phishing"},
-        )
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-        cookies = dict(response.cookies)
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Complete the flow
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify that user is redirected to login with error about unsafe URL
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-        assert "unsafe" in response.headers["location"].lower()
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-    async def test_unknown_idp_is_rejected(
-        self,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that requests to unknown identity providers are rejected.
-
-        This verifies that the system validates the IDP name and returns
-        a proper redirect to the login page with an error code.
-        """
-        client = _httpx_client(_app)
-
-        # Try to start OAuth2 flow with unknown IDP
-        response = client.post("oauth2/non_existent_idp/login")
-
-        # Should redirect to /login with error code
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-        assert "error=unknown_idp" in response.headers["location"]
-
-    async def test_cookie_security_attributes(
-        self,
-        _oidc_server: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that OAuth2 cookies have proper security attributes.
-
-        This verifies that cookies are set with HttpOnly, SameSite, and appropriate
-        Max-Age values to protect against XSS and CSRF attacks.
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 flow
-        response = client.post(f"oauth2/{_oidc_server}/login")
-        assert response.status_code == 302
-
-        # Verify cookie security attributes
-        set_cookie_headers = response.headers.get_list("set-cookie")
-
-        # Check state cookie
-        state_cookie = next((h for h in set_cookie_headers if "phoenix-oauth2-state=" in h), None)
-        assert state_cookie is not None
-        assert "HttpOnly" in state_cookie
-        assert "SameSite=lax" in state_cookie or "SameSite=Lax" in state_cookie
-        assert "Max-Age=900" in state_cookie  # 15 minutes
-
-        # Check nonce cookie
-        nonce_cookie = next((h for h in set_cookie_headers if "phoenix-oauth2-nonce=" in h), None)
-        assert nonce_cookie is not None
-        assert "HttpOnly" in nonce_cookie
-        assert "SameSite=lax" in nonce_cookie or "SameSite=Lax" in nonce_cookie
-        assert "Max-Age=900" in nonce_cookie
-
-    async def test_oidc_with_groups_access_granted(
-        self,
-        _oidc_server_standard_with_groups: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test standard OIDC with group-based access control - user HAS matching group.
-
-        This test verifies:
-        1. OIDC server returns groups claim ["engineering", "operations"]
-        2. Phoenix extracts groups using JMESPath (groups)
-        3. Phoenix checks against ALLOWED_GROUPS ("engineering,admin")
-        4. User has "engineering" → access GRANTED
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 OIDC flow with groups
-        response = client.post(f"oauth2/{_oidc_server_standard_with_groups}_granted/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify OAuth2 state and nonce cookies are set (no code_verifier for standard OIDC)
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" not in cookies  # OIDC doesn't use PKCE
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Verify that the user is not already created
-        assert _oidc_server_standard_with_groups.user_email, (
-            "Fixture should have initialized a (random) user"
-        )
-        assert (email := sanitize_email(_oidc_server_standard_with_groups.user_email))
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
-        assert email not in users
-
-        # Complete the flow by calling the token endpoint
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify we got access tokens (user has matching group)
-        assert response.status_code == 302
-        assert response.cookies.get("phoenix-access-token")
-        assert response.cookies.get("phoenix-refresh-token")
-
-        # Verify that the user was created
-        users = {u.profile.email: u for u in admin.list_users(_app)}
-        assert email in users
-        assert users[email].role is UserRoleInput.MEMBER
-
-    async def test_oidc_with_groups_access_denied(
-        self,
-        _oidc_server_standard_with_groups: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test standard OIDC with group-based access control - user does NOT have matching group.
-
-        This test verifies:
-        1. OIDC server returns groups claim ["engineering", "operations"]
-        2. Phoenix extracts groups using JMESPath (groups)
-        3. Phoenix checks against ALLOWED_GROUPS ("admin,sales")
-        4. User has NO matching groups → access DENIED
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 OIDC flow with groups
-        response = client.post(f"oauth2/{_oidc_server_standard_with_groups}_denied/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify OAuth2 state and nonce cookies are set (no code_verifier for standard OIDC)
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" not in cookies  # OIDC doesn't use PKCE
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Complete the flow by calling the token endpoint
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify that user is redirected to login with error
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-        # Verify that the user was NOT created
-        assert _oidc_server_standard_with_groups.user_email, (
-            "Fixture should have initialized a (random) user"
-        )
-        assert (email := sanitize_email(_oidc_server_standard_with_groups.user_email))
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
-        assert email not in users
-
-
-class TestPKCE:
-    """Test PKCE (Proof Key for Code Exchange) OAuth2 flow.
-
-    These tests verify that Phoenix correctly handles PKCE for both:
-    - Public clients that cannot securely store a client_secret
-    - Confidential clients using PKCE for defense-in-depth security
-
-    PKCE adds code_challenge/code_verifier validation to protect against
-    authorization code interception attacks.
-    """
-
-    async def test_pkce_public_client_flow(
-        self,
-        _oidc_server_pkce_public: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test PKCE flow with a public client (no client_secret).
-
-        This test verifies:
-        1. Phoenix generates code_verifier and code_challenge
-        2. OIDC server receives code_challenge in authorization request
-        3. Phoenix sends code_verifier in token request (no client_secret)
-        4. Server validates code_verifier matches code_challenge
-        5. User is successfully authenticated and tokens are issued
-        6. Sensitive cookies (state, nonce, code_verifier) are cleaned up
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow
-        response = client.post(f"oauth2/{_oidc_server_pkce_public}/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify all required OAuth2 cookies are set
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" in cookies
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Verify that the user is not already created
-        assert _oidc_server_pkce_public.user_email, (
-            "Fixture should have initialized a (random) user"
-        )
-        assert (email := sanitize_email(_oidc_server_pkce_public.user_email))
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
-        assert email not in users
-
-        # Complete the flow by calling the token endpoint
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify we got access tokens
-        assert response.status_code == 302
-        assert response.cookies.get("phoenix-access-token")
-        assert response.cookies.get("phoenix-refresh-token")
-
-        # Verify sensitive cookies are cleaned up (security: remove ephemeral crypto material)
-        # Check Set-Cookie headers for deletion (Max-Age=0)
-        set_cookie_headers = response.headers.get_list("set-cookie")
-        assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any("phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any(
-            "phoenix-oauth2-code-verifier=" in h and "Max-Age=0" in h for h in set_cookie_headers
-        )
-
-        # Verify that the user was created
-        users = {u.profile.email: u for u in admin.list_users(_app)}
-        assert email in users
-        assert users[email].role is UserRoleInput.MEMBER
-
-    async def test_pkce_confidential_client_flow(
-        self,
-        _oidc_server_pkce_confidential: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test PKCE flow with a confidential client (defense-in-depth).
-
-        This test verifies defense-in-depth: both client_secret AND code_verifier
-        are validated. Even if the client_secret is compromised, the attacker
-        cannot exchange an intercepted authorization code without the code_verifier.
-
-        This test verifies:
-        1. Phoenix generates code_verifier and code_challenge (PKCE)
-        2. Phoenix sends client_secret (traditional OAuth2)
-        3. Server validates BOTH client_secret AND code_verifier
-        4. User is successfully authenticated and tokens are issued
-        5. Sensitive cookies (state, nonce, code_verifier) are cleaned up
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow with confidential client
-        response = client.post(f"oauth2/{_oidc_server_pkce_confidential}/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify all required OAuth2 cookies are set
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" in cookies
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Verify that the user is not already created
-        assert _oidc_server_pkce_confidential.user_email, (
-            "Fixture should have initialized a (random) user"
-        )
-        assert (email := sanitize_email(_oidc_server_pkce_confidential.user_email))
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
-        assert email not in users
-
-        # Complete the flow by calling the token endpoint
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify we got access tokens
-        assert response.status_code == 302
-        assert response.cookies.get("phoenix-access-token")
-        assert response.cookies.get("phoenix-refresh-token")
-
-        # Verify sensitive cookies are cleaned up (security: remove ephemeral crypto material)
-        # Check Set-Cookie headers for deletion (Max-Age=0)
-        set_cookie_headers = response.headers.get_list("set-cookie")
-        assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any("phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any(
-            "phoenix-oauth2-code-verifier=" in h and "Max-Age=0" in h for h in set_cookie_headers
-        )
-
-        # Verify that the user was created
-        users = {u.profile.email: u for u in admin.list_users(_app)}
-        assert email in users
-        assert users[email].role is UserRoleInput.MEMBER
-
-    async def test_pkce_code_verifier_mismatch_rejected(
-        self,
-        _oidc_server_pkce_public: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that invalid code_verifier is rejected.
-
-        This test verifies that if an attacker intercepts the authorization code
-        and tries to exchange it with a wrong code_verifier, the server rejects it.
-
-        Security scenario: An attacker intercepts the authorization code from the
-        redirect URL but doesn't have the code_verifier from the cookie. The server
-        should reject the token exchange request.
-
-        Also verifies that sensitive cookies are cleaned up even on error.
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow
-        response = client.post(f"oauth2/{_oidc_server_pkce_public}/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify all required OAuth2 cookies are set
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" in cookies
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Try to complete the flow with state and nonce but WITHOUT code_verifier
-        # This simulates an attacker who intercepts the callback URL and has the state/nonce
-        # cookies (from the same browser session) but doesn't have the code_verifier
-        cookies_without_verifier = {k: v for k, v in cookies.items() if "code-verifier" not in k}
-        response = _httpx_client(_app, cookies=cookies_without_verifier).get(callback_url)
-
-        # Verify that user is redirected to login with error
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-        # Verify sensitive cookies are cleaned up even on error (security: prevent reuse)
-        # Check Set-Cookie headers for deletion (Max-Age=0)
-        set_cookie_headers = response.headers.get_list("set-cookie")
-        assert any("phoenix-oauth2-state=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any("phoenix-oauth2-nonce=" in h and "Max-Age=0" in h for h in set_cookie_headers)
-        assert any(
-            "phoenix-oauth2-code-verifier=" in h and "Max-Age=0" in h for h in set_cookie_headers
-        )
-
-    async def test_pkce_with_groups_access_granted(
-        self,
-        _oidc_server_pkce_with_groups: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test PKCE with group-based access control - user HAS matching group.
-
-        This test verifies:
-        1. OIDC server returns groups claim ["engineering", "operations"]
-        2. Phoenix extracts groups using JMESPath (groups)
-        3. Phoenix checks against ALLOWED_GROUPS ("engineering,admin")
-        4. User has "engineering" → access GRANTED
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow with groups
-        response = client.post(f"oauth2/{_oidc_server_pkce_with_groups}_granted/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify all required OAuth2 cookies are set
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" in cookies
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Verify that the user is not already created
-        assert _oidc_server_pkce_with_groups.user_email, (
-            "Fixture should have initialized a (random) user"
-        )
-        assert (email := sanitize_email(_oidc_server_pkce_with_groups.user_email))
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
-        assert email not in users
-
-        # Complete the flow by calling the token endpoint
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify we got access tokens (user has matching group)
-        assert response.status_code == 302
-        assert response.cookies.get("phoenix-access-token")
-        assert response.cookies.get("phoenix-refresh-token")
-
-        # Verify that the user was created
-        users = {u.profile.email: u for u in admin.list_users(_app)}
-        assert email in users
-        assert users[email].role is UserRoleInput.MEMBER
-
-    async def test_pkce_with_groups_access_denied(
-        self,
-        _oidc_server_pkce_with_groups: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test PKCE with group-based access control - user does NOT have matching group.
-
-        This test verifies:
-        1. OIDC server returns groups claim ["engineering", "operations"]
-        2. Phoenix extracts groups using JMESPath (groups)
-        3. Phoenix checks against ALLOWED_GROUPS ("admin,sales")
-        4. User has NO matching groups → access DENIED
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow with groups
-        response = client.post(f"oauth2/{_oidc_server_pkce_with_groups}_denied/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-
-        # Verify all required OAuth2 cookies are set
-        cookies = dict(response.cookies)
-        assert "phoenix-oauth2-state" in cookies
-        assert "phoenix-oauth2-nonce" in cookies
-        assert "phoenix-oauth2-code-verifier" in cookies
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Complete the flow by calling the token endpoint
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify that user is redirected to login with error
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-        # Verify that the user was NOT created
-        assert _oidc_server_pkce_with_groups.user_email, (
-            "Fixture should have initialized a (random) user"
-        )
-        assert (email := sanitize_email(_oidc_server_pkce_with_groups.user_email))
-        admin = _DEFAULT_ADMIN.log_in(_app)
-        users = {sanitize_email(u.profile.email): u for u in admin.list_users(_app)}
-        assert email not in users
-
-    async def test_pkce_wrong_code_verifier_is_rejected(
-        self,
-        _oidc_server_pkce_public: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that wrong code_verifier is rejected (not just missing).
-
-        This test verifies that an attacker who intercepts the authorization code
-        and tries to use their own code_verifier will be rejected by the OIDC server.
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow
-        response = client.post(f"oauth2/{_oidc_server_pkce_public}/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-        cookies = dict(response.cookies)
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Replace code_verifier with a wrong value
-        cookies["phoenix-oauth2-code-verifier"] = "wrong_code_verifier_value_12345"
-
-        # Try to complete the flow with wrong code_verifier
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify that user is redirected to login with error
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-        assert "error=" in response.headers["location"]
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-    async def test_pkce_missing_code_verifier_cookie_is_rejected(
-        self,
-        _oidc_server_pkce_public: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that missing code_verifier cookie in PKCE flow causes error.
-
-        This verifies that for PKCE-enabled flows, the code_verifier cookie
-        is required and the system properly rejects requests without it.
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow
-        response = client.post(f"oauth2/{_oidc_server_pkce_public}/login")
-        assert response.status_code == 302
-        auth_url = response.headers["location"]
-        cookies = dict(response.cookies)
-
-        # Follow the redirect to the OIDC server
-        response = client.get(auth_url)
-        assert response.status_code == 302
-        callback_url = response.headers["location"]
-
-        # Remove code_verifier cookie (keep state and nonce)
-        cookies.pop("phoenix-oauth2-code-verifier", None)
-
-        # Try to complete the flow without code_verifier
-        response = _httpx_client(_app, cookies=cookies).get(callback_url)
-
-        # Verify that user is redirected to login with error
-        assert response.status_code == 307
-        assert "/login" in response.headers["location"]
-
-        # Verify no access is granted
-        assert not response.cookies.get("phoenix-access-token")
-        assert not response.cookies.get("phoenix-refresh-token")
-
-    async def test_pkce_code_verifier_cookie_security_attributes(
-        self,
-        _oidc_server_pkce_public: _OIDCServer,
-        _app: _AppInfo,
-    ) -> None:
-        """Test that PKCE code_verifier cookie has proper security attributes.
-
-        This verifies that the code_verifier cookie (which contains sensitive
-        cryptographic material) is set with HttpOnly, SameSite, and appropriate
-        Max-Age values.
-        """
-        client = _httpx_client(_app)
-
-        # Start the OAuth2 PKCE flow
-        response = client.post(f"oauth2/{_oidc_server_pkce_public}/login")
-        assert response.status_code == 302
-
-        # Verify cookie security attributes
-        set_cookie_headers = response.headers.get_list("set-cookie")
-
-        # Check code_verifier cookie
-        verifier_cookie = next(
-            (h for h in set_cookie_headers if "phoenix-oauth2-code-verifier=" in h), None
-        )
-        assert verifier_cookie is not None
-        assert "HttpOnly" in verifier_cookie
-        assert "SameSite=lax" in verifier_cookie or "SameSite=Lax" in verifier_cookie
-        assert "Max-Age=900" in verifier_cookie  # 15 minutes
-
-
-class TestMockOIDCServer:
-    """Tests for mock _OIDCServer behavior (not Phoenix).
-
-    These tests verify that our mock OIDC server correctly simulates the distinction
-    between PKCE and standard OIDC flows. This ensures that other integration tests
-    are actually testing Phoenix's behavior correctly by providing realistic mock
-    server responses.
-    """
-
-    async def test_pkce_server_rejects_non_pkce_flow(
-        self,
-        _oidc_server_pkce_public: _OIDCServer,
-    ) -> None:
-        """Test that mock PKCE-enabled server rejects token requests without code_verifier.
-
-        This verifies that the mock _OIDCServer, when configured with PKCE enabled,
-        properly rejects token exchange requests that don't include the PKCE code_verifier,
-        even if they have a valid authorization code. This ensures the mock server
-        accurately simulates real OIDC provider behavior for testing purposes.
-        """
-        import httpx
-
-        # Get authorization code by doing the auth flow
-        client = httpx.Client(verify=False)
-
-        # Start auth request with code_challenge
-        from base64 import urlsafe_b64encode
-        from hashlib import sha256
-
-        code_verifier = "test_verifier_1234567890_abcdefghijklmnopqrstuvwxyz"
-        code_challenge = (
-            urlsafe_b64encode(sha256(code_verifier.encode()).digest()).decode().rstrip("=")
-        )
-
-        # Get authorization code from server
-        auth_response = client.get(
-            f"{_oidc_server_pkce_public.base_url}/auth",
-            params={
-                "client_id": _oidc_server_pkce_public.client_id,
-                "response_type": "code",
-                "redirect_uri": "http://localhost/callback",
-                "state": "test_state",
-                "code_challenge": code_challenge,
-                "code_challenge_method": "S256",
-            },
-        )
-        assert auth_response.status_code == 302
-
-        # Extract authorization code from redirect
-        from urllib.parse import parse_qs, urlparse
-
-        callback_url = auth_response.headers["location"]
-        query_params = parse_qs(urlparse(callback_url).query)
-        auth_code = query_params["code"][0]
-
-        # Try to exchange code for token WITHOUT code_verifier (standard OIDC flow)
-        token_response = client.post(
-            f"{_oidc_server_pkce_public.base_url}/token",
-            data={
-                "grant_type": "authorization_code",
-                "code": auth_code,
-                "redirect_uri": "http://localhost/callback",
-                "client_id": _oidc_server_pkce_public.client_id,
-                # NOT including code_verifier - this should be rejected
-            },
-        )
-
-        # Server should reject the request
-        assert token_response.status_code == 400
-        error_data = token_response.json()
-        assert error_data.get("error") == "invalid_request"
-        assert "code_verifier" in error_data.get("error_description", "").lower()
-
-    async def test_standard_oidc_server_rejects_pkce_parameters(
-        self,
-        _oidc_server_standard: _OIDCServer,
-    ) -> None:
-        """Test that mock standard OIDC server rejects token requests with code_verifier.
-
-        This verifies that the mock _OIDCServer, when configured for standard OIDC (not PKCE),
-        properly rejects token exchange requests that include PKCE parameters (code_verifier)
-        when PKCE is not enabled. This ensures the mock server accurately simulates real
-        OIDC provider behavior for testing purposes.
-        """
-        import httpx
-
-        # Get authorization code by doing standard OAuth flow (no PKCE)
-        client = httpx.Client(verify=False)
-
-        # Get authorization code from server (standard flow, no code_challenge)
-        auth_response = client.get(
-            f"{_oidc_server_standard.base_url}/auth",
-            params={
-                "client_id": _oidc_server_standard.client_id,
-                "response_type": "code",
-                "redirect_uri": "http://localhost/callback",
-                "state": "test_state",
-                # NO code_challenge - standard OIDC flow
-            },
-        )
-        assert auth_response.status_code == 302
-
-        # Extract authorization code from redirect
-        from urllib.parse import parse_qs, urlparse
-
-        callback_url = auth_response.headers["location"]
-        query_params = parse_qs(urlparse(callback_url).query)
-        auth_code = query_params["code"][0]
-
-        # Try to exchange code for token WITH code_verifier (PKCE flow on non-PKCE server)
-        token_response = client.post(
-            f"{_oidc_server_standard.base_url}/token",
-            data={
-                "grant_type": "authorization_code",
-                "code": auth_code,
-                "redirect_uri": "http://localhost/callback",
-                "client_id": _oidc_server_standard.client_id,
-                "client_secret": _oidc_server_standard.client_secret,
-                "code_verifier": "some_pkce_verifier_12345",  # Should be rejected
-            },
-        )
-
-        # Server should reject the request
-        assert token_response.status_code == 400
-        error_data = token_response.json()
-        assert error_data.get("error") == "invalid_request"
-        assert "code_verifier" in error_data.get("error_description", "").lower()
 
 
 class TestTLS:
@@ -1193,7 +183,7 @@ class TestLogIn:
         _app: _AppInfo,
     ) -> None:
         user = _get_user(_app, role_or_user)
-        _delete_users(_app, _app.admin_secret, users=[user])
+        _delete_users(_app, _admin_auth(_app), users=[user])
         with _EXPECTATION_401:
             user.log_in(_app)
 
@@ -1362,7 +352,7 @@ class TestPasswordReset:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         logged_in_user.visit(_app)
-        _DEFAULT_ADMIN.delete_users(_app, u)
+        _app.default_admin.delete_users(_app, u)
         assert not u.initiate_password_reset(_app, _smtpd, should_receive_email=False)
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput))
@@ -1380,7 +370,7 @@ class TestPasswordReset:
         assert (token := u.initiate_password_reset(_app, _smtpd))
         new_password = next(_passwords)
         assert new_password != u.password
-        _DEFAULT_ADMIN.delete_users(_app, u)
+        _app.default_admin.delete_users(_app, u)
         with _EXPECTATION_401:
             token.reset(_app, new_password)
 
@@ -1469,7 +459,7 @@ class TestLoggedInTokens:
         logged_in_user.log_out(_app)
 
     def test_corrupt_tokens_are_not_accepted(self, _app: _AppInfo) -> None:
-        parts = _DEFAULT_ADMIN.log_in(_app).tokens.access_token.split(".")
+        parts = _app.default_admin.log_in(_app).tokens.access_token.split(".")
         # delete last 3 characters because base64 could have up to 2 padding characters
         bad_headers = _AccessToken(f"{parts[0][:-3]}.{parts[1]}.{parts[2]}")
         with _EXPECTATION_401:
@@ -1538,7 +528,7 @@ class TestCreateUser:
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_create_user(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
@@ -1681,7 +671,7 @@ class TestPatchUser:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with pytest.raises(Exception, match="role"):
-            logged_in_user.patch_user(_app, _DEFAULT_ADMIN, new_role=new_role)
+            logged_in_user.patch_user(_app, _app.default_admin, new_role=new_role)
 
     def test_admin_cannot_change_role_for_self(
         self,
@@ -1734,7 +724,7 @@ class TestPatchUser:
     @pytest.mark.parametrize("role", list(UserRoleInput))
     def test_only_admin_can_change_password_for_non_self(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         role: UserRoleInput,
         expectation: AbstractContextManager[Optional[Unauthorized]],
         _get_user: _GetUser,
@@ -1824,7 +814,7 @@ class TestPatchUser:
         logged_in_user.visit(_app)
 
         # Admin changes user's role
-        _patch_user(_app, user, _app.admin_secret, new_role=new_role)
+        _patch_user(_app, user, _admin_auth(_app), new_role=new_role)
 
         # Old tokens should no longer work (user should be logged out)
         logged_in_user.visit(_app, 401)
@@ -1852,7 +842,7 @@ class TestDeleteUsers:
     )
     def test_cannot_delete_system_user(
         self,
-        role_or_user: UserRoleInput,
+        role_or_user: _RoleOrUser,
         expectation: _Expectation,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -1880,8 +870,8 @@ class TestDeleteUsers:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with expectation:
-            logged_in_user.delete_users(_app, _DEFAULT_ADMIN)
-        _DEFAULT_ADMIN.log_in(_app)
+            logged_in_user.delete_users(_app, _app.default_admin)
+        _app.default_admin.log_in(_app)
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",
@@ -1905,10 +895,11 @@ class TestDeleteUsers:
         logged_in_user = u.log_in(_app)
         non_self = _get_user(_app, role)
         with expectation as e:
-            logged_in_user.delete_users(_app, non_self)
+            deleted_user_ids = logged_in_user.delete_users(_app, non_self)
         if e:
             non_self.log_in(_app)
         else:
+            assert deleted_user_ids == [non_self.gid]
             with _EXPECTATION_401:
                 non_self.log_in(_app)
 
@@ -1939,116 +930,10 @@ class TestDeleteUsers:
         logged_in_user = user.log_in(_app)
         tokens = logged_in_user.tokens
         logged_in_user.visit(_app)
-        _delete_users(_app, _app.admin_secret, users=[user])
+        _delete_users(_app, _admin_auth(_app), users=[user])
         with _EXPECTATION_401:
             tokens.refresh(_app)
         logged_in_user.visit(_app, 401)
-
-
-class TestCreateApiKey:
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _OK),
-            (_MEMBER, _OK),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_create_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_create_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        with expectation:
-            logged_in_user.create_api_key(_app, "System")
-
-
-class TestDeleteApiKey:
-    @pytest.mark.parametrize("role_or_user", [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN])
-    def test_delete_user_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = logged_in_user.create_api_key(_app)
-        logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
-    def test_only_admin_can_delete_user_api_key_for_non_self(
-        self,
-        role_or_user: _RoleOrUser,
-        role: UserRoleInput,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        non_self = _get_user(_app, role).log_in(_app)
-        assert non_self.gid != logged_in_user.gid
-        api_key = non_self.create_api_key(_app)
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
-
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_delete_system_api_key(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        u = _get_user(_app, role_or_user)
-        logged_in_user = u.log_in(_app)
-        api_key = _DEFAULT_ADMIN.create_api_key(_app, "System")
-        with expectation:
-            logged_in_user.delete_api_key(_app, api_key)
 
 
 class TestGraphQLQuery:
@@ -2061,18 +946,9 @@ class TestGraphQLQuery:
             (_DEFAULT_ADMIN, _OK),
         ],
     )
-    @pytest.mark.parametrize(
-        "query",
-        [
-            "query{users{edges{node{id}}}}",
-            "query{userApiKeys{id}}",
-            "query{systemApiKeys{id}}",
-        ],
-    )
-    def test_only_admin_can_list_users_and_api_keys(
+    def test_only_admin_can_list_users(
         self,
         role_or_user: _RoleOrUser,
-        query: str,
         expectation: _OK_OR_DENIED,
         _get_user: _GetUser,
         _app: _AppInfo,
@@ -2080,7 +956,7 @@ class TestGraphQLQuery:
         u = _get_user(_app, role_or_user)
         logged_in_user = u.log_in(_app)
         with expectation:
-            logged_in_user.gql(_app, query)
+            logged_in_user.gql(_app, "query{users{edges{node{id}}}}")
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_can_query_user_node_for_self(
@@ -2120,6 +996,322 @@ class TestGraphQLQuery:
             logged_in_user.gql(_app, query)
 
 
+class TestSandboxAndCodeEvaluatorPermissions:
+    # Tier 1 (admin-only): sandbox-config mutations + updateSandboxProvider.
+    # Tier 2 (IsNotViewer): code-evaluator mutations + evaluatorPreviews.
+    # Tier 3 (unrestricted): sandbox/provider/config reads + code-evaluator source.
+
+    QUERY = """
+      mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
+        createSandboxConfig(input: $input) {
+          sandboxConfig { id }
+        }
+      }
+
+      mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
+        updateSandboxConfig(input: $input) {
+          sandboxConfig { id }
+        }
+      }
+
+      mutation DeleteSandboxConfig($input: DeleteSandboxConfigInput!) {
+        deleteSandboxConfig(input: $input) { deletedId }
+      }
+
+      mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
+        updateSandboxProvider(input: $input) {
+          sandboxProvider { id }
+        }
+      }
+
+      mutation CreateCodeEvaluator($input: CreateCodeEvaluatorInput!) {
+        createCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation PatchCodeEvaluator($input: PatchCodeEvaluatorInput!) {
+        patchCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
+        createCodeEvaluatorVersion(input: $input) { wasCreated }
+      }
+
+      mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
+        evaluatorPreviews(input: $input) {
+          results { evaluatorName }
+        }
+      }
+
+      mutation CreateDataset($input: CreateDatasetInput!) {
+        createDataset(input: $input) {
+          dataset { id }
+        }
+      }
+
+      mutation CreateDatasetCodeEvaluator($input: CreateDatasetCodeEvaluatorInput!) {
+        createDatasetCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation UpdateDatasetCodeEvaluator($input: UpdateDatasetCodeEvaluatorInput!) {
+        updateDatasetCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      query SandboxReadAccess {
+        sandboxBackends { backendType }
+        sandboxProviders {
+          backendType
+          deployment { __typename }
+          configs {
+            id
+            config {
+              envVars { name }
+              internetAccess { mode }
+              dependencies { packages }
+            }
+          }
+        }
+      }
+
+      query CodeEvaluatorReadAccess {
+        evaluators(first: 50) {
+          edges {
+            node {
+              id
+              ... on CodeEvaluator {
+                currentVersion { sourceCode }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    _SOURCE = "def evaluate(output):\n    return {'score': 1.0}"
+    _INPUT_MAPPING: dict[str, dict[str, Any]] = {"literalMapping": {}, "pathMapping": {}}
+
+    @pytest.mark.parametrize(
+        "role_or_user",
+        [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN],
+        ids=["viewer", "member", "admin", "default_admin"],
+    )
+    def test_role_based_access(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        is_admin = role_or_user in (_ADMIN, _DEFAULT_ADMIN)
+        is_viewer = role_or_user is _VIEWER
+
+        def admin_gql(operation: str, variables: dict[str, Any]) -> dict[str, Any]:
+            response, _ = _app.default_admin.gql(
+                _app, query=self.QUERY, operation_name=operation, variables=variables
+            )
+            data: dict[str, Any] = response["data"]
+            return data
+
+        sandbox_config_id = admin_gql(
+            "CreateSandboxConfig",
+            {
+                "input": {
+                    "config": {"wasm": {"language": "PYTHON"}},
+                    "name": f"auth-sandbox-{token_hex(8)}",
+                }
+            },
+        )["createSandboxConfig"]["sandboxConfig"]["id"]
+        provider_id = str(GlobalID("SandboxProvider", "WASM"))
+
+        code_evaluator_id = admin_gql(
+            "CreateCodeEvaluator",
+            {
+                "input": {
+                    "name": f"auth_code_evaluator_{token_hex(8)}",
+                    "language": "PYTHON",
+                    "sourceCode": self._SOURCE,
+                    "sandboxConfigId": sandbox_config_id,
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )["createCodeEvaluator"]["evaluator"]["id"]
+
+        dataset_id = admin_gql("CreateDataset", {"input": {"name": f"auth_ds_{token_hex(8)}"}})[
+            "createDataset"
+        ]["dataset"]["id"]
+
+        dataset_evaluator_id = admin_gql(
+            "CreateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "source": {"evaluatorId": code_evaluator_id},
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )["createDatasetCodeEvaluator"]["evaluator"]["id"]
+
+        user = _get_user(_app, role_or_user).log_in(_app)
+
+        def check(allowed: bool, operation: str, variables: dict[str, Any]) -> None:
+            if allowed:
+                user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+            else:
+                with pytest.raises(Unauthorized):
+                    user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+
+        # Tier 1 — admin-only sandbox-config writes
+        check(
+            is_admin,
+            "CreateSandboxConfig",
+            {
+                "input": {
+                    "config": {"wasm": {"language": "PYTHON"}},
+                    "name": f"auth-sandbox-{token_hex(8)}",
+                }
+            },
+        )
+        check(
+            is_admin,
+            "UpdateSandboxConfig",
+            {"input": {"id": sandbox_config_id, "description": "updated"}},
+        )
+        check(
+            is_admin,
+            "UpdateSandboxProvider",
+            {"input": {"id": provider_id, "enabled": True}},
+        )
+
+        # Tier 2 — member-allowed code-evaluator writes & previews
+        members_allowed = not is_viewer
+        check(
+            members_allowed,
+            "CreateCodeEvaluator",
+            {
+                "input": {
+                    "name": f"auth_code_evaluator_{token_hex(8)}",
+                    "language": "PYTHON",
+                    "sourceCode": self._SOURCE,
+                    "sandboxConfigId": sandbox_config_id,
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "PatchCodeEvaluator",
+            {"input": {"id": code_evaluator_id, "description": "patched"}},
+        )
+        check(
+            members_allowed,
+            "CreateCodeEvaluatorVersion",
+            {
+                "input": {
+                    "codeEvaluatorId": code_evaluator_id,
+                    "sourceCode": "def evaluate(output):\n    return {'score': 0.5}",
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "CreateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "source": {"evaluatorId": code_evaluator_id},
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "UpdateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        # Empty previews list exercises the IsNotViewer gate without a live backend.
+        check(members_allowed, "EvaluatorPreviews", {"input": {"previews": []}})
+
+        # Tier 3 — unrestricted reads (succeed for every role, viewers included)
+        sandbox_read, _ = user.gql(_app, query=self.QUERY, operation_name="SandboxReadAccess")
+        sandbox_data = sandbox_read["data"]
+        assert sandbox_data["sandboxBackends"]
+        wasm = [p for p in sandbox_data["sandboxProviders"] if p["backendType"] == "WASM"]
+        assert wasm and wasm[0]["configs"] and wasm[0]["configs"][0]["config"] is not None
+
+        evaluator_read, _ = user.gql(
+            _app, query=self.QUERY, operation_name="CodeEvaluatorReadAccess"
+        )
+        code_nodes = [
+            edge["node"]
+            for edge in evaluator_read["data"]["evaluators"]["edges"]
+            if edge["node"].get("currentVersion")
+        ]
+        assert code_nodes and code_nodes[0]["currentVersion"]["sourceCode"]
+
+        # Delete the setup sandbox config last — after every evaluator write that
+        # references it. Deleting it earlier makes those creates fail the
+        # config-exists check for admins (who are allowed to delete it).
+        check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
+
+
+class TestGenerativeModelCustomProviderMutations:
+    QUERY = """
+      mutation TestGenerativeModelCustomProviderCredentials(
+        $input: GenerativeModelCustomerProviderConfigInput!
+      ) {
+        testGenerativeModelCustomProviderCredentials(input: $input) {
+          error
+        }
+      }
+    """
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    def test_only_admin_can_test_custom_provider_credentials(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        logged_in_user = _get_user(_app, role_or_user).log_in(_app)
+        with expectation:
+            logged_in_user.gql(
+                _app,
+                query=self.QUERY,
+                operation_name="TestGenerativeModelCustomProviderCredentials",
+                variables={
+                    "input": {
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": "sk-test"},
+                            "openaiClientKwargs": {"baseUrl": "http://127.0.0.1:9/v1"},
+                        }
+                    }
+                },
+            )
+
+
 class TestSpanExporters:
     @pytest.mark.parametrize(
         "use_api_key,expires_at,expected",
@@ -2142,7 +1334,7 @@ class TestSpanExporters:
         headers: Optional[_Headers] = None
         api_key: Optional[_ApiKey] = None
         if use_api_key:
-            api_key = _DEFAULT_ADMIN.create_api_key(_app, "System", expires_at=expires_at)
+            api_key = _app.default_admin.create_api_key(_app, "System", expires_at=expires_at)
             # Must use all lower case for `authorization` because
             # otherwise it would crash the gRPC receiver.
             headers = dict(authorization=f"Bearer {api_key}")
@@ -2150,7 +1342,7 @@ class TestSpanExporters:
         for _ in range(2):
             assert export(_spans) is expected
         if api_key and expected is SpanExportResult.SUCCESS:
-            _DEFAULT_ADMIN.delete_api_key(_app, api_key)
+            _app.default_admin.delete_api_key(_app, api_key)
             assert export(_spans) is SpanExportResult.FAILURE
 
     @pytest.mark.parametrize(
@@ -2167,6 +1359,7 @@ class TestSpanExporters:
         _span_exporter: _SpanExporterFactory,
         _spans: Sequence[ReadableSpan],
         _app: _AppInfo,
+        _requires_configured_secret: None,
     ) -> None:
         if use_admin_secret:
             assert (api_key := _app.admin_secret)
@@ -2177,24 +1370,6 @@ class TestSpanExporters:
         headers = dict(authorization=f"Bearer {str(api_key)}")
         export = _span_exporter(_app, headers=headers).export
         assert export(_spans) is expected
-
-
-class TestEmbeddingsRestApi:
-    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
-    def test_authenticated_users_can_access_route(
-        self,
-        role_or_user: _RoleOrUser,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        user = _get_user(_app, role_or_user)
-        logged_in_user = user.log_in(_app)
-        with _EXPECTATION_404:  # no files have been exported
-            logged_in_user.export_embeddings(_app, "embeddings")
-
-    def test_unauthenticated_requests_receive_401(self, _app: _AppInfo) -> None:
-        with _EXPECTATION_401:
-            _export_embeddings(_app, None, filename="embeddings")
 
 
 class TestPrompts:
@@ -2240,7 +1415,7 @@ class TestPrompts:
                                 }
                             ]
                         },
-                        "invocationParameters": {"temperature": 0.4},
+                        "invocationParameters": {"openai": {"temperature": 0.4}},
                         "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
@@ -2286,7 +1461,7 @@ class TestPrompts:
                                 }
                             ]
                         },
-                        "invocationParameters": {"temperature": 0.4},
+                        "invocationParameters": {"openai": {"temperature": 0.4}},
                         "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
@@ -2449,7 +1624,7 @@ class TestSpanAnnotations:
         )
 
         # Check that the annotation remains unchanged
-        response, _ = user.gql(
+        response, _ = logged_in_member.gql(
             _app,
             query=self.QUERY,
             operation_name="GetSpanAnnotation",
@@ -2620,7 +1795,7 @@ class TestTraceAnnotations:
         )
 
         # Check that the annotation remains unchanged
-        response, _ = user.gql(
+        response, _ = logged_in_member.gql(
             _app,
             query=self.QUERY,
             operation_name="GetTraceAnnotation",
@@ -2642,12 +1817,139 @@ class TestTraceAnnotations:
         )
 
 
+class TestSecretsCRUDAndValueVisibility:
+    """Tests for secret management access control and value visibility.
+
+    Verifies that:
+    - Only admins can create/update/delete secrets (upsertOrDeleteSecrets mutation)
+    - Admins see decrypted secret values (DecryptedSecret)
+    - Non-admins (Members, Viewers) cannot access secret values (Unauthorized)
+    """
+
+    QUERY = """
+      mutation UpsertOrDeleteSecrets($input: UpsertOrDeleteSecretsMutationInput!) {
+        upsertOrDeleteSecrets(input: $input) {
+          deletedIds
+          upsertedSecrets {
+            id
+          }
+        }
+      }
+      query GetSecret($id: ID!) {
+        node(id: $id) {
+          ... on Secret {
+            key
+            value {
+              __typename
+              ... on DecryptedSecret {
+                value
+              }
+              ... on UnparsableSecret {
+                parseError
+              }
+            }
+          }
+        }
+      }
+    """
+
+    def test_secret_access_control_and_value_visibility(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        """Test secret CRUD permissions and value visibility by role.
+
+        Verifies:
+        - Members/Viewers cannot upsert or delete secrets (admin-only)
+        - Admin can upsert and delete secrets
+        - Admin sees DecryptedSecret with actual value
+        - Members/Viewers cannot access secret value field (Unauthorized)
+        """
+        admin = _get_user(_app, _ADMIN)
+        member = _get_user(_app, _MEMBER)
+        viewer = _get_user(_app, _VIEWER)
+
+        logged_in_admin = admin.log_in(_app)
+        logged_in_member = member.log_in(_app)
+        logged_in_viewer = viewer.log_in(_app)
+
+        # Create a secret (admin-only operation)
+        secret_key = f"test_secret_{token_hex(8)}"
+        secret_value = f"super-secret-value-{token_hex(8)}"
+
+        # Member and Viewer should not be able to upsert the secret
+        for logged_in_user in [logged_in_member, logged_in_viewer]:
+            with _DENIED:
+                logged_in_user.gql(
+                    _app,
+                    query=self.QUERY,
+                    operation_name="UpsertOrDeleteSecrets",
+                    variables={"input": {"secrets": [{"key": secret_key, "value": secret_value}]}},
+                )
+
+        # Admin should be able to upsert the secret
+        response, _ = logged_in_admin.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="UpsertOrDeleteSecrets",
+            variables={
+                "input": {"secrets": [{"key": secret_key, "value": secret_value}]},
+            },
+        )
+        id_ = response["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"][0]["id"]
+
+        # Admin should see decrypted value
+        response, _ = logged_in_admin.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="GetSecret",
+            variables={"id": id_},
+        )
+        secret = response["data"]["node"]
+        assert secret["key"] == secret_key
+        assert secret["value"]["__typename"] == "DecryptedSecret"
+        # Server emits the value as a RedactedString token — un-redact before
+        # comparing against the original plaintext.
+        from .._helpers import _redactor_for_app
+
+        assert _redactor_for_app(_app).unredact(secret["value"]["value"]) == secret_value
+
+        # Member and Viewer should get Unauthorized when accessing secret value field
+        for logged_in_user in [logged_in_member, logged_in_viewer]:
+            with _DENIED:
+                logged_in_user.gql(
+                    _app,
+                    query=self.QUERY,
+                    operation_name="GetSecret",
+                    variables={"id": id_},
+                )
+
+        # Member and Viewer should not be able to delete the secret
+        for logged_in_user in [logged_in_member, logged_in_viewer]:
+            with _DENIED:
+                logged_in_user.gql(
+                    _app,
+                    query=self.QUERY,
+                    operation_name="UpsertOrDeleteSecrets",
+                    variables={"input": {"secrets": [{"key": secret_key, "value": None}]}},
+                )
+
+        # Admin should be able to delete the secret
+        response, _ = logged_in_admin.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="UpsertOrDeleteSecrets",
+            variables={"input": {"secrets": [{"key": secret_key, "value": None}]}},
+        )
+        assert response["data"]["upsertOrDeleteSecrets"]["deletedIds"] == [id_]
+
+
 class TestApiAccessViaCookiesOrApiKeys:
     """Tests REST API v1 access control using both cookie and API key authentication.
 
-    This test suite verifies that access restrictions are enforced consistently across
-    all user roles (Admin, Member, Viewer, Default Admin) at the v1 router level,
-    regardless of authentication method:
+    This test suite verifies access restrictions across all user roles (Admin, Member,
+    Viewer, Default Admin) and both supported authentication methods:
     - Cookie-based authentication (access tokens from login)
     - API key authentication (Bearer tokens)
 
@@ -2676,6 +1978,129 @@ class TestApiAccessViaCookiesOrApiKeys:
     - Resource not found: Returns 404
     - Dynamic test IDs using token_hex(4) for test isolation
     """
+
+    def test_agent_sessions_are_scoped_to_api_key_owner(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        member_api_client = _httpx_client(_app, member.create_api_key(_app))
+        list_response = member_api_client.get("v1/agent_sessions")
+
+        assert list_response.status_code == 200
+        session_ids = {session["id"] for session in list_response.json()["data"]}
+        assert member_session_id in session_ids
+        assert admin_session_id not in session_ids
+        assert member_api_client.get(f"v1/agent_sessions/{member_session_id}").status_code == 200
+        assert member_api_client.get(f"v1/agent_sessions/{admin_session_id}").status_code == 404
+        assert (
+            member_api_client.get(f"v1/agent_sessions/{member_session_id}/messages").status_code
+            == 200
+        )
+        assert (
+            member_api_client.get(f"v1/agent_sessions/{admin_session_id}/messages").status_code
+            == 404
+        )
+
+    def test_agent_sessions_default_to_admins_own_sessions(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        member = _get_user(_app, UserRoleInput.MEMBER).log_in(_app)
+        admin = _get_user(_app, UserRoleInput.ADMIN).log_in(_app)
+        member_client = _httpx_client(_app, member.tokens)
+        admin_client = _httpx_client(_app, admin.tokens)
+        member_session_response = member_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Member session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        member_session_response.raise_for_status()
+        member_session_id = member_session_response.json()["data"]["id"]
+        admin_session_response = admin_client.post(
+            "v1/agent_sessions",
+            json={
+                "title": "Admin session",
+                "is_ephemeral": False,
+                "model": {
+                    "provider_type": "builtin",
+                    "provider": "OPENAI",
+                    "model_name": "gpt-test",
+                },
+            },
+        )
+        admin_session_response.raise_for_status()
+        admin_session_id = admin_session_response.json()["data"]["id"]
+
+        query = """
+          query ($viewerOnly: Boolean!) {
+            agentSessions(first: 100, viewerOnly: $viewerOnly) {
+              edges { node { id } }
+            }
+          }
+        """
+        all_sessions_response, _ = admin.gql(_app, query=query, variables={"viewerOnly": False})
+        all_session_ids = {
+            edge["node"]["id"] for edge in all_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert {member_session_id, admin_session_id} <= all_session_ids
+
+        own_sessions_response, _ = admin.gql(
+            _app,
+            query="""
+              query {
+                agentSessions(first: 100) {
+                  edges { node { id } }
+                }
+              }
+            """,
+        )
+        own_session_ids = {
+            edge["node"]["id"] for edge in own_sessions_response["data"]["agentSessions"]["edges"]
+        }
+        assert admin_session_id in own_session_ids
+        assert member_session_id not in own_session_ids
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
     def test_role_based_access_control(
@@ -2711,9 +2136,8 @@ class TestApiAccessViaCookiesOrApiKeys:
         - Covers: Datasets, Experiments, Prompts, Annotations, Evaluations,
           Spans, Traces, and Project creation (POST /v1/projects)
 
-        This verifies that authorization is enforced consistently regardless of
-        authentication method. Each role maintains the same permissions whether
-        using cookies or API keys.
+        Role-based authority is consistent across authentication methods except for
+        credential issuance, which requires a human session.
         """
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
@@ -2722,7 +2146,10 @@ class TestApiAccessViaCookiesOrApiKeys:
         is_admin = user.role is UserRoleInput.ADMIN or role_or_user is _DEFAULT_ADMIN
         is_viewer = user.role is UserRoleInput.VIEWER
 
-        for client in (_httpx_client(_app, tokens), _httpx_client(_app, api_key)):
+        for is_api_key, client in (
+            (False, _httpx_client(_app, tokens)),
+            (True, _httpx_client(_app, api_key)),
+        ):
             # Test 1: Common read resources - all roles should have identical access
             for expected_status_code, method, endpoint in _COMMON_RESOURCE_ENDPOINTS:
                 assert expected_status_code not in (401, 403), (
@@ -2737,6 +2164,15 @@ class TestApiAccessViaCookiesOrApiKeys:
 
             # Test 2: Admin-only endpoints - only admins should have access
             for expected_status_code, method, endpoint in _ADMIN_ONLY_ENDPOINTS:
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
                 endpoint = endpoint.format(token_hex(4))
                 response = client.request(method, endpoint)
                 if is_admin:
@@ -2763,3 +2199,149 @@ class TestApiAccessViaCookiesOrApiKeys:
                         f"Admin/Member expected {expected_status_code} but got {response.status_code} "
                         f"for {method} {endpoint}"
                     )
+
+            # Test 4: Operations available to every role — credential
+            # self-service and viewer-allowed writes (e.g. the LLM proxy) —
+            # except session-only credential issuance, which API keys cannot use.
+            for expected_status_code, method, endpoint in (
+                *_VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+                *_VIEWER_ALLOWED_WRITE_OPERATIONS,
+            ):
+                if (
+                    is_api_key
+                    and (
+                        method,
+                        endpoint,
+                    )
+                    in _SESSION_ONLY_CREDENTIAL_ISSUANCE_OPERATIONS
+                ):
+                    expected_status_code = 403
+                endpoint = endpoint.format(token_hex(4))
+                response = client.request(method, endpoint)
+                assert response.status_code == expected_status_code, (
+                    f"Expected {expected_status_code} but got {response.status_code} "
+                    f"for {method} {endpoint}"
+                )
+
+
+class TestVercelChatStreamRouterAuth:
+    @pytest.fixture
+    def _body(self) -> dict[str, Any]:
+        return {
+            "trigger": "submit-message",
+            "id": "test-msg-id",
+            "headless": False,
+            "message": {
+                "id": "00000000-0000-4000-8000-000000000001",
+                "role": "user",
+                "parts": [{"type": "text", "text": "hi"}],
+            },
+            "model": {
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-3-5-sonnet-20241022",
+            },
+        }
+
+    @pytest.fixture
+    def _path(self) -> str:
+        return "/v1/agent_sessions/test-session-id/chat"
+
+    def test_unauthenticated_request_is_rejected(
+        self,
+        _app: _AppInfo,
+        _body: dict[str, Any],
+        _path: str,
+    ) -> None:
+        response = _httpx_client(_app).post(_path, json=_body)
+        with _EXPECTATION_401:
+            response.raise_for_status()
+
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
+    def test_session_token_roles_reach_chat_session_lookup_except_viewers(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+        _body: dict[str, Any],
+        _path: str,
+    ) -> None:
+        user = _get_user(_app, role_or_user)
+        logged_in_user = user.log_in(_app)
+        response = _httpx_client(_app, logged_in_user.tokens).post(_path, json=_body)
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
+
+    @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
+    def test_api_key_roles_reach_chat_session_lookup_except_viewers(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+        _body: dict[str, Any],
+        _path: str,
+    ) -> None:
+        user = _get_user(_app, role_or_user)
+        logged_in_user = user.log_in(_app)
+        api_key = logged_in_user.create_api_key(_app)
+        response = _httpx_client(_app, api_key).post(_path, json=_body)
+        expected_status_code = 403 if user.role is UserRoleInput.VIEWER else 404
+        assert response.status_code == expected_status_code
+
+
+class TestBruteForceLoginProtection:
+    """Tests for brute force login protection.
+
+    The brute force rate limiter is enabled by default (PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION
+    is not set). Default max_attempts is 5. Each test uses a unique email to avoid cross-test
+    interference since the rate limiter is a shared singleton in the server process.
+    """
+
+    def test_login_returns_429_after_max_failed_attempts(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, UserRoleInput.MEMBER)
+        client = _httpx_client(_app)
+        # Exhaust all 5 attempts with wrong passwords
+        for _ in range(5):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+        # Next attempt should be blocked with 429
+        resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+        assert resp.status_code == 429
+
+    def test_successful_login_resets_failure_counter(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, UserRoleInput.MEMBER)
+        client = _httpx_client(_app)
+        # Accumulate some failures (below threshold)
+        for _ in range(4):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+        # Successful login should reset the counter
+        resp = client.post("auth/login", json={"email": user.email, "password": user.password})
+        assert resp.status_code == 204
+        # Now 4 more failures should not trigger 429 (counter was reset)
+        for _ in range(4):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+
+    def test_blocked_login_even_with_correct_password(
+        self,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        user = _get_user(_app, UserRoleInput.MEMBER)
+        client = _httpx_client(_app)
+        # Exhaust all attempts
+        for _ in range(5):
+            resp = client.post("auth/login", json={"email": user.email, "password": token_hex(16)})
+            assert resp.status_code == 401
+        # Even correct password should be blocked
+        resp = client.post("auth/login", json={"email": user.email, "password": user.password})
+        assert resp.status_code == 429

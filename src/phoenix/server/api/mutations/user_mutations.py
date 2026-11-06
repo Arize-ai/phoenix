@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 from typing import Literal, Optional, Union
 
 import strawberry
+from pydantic import SecretStr
 from sqlalchemy import Boolean, Select, and_, case, cast, delete, distinct, func, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import Secret
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -18,9 +18,9 @@ from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
-    PASSWORD_REQUIREMENTS,
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
+    get_password_requirements,
     sanitize_email,
     validate_email_format,
     validate_password_format,
@@ -31,9 +31,10 @@ from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly, IsNotViewe
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.User import User, to_gql_user
+from phoenix.server.api.types.User import User
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import AccessTokenId, ApiKeyId, PasswordResetTokenId, RefreshTokenId
 
@@ -42,15 +43,18 @@ logger = logging.getLogger(__name__)
 
 @strawberry.input
 class CreateUserInput:
-    email: str
-    username: str
-    password: Optional[str] = UNSET
+    email: Redacted[str]
+    username: Redacted[str]
+    password: Redacted[Optional[str]] = UNSET
     role: UserRoleInput
     send_welcome_email: Optional[bool] = False
     auth_method: Optional[AuthMethod] = AuthMethod.LOCAL
 
     def __post_init__(self) -> None:
-        if self.auth_method is AuthMethod.OAUTH2:
+        if self.auth_method is AuthMethod.LDAP:
+            if self.password:
+                raise BadRequest("Password is not allowed for LDAP authentication")
+        elif self.auth_method is AuthMethod.OAUTH2:
             if self.password:
                 raise BadRequest("Password is not allowed for OAuth2 authentication")
         elif get_env_disable_basic_auth():
@@ -61,9 +65,9 @@ class CreateUserInput:
 
 @strawberry.input
 class PatchViewerInput:
-    new_username: Optional[str] = UNSET
-    new_password: Optional[str] = UNSET
-    current_password: Optional[str] = UNSET
+    new_username: Redacted[Optional[str]] = UNSET
+    new_password: Redacted[Optional[str]] = UNSET
+    current_password: Redacted[Optional[str]] = UNSET
 
     def __post_init__(self) -> None:
         if not self.new_username and not self.new_password:
@@ -74,7 +78,7 @@ class PatchViewerInput:
             if not self.current_password:
                 raise BadRequest("current_password is required when modifying password")
             try:
-                PASSWORD_REQUIREMENTS.validate(self.new_password)
+                get_password_requirements().validate(self.new_password)
             except ValueError as e:
                 raise BadRequest(str(e))
 
@@ -83,8 +87,8 @@ class PatchViewerInput:
 class PatchUserInput:
     user_id: GlobalID
     new_role: Optional[UserRoleInput] = UNSET
-    new_username: Optional[str] = UNSET
-    new_password: Optional[str] = UNSET
+    new_username: Redacted[Optional[str]] = UNSET
+    new_password: Redacted[Optional[str]] = UNSET
 
     def __post_init__(self) -> None:
         if not self.new_role and not self.new_username and not self.new_password:
@@ -93,13 +97,18 @@ class PatchUserInput:
             if get_env_disable_basic_auth():
                 raise BadRequest("Basic auth is disabled: OAuth2 authentication only")
             try:
-                PASSWORD_REQUIREMENTS.validate(self.new_password)
+                get_password_requirements().validate(self.new_password)
             except ValueError as e:
                 raise BadRequest(str(e))
 
 
 @strawberry.input
 class DeleteUsersInput:
+    user_ids: list[GlobalID]
+
+
+@strawberry.type
+class DeleteUsersPayload:
     user_ids: list[GlobalID]
 
 
@@ -120,7 +129,12 @@ class UserMutationMixin:
         email = sanitize_email(input.email)
 
         user: models.User
-        if input.auth_method is AuthMethod.OAUTH2:
+        if input.auth_method is AuthMethod.LDAP:
+            user = models.LDAPUser(
+                email=email,
+                username=input.username,
+            )
+        elif input.auth_method is AuthMethod.OAUTH2:
             user = models.OAuth2User(
                 email=email,
                 username=input.username,
@@ -130,7 +144,7 @@ class UserMutationMixin:
             validate_email_format(email)
             validate_password_format(input.password)
             salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-            password_hash = await info.context.hash_password(Secret(input.password), salt)
+            password_hash = await info.context.hash_password(SecretStr(input.password), salt)
             user = models.LocalUser(
                 email=email,
                 username=input.username,
@@ -149,13 +163,12 @@ class UserMutationMixin:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(_user_operation_error_message(error))
-        if input.send_welcome_email and info.context.email_sender is not None:
+        if input.send_welcome_email and info.context.email_sender is not None and user.email:
             try:
                 await info.context.email_sender.send_welcome_email(user.email, user.username)
             except Exception as error:
-                # Log the error but do not raise it
-                logger.error(f"Failed to send welcome email: {error}")
-        return UserMutationPayload(user=to_gql_user(user))
+                logger.error("Failed to send welcome email (%s)", type(error).__name__)
+        return UserMutationPayload(user=User(id=user.id, db_record=user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin])  # type: ignore
     async def patch_user(
@@ -191,7 +204,7 @@ class UserMutationMixin:
                 validate_password_format(password)
                 salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_salt = salt
-                user.password_hash = await info.context.hash_password(Secret(password), salt)
+                user.password_hash = await info.context.hash_password(SecretStr(password), salt)
                 user.reset_password = True
                 should_log_out = True
             if username := input.new_username:
@@ -204,7 +217,7 @@ class UserMutationMixin:
         assert user
         if should_log_out:
             await info.context.log_out(user.id)
-        return UserMutationPayload(user=to_gql_user(user))
+        return UserMutationPayload(user=User(id=user.id, db_record=user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def patch_viewer(
@@ -225,12 +238,12 @@ class UserMutationMixin:
                     raise Conflict("Cannot modify password for non-local user")
                 if not (
                     current_password := input.current_password
-                ) or not await info.context.is_valid_password(Secret(current_password), user):
+                ) or not await info.context.is_valid_password(SecretStr(current_password), user):
                     raise Conflict("Valid current password is required to modify password")
                 validate_password_format(password)
                 salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
                 user.password_salt = salt
-                user.password_hash = await info.context.hash_password(Secret(password), salt)
+                user.password_hash = await info.context.hash_password(SecretStr(password), salt)
                 user.reset_password = False
             if username := input.new_username:
                 user.username = username
@@ -246,23 +259,26 @@ class UserMutationMixin:
             response = info.context.get_response()
             response.delete_cookie(PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
             response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
-        return UserMutationPayload(user=to_gql_user(user))
+        return UserMutationPayload(user=User(id=user.id, db_record=user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsAdmin, IsLocked])  # type: ignore
     async def delete_users(
         self,
         info: Info[Context, None],
         input: DeleteUsersInput,
-    ) -> None:
+    ) -> DeleteUsersPayload:
         assert (token_store := info.context.token_store) is not None
         if not input.user_ids:
-            return
-        user_ids = tuple(
-            map(
-                lambda gid: from_global_id_with_expected_type(gid, User.__name__),
-                set(input.user_ids),
-            )
-        )
+            raise BadRequest("At least one user ID is required")
+        user_rowid_to_gid: dict[int, GlobalID] = {}
+        for user_gid in input.user_ids:
+            try:
+                user_rowid = from_global_id_with_expected_type(user_gid, User.__name__)
+            except ValueError:
+                raise BadRequest(f"Invalid user ID: '{user_gid}'")
+            user_rowid_to_gid[user_rowid] = user_gid
+
+        user_rowids = list(user_rowid_to_gid.keys())
         system_user_role_id = select(models.UserRole.id).filter_by(name="SYSTEM").scalar_subquery()
         admin_user_role_id = select(models.UserRole.id).filter_by(name="ADMIN").scalar_subquery()
         default_admin_user_id = (
@@ -301,7 +317,7 @@ class UserMutationMixin:
                     .select_from(models.User)
                     .where(
                         and_(
-                            models.User.id.in_(user_ids),
+                            models.User.id.in_(user_rowids),
                             models.User.user_role_id != system_user_role_id,
                         )
                     )
@@ -309,48 +325,58 @@ class UserMutationMixin:
             ).all()
             if deletes_default_admin:
                 raise Conflict("Cannot delete the default admin user")
-            if num_resolved_user_ids < len(user_ids):
+            if num_resolved_user_ids < len(user_rowids):
                 raise NotFound("Some user IDs could not be found")
             password_reset_token_ids = [
                 PasswordResetTokenId(id_)
                 async for id_ in await session.stream_scalars(
                     select(models.PasswordResetToken.id).where(
-                        models.PasswordResetToken.user_id.in_(user_ids)
+                        models.PasswordResetToken.user_id.in_(user_rowids)
                     )
                 )
             ]
             access_token_ids = [
                 AccessTokenId(id_)
                 async for id_ in await session.stream_scalars(
-                    select(models.AccessToken.id).where(models.AccessToken.user_id.in_(user_ids))
+                    select(models.AccessToken.id).where(models.AccessToken.user_id.in_(user_rowids))
                 )
             ]
             refresh_token_ids = [
                 RefreshTokenId(id_)
                 async for id_ in await session.stream_scalars(
-                    select(models.RefreshToken.id).where(models.RefreshToken.user_id.in_(user_ids))
+                    select(models.RefreshToken.id).where(
+                        models.RefreshToken.user_id.in_(user_rowids)
+                    )
                 )
             ]
             api_key_ids = [
                 ApiKeyId(id_)
                 async for id_ in await session.stream_scalars(
-                    select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_ids))
+                    select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_rowids))
                 )
             ]
-            await session.execute(delete(models.User).where(models.User.id.in_(user_ids)))
+            deleted_user_ids = await session.scalars(
+                delete(models.User).where(models.User.id.in_(user_rowids)).returning(models.User.id)
+            )
         await token_store.revoke(
             *password_reset_token_ids,
             *access_token_ids,
             *refresh_token_ids,
             *api_key_ids,
         )
+        unique_deleted_user_ids = set(deleted_user_ids)
+        deleted_user_gids: list[GlobalID] = []
+        for user_rowid, user_gid in user_rowid_to_gid.items():
+            if user_rowid in unique_deleted_user_ids:
+                deleted_user_gids.append(user_gid)
+        return DeleteUsersPayload(user_ids=deleted_user_gids)
 
 
-def _select_role_id_by_name(role_name: str) -> Select[tuple[int]]:
+def _select_role_id_by_name(role_name: str) -> Select[int]:
     return select(models.UserRole.id).where(models.UserRole.name == role_name)
 
 
-def _select_user_by_id(user_id: int) -> Select[tuple[models.User]]:
+def _select_user_by_id(user_id: int) -> Select[models.User]:
     return (
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )

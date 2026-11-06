@@ -1,0 +1,128 @@
+---
+title: "Identify & Edit Prompts"
+description: Find a wrong classification in a trace, fix the prompt in the Playground, and save each prompt version.
+---
+
+In this part, you find the prompt that causes a wrong classification and fix it. At the end, you have two saved versions of the `support-classifier` prompt, and your code loads the new version.
+
+You do these tasks:
+
+1. **Find a failing span in your traces.**
+2. **Save the original prompt in Prompt Hub.**
+3. **Edit and test the prompt in the Playground.**
+4. **Load the edited prompt into your code.**
+
+<Info>
+**Follow along with code**: This guide has a companion notebook with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/prompts/phoenix_prompt_tutorial.ipynb).
+</Info>
+
+<Steps>
+  <Step title={<span className="step-title">Locate Bad Spans in Traces</span>}>
+    In this step, you find the span where the model made a mistake.
+
+    <Frame caption="Locate bad spans in traces">
+      <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/llm_faulty_span.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
+    </Frame>
+
+    The tutorial uses a support agent. The agent classifies a customer query, gets the related guidelines, and writes a response. The agent has this pipeline:
+
+    ```
+    Support Query → Classification → Guideline Retrieval → Response Generation → Response
+    ```
+
+    **In the tutorial notebook, run the "Build and Trace Support Agent" section.**
+
+    Open Phoenix and go to the traces of your project. Click a trace to see the full pipeline.
+
+    Click the first `ChatCompletion` span. This is the classification step. The span shows:
+
+    * The system prompt with the list of categories
+    * The support query of the user
+    * The classification output
+
+    Find a wrong classification. In this example, the agent classified the query "calendar sync eats my events" as **Technical Bug Report**. The correct class is **Integration Help**, because calendar sync is an integration problem. The classifier must pick the more specific class.
+  </Step>
+
+  <Step title={<span className="step-title">Replay Span and Edit Prompt in Playground</span>}>
+    In this step, you replay the span in the Playground, edit the prompt, and make sure that the output is correct.
+
+    <Frame caption="Replay span and edit prompt in Playground">
+      <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/replay%20span%2C%20make%20edit.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
+    </Frame>
+
+    Click **Playground**. Phoenix opens the span in the Prompt Playground.
+
+    For all Playground features, see [Using the Playground](/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground).
+
+    ### Save Original Prompt to Prompt Hub
+
+    Save the original prompt before you change it. You use it as the baseline for comparison.
+
+    In the Playground, click **Save Prompt**. Type the name `support-classifier`.
+
+    ### Edit Prompt and Re-Run Span
+
+    Make two changes:
+
+    * Add this rule to the prompt:
+
+    ```
+    "If a support query is a technical bug but is seen in a sync/integration, classify it as 'Integration Help' rather than 'Technical Bug Report'"
+    ```
+
+    * Change the model to GPT-5.
+
+    Run the span again. **The classification is now correct.**
+
+    ### Save Edited Prompt as a New Prompt Version (Version 2)
+
+    Save the edited prompt as a new version.
+
+    Click **Save Prompt**. Keep the same prompt name, `support-classifier`.
+
+    **Prompt Hub now shows two versions of the prompt.**
+  </Step>
+
+  <Step title={<span className="step-title">Load Edited Prompt Back Into Your Code</span>}>
+    Load the new prompt version into your code.
+
+    <Tabs>
+      <Tab title="Python" icon="python">
+    ```python
+    from phoenix.client import Client
+
+    px_client = Client()
+
+    # Pull the latest version
+    prompt = px_client.prompts.get(prompt_identifier="support-classifier")
+
+    #Pull specific version
+    prompt = px_client.prompts.get(prompt_version_id="COPY VERSION ID FROM VERSIONS PAGE")
+    ```
+      </Tab>
+
+      <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+    // Pull the latest version by name
+    const prompt = await getPrompt({ prompt: { name: "support-classifier" } });
+
+    // Pull a specific version by ID
+    const promptByVersion = await getPrompt({ prompt: { versionId: "COPIED_PROMPT_VERSION_ID" } });
+    ```
+      </Tab>
+    </Tabs>
+
+    For other ways to load a prompt, such as by tag, see [Using a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt).
+  </Step>
+</Steps>
+
+## Summary
+
+**You fixed a wrong classification in your agent.**\
+You found the failing span, replayed it in the Playground, and edited the prompt. Prompt Hub keeps both versions of the prompt.
+
+## Next Steps
+
+In [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale), you run the prompt on a full dataset. You measure its accuracy and find the most frequent types of errors.

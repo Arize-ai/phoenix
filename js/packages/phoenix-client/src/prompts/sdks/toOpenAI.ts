@@ -3,17 +3,18 @@ import type {
   ChatCompletionMessageParam,
   ResponseFormatJSONSchema,
 } from "openai/resources";
-import type { Variables, toSDKParamsBase } from "./types";
+import invariant from "tiny-invariant";
 
-import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import {
   safelyConvertMessageToProvider,
   safelyConvertToolChoiceToProvider,
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
-import invariant from "tiny-invariant";
-import { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
+import type { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
 import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
+import { isPromptToolRaw } from "../../types/prompts";
+import { formatPromptMessages } from "../../utils/formatPromptMessages";
+import type { toSDKParamsBase, Variables } from "./types";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type {
@@ -22,28 +23,79 @@ export type {
   ResponseFormatJSONSchema,
 };
 
-export type ToOpenAIParams<V extends Variables> = toSDKParamsBase<V>;
+export type ToOpenAIParams<PromptVariables extends Variables> =
+  toSDKParamsBase<PromptVariables>;
+
+type PhoenixPrompt = ToOpenAIParams<Variables>["prompt"];
+
+function getInvocationParameters(
+  prompt: PhoenixPrompt
+): Partial<ChatCompletionCreateParams> {
+  const parameters = prompt.invocation_parameters;
+  switch (parameters.type) {
+    case "openai":
+      return parameters.openai;
+    case "azure_openai":
+      return parameters.azure_openai;
+    case "deepseek":
+      return parameters.deepseek;
+    case "xai":
+      return parameters.xai;
+    case "ollama":
+      return parameters.ollama;
+    case "cerebras":
+      return parameters.cerebras;
+    case "fireworks":
+      return parameters.fireworks;
+    case "groq":
+      return parameters.groq;
+    case "moonshot":
+      return parameters.moonshot;
+    case "perplexity":
+      return parameters.perplexity;
+    case "together":
+      return parameters.together;
+    case "zai":
+      return parameters.zai;
+    case "meta":
+      return parameters.meta;
+    default:
+      // eslint-disable-next-line no-console
+      console.warn(
+        "Prompt is not an OpenAI-family prompt, falling back to default OpenAI invocation parameters"
+      );
+      return {};
+  }
+}
+
+function getOpenAITools(
+  prompt: PhoenixPrompt
+): ChatCompletionCreateParams["tools"] {
+  const toolsList = prompt.tools?.tools ?? [];
+  if (toolsList.length === 0) return undefined;
+
+  return toolsList.map((tool) => {
+    if (isPromptToolRaw(tool)) return tool.raw;
+    const definition = safelyConvertToolDefinitionToProvider({
+      toolDefinition: tool,
+      targetProvider: "OPENAI",
+    });
+    invariant(definition, "Tool definition is not valid");
+    return definition;
+  }) as unknown as ChatCompletionCreateParams["tools"];
+}
 
 /**
  * Convert a Phoenix prompt to OpenAI client sdk's chat completion parameters
  *
  * @returns The converted chat completion parameters
  */
-export const toOpenAI = <V extends Variables = Variables>({
+export const toOpenAI = <PromptVariables extends Variables = Variables>({
   prompt,
   variables,
-}: ToOpenAIParams<V>): ChatCompletionCreateParams | null => {
+}: ToOpenAIParams<PromptVariables>): ChatCompletionCreateParams | null => {
   try {
-    let invocationParameters: Partial<ChatCompletionCreateParams>;
-    if (prompt.invocation_parameters.type === "openai") {
-      invocationParameters = prompt.invocation_parameters.openai;
-    } else {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "Prompt is not an OpenAI prompt, falling back to default OpenAI invocation parameters"
-      );
-      invocationParameters = {};
-    }
+    const invocationParameters = getInvocationParameters(prompt);
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
       model: prompt.model_name,
@@ -74,22 +126,15 @@ export const toOpenAI = <V extends Variables = Variables>({
       return openAIMessage;
     });
 
-    let tools = prompt.tools?.tools.map((tool) => {
-      const openAIToolDefinition = safelyConvertToolDefinitionToProvider({
-        toolDefinition: tool,
-        targetProvider: "OPENAI",
-      });
-      invariant(openAIToolDefinition, "Tool definition is not valid");
-      return openAIToolDefinition;
-    });
-    tools = (tools?.length ?? 0) > 0 ? tools : undefined;
+    // Raw tools are trusted to already match the OpenAI SDK shape.
+    const tools = getOpenAITools(prompt);
 
-    let tool_choice: OpenaiToolChoice | undefined =
-      safelyConvertToolChoiceToProvider({
-        toolChoice: prompt?.tools?.tool_choice,
-        targetProvider: "OPENAI",
-      }) || undefined;
-    tool_choice = tools?.length ? tool_choice : undefined;
+    const tool_choice: OpenaiToolChoice | undefined = tools
+      ? (safelyConvertToolChoiceToProvider({
+          toolChoice: prompt?.tools?.tool_choice,
+          targetProvider: "OPENAI",
+        }) ?? undefined)
+      : undefined;
 
     const response_format = prompt.response_format
       ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)

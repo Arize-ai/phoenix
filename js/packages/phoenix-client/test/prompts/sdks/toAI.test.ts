@@ -1,40 +1,34 @@
-import {
-  describe,
-  it,
-  assertType,
-  expect,
-  beforeEach,
-  afterEach,
-  vi,
-} from "vitest";
-import { toSDK } from "../../../src/prompts/sdks/toSDK";
-import { PromptVersion } from "../../../src/types/prompts";
-import invariant from "tiny-invariant";
-import { toAI, type PartialAIParams } from "../../../src/prompts/sdks/toAI";
-import { BASE_MOCK_PROMPT_VERSION } from "./data";
-import { generateText, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
+import { generateText, streamText } from "ai";
+import invariant from "tiny-invariant";
+import { afterEach, assertType, describe, expect, it, vi } from "vitest";
+
+import { type PartialAIParams, toAI } from "../../../src/prompts/sdks/toAI";
+import { toSDK } from "../../../src/prompts/sdks/toSDK";
+import type { PromptVersion } from "../../../src/types/prompts";
+import {
+  BASE_MOCK_PROMPT_VERSION,
+  BASE_MOCK_PROMPT_VERSION_TOOLS,
+} from "./data";
+
+// replace calls to openai with a mock
+vi.mock("@ai-sdk/openai", () => ({
+  openai: vi.fn(),
+}));
+
+// replace calls to streamText, generateText, streamObject, and generateObject with a mock
+vi.mock(import("ai"), async (importOriginal) => {
+  const mod = await importOriginal();
+  return {
+    ...mod,
+    streamText: vi.fn(),
+    generateText: vi.fn(),
+    streamObject: vi.fn(),
+    generateObject: vi.fn(),
+  };
+});
 
 describe("toAI type compatibility", () => {
-  beforeEach(() => {
-    // replace calls to openai with a mock
-    vi.mock("@ai-sdk/openai", () => ({
-      openai: vi.fn(),
-    }));
-
-    // replace calls to streamText, generateText, streamObject, and generateObject with a mock
-    vi.mock(import("ai"), async (importOriginal) => {
-      const mod = await importOriginal();
-      return {
-        ...mod,
-        streamText: vi.fn(),
-        generateText: vi.fn(),
-        streamObject: vi.fn(),
-        generateObject: vi.fn(),
-      };
-    });
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -104,7 +98,7 @@ describe("toAI type compatibility", () => {
     // it will fail in pnpm type:check if the types break in the future
   });
 
-  it.skip("should handle complex message types", () => {
+  it("should handle complex message types", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
@@ -206,7 +200,7 @@ describe("toAI type compatibility", () => {
               type: "text",
             },
             {
-              input: '{"image_url":"test.jpg","edit_type":"blur"}',
+              input: { image_url: "test.jpg", edit_type: "blur" },
               toolCallId: "123",
               toolName: "edit_image",
               type: "tool-call",
@@ -258,6 +252,37 @@ describe("toAI type compatibility", () => {
         },
       },
     });
+  });
+
+  it("should convert prompt with tools and toolChoice to AI SDK params", () => {
+    const mockPrompt = {
+      ...BASE_MOCK_PROMPT_VERSION,
+      ...BASE_MOCK_PROMPT_VERSION_TOOLS,
+    } satisfies PromptVersion;
+
+    const result = toSDK({
+      sdk: "ai",
+      prompt: mockPrompt,
+    });
+
+    expect(result).not.toBeNull();
+    invariant(result, "Expected non-null result");
+
+    expect(result!.tools).toBeDefined();
+    expect(result!.tools).toHaveProperty("test");
+    expect(result!.tools!.test).toMatchObject({
+      type: "function",
+      description: "test function",
+      inputSchema: expect.objectContaining({
+        jsonSchema: expect.objectContaining({
+          type: "object",
+          properties: {},
+        }),
+      }),
+    });
+
+    expect(result!.toolChoice).toBeDefined();
+    assertType<PartialAIParams>(result);
   });
 
   it("should convert and spread into streamText without type errors", () => {

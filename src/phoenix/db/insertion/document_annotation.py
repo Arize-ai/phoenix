@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.helpers import dedup, num_docs_col
+from phoenix.db.helpers import dedup
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import (
     Insertables,
@@ -139,7 +139,11 @@ class DocumentAnnotationQueueInserter(
     def _select_existing(self, *keys: _Key) -> Select[_Existing]:
         anno = self.table
         span = (
-            select(models.Span.id, models.Span.span_id, num_docs_col(self._db.dialect))
+            select(
+                models.Span.id,
+                models.Span.span_id,
+                models.Span.num_documents.label("num_docs"),
+            )
             .where(models.Span.span_id.in_({k.span_id for k in keys}))
             .cte()
         )

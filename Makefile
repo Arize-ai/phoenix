@@ -1,0 +1,632 @@
+# Phoenix Monorepo Makefile
+# Unified commands for Python and TypeScript development
+
+SHELL := /bin/bash
+.DEFAULT_GOAL := help
+
+# Tools
+PNPM := pnpm
+UV := $(CURDIR)/scripts/uv.sh
+UV_BIN := uv
+NODE := node
+
+# Directories
+APP_DIR := js/app
+JS_DIR := js
+SCHEMAS_DIR := schemas
+PACKAGES_DIR := packages
+PHOENIX_CLIENT_GENERATED := packages/phoenix-client/src/phoenix/client/__generated__
+GH_COMMENT_WATCH_DIR := scripts/gh-comment-watch
+
+# Colors for output
+CYAN := \033[0;36m
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
+
+#=============================================================================
+# Meta Targets
+#=============================================================================
+
+.PHONY: help check-tools \
+	setup setup-remote-export install-python install-node \
+	graphql schema-graphql relay-build \
+	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
+	dev dev-backend dev-frontend dev-docker dev-mock-llm \
+	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
+	build build-python build-frontend build-ts \
+	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets gen-otel-models \
+	test-integration-docs \
+	gh-comment-watch \
+	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
+	clean clean-all
+
+help: ## Show this help message
+	@echo -e ""
+	@echo -e "$(CYAN)Phoenix Monorepo - Available Make Targets$(NC)"
+	@echo -e ""
+	@echo -e "$(GREEN)Schema Generation:$(NC)"
+	@echo -e "  $(YELLOW)graphql$(NC)               - Generate GraphQL schema and build Relay (Python → TypeScript)"
+	@echo -e "  $(YELLOW)openapi$(NC)               - Generate OpenAPI schema and clients (Python + TypeScript)"
+	@echo -e "  schema-graphql         - Generate GraphQL schema only"
+	@echo -e "  relay-build            - Build Relay from existing schema"
+	@echo -e "  schema-openapi         - Generate OpenAPI schema only"
+	@echo -e "  schema-generative-ui   - Generate Generative UI catalog schema artifacts"
+	@echo -e "  ui-message-stream-fixtures - Generate AI SDK reducer conformance fixtures"
+	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
+	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
+	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (js/app/)"
+	@echo -e "  codegen-harbor-graphql - Compile the Harbor verifiers' GraphQL queries into typed Python models"
+	@echo -e "  skills                 - Build every shipped copy of the public skills in skills/"
+	@echo -e "  skills-check           - Ensure the skill copies are current and npx offers only skills/"
+	@echo -e ""
+	@echo -e "$(GREEN)Setup:$(NC)"
+	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
+	@echo -e "  setup-remote-export   - Configure PXI remote trace export"
+	@echo -e "  check-tools            - Verify required tools are installed"
+	@echo -e "  install-python         - Install Python dependencies"
+	@echo -e "  install-node           - Install Node.js dependencies"
+	@echo -e ""
+	@echo -e "$(GREEN)Development:$(NC)"
+	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
+	@echo -e "  dev-backend            - Backend only (FastAPI server)"
+	@echo -e "  dev-frontend           - Frontend only (React dev server)"
+	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
+	@echo -e "  dev-mock-llm           - Start the mock LLM server"
+	@echo -e ""
+	@echo -e "$(GREEN)Testing:$(NC)"
+	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + TypeScript workspace)"
+	@echo -e "  test-python            - Run Python tests (unit + integration)"
+	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
+	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
+	@echo -e "  test-helm              - Run Helm chart tests"
+	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
+	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
+	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
+	@echo -e "  typecheck-python       - Type check Python only"
+	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
+	@echo -e "  typecheck-frontend     - Type check frontend only (js/app/)"
+	@echo -e "  typecheck-ts           - Type check all TypeScript (js/ workspace)"
+	@echo -e ""
+	@echo -e "$(GREEN)Code Quality:$(NC)"
+	@echo -e "  $(YELLOW)format$(NC)                - Format all code (Python + TypeScript workspace)"
+	@echo -e "  format-python          - Format Python with ruff"
+	@echo -e "  format-frontend        - Format frontend only (js/app/)"
+	@echo -e "  format-ts              - Format all TypeScript (js/ workspace)"
+	@echo -e "  clean-notebooks        - Clean Jupyter notebook metadata"
+	@echo -e "  $(YELLOW)lint$(NC)                  - Lint all code (Python + TypeScript workspace)"
+	@echo -e "  lint-python            - Lint Python with ruff"
+	@echo -e "  lint-frontend          - Lint frontend only (js/app/)"
+	@echo -e "  lint-ts                - Lint all TypeScript (js/ workspace)"
+	@echo -e "  check-graphql-permissions - Ensure GraphQL mutations have permission classes"
+	@echo -e "  check-filter-dsl-snippets - Ensure UI filter DSL snippets compile under the Python filters"
+	@echo -e "  check-skill-graphql-examples - Ensure GraphQL examples in shipped skills validate against the schema"
+	@echo -e "  check-skill-filter-examples - Ensure filter conditions in shipped skills compile under the Python filters"
+	@echo -e "  check-skill-python-examples - Ensure Python examples in public skills type-check against the client packages"
+	@echo -e "  check-skill-typescript-examples - Ensure TypeScript examples in public skills type-check against the client packages"
+	@echo -e "  check-skill-px-commands - Ensure px commands in public skills match the CLI's commands and flags"
+	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
+	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
+	@echo -e ""
+	@echo -e "$(GREEN)Utilities:$(NC)"
+	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
+	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
+	@echo -e "  test-sync-models       - Test the model cost manifest sync script"
+	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL and SQLite (use ARGS=/SQLITE_ARGS= for arguments)"
+	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
+	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
+	@echo -e ""
+	@echo -e "$(GREEN)Harbor Evals:$(NC)"
+	@echo -e "  $(YELLOW)harbor-stage$(NC)             - Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=... for the TRAIL fixture, RESEED=1, HARBOR_CLI=0 to skip the archive)"
+	@echo -e "  $(YELLOW)harbor-plugin-e2e$(NC)       - Manually run the credentialed Harbor plugin E2E matrix"
+	@echo -e "  $(YELLOW)harbor-run$(NC)               - Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=...)"
+	@echo -e "  harbor-view               - Browse Harbor job results in a local web viewer"
+	@echo -e ""
+	@echo -e "$(GREEN)Build:$(NC)"
+	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + TypeScript workspace)"
+	@echo -e "  build-python           - Build Python package"
+	@echo -e "  build-frontend         - Build frontend only (js/app/ and its deps)"
+	@echo -e "  build-ts               - Build all TypeScript (js/ workspace)"
+	@echo -e ""
+	@echo -e "$(GREEN)Cleanup:$(NC)"
+	@echo -e "  clean                  - Clean build artifacts"
+	@echo -e "  clean-all              - Clean everything including node_modules"
+	@echo -e ""
+	@echo -e "Highlighted targets are the most commonly used."
+	@echo -e ""
+
+#=============================================================================
+# Tool Checks
+#=============================================================================
+
+check-tools: ## Verify required tools are installed
+	@echo -e "$(CYAN)Checking required tools...$(NC)"
+	@command -v $(UV_BIN) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: uv is not installed. Install from https://github.com/astral-sh/uv$(NC)"; exit 1; }
+	@echo -e "$(GREEN)✓$(NC) uv found: $$($(UV) --version)"
+	@command -v $(PNPM) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: pnpm is not installed. Run: npm install -g pnpm$(NC)"; exit 1; }
+	@echo -e "$(GREEN)✓$(NC) pnpm found: $$($(PNPM) --version)"
+	@command -v $(NODE) >/dev/null 2>&1 || { echo -e "$(RED)ERROR: node is not installed. Install from https://nodejs.org$(NC)"; exit 1; }
+	@echo -e "$(GREEN)✓$(NC) node found: $$($(NODE) --version)"
+	@command -v dekit >/dev/null 2>&1 && echo -e "$(GREEN)✓$(NC) dekit found: $$(dekit --version)" || echo -e "$(YELLOW)WARNING: dekit is not installed (needed by make dev). Run: curl -fsSL https://dekit.run/install.sh | sh$(NC)"
+	@echo -e "$(GREEN)All required tools are installed!$(NC)"
+
+#=============================================================================
+# Setup
+#=============================================================================
+
+install-python: ## Install Python dependencies
+	@echo -e "$(CYAN)Installing Python dependencies...$(NC)"
+	@$(UV) sync --python 3.11
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+install-node: ## Install Node.js dependencies
+	@echo -e "$(CYAN)Installing Node.js dependencies...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) install --silent
+	@echo -e "$(CYAN)Building workspace dependencies of the app...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent build:deps
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+setup: check-tools install-python install-node ## Complete development environment setup
+	@echo -e ""
+	@echo -e "$(GREEN)✓ Phoenix development environment setup complete!$(NC)"
+	@echo -e ""
+	@echo -e "Next steps:"
+	@echo -e "  1. Activate Python virtualenv: source .venv/bin/activate"
+	@echo -e "  2. Start development: make dev"
+	@echo -e ""
+
+setup-remote-export: ## Configure PXI remote trace export
+	@$(NODE) --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON $(APP_DIR)/scripts/setup-remote-export.ts
+
+#=============================================================================
+# Schema Generation
+#=============================================================================
+
+skills: ## Build every shipped copy of the public skills in skills/
+	@echo -e "$(CYAN)Building skill copies from skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_skills.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+skills-check: ## Ensure the skill copies are current and npx offers only skills/
+	@echo -e "$(CYAN)Checking skill copies against skills/...$(NC)"
+	@python3 $(CURDIR)/scripts/test_sync_skills.py
+	@python3 $(CURDIR)/scripts/sync_skills.py --check --npx
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+schema-graphql: ## Generate GraphQL schema from Python
+	@echo -e "$(CYAN)Generating GraphQL schema...$(NC)"
+	@$(UV) run strawberry export-schema phoenix.server.api.schema:_EXPORTED_GRAPHQL_SCHEMA -o $(APP_DIR)/schema.graphql
+	@echo -e "$(GREEN)✓ js/app/schema.graphql$(NC)"
+
+relay-build: ## Build Relay from GraphQL schema
+	@echo -e "$(CYAN)Building Relay GraphQL types...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent build:relay
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+graphql: schema-graphql relay-build ## Generate GraphQL schema and build Relay (full workflow)
+	@echo -e "$(GREEN)✓ GraphQL schema workflow complete$(NC)"
+
+schema-openapi: ## Generate OpenAPI schema from Python
+	@echo -e "$(CYAN)Generating OpenAPI schema...$(NC)"
+	@$(UV) run python scripts/ci/compile_openapi_schema.py -o $(SCHEMAS_DIR)/openapi.json
+	@echo -e "$(GREEN)✓ schemas/openapi.json$(NC)"
+
+# The generator requires graphql-core<3.3; keep it separate from the server.
+codegen-harbor-graphql: ## Compile evals/harbor/verifiers/harbor_verifiers/graphql/operations/*.graphql into evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
+	@echo -e "$(CYAN)Compiling Harbor GraphQL queries against js/app/schema.graphql...$(NC)"
+	@rm -rf $(CURDIR)/evals/harbor/verifiers/harbor_verifiers/graphql/__generated__
+	@$(UV) tool run --from ariadne-codegen==0.19.0 ariadne-codegen
+	@echo -e "$(GREEN)✓ evals/harbor/verifiers/harbor_verifiers/graphql/__generated__$(NC)"
+
+codegen-python-client: ## Generate Python client types from OpenAPI
+	@echo -e "$(CYAN)Generating Python client types...$(NC)"
+	@rm -f $(PHOENIX_CLIENT_GENERATED)/v1/__init__.py
+	@$(UV) run datamodel-codegen \
+		--input $(CURDIR)/schemas/openapi.json \
+		--input-file-type openapi \
+		--output $(PHOENIX_CLIENT_GENERATED)/v1/.dataclass.py \
+		--output-model-type dataclasses.dataclass \
+		--collapse-root-models \
+		--enum-field-as-literal all \
+		--target-python-version 3.11 \
+		--use-default-kwarg \
+		--use-double-quotes \
+		--use-generic-container-types \
+		--no-use-union-operator \
+		--wrap-string-literal \
+		--formatters black isort \
+		--disable-timestamp
+	@$(UV) run python $(CURDIR)/packages/phoenix-client/scripts/codegen/transform.py $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run ruff format $(PHOENIX_CLIENT_GENERATED)/v1
+	@$(UV) run ruff check --fix $(PHOENIX_CLIENT_GENERATED)/v1
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+codegen-ts-client: ## Generate TypeScript client types from OpenAPI
+	@echo -e "$(CYAN)Generating TypeScript client types...$(NC)"
+	@cd $(JS_DIR)/packages/phoenix-client && $(PNPM) run --silent generate
+	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+codegen-ts-testing: ## Generate phoenix-testing TypeScript types from OpenAPI
+	@echo -e "$(CYAN)Generating phoenix-testing TypeScript types...$(NC)"
+	@cd $(JS_DIR)/packages/phoenix-testing && $(PNPM) run --silent generate
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+codegen-ts-app: ## Generate TypeScript OpenAPI types for js/app/
+	@echo -e "$(CYAN)Generating TypeScript OpenAPI types for app...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent generate:openapi
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+schema-generative-ui: ## Generate generative UI catalog schema artifacts
+	@echo -e "$(CYAN)Generating UI catalog schema artifacts...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent generate:generative-ui-catalog
+	@echo -e "$(GREEN)✓ src/phoenix/server/generative_ui$(NC)"
+
+ui-message-stream-fixtures: ## Generate AI SDK UI-message reducer conformance fixtures
+	@echo -e "$(CYAN)Generating UI-message stream conformance fixtures...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent generate:ui-message-stream-fixtures
+	@echo -e "$(GREEN)✓ tests/unit/server/agents/fixtures/ui_message_stream$(NC)"
+
+openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-testing codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
+	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete$(NC)"
+
+#=============================================================================
+# Development
+#=============================================================================
+
+dev: ## Full dev environment (backend + frontend with hot reload)
+	@echo -e "$(CYAN)Starting full development environment...$(NC)"
+	cd $(APP_DIR) && $(PNPM) dev
+
+dev-backend: ## Backend only (FastAPI server)
+	@echo -e "$(CYAN)Starting backend server...$(NC)"
+	$(UV) run phoenix serve --debug
+dev-frontend: ## Frontend only (React dev server)
+	@echo -e "$(CYAN)Starting frontend dev server...$(NC)"
+	cd $(APP_DIR) && $(PNPM) run dev:ui
+
+#=============================================================================
+# Testing
+#=============================================================================
+
+test-integration-docs: ## Run configured integration docs against a running Phoenix server
+	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
+
+test-python: ## Run Python tests (unit + integration)
+	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
+	@$(UV) run --all-packages pytest -q -n auto tests/unit
+	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
+	@$(UV) run pytest -q tests/integration
+
+# Run doctests across all modules under src/ by default; override on the command
+# line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
+DOCTEST_MODULES ?= src/phoenix
+
+doctest: ## Run doctests across all modules in src/ (override with MODULES=...)
+	@echo -e "$(CYAN)Running doctests on $(or $(MODULES),$(DOCTEST_MODULES))...$(NC)"
+	@$(UV) run pytest --doctest-modules $(or $(MODULES),$(DOCTEST_MODULES))
+	@echo -e "$(GREEN)✓ Doctests passed$(NC)"
+
+test-frontend: ## Run frontend tests (js/app/)
+	@echo -e "$(CYAN)Running frontend tests...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) test
+
+test-ts: ## Run all TypeScript tests (js/ workspace, including the app)
+	@echo -e "$(CYAN)Running TypeScript tests...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run test
+
+test: test-python test-ts ## Run all tests (Python + TypeScript workspace)
+	@echo -e "$(GREEN)✓ All tests complete$(NC)"
+
+typecheck-python: ## Type check Python code
+	@echo -e "$(CYAN)Type checking Python...$(NC)"
+	@$(UV) run mypy
+	@echo -e "$(GREEN)✓ Type check complete$(NC)"
+
+typecheck-python-ty: ## Type check Python with ty (verify expected errors only)
+	@echo -e "$(CYAN)Type checking Python with ty...$(NC)"
+	@$(UV) run python scripts/uv/type_check/type_check.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+typecheck-frontend: ## Type check frontend (js/app/)
+	@echo -e "$(CYAN)Type checking frontend...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent typecheck
+
+typecheck-ts: ## Type check all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Type checking TypeScript...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run --silent typecheck
+
+typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeScript workspace)
+	@echo -e "$(GREEN)✓ Type checking complete$(NC)"
+
+#=============================================================================
+# Code Quality
+#=============================================================================
+
+format-python: ## Format Python code with ruff
+	@echo -e "$(CYAN)Formatting Python code...$(NC)"
+	@$(UV) run ruff format
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+format-frontend: ## Format frontend (js/app/)
+	@echo -e "$(CYAN)Formatting frontend...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent fmt
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+format-ts: ## Format all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Formatting TypeScript...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run --silent fmt
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+format: format-python format-ts ## Format all code (Python + TypeScript workspace)
+	@echo -e "$(GREEN)✓ Code formatting complete$(NC)"
+
+clean-notebooks: ## Clean Jupyter notebook output and metadata
+	@echo -e "$(CYAN)Cleaning Jupyter notebook metadata...$(NC)"
+	@find . -type f -name "*.ipynb" \
+		-not -path "*/tutorials/evals/*" \
+		-exec uv run jupyter nbconvert \
+			--ClearOutputPreprocessor.enabled=True \
+			--ClearMetadataPreprocessor.enabled=True \
+			--inplace {} +
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+lint-python: ## Lint Python code with ruff
+	@echo -e "$(CYAN)Linting Python code...$(NC)"
+	@$(UV) run ruff check --fix
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+lint-frontend: ## Lint frontend (js/app/)
+	@echo -e "$(CYAN)Linting frontend...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent lint
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+lint-ts: ## Lint all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Linting TypeScript...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run --silent lint
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+lint: lint-python lint-ts ## Lint all code (Python + TypeScript workspace)
+	@echo -e "$(GREEN)✓ Linting complete$(NC)"
+
+#=============================================================================
+# Build
+#=============================================================================
+
+build-python: ## Build Python package
+	@echo -e "$(CYAN)Building Python package...$(NC)"
+	@$(UV) build
+	@echo -e "$(GREEN)✓ dist/$(NC)"
+
+build-frontend: ## Build frontend for production
+	@echo -e "$(CYAN)Building frontend...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) --filter 'phoenix-ui...' run --silent build
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+build-ts: ## Build all TypeScript (js/ workspace, including the app)
+	@echo -e "$(CYAN)Building TypeScript...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) run --silent build
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+build: build-python build-ts ## Build everything (Python + TypeScript workspace)
+	@echo -e "$(GREEN)✓ Build complete$(NC)"
+
+#=============================================================================
+# Utilities
+#=============================================================================
+
+
+codegen-prompts: ## Generate prompts code from YAML files
+	@echo -e "$(CYAN)Generating prompts code...$(NC)"
+	@$(UV) run python scripts/prompts/compile_python_prompts.py src/phoenix/__generated__/classification_evaluator_configs
+	@$(UV) run python scripts/prompts/compile_python_prompts.py packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+	@$(UV) run ruff format src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+	@$(UV) run ruff check --fix src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
+	@$(UV) run python scripts/prompts/compile_typescript_prompts.py js/packages/phoenix-evals/src/__generated__/default_templates
+	@$(UV) run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/api/helpers/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+sync-models: ## Sync model cost manifest from remote sources
+	@echo -e "$(CYAN)Syncing model cost manifest...$(NC)"
+	@$(UV) run python scripts/cost_tracking/sync_models.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+test-sync-models: ## Test the model cost manifest sync script
+	@echo -e "$(CYAN)Testing the model cost manifest sync script...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/cost_tracking
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+# ARGS=--external points the PostgreSQL extractor at a foreign database, which
+# says nothing about SQLite; regenerating sqlite_schema.sql from ephemeral
+# migrations would overwrite a checked-in file as a side effect. SQLITE_ARGS
+# requests the SQLite step outright, so it always runs.
+ifeq (,$(strip $(SQLITE_ARGS)))
+SKIP_SQLITE := $(findstring --external,$(ARGS))
+endif
+
+schema-ddl: ## Compile DDL schema from PostgreSQL and SQLite databases (ARGS=/SQLITE_ARGS= pass per-database arguments)
+	@echo -e "$(CYAN)Compiling DDL schema...$(NC)"
+	@$(UV) pip install --strict psycopg[binary] testing.postgresql pglast ty
+	@$(UV) pip install --no-sources --strict --reinstall-package arize-phoenix .
+	@cd scripts/ddl && $(UV) run ty check *.py && $(UV) run pytest -q -rN test_*.py
+	@cd scripts/ddl && $(UV) run python generate_ddl_postgresql.py $(ARGS)
+ifeq (,$(SKIP_SQLITE))
+	@cd scripts/ddl && $(UV) run python generate_ddl_sqlite.py $(SQLITE_ARGS)
+else
+	@echo -e "$(YELLOW)Skipping SQLite: ARGS targets an external PostgreSQL database (pass SQLITE_ARGS= to run it too)$(NC)"
+endif
+	@cd scripts/ddl && $(UV) run python validate_schema_assets.py --postgresql-args "$(ARGS)" --sqlite-args "$(SQLITE_ARGS)"
+ifeq (,$(strip $(ARGS))$(strip $(SQLITE_ARGS)))
+	@cd scripts/ddl && $(UV) run python compare_schemas.py
+else
+	@echo -e "$(YELLOW)Skipping cross-dialect comparison: ARGS/SQLITE_ARGS may not have written the canonical files$(NC)"
+endif
+
+check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have permission classes
+	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py src/phoenix/server/api
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-filter-dsl-snippets: ## Ensure UI filter DSL snippets and examples compile under the Python filters
+	@echo -e "$(CYAN)Checking UI filter DSL snippets against the Python filters...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_filter_dsl_snippets.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-graphql-examples: ## Ensure fenced GraphQL examples in shipped skills validate against js/app/schema.graphql
+	@echo -e "$(CYAN)Checking skill GraphQL examples against js/app/schema.graphql...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_graphql_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-filter-examples: ## Ensure span/trace/session filter conditions in shipped skills compile under the Python filters
+	@echo -e "$(CYAN)Checking skill filter conditions against the Python filters...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_filter_dsl_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-python-examples: ## Ensure Python examples in public skills type-check against the workspace client packages
+	@echo -e "$(CYAN)Type-checking skill Python examples with pyright...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_python_examples.py $(CURDIR)/scripts/ci/test_skill_lint.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-typescript-examples: ## Ensure TypeScript examples in public skills type-check against the workspace client packages (needs pnpm install in js/)
+	@echo -e "$(CYAN)Building the TypeScript client packages...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) --filter "@arizeai/phoenix-client..." --filter "@arizeai/phoenix-evals..." --filter "@arizeai/phoenix-otel..." run build >/dev/null
+	@echo -e "$(CYAN)Type-checking skill TypeScript examples with tsc...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_typescript_examples.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-skill-px-commands: ## Ensure px commands in public skills match the CLI's commands and flags (needs pnpm install in js/)
+	@echo -e "$(CYAN)Building the px CLI's workspace dependencies...$(NC)"
+	@cd $(JS_DIR) && $(PNPM) --filter "@arizeai/phoenix-cli^..." run build >/dev/null
+	@echo -e "$(CYAN)Checking skill px commands against the CLI...$(NC)"
+	@$(UV) run pytest -q $(CURDIR)/scripts/ci/test_skill_px_commands.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+# These two call python3 directly: the script is stdlib-only and its CI job has no uv.
+sync-docs-snippets: ## Copy examples/quickstarts code into the docs' fenced code blocks
+	@echo -e "$(CYAN)Syncing docs code blocks from examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-docs-snippets: ## Ensure docs' fenced code blocks match examples/quickstarts
+	@echo -e "$(CYAN)Checking docs code blocks against examples/quickstarts...$(NC)"
+	@python3 $(CURDIR)/scripts/sync_docs_snippets.py --check
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
+	@echo -e "$(CYAN)Generating OTel GenAI semconv Pydantic models...$(NC)"
+	@$(UV) run --script scripts/generate_otel_gen_ai_models.py
+	@$(UV) run ruff format src/phoenix/trace/gen_ai/__generated__/models.py
+	@$(UV) run ruff check --fix src/phoenix/trace/gen_ai/__generated__/models.py
+	@echo -e "$(GREEN)✓ src/phoenix/trace/gen_ai/__generated__/models.py$(NC)"
+
+test-jcs: ## Test JSON canonicalization schema implementation
+	@if [ ! -f .jcs-test-data/es6testfile100m.txt ]; then \
+		echo -e "$(CYAN)Downloading ES6 numbers test file...$(NC)"; \
+		curl -fL https://github.com/cyberphone/json-canonicalization/releases/download/es6testfile/es6testfile100m.txt.gz | gunzip > .jcs-test-data/es6testfile100m.txt; \
+	fi
+	@echo -e "$(CYAN)Running JSON canonicalization tests...$(NC)"
+	@PYTHONPATH=src $(UV) run python scripts/ci/json-canonicalization-schema/verify-canonicalization.py
+	@PYTHONPATH=src $(UV) run python scripts/ci/json-canonicalization-schema/verify-numbers.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+test-helm: ## Run comprehensive Helm chart tests
+	@echo -e "$(CYAN)Running Helm chart tests...$(NC)"
+	$(UV) run python scripts/ci/test_helm.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, default: up)
+	@echo -e "$(CYAN)Starting Docker devops environment...$(NC)"
+	cd scripts/docker/devops && bash dev.sh $(or $(ARGS),up)
+
+dev-mock-llm: ## Start the mock LLM server
+	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
+	cd scripts/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
+
+gh-comment-watch: ## Start the GitHub comment watcher
+	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"
+	cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) start
+
+#=============================================================================
+# Harbor Evals
+#=============================================================================
+
+# HARBOR_JOB selects the benchmark configuration. HARBOR_ARGS passes options to
+# `harbor run`. The `-a` option preserves the tasks and environment but replaces the
+# configured agents.
+HARBOR_JOB ?= evals/harbor/jobs/regression.yaml
+HARBOR_ARGS ?=
+# harbor-stage downloads the error-analysis fixture, creates the TRAIL fixture when
+# HF_TOKEN is set, and builds the px archive. Set HARBOR_CLI=0 to skip the archive.
+HARBOR_CLI ?= 1
+# The arize-phoenix plugin records tasks, trials, scores, and traces under a dataset
+# named after the job's task directory. HARBOR_DATASET overrides the name. Set
+# HARBOR_PLUGIN to an empty value to disable recording.
+HARBOR_DATASET ?=
+HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
+HARBOR_VERSION ?= 0.21.0
+# The client package provides the arize-phoenix Harbor plugin. harbor-stage builds it from
+# this checkout so a job records with the plugin in the tree. Set HARBOR_CLIENT_VERSION to
+# a released version to use that release instead.
+HARBOR_CLIENT_VERSION ?=
+HARBOR_CLIENT_WHEEL_DIR := dist/phoenix-client
+HARBOR_CLIENT = $(if $(HARBOR_CLIENT_VERSION),arize-phoenix-client==$(HARBOR_CLIENT_VERSION),$(firstword $(wildcard $(CURDIR)/$(HARBOR_CLIENT_WHEEL_DIR)/arize_phoenix_client-*.whl)))
+HARBOR_ATIF_MODEL ?= openai/gpt-5-mini
+HARBOR_ATIF_CLAUDE_MODEL ?= anthropic/claude-sonnet-4-5
+# Pin Python because Harbor requires 3.12 or newer and the repository defaults to 3.11.
+HARBOR_PYTHON ?= 3.13
+UVX := uvx
+HARBOR_UVX := $(UVX) --python $(HARBOR_PYTHON) --from 'harbor[daytona]==$(HARBOR_VERSION)'
+HARBOR = $(HARBOR_UVX) --with '$(HARBOR_CLIENT)' harbor
+
+# Require the px archive only when HARBOR_ARGS does not replace the configured agents, and
+# the client wheel only when no released client version is selected.
+define check-harbor-staged
+	@$(UV) run --script evals/harbor/scripts/check_job_staged.py $(HARBOR_JOB) $(if $(filter -a,$(HARBOR_ARGS)),--agents-replaced,) $(if $(HARBOR_CLIENT_VERSION),,--client-wheel-dir $(HARBOR_CLIENT_WHEEL_DIR))
+endef
+
+harbor-stage: ## Build the Phoenix and client wheels, produce each fixture, stage each task environment, and build the px CLI archive (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=..., HARBOR_CLIENT_VERSION=...)
+	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
+	./evals/harbor/scripts/stage_harbor_environments.sh
+	$(if $(HARBOR_CLIENT_VERSION),@echo -e "$(YELLOW)Skipping the client wheel (HARBOR_CLIENT_VERSION=$(HARBOR_CLIENT_VERSION))$(NC)",\
+	rm -rf $(HARBOR_CLIENT_WHEEL_DIR) && $(UV) build --wheel packages/phoenix-client --out-dir $(HARBOR_CLIENT_WHEEL_DIR))
+	$(if $(filter 0,$(HARBOR_CLI)),@echo -e "$(YELLOW)Skipping the px CLI archive (HARBOR_CLI=0)$(NC)",\
+	./evals/harbor/scripts/build_phoenix_cli_archive.sh)
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix
+	HARBOR_VERSION=$(HARBOR_VERSION) HARBOR_PYTHON=$(HARBOR_PYTHON) \
+		HARBOR_ATIF_MODEL=$(HARBOR_ATIF_MODEL) HARBOR_ATIF_CLAUDE_MODEL=$(HARBOR_ATIF_CLAUDE_MODEL) \
+		uv run python tests/integration/harbor/run_plugin_e2e.py
+
+harbor-run: ## Run a Harbor job file with the Phoenix plugin (HARBOR_JOB=..., HARBOR_ARGS=..., HARBOR_CLIENT_VERSION=...)
+	$(check-harbor-staged)
+	@echo -e "$(CYAN)Running Harbor job $(HARBOR_JOB)...$(NC)"
+	PYTHONPATH=. $(HARBOR) run -c $(HARBOR_JOB) $(HARBOR_PLUGIN) $(HARBOR_ARGS) --yes
+
+harbor-view: ## Browse Harbor job results in a local web viewer
+	$(HARBOR_UVX) harbor view jobs
+
+#=============================================================================
+# Cleanup
+#=============================================================================
+
+clean: ## Clean build artifacts
+	@echo -e "$(CYAN)Cleaning build artifacts...$(NC)"
+	@rm -rf dist/ build/ *.egg-info
+	@rm -rf $(APP_DIR)/dist $(APP_DIR)/build
+	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name "*.pyc" -delete
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+clean-all: clean ## Clean everything including node_modules
+	@echo -e "$(CYAN)Cleaning node_modules...$(NC)"
+	@rm -rf $(APP_DIR)/node_modules $(APP_DIR)/.pnpm-store
+	@rm -rf $(JS_DIR)/node_modules $(JS_DIR)/.pnpm-store
+	@find $(JS_DIR) -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
+	@rm -rf .venv
+	@echo -e "$(GREEN)✓ Done$(NC)"

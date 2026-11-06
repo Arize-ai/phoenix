@@ -1,0 +1,55 @@
+---
+title: "Setup Tracing"
+sidebarTitle: "Overview"
+description: "Configure tracing for your application"
+---
+
+import AgentAssistedOnboarding from "../../../snippets/agent-assisted-onboarding.mdx";
+
+Get started sending traces to Phoenix from your application. Choose the approach that best fits your needs.
+
+<AgentAssistedOnboarding />
+
+## Quick Start
+
+The fastest way to get started is using the Phoenix OTEL wrapper, which provides sensible defaults and automatic configuration.
+
+<CardGroup cols={2}>
+  <Card title="Python Setup" icon="python" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel">
+    Use `phoenix.otel` for automatic configuration with Phoenix-aware defaults
+  </Card>
+  <Card title="TypeScript Setup" icon="js" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-otel">
+    Use `@arizeai/phoenix-otel` to trace your Node.js applications
+  </Card>
+</CardGroup>
+
+---
+
+## Instrumentation Methods
+
+Choose how you want to instrument your code:
+
+<CardGroup cols={2}>
+  <Card title="Auto Instrumentation" icon="wand-magic-sparkles" href="/docs/phoenix/integrations">
+    Automatically capture traces from popular frameworks and LLM providers with zero code changes
+  </Card>
+  <Card title="Tracing Helpers" icon="at" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument">
+    Use decorators and helpers to easily trace specific methods or code blocks in Python
+  </Card>
+</CardGroup>
+
+---
+
+## Organization
+
+Organize your traces for better visibility and analysis:
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="folder" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-projects">
+    Group traces by application or environment using projects
+  </Card>
+  <Card title="Sessions" icon="messages" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions">
+    Track multi-turn conversations by grouping related traces into sessions
+  </Card>
+</CardGroup>
+

@@ -1,14 +1,17 @@
 # Developer's Guide
 
 - [Developer's Guide](#developers-guide)
+  - [Quickstart](#quickstart)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
   - [Contributing Notebooks](#contributing-notebooks)
+  - [Contributing Documentation](#contributing-documentation)
+    - [Getting Started](#getting-started)
+    - [Making Changes](#making-changes)
   - [Building the Package](#building-the-package)
   - [Installing a Phoenix Build](#installing-a-phoenix-build)
   - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
-  - [Publishing a New Release](#publishing-a-new-release)
   - [Best Practices](#best-practices)
     - [REST API](#rest-api)
       - [HTTP Methods](#http-methods)
@@ -17,51 +20,78 @@
       - [Query Parameters](#query-parameters)
       - [Pagination](#pagination)
       - [Response Format](#response-format)
+  - [Cursor / VS Code](#cursor--vs-code)
+    - [Debugging the Python Server](#debugging-the-python-server)
+
+## Quickstart
+
+The fastest path from a fresh clone to a running Phoenix dev server. See the sections below for details on any step.
+
+**Prerequisites**
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python environment management). Any recent 0.12.x works; you don't need the exact version the repo pins.
+- [nvm](https://github.com/nvm-sh/nvm) (Node version management)
+
+```bash
+# 1. Install Python dependencies (installs Phoenix and all sub-packages in editable mode)
+uv sync --all-extras --all-packages
+
+# 2. Install the pinned Node.js and pnpm versions
+nvm install
+npm i -g pnpm@12.0.0
+
+# 3. Install dekit, the process manager that `pnpm dev` uses to run the API and UI together
+curl -fsSL https://dekit.run/install.sh | sh
+
+# 4. Install the JavaScript workspace and build the web app
+cd js
+pnpm install
+pnpm build
+cp app/.env.example app/.env
+# Set PHOENIX_ENABLE_AUTH=False in app/.env to disable authentication locally
+
+# 5. Start the dev server (Python API + frontend with hot reload)
+cd app
+pnpm dev
+```
+
+`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `dekit help` documents the rest of the CLI.
+
+Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `js/app/.env` to bypass it.
+
+> **💡 Tip:** Optionally use an in-memory database for a fresh Phoenix on every restart:
+>
+> ```bash
+> PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
+> ```
+
+To send traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
+
+If a step fails, consult the detailed setup instructions below.
 
 ## Setting Up Your macOS Development Environment
 
 We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-**First**, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `uv` via `brew` with
-
-```
-brew install uv
-```
-
-For non-mac users, you can follow the instruction [here](https://docs.astral.sh/uv/getting-started/installation/) to install `uv` for your particular operating system.
-
-Create a new virtual environment. In general, we recommend developing on the lowest Python version compatible with Phoenix (currently 3.9) to make it easier to write code that is compatible across all supported versions.
+Your system `uv` only needs to satisfy the range in `pyproject.toml` under `tool.uv.required-version`. The range's lower bound is the exact version CI uses, and `uv.lock` should be written by that version: different `uv` versions can serialize the same lockfile differently. You don't have to install it. `scripts/uv.sh` runs the pinned `uv` through `uv tool run` (cached, nothing installed globally), and `make`, the `js/app` pnpm scripts and the Playwright test server all go through it. When you change dependencies, use the wrapper instead of a bare `uv`:
 
 ```bash
-uv venv --python 3.9
+scripts/uv.sh add <package>   # or: scripts/uv.sh lock
+pnpm --dir js/app uv lock     # the same wrapper, from pnpm
 ```
 
-Activate your virtual environment before continuing.
+The following command installs the main `arize-phoenix` package and all sub-packages in editable mode with development dependencies. It uses the default development Python version. CI still tests the lowest supported version.
 
 ```bash
-source ./.venv/bin/activate
+uv sync --python 3.11 --all-packages
 ```
 
-From the root of the reposistory, install the `arize-phoenix` package in editable mode (using the `-e` flag) with development dependencies (using the `dev` extra) by running
+The sub-packages (`phoenix.evals`, `phoenix.otel`, and `phoenix.client`) located under the packages/ directory are automatically installed in editable mode via the `uv` workspace configuration.
 
-```bash
-uv pip install -e ".[dev]"
-```
-
-Some parts of Phoenix—such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client` developed as local packages located under the packages/ directory. These modules are excluded from the standard build process and are not installed automatically.
-
-To make these modules available when working from source, run:
-
-```bash
-tox run -e add_symlinks
-```
-
-This command will create symbolic links inside src/phoenix/ pointing to the relevant submodules.
-
-**Second**, install the web build dependencies.
+**Next**, install the web build dependencies.
 
 We recommend installing [nodejs via nvm](https://github.com/nvm-sh/nvm) and then
-installing `pnpm` globally to manage the web frontend dependencies.
+installing `pnpm` globally to manage the JavaScript workspace dependencies.
 
 ```bash
 # install nvm
@@ -71,16 +101,20 @@ installing `pnpm` globally to manage the web frontend dependencies.
 nvm install
 # set it as default (optional)
 nvm alias default <version-that-was-installed>
-# install pnpm globally for v22
-npm i -g pnpm@9.15.5
+# install pnpm globally
+npm i -g pnpm@12.0.0
 ```
 
-Then we will build the web app. Change directory to `app` and run:
+Then install the JavaScript workspace from its root and build the web app:
 
 ```bash
+cd js
 pnpm install
-pnpm run build
+pnpm build
+cp app/.env.example app/.env
 ```
+
+Check out the `README.md` file in the `js/app` directory for more information on developing the web application.
 
 ## Testing and Linting
 
@@ -101,38 +135,49 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. In particular, we are using `tox-uv`, which uses `uv` under the hood for package management and is significantly faster than vanilla `tox`.
-
-You can install `tox-uv` globally with
+Phoenix uses `uv` to manage the development environment and run linters, formatters, type-checks, and tests. `uv.lock` pins every dependency, so a fresh `uv sync` reproduces the environment CI tests against.
 
 ```bash
-pip install tox-uv
+uv sync --all-packages
 ```
 
-`tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
+Unit tests run with `pytest` from the `tests` directory:
 
 ```bash
-tox list
+cd tests && uv run pytest unit/
 ```
 
-Commands corresponding to an environment can be executed by running `tox run -e <env-name>`. For example, you can execute unit tests by running
+By default, database tests run against `sqlite`. To run them against `postgresql` instead,
+pass `--db postgresql`; pytest-postgresql finds `pg_ctl` through `pg_config`, or takes
+`--postgresql-exec /path/to/pg_ctl`.
 
 ```bash
-tox run -e unit_tests
+cd tests && uv run pytest unit/ --db postgresql
 ```
 
-By default, database tests only run against `sqlite`, in order to run database tests against
-a `postgresql` database as well, use the `--run-postgres` flag
+To run unit tests faster using parallel execution:
 
 ```bash
-tox run -e unit_tests -- --run-postgres
+cd tests && uv run pytest unit/ -n auto
 ```
 
-Check the output of `tox list` to find commands for type-checks, linters, formatters, etc.
+To run type checking:
+
+```bash
+make typecheck-python
+```
+
+Run `make help` to find commands for linters, formatters, and other tools.
 
 ## Installing Pre-Commit Hooks
 
-We recommend to install project pre-commit hooks with
+First, install `pre-commit` globally. It is recommended to accomplish this using `uv`.
+
+```bash
+uv tool install pre-commit --with pre-commit-uv
+```
+
+Then install the project pre-commit hooks with
 
 ```bash
 pre-commit install
@@ -144,14 +189,42 @@ Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` wil
 
 To add or modify a Jupyter notebook, the following commands are needed to pass CI.
 
-- `tox run -e ruff`: Runs formatters
-- `tox run -e clean_jupyter_notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
+- `make format-python`: Runs formatters
+- `make clean-notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
+
+## Contributing Documentation
+
+Phoenix documentation is built using [Mintlify](https://mintlify.com/). The documentation source files are located in the `docs/` directory.
+
+### Getting Started
+
+1. Install the Mintlify CLI:
+
+```sh
+npm i -g mint
+```
+
+2. Run the local development server:
+
+```bash
+mint dev
+```
+
+3. Open your browser to `http://localhost:3000` to preview your changes.
+
+### Making Changes
+
+- Documentation pages are written in MDX (Markdown with JSX support).
+- The `docs.json` file controls navigation and site-wide settings.
+- Images and other assets should be placed in the appropriate subdirectories.
+
+For more details on Mintlify's features, including formatting, components, and deployment, see the [Mintlify Quickstart Guide](https://www.mintlify.com/docs/quickstart).
 
 ## Building the Package
 
 To build Phoenix, you must build the `app` and the python package.
 
-To build the `app`, navigate to the `app` directory and run
+To build the `app`, navigate to the `js/app` directory and run
 
 ```bash
 pnpm run build
@@ -160,7 +233,7 @@ pnpm run build
 Then, from the root directory of the repo, run
 
 ```bash
-hatch build
+make build-python
 ```
 
 If successful, a source distribution (a tarball) and a Python `wheel` will appear in the `dist` folder at the repo base directory.
@@ -208,21 +281,6 @@ The code below installs the `main` branch in [Colab](https://colab.research.goog
 %pip install git+https://github.com/Arize-ai/phoenix.git@main
 ```
 
-## Publishing a New Release
-
-To publish a new release, follow the steps below.
-
-1. Make sure your branch is up-to-date with `main`
-2. Update the version number in `src/phoenix/version.py`
-3. Remove the `dist` folder with `rm -rf dist`.
-4. By default, the web app is not rebuilt. Change directory to `app` and run `rm -rf node_modules && pnpm install --frozen-lockfile && pnpm run build` to rebuild the web app.
-5. From the root directory of the repo, build the package with `hatch build`.
-6. Publish the package with `hatch publish -u __token__`. Note you must publish using a pypi token. The token should be stored securely in your `.pypirc` file (see [docs](https://packaging.python.org/en/latest/specifications/pypirc/))
-7. Commit the changes using the version number as the message (e.x. `0.0.1`) and get it into to `main`
-8. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
-9. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
-10. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).
-
 ## Best Practices
 
 ### REST API
@@ -263,7 +321,7 @@ Use cursor-based pagination. Each request gives a cursor to the next page of res
 - The response should be a JSON object with a `data` key.
 - Payload content should use snake case to make it easier to work with when translating to objects.
 
-## Cursor
+## Cursor / VS Code
 
 A recommended list of extensions for Cursor/VSCode is located in the `.vscode/extensions.json` file.
 When opening Phoenix in Cursor, you will automatically be prompted to install the recommended extensions.
@@ -278,14 +336,101 @@ After doing so, consider pasting the following settings into your workspace sett
       "source.fixAll.ruff": "always"
     }
   },
-  "mypy-type-checker.ignorePatterns": [".tox,.venv,app"],
+  "[typescript, typescriptreact]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.oxlint": "always"
+    }
+  },
+  "mypy-type-checker.ignorePatterns": [".venv,js/app"],
   "javascript.preferences.importModuleSpecifier": "shortest",
   "typescript.preferences.importModuleSpecifier": "non-relative",
-  "prettier.configPath": "app/.prettierrc.json",
-  "prettier.prettierPath": "app/node_modules/prettier",
-  "typescript.tsdk": "app/node_modules/typescript/lib",
-  "relay.rootDirectory": "app",
-  "relay.pathToConfig": "app/relay.config.js",
+  "oxc.fmt.configPath": ".oxfmtrc.jsonc",
+  "oxc.path.oxfmt": "js/app/node_modules/oxfmt/bin/oxfmt",
+  "oxc.path.oxlint": "js/app/node_modules/oxlint/bin/oxlint",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "relay.rootDirectory": "js/app",
+  "relay.pathToConfig": "js/app/relay.config.js",
   "relay.autoStartCompiler": true
 }
 ```
+
+> [!NOTE]
+> The repo compiles with TypeScript 7 (the native compiler), which no longer ships
+> `tsserver`, so do not set `typescript.tsdk`. For IntelliSense that matches the
+> compiler, install the [TypeScript (Native Preview)](https://marketplace.visualstudio.com/items?itemName=TypeScriptTeam.native-preview)
+> extension; otherwise VS Code's built-in TypeScript language service works fine for
+> editing. Tools that still need the JS compiler API (openapi-typescript, typedoc,
+> Storybook docgen) resolve the `@typescript/typescript6` bridge via `.pnpmfile.cjs`
+> in `js/`.
+
+### Debugging the Python Server
+
+The dev server runs with `debugpy` enabled, allowing you to attach a debugger from VS Code or Cursor.
+
+1. **Create a launch configuration** at `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to Phoenix Dev Server",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "justMyCode": false
+    }
+  ]
+}
+```
+
+> **Note:** The default debugpy port is 5678. If you customize it via the `DEBUGPY_PORT` environment variable, update the `port` value in the launch configuration to match.
+
+2. **Start the dev environment** from the `js/app` directory:
+
+```bash
+ pnpm dev
+```
+
+This launches both the Python server and the frontend UI simultaneously using [dekit](https://dekit.run) (see `js/app/dekit.yaml`). The server will start with debugpy listening on port 5678.
+
+> **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
+>
+> ```bash
+> PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
+> ```
+>
+> **💡 Tip:** Customize ports via environment variables:
+>
+> ```bash
+> VITE_PORT=3000 DEBUGPY_PORT=5679 pnpm dev
+> ```
+>
+> Environment variables apply when the dekit runner starts. If a runner is already up, run `dekit down` first so the new values take effect.
+>
+> Or add to `js/app/.env`:
+>
+> ```
+> VITE_PORT=3000
+> DEBUGPY_PORT=5679
+> ```
+
+3. **Set breakpoints** by clicking in the gutter (left of line numbers) in any Python file.
+4. **Attach the debugger**:
+
+- Press `⇧⌘D` (macOS) or `Ctrl+Shift+D` (Windows/Linux) to open the Run and Debug panel
+- Select **"Attach to Phoenix Dev Server"** from the dropdown
+- Press `F5` or click the green play button
+
+5. **Trigger your code** by making a request to the server via the UI or API.
+6. **Debug**: When a breakpoint is hit, use the debug toolbar to step through code:
+
+- `F10` — Step over
+- `F11` — Step into
+- `F5` — Continue
+- Inspect variables in the left panel or evaluate expressions in the Debug Console

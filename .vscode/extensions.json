@@ -10,8 +10,9 @@
     "ms-python.mypy-type-checker",
     "ms-python.python",
     "graphql.vscode-graphql-syntax",
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
+
+    "oxc.oxc-vscode",
+    "typescriptteam.native-preview",
     "meta.relay",
     "github.vscode-pull-request-github",
     "ms-playwright.playwright",

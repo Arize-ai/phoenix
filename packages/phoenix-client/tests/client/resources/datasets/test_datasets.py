@@ -1,10 +1,12 @@
 import gzip
+import warnings
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, mock_open, patch
 
+import httpx
 import pandas as pd
 import pytest
 
@@ -12,11 +14,13 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.resources.datasets import (
     Dataset,
     DatasetKeys,
+    Datasets,
     DatasetUploadError,
     _get_csv_column_headers,  # pyright: ignore[reportPrivateUsage]
     _infer_keys,  # pyright: ignore[reportPrivateUsage]
     _is_all_dict,  # pyright: ignore[reportPrivateUsage]
-    _is_valid_dataset_example,  # pyright: ignore[reportPrivateUsage]
+    _is_input_dataset_example,  # pyright: ignore[reportPrivateUsage]
+    _is_unsupported_update_action_response,  # pyright: ignore[reportPrivateUsage]
     _parse_datetime,  # pyright: ignore[reportPrivateUsage]
     _prepare_csv,  # pyright: ignore[reportPrivateUsage]
     _prepare_dataframe_as_csv,  # pyright: ignore[reportPrivateUsage]
@@ -44,6 +48,7 @@ class TestDataset:
             examples=[
                 v1.DatasetExample(
                     id="ex1",
+                    node_id="ex1",
                     input={"text": "hello"},
                     output={"response": "hi"},
                     metadata={"source": "test"},
@@ -51,6 +56,7 @@ class TestDataset:
                 ),
                 v1.DatasetExample(
                     id="ex2",
+                    node_id="ex2",
                     input={"text": "world"},
                     output={"response": "earth"},
                     metadata={"source": "test"},
@@ -140,6 +146,110 @@ class TestDatasetKeys:
         with pytest.raises(ValueError, match="Keys not found"):
             keys.check_differences(frozenset(["a", "b"]))
 
+    def test_valid_keys_with_splits(self) -> None:
+        """Test DatasetKeys with split_keys included."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a", "b"]),
+            output_keys=frozenset(["c"]),
+            metadata_keys=frozenset(["d", "e"]),
+            split_keys=frozenset(["split", "category"]),
+        )
+        assert keys.input == frozenset(["a", "b"])
+        assert keys.output == frozenset(["c"])
+        assert keys.metadata == frozenset(["d", "e"])
+        assert keys.split == frozenset(["split", "category"])
+        assert set(keys) == {"a", "b", "c", "d", "e", "split", "category"}
+
+    def test_split_keys_overlap_with_input(self) -> None:
+        """Test that split keys cannot overlap with input keys."""
+        with pytest.raises(ValueError, match="Input and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a", "b"]),
+                output_keys=frozenset(["c"]),
+                metadata_keys=frozenset(["d"]),
+                split_keys=frozenset(["b", "split"]),  # 'b' overlaps with input
+            )
+
+    def test_split_keys_overlap_with_output(self) -> None:
+        """Test that split keys cannot overlap with output keys."""
+        with pytest.raises(ValueError, match="Output and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b", "c"]),
+                metadata_keys=frozenset(["d"]),
+                split_keys=frozenset(["c", "split"]),  # 'c' overlaps with output
+            )
+
+    def test_split_keys_overlap_with_metadata(self) -> None:
+        """Test that split keys cannot overlap with metadata keys."""
+        with pytest.raises(ValueError, match="Metadata and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c", "d"]),
+                split_keys=frozenset(["d", "split"]),  # 'd' overlaps with metadata
+            )
+
+    def test_check_differences_with_split_keys(self) -> None:
+        """Test that check_differences validates split keys exist in available columns."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            split_keys=frozenset(["split"]),
+        )
+
+        # Should pass when all keys including split are present
+        keys.check_differences(frozenset(["a", "b", "c", "split", "extra"]))
+
+        # Should fail when split key is missing
+        with pytest.raises(ValueError, match="Keys not found"):
+            keys.check_differences(frozenset(["a", "b", "c"]))  # 'split' missing
+
+    def test_empty_split_keys(self) -> None:
+        """Test DatasetKeys with empty split_keys (default behavior)."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            # split_keys not provided, should default to empty frozenset
+        )
+        assert keys.split == frozenset()
+        assert set(keys) == {"a", "b", "c"}
+
+    def test_split_key_singular(self) -> None:
+        """Test DatasetKeys with split_key (singular)."""
+        keys = DatasetKeys(
+            input_keys=frozenset(["a"]),
+            output_keys=frozenset(["b"]),
+            metadata_keys=frozenset(["c"]),
+            split_key="splits",
+        )
+        assert keys.split_key == "splits"
+        assert keys.split == frozenset(["splits"])
+        assert "splits" in set(keys)
+
+    def test_split_key_and_split_keys_conflict(self) -> None:
+        """Test that providing both split_key and split_keys raises ValueError."""
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            DatasetKeys(
+                input_keys=frozenset(["a"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c"]),
+                split_keys=frozenset(["split"]),
+                split_key="splits",
+            )
+
+    def test_split_key_overlap_with_input(self) -> None:
+        """Test that split_key cannot overlap with input keys."""
+        with pytest.raises(ValueError, match="Input and split keys overlap"):
+            DatasetKeys(
+                input_keys=frozenset(["a", "splits"]),
+                output_keys=frozenset(["b"]),
+                metadata_keys=frozenset(["c"]),
+                split_key="splits",
+            )
+
 
 class TestHelperFunctions:
     def test_parse_datetime(self) -> None:
@@ -158,14 +268,15 @@ class TestHelperFunctions:
     def test_is_valid_dataset_example(self) -> None:
         valid_example = v1.DatasetExample(
             id="ex1",
+            node_id="ex1",
             input={"text": "hello"},
             output={"response": "hi"},
             metadata={"source": "test"},
             updated_at="2024-01-15T10:00:00",
         )
-        assert _is_valid_dataset_example(valid_example)
-        assert not _is_valid_dataset_example({"incomplete": "dict"})
-        assert not _is_valid_dataset_example("not a dict")
+        assert _is_input_dataset_example(valid_example)
+        assert not _is_input_dataset_example({"incomplete": "dict"})
+        assert not _is_input_dataset_example("not a dict")
 
     def test_get_csv_column_headers(self) -> None:
         csv_content = "col1,col2,col3\nval1,val2,val3\n"
@@ -419,3 +530,98 @@ class TestCSVProcessing:
 
         with pytest.raises(ValueError, match="Keys not found"):
             keys_with_missing.check_differences(frozenset(df.columns))
+
+
+def _make_response(status_code: int, text: str = "", json_body: Any = None) -> httpx.Response:
+    request = httpx.Request("POST", "https://phoenix/v1/datasets/upload")
+    if json_body is not None:
+        return httpx.Response(status_code, json=json_body, request=request)
+    return httpx.Response(status_code, text=text, request=request)
+
+
+class TestUpdateActionFallback:
+    """Clients sending action='update' fall back to action='create' on old servers."""
+
+    @pytest.mark.parametrize(
+        "status,body,expected",
+        [
+            (422, "Invalid dateset action: update", True),  # typo'd server message
+            (422, "Invalid dataset action: update", True),  # spelling-fixed server message
+            (422, "some other validation error", False),
+            (200, "", False),
+            (409, "Dataset already exists", False),
+        ],
+    )
+    def test_is_unsupported_update_action_response(
+        self, status: int, body: str, expected: bool
+    ) -> None:
+        response = _make_response(status, text=body)
+        assert _is_unsupported_update_action_response(response) is expected
+
+    def test_json_upload_falls_back_to_create_and_warns(self) -> None:
+        """On 422 invalid-action, the client retries with action='create' and warns."""
+        success_body = {"data": {"dataset_id": "ds-1", "version_id": "v-1"}}
+        responses = [
+            _make_response(422, text="Invalid dateset action: update"),
+            _make_response(200, json_body=success_body),
+        ]
+        actions_sent: list[str] = []
+
+        def fake_post(*args: Any, **kwargs: Any) -> httpx.Response:
+            actions_sent.append(kwargs["json"]["action"])
+            return responses[len(actions_sent) - 1]
+
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.post = Mock(side_effect=fake_post)
+
+        datasets = Datasets.__new__(Datasets)
+        datasets._client = mock_client  # pyright: ignore[reportPrivateUsage]
+        with patch.object(
+            datasets,
+            "get_dataset",
+            return_value=Mock(spec=Dataset),
+        ):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                datasets._upload_json_dataset(  # pyright: ignore[reportPrivateUsage]
+                    dataset_name="demo",
+                    inputs=[{"a": 1}],
+                    action="update",
+                )
+
+        assert actions_sent == ["update", "create"]
+        assert any(
+            "does not support declarative update semantics" in str(w.message) for w in caught
+        ), [str(w.message) for w in caught]
+
+    def test_json_upload_does_not_retry_on_unrelated_422(self) -> None:
+        """Generic 422 errors are surfaced, not silently retried."""
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.post = Mock(return_value=_make_response(422, text="inputs must be non-empty"))
+
+        datasets = Datasets.__new__(Datasets)
+        datasets._client = mock_client  # pyright: ignore[reportPrivateUsage]
+        with pytest.raises(DatasetUploadError):
+            datasets._upload_json_dataset(  # pyright: ignore[reportPrivateUsage]
+                dataset_name="demo",
+                inputs=[{"a": 1}],
+                action="update",
+            )
+        assert mock_client.post.call_count == 1
+
+    def test_json_upload_with_append_never_falls_back(self) -> None:
+        """action='append' errors propagate without retry."""
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.post = Mock(
+            return_value=_make_response(422, text="Invalid dateset action: something")
+        )
+
+        datasets = Datasets.__new__(Datasets)
+        datasets._client = mock_client  # pyright: ignore[reportPrivateUsage]
+        with pytest.raises(DatasetUploadError):
+            datasets._upload_json_dataset(  # pyright: ignore[reportPrivateUsage]
+                dataset_name="demo",
+                inputs=[{"a": 1}],
+                action="append",
+            )
+        assert mock_client.post.call_count == 1

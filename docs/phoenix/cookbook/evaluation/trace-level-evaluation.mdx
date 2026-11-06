@@ -1,0 +1,299 @@
+---
+title: "Trace-level Evaluation: Beyond Input/Output Checks"
+description: Evaluate an agent's intermediate reasoning, tool selection, and decision path — not just its final answer.
+---
+
+<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/trace_level_evals.ipynb" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal>
+colab.research.google.com
+</Card>
+
+The most common way to evaluate an LLM application is **end-to-end**: take the user's request, take the final answer, and judge whether the answer is good. That works for a single model call. It breaks down for **agents**, because an agent isn't one call — it's a *sequence of decisions*: which tools to call, in what order, with what arguments, and how to reason over the results.
+
+End-to-end eval only inspects the two **endpoints** — the input and the final output. The interesting failures happen in the middle, where you can't see them:
+
+* **Reasoning** — did the agent reason coherently toward the goal, or get there by luck?
+* **Tool selection** — did it pick the right tools (and *skip* the wrong ones)?
+* **Decision path** — did it call those tools in a sensible order, with sensible arguments?
+
+A **correct-looking answer can come from a broken path** — the right result for the wrong reasons, which fails the next time the inputs shift. This cookbook shows how to capture the full trace, reconstruct the agent's intermediate signals from its spans, and evaluate those — using a movie recommendation agent as the worked example.
+
+This cookbook shows examples of:
+
+* Reconstructing an agent's **decision path** (`tool_path`) and **tool I/O** (`tool_io`) from its spans
+* Running an *endpoint* check (recommendation relevance) alongside two *intermediate* checks (decision path and reasoning/support)
+* Seeing each evaluator catch a distinct failure the endpoint check misses
+* Logging trace-level evaluations back to Phoenix
+
+## Notebook Walkthrough
+
+We will go through key code snippets on this page. To follow the full tutorial, check out the [full notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/trace_level_evals.ipynb).
+
+After configuring tracing with `phoenix.otel.register(...)` and building a movie recommendation agent with three tools (`movie_selector_llm`, `reviewer_llm`, `preview_summarizer_llm`), run it against a handful of questions to generate traces, then pull the spans with `px_client.spans.get_spans_dataframe(...)` into `primary_df`. See the notebook for the full agent and tool definitions.
+
+## Separate the endpoints from the trace
+
+First pull the **endpoints** — the user's question and the agent's *final* answer. Take the final answer only, not a concatenation of every span's output: folding in tool outputs would blur the line between "what the user saw" and "what happened inside the trace."
+
+<Note>
+With the OpenAI Agents instrumentation, the root `AGENT` span doesn't record `input.value` / `output.value` — those attributes live on the underlying `LLM` spans, so we read the question and final reply from there with two small helpers. With an instrumentation that populates the root span, you could read `input.value` / `output.value` off the agent root directly.
+</Note>
+
+```python expandable
+import json
+
+
+def _as_list(value):
+    """Span attributes can arrive as a JSON string or an already-parsed list."""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return []
+    return value if isinstance(value, list) else []
+
+
+def user_query(input_messages):
+    """The first user message in an LLM span's input."""
+    for message in _as_list(input_messages):
+        if message.get("message.role") == "user":
+            contents = message.get("message.contents") or []
+            return message.get("message.content") or "".join(
+                c.get("message_content.text", "") for c in contents
+            )
+    return None
+
+
+def assistant_text(output_messages):
+    """The assistant's text reply in an LLM span (empty on tool-calling turns)."""
+    texts = []
+    for message in _as_list(output_messages):
+        if message.get("message.role") == "assistant":
+            if message.get("message.content"):
+                texts.append(message["message.content"])
+            for c in message.get("message.contents") or []:
+                if c.get("message_content.type") == "text":
+                    texts.append(c.get("message_content.text", ""))
+    return " ".join(t for t in texts if t).strip() or None
+
+
+# agent_trace_ids = the trace ids whose root span has span_kind == "AGENT"
+# (filtering out the evaluators' own LLM traces). See the notebook.
+llm_spans = primary_df[
+    (primary_df["span_kind"] == "LLM") & (primary_df["context.trace_id"].isin(agent_trace_ids))
+].sort_values("start_time")
+
+# Endpoint input  = the user's question (first user message).
+# Endpoint output = the agent's FINAL answer only (its last text turn).
+trace_df = pd.DataFrame(
+    {
+        "input": llm_spans.groupby("context.trace_id")["attributes.llm.input_messages"].apply(
+            lambda s: next((q for q in s.map(user_query) if q), None)
+        ),
+        "output": llm_spans.groupby("context.trace_id")["attributes.llm.output_messages"].apply(
+            lambda s: next((a for a in reversed(list(s.map(assistant_text))) if a), None)
+        ),
+    }
+).dropna(subset=["input", "output"])
+```
+
+## Reconstruct the intermediate signals
+
+To evaluate the agent's *process*, reconstruct two signals the endpoints never show, both from the trace's `TOOL` spans (sorted by `start_time`):
+
+* **`tool_path`** — the ordered tool calls the agent made, *with their arguments*. This is the decision path: tool selection, order, and the arguments each tool was called with.
+* **`tool_io`** — what each tool was called *with* and what it *returned*, so an evaluator can check whether the final answer is grounded in real tool results.
+
+```python expandable
+tool_spans = primary_df[primary_df["span_kind"] == "TOOL"].sort_values("start_time")
+
+
+# tool_path: the ordered tool calls WITH their arguments (selection, order, args).
+def format_decision_path(group):
+    return " -> ".join(
+        f"{row['name']}({row['attributes.input.value']})" for _, row in group.iterrows()
+    )
+
+
+trace_df["tool_path"] = (
+    tool_spans.groupby("context.trace_id")[["name", "attributes.input.value"]]
+    .apply(format_decision_path)
+    .reindex(trace_df.index)
+    .fillna("No tools called")
+)
+
+
+# tool_io: each tool call's input AND output.
+def format_tool_calls(group):
+    lines = []
+    for i, (_, row) in enumerate(group.iterrows(), start=1):
+        lines.append(
+            f"{i}. {row['name']} | input: {row['attributes.input.value']} "
+            f"| output: {row['attributes.output.value']}"
+        )
+    return "\n".join(lines)
+
+
+trace_df["tool_io"] = (
+    tool_spans.groupby("context.trace_id")[["name", "attributes.input.value", "attributes.output.value"]]
+    .apply(format_tool_calls)
+    .reindex(trace_df.index)
+    .fillna("No tools called")
+)
+```
+
+## Define the three evaluators
+
+Each evaluator reads a different column and answers a different question:
+
+1. **Relevance** — an *endpoint* check on `input` + `output` (exactly what end-to-end eval does).
+2. **Decision path** — an *intermediate* check on `input` + `tool_path` (right tools, right order, *sensible arguments*?).
+3. **Reasoning / support** — an *intermediate* check on `input` + `tool_io` + `output` (is the answer grounded in the actual tool results, or does it invent facts no tool produced?).
+
+Each prompt is written to judge only its own concern:
+
+```python expandable
+RECOMMENDATION_RELEVANCE = """
+You are evaluating the relevance of movie recommendations provided by an LLM application.
+
+You will be given:
+1. The user input that initiated the trace
+2. The list of movie recommendations output by the system
+
+##
+User Input:
+{input}
+
+Recommendations:
+{output}
+##
+
+Respond with exactly one word: `correct` or `incorrect`.
+1. `correct` →
+- All recommended movies match the requested genre or criteria in the user input.
+- The recommendations are relevant to the user's request and are not repetitive.
+2. `incorrect` →
+- One or more recommendations do not match the requested genre or criteria, or the
+  recommendations are repetitive.
+"""
+
+DECISION_PATH = """
+You are evaluating an agent's DECISION PATH: the ordered tool calls it made to
+answer a request — which tools, in what order, and with what arguments. You are
+NOT judging the final answer text, and you are NOT judging whether each tool's
+output was correct — only whether the agent's choices were sensible.
+
+The agent has three tools available:
+- movie_selector_llm(genre): returns candidate movies. Must come FIRST, because the
+  other tools operate on the selected movies.
+- reviewer_llm(movies): reviews and sorts movies. Only meaningful AFTER selection,
+  and should be called with the movies that were actually selected.
+- preview_summarizer_llm(movie): summarizes a movie. Only meaningful AFTER selection.
+
+You will be given:
+1. The user input that initiated the trace
+2. The ordered tool calls the agent executed, with their arguments
+
+##
+User Input:
+{input}
+
+Decision Path (ordered tool calls with arguments):
+{tool_path}
+##
+
+Respond with exactly one word: `correct` or `incorrect`.
+1. `correct` →
+- movie_selector_llm is called before reviewer_llm or preview_summarizer_llm, AND
+- each tool is called with sensible arguments (e.g. reviewer_llm receives the
+  movies that were selected, not an empty or unrelated list).
+2. `incorrect` →
+- a tool that operates on movies (reviewer_llm / preview_summarizer_llm) runs
+  before any movies have been selected, the selection step is missing, OR a tool is
+  called with nonsensical arguments (empty/placeholder inputs, or movies that were
+  never selected).
+"""
+
+REASONING_SUPPORT = """
+You are checking whether an agent's FINAL ANSWER is SUPPORTED by the actual
+results its tools returned.
+
+You are NOT judging tool order (that's the decision-path check) or genre match
+(that's the relevance check). Judge ONLY whether every concrete claim in the final
+answer — titles, ratings, scores, review quotes, plot facts — is grounded in the
+tool outputs below. An answer that asserts a fact no tool produced (for example a
+specific rating) is unsupported, even if it sounds plausible.
+
+##
+User Input:
+{input}
+
+Tool calls and their results (in order):
+{tool_io}
+
+Final Answer:
+{output}
+##
+
+Respond with exactly one word: `correct` or `incorrect`.
+1. `correct` → every concrete claim in the final answer is supported by the tool
+   results above.
+2. `incorrect` → the final answer asserts at least one concrete fact (a rating,
+   score, review, or title) that does not appear in the tool results.
+"""
+```
+
+Wrap the run in `suppress_tracing()` so the judges' own LLM calls don't get traced into the same project, then log the results back onto each trace's root span:
+
+```python expandable
+from phoenix.trace import suppress_tracing
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+
+llm = LLM(provider="openai", model="gpt-4o-mini")
+
+relevance_evaluator = ClassificationEvaluator(
+    name="relevance", llm=llm, prompt_template=RECOMMENDATION_RELEVANCE,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
+path_evaluator = ClassificationEvaluator(
+    name="decision path", llm=llm, prompt_template=DECISION_PATH,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
+reasoning_evaluator = ClassificationEvaluator(
+    name="reasoning", llm=llm, prompt_template=REASONING_SUPPORT,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
+
+with suppress_tracing():
+    results_df = await async_evaluate_dataframe(
+        dataframe=trace_df,
+        evaluators=[relevance_evaluator, path_evaluator, reasoning_evaluator],
+    )
+```
+
+## Seeing what each evaluator catches
+
+On well-behaved traces the three evaluators agree. The point of trace-level evaluation is what happens when they *don't*. Running the three judges on controlled cases that mirror the real schema — each with a relevant-looking answer, so the endpoint check passes every time — shows each intermediate check catching a distinct failure:
+
+| case | relevance (endpoint) | decision path | reasoning / support |
+| :--- | :--- | :--- | :--- |
+| clean run | correct | correct | correct |
+| broken order (reviews before selecting) | correct | **incorrect** | correct |
+| unsupported claim (cites a rating no tool returned) | correct | correct | **incorrect** |
+
+Two intermediate failures, two different lenses — and both invisible to the endpoint check.
+
+After logging the evaluations, each trace's root span carries all three labels in Phoenix:
+
+<Frame>
+![Trace-level evaluations in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/trace_level_all_correct.png)
+</Frame>
+
+## Takeaway
+
+We ran three evaluators over the same traces, each asking a different question and reading a different signal:
+
+* **relevance** (endpoint) — *did the final answer look right?* Reads only `input` and `output`.
+* **decision path** (intermediate) — *did the agent pick the right tools, in the right order, with sensible arguments?* Reads `tool_path`.
+* **reasoning / support** (intermediate) — *is the answer grounded in what the tools returned?* Reads `tool_io`.
+
+The lesson: **a good-looking answer can hide a broken process, and only intermediate evals — reading signals reconstructed from spans — can see it.** The pattern generalizes: for any intermediate step you care about, reconstruct the relevant signal from spans into a column, write a judge that reads that column, and run it alongside your endpoint eval.

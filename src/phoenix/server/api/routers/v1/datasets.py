@@ -7,22 +7,30 @@ import urllib
 import zlib
 from asyncio import QueueFull
 from collections import Counter
-from collections.abc import Awaitable, Callable, Coroutine, Iterator, Mapping, Sequence
-from datetime import datetime
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 from enum import Enum
 from functools import partial
 from typing import Any, Optional, Union, cast
 
 import pandas as pd
 import pyarrow as pa
+from anyio import to_thread
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
-from sqlalchemy import and_, case, delete, func, select
+from pydantic import Field
+from sqlalchemy import and_, case, delete, func, insert, or_, select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.requests import Request
 from starlette.responses import Response
+from starlette.status import (
+    HTTP_404_NOT_FOUND,
+)
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
@@ -31,17 +39,24 @@ from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_name
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
+    DatasetNameConflictError,
     ExampleContent,
+    ExampleWithHash,
+    InvalidDatasetExampleIDError,
     add_dataset_examples,
 )
+from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
+from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DatasetInsertEvent
+from phoenix.utilities.content_hashing import compute_example_content_hash
 
 from .models import V1RoutesBaseModel
 from .utils import (
@@ -49,6 +64,8 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     add_text_csv_content_to_responses,
+    get_dataset_by_identifier,
+    parse_cursor_rowid,
 )
 
 csv.field_size_limit(
@@ -60,6 +77,12 @@ logger = logging.getLogger(__name__)
 
 DATASET_NODE_NAME = DatasetNodeType.__name__
 DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
+DATASET_SPLIT_NODE_NAME = DatasetSplitNodeType.__name__
+DATASET_EXAMPLE_NODE_NAME = DatasetExampleNodeType.__name__
+
+
+# Matches the dataset-split form's default color (app NewDatasetSplitForm).
+DEFAULT_DATASET_SPLIT_COLOR = "#33c5e8"
 
 
 router = APIRouter(tags=["datasets"])
@@ -70,8 +93,8 @@ class Dataset(V1RoutesBaseModel):
     name: str
     description: Optional[str]
     metadata: dict[str, Any]
-    created_at: datetime
-    updated_at: datetime
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
     example_count: int
 
 
@@ -111,14 +134,7 @@ async def list_datasets(
         )
 
         if cursor:
-            try:
-                cursor_id = GlobalID.from_id(cursor).node_id
-                query = query.filter(models.Dataset.id <= int(cursor_id))
-            except ValueError:
-                raise HTTPException(
-                    detail=f"Invalid cursor format: {cursor}",
-                    status_code=422,
-                )
+            query = query.filter(models.Dataset.id <= parse_cursor_rowid(cursor, DATASET_NODE_NAME))
         if name:
             query = query.filter(models.Dataset.name == name)
 
@@ -247,7 +263,7 @@ class DatasetVersion(V1RoutesBaseModel):
     version_id: str
     description: Optional[str]
     metadata: dict[str, Any]
-    created_at: datetime
+    created_at: IsoDatetime
 
 
 class ListDatasetVersionsResponseBody(PaginatedResponseBody[DatasetVersion]):
@@ -294,15 +310,7 @@ async def list_dataset_versions(
         .limit(limit + 1)
     )
     if cursor:
-        try:
-            dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(cursor), DATASET_VERSION_NODE_NAME
-            )
-        except ValueError:
-            raise HTTPException(
-                detail=f"Invalid cursor: {cursor}",
-                status_code=422,
-            )
+        dataset_version_id = parse_cursor_rowid(cursor, DATASET_VERSION_NODE_NAME)
         max_dataset_version_id = (
             select(models.DatasetVersion.id)
             .where(models.DatasetVersion.id == dataset_version_id)
@@ -326,6 +334,9 @@ async def list_dataset_versions(
 class UploadDatasetData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
+    num_created_examples: int
+    num_updated_examples: int
+    num_deleted_examples: int
 
 
 class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
@@ -336,12 +347,12 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
     "/datasets/upload",
     dependencies=[Depends(is_not_locked)],
     operation_id="uploadDataset",
-    summary="Upload dataset from JSON, CSV, or PyArrow",
+    summary="Upload dataset from JSON, JSONL, CSV, or PyArrow",
     responses=add_errors_to_responses(
         [
             {
                 "status_code": 409,
-                "description": "Dataset of the same name already exists",
+                "description": ("Dataset with the given name already exists (action=create)."),
             },
             {"status_code": 422, "description": "Invalid request body"},
         ]
@@ -359,12 +370,49 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "inputs"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "action": {
+                                "type": "string",
+                                "enum": ["create", "append", "update"],
+                            },
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "inputs": {"type": "array", "items": {"type": "object"}},
                             "outputs": {"type": "array", "items": {"type": "object"}},
                             "metadata": {"type": "array", "items": {"type": "object"}},
+                            "splits": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "array", "items": {"type": "string"}},
+                                        {"type": "null"},
+                                    ]
+                                },
+                                "description": "Split per example: string, string array, or null",
+                            },
+                            "span_ids": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "null"},
+                                    ]
+                                },
+                                "description": "Span IDs to link examples back to spans",
+                            },
+                            "example_ids": {
+                                "type": "array",
+                                "items": {
+                                    "oneOf": [
+                                        {"type": "string"},
+                                        {"type": "null"},
+                                    ]
+                                },
+                                "description": (
+                                    "Optional example ID per example. "
+                                    "If provided, it is used as the example's stable public ID."
+                                ),
+                            },
                         },
                     }
                 },
@@ -373,7 +421,10 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                         "type": "object",
                         "required": ["name", "input_keys[]", "output_keys[]", "file"],
                         "properties": {
-                            "action": {"type": "string", "enum": ["create", "append"]},
+                            "action": {
+                                "type": "string",
+                                "enum": ["create", "append", "update"],
+                            },
                             "name": {"type": "string"},
                             "description": {"type": "string"},
                             "input_keys[]": {
@@ -390,6 +441,39 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "type": "array",
                                 "items": {"type": "string"},
                                 "uniqueItems": True,
+                            },
+                            "split_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                                "description": (
+                                    "Deprecated: use split_key instead. "
+                                    "Column names for auto-assigning examples to splits"
+                                ),
+                            },
+                            "split_key": {
+                                "type": "string",
+                                "description": (
+                                    "Single column name containing split names "
+                                    "(plain string or JSON list) per row"
+                                ),
+                            },
+                            "flatten_keys[]": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "uniqueItems": True,
+                                "description": (
+                                    "Column names whose object values should be "
+                                    "flattened into their selected bucket"
+                                ),
+                            },
+                            "span_id_key": {
+                                "type": "string",
+                                "description": "Column name for span IDs to link examples back to spans",  # noqa: E501
+                            },
+                            "example_id_key": {
+                                "type": "string",
+                                "description": "Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes.",  # noqa: E501
                             },
                             "file": {"type": "string", "format": "binary"},
                         },
@@ -412,10 +496,11 @@ async def upload_dataset(
             detail="Missing content-type header",
             status_code=400,
         )
-    examples: Union[Examples, Awaitable[Examples]]
+    examples: Examples
+    splits_provided = True
     if request_content_type.startswith("application/json"):
         try:
-            examples, action, name, description = await run_in_threadpool(
+            examples, action, name, description, splits_provided = await run_in_threadpool(
                 _process_json, await request.json()
             )
         except ValueError as e:
@@ -423,13 +508,6 @@ async def upload_dataset(
                 detail=str(e),
                 status_code=422,
             )
-        if action is DatasetAction.CREATE:
-            async with request.app.state.db() as session:
-                if await _check_table_exists(session, name):
-                    raise HTTPException(
-                        detail=f"Dataset with the same name already exists: {name=}",
-                        status_code=409,
-                    )
     elif request_content_type.startswith("multipart/form-data"):
         async with request.form() as form:
             try:
@@ -440,6 +518,11 @@ async def upload_dataset(
                     input_keys,
                     output_keys,
                     metadata_keys,
+                    split_keys,
+                    split_key,
+                    span_id_key,
+                    example_id_key,
+                    flatten_keys,
                     file,
                 ) = await _parse_form_data(form)
             except ValueError as e:
@@ -447,23 +530,48 @@ async def upload_dataset(
                     detail=str(e),
                     status_code=422,
                 )
-            if action is DatasetAction.CREATE:
-                async with request.app.state.db() as session:
-                    if await _check_table_exists(session, name):
-                        raise HTTPException(
-                            detail=f"Dataset with the same name already exists: {name=}",
-                            status_code=409,
-                        )
             content = await file.read()
         try:
             file_content_type = FileContentType(file.content_type)
             if file_content_type is FileContentType.CSV:
                 encoding = FileContentEncoding(file.headers.get("content-encoding"))
                 examples = await _process_csv(
-                    content, encoding, input_keys, output_keys, metadata_keys
+                    content=content,
+                    content_encoding=encoding,
+                    input_keys=input_keys,
+                    output_keys=output_keys,
+                    metadata_keys=metadata_keys,
+                    split_keys=split_keys,
+                    span_id_key=span_id_key,
+                    example_id_key=example_id_key,
+                    flatten_keys=flatten_keys,
+                    split_key=split_key,
                 )
             elif file_content_type is FileContentType.PYARROW:
-                examples = await _process_pyarrow(content, input_keys, output_keys, metadata_keys)
+                examples = await _process_pyarrow(
+                    content=content,
+                    input_keys=input_keys,
+                    output_keys=output_keys,
+                    metadata_keys=metadata_keys,
+                    split_keys=split_keys,
+                    span_id_key=span_id_key,
+                    example_id_key=example_id_key,
+                    split_key=split_key,
+                )
+            elif file_content_type is FileContentType.JSONL:
+                encoding = FileContentEncoding(file.headers.get("content-encoding"))
+                examples = await _process_jsonl(
+                    content,
+                    encoding,
+                    input_keys,
+                    output_keys,
+                    metadata_keys,
+                    split_keys,
+                    span_id_key,
+                    example_id_key,
+                    flatten_keys,
+                    split_key=split_key,
+                )
             else:
                 assert_never(file_content_type)
         except ValueError as e:
@@ -479,34 +587,62 @@ async def upload_dataset(
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
+
+    def _compute_hashes(
+        examples: Iterable[ExampleContent],
+    ) -> list[ExampleWithHash]:
+        return [
+            ExampleWithHash(
+                content=example,
+                content_hash=compute_example_content_hash(
+                    input=example.input,
+                    output=example.output,
+                    metadata=example.metadata,
+                ),
+            )
+            for example in examples
+        ]
+
+    hashed_examples = await to_thread.run_sync(
+        _compute_hashes,
+        examples,
+        abandon_on_cancel=True,
+    )
     operation = cast(
         Callable[[AsyncSession], Awaitable[DatasetExampleAdditionEvent]],
         partial(
             add_dataset_examples,
-            examples=examples,
+            examples=hashed_examples,
             action=action,
             name=name,
             description=description,
             user_id=user_id,
+            splits_provided=splits_provided,
         ),
     )
     if sync:
-        async with request.app.state.db() as session:
-            event = await operation(session)
-            dataset_id = event.dataset_id
-            version_id = event.dataset_version_id
+        try:
+            async with request.app.state.db() as session:
+                event = await operation(session)
+                dataset_id = event.dataset_id
+                version_id = event.dataset_version_id
+        except DatasetNameConflictError as e:
+            raise HTTPException(detail=str(e), status_code=409)
+        except InvalidDatasetExampleIDError as e:
+            raise HTTPException(detail=str(e), status_code=422)
         request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
         return UploadDatasetResponseBody(
             data=UploadDatasetData(
                 dataset_id=str(GlobalID(Dataset.__name__, str(dataset_id))),
                 version_id=str(GlobalID(DatasetVersion.__name__, str(version_id))),
+                num_created_examples=event.num_created_examples,
+                num_updated_examples=event.num_patched_examples,
+                num_deleted_examples=event.num_deleted_examples,
             )
         )
     try:
         request.state.enqueue_operation(operation)
     except QueueFull:
-        if isinstance(examples, Coroutine):
-            examples.close()
         raise HTTPException(detail="Too many requests.", status_code=429)
     return None
 
@@ -514,6 +650,7 @@ async def upload_dataset(
 class FileContentType(Enum):
     CSV = "text/csv"
     PYARROW = "application/x-pandas-pyarrow"
+    JSONL = "application/jsonl"
 
     @classmethod
     def _missing_(cls, v: Any) -> "FileContentType":
@@ -541,46 +678,301 @@ Description: TypeAlias = Optional[str]
 InputKeys: TypeAlias = frozenset[str]
 OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
+SplitKeys: TypeAlias = frozenset[str]
+SplitKey: TypeAlias = Optional[str]
+SplitName: TypeAlias = str
+SpanIdKey: TypeAlias = Optional[str]
+ExampleIdKey: TypeAlias = Optional[str]
+FlattenKeys: TypeAlias = frozenset[str]
+SplitsProvided: TypeAlias = bool
 DatasetId: TypeAlias = int
+DatasetExampleId: TypeAlias = int
+DatasetName: TypeAlias = str
 Examples: TypeAlias = Iterator[ExampleContent]
+
+
+def _unflatten_dotted_keys(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any]:
+    """Reconstitute nested dicts from dot-separated keys.
+
+    Example: [("a.b", 1), ("a.c", 2)] -> {"a": {"b": 1, "c": 2}}
+    """
+    result: dict[str, Any] = {}
+    for dotted_key, value in pairs:
+        parts = dotted_key.split(".")
+        current = result
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        current[parts[-1]] = value
+    return result
+
+
+def _maybe_parse_json_value(value: Any) -> Any:
+    """Try to parse CSV string values that represent JSON arrays or objects."""
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if (stripped.startswith("[") and stripped.endswith("]")) or (
+        stripped.startswith("{") and stripped.endswith("}")
+    ):
+        try:
+            return json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return value
+
+
+def _is_empty_csv_cell(value: Any) -> bool:
+    """Return True if a CSV cell has no meaningful entry (None or blank string)."""
+    if value is None:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    return False
+
+
+def _drop_empty_csv_entries(bucket: Mapping[str, Any]) -> dict[str, Any]:
+    """Drop keys from a CSV-derived bucket whose source cells had no entry."""
+    return {k: v for k, v in bucket.items() if not _is_empty_csv_cell(v)}
+
+
+def _build_bucket_from_dotted_keys(
+    row: Mapping[str, Any],
+    keys: frozenset[str],
+    bucket_prefix: str,
+) -> dict[str, Any]:
+    """Build a nested dict from dotted CSV column names for a given bucket.
+
+    Keys starting with ``{bucket_prefix}.`` have the prefix stripped and the
+    remaining dot-separated path is unflattened into nested dicts.  Plain keys
+    are included directly.  Columns with no entry for the given row are omitted.
+    """
+    prefix_dot = f"{bucket_prefix}."
+    plain: dict[str, Any] = {}
+    dotted: list[tuple[str, Any]] = []
+    for key in keys:
+        raw = row.get(key)
+        if _is_empty_csv_cell(raw):
+            continue
+        value = _maybe_parse_json_value(raw)
+        if key.startswith(prefix_dot):
+            remainder = key[len(prefix_dot) :]
+            dotted.append((remainder, value))
+        else:
+            plain[key] = value
+    if dotted:
+        nested = _unflatten_dotted_keys(dotted)
+        plain.update(nested)
+    return plain
+
+
+@dataclass(frozen=True, slots=True)
+class BucketPlan:
+    """Projects row data into a bucket, optionally flattening nested objects."""
+
+    direct_keys: frozenset[str]
+    flatten_map: Mapping[str, frozenset[str]]  # parent → children to extract
+
+    @classmethod
+    def build(
+        cls,
+        keys: frozenset[str],
+        flatten_keys: frozenset[str],
+        child_keys_by_parent: Mapping[str, frozenset[str]],
+    ) -> "BucketPlan":
+        parents_to_flatten = keys & flatten_keys
+        flatten_map: dict[str, frozenset[str]] = {}
+        emitted: set[str] = set()
+
+        for parent in sorted(parents_to_flatten):
+            children = child_keys_by_parent.get(parent, frozenset())
+            if conflicts := emitted & children:
+                raise ValueError(f"Cannot flatten '{parent}': keys {conflicts} already emitted")
+            flatten_map[parent] = children
+            emitted.update(children)
+
+        direct_keys = keys - parents_to_flatten
+        if conflicts := emitted & direct_keys:
+            raise ValueError(f"Keys {conflicts} conflict with flattened children")
+
+        return cls(direct_keys=direct_keys, flatten_map=flatten_map)
+
+    def project(self, row: Mapping[str, Any], *, skip_missing: bool = False) -> dict[str, Any]:
+        if skip_missing:
+            result = {k: row[k] for k in self.direct_keys if k in row}
+        else:
+            result = {k: row.get(k) for k in self.direct_keys}
+        for parent, children in self.flatten_map.items():
+            if skip_missing and parent not in row:
+                continue
+            value = row.get(parent)
+            if not isinstance(value, Mapping):
+                raise ValueError(f"Cannot flatten '{parent}': expected object")
+            for child in children:
+                if skip_missing and child not in value:
+                    continue
+                result[child] = value.get(child)
+        return result
+
+
+def _build_flatten_plans(
+    input_keys: InputKeys,
+    output_keys: OutputKeys,
+    metadata_keys: MetadataKeys,
+    flatten_keys: FlattenKeys,
+    rows: list[dict[str, Any]],
+) -> tuple[BucketPlan, BucketPlan, BucketPlan]:
+    """Build projection plans for flattening nested objects into dataset buckets."""
+    child_keys_by_parent: dict[str, frozenset[str]] = {}
+    for parent in flatten_keys:
+        children: set[str] = set()
+        for row in rows:
+            value = row.get(parent)
+            if isinstance(value, dict):
+                children.update(value.keys())
+            elif value is not None:
+                raise ValueError(f"Cannot flatten '{parent}': expected object values")
+        child_keys_by_parent[parent] = frozenset(children)
+
+    return (
+        BucketPlan.build(input_keys, flatten_keys, child_keys_by_parent),
+        BucketPlan.build(output_keys, flatten_keys, child_keys_by_parent),
+        BucketPlan.build(metadata_keys, flatten_keys, child_keys_by_parent),
+    )
 
 
 def _process_json(
     data: Mapping[str, Any],
-) -> tuple[Examples, DatasetAction, Name, Description]:
+) -> tuple[Examples, DatasetAction, Name, Description, SplitsProvided]:
     name = data.get("name")
     if not name:
         raise ValueError("Dataset name is required")
     description = data.get("description") or ""
     inputs = data.get("inputs")
-    if not inputs:
+    if inputs is None:
         raise ValueError("input is required")
     if not isinstance(inputs, list) or not _is_all_dict(inputs):
         raise ValueError("Input should be a list containing only dictionary objects")
-    outputs, metadata = data.get("outputs"), data.get("metadata")
+    outputs, metadata, splits = data.get("outputs"), data.get("metadata"), data.get("splits")
     for k, v in {"outputs": outputs, "metadata": metadata}.items():
         if v and not (isinstance(v, list) and len(v) == len(inputs) and _is_all_dict(v)):
             raise ValueError(
                 f"{k} should be a list of same length as input containing only dictionary objects"
             )
+
+    # Validate splits format if provided
+    if splits is not None:
+        if not isinstance(splits, list):
+            raise ValueError("splits must be a list")
+        if len(splits) != len(inputs):
+            raise ValueError(
+                f"splits must have same length as inputs ({len(splits)} != {len(inputs)})"
+            )
+
+    # Validate span_ids format if provided
+    span_ids = data.get("span_ids")
+    if span_ids is not None:
+        if not isinstance(span_ids, list):
+            raise ValueError("span_ids must be a list")
+        if len(span_ids) != len(inputs):
+            raise ValueError(
+                f"span_ids must have same length as inputs ({len(span_ids)} != {len(inputs)})"
+            )
+
+    # Validate example_ids format if provided
+    example_ids = data.get("example_ids")
+    if example_ids is not None:
+        if not isinstance(example_ids, list):
+            raise ValueError("example_ids must be a list")
+        if len(example_ids) != len(inputs):
+            raise ValueError(
+                f"example_ids must have same length as inputs ({len(example_ids)} != {len(inputs)})"
+            )
+        seen: set[str] = set()
+        for example_id_value in example_ids:
+            if example_id_value is None:
+                continue
+            if not isinstance(example_id_value, str):
+                raise ValueError("example_ids must contain only strings or None")
+            if example_id_value in seen:
+                raise ValueError(f"Duplicate example_id in request: {example_id_value!r}")
+            seen.add(example_id_value)
+
     examples: list[ExampleContent] = []
     for i, obj in enumerate(inputs):
+        # Extract split values, validating they're non-empty strings
+        split_set: set[str] = set()
+        if splits:
+            split_value = splits[i]
+            if split_value is None:
+                # Sparse assignment: None means no splits for this example
+                pass
+            elif isinstance(split_value, str):
+                # Format 1: Single string value
+                if split_value.strip():
+                    split_set.add(split_value.strip())
+            elif isinstance(split_value, list):
+                # Format 2: List of strings (multiple splits)
+                for v in split_value:
+                    if v is None:
+                        continue  # Skip None values in the list
+                    if not isinstance(v, str):
+                        raise ValueError(
+                            f"Split value must be a string or None, got {type(v).__name__}"
+                        )
+                    if v.strip():
+                        split_set.add(v.strip())
+            else:
+                raise ValueError(
+                    f"Split value must be a string, list of strings, or None, "
+                    f"got {type(split_value).__name__}"
+                )
+
+        # Extract span_id for this example
+        span_id: Optional[str] = None
+        if span_ids:
+            span_id_value = span_ids[i]
+            if span_id_value is not None:
+                if not isinstance(span_id_value, str):
+                    raise ValueError(
+                        f"Span ID must be a string or None, got {type(span_id_value).__name__}"
+                    )
+                if span_id_value.strip():
+                    span_id = span_id_value.strip()
+
+        # Extract example_id for this example
+        external_id = None
+        if example_ids is not None:
+            example_id_value = example_ids[i]
+            if example_id_value is not None:
+                external_id = str(example_id_value)
+
         example = ExampleContent(
             input=obj,
             output=outputs[i] if outputs else {},
             metadata=metadata[i] if metadata else {},
+            splits=frozenset(split_set),
+            span_id=span_id,
+            external_id=external_id,
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
-    return iter(examples), action, name, description
+    return iter(examples), action, name, description, splits is not None
 
 
 async def _process_csv(
+    *,
     content: bytes,
     content_encoding: FileContentEncoding,
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
+    span_id_key: SpanIdKey,
+    example_id_key: ExampleIdKey = None,
+    flatten_keys: FlattenKeys = frozenset(),
+    split_key: SplitKey = None,
 ) -> Examples:
     if content_encoding is FileContentEncoding.GZIP:
         content = await run_in_threadpool(gzip.decompress, content)
@@ -588,36 +980,131 @@ async def _process_csv(
         content = await run_in_threadpool(zlib.decompress, content)
     elif content_encoding is not FileContentEncoding.NONE:
         assert_never(content_encoding)
-    reader = await run_in_threadpool(lambda c: csv.DictReader(io.StringIO(c.decode())), content)
+    reader = await run_in_threadpool(
+        lambda c: csv.DictReader(io.StringIO(c.decode("utf-8-sig"))), content
+    )
     if reader.fieldnames is None:
         raise ValueError("Missing CSV column header")
     (header, freq), *_ = Counter(reader.fieldnames).most_common(1)
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     column_headers = frozenset(reader.fieldnames)
-    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
-    return (
-        ExampleContent(
-            input={k: row.get(k) for k in input_keys},
-            output={k: row.get(k) for k in output_keys},
-            metadata={k: row.get(k) for k in metadata_keys},
-        )
-        for row in iter(reader)
+
+    def match_header(key: str) -> str:
+        # utf-8-sig drops the BOM from the first header, but a client that read the header
+        # without it (phoenix-client inferring keys) sends that key with the BOM attached.
+        return key if key in column_headers else key.removeprefix("\ufeff")
+
+    input_keys = frozenset(map(match_header, input_keys))
+    output_keys = frozenset(map(match_header, output_keys))
+    metadata_keys = frozenset(map(match_header, metadata_keys))
+    split_keys = frozenset(map(match_header, split_keys))
+    flatten_keys = frozenset(map(match_header, flatten_keys))
+    span_id_key = span_id_key and match_header(span_id_key)
+    example_id_key = example_id_key and match_header(example_id_key)
+    split_key = split_key and match_header(split_key)
+    _check_keys_exist(
+        column_headers,
+        input_keys,
+        output_keys,
+        metadata_keys,
+        split_keys,
+        span_id_key,
+        example_id_key,
+        split_key=split_key,
     )
+
+    uses_dotted_keys = any(
+        k.startswith(("input.", "output.", "metadata."))
+        for k in input_keys | output_keys | metadata_keys
+    )
+
+    def process_rows() -> list[ExampleContent]:
+        if uses_dotted_keys and not flatten_keys:
+            examples = []
+            for row in reader:
+                examples.append(
+                    ExampleContent(
+                        input=_build_bucket_from_dotted_keys(row, input_keys, "input"),
+                        output=_build_bucket_from_dotted_keys(row, output_keys, "output"),
+                        metadata=_build_bucket_from_dotted_keys(row, metadata_keys, "metadata"),
+                        splits=_get_splits(row=row, split_key=split_key, split_keys=split_keys),
+                        span_id=_get_span_id(row, span_id_key),
+                        external_id=_get_example_id(row, example_id_key),
+                    )
+                )
+            return examples
+
+        parsed_rows: list[dict[str, Any]] = []
+        for row in reader:
+            if flatten_keys:
+                parsed_row: dict[str, Any] = {}
+                for k, v in row.items():
+                    if k in flatten_keys and v:
+                        try:
+                            parsed = json.loads(v)
+                            if isinstance(parsed, dict):
+                                parsed_row[k] = parsed
+                                continue
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    parsed_row[k] = v
+                parsed_rows.append(parsed_row)
+            else:
+                parsed_rows.append(dict(row))
+
+        input_plan, output_plan, metadata_plan = _build_flatten_plans(
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            flatten_keys=flatten_keys,
+            rows=parsed_rows,
+        )
+
+        examples = []
+        for row in parsed_rows:
+            examples.append(
+                ExampleContent(
+                    input=_drop_empty_csv_entries(input_plan.project(row)),
+                    output=_drop_empty_csv_entries(output_plan.project(row)),
+                    metadata=_drop_empty_csv_entries(metadata_plan.project(row)),
+                    splits=_get_splits(row=row, split_key=split_key, split_keys=split_keys),
+                    span_id=_get_span_id(row, span_id_key),
+                    external_id=_get_example_id(row, example_id_key),
+                )
+            )
+        return examples
+
+    rows = await run_in_threadpool(process_rows)
+    return iter(rows)
 
 
 async def _process_pyarrow(
+    *,
     content: bytes,
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
-) -> Awaitable[Examples]:
+    split_keys: SplitKeys,
+    span_id_key: SpanIdKey,
+    example_id_key: ExampleIdKey = None,
+    split_key: SplitKey = None,
+) -> Examples:
     try:
         reader = pa.ipc.open_stream(content)
     except pa.ArrowInvalid as e:
         raise ValueError("File is not valid pyarrow") from e
     column_headers = frozenset(reader.schema.names)
-    _check_keys_exist(column_headers, input_keys, output_keys, metadata_keys)
+    _check_keys_exist(
+        column_headers,
+        input_keys,
+        output_keys,
+        metadata_keys,
+        split_keys,
+        span_id_key,
+        example_id_key,
+        split_key=split_key,
+    )
 
     def get_examples() -> Iterator[ExampleContent]:
         for row in reader.read_pandas().to_dict(orient="records"):
@@ -625,17 +1112,94 @@ async def _process_pyarrow(
                 input={k: row.get(k) for k in input_keys},
                 output={k: row.get(k) for k in output_keys},
                 metadata={k: row.get(k) for k in metadata_keys},
+                splits=_get_splits(row=row, split_key=split_key, split_keys=split_keys),
+                span_id=_get_span_id(row, span_id_key),
+                external_id=_get_example_id(row, example_id_key),
             )
 
-    return run_in_threadpool(get_examples)
+    return await run_in_threadpool(get_examples)
 
 
-async def _check_table_exists(session: AsyncSession, name: str) -> bool:
-    return bool(
-        await session.scalar(
-            select(1).select_from(models.Dataset).where(models.Dataset.name == name)
+async def _process_jsonl(
+    content: bytes,
+    encoding: FileContentEncoding,
+    input_keys: InputKeys,
+    output_keys: OutputKeys,
+    metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
+    span_id_key: SpanIdKey,
+    example_id_key: ExampleIdKey = None,
+    flatten_keys: FlattenKeys = frozenset(),
+    split_key: SplitKey = None,
+) -> Examples:
+    if encoding is FileContentEncoding.GZIP:
+        content = await run_in_threadpool(gzip.decompress, content)
+    elif encoding is FileContentEncoding.DEFLATE:
+        content = await run_in_threadpool(zlib.decompress, content)
+    elif encoding is not FileContentEncoding.NONE:
+        assert_never(encoding)
+
+    def parse_and_process(c: bytes) -> list[ExampleContent]:
+        # Split on "\n" only: str.splitlines() also splits on U+2028, U+0085 and other
+        # characters that JSON allows unescaped inside strings.
+        lines = (line.strip() for line in c.decode("utf-8-sig").split("\n"))
+        rows = [json.loads(line) for line in lines if line]
+
+        input_plan, output_plan, metadata_plan = _build_flatten_plans(
+            input_keys=input_keys,
+            output_keys=output_keys,
+            metadata_keys=metadata_keys,
+            flatten_keys=flatten_keys,
+            rows=rows,
         )
-    )
+
+        examples: list[ExampleContent] = []
+        for obj in rows:
+            example = ExampleContent(
+                input=input_plan.project(obj, skip_missing=True),
+                output=output_plan.project(obj, skip_missing=True),
+                metadata=metadata_plan.project(obj, skip_missing=True),
+                splits=_get_splits(row=obj, split_key=split_key, split_keys=split_keys),
+                span_id=_get_span_id(obj, span_id_key),
+                external_id=_get_example_id(obj, example_id_key),
+            )
+            examples.append(example)
+        return examples
+
+    examples = await run_in_threadpool(parse_and_process, content)
+    return iter(examples)
+
+
+def _get_splits(
+    *,
+    row: Mapping[Any, Any],
+    split_key: SplitKey,
+    split_keys: SplitKeys,
+) -> frozenset[str]:
+    if split_key:
+        return _parse_split_value(row.get(split_key, ""))
+    # split_keys will be deprecated in favor of the single split_key
+    return frozenset(str(v).strip() for k in split_keys if (v := row.get(k)) and str(v).strip())
+
+
+def _parse_split_value(raw: Any) -> frozenset[str]:
+    """Parse a split column value into a frozenset of split names.
+
+    Accepts a JSON list (e.g. '["train", "v1"]') or a plain string (e.g. 'train').
+    If the value is already a list (e.g. from JSONL), it is used directly.
+    """
+    if isinstance(raw, list):
+        return frozenset(str(s).strip() for s in raw if s and str(s).strip())
+    stripped = str(raw).strip() if raw else ""
+    if not stripped:
+        return frozenset()
+    try:
+        parsed = json.loads(stripped)
+        if isinstance(parsed, list):
+            return frozenset(str(s).strip() for s in parsed if s and str(s).strip())
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return frozenset([stripped])
 
 
 def _check_keys_exist(
@@ -643,14 +1207,51 @@ def _check_keys_exist(
     input_keys: InputKeys,
     output_keys: OutputKeys,
     metadata_keys: MetadataKeys,
+    split_keys: SplitKeys,
+    span_id_key: SpanIdKey = None,
+    example_id_key: ExampleIdKey = None,
+    split_key: SplitKey = None,
 ) -> None:
     for desc, keys in (
         ("input", input_keys),
         ("output", output_keys),
         ("metadata", metadata_keys),
+        ("split", split_keys),
     ):
         if keys and (diff := keys.difference(column_headers)):
             raise ValueError(f"{desc} keys not found in column headers: {diff}")
+    if span_id_key and span_id_key not in column_headers:
+        raise ValueError(f"span_id_key '{span_id_key}' not found in column headers")
+    if example_id_key and example_id_key not in column_headers:
+        raise ValueError(f"example_id_key '{example_id_key}' not found in column headers")
+    if split_key and split_key not in column_headers:
+        raise ValueError(f"split_key '{split_key}' not found in column headers")
+
+
+def _get_span_id(row: Mapping[Any, Any], span_id_key: SpanIdKey) -> Optional[str]:
+    """Extract span_id from a row, returning None if not present or empty."""
+    if not span_id_key:
+        return None
+    value = row.get(span_id_key)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    str_value = str(value)
+    if str_value.lower() == "nan" or not str_value.strip():
+        return None
+    return str_value
+
+
+def _get_example_id(row: Mapping[Any, Any], example_id_key: ExampleIdKey) -> Optional[str]:
+    """Extract example_id from a row, returning None if not present or empty."""
+    if not example_id_key:
+        return None
+    value = row.get(example_id_key)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    str_value = str(value)
+    if str_value.lower() == "nan" or not str_value.strip():
+        return None
+    return str_value
 
 
 async def _parse_form_data(
@@ -662,6 +1263,11 @@ async def _parse_form_data(
     InputKeys,
     OutputKeys,
     MetadataKeys,
+    SplitKeys,
+    SplitKey,
+    SpanIdKey,
+    ExampleIdKey,
+    FlattenKeys,
     UploadFile,
 ]:
     name = cast(Optional[str], form.get("name"))
@@ -675,6 +1281,16 @@ async def _parse_form_data(
     input_keys = frozenset(filter(bool, cast(list[str], form.getlist("input_keys[]"))))
     output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
+    split_keys = frozenset(filter(bool, cast(list[str], form.getlist("split_keys[]"))))
+    split_key = cast(Optional[str], form.get("split_key")) or None
+    if split_keys and split_key:
+        raise ValueError(
+            "Cannot specify both 'split_keys[]' and 'split_key'. "
+            "Use 'split_key' for a single column with JSON-encoded split lists."
+        )
+    span_id_key = cast(Optional[str], form.get("span_id_key")) or None
+    example_id_key = cast(Optional[str], form.get("example_id_key")) or None
+    flatten_keys = frozenset(filter(bool, cast(list[str], form.getlist("flatten_keys[]"))))
     return (
         action,
         name,
@@ -682,21 +1298,34 @@ async def _parse_form_data(
         input_keys,
         output_keys,
         metadata_keys,
+        split_keys,
+        split_key,
+        span_id_key,
+        example_id_key,
+        flatten_keys,
         file,
     )
 
 
+class DatasetExampleSource(V1RoutesBaseModel):
+    span_id: str
+    span_node_id: str
+
+
 class DatasetExample(V1RoutesBaseModel):
     id: str
+    node_id: str
     input: dict[str, Any]
     output: dict[str, Any]
     metadata: dict[str, Any]
-    updated_at: datetime
+    updated_at: IsoDatetime
+    source: Optional[DatasetExampleSource] = None
 
 
 class ListDatasetExamplesData(V1RoutesBaseModel):
     dataset_id: str
     version_id: str
+    filtered_splits: list[str] = UNDEFINED
     examples: list[DatasetExample]
 
 
@@ -718,6 +1347,10 @@ async def get_dataset_examples(
         description=(
             "The ID of the dataset version (if omitted, returns data from the latest version)"
         ),
+    ),
+    split: Optional[list[str]] = Query(
+        default=None,
+        description="List of dataset split identifiers (GlobalIDs or names) to filter by",
     ),
 ) -> ListDatasetExamplesResponseBody:
     try:
@@ -795,9 +1428,15 @@ async def get_dataset_examples(
                 )
 
         subquery = partial_subquery.subquery()
+
         # Query for the most recent example revisions that are not deleted
         query = (
-            select(models.DatasetExample, models.DatasetExampleRevision)
+            select(
+                models.DatasetExample,
+                models.DatasetExampleRevision,
+                models.Span.id,
+                models.Span.span_id,
+            )
             .join(
                 models.DatasetExampleRevision,
                 models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
@@ -806,27 +1445,560 @@ async def get_dataset_examples(
                 subquery,
                 (subquery.c.max_id == models.DatasetExampleRevision.id),
             )
+            .outerjoin(models.Span, models.DatasetExample.span_rowid == models.Span.id)
             .filter(models.DatasetExample.dataset_id == resolved_dataset_id)
             .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(models.DatasetExample.id.asc())
         )
+
+        # If splits are provided, filter by dataset splits
+        resolved_split_names: list[str] = []
+        if split:
+            # Resolve split identifiers (IDs or names) to IDs and names
+            resolved_split_ids, resolved_split_names = await _resolve_split_identifiers(
+                session, split
+            )
+
+            # Add filter for splits (join with the association table)
+            # Use distinct() to prevent duplicates when an example belongs to
+            # multiple splits
+            query = (
+                query.join(
+                    models.DatasetSplitDatasetExample,
+                    models.DatasetExample.id
+                    == models.DatasetSplitDatasetExample.dataset_example_id,
+                )
+                .filter(models.DatasetSplitDatasetExample.dataset_split_id.in_(resolved_split_ids))
+                .distinct()
+            )
+
         examples = [
             DatasetExample(
-                id=str(GlobalID("DatasetExample", str(example.id))),
+                id=example.external_id
+                if isinstance(example.external_id, str)
+                else str(GlobalID("DatasetExample", str(example.id))),
+                node_id=str(GlobalID("DatasetExample", str(example.id))),
                 input=revision.input,
                 output=revision.output,
                 metadata=revision.metadata_,
                 updated_at=revision.created_at,
+                source=(
+                    DatasetExampleSource(
+                        span_id=span_id,
+                        span_node_id=str(GlobalID("Span", str(span_rowid))),
+                    )
+                    if span_rowid is not None and span_id is not None
+                    else None
+                ),
             )
-            async for example, revision in await session.stream(query)
+            async for (
+                example,
+                revision,
+                span_rowid,
+                span_id,
+            ) in await session.stream(query)
         ]
     return ListDatasetExamplesResponseBody(
         data=ListDatasetExamplesData(
             dataset_id=str(GlobalID("Dataset", str(resolved_dataset_id))),
             version_id=str(GlobalID("DatasetVersion", str(resolved_version_id))),
+            filtered_splits=resolved_split_names,
             examples=examples,
         )
     )
+
+
+class DatasetSplit(V1RoutesBaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    color: str
+    metadata: dict[str, Any]
+    example_count: int
+    created_at: IsoDatetime
+    updated_at: IsoDatetime
+
+
+class CreateDatasetSplitRequestBody(V1RoutesBaseModel):
+    name: str = Field(description="A unique name for the split.")
+    description: Optional[str] = Field(
+        default=None, description="An optional description of the split."
+    )
+    color: Optional[str] = Field(
+        default=None,
+        description="An optional hex color for the split (e.g. #33c5e8). Omit for a default.",
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Arbitrary JSON metadata for the split."
+    )
+    example_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional dataset example identifiers (GlobalIDs or user-provided IDs) to seed the "
+            "split with. Each example must belong to this dataset. Omit to create an empty split."
+        ),
+    )
+
+
+class ListDatasetSplitsResponseBody(PaginatedResponseBody[DatasetSplit]):
+    pass
+
+
+class CreateDatasetSplitResponseBody(ResponseBody[DatasetSplit]):
+    pass
+
+
+class UpdateDatasetSplitRequestBody(V1RoutesBaseModel):
+    name: Optional[str] = Field(default=None, description="A new unique name for the split.")
+    description: Optional[str] = Field(
+        default=None, description="A new description, or null to clear it."
+    )
+    color: Optional[str] = Field(default=None, description="A new hex color for the split.")
+    metadata: Optional[dict[str, Any]] = Field(
+        default=None, description="New JSON metadata that replaces the existing metadata."
+    )
+    add_example_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Dataset example identifiers (GlobalIDs or user-provided IDs) to add to the split. "
+            "Each example must belong to this dataset. Adding an example already in the split "
+            "is a no-op."
+        ),
+    )
+    remove_example_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Dataset example identifiers (GlobalIDs or user-provided IDs) to remove from the split."
+        ),
+    )
+
+
+class UpdateDatasetSplitResponseBody(ResponseBody[DatasetSplit]):
+    pass
+
+
+async def _resolve_dataset_example_rowids(
+    session: AsyncSession,
+    dataset_id: int,
+    example_ids: list[str],
+) -> list[int]:
+    """Resolve dataset example GlobalIDs or user-provided IDs within a dataset.
+
+    Returns the unique example row IDs, preserving the order in which they were
+    first seen. Valid DatasetExample GlobalIDs take precedence over matching
+    user-provided IDs. Raises 404 if any example does not exist in the dataset.
+    """
+    if not example_ids:
+        return []
+
+    global_rowids_by_identifier: dict[str, int] = {}
+    external_identifiers: set[str] = set()
+    for example_identifier in example_ids:
+        try:
+            rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(example_identifier),
+                DATASET_EXAMPLE_NODE_NAME,
+            )
+        except Exception:
+            external_identifiers.add(example_identifier)
+        else:
+            global_rowids_by_identifier[example_identifier] = rowid
+
+    lookup_conditions = []
+    if global_rowids_by_identifier:
+        lookup_conditions.append(models.DatasetExample.id.in_(global_rowids_by_identifier.values()))
+    if external_identifiers:
+        lookup_conditions.append(models.DatasetExample.external_id.in_(external_identifiers))
+
+    examples = list(
+        await session.scalars(
+            select(models.DatasetExample).where(
+                models.DatasetExample.dataset_id == dataset_id,
+                or_(*lookup_conditions),
+            )
+        )
+    )
+    found_rowids = {example.id for example in examples}
+    rowids_by_external_identifier = {
+        example.external_id: example.id for example in examples if example.external_id is not None
+    }
+
+    resolved_rowids: dict[int, None] = {}
+    missing_identifiers: dict[str, None] = {}
+    for example_identifier in example_ids:
+        if example_identifier in global_rowids_by_identifier:
+            global_rowid = global_rowids_by_identifier[example_identifier]
+            if global_rowid not in found_rowids:
+                missing_identifiers[example_identifier] = None
+                continue
+            resolved_rowids[global_rowid] = None
+            continue
+
+        external_rowid = rowids_by_external_identifier.get(example_identifier)
+        if external_rowid is None:
+            missing_identifiers[example_identifier] = None
+        else:
+            resolved_rowids[external_rowid] = None
+
+    if missing_identifiers:
+        raise HTTPException(
+            detail=(
+                f"Dataset examples not found in this dataset: {', '.join(missing_identifiers)}"
+            ),
+            status_code=404,
+        )
+    return list(resolved_rowids)
+
+
+async def _dataset_scoped_example_counts(
+    session: AsyncSession,
+    dataset_split_ids: Sequence[int],
+    dataset_id: int,
+) -> dict[int, int]:
+    """Per-split count of the dataset's live examples (latest revision not DELETE).
+
+    Splits with no live examples in the dataset are absent from the result.
+    """
+    if not dataset_split_ids:
+        return {}
+    member_example_ids = select(models.DatasetSplitDatasetExample.dataset_example_id).where(
+        models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids)
+    )
+    latest_revision_ids = (
+        select(func.max(models.DatasetExampleRevision.id))
+        .where(models.DatasetExampleRevision.dataset_example_id.in_(member_example_ids))
+        .group_by(models.DatasetExampleRevision.dataset_example_id)
+    )
+    rows = await session.execute(
+        select(models.DatasetSplitDatasetExample.dataset_split_id, func.count())
+        .select_from(models.DatasetSplitDatasetExample)
+        .join(
+            models.DatasetExample,
+            models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
+        )
+        .join(
+            models.DatasetExampleRevision,
+            models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+        )
+        .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(dataset_split_ids))
+        .where(models.DatasetExample.dataset_id == dataset_id)
+        .where(models.DatasetExampleRevision.id.in_(latest_revision_ids))
+        .where(models.DatasetExampleRevision.revision_kind != "DELETE")
+        .group_by(models.DatasetSplitDatasetExample.dataset_split_id)
+    )
+    return {split_id: example_count for split_id, example_count in rows}
+
+
+async def _dataset_scoped_example_count(
+    session: AsyncSession,
+    dataset_split_id: int,
+    dataset_id: int,
+) -> int:
+    """Count the split's live (not soft-deleted) examples in the given dataset."""
+    counts = await _dataset_scoped_example_counts(session, [dataset_split_id], dataset_id)
+    return counts.get(dataset_split_id, 0)
+
+
+def _to_dataset_split(split: models.DatasetSplit, *, example_count: int) -> DatasetSplit:
+    return DatasetSplit(
+        id=str(GlobalID(DATASET_SPLIT_NODE_NAME, str(split.id))),
+        name=split.name,
+        description=split.description,
+        color=split.color,
+        metadata=split.metadata_,
+        example_count=example_count,
+        created_at=split.created_at,
+        updated_at=split.updated_at,
+    )
+
+
+@router.get(
+    "/datasets/{dataset_identifier}/splits",
+    operation_id="listDatasetSplits",
+    summary="List dataset splits",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset not found"},
+            {"status_code": 422, "description": "Invalid request"},
+        ]
+    ),
+)
+async def list_dataset_splits(
+    request: Request,
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination",
+    ),
+    limit: int = Query(
+        default=10,
+        description="The max number of dataset splits to return at a time.",
+        gt=0,
+        le=1000,
+    ),
+) -> ListDatasetSplitsResponseBody:
+    async with request.app.state.db.read() as session:
+        dataset = await get_dataset_by_identifier(session, dataset_identifier)
+        # A split belongs to a dataset through its examples: it is listed when at
+        # least one of its examples is in the dataset, matching GraphQL Dataset.splits.
+        split_ids_in_dataset = (
+            select(models.DatasetSplitDatasetExample.dataset_split_id)
+            .join(
+                models.DatasetExample,
+                models.DatasetSplitDatasetExample.dataset_example_id == models.DatasetExample.id,
+            )
+            .where(models.DatasetExample.dataset_id == dataset.id)
+        )
+        query = (
+            select(models.DatasetSplit)
+            .where(models.DatasetSplit.id.in_(split_ids_in_dataset))
+            .order_by(models.DatasetSplit.id.desc())
+        )
+        if cursor:
+            query = query.where(
+                models.DatasetSplit.id <= parse_cursor_rowid(cursor, DATASET_SPLIT_NODE_NAME)
+            )
+        splits = list(await session.scalars(query.limit(limit + 1)))
+
+        next_cursor = None
+        if len(splits) == limit + 1:
+            next_cursor = str(GlobalID(DATASET_SPLIT_NODE_NAME, str(splits[-1].id)))
+            splits = splits[:-1]
+        counts = await _dataset_scoped_example_counts(
+            session, [split.id for split in splits], dataset.id
+        )
+    data = [_to_dataset_split(split, example_count=counts.get(split.id, 0)) for split in splits]
+    return ListDatasetSplitsResponseBody(next_cursor=next_cursor, data=data)
+
+
+@router.post(
+    "/datasets/{dataset_identifier}/splits",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createDatasetSplit",
+    summary="Create a dataset split",
+    status_code=201,
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset or example not found"},
+            {
+                "status_code": 409,
+                "description": "A dataset split with the given name already exists",
+            },
+            {"status_code": 422, "description": "Invalid request"},
+        ]
+    ),
+)
+async def create_dataset_split(
+    request: Request,
+    request_body: CreateDatasetSplitRequestBody,
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
+) -> CreateDatasetSplitResponseBody:
+    name = request_body.name.strip()
+    if not name:
+        raise HTTPException(detail="Dataset split name cannot be empty", status_code=422)
+    color = request_body.color if request_body.color is not None else DEFAULT_DATASET_SPLIT_COLOR
+    if not color.strip():
+        raise HTTPException(detail="Dataset split color cannot be empty", status_code=422)
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+    async with request.app.state.db() as session:
+        dataset = await get_dataset_by_identifier(session, dataset_identifier)
+        example_rowids = await _resolve_dataset_example_rowids(
+            session, dataset.id, request_body.example_ids
+        )
+        split = models.DatasetSplit(
+            name=name,
+            description=request_body.description or None,
+            color=color,
+            metadata_=request_body.metadata or {},
+            user_id=user_id,
+        )
+        session.add(split)
+        try:
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            await session.rollback()
+            raise HTTPException(
+                detail=f"A dataset split named '{name}' already exists",
+                status_code=409,
+            )
+        if example_rowids:
+            await session.execute(
+                insert(models.DatasetSplitDatasetExample),
+                [
+                    {"dataset_split_id": split.id, "dataset_example_id": rowid}
+                    for rowid in example_rowids
+                ],
+            )
+        await session.refresh(split)
+        example_count = await _dataset_scoped_example_count(session, split.id, dataset.id)
+        data = _to_dataset_split(split, example_count=example_count)
+    return CreateDatasetSplitResponseBody(data=data)
+
+
+@router.patch(
+    "/datasets/{dataset_identifier}/splits/{split_id}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="updateDatasetSplit",
+    summary="Update a dataset split",
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset, split, or example not found"},
+            {
+                "status_code": 409,
+                "description": "A dataset split with the given name already exists",
+            },
+            {"status_code": 422, "description": "Invalid request"},
+        ]
+    ),
+)
+async def update_dataset_split(
+    request: Request,
+    request_body: UpdateDatasetSplitRequestBody,
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
+    split_id: str = Path(description="The ID (GlobalID) of the dataset split."),
+) -> UpdateDatasetSplitResponseBody:
+    try:
+        split_rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(split_id), DATASET_SPLIT_NODE_NAME
+        )
+    except Exception:
+        raise HTTPException(detail=f"Invalid dataset split ID: {split_id}", status_code=422)
+
+    # Validate provided scalar fields up front so an invalid value fails before any DB work.
+    fields_set = request_body.model_fields_set
+    new_name: Optional[str] = None
+    if "name" in fields_set:
+        if request_body.name is None or not request_body.name.strip():
+            raise HTTPException(detail="Dataset split name cannot be empty", status_code=422)
+        new_name = request_body.name.strip()
+    new_color: Optional[str] = None
+    if "color" in fields_set:
+        if request_body.color is None or not request_body.color.strip():
+            raise HTTPException(detail="Dataset split color cannot be empty", status_code=422)
+        new_color = request_body.color
+
+    async with request.app.state.db() as session:
+        dataset = await get_dataset_by_identifier(session, dataset_identifier)
+        split = await session.get(models.DatasetSplit, split_rowid)
+        if split is None:
+            raise HTTPException(
+                detail=f"Dataset split with ID {split_id} not found", status_code=404
+            )
+
+        # Perform all reads before mutating the split: subsequent queries would
+        # otherwise autoflush pending changes and surface integrity errors
+        # (e.g. a duplicate name) outside the try/except below.
+        remove_rowids = await _resolve_dataset_example_rowids(
+            session, dataset.id, request_body.remove_example_ids
+        )
+        add_rowids = await _resolve_dataset_example_rowids(
+            session, dataset.id, request_body.add_example_ids
+        )
+        already_present = set(
+            await session.scalars(
+                select(models.DatasetSplitDatasetExample.dataset_example_id).where(
+                    models.DatasetSplitDatasetExample.dataset_split_id == split_rowid,
+                    models.DatasetSplitDatasetExample.dataset_example_id.in_(add_rowids),
+                )
+            )
+            if add_rowids
+            else []
+        )
+
+        # Only fields explicitly present in the request are changed; an omitted
+        # field is left untouched. An explicit null clears the description (the
+        # only nullable column) and is ignored for the non-nullable columns.
+        if new_name is not None:
+            split.name = new_name
+        if "description" in fields_set:
+            split.description = request_body.description or None
+        if new_color is not None:
+            split.color = new_color
+        if "metadata" in fields_set and isinstance(request_body.metadata, dict):
+            split.metadata_ = request_body.metadata
+
+        try:
+            # Add first, then remove, so an example listed in both arrays ends
+            # up removed (removal wins). Adding an example already in the split
+            # is a no-op; removing one that isn't a member is a no-op.
+            if to_add := [rowid for rowid in add_rowids if rowid not in already_present]:
+                await session.execute(
+                    insert(models.DatasetSplitDatasetExample),
+                    [
+                        {"dataset_split_id": split_rowid, "dataset_example_id": rowid}
+                        for rowid in to_add
+                    ],
+                )
+            if remove_rowids:
+                await session.execute(
+                    delete(models.DatasetSplitDatasetExample).where(
+                        models.DatasetSplitDatasetExample.dataset_split_id == split_rowid,
+                        models.DatasetSplitDatasetExample.dataset_example_id.in_(remove_rowids),
+                    )
+                )
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            # Membership inserts are pre-filtered against existing rows, so an
+            # integrity error here can only be the unique name constraint.
+            await session.rollback()
+            raise HTTPException(
+                detail="A dataset split with this name already exists",
+                status_code=409,
+            )
+        await session.refresh(split)
+        example_count = await _dataset_scoped_example_count(session, split_rowid, dataset.id)
+        data = _to_dataset_split(split, example_count=example_count)
+
+    return UpdateDatasetSplitResponseBody(data=data)
+
+
+@router.delete(
+    "/datasets/{dataset_identifier}/splits/{split_id}",
+    operation_id="deleteDatasetSplit",
+    summary="Delete a dataset split",
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset or split not found"},
+            {"status_code": 422, "description": "Invalid dataset split ID"},
+        ]
+    ),
+)
+async def delete_dataset_split(
+    request: Request,
+    dataset_identifier: str = Path(
+        description="The dataset identifier: either dataset ID or dataset name."
+    ),
+    split_id: str = Path(description="The ID (GlobalID) of the dataset split."),
+) -> None:
+    try:
+        split_rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(split_id), DATASET_SPLIT_NODE_NAME
+        )
+    except Exception:
+        raise HTTPException(detail=f"Invalid dataset split ID: {split_id}", status_code=422)
+    async with request.app.state.db() as session:
+        # Confirm the dataset exists so the path is meaningful, then delete the
+        # split globally. Its example memberships are removed via ON DELETE
+        # CASCADE; the underlying examples are left untouched.
+        await get_dataset_by_identifier(session, dataset_identifier)
+        deleted_id = await session.scalar(
+            delete(models.DatasetSplit)
+            .where(models.DatasetSplit.id == split_rowid)
+            .returning(models.DatasetSplit.id)
+        )
+        if deleted_id is None:
+            raise HTTPException(
+                detail=f"Dataset split with ID {split_id} not found", status_code=404
+            )
 
 
 @router.get(
@@ -852,13 +2024,30 @@ async def get_dataset_csv(
     ),
 ) -> Response:
     try:
-        async with request.app.state.db() as session:
-            dataset_name, examples = await _get_db_examples(
-                session=session, id=id, version_id=version_id
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
             )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
+        async with request.app.state.db() as session:
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            revisions = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
+            )
+            example_ids = [rev.dataset_example_id for rev in revisions]
+            split_names_by_example_id = await _get_split_names_by_example_id(session, example_ids)
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_csv, examples)
+    content = await run_in_threadpool(_get_content_csv, revisions, split_names_by_example_id)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     return Response(
         content=content,
@@ -867,6 +2056,63 @@ async def get_dataset_csv(
             "content-type": "text/csv",
         },
     )
+
+
+@router.get(
+    "/datasets/{id}/jsonl",
+    operation_id="getDatasetJSONL",
+    summary="Download dataset examples as JSONL file",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses(
+        [
+            {
+                "status_code": 422,
+                "description": "Invalid dataset or version ID",
+            }
+        ]
+    ),
+)
+async def get_dataset_jsonl(
+    request: Request,
+    response: Response,
+    id: str = Path(description="The ID of the dataset"),
+    version_id: Optional[str] = Query(
+        default=None,
+        description=(
+            "The ID of the dataset version (if omitted, returns data from the latest version)"
+        ),
+    ),
+) -> bytes:
+    try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
+        async with request.app.state.db() as session:
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            revisions = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
+            )
+            example_ids = [rev.dataset_example_id for rev in revisions]
+            split_names_by_example_id = await _get_split_names_by_example_id(session, example_ids)
+    except ValueError as e:
+        raise HTTPException(detail=str(e), status_code=422)
+    content = await run_in_threadpool(_get_content_jsonl, revisions, split_names_by_example_id)
+    encoded_dataset_name = urllib.parse.quote(dataset_name)
+    response.headers["content-disposition"] = (
+        f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
+    )
+    return content
 
 
 @router.get(
@@ -895,13 +2141,28 @@ async def get_dataset_jsonl_openai_ft(
     ),
 ) -> bytes:
     try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
         async with request.app.state.db() as session:
-            dataset_name, examples = await _get_db_examples(
-                session=session, id=id, version_id=version_id
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            revisions = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_jsonl_openai_ft, examples)
+    content = await run_in_threadpool(_get_content_jsonl_openai_ft, revisions)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
         f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
@@ -935,13 +2196,28 @@ async def get_dataset_jsonl_openai_evals(
     ),
 ) -> bytes:
     try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except Exception as e:
+        raise HTTPException(detail=f"Invalid dataset ID format: {id}", status_code=422) from e
+    dataset_version_id: Optional[int] = None
+    if version_id:
+        try:
+            dataset_version_id = from_global_id_with_expected_type(
+                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
+            )
+        except Exception as e:
+            raise HTTPException(
+                detail=f"Invalid dataset version ID format: {version_id}", status_code=422
+            ) from e
+    try:
         async with request.app.state.db() as session:
-            dataset_name, examples = await _get_db_examples(
-                session=session, id=id, version_id=version_id
+            dataset_name = await _get_dataset_name(session=session, dataset_id=dataset_id)
+            revisions = await _get_dataset_example_revisions(
+                session=session, dataset_id=dataset_id, dataset_version_id=dataset_version_id
             )
     except ValueError as e:
         raise HTTPException(detail=str(e), status_code=422)
-    content = await run_in_threadpool(_get_content_jsonl_openai_evals, examples)
+    content = await run_in_threadpool(_get_content_jsonl_openai_evals, revisions)
     encoded_dataset_name = urllib.parse.quote(dataset_name)
     response.headers["content-disposition"] = (
         f"attachment; filename*=UTF-8''{encoded_dataset_name}.jsonl"
@@ -949,29 +2225,86 @@ async def get_dataset_jsonl_openai_evals(
     return content
 
 
-def _get_content_csv(examples: list[models.DatasetExampleRevision]) -> bytes:
-    records = [
-        {
-            "example_id": GlobalID(
+def _flatten_for_csv(obj: dict[str, Any], prefix: str) -> Iterator[tuple[str, Any]]:
+    """Recursively flatten a dict for CSV export using period-separated keys.
+
+    Nested dicts are recursively flattened. Lists are JSON-serialized.
+    Scalars are kept as-is.
+    """
+    for key, value in obj.items():
+        full_key = f"{prefix}.{key}"
+        if isinstance(value, dict):
+            yield from _flatten_for_csv(value, full_key)
+        elif isinstance(value, (list, tuple)):
+            yield full_key, json.dumps(value, ensure_ascii=False)
+        else:
+            yield full_key, value
+
+
+def _get_content_csv(
+    revisions: list[models.DatasetExampleRevision],
+    split_names_by_example_id: Optional[dict[DatasetExampleId, list[SplitName]]],
+) -> bytes:
+    records = []
+    for revision in revisions:
+        node_id = str(
+            GlobalID(
                 type_name=DatasetExampleNodeType.__name__,
-                node_id=str(ex.dataset_example_id),
-            ),
-            **{f"input_{k}": v for k, v in ex.input.items()},
-            **{f"output_{k}": v for k, v in ex.output.items()},
-            **{f"metadata_{k}": v for k, v in ex.metadata_.items()},
+                node_id=str(revision.dataset_example_id),
+            )
+        )
+        record: dict[str, Any] = {
+            "id": revision.dataset_example.external_id or node_id,
+            "node_id": node_id,
         }
-        for ex in examples
-    ]
-    return str(pd.DataFrame.from_records(records).to_csv(index=False)).encode()
+        record.update(_flatten_for_csv(revision.input, "input"))
+        record.update(_flatten_for_csv(revision.output, "output"))
+        record.update(_flatten_for_csv(revision.metadata_, "metadata"))
+        if split_names_by_example_id is not None:
+            example_splits = split_names_by_example_id.get(revision.dataset_example_id, [])
+            record["splits"] = json.dumps(example_splits, ensure_ascii=False)
+        records.append(record)
+    return pd.DataFrame.from_records(records).to_csv(index=False).encode()
 
 
-def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl(
+    revisions: list[models.DatasetExampleRevision],
+    split_names_by_example_id: Optional[dict[DatasetExampleId, list[SplitName]]],
+) -> bytes:
     records = io.BytesIO()
-    for ex in examples:
-        input_messages = ex.input.get("messages", [])
+    for revision in revisions:
+        node_id: str = str(
+            GlobalID(
+                type_name=DatasetExampleNodeType.__name__,
+                node_id=str(revision.dataset_example_id),
+            )
+        )
+        example_id: str = revision.dataset_example.external_id or node_id
+        splits = (
+            split_names_by_example_id.get(revision.dataset_example_id, [])
+            if split_names_by_example_id is not None
+            else []
+        )
+        record: dict[str, Any] = {
+            "id": example_id,
+            "node_id": node_id,
+            "input": revision.input,
+            "output": revision.output,
+            "metadata": revision.metadata_,
+            "splits": splits,
+        }
+        records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
+    records.seek(0)
+    return records.read()
+
+
+def _get_content_jsonl_openai_ft(revisions: list[models.DatasetExampleRevision]) -> bytes:
+    records = io.BytesIO()
+    for revision in revisions:
+        input_messages = revision.input.get("messages", [])
         if not isinstance(input_messages, list):
             input_messages = []
-        output_messages = ex.output.get("messages", [])
+        output_messages = revision.output.get("messages", [])
         if not isinstance(output_messages, list):
             output_messages = []
 
@@ -979,7 +2312,7 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
             "messages": input_messages + output_messages,
         }
 
-        tools = ex.input.get("tools", [])
+        tools = revision.input.get("tools", [])
         if tools:
             record_dict["tools"] = tools
 
@@ -989,20 +2322,20 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
     return records.read()
 
 
-def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision]) -> bytes:
+def _get_content_jsonl_openai_evals(revisions: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
-    for ex in examples:
+    for revision in revisions:
         records.write(
             (
                 json.dumps(
                     {
                         "messages": ims
-                        if isinstance(ims := ex.input.get("messages"), list)
+                        if isinstance(ims := revision.input.get("messages"), list)
                         else [],
                         "ideal": (
                             ideal if isinstance(ideal := last_message.get("content"), str) else ""
                         )
-                        if isinstance(oms := ex.output.get("messages"), list)
+                        if isinstance(oms := revision.output.get("messages"), list)
                         and oms
                         and hasattr(last_message := oms[-1], "get")
                         else "",
@@ -1016,28 +2349,45 @@ def _get_content_jsonl_openai_evals(examples: list[models.DatasetExampleRevision
     return records.read()
 
 
-async def _get_db_examples(
-    *, session: Any, id: str, version_id: Optional[str]
-) -> tuple[str, list[models.DatasetExampleRevision]]:
-    try:
-        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
-    except Exception as e:
-        raise HTTPException(
-            detail=f"Invalid dataset ID format: {id}",
-            status_code=422,
-        ) from e
+async def _get_dataset_name(*, session: Any, dataset_id: int) -> DatasetName:
+    dataset_name: Optional[str] = await session.scalar(
+        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
+    )
+    if not dataset_name:
+        raise ValueError("Dataset does not exist.")
+    return dataset_name
 
-    dataset_version_id: Optional[int] = None
-    if version_id:
-        try:
-            dataset_version_id = from_global_id_with_expected_type(
-                GlobalID.from_id(version_id), DATASET_VERSION_NODE_NAME
-            )
-        except Exception as e:
-            raise HTTPException(
-                detail=f"Invalid dataset version ID format: {version_id}",
-                status_code=422,
-            ) from e
+
+async def _get_split_names_by_example_id(
+    session: Any,
+    example_ids: list[int],
+) -> Optional[dict[DatasetExampleId, list[SplitName]]]:
+    if not example_ids:
+        return None
+    result: dict[DatasetExampleId, list[SplitName]] = {}
+    stmt = (
+        select(
+            models.DatasetSplitDatasetExample.dataset_example_id,
+            models.DatasetSplit.name,
+        )
+        .join(
+            models.DatasetSplit,
+            models.DatasetSplitDatasetExample.dataset_split_id == models.DatasetSplit.id,
+        )
+        .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids))
+        .order_by(
+            models.DatasetSplitDatasetExample.dataset_example_id,
+            models.DatasetSplit.name,
+        )
+    )
+    async for example_id, split_name in await session.stream(stmt):
+        result.setdefault(example_id, []).append(split_name)
+    return result or None
+
+
+async def _get_dataset_example_revisions(
+    *, session: Any, dataset_id: int, dataset_version_id: Optional[int]
+) -> list[models.DatasetExampleRevision]:
     latest_version = (
         select(
             models.DatasetExampleRevision.dataset_example_id,
@@ -1068,15 +2418,122 @@ async def _get_db_examples(
         )
         .where(models.DatasetExampleRevision.revision_kind != "DELETE")
         .order_by(models.DatasetExampleRevision.dataset_example_id)
+        .options(joinedload(models.DatasetExampleRevision.dataset_example))
     )
-    dataset_name: Optional[str] = await session.scalar(
-        select(models.Dataset.name).where(models.Dataset.id == dataset_id)
-    )
-    if not dataset_name:
-        raise ValueError("Dataset does not exist.")
-    examples = [r async for r in await session.stream_scalars(stmt)]
-    return dataset_name, examples
+    return [r async for r in await session.stream_scalars(stmt)]
 
 
 def _is_all_dict(seq: Sequence[Any]) -> bool:
     return all(map(lambda obj: isinstance(obj, dict), seq))
+
+
+# Split identifier helper types and functions
+class _SplitId(int): ...
+
+
+_SplitIdentifier: TypeAlias = Union[_SplitId, str]
+
+
+def _parse_split_identifier(split_identifier: str) -> _SplitIdentifier:
+    """
+    Parse a split identifier as either a GlobalID or a name.
+
+    Args:
+        split_identifier: The identifier string (GlobalID or name)
+
+    Returns:
+        Either a _SplitId or an Identifier
+
+    Raises:
+        HTTPException: If the identifier format is invalid
+    """
+    if not split_identifier:
+        raise HTTPException(422, "Invalid split identifier")
+    try:
+        split_id = from_global_id_with_expected_type(
+            GlobalID.from_id(split_identifier),
+            DatasetSplitNodeType.__name__,
+        )
+    except ValueError:
+        return split_identifier
+    return _SplitId(split_id)
+
+
+async def _resolve_split_identifiers(
+    session: AsyncSession,
+    split_identifiers: list[str],
+) -> tuple[list[int], list[str]]:
+    """
+    Resolve a list of split identifiers (IDs or names) to split IDs and names.
+
+    Args:
+        session: The database session
+        split_identifiers: List of split identifiers (GlobalIDs or names)
+
+    Returns:
+        Tuple of (list of split IDs, list of split names)
+
+    Raises:
+        HTTPException: If any split identifier is invalid or not found
+    """
+    split_ids: list[int] = []
+    split_names: list[str] = []
+
+    # Parse all identifiers first
+    parsed_identifiers: list[_SplitIdentifier] = []
+    for identifier_str in split_identifiers:
+        parsed_identifiers.append(_parse_split_identifier(identifier_str.strip()))
+
+    # Separate IDs and names
+    requested_ids: list[int] = []
+    requested_names: list[str] = []
+    for identifier in parsed_identifiers:
+        if isinstance(identifier, _SplitId):
+            requested_ids.append(int(identifier))
+        elif isinstance(identifier, str):
+            requested_names.append(identifier)
+        else:
+            assert_never(identifier)
+
+    # Query for splits by ID
+    if requested_ids:
+        id_results = await session.stream(
+            select(models.DatasetSplit.id, models.DatasetSplit.name).where(
+                models.DatasetSplit.id.in_(requested_ids)
+            )
+        )
+        async for split_id, split_name in id_results:
+            split_ids.append(split_id)
+            split_names.append(split_name)
+
+        # Check if all requested IDs were found
+        found_ids = set(split_ids[-len(requested_ids) :] if requested_ids else [])
+        missing_ids = [sid for sid in requested_ids if sid not in found_ids]
+        if missing_ids:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Dataset splits not found for IDs: {', '.join(map(str, missing_ids))}",
+            )
+
+    # Query for splits by name
+    if requested_names:
+        name_results = await session.stream(
+            select(models.DatasetSplit.id, models.DatasetSplit.name).where(
+                models.DatasetSplit.name.in_(requested_names)
+            )
+        )
+        name_to_id: dict[str, int] = {}
+        async for split_id, split_name in name_results:
+            split_ids.append(split_id)
+            split_names.append(split_name)
+            name_to_id[split_name] = split_id
+
+        # Check if all requested names were found
+        missing_names = [name for name in requested_names if name not in name_to_id]
+        if missing_names:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Dataset splits not found: {', '.join(missing_names)}",
+            )
+
+    return split_ids, split_names

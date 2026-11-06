@@ -56,7 +56,7 @@ class ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(DataLoader[Key, Re
                 models.ExperimentRunAnnotation.name,
             )
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             annotation_summaries = (await session.execute(annotation_summaries_query)).all()
         annotation_summaries_by_key: dict[Key, list[AnnotationSummary]] = {}
         for summary in annotation_summaries:

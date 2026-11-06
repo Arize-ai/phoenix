@@ -1,9 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-# Organization
-
-- All re-usable components should be placed in src/components
-- All storybook files should be placed in stories/

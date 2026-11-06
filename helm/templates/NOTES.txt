@@ -39,8 +39,12 @@ To access Phoenix:
 Admin credentials:
 {{- if .Values.auth.secret }}
   Username: admin
+{{- if .Values.auth.createSecret }}
   Password: To get the admin password run:
     kubectl get secret --namespace {{ .Release.Namespace }} {{ .Values.auth.name }} -o jsonpath="{.data.PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD}" | base64 -d
+{{- else }}
+  Password: Using externally managed secret "{{ .Values.auth.name }}". Retrieve the password from your secret management system.
+{{- end }}
 
 {{- end }}
 {{- end }}

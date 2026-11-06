@@ -186,6 +186,10 @@ class TestAnnotationConfigMutations:
         name
         annotationType
         description
+        optimizationDirection
+        threshold
+        lowerBound
+        upperBound
     }
     """
 
@@ -236,10 +240,18 @@ class TestAnnotationConfigMutations:
                 {
                     "name": "Test Freeform Config",
                     "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "threshold": 0.5,
+                    "lowerBound": 0.0,
+                    "upperBound": 1.0,
                 },
                 {
                     "name": "Updated Freeform Config",
                     "description": "Updated description",
+                    "optimizationDirection": "MINIMIZE",
+                    "threshold": 0.25,
+                    "lowerBound": -1.0,
+                    "upperBound": 2.0,
                 },
                 AnnotationType.FREEFORM.value,
                 id="freeform",
@@ -284,8 +296,9 @@ class TestAnnotationConfigMutations:
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 1
-        assert configs[0]["node"] == created_config
+        assert len(configs) == 2  # Includes the seeded user_feedback config.
+        assert any(config["node"] == created_config for config in configs)
+        assert any(config["node"]["name"] == "user_feedback" for config in configs)
 
         # Update the annotation config
         update_response = await gql_client.execute(
@@ -374,7 +387,8 @@ class TestAnnotationConfigMutations:
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 0
+        assert len(configs) == 1  # Only the seeded user_feedback config remains.
+        assert configs[0]["node"]["name"] == "user_feedback"
 
     @pytest.mark.parametrize(
         "config,annotation_type",
@@ -435,7 +449,10 @@ class TestAnnotationConfigMutations:
         assert response.errors
         assert len(response.errors) == 1
         error = response.errors[0]
-        assert "The name 'note' is reserved for span notes" in error.message
+        assert (
+            "The name 'note' is reserved for notes and cannot be used for annotation configs."
+            in error.message
+        )
 
     @pytest.mark.parametrize(
         ("update_config", "annotation_type"),
@@ -517,7 +534,10 @@ class TestAnnotationConfigMutations:
         assert update_response.errors
         assert len(update_response.errors) == 1
         error = update_response.errors[0]
-        assert "The name 'note' is reserved for span notes" in error.message
+        assert (
+            "The name 'note' is reserved for notes and cannot be used for annotation configs."
+            in error.message
+        )
 
     @pytest.mark.parametrize(
         ("annotation_type", "config"),
@@ -730,6 +750,32 @@ class TestAnnotationConfigMutations:
         error = response.errors[0]
         assert "Annotation config not found" in error.message
 
+    async def test_create_freeform_annotation_config_with_invalid_bounds_returns_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "test-config",
+                            "description": "test description",
+                            "lowerBound": 1.0,
+                            "upperBound": 0.0,
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert response.data is None
+        assert response.errors
+        assert len(response.errors) == 1
+        error = response.errors[0]
+        assert "Lower bound must be strictly less than upper bound" in error.message
+
     async def test_update_continuous_annotation_config_with_invalid_bounds_returns_expected_error(
         self,
         gql_client: AsyncGraphQLClient,
@@ -836,8 +882,9 @@ class TestAnnotationConfigMutations:
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 1
-        assert configs[0]["node"]["id"] == config_id
+        assert len(configs) == 2  # Includes the seeded user_feedback config.
+        assert any(config["node"]["id"] == config_id for config in configs)
+        assert any(config["node"]["name"] == "user_feedback" for config in configs)
 
     async def test_cannot_add_same_annotation_config_to_project_twice(
         self,

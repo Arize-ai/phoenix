@@ -1,0 +1,185 @@
+{
+  "project_name": "mobile-review-queue",
+  "project_id": 127,
+  "planted_traces": [
+    {
+      "session_id": "support-billing-0142",
+      "turn": 2,
+      "trace_id": "530665444fbec6b047139a9b506f8859",
+      "root_span_id": "c6bb315b72f5901b",
+      "llm_span_id": "18a0b53af20baa7f",
+      "defect": "Precise dollar breakdown ($29 subscription + $28.40 overage = $57.40) with no invoice, usage record, or tool span anywhere in the trace, and the arithmetic is wrong: 14,200 tokens at $0.002 per 1k tokens is $0.028, not $28.40. Either observation identifies this defect.",
+      "dimensions": [
+        "answer_grounding"
+      ]
+    },
+    {
+      "session_id": "agent-refund-flow-9",
+      "turn": 1,
+      "trace_id": "66074030e122d91dcb2ef3a3111e37fb",
+      "root_span_id": "e48658f76d82752c",
+      "llm_span_id": "02db79719e8a1ddd",
+      "defect": "Asserts '30-day window', 'damage photos attached', and a $84.99 refund amount that appear nowhere in the input, and claims 'Initiating refund' although the trace has no TOOL or API span, so no action was executed.",
+      "dimensions": [
+        "answer_grounding",
+        "action_execution"
+      ]
+    },
+    {
+      "session_id": "rag-quarterly-report-3",
+      "turn": 1,
+      "trace_id": "8b3f5b1f7b0fac4b6a24eb131210b072",
+      "root_span_id": "197df13dae636230",
+      "llm_span_id": "aa098aae95a2167d",
+      "defect": "Answers 'Q2 revenue grew 18% QoQ' plus three named drivers from an 'uploaded board deck' while the trace contains no retriever span, document context, or citation; the LLM input is just the user sentence.",
+      "dimensions": [
+        "answer_grounding",
+        "retrieval_instrumentation"
+      ]
+    },
+    {
+      "session_id": "rag-quarterly-report-3",
+      "turn": 2,
+      "trace_id": "825243c374db874efe4f16cd94cafd19",
+      "root_span_id": "055f0b2012a73f08",
+      "llm_span_id": "2a886fd1a279dd4c",
+      "defect": "Invents deal-level evidence ('two of the five largest deals renew in Q3', 'both flagged budget reviews') with no retrieval or tool span, compounding the unverified claims of the prior turn.",
+      "dimensions": [
+        "answer_grounding",
+        "retrieval_instrumentation"
+      ]
+    },
+    {
+      "session_id": "chaotic-eval-run-51",
+      "turn": 2,
+      "trace_id": "914e1f100fba1951ff06323e13f514cb",
+      "root_span_id": "328b89964b1a9bd4",
+      "llm_span_id": "769e6730ffc47aa6",
+      "defect": "Both spans carry status ERROR with message 'model timeout' yet a complete French haiku was returned as output, so the error status and the produced output contradict each other.",
+      "dimensions": [
+        "runtime_health"
+      ]
+    }
+  ],
+  "clean_traces": [
+    {
+      "session_id": "support-billing-0142",
+      "turn": 1,
+      "trace_id": "660d6a9fe57e74b3b64d7e075d20ec78",
+      "root_span_id": "049a7cfc0b438629",
+      "note": "Generic but reasonable billing reply that offers a breakdown; borderline, a note here is acceptable but not required."
+    },
+    {
+      "session_id": "onboarding-walkthrough-77",
+      "turn": 1,
+      "trace_id": "3642423f8338f1d98469bc0bb0b7c99c",
+      "root_span_id": "b75472d5cf919a3b"
+    },
+    {
+      "session_id": "onboarding-walkthrough-77",
+      "turn": 2,
+      "trace_id": "1919294540349140881f194d99330ddb",
+      "root_span_id": "31ecf2db8f21c617"
+    },
+    {
+      "session_id": "onboarding-walkthrough-77",
+      "turn": 3,
+      "trace_id": "c57fe004e672c68e141fea4248793ea8",
+      "root_span_id": "049bc67b7ef12922"
+    },
+    {
+      "session_id": "chaotic-eval-run-51",
+      "turn": 1,
+      "trace_id": "711a5663259ac5e600d3c4b8b6713233",
+      "root_span_id": "1db00f3521aba2f4"
+    },
+    {
+      "session_id": "fresh-unreviewed-session-x",
+      "turn": 1,
+      "trace_id": "d8de39de78852fc5098c91c191ddf94f",
+      "root_span_id": "7389b109bd869f45"
+    }
+  ],
+  "expected_dimensions": {
+    "answer_grounding": {
+      "question": "Are the factual claims in the answer supported by input, retrieved context, or tool output visible in the trace?",
+      "accepted_names": [
+        "answer_grounding",
+        "answer_faithfulness",
+        "factual_grounding",
+        "groundedness",
+        "hallucination",
+        "claim_support",
+        "evidentiary_support"
+      ],
+      "example_labels": [
+        "grounded",
+        "invented_fact",
+        "unsupported_claim",
+        "fabricated_number",
+        "calculation_error"
+      ]
+    },
+    "action_execution": {
+      "question": "When the answer claims an action was taken, does the trace contain a tool or API span that executed it?",
+      "accepted_names": [
+        "action_execution",
+        "claimed_action",
+        "tool_execution",
+        "unexecuted_action",
+        "action_verification"
+      ],
+      "example_labels": [
+        "executed",
+        "claimed_without_execution",
+        "no_action_claimed"
+      ]
+    },
+    "retrieval_instrumentation": {
+      "question": "When the answer relies on a document or external source, is a retriever or tool span present to show where the context came from?",
+      "accepted_names": [
+        "retrieval_instrumentation",
+        "retrieval_presence",
+        "context_provenance",
+        "source_visibility",
+        "instrumentation_gap",
+        "missing_retrieval"
+      ],
+      "example_labels": [
+        "retrieval_present",
+        "retrieval_missing",
+        "not_applicable"
+      ]
+    },
+    "runtime_health": {
+      "question": "Is the span status consistent with what the span produced?",
+      "accepted_names": [
+        "runtime_health",
+        "status_consistency",
+        "error_status",
+        "execution_status",
+        "model_timeout"
+      ],
+      "example_labels": [
+        "ok",
+        "error_with_output",
+        "timeout"
+      ]
+    }
+  },
+  "generic_config_names_blocklist": [
+    "failure_mode",
+    "failure_category",
+    "failure_type",
+    "category",
+    "issue",
+    "issues",
+    "problem",
+    "pxi_failure_mode",
+    "pxi_issue",
+    "quality",
+    "error"
+  ],
+  "note_annotation_name": "note",
+  "identifier_prefix": "coding-run:"
+}

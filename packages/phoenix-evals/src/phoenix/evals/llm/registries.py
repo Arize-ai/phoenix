@@ -1,4 +1,5 @@
 import logging
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypedDict
 
 from phoenix.evals.utils import emoji_guard
@@ -99,7 +100,7 @@ class ProviderRegistry(metaclass=SingletonMeta):
 
         try:
             self._check_dependencies(registration)
-        except ImportError:
+        except PackageNotFoundError:
             self._disabled_providers.append(registration)
             return
 
@@ -129,7 +130,7 @@ class ProviderRegistry(metaclass=SingletonMeta):
             return
 
         for dep in registration.dependencies:
-            __import__(dep)
+            version(dep)
 
     def list_providers(self) -> List[str]:
         """List all available providers."""
@@ -208,9 +209,9 @@ def _color_dependencies(dependencies: List[str]) -> str:
 
     for dep in dependencies:
         try:
-            __import__(dep)
+            version(dep)
             colored_deps.append(f"{Colors.GREEN}{dep}{Colors.RESET}")
-        except ImportError:
+        except PackageNotFoundError:
             colored_deps.append(f"{Colors.RED}{dep}{Colors.RESET}")
 
     return ", ".join(colored_deps)
@@ -299,7 +300,7 @@ def register_provider(
         client_factory (Callable[..., Any]): Factory function to create clients for this provider.
         get_rate_limit_errors (Optional[Callable[..., List[Type[Exception]]]]): Optional function
             to get rate limit errors for this client/provider.
-        dependencies (Optional[List[str]]): Optional list of required packages.
+        dependencies (Optional[List[str]]): Optional list of required pip package names.
 
     Returns:
         Callable[[Type["BaseLLMAdapter"]], Type["BaseLLMAdapter"]]: A decorator function.

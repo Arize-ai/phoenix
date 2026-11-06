@@ -4,55 +4,151 @@ permissions:
 
 on:
   push:
-    branches: [main, feat/annotations]
-    paths:
-      - "src/**"
-      - "app/**"
+    branches:
+      - main
+      - version-*
   pull_request:
-    branches: [main, feat/annotations]
-    paths:
-      - "src/**"
-      - "app/**"
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - version-*
+  schedule:
+    - cron: "0 16 * * MON-FRI"
+  workflow_dispatch:
+
+env:
+  ACTIONS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
 jobs:
+  changes:
+    name: Filter Changes
+    if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    outputs:
+      e2e: ${{ steps.filter.outputs.e2e == 'true' && steps.bookkeeping.outputs.only != 'true' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            e2e:
+              # The Python backend the suite runs against, plus the
+              # inputs `uv sync --extra container` resolves from: the
+              # dependency set, the lockfile and the interpreter pin.
+              # packages/* are uv workspace members that get installed
+              # from source, but the server never imports them (they are
+              # a re-export bridge for `pip install arize-phoenix`), and
+              # any dependency change they cause shows up in uv.lock.
+              - "src/**"
+              - "pyproject.toml"
+              - "uv.lock"
+              - ".python-version"
+              # The app under test.
+              - "js/app/**"
+              # phoenix-client and phoenix-testing regenerate their API
+              # types from this schema in `prebuild`, so it feeds the
+              # app's dependency build even though it lives outside js/.
+              - "schemas/openapi.json"
+              # Only the workspace packages the app actually builds
+              # against, i.e. the closure of
+              # `pnpm --filter 'phoenix-ui^...' run build` (see the
+              # `pretest:e2e` script in js/app/package.json):
+              # phoenix-client and phoenix-evals, plus their transitive
+              # workspace deps phoenix-config, phoenix-otel and
+              # phoenix-testing. phoenix-cli is a downstream consumer of
+              # the workspace, not an input to the app build, so changes
+              # there must not trigger e2e. Add a package here if the app
+              # ever starts depending on it.
+              - "js/packages/phoenix-client/**"
+              - "js/packages/phoenix-config/**"
+              - "js/packages/phoenix-evals/**"
+              - "js/packages/phoenix-otel/**"
+              - "js/packages/phoenix-testing/**"
+              # Workspace-level config that changes how the app's
+              # dependencies are resolved, installed or compiled.
+              # .pnpmfile.cjs rewrites resolution via a readPackage hook,
+              # so it changes what gets installed without touching any
+              # package.json.
+              - "js/package.json"
+              - "js/pnpm-lock.yaml"
+              - "js/pnpm-workspace.yaml"
+              - "js/.npmrc"
+              - "js/.pnpmfile.cjs"
+              - "js/tsconfig.base.json"
+              - "js/tsconfig.base.esm.json"
+              - ".github/workflows/playwright.yaml"
+      # Skip suites only when every changed path is a changelog or release
+      # manifest.
+      - name: Detect a bookkeeping-only change
+        id: bookkeeping
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        run: |
+          python3 - <<'PYTHON'
+          import os, re, subprocess
+          files = subprocess.check_output([
+              "git", "diff", "--no-renames", "--name-only", "-z", "HEAD^1", "HEAD"
+          ]).split(b"\0")[:-1]
+          allowed = rb"(?:\.release-please-manifest\.json|CHANGELOG\.md|packages/[^/]+/CHANGELOG\.md)"
+          only = bool(files) and all(re.fullmatch(allowed, path) for path in files)
+          print(f"Release bookkeeping only: {only}")
+          if only:
+              with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                  output.write("only=true\n")
+          PYTHON
+
+
   e2e-test:
     timeout-minutes: 60
     runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.e2e == 'true') }}
     defaults:
       run:
-        working-directory: ./app
+        working-directory: ./js/app
     env:
       # We're skipping WebKit because of recurring issues with caching,
       # despite always installing it on cache-hit.
       CI_PLAYWRIGHT_SKIP_WEBKIT: true
+      CI_PLAYWRIGHT_SKIP_FIREFOX: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
     strategy:
       fail-fast: true
       matrix:
-        py: [3.13]
+        py: [3.15]
         # large runners have more disk space, which we need for our in-runner phoenix db
         os: [oss-4-core-runner] # re-add macos-latest-large once billing is set
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Install PNPM
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
-          version: 10.2.0
+          package_json_file: js/package.json
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          cache-dependency-path: ./app/pnpm-lock.yaml
-          node-version: lts/*
+          cache-dependency-path: ./js/pnpm-lock.yaml
+          node-version-file: .nvmrc
           cache: pnpm
       - name: Install dependencies
+        working-directory: ./js
         run: pnpm install --frozen-lockfile
       - name: Get installed Playwright version
         id: playwright-version
-        run: echo "PLAYWRIGHT_VERSION=$(pnpm list --json | jq -r '.[0].devDependencies["@playwright/test"].version')" >> $GITHUB_ENV
+        run: |
+          PLAYWRIGHT_VERSION=$(node -p "require('@playwright/test/package.json').version")
+          echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> "$GITHUB_ENV"
       - name: Cache Playwright binaries
-        uses: actions/cache@v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ hashFiles('app/playwright.config.ts') }}
+          key: ${{ runner.os }}-playwright-${{ env.PLAYWRIGHT_VERSION }}-${{ hashFiles('js/app/playwright.config.ts') }}
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps
@@ -60,24 +156,101 @@ jobs:
         # WebKit dependencies can't be cached and must always be installed.
         if: ${{ env.CI_PLAYWRIGHT_SKIP_WEBKIT != 'true' && steps.playwright-cache.outputs.cache-hit == 'true' }}
         run: pnpm exec playwright install-deps webkit
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: 0.7.12
-          enable-cache: true
-          cache-dependency-glob: |
-            "**/requirements/**/*.txt"
-            "**/pyproject.toml"
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+          cache-dependency-glob: "uv.lock"
       - name: Install dependencies
+        if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
         run: uv sync --extra container
+      - name: Install dependencies (with upgrade)
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          echo ${{ matrix.py }} > ../../.python-version
+          uv sync --upgrade --extra container
+      # Sandbox providers used by the Playwright suite (Deno for TypeScript
+      # code evaluators, CPython WASM for Python). The Phoenix container image
+      # bundles these (see Dockerfile); the e2e runner is bare so we pin the
+      # same versions and surface them via the same env-var contract that
+      # ensure_wasm_binary() / DenoAdapter consume.
+      - name: Install Deno (TypeScript sandbox provider)
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.1.4
+      - name: Pre-download CPython WASM binary
+        working-directory: ${{ github.workspace }}
+        # URL/filename/sha256 MUST stay in sync with
+        # src/phoenix/server/sandbox/_download.py (_WASM_URL /
+        # _WASM_FILENAME / _WASM_SHA256). The sha256 assertion guards
+        # against upstream release-asset tampering.
+        run: |
+          mkdir -p .cache/wasm
+          python -c "import hashlib, sys, urllib.request; \
+          url = 'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm'; \
+          dest = '.cache/wasm/python-3.12.0.wasm'; \
+          expected = 'e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763'; \
+          urllib.request.urlretrieve(url, dest); \
+          actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
+          (actual == expected) or sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}')"
+          echo "PHOENIX_WASM_BINARY_PATH=${{ github.workspace }}/.cache/wasm/python-3.12.0.wasm" >> "$GITHUB_ENV"
       - name: Run Playwright tests
         run: pnpm test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
           name: playwright-report-py${{ matrix.py }}-${{ matrix.os }}
-          path: app/playwright-report/
+          path: js/app/playwright-report/
           retention-days: 30
+
+  ci-required:
+    name: Playwright CI Required
+    needs:
+      - changes
+      - e2e-test
+    if: ${{ always() && github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"
+
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [e2e-test]
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    steps:
+      - name: Notify success
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+              "text": "Daily Playwright tests passed\n${{ env.ACTIONS_RUN_URL }}"
+            }
+      - name: Notify failure
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+              "text": "🚨🚨🚨 DAILY PLAYWRIGHT TESTS FAILED 🚨🚨🚨\n${{ env.ACTIONS_RUN_URL }}"
+            }

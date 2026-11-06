@@ -1,0 +1,11 @@
+import type { ReactNode } from "react";
+
+import { View } from "@phoenix/components/core/view";
+
+export function PaddedCell({ children }: { children: ReactNode }) {
+  return (
+    <View paddingX="size-200" paddingY="size-100">
+      {children}
+    </View>
+  );
+}

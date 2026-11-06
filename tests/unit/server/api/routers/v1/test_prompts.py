@@ -7,21 +7,24 @@ from secrets import token_hex
 from typing import Any, Optional, Union
 from urllib.parse import quote_plus
 
-import httpx
+import httpx2
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
 from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, ValidationError, create_model
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.prompts.models import (
+from phoenix.db.types.prompts import (
     PromptChatTemplate,
+    PromptDeepSeekInvocationParameters,
+    PromptDeepSeekInvocationParametersContent,
     PromptMessage,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
@@ -82,11 +85,52 @@ class TestPromptVersionData:
                 model_name=token_hex(16),
             )
 
+    def test_rest_body_normalizes_legacy_openai_discriminator(self) -> None:
+        legacy = PromptDeepSeekInvocationParameters(
+            type="deepseek",
+            deepseek=PromptDeepSeekInvocationParametersContent(temperature=0.42),
+        )
+        pv = PromptVersionData(
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            template=PromptChatTemplate(
+                type="chat", messages=[PromptMessage(role="user", content="hi")]
+            ),
+            invocation_parameters=legacy,
+            model_provider=ModelProvider.DEEPSEEK,
+            model_name=token_hex(16),
+        )
+        assert isinstance(pv.invocation_parameters, PromptOpenAIInvocationParameters)
+        assert pv.invocation_parameters.type == "openai"
+        assert pv.invocation_parameters.openai.temperature == 0.42
+
 
 class TestPrompts:
+    async def test_list_prompt_versions(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        for prompt_identifier in prompt_id, prompt.name.root:
+            url = f"v1/prompts/{quote_plus(prompt_identifier)}/versions"
+            cursor = None
+            for prompt_version in reversed(prompt_versions):
+                params = {"limit": "1"}
+                if cursor:
+                    params["cursor"] = cursor
+                response = await httpx_client.get(url, params=params)
+                assert response.is_success
+                body = response.json()
+                assert len(body["data"]) == 1
+                self._compare_prompt_version(body["data"][0], prompt_version)
+                cursor = body.get("next_cursor")
+            assert cursor is None
+
     async def test_get_latest_prompt_version(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -100,7 +144,7 @@ class TestPrompts:
 
     async def test_get_prompt_version_by_prompt_version_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -113,7 +157,7 @@ class TestPrompts:
 
     async def test_get_prompt_version_by_tag_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -125,6 +169,413 @@ class TestPrompts:
             assert (response := await httpx_client.get(url)).is_success
             assert isinstance((data := response.json()["data"]), dict)
             self._compare_prompt_version(data, prompt_version)
+
+    async def test_delete_prompt_version_tag(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_version = prompt_versions[0]
+        tag_name: Identifier = await self._tag_prompt_version(db, prompt_version)
+        prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/{quote_plus(tag_name.root)}"
+        assert (await httpx_client.delete(url)).status_code == 204
+        assert (await httpx_client.delete(url)).status_code == 404
+
+    async def test_delete_prompt_version_tag_not_found(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_version = prompt_versions[0]
+        prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/nonexistent-tag"
+        assert (await httpx_client.delete(url)).status_code == 404
+
+    async def test_delete_prompt_version_tag_invalid_version_id(
+        self,
+        httpx_client: httpx2.AsyncClient,
+    ) -> None:
+        url = "v1/prompt_versions/invalid-id/tags/some-tag"
+        assert (await httpx_client.delete(url)).status_code == 422
+
+    async def test_delete_prompt_version_tag_invalid_tag_name(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_version = prompt_versions[0]
+        prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
+        url = (
+            f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags/{quote_plus('invalid tag!')}"
+        )
+        assert (await httpx_client.delete(url)).status_code == 422
+
+    async def test_delete_prompt_by_name(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 204
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is None
+
+    async def test_delete_prompt_by_id(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        url = f"v1/prompts/{quote_plus(prompt_id)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 204
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is None
+
+    async def test_delete_prompt_not_found(
+        self,
+        httpx_client: httpx2.AsyncClient,
+    ) -> None:
+        url = "v1/prompts/nonexistent-prompt-name"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 404
+
+    async def test_patch_prompt_by_name(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        response = await httpx_client.patch(
+            url,
+            json={
+                "description": "  Updated prompt  ",
+                "metadata": {"team": "ml-ops", "workflow": "prompt-eval"},
+            },
+        )
+
+        assert response.is_success
+        data = response.json()["data"]
+        assert (
+            from_global_id_with_expected_type(GlobalID.from_id(data.pop("id")), Prompt.__name__)
+            == prompt.id
+        )
+        assert data.pop("name") == prompt.name.root
+        assert data.pop("description") == "Updated prompt"
+        assert data.pop("metadata") == {"team": "ml-ops", "workflow": "prompt-eval"}
+        assert not data
+        async with db() as session:
+            updated_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert updated_prompt is not None
+            assert updated_prompt.description == "Updated prompt"
+            assert updated_prompt.metadata_ == {"team": "ml-ops", "workflow": "prompt-eval"}
+
+    async def test_patch_prompt_by_id_can_clear_fields(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        url = f"v1/prompts/{quote_plus(prompt_id)}"
+
+        response = await httpx_client.patch(url, json={"description": None, "metadata": {}})
+
+        assert response.is_success
+        data = response.json()["data"]
+        assert "description" not in data
+        assert data["metadata"] == {}
+        async with db() as session:
+            updated_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert updated_prompt is not None
+            assert updated_prompt.description is None
+            assert updated_prompt.metadata_ == {}
+
+    async def test_patch_prompt_rejects_null_metadata(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        assert (await httpx_client.patch(url, json={"metadata": {"team": "ml-ops"}})).is_success
+
+        response = await httpx_client.patch(url, json={"metadata": None})
+
+        assert response.status_code == 422
+        async with db() as session:
+            unchanged_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert unchanged_prompt is not None
+            assert unchanged_prompt.metadata_ == {"team": "ml-ops"}
+
+    async def test_patch_prompt_omitted_fields_are_unchanged(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        assert (await httpx_client.patch(url, json={"metadata": {"team": "ml-ops"}})).is_success
+
+        response = await httpx_client.patch(url, json={"description": "only description"})
+
+        assert response.is_success
+        async with db() as session:
+            updated_prompt = await session.scalar(select(models.Prompt).filter_by(id=prompt.id))
+            assert updated_prompt is not None
+            assert updated_prompt.description == "only description"
+            assert updated_prompt.metadata_ == {"team": "ml-ops"}
+
+    async def test_patch_prompt_rejects_empty_body(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        response = await httpx_client.patch(url, json={})
+
+        assert response.status_code == 422
+
+    async def test_patch_prompt_not_found(
+        self,
+        httpx_client: httpx2.AsyncClient,
+    ) -> None:
+        url = "v1/prompts/nonexistent-prompt-name"
+
+        response = await httpx_client.patch(url, json={"description": "new"})
+
+        assert response.status_code == 404
+
+    async def test_patch_prompt_requires_body(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+
+        response = await httpx_client.patch(url)
+
+        assert response.status_code == 422
+
+    async def test_create_prompt_version_by_name(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        request_body = {
+            "version": self._prompt_version_request_body(
+                prompt_versions[0],
+                description="Created by REST",
+            )
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+
+        assert response.status_code == 201, response.text
+        assert isinstance((data := response.json()["data"]), dict)
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(data["id"]), PromptVersion.__name__
+        )
+        async with db() as session:
+            created_version = await session.get(models.PromptVersion, id_)
+        assert created_version is not None
+        assert created_version.prompt_id == prompt.id
+        assert created_version.description == "Created by REST"
+        self._assert_version_content_matches(created_version, prompt_versions[0])
+        self._compare_prompt_version(data, created_version)
+
+    async def test_create_prompt_version_by_id(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        request_body = {
+            "version": self._prompt_version_request_body(
+                prompt_versions[1],
+                description="Created by prompt ID",
+            )
+        }
+        url = f"v1/prompts/{quote_plus(prompt_id)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+
+        assert response.status_code == 201, response.text
+        assert isinstance((data := response.json()["data"]), dict)
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(data["id"]), PromptVersion.__name__
+        )
+        async with db() as session:
+            created_version = await session.get(models.PromptVersion, id_)
+        assert created_version is not None
+        assert created_version.prompt_id == prompt.id
+        assert created_version.description == "Created by prompt ID"
+        self._assert_version_content_matches(created_version, prompt_versions[1])
+        self._compare_prompt_version(data, created_version)
+
+    async def test_create_prompt_version_with_tags(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        tag_name = Identifier.model_validate("production")
+        await self._tag_prompt_version(db, prompt_versions[0], tag_name)
+        request_body = {
+            "version": self._prompt_version_request_body(
+                prompt_versions[1],
+                description="Created with tags",
+            ),
+            "tags": [
+                {
+                    "name": tag_name.root,
+                    "description": "Current production prompt",
+                }
+            ],
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+
+        assert response.status_code == 201, response.text
+        assert isinstance((data := response.json()["data"]), dict)
+        created_id = from_global_id_with_expected_type(
+            GlobalID.from_id(data["id"]), PromptVersion.__name__
+        )
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt.id,
+                    models.PromptVersionTag.name == tag_name,
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == created_id
+        assert tag.description == "Current production prompt"
+
+    async def test_create_prompt_version_moves_tag_without_clearing_description(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        tag_name = Identifier.model_validate("production")
+        async with db() as session:
+            session.add(
+                models.PromptVersionTag(
+                    name=tag_name,
+                    description="Serves prod traffic",
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_versions[0].id,
+                )
+            )
+        request_body = {
+            "version": self._prompt_version_request_body(prompt_versions[1]),
+            "tags": [{"name": tag_name.root}],
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+
+        assert response.status_code == 201, response.text
+        created_id = from_global_id_with_expected_type(
+            GlobalID.from_id(response.json()["data"]["id"]), PromptVersion.__name__
+        )
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt.id,
+                    models.PromptVersionTag.name == tag_name,
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == created_id
+        assert tag.description == "Serves prod traffic"
+
+    async def test_create_prompt_version_rejects_mismatched_provider(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        request_body = {
+            "version": self._prompt_version_request_body(
+                prompt_versions[0],
+                model_provider=ModelProvider.ANTHROPIC,
+            )
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+        assert response.status_code == 422, response.text
+        assert "does not match" in response.text
+
+    async def test_create_prompt_version_missing_prompt(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        request_body = {"version": self._prompt_version_request_body(prompt_versions[0])}
+        response = await httpx_client.post(
+            "v1/prompts/nonexistent-prompt-name/versions",
+            json=request_body,
+        )
+        assert response.status_code == 404, response.text
+
+    async def test_create_prompt_version_rejects_invalid_prompt_identifier(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, prompt_versions = await self._insert_prompt_versions(db)
+        request_body = {"version": self._prompt_version_request_body(prompt_versions[0])}
+        url = f"v1/prompts/{quote_plus('invalid prompt!')}/versions"
+        response = await httpx_client.post(url, json=request_body)
+        assert response.status_code == 422
+
+    async def test_create_prompt_version_rejects_non_chat_template(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        request_body = {
+            "version": self._prompt_version_request_body(
+                prompt_versions[0],
+                template=PromptStringTemplate(type="string", template="hi"),
+                template_type=PromptTemplateType.STRING,
+            )
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+        assert response.status_code == 422
+
+    async def test_create_prompt_version_rejects_invalid_tag_name(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        request_body = {
+            "version": self._prompt_version_request_body(prompt_versions[0]),
+            "tags": [{"name": "invalid tag!"}],
+        }
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}/versions"
+        response = await httpx_client.post(url, json=request_body)
+        assert response.status_code == 422
 
     @pytest.mark.parametrize(
         "name",
@@ -138,7 +589,7 @@ class TestPrompts:
     async def test_invalid_identifier(
         self,
         name: str,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         url = f"v1/prompts/{quote_plus(name)}/tags/production"
         assert (await httpx_client.get(url)).status_code == 422
@@ -155,6 +606,7 @@ class TestPrompts:
             GlobalID.from_id(data.pop("id")), PromptVersion.__name__
         )
         assert id_ == prompt_version.id
+        assert data.pop("created_at") == prompt_version.created_at.isoformat()
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),
@@ -162,6 +614,7 @@ class TestPrompts:
         )
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider.value
+        assert data.pop("metadata") == prompt_version.metadata_
         if prompt_version.response_format:
             assert not DeepDiff(
                 data.pop("response_format"),
@@ -176,6 +629,46 @@ class TestPrompts:
                 prompt_version.tools.model_dump(),
             )
         assert not data
+
+    @staticmethod
+    def _assert_version_content_matches(
+        created: models.PromptVersion,
+        source: models.PromptVersion,
+    ) -> None:
+        assert created.model_provider == source.model_provider
+        assert created.model_name == source.model_name
+        assert created.template == source.template
+        assert created.template_type == source.template_type
+        assert created.template_format == source.template_format
+        assert created.invocation_parameters == source.invocation_parameters
+        assert created.tools == source.tools
+        assert created.response_format == source.response_format
+        assert created.metadata_ == source.metadata_
+
+    @staticmethod
+    def _prompt_version_request_body(
+        prompt_version: models.PromptVersion,
+        **overrides: Any,
+    ) -> dict[str, Any]:
+        data = dict(
+            description=prompt_version.description,
+            model_provider=prompt_version.model_provider,
+            model_name=prompt_version.model_name,
+            template=prompt_version.template,
+            template_type=prompt_version.template_type,
+            template_format=prompt_version.template_format,
+            invocation_parameters=prompt_version.invocation_parameters,
+            tools=prompt_version.tools,
+            response_format=prompt_version.response_format,
+            metadata=prompt_version.metadata_,
+        )
+        data.update(overrides)
+        return PromptVersionData(**data).model_dump(
+            mode="json",
+            by_alias=True,
+            exclude_defaults=True,
+            exclude_none=True,
+        )
 
     @staticmethod
     async def _tag_prompt_version(
@@ -207,7 +700,7 @@ class TestPrompts:
             prompt = models.Prompt(name=prompt_name)
             session.add(prompt)
             await session.flush()
-            for _ in range(n):
+            for version_index in range(n):
                 template = PromptChatTemplate(
                     type="chat",
                     messages=[
@@ -254,6 +747,10 @@ class TestPrompts:
                         ),
                         model_provider=ModelProvider.OPENAI,
                         model_name=token_hex(16),
+                        metadata_={
+                            "agent": "support",
+                            "version": version_index,
+                        },
                         tools=PromptTools(
                             type="tools",
                             tools=[

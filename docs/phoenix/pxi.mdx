@@ -1,0 +1,66 @@
+---
+title: "PXI"
+sidebarTitle: "Get Started"
+description: >-
+  The AI engineering agent built into Phoenix. Hand it an investigation instead
+  of running it yourself.
+---
+
+<Frame>
+  ![PXI: Phoenix Intelligence](https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/phoenix_intelligence.png)
+</Frame>
+
+<Warning>
+PXI is in **beta** and will make mistakes. Use it with care on production data. Agent assistance is opt-in and controllable: see [Permissions and approval](/docs/phoenix/pxi-advanced#permissions-and-approval).
+</Warning>
+
+**PXI** (pronounced *"pixie"*, short for **Phoenix Intelligence**) is a coding agent pointed at your observability data instead of a codebase. It reads the page you are already on, so you hand it the investigation rather than clicking through traces, prompts, and experiments yourself.
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/pxi/pxi_playground.mp4" type="video/mp4" />
+</video>
+
+## What it does
+
+- **Investigates failures**: walks failing traces and proposes root causes.
+- **Iterates on prompts**: reads, edits, and tests playground prompts, with every change shown as a diff you approve.
+- **Reasons over your data**: queries your Phoenix instance to answer questions evals and dashboards cannot.
+- **Drives the product**: navigates, filters, and pivots through your Phoenix data the way you would.
+
+## Get started
+
+<Steps>
+  <Step title="Configure a model">
+    Set credentials for at least one provider: OpenAI, Anthropic, Gemini, AWS Bedrock, or a custom provider under **Settings → AI Providers**. PXI defaults to an Anthropic model, so pick a model that matches the provider you configured. See [Bring your own model](/docs/phoenix/pxi-advanced#bring-your-own-model).
+  </Step>
+  <Step title="Open it">
+    Click the assistant button on any Phoenix page, or press <kbd>⌘I</kbd> (<kbd>Ctrl+I</kbd> on Windows and Linux). Accept the consent gate the first time.
+  </Step>
+  <Step title="Ask it something">
+    From a failing trace, try *"why did this fail?"* From the prompt playground, try *"make this prompt more robust to empty input."* No need to paste IDs or copy data.
+  </Step>
+</Steps>
+
+## Try a full workflow
+
+This is the [Evaluate](/docs/phoenix/get-started/get-started-evaluations) flow, handed to PXI. Paste it from any page:
+
+```text
+Create a dataset called travel-support with these 3 examples, input {"question": ...} and output {"expected_answer": ...}:
+1. "How long do I have to cancel a Basic fare for a full refund?" -> "Basic fares can be cancelled for a full refund within 48 hours of booking."
+2. "Can I change the date on a Basic fare, and what does it cost?" -> "Basic fares can be changed once for a 40 dollar fee, plus any difference in price."
+3. "How many checked bags come with a Basic fare, and what does a second bag cost?" -> "Basic fares include one checked bag. A second bag is 45 dollars."
+Then add an LLM evaluator named correctness that labels each output true or false against the expected answer, using only {{input}}, {{output}}, and {{reference}} as template variables. Run the prompt "You are a travel support agent. Answer the customer's question. Question: {{question}}" over the dataset as an experiment and tell me which examples scored lowest and why.
+```
+
+PXI shows the dataset and the evaluator as cards for you to approve before it saves anything, then runs the experiment on its own. Leave approval on: **Bypass Approval** skips those cards, so keep it off until you have seen what PXI does with your data.
+
+Every example scores 0: the prompt knows nothing about this airline. Then reply:
+
+```text
+Add this policy to the prompt and rerun: full refund if cancelled within 48 hours of booking; one change allowed for a 40 dollar fee plus any price difference; one checked bag included, a second bag is 45 dollars.
+```
+
+## Learn more
+
+[PXI Advanced](/docs/phoenix/pxi-advanced) covers skills, conversations, the permission model, the terminal client, slash commands, model providers, and every configuration setting.

@@ -1,0 +1,18 @@
+datasets>=2.0
+
+# tau-bench (benchmark data and task definitions)
+tau-bench @ git+https://github.com/sierra-research/tau-bench.git
+
+# tau-bench + OpenAI Agents SDK
+openai-agents>=0.10.0
+openinference-instrumentation-openai-agents>=1.0.0
+arize-phoenix>=13.0.0
+opentelemetry-sdk
+opentelemetry-exporter-otlp
+litellm
+openai
+
+# LangGraph (used by both TRAJECT-Bench and tau-bench examples)
+langgraph>=0.2
+langchain-openai>=0.3
+openinference-instrumentation-langchain>=0.1

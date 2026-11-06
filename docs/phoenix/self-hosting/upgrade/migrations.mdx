@@ -1,0 +1,80 @@
+---
+title: "Migrations"
+description: How Phoenix manages database migrations and how to run them safely in production
+---
+
+New major versions of Phoenix may contain database migrations that run automatically upon the start of the application. This process is intended to be seamless and should not require manual intervention except in exceptional circumstances.
+
+All migrations are documented in the main [MIGRATION doc](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md)
+
+## Migration Reliability & Testing
+
+Phoenix takes database migration reliability seriously and follows strict practices to minimize risk:
+
+* **Comprehensive Testing**: All migrations are thoroughly tested in CI, including both up and down migration paths. See our [migration test suite](https://github.com/Arize-ai/phoenix/blob/main/tests/integration/db_migrations/test_up_and_down_migrations.py) for details.
+
+* **Conservative Migration Policy**: Migrations are only performed during major version bumps (e.g., v8.x to v9.0.0), giving clear advance notice of schema changes.
+
+In the case that you may need to manually apply migration, debug builds are provided for shell access.
+
+<Warning>
+**Important**: Phoenix does not automatically downgrade database schemas when rolling back to an older version. This is because up and down migration logic is colocated within the Phoenix codebase - when you roll back to an older Phoenix version, that version doesn't contain the down migration logic needed to undo schema changes applied by newer versions. If you need to downgrade Phoenix, you must manually apply down migrations using the debug builds or database tools. Plan your deployment strategy accordingly.
+
+</Warning>
+
+## Kubernetes Rolling Upgrades
+
+On large PostgreSQL databases, migrations can take long enough during a rolling upgrade that Kubernetes liveness probes time out and kill the new pod before it finishes — causing a `CrashLoopBackoff` loop. The recommended solution is to run migrations in an **initContainer** before the main Phoenix container starts.
+
+An initContainer runs to completion before Kubernetes starts the main container or begins evaluating its liveness probe. If the initContainer fails, Kubernetes retries it automatically. The server pod does not start until migrations have succeeded.
+
+Add the following `initContainers` entry to your Phoenix pod spec:
+
+```yaml
+initContainers:
+  - name: run-migrations
+    image: arizephoenix/phoenix:latest  # match your Phoenix version
+    command: ["phoenix", "db", "migrate"]
+    env:
+      - name: PHOENIX_SQL_DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: phoenix-db-secret
+            key: url
+containers:
+  - name: phoenix
+    image: arizephoenix/phoenix:latest
+    command: ["phoenix", "serve"]
+    env:
+      - name: PHOENIX_SQL_DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: phoenix-db-secret
+            key: url
+```
+
+When the server starts and the database is already at the latest version, Phoenix's built-in migration check is a no-op — it detects that no migrations are pending and proceeds immediately.
+
+<Info>
+**Concurrent migrations during rolling upgrades**: In a multi-replica deployment, multiple pods may run the initContainer at the same time. Phoenix's migrations are designed to be safe under concurrent execution — if two pods race, one will fail with a transient error, retry, find the database already at head, and exit cleanly. No data is at risk, but you may see one extra pod restart in your logs. If you prefer a clean, restart-free rollout, there are a few options:
+
+- **Roll one pod at a time** (simplest): set `maxSurge: 0, maxUnavailable: 1` on the Deployment. Kubernetes will tear down one old pod before starting its replacement, so only one initContainer ever runs at a time. There will be a brief reduction in capacity during the rollout.
+- **Run migrations before the rollout**: run `phoenix db migrate` manually (or in CI) before triggering the Deployment update. By the time pods start rolling, the database is already at head and the initContainer is a no-op.
+- **Use a pre-upgrade Job**: run migrations as a Kubernetes `Job` via a Helm `pre-upgrade` hook. The Job completes before the rollout begins, and no initContainer is needed.
+</Info>
+
+## Zero-Downtime Index Migrations on PostgreSQL
+
+Some migrations create new indexes on large tables. By default, PostgreSQL's `CREATE INDEX` acquires a `SHARE` lock that **blocks writes** for the duration of the index build. During a rolling upgrade, this means the old Phoenix instance will be unable to ingest traces while the new instance is building the index.
+
+Set `PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true` to use `CREATE INDEX CONCURRENTLY` instead. This builds the index without holding a write lock, so the old instance continues ingesting traces uninterrupted. Add the env var to the initContainer from the previous section:
+
+```yaml
+      - name: PHOENIX_MIGRATE_INDEX_CONCURRENTLY
+        value: "true"
+```
+
+<Warning>
+`CONCURRENTLY` does not make migrations faster — it is roughly 2–3x slower than the default, and the initContainer (and therefore the new pod) still waits for the index build to complete before starting the server. For very large tables, consider pre-creating indexes manually before upgrading. See [MIGRATION.md](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md) for version-specific guidance. This setting is ignored for SQLite.
+</Warning>
+

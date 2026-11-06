@@ -1,0 +1,75 @@
+---
+title: "Agent Spec Tracing"
+description: How to use the python AgentSpecInstrumentor to trace Agent Spec workflows
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Open Agent Spec (Agent Spec)](https://oracle.github.io/agent-spec/) is a portable language for defining agentic systems.
+It defines building blocks for standalone agents and structured agentic workflows as well as common ways of composing them into multi-agent systems.
+
+[Agent Spec Tracing](https://oracle.github.io/agent-spec/development/agentspec/tracing.html) is an extension of Agent Spec that standardizes how agent and flow executions emit traces.
+Agent Spec Tracing enables:
+- Runtime adapters to emit consistent traces across different frameworks.
+- Consumers (observability backends, UIs, developer tooling) to ingest one standardized format regardless of the producer.
+
+With Agent Spec, tracing instrumentation is implemented using the OpenTelemetry instrumentor known as AgentSpecInstrumentor.
+This callback handles the creation of spans and transmits them to the Phoenix collector.
+
+## Install
+
+```bash
+pip install openinference-instrumentation-agentspec pyagentspec[langgraph]
+```
+
+This installs the [LangGraph adapter](https://oracle.github.io/agent-spec/development/adapters/langgraph.html) for Agent Spec, which allows developers to run Agent Spec workflows using [LangGraph](https://www.langchain.com/langgraph) as a backend.
+You can find out the list of available adapters and how to install them in the [Agent Spec installation instructions](https://oracle.github.io/agent-spec/development/installation.html#extra-dependencies).
+
+## Setup
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Create the Agent Spec agent
+
+```python
+from pyagentspec.agent import Agent
+from pyagentspec.llms import OpenAiConfig
+
+agent = Agent(
+    name="assistant",
+    description="A general purpose agent without tools",
+    llm_config=OpenAiConfig(name="openai-gpt-5-mini", model_id="gpt-5-mini"),
+    system_prompt="You are a helpful assistant. Help the user answering politely.",
+)
+```
+
+## Run the agent using LangGraph
+
+```python
+# The agent definition lives in the preceding example.
+from agent import agent
+
+# Transform the Agent Spec agent into a LangGraph's executable component
+from pyagentspec.adapters.langgraph import AgentSpecLoader
+
+langgraph_agent = AgentSpecLoader().load_component(agent)
+
+# Run one request so the example works in scripts and automated checks.
+response = langgraph_agent.invoke(
+    input={"messages": [{"role": "user", "content": "What is one benefit of tracing AI agents?"}]},
+    config={"configurable": {"thread_id": "1"}},
+)
+print("AGENT >>>", response["messages"][-1].content.strip())
+```
+
+## Observe
+
+With tracing now configured, all calls to your Agent Spec agent will be streamed to Phoenix for enhanced observability and evaluation.
+
+## Resources
+
+* [OpenInference package](https://pypi.org/project/openinference-instrumentation-agentspec/)
+
+* [Examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-agentspec/examples)
+
+

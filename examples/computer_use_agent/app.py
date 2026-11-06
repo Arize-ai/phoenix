@@ -16,13 +16,12 @@ def initialize_agent(phoenix_key, project_name, anthropic_api_key, traces_phoeni
         os.environ["PHOENIX_API_KEY"] = phoenix_key
     if anthropic_api_key:
         os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
-    if traces_phoenix_endpoint:
-        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = traces_phoenix_endpoint
-    else:
-        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com/v1/traces"
     os.environ["WIDTH"] = "1024"
     os.environ["HEIGHT"] = "768"
-    agent_tracer = initialize_instrumentor(project_name)
+    endpoint = traces_phoenix_endpoint or "http://localhost:6006"
+    if endpoint and not endpoint.endswith("/v1/traces"):
+        endpoint = endpoint.rstrip("/") + "/v1/traces"
+    agent_tracer = initialize_instrumentor(project_name, endpoint)
     initialize_agent_llm()
     copilot_agent = construct_agent()
     return (
@@ -41,7 +40,7 @@ async def chat_with_agent(
     user_chat_history,
     conversation_history,
 ):
-    if not agent:
+    if not copilot_agent:
         return "Error: Copilot Agent is not initialized. Please set API keys first."
     messages = conversation_history["messages"] if conversation_history else []
     messages.append(
@@ -55,7 +54,7 @@ async def chat_with_agent(
     with using_session(session_id=user_session_id):
         with agent_tracer.start_as_current_span(
             f"agent-{user_session_id}",
-            openinference_span_kind="chain",
+            openinference_span_kind="agent",
         ) as span:
             span.set_input(user_input_message)
             conversation_history = await copilot_agent.ainvoke(
@@ -70,9 +69,11 @@ async def chat_with_agent(
             logger.info(conversation_history["messages"][-1])
             span.set_output(conversation_history["messages"][-1]["content"][0]["text"])
             span.set_status(Status(StatusCode.OK))
-            user_chat_history.append(
-                (user_input_message, conversation_history["messages"][-1]["content"][0]["text"])
-            )
+
+            # Format chat history as messages (role/content dicts) instead of tuples
+            assistant_response = conversation_history["messages"][-1]["content"][0]["text"]
+            user_chat_history.append({"role": "user", "content": user_input_message})
+            user_chat_history.append({"role": "assistant", "content": assistant_response})
             return (
                 copilot_agent,
                 "",
@@ -102,19 +103,18 @@ with gr.Blocks() as demo:
             # Configuration Block
             with gr.Row():
                 with gr.Accordion("Configurations ⚙️", open=True) as config_accordion:
-                    phoenix_input = gr.Textbox(label="Phoenix API Key", type="password")
+                    phoenix_input = gr.Textbox(
+                        label="Phoenix API Key (Only required for Phoenix Cloud)", type="password"
+                    )
                     project_input = gr.Textbox(label="Project Name", value="Computer Use Agent")
 
-                    phoenix_endpoint = gr.Textbox(
-                        label="Phoenix Endpoint", value="https://app.phoenix.arize.com/v1/traces"
-                    )
+                    phoenix_endpoint = gr.Textbox(label="Phoenix Endpoint")
                     openai_input = gr.Textbox(label="Anthropic API Key", type="password")
                     set_button = gr.Button("Set API Keys & Initialize")
-                    # copilot_agent, agent_tracer, f"Configuration Set: Project '{project_name}' is Ready!"
 
             with gr.Row():
                 with gr.Accordion("Chat with Computer Agent 💬", open=True) as chat_accordion:
-                    chat_display = gr.Chatbot(label="Chat History", height=400)
+                    chat_display = gr.Chatbot(label="Chat History", height=400, type="messages")
                     user_input = gr.Textbox(
                         label="Your Message", placeholder="Type your message here..."
                     )

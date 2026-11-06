@@ -1,17 +1,18 @@
+import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { operations } from "../__generated__/api/v1";
-import { ProjectSelector } from "../types/projects";
+import type { ClientFn } from "../types/core";
+import type { ProjectIdentifier } from "../types/projects";
+import { resolveProjectIdentifier } from "../types/projects";
 
 /**
  * Parameters to get span annotations from a project using auto-generated types
  */
 export interface GetSpanAnnotationsParams extends ClientFn {
   /** The project to get span annotations from */
-  project: ProjectSelector;
+  project: ProjectIdentifier;
   /** One or more span IDs to fetch annotations for */
   spanIds: string[];
-  /** Optional list of annotation names to include. If provided, only annotations with these names will be returned. 'note' annotations are excluded by default unless explicitly included in this list. */
+  /** Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
   includeAnnotationNames?: string[];
   /** Optional list of annotation names to exclude from results. */
   excludeAnnotationNames?: string[];
@@ -89,8 +90,7 @@ export async function getSpanAnnotations({
   limit = 100,
 }: GetSpanAnnotationsParams): Promise<GetSpanAnnotationsResult> {
   const client = _client ?? createClient();
-  const projectIdentifier =
-    "projectId" in project ? project.projectId : project.projectName;
+  const projectIdentifier = resolveProjectIdentifier(project);
 
   const params: NonNullable<
     operations["listSpanAnnotationsBySpanIds"]["parameters"]["query"]

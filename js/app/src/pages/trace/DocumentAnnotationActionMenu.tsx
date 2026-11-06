@@ -1,0 +1,206 @@
+import { startTransition, useCallback, useState } from "react";
+import { graphql, useMutation } from "react-relay";
+
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  ListBox,
+  ListBoxItem,
+  Modal,
+  ModalOverlay,
+  Popover,
+  Text,
+  View,
+} from "@phoenix/components";
+import {
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@phoenix/components/core/dialog";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { useNotifySuccess } from "@phoenix/contexts";
+
+import type { DocumentAnnotationActionMenuDeleteMutation } from "./__generated__/DocumentAnnotationActionMenuDeleteMutation.graphql";
+
+enum AnnotationAction {
+  EDIT = "editAnnotation",
+  DELETE = "deleteAnnotation",
+}
+
+export function DocumentAnnotationActionMenu({
+  annotationId,
+  annotationName,
+  spanNodeId,
+  onEdit,
+}: {
+  annotationId: string;
+  annotationName: string;
+  spanNodeId: string;
+  onEdit?: () => void;
+}) {
+  const notifySuccess = useNotifySuccess();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const [commitDelete] =
+    useMutation<DocumentAnnotationActionMenuDeleteMutation>(graphql`
+      mutation DocumentAnnotationActionMenuDeleteMutation(
+        $input: DeleteAnnotationsInput!
+        $spanId: ID!
+      ) {
+        deleteDocumentAnnotations(input: $input) {
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                documentEvaluations {
+                  id
+                  annotatorKind
+                  documentPosition
+                  name
+                  label
+                  score
+                  explanation
+                  createdAt
+                  updatedAt
+                  user {
+                    username
+                    profilePictureUrl
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `);
+
+  const handleDelete = useCallback(() => {
+    startTransition(() => {
+      commitDelete({
+        variables: {
+          input: { annotationIds: [annotationId] },
+          spanId: spanNodeId,
+        },
+        onCompleted: () => {
+          notifySuccess({
+            title: "Annotation deleted",
+            message: `Annotation "${annotationName}" has been deleted.`,
+          });
+          setDeleting(false);
+        },
+        onError: (error) => {
+          setDeleteError(error.message);
+        },
+      });
+    });
+  }, [
+    commitDelete,
+    annotationId,
+    spanNodeId,
+    annotationName,
+    notifySuccess,
+    setDeleteError,
+  ]);
+
+  return (
+    <>
+      <DialogTrigger>
+        <Button
+          size="S"
+          variant="default"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
+          aria-label={`Actions for annotation ${annotationName}`}
+        />
+        <Popover placement="bottom end">
+          <Dialog>
+            {({ close }) => (
+              <ListBox style={{ minHeight: "auto" }}>
+                {onEdit && (
+                  <ListBoxItem
+                    id={AnnotationAction.EDIT}
+                    onAction={() => {
+                      onEdit();
+                      close();
+                    }}
+                  >
+                    <Flex
+                      direction="row"
+                      gap="size-75"
+                      justifyContent="start"
+                      alignItems="center"
+                    >
+                      <Icon svg={<Icons.Edit />} />
+                      <Text>Edit</Text>
+                    </Flex>
+                  </ListBoxItem>
+                )}
+                <ListBoxItem
+                  id={AnnotationAction.DELETE}
+                  onAction={() => {
+                    setDeleting(true);
+                    close();
+                  }}
+                >
+                  <Flex
+                    direction="row"
+                    gap="size-75"
+                    justifyContent="start"
+                    alignItems="center"
+                  >
+                    <Icon svg={<Icons.Trash />} />
+                    <Text>Delete</Text>
+                  </Flex>
+                </ListBoxItem>
+              </ListBox>
+            )}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+
+      <DialogTrigger isOpen={deleting} onOpenChange={setDeleting}>
+        <ModalOverlay>
+          <Modal>
+            <Dialog>
+              {({ close }) => (
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Annotation</DialogTitle>
+                  </DialogHeader>
+                  <View padding="size-200">
+                    <Text color="danger">
+                      {`Are you sure you want to delete annotation "${annotationName}"? This cannot be undone.`}
+                    </Text>
+                    {deleteError && (
+                      <Alert variant="danger">{deleteError}</Alert>
+                    )}
+                  </View>
+                  <View
+                    paddingEnd="size-200"
+                    paddingTop="size-100"
+                    paddingBottom="size-100"
+                    borderTopColor="default"
+                    borderTopWidth="thin"
+                  >
+                    <Flex direction="row" justifyContent="end" gap="size-200">
+                      <StopPropagation>
+                        <Button onPress={close}>Cancel</Button>
+                      </StopPropagation>
+                      <Button variant="danger" onPress={handleDelete}>
+                        Delete Annotation
+                      </Button>
+                    </Flex>
+                  </View>
+                </DialogContent>
+              )}
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      </DialogTrigger>
+    </>
+  );
+}

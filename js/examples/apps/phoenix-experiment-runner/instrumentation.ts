@@ -1,12 +1,5 @@
-import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
-import { registerInstrumentations } from "@opentelemetry/instrumentation";
-
+import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
 import OpenAI from "openai";
 
 export function instrument({
@@ -18,20 +11,12 @@ export function instrument({
   headers?: Record<string, string>;
   collectorEndpoint?: string;
 }) {
-  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
-
-  const provider = new NodeTracerProvider({
-    resource: resourceFromAttributes({
-      [SEMRESATTRS_PROJECT_NAME]: projectName,
-    }),
-    spanProcessors: [
-      new SimpleSpanProcessor(
-        new OTLPTraceExporter({
-          url: `${collectorEndpoint}/v1/traces`,
-          headers,
-        })
-      ),
-    ],
+  register({
+    projectName,
+    headers,
+    url: collectorEndpoint,
+    batch: false,
+    global: true,
   });
 
   const instrumentation = new OpenAIInstrumentation();
@@ -40,6 +25,4 @@ export function instrument({
   registerInstrumentations({
     instrumentations: [instrumentation],
   });
-
-  provider.register();
 }

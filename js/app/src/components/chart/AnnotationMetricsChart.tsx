@@ -1,0 +1,345 @@
+import type { ComponentProps, ReactNode } from "react";
+import type {
+  LegendPayload,
+  TooltipContentProps,
+  XAxisProps,
+  YAxisProps,
+} from "recharts";
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { AnnotationScoreText } from "@phoenix/components/annotation";
+import { useTheme } from "@phoenix/contexts";
+import { getWordColor } from "@phoenix/utils/colorUtils";
+import {
+  floatFormatter,
+  percentFormatter,
+} from "@phoenix/utils/numberFormatUtils";
+
+import type {
+  AnnotationMetricsChartPoint,
+  AnnotationMetricsSeries,
+  AnnotationMetricsView,
+} from "./annotationMetricsUtils";
+import {
+  getAnnotationMetricsChartData,
+  getAnnotationOtherFraction,
+} from "./annotationMetricsUtils";
+import { ChartEmptyStateOverlay } from "./ChartEmptyStateOverlay";
+import { ChartResponsiveContainer } from "./ChartResponsiveContainer";
+import { ChartTooltip, ChartTooltipItem } from "./ChartTooltip";
+import { getCategoryChartColor, useCategoryChartColors } from "./colors";
+import {
+  COMPACT_CHART_ANIMATION_DURATION_MS,
+  compactChartMargin,
+  compactLegendProps,
+  defaultCartesianGridProps,
+  defaultTooltipProps,
+} from "./defaults";
+import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
+import type { RoundedLinearAxis } from "./roundedLinearAxis";
+import { getRoundedLinearAxis } from "./roundedLinearAxis";
+import type { TimeSeriesChartType } from "./types";
+
+const MEAN_SCORE_DATA_KEY = "meanScore";
+const LABEL_DATA_KEY_PREFIX = "fractions.";
+const OTHER_DATA_KEY = "otherFraction";
+const OTHER_COLOR = "var(--global-color-gray-500)";
+const SCORE_CHART_MARGIN = {
+  ...compactChartMargin,
+  // A score of exactly 1 puts the dot center on the top gridline.
+  top: 8,
+};
+const OTHER_LEGEND_ITEM: LegendPayload = {
+  value: "other",
+  type: "rect",
+  color: OTHER_COLOR,
+};
+const formatAnnotationFraction = (fraction: number) =>
+  percentFormatter(fraction * 100);
+
+function getLabelDataKey(index: number): string {
+  return `${LABEL_DATA_KEY_PREFIX}${index}`;
+}
+
+function AnnotationMetricsTooltip({
+  active,
+  payload,
+  renderHeader,
+  getMeanScoreOptimizationValue,
+  chartType,
+}: TooltipContentProps & {
+  renderHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
+  getMeanScoreOptimizationValue?: (meanScore: number) => number | null;
+  chartType: TimeSeriesChartType;
+}) {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+  const point = payload[0]?.payload as AnnotationMetricsChartPoint;
+  return (
+    <ChartTooltip>
+      {renderHeader(point)}
+      {payload.map((entry) => {
+        if (entry.value == null) {
+          return null;
+        }
+        const isMeanScore = entry.dataKey === MEAN_SCORE_DATA_KEY;
+        const numericValue = Number(entry.value);
+        const formattedValue = isMeanScore
+          ? floatFormatter(numericValue)
+          : formatAnnotationFraction(numericValue);
+        return (
+          <ChartTooltipItem
+            key={String(entry.dataKey)}
+            color={entry.color}
+            shape={
+              isMeanScore && chartType === "lineTimeSeries" ? "line" : "square"
+            }
+            name={String(entry.name)}
+            value={
+              isMeanScore && getMeanScoreOptimizationValue ? (
+                <AnnotationScoreText
+                  optimizationValue={getMeanScoreOptimizationValue(
+                    numericValue
+                  )}
+                >
+                  {formattedValue}
+                </AnnotationScoreText>
+              ) : (
+                formattedValue
+              )
+            }
+          />
+        );
+      })}
+    </ChartTooltip>
+  );
+}
+
+type AnnotationMetricsChartProps = {
+  series: AnnotationMetricsSeries;
+  view: AnnotationMetricsView;
+  xAxisProps: XAxisProps;
+  yAxisProps: YAxisProps;
+  syncId: string;
+  renderTooltipHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
+  getMeanScoreOptimizationValue?: (meanScore: number) => number | null;
+  chartProps?: ComponentProps<typeof ComposedChart>;
+  additionalLegendItems?: ReadonlyArray<LegendPayload>;
+  emptyStateMessage?: string;
+  renderReference?: (state: {
+    isMeanScoreHidden: boolean;
+    isReferencePrepended: boolean;
+  }) => ReactNode;
+  /**
+   * How the scores view draws mean scores
+   * @default "lineTimeSeries"
+   */
+  chartType?: TimeSeriesChartType;
+};
+
+export function AnnotationMetricsChart(props: AnnotationMetricsChartProps) {
+  // Label series use positional data keys. Reset temporary legend selections
+  // when that position-to-label mapping changes instead of hiding a new label.
+  return (
+    <AnnotationMetricsChartContent
+      key={JSON.stringify(props.series.labels)}
+      {...props}
+    />
+  );
+}
+
+function getAnnotationChartState({
+  series,
+  view,
+}: Pick<AnnotationMetricsChartProps, "series" | "view">) {
+  const { data, reference } = series;
+  const isScoreView = view === "scores";
+  const scoreValues = [...data, reference].flatMap((point) =>
+    point?.meanScore == null ? [] : [point.meanScore]
+  );
+  const yAxis: Partial<RoundedLinearAxis> =
+    !isScoreView || scoreValues.every((score) => score >= 0 && score <= 1)
+      ? { domain: [0, 1] }
+      : (getRoundedLinearAxis({ values: scoreValues }) ?? {});
+  const isReferencePrepended =
+    !isScoreView &&
+    reference != null &&
+    !data.some(({ x }) => x === reference.x);
+  const baseChartData = isScoreView
+    ? data
+    : getAnnotationMetricsChartData({ data, reference });
+  const chartData = isScoreView
+    ? baseChartData
+    : baseChartData.map((point) => ({
+        ...point,
+        otherFraction: getAnnotationOtherFraction({ point }),
+      }));
+  return {
+    chartData,
+    yAxis,
+    hasOtherValues: chartData.some(
+      (point) => "otherFraction" in point && point.otherFraction != null
+    ),
+    isReferencePrepended,
+    isScoreView,
+  };
+}
+
+function AnnotationMetricsChartContent({
+  series,
+  view,
+  xAxisProps,
+  yAxisProps,
+  syncId,
+  renderTooltipHeader,
+  getMeanScoreOptimizationValue,
+  chartProps,
+  additionalLegendItems,
+  renderReference,
+  emptyStateMessage = "No chartable evaluation data",
+  chartType = "lineTimeSeries",
+}: AnnotationMetricsChartProps) {
+  const { theme } = useTheme();
+  const categoryColors = useCategoryChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
+  const { data } = series;
+  const visibleLabels = series.labels;
+  const {
+    chartData,
+    yAxis,
+    hasOtherValues,
+    isReferencePrepended,
+    isScoreView,
+  } = getAnnotationChartState({ series, view });
+  const isScoreLine = isScoreView && chartType === "lineTimeSeries";
+
+  return (
+    <ChartEmptyStateOverlay
+      isEmpty={data.length === 0}
+      message={emptyStateMessage}
+      chartType={isScoreLine ? "line" : "bar"}
+    >
+      <ChartResponsiveContainer>
+        <ComposedChart
+          data={chartData}
+          margin={isScoreView ? SCORE_CHART_MARGIN : compactChartMargin}
+          barSize={10}
+          syncId={syncId}
+          // A prepended label baseline changes indexes; synchronize by x-value.
+          syncMethod="value"
+          {...chartProps}
+        >
+          <CartesianGrid {...defaultCartesianGridProps} />
+          <XAxis {...xAxisProps} />
+          <YAxis
+            {...yAxisProps}
+            domain={yAxis.domain}
+            ticks={yAxis.ticks}
+            tickFormatter={
+              isScoreView ? floatFormatter : formatAnnotationFraction
+            }
+          />
+          <Tooltip
+            {...defaultTooltipProps}
+            wrapperStyle={{
+              // The active ChartPanel raises this above synchronized tooltips.
+              zIndex: "var(--chart-panel-tooltip-z-index, 1)",
+            }}
+            content={(props) => (
+              <AnnotationMetricsTooltip
+                {...props}
+                renderHeader={renderTooltipHeader}
+                getMeanScoreOptimizationValue={getMeanScoreOptimizationValue}
+                chartType={chartType}
+              />
+            )}
+          />
+          {renderReference?.({
+            isMeanScoreHidden: isDataKeyHidden(MEAN_SCORE_DATA_KEY),
+            isReferencePrepended,
+          })}
+          {isScoreView && !isScoreLine && (
+            <Bar
+              dataKey={MEAN_SCORE_DATA_KEY}
+              name="mean score"
+              fill={getWordColor({ word: series.name, theme })}
+              radius={[2, 2, 0, 0]}
+              animationDuration={COMPACT_CHART_ANIMATION_DURATION_MS}
+              hide={isDataKeyHidden(MEAN_SCORE_DATA_KEY)}
+            />
+          )}
+          {isScoreLine && (
+            <Line
+              type="monotone"
+              dataKey={MEAN_SCORE_DATA_KEY}
+              name="mean score"
+              stroke={getWordColor({ word: series.name, theme })}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              animationDuration={COMPACT_CHART_ANIMATION_DURATION_MS}
+              hide={isDataKeyHidden(MEAN_SCORE_DATA_KEY)}
+            />
+          )}
+          {!isScoreView &&
+            visibleLabels.map((label, index) => {
+              const dataKey = getLabelDataKey(index);
+              return (
+                <Bar
+                  key={label}
+                  dataKey={dataKey}
+                  name={label}
+                  stackId="distribution"
+                  fill={getCategoryChartColor({
+                    index,
+                    colors: categoryColors,
+                  })}
+                  hide={isDataKeyHidden(dataKey)}
+                  radius={
+                    index === visibleLabels.length - 1 && !hasOtherValues
+                      ? [2, 2, 0, 0]
+                      : 0
+                  }
+                />
+              );
+            })}
+          {!isScoreView && hasOtherValues && (
+            <Bar
+              dataKey={OTHER_DATA_KEY}
+              name="other"
+              stackId="distribution"
+              fill={OTHER_COLOR}
+              legendType="none"
+              radius={[2, 2, 0, 0]}
+            />
+          )}
+          <InteractiveLegend
+            {...compactLegendProps}
+            hiddenDataKeys={hiddenDataKeys}
+            iconType={isScoreLine ? "line" : undefined}
+            iconSize={8}
+            // Preserve the normalized order so label colors remain stable by index.
+            itemSorter={null}
+            onToggleDataKey={toggleDataKey}
+            additionalLegendItems={[
+              ...(hasOtherValues ? [OTHER_LEGEND_ITEM] : []),
+              ...(isScoreView && isDataKeyHidden(MEAN_SCORE_DATA_KEY)
+                ? []
+                : (additionalLegendItems ?? [])),
+            ]}
+          />
+        </ComposedChart>
+      </ChartResponsiveContainer>
+    </ChartEmptyStateOverlay>
+  );
+}

@@ -1,0 +1,11 @@
+# Local vendor checkout for tau-bench
+vendor/
+
+# Local run artifacts
+results/
+exploration/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

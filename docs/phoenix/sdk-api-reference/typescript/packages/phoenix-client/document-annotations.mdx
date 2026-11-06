@@ -1,0 +1,208 @@
+---
+title: "Document Annotations"
+description: "Log document-level annotations for RAG evaluation with @arizeai/phoenix-client"
+---
+
+Document annotations tag individual retrieved documents as relevant or irrelevant within a retriever span. They are the building block for RAG evaluation — once you annotate documents with relevance scores, Phoenix automatically computes retrieval metrics like **nDCG**, **Precision@K**, **MRR**, and **Hit Rate** across your project.
+
+All functions are imported from `@arizeai/phoenix-client/spans`. See [Annotations](./annotations) for the shared annotation model and concepts.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/spans/addDocumentAnnotation.ts</code> for the single-annotation API</li>
+    <li><code>src/spans/logDocumentAnnotations.ts</code> for batch logging</li>
+    <li><code>src/spans/types.ts</code> for the <code>DocumentAnnotation</code> interface</li>
+  </ul>
+</section>
+
+## Why Document Annotations
+
+When a retriever returns a ranked list of documents, you need to know:
+
+- **Were the right documents retrieved?** (relevance)
+- **Were they ranked in the right order?** (nDCG, MRR)
+- **Was at least one relevant document returned?** (hit rate)
+- **How many of the top-K were relevant?** (Precision@K)
+
+Document annotations let you label each retrieved document with a relevance score. Phoenix then aggregates those scores into standard retrieval metrics — both per-span and across your entire project.
+
+## How Document Annotations Work
+
+Each document annotation targets a specific document by its **position** in the retriever span's output. The `documentPosition` is a 0-based index: if a retriever returns 5 documents, positions `0` through `4` are valid targets.
+
+Document annotations share the same fields as span annotations (`spanId`, `name`, `annotatorKind`, `label`, `score`, `explanation`, `metadata`). The `documentPosition` tells Phoenix _which_ retrieved document the feedback applies to.
+
+### Automatic Retrieval Metrics
+
+<Note>
+  Phoenix automatically computes **nDCG**, **Precision@K**, **MRR**, and **Hit Rate** from document annotations that have `annotatorKind: "LLM"` and a numeric `score`. Annotations with `annotatorKind: "HUMAN"` or `"CODE"` are stored but do not feed into the auto-computed retrieval metrics.
+</Note>
+
+If you want Phoenix to compute retrieval metrics for you, use `annotatorKind: "LLM"` when logging relevance scores. This is the typical pattern when running an LLM-as-judge relevance evaluator over your retrieval results.
+
+## Score All Documents In A Retrieval
+
+The most common pattern: after a retriever returns N documents, score each one for relevance. Use `logDocumentAnnotations` to send them in a single batch:
+
+```ts
+import { logDocumentAnnotations } from "@arizeai/phoenix-client/spans";
+
+// retrievedDocs comes from your evaluator — each has a relevanceScore
+const annotations = retrievedDocs.map((doc, position) => ({
+  spanId: retrieverSpanId,
+  documentPosition: position,
+  name: "relevance",
+  annotatorKind: "LLM" as const,
+  score: doc.relevanceScore,
+  label: doc.relevanceScore > 0.7 ? "relevant" : "not-relevant",
+}));
+
+await logDocumentAnnotations({ documentAnnotations: annotations });
+// Phoenix now auto-computes nDCG, Precision@K, MRR, and Hit Rate
+// for this retriever span in the UI.
+```
+
+## Binary Relevance Labeling
+
+The simplest relevance scheme: each document is either relevant (1) or not (0). This is the most common input for hit rate and nDCG:
+
+```ts
+import { logDocumentAnnotations } from "@arizeai/phoenix-client/spans";
+
+const annotations = retrievedDocs.map((doc, position) => ({
+  spanId: retrieverSpanId,
+  documentPosition: position,
+  name: "relevance",
+  annotatorKind: "LLM" as const,
+  score: isRelevant(doc, userQuery) ? 1 : 0,
+  label: isRelevant(doc, userQuery) ? "relevant" : "irrelevant",
+}));
+
+await logDocumentAnnotations({ documentAnnotations: annotations });
+```
+
+With binary scores:
+- **Hit Rate** = 1 if any document has score 1, else 0
+- **Precision@K** = fraction of top-K documents with score 1
+- **MRR** = 1 / (rank of first document with score 1)
+- **nDCG** = normalized discounted cumulative gain across the ranked list
+
+## Graded Relevance
+
+For finer-grained evaluation, use continuous scores (e.g. 0–1) instead of binary. This gives nDCG more signal about _how_ relevant each document is, not just whether it's relevant at all:
+
+```ts
+import { logDocumentAnnotations } from "@arizeai/phoenix-client/spans";
+
+// LLM judge returns a 0-1 relevance score per document
+const annotations = retrievedDocs.map((doc, position) => ({
+  spanId: retrieverSpanId,
+  documentPosition: position,
+  name: "relevance",
+  annotatorKind: "LLM" as const,
+  score: doc.relevanceScore, // e.g. 0.0, 0.3, 0.7, 1.0
+  explanation: doc.relevanceReasoning,
+  metadata: { model: "gpt-4o-mini" },
+}));
+
+await logDocumentAnnotations({ documentAnnotations: annotations });
+```
+
+## Add A Single Document Annotation
+
+For one-off annotations — e.g. a human reviewer flagging a specific document:
+
+```ts
+import { addDocumentAnnotation } from "@arizeai/phoenix-client/spans";
+
+await addDocumentAnnotation({
+  documentAnnotation: {
+    spanId: "retriever-span-id",
+    documentPosition: 0,
+    name: "relevance",
+    annotatorKind: "LLM",
+    score: 0.95,
+    label: "relevant",
+    explanation: "Document directly answers the user question.",
+  },
+});
+```
+
+## Multi-Dimensional Document Scoring
+
+Score the same documents on multiple axes by using different annotation names. Each name creates a separate annotation series in the Phoenix UI:
+
+```ts
+import { logDocumentAnnotations } from "@arizeai/phoenix-client/spans";
+
+const relevanceAnnotations = docs.map((doc, position) => ({
+  spanId: retrieverSpanId,
+  documentPosition: position,
+  name: "relevance",
+  annotatorKind: "LLM" as const,
+  score: doc.relevanceScore,
+}));
+
+const recencyAnnotations = docs.map((doc, position) => ({
+  spanId: retrieverSpanId,
+  documentPosition: position,
+  name: "recency",
+  annotatorKind: "CODE" as const,
+  score: isRecent(doc.publishDate) ? 1 : 0,
+}));
+
+await logDocumentAnnotations({
+  documentAnnotations: [...relevanceAnnotations, ...recencyAnnotations],
+});
+```
+
+## Re-Ranking Evaluation
+
+Document annotations are useful for evaluating re-rankers. Annotate the same retriever span before and after re-ranking to compare the quality of the original vs. re-ranked order:
+
+```ts
+import { logDocumentAnnotations } from "@arizeai/phoenix-client/spans";
+
+// Score documents in the re-ranker's output order
+const annotations = rerankedDocs.map((doc, position) => ({
+  spanId: rerankerSpanId,
+  documentPosition: position,
+  name: "relevance",
+  annotatorKind: "LLM" as const,
+  score: doc.relevanceScore,
+}));
+
+await logDocumentAnnotations({ documentAnnotations: annotations });
+// Compare nDCG between the retriever span and re-ranker span
+// in the Phoenix UI to measure re-ranking effectiveness.
+```
+
+## Parameter Reference
+
+### `DocumentAnnotation`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `spanId` | `string` | Yes | The retriever span's OpenTelemetry ID |
+| `documentPosition` | `number` | Yes | 0-based index of the document in retrieval results |
+| `name` | `string` | Yes | Annotation name (e.g. `"relevance"`) |
+| `annotatorKind` | `"HUMAN" \| "LLM" \| "CODE"` | No | Defaults to `"HUMAN"`. Use `"LLM"` for auto-computed retrieval metrics. |
+| `label` | `string` | No* | Categorical label (e.g. `"relevant"`, `"irrelevant"`) |
+| `score` | `number` | No* | Numeric relevance score (e.g. 0 or 1 for binary, 0–1 for graded) |
+| `explanation` | `string` | No* | Free-text explanation |
+| `metadata` | `Record<string, unknown>` | No | Arbitrary metadata |
+
+\*At least one of `label`, `score`, or `explanation` is required.
+
+Document annotations are unique by `(name, spanId, documentPosition)`. Unlike span annotations, the `identifier` field is not supported for document annotations.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/spans/addDocumentAnnotation.ts</code></li>
+    <li><code>src/spans/logDocumentAnnotations.ts</code></li>
+    <li><code>src/spans/types.ts</code></li>
+    <li><code>src/types/annotations.ts</code></li>
+  </ul>
+</section>

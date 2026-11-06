@@ -1,177 +1,35 @@
+from __future__ import annotations
+
 from asyncio import get_running_loop
 from dataclasses import dataclass
 from functools import cached_property, partial
-from pathlib import Path
-from typing import Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
 
-from phoenix.auth import (
-    compute_password_hash,
-)
-from phoenix.core.model_schema import Model
+from phoenix.auth import compute_password_hash
 from phoenix.db import models
-from phoenix.server.api.dataloaders import (
-    AnnotationConfigsByProjectDataLoader,
-    AnnotationSummaryDataLoader,
-    AverageExperimentRepeatedRunGroupLatencyDataLoader,
-    AverageExperimentRunLatencyDataLoader,
-    CacheForDataLoaders,
-    DatasetDatasetSplitsDataLoader,
-    DatasetExampleRevisionsDataLoader,
-    DatasetExamplesAndVersionsByExperimentRunDataLoader,
-    DatasetExampleSpansDataLoader,
-    DatasetExampleSplitsDataLoader,
-    DocumentEvaluationsDataLoader,
-    DocumentEvaluationSummaryDataLoader,
-    DocumentRetrievalMetricsDataLoader,
-    ExperimentAnnotationSummaryDataLoader,
-    ExperimentErrorRatesDataLoader,
-    ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
-    ExperimentRepeatedRunGroupsDataLoader,
-    ExperimentRunAnnotations,
-    ExperimentRunCountsDataLoader,
-    ExperimentSequenceNumberDataLoader,
-    LastUsedTimesByGenerativeModelIdDataLoader,
-    LatencyMsQuantileDataLoader,
-    MinStartOrMaxEndTimeDataLoader,
-    NumChildSpansDataLoader,
-    NumSpansPerTraceDataLoader,
-    ProjectByNameDataLoader,
-    ProjectIdsByTraceRetentionPolicyIdDataLoader,
-    PromptVersionSequenceNumberDataLoader,
-    RecordCountDataLoader,
-    SessionAnnotationsBySessionDataLoader,
-    SessionIODataLoader,
-    SessionNumTracesDataLoader,
-    SessionNumTracesWithErrorDataLoader,
-    SessionTokenUsagesDataLoader,
-    SessionTraceLatencyMsQuantileDataLoader,
-    SpanAnnotationsDataLoader,
-    SpanByIdDataLoader,
-    SpanCostBySpanDataLoader,
-    SpanCostDetailsBySpanCostDataLoader,
-    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
-    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
-    SpanCostDetailSummaryEntriesBySpanDataLoader,
-    SpanCostDetailSummaryEntriesByTraceDataLoader,
-    SpanCostSummaryByExperimentDataLoader,
-    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
-    SpanCostSummaryByExperimentRunDataLoader,
-    SpanCostSummaryByGenerativeModelDataLoader,
-    SpanCostSummaryByProjectDataLoader,
-    SpanCostSummaryByProjectSessionDataLoader,
-    SpanCostSummaryByTraceDataLoader,
-    SpanDatasetExamplesDataLoader,
-    SpanDescendantsDataLoader,
-    SpanProjectsDataLoader,
-    TableFieldsDataLoader,
-    TokenCountDataLoader,
-    TraceAnnotationsByTraceDataLoader,
-    TraceByTraceIdsDataLoader,
-    TraceRetentionPolicyIdByProjectIdDataLoader,
-    TraceRootSpansDataLoader,
-    UserRolesDataLoader,
-    UsersDataLoader,
-)
-from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
+from phoenix.server.api.dataloaders import CacheForDataLoaders, DataLoaders, build_data_loaders
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
-from phoenix.server.dml_event import DmlEvent
-from phoenix.server.email.types import EmailSender
-from phoenix.server.types import (
-    CanGetLastUpdatedAt,
-    CanPutItem,
-    DbSessionFactory,
-    TokenStore,
-    UserId,
-)
+from phoenix.server.types import UserId
 
-
-@dataclass
-class DataLoaders:
-    annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
-    annotation_summaries: AnnotationSummaryDataLoader
-    average_experiment_repeated_run_group_latency: (
-        AverageExperimentRepeatedRunGroupLatencyDataLoader
+if TYPE_CHECKING:
+    from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
+    from phoenix.server.daemons.experiment_runner import ExperimentRunner
+    from phoenix.server.daemons.system_settings import SystemSettings
+    from phoenix.server.dml_event import DmlEvent
+    from phoenix.server.email.types import EmailSender
+    from phoenix.server.sandbox.session_manager import SandboxSessionManager
+    from phoenix.server.sandbox.types import SandboxRuntimeContext
+    from phoenix.server.types import (
+        CanGetLastUpdatedAt,
+        CanPutItem,
+        DbSessionFactory,
+        TokenStore,
     )
-    average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
-    dataset_example_revisions: DatasetExampleRevisionsDataLoader
-    dataset_example_spans: DatasetExampleSpansDataLoader
-    dataset_labels: DatasetLabelsDataLoader
-    dataset_dataset_splits: DatasetDatasetSplitsDataLoader
-    dataset_examples_and_versions_by_experiment_run: (
-        DatasetExamplesAndVersionsByExperimentRunDataLoader
-    )
-    dataset_example_splits: DatasetExampleSplitsDataLoader
-    document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
-    document_evaluations: DocumentEvaluationsDataLoader
-    document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
-    experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
-    experiment_error_rates: ExperimentErrorRatesDataLoader
-    experiment_repeated_run_group_annotation_summaries: (
-        ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
-    )
-    experiment_repeated_run_groups: ExperimentRepeatedRunGroupsDataLoader
-    experiment_run_annotations: ExperimentRunAnnotations
-    experiment_run_counts: ExperimentRunCountsDataLoader
-    experiment_sequence_number: ExperimentSequenceNumberDataLoader
-    last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
-    latency_ms_quantile: LatencyMsQuantileDataLoader
-    min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
-    num_child_spans: NumChildSpansDataLoader
-    num_spans_per_trace: NumSpansPerTraceDataLoader
-    project_by_name: ProjectByNameDataLoader
-    project_fields: TableFieldsDataLoader
-    project_trace_retention_policy_fields: TableFieldsDataLoader
-    projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
-    prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
-    record_counts: RecordCountDataLoader
-    session_annotations_by_session: SessionAnnotationsBySessionDataLoader
-    session_first_inputs: SessionIODataLoader
-    session_last_outputs: SessionIODataLoader
-    session_num_traces: SessionNumTracesDataLoader
-    session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
-    session_token_usages: SessionTokenUsagesDataLoader
-    session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
-    span_annotations: SpanAnnotationsDataLoader
-    span_by_id: SpanByIdDataLoader
-    span_cost_by_span: SpanCostBySpanDataLoader
-    span_cost_detail_fields: TableFieldsDataLoader
-    span_cost_detail_summary_entries_by_generative_model: (
-        SpanCostDetailSummaryEntriesByGenerativeModelDataLoader
-    )
-    span_cost_detail_summary_entries_by_project_session: (
-        SpanCostDetailSummaryEntriesByProjectSessionDataLoader
-    )
-    span_cost_detail_summary_entries_by_span: SpanCostDetailSummaryEntriesBySpanDataLoader
-    span_cost_detail_summary_entries_by_trace: SpanCostDetailSummaryEntriesByTraceDataLoader
-    span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
-    span_cost_fields: TableFieldsDataLoader
-    span_cost_summary_by_experiment: SpanCostSummaryByExperimentDataLoader
-    span_cost_summary_by_experiment_repeated_run_group: (
-        SpanCostSummaryByExperimentRepeatedRunGroupDataLoader
-    )
-    span_cost_summary_by_experiment_run: SpanCostSummaryByExperimentRunDataLoader
-    span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
-    span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
-    span_cost_summary_by_project_session: SpanCostSummaryByProjectSessionDataLoader
-    span_cost_summary_by_trace: SpanCostSummaryByTraceDataLoader
-    span_dataset_examples: SpanDatasetExamplesDataLoader
-    span_descendants: SpanDescendantsDataLoader
-    span_fields: TableFieldsDataLoader
-    span_projects: SpanProjectsDataLoader
-    token_counts: TokenCountDataLoader
-    trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
-    trace_by_trace_ids: TraceByTraceIdsDataLoader
-    trace_fields: TableFieldsDataLoader
-    trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
-    trace_root_spans: TraceRootSpansDataLoader
-    user_roles: UserRolesDataLoader
-    users: UsersDataLoader
 
 
 class _NoOp:
@@ -183,21 +41,25 @@ class _NoOp:
 class Context(BaseContext):
     db: DbSessionFactory
     data_loaders: DataLoaders
+    settings: SystemSettings
     cache_for_dataloaders: Optional[CacheForDataLoaders]
-    model: Model
-    export_path: Path
     span_cost_calculator: SpanCostCalculator
+    experiment_runner: ExperimentRunner
+    sandbox_session_manager: SandboxSessionManager
+    sandbox_runtime: SandboxRuntimeContext
+    encrypt: Callable[[bytes], bytes]
+    decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
     event_queue: CanPutItem[DmlEvent] = _NoOp()
-    corpus: Optional[Model] = None
+    allowed_provider_names: Optional[frozenset[str]] = None
     read_only: bool = False
     locked: bool = False
     auth_enabled: bool = False
-    secret: Optional[Secret] = None
+    secret: Optional[SecretStr] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
 
-    def get_secret(self) -> Secret:
+    def get_secret(self) -> SecretStr:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
 
         Returns:
@@ -226,7 +88,7 @@ class Context(BaseContext):
             raise ValueError("no response is set")
         return response
 
-    async def is_valid_password(self, password: Secret, user: models.User) -> bool:
+    async def is_valid_password(self, password: SecretStr, user: models.User) -> bool:
         return (
             (hash_ := user.password_hash) is not None
             and (salt := user.password_salt) is not None
@@ -234,7 +96,7 @@ class Context(BaseContext):
         )
 
     @staticmethod
-    async def hash_password(password: Secret, salt: bytes) -> bytes:
+    async def hash_password(password: SecretStr, salt: bytes) -> bytes:
         compute = partial(compute_password_hash, password=password, salt=salt)
         return await get_running_loop().run_in_executor(None, compute)
 
@@ -252,3 +114,51 @@ class Context(BaseContext):
             return int(self.user.identity)
         except Exception:
             return None
+
+
+def build_context(
+    *,
+    db: DbSessionFactory,
+    settings: SystemSettings,
+    span_cost_calculator: SpanCostCalculator,
+    experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
+    sandbox_runtime: SandboxRuntimeContext,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
+    cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
+    last_updated_at: CanGetLastUpdatedAt = _NoOp(),
+    event_queue: CanPutItem[DmlEvent] = _NoOp(),
+    allowed_provider_names: Optional[frozenset[str]] = None,
+    read_only: bool = False,
+    auth_enabled: bool = False,
+    secret: Optional[SecretStr] = None,
+    token_store: Optional[TokenStore] = None,
+    email_sender: Optional[EmailSender] = None,
+    request: Optional[StarletteRequest] = None,
+) -> Context:
+    """Build a GraphQL Context object."""
+
+    context = Context(
+        db=db,
+        settings=settings,
+        data_loaders=build_data_loaders(db, cache_for_dataloaders),
+        cache_for_dataloaders=cache_for_dataloaders,
+        span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
+        sandbox_runtime=sandbox_runtime,
+        encrypt=encrypt,
+        decrypt=decrypt,
+        last_updated_at=last_updated_at,
+        event_queue=event_queue,
+        allowed_provider_names=allowed_provider_names,
+        read_only=read_only,
+        auth_enabled=auth_enabled,
+        secret=secret,
+        token_store=token_store,
+        email_sender=email_sender,
+    )
+    if request is not None:
+        context.request = request
+    return context

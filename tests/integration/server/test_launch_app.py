@@ -1,4 +1,8 @@
 import json
+import os
+import subprocess
+import sys
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from itertools import chain
 from secrets import token_hex
@@ -10,14 +14,16 @@ from _pytest.tmpdir import TempPathFactory
 from faker import Faker
 from opentelemetry.trace import format_span_id, format_trace_id
 from pandas.core.dtypes.common import is_datetime64_any_dtype
+from phoenix.client import Client as _PhoenixClient
+from phoenix.client.types.spans import SpanQuery
 from sqlalchemy import URL
-
-import phoenix as px
-from phoenix.trace.dsl import SpanQuery
 
 from .._helpers import (
     _ADMIN_ONLY_ENDPOINTS,
+    _AUTH_REQUIRED_ENDPOINTS,
     _COMMON_RESOURCE_ENDPOINTS,
+    _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+    _VIEWER_ALLOWED_WRITE_OPERATIONS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AppInfo,
     _get,
@@ -32,10 +38,10 @@ from .._helpers import (
 
 
 @pytest.fixture
-def _env_sql_database(
+async def _env_sql_database(
     _sql_database_url: URL,
     tmp_path_factory: TempPathFactory,
-) -> Iterator[dict[str, str]]:
+) -> AsyncIterator[dict[str, str]]:
     if _sql_database_url.get_backend_name() == "sqlite":
         tmp = tmp_path_factory.mktemp(token_hex(8))
         database = str(tmp / "phoenix.db")
@@ -44,7 +50,7 @@ def _env_sql_database(
     if not _sql_database_url.get_backend_name().startswith("postgresql"):
         yield env
     else:
-        with _random_schema(_sql_database_url) as schema:
+        async with _random_schema(_sql_database_url) as schema:
             yield {**env, "PHOENIX_SQL_DATABASE_SCHEMA": schema}
 
 
@@ -66,6 +72,77 @@ def _no_auth_app(
 ) -> Iterator[_AppInfo]:
     with _server(_AppInfo(_env)) as app:
         yield app
+
+
+class TestDbMigrate:
+    async def test_db_migrate(self, _env_sql_database: dict[str, str]) -> None:
+        from pathlib import Path
+
+        import sqlalchemy
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from sqlalchemy.pool import NullPool
+
+        import phoenix.db as _phoenix_db
+        from phoenix.db.engines import get_async_db_url
+
+        raw_url = _env_sql_database["PHOENIX_SQL_DATABASE_URL"]
+        schema = _env_sql_database.get("PHOENIX_SQL_DATABASE_SCHEMA") or None
+        url = sqlalchemy.make_url(raw_url)
+        if url.get_backend_name() == "postgresql":
+            async_url = get_async_db_url(url.render_as_string(hide_password=False))
+            async_engine = create_async_engine(async_url, poolclass=NullPool)
+        else:
+            async_engine = create_async_engine(
+                url.set(drivername="sqlite+aiosqlite"), poolclass=NullPool
+            )
+
+        # Verify the database is fresh: alembic_version must not exist yet.
+        def _check_fresh(conn: sqlalchemy.Connection) -> None:
+            inspector = sqlalchemy.inspect(conn)
+            assert "alembic_version" not in inspector.get_table_names(schema=schema), (
+                "alembic_version already exists before migration ran"
+            )
+
+        async with async_engine.connect() as conn:
+            await conn.run_sync(_check_fresh)
+        await async_engine.dispose()
+
+        command = [sys.executable, "-m", "phoenix.server.main", "db", "migrate"]
+        env = (
+            {**os.environ, **_env_sql_database}
+            if sys.platform == "win32"
+            else dict(_env_sql_database)
+        )
+        result = subprocess.run(command, env=env, capture_output=True, text=True)
+        assert result.returncode == 0, result.stdout + result.stderr
+
+        # Confirm alembic_version now matches the current head revision.
+        if url.get_backend_name() == "postgresql":
+            async_engine = create_async_engine(
+                get_async_db_url(url.render_as_string(hide_password=False)), poolclass=NullPool
+            )
+        else:
+            async_engine = create_async_engine(
+                url.set(drivername="sqlite+aiosqlite"), poolclass=NullPool
+            )
+
+        def _get_version(conn: sqlalchemy.Connection) -> Any:
+            if schema:
+                conn.execute(sqlalchemy.text(f'SET search_path TO "{schema}"'))
+            return conn.execute(sqlalchemy.text("SELECT version_num FROM alembic_version")).scalar()
+
+        async with async_engine.connect() as conn:
+            actual = await conn.run_sync(_get_version)
+        await async_engine.dispose()
+
+        scripts_dir = str(Path(_phoenix_db.__file__).parent / "migrations")
+        cfg = Config()
+        cfg.set_main_option("script_location", scripts_dir)
+        expected = ScriptDirectory.from_config(cfg).get_current_head()
+
+        assert actual == expected, f"DB is at {actual!r}, expected head {expected!r}"
 
 
 class TestLaunchApp:
@@ -105,9 +182,11 @@ class TestLaunchApp:
                 assert gql_span_names == span_names
 
                 q = SpanQuery()
-                results = px.Client(endpoint=app.base_url).query_spans(
-                    q, q, project_name=project_name
-                )
+                _client = _PhoenixClient(base_url=app.base_url)
+                results = [
+                    _client.spans.get_spans_dataframe(query=q, project_name=project_name),
+                    _client.spans.get_spans_dataframe(query=q, project_name=project_name),
+                ]
                 assert isinstance(results, list)
                 assert len(results) == 2
                 for df in results:
@@ -138,7 +217,13 @@ class TestLaunchApp:
             _COMMON_RESOURCE_ENDPOINTS,
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
+            _VIEWER_ALLOWED_CREDENTIAL_OPERATIONS,
+            _VIEWER_ALLOWED_WRITE_OPERATIONS,
         ):
+            # Credential-issuing endpoints fail closed when authentication is disabled,
+            # rather than returning the status they would under an authenticated app.
+            if (method, endpoint) in _AUTH_REQUIRED_ENDPOINTS:
+                expected_status_code = 403
             response = client.request(method, endpoint.format(token_hex(4)))
             assert response.status_code == expected_status_code, (
                 f"Expected {expected_status_code} but "

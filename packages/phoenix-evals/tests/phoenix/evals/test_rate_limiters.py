@@ -9,6 +9,8 @@ import pytest
 
 from phoenix.evals.rate_limiters import (
     AdaptiveTokenBucket,
+    RateLimiter,
+    RateLimitError,
     UnavailableTokensError,
 )
 
@@ -74,6 +76,15 @@ def async_warp_time(start: Optional[float]):
             yield
 
 
+@pytest.mark.parametrize("rate", [0.0, -1.0, float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("limiter_class", [AdaptiveTokenBucket, RateLimiter])
+def test_rate_limiter_rejects_invalid_initial_rate(
+    limiter_class: type[AdaptiveTokenBucket] | type[RateLimiter], rate: float
+) -> None:
+    with pytest.raises(ValueError, match="initial_per_second_request_rate must be finite and > 0"):
+        limiter_class(initial_per_second_request_rate=rate)
+
+
 def test_token_bucket_gains_tokens_over_time():
     start = time.time()
 
@@ -88,10 +99,10 @@ def test_token_bucket_gains_tokens_over_time():
         )
 
     with freeze_time(start + 5):
-        assert isclose(bucket.available_requests(), 5)
+        assert isclose(bucket.available_requests(), 6)
 
     with freeze_time(start + 10):
-        assert isclose(bucket.available_requests(), 10)
+        assert isclose(bucket.available_requests(), 11)
 
 
 def test_token_rate_limiter_can_max_out_on_requests():
@@ -108,7 +119,7 @@ def test_token_rate_limiter_can_max_out_on_requests():
         )
 
     with freeze_time(start + 30):
-        assert bucket.available_requests() == 30
+        assert bucket.available_requests() == 31
 
     with freeze_time(start + 120):
         assert bucket.available_requests() == 120
@@ -131,9 +142,9 @@ def test_token_rate_limiter_spends_tokens():
         )
 
     with freeze_time(start + 3):
-        assert bucket.available_requests() == 3
+        assert bucket.available_requests() == 4  # 1.0 + 3
         bucket.make_request_if_ready()
-        assert bucket.available_requests() == 2
+        assert bucket.available_requests() == 3  # 4 - 1
 
 
 def test_token_rate_limiter_cannot_spend_unavailable_tokens():
@@ -148,6 +159,8 @@ def test_token_rate_limiter_cannot_spend_unavailable_tokens():
             rate_increase_factor=0,
             cooldown_seconds=5,
         )
+        assert bucket.available_requests() == 1.0
+        bucket.make_request_if_ready()
         assert bucket.available_requests() == 0
         with pytest.raises(UnavailableTokensError):
             bucket.make_request_if_ready()
@@ -168,7 +181,11 @@ def test_token_rate_limiter_can_block_until_tokens_are_available():
         )
 
     with warp_time(start):
-        assert bucket.available_requests() == 0
+        assert bucket.available_requests() == 1.0
+        bucket.wait_until_ready()
+        sleeps = [s.args[0] for s in time.sleep.call_args_list]
+        assert sum(sleeps) == 0
+
         bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
         time_cost = 1 / rate
@@ -190,11 +207,10 @@ async def test_token_rate_limiter_async_waits_until_tokens_are_available():
         )
 
     with async_warp_time(start):
-        assert bucket.available_requests() == 0
+        assert bucket.available_requests() == 1.0
         await bucket.async_wait_until_ready()
         sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        time_cost = 1 / rate
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 def test_token_rate_limiter_can_accumulate_tokens_before_waiting():
@@ -212,11 +228,10 @@ def test_token_rate_limiter_can_accumulate_tokens_before_waiting():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        time_cost = (1 / rate) - 5
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting():
@@ -234,11 +249,10 @@ async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting():
         )
 
     with async_warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, "should have accumulated to 1.5 requests"
         await bucket.async_wait_until_ready()
         sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        time_cost = (1 / rate) - 5
-        assert isclose(sum(sleeps), time_cost, rel_tol=0.2)
+        assert sum(sleeps) == 0
 
 
 def test_token_bucket_adaptively_increases_rate_over_time():
@@ -256,7 +270,9 @@ def test_token_bucket_adaptively_increases_rate_over_time():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, (
+            "should have accumulated to 1.5 requests (1.0 + 0.5)"
+        )
         bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
         elapsed_time = sum(sleeps) + 5
@@ -278,7 +294,9 @@ def test_token_bucket_does_not_increase_rate_past_maximum():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, (
+            "should have accumulated to 1.5 requests (1.0 + 0.5)"
+        )
         bucket.wait_until_ready()
         assert isclose(bucket.rate, rate * 2)
 
@@ -298,7 +316,9 @@ def test_token_bucket_resets_rate_after_inactivity():
         )
 
     with warp_time(start + 5):
-        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        assert bucket.available_requests() == 1.5, (
+            "should have accumulated to 1.5 requests (1.0 + 0.5)"
+        )
         bucket.wait_until_ready()
         assert isclose(bucket.rate, rate * 2)
 
@@ -353,3 +373,70 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
     with warp_time(start + 6):
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 6.25)
+
+
+async def test_token_bucket_async_decreases_rate_once_per_cooldown_period():
+    start = time.time()
+    rate = 100
+
+    with freeze_time(start):
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=0.25,
+            rate_increase_factor=0.01,
+            cooldown_seconds=5,
+        )
+
+    with async_warp_time(start):
+        request_start_time = time.time()
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+
+    assert isclose(bucket.rate, 25)
+
+
+async def test_alimit_cooldown_never_blocks_the_event_loop():
+    class _RateLimitError(Exception):
+        pass
+
+    limiter = RateLimiter(
+        rate_limit_error=_RateLimitError,
+        max_rate_limit_retries=1,
+        initial_per_second_request_rate=1000,
+        cooldown_seconds=5,
+    )
+
+    @limiter.alimit
+    async def always_rate_limited():
+        raise _RateLimitError
+
+    with async_warp_time(time.time()):
+        with mock.patch("time.sleep") as mock_sync_sleep:
+            with pytest.raises(RateLimitError):
+                await always_rate_limited()
+            assert not mock_sync_sleep.called, "async path must not block with time.sleep"
+
+
+async def test_alimit_cancellation_during_cooldown_unblocks_waiters():
+    class _RateLimitError(Exception):
+        pass
+
+    limiter = RateLimiter(
+        rate_limit_error=_RateLimitError,
+        max_rate_limit_retries=0,
+        initial_per_second_request_rate=1000,
+        cooldown_seconds=5,
+    )
+
+    @limiter.alimit
+    async def always_rate_limited():
+        raise _RateLimitError
+
+    with mock.patch("asyncio.sleep", side_effect=asyncio.CancelledError):
+        with pytest.raises(asyncio.CancelledError):
+            await always_rate_limited()
+
+    assert limiter._rate_limit_handling is not None
+    assert limiter._rate_limit_handling.is_set()

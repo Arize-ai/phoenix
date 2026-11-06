@@ -28,7 +28,7 @@ class NumChildSpansDataLoader(DataLoader[Key, Result]):
             .join(children, children.c.parent_id == models.Span.span_id)
             .group_by(models.Span.id)
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for span_rowid, num_child_spans in data:
                 result[span_rowid] = num_child_spans

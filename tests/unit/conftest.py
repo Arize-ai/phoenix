@@ -1,83 +1,641 @@
 import asyncio
 import contextlib
+import os
+import threading
 from asyncio import AbstractEventLoop
+from copy import copy
+from dataclasses import fields
 from functools import partial
 from importlib.metadata import version
 from random import getrandbits
 from secrets import token_hex
-from typing import Any, AsyncIterator, Awaitable, Callable, Iterator, Literal
+from types import FunctionType
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Literal,
+    Optional,
+    Union,
+)
 
-import httpx
+import aiosqlite
+import freezegun
+import httpx2
 import pytest
+import sqlalchemy
+import sqlean
+import strawberry
 from _pytest.config import Config
 from _pytest.fixtures import SubRequest
-from _pytest.terminal import TerminalReporter
 from _pytest.tmpdir import TempPathFactory
 from asgi_lifespan import LifespanManager
 from faker import Faker
-from httpx import AsyncByteStream, Request, Response
-from psycopg import Connection
+from fastapi import APIRouter, FastAPI
+from fastapi import routing as fastapi_routing
+from fastapi._compat import v2 as fastapi_v2
+from fastapi.dependencies.models import Dependant
+from pydantic import SecretStr, TypeAdapter
+from pydantic_ai import RunContext
 from pytest import FixtureRequest
-from pytest_postgresql import factories
-from sqlalchemy import URL, make_url
+from pytest_postgresql.janitor import DatabaseJanitor
+from sqlalchemy import URL, StaticPool
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, create_async_engine
 from starlette.types import ASGIApp
+from strawberry.extensions import SchemaExtension
 
-import phoenix.trace.v1 as pb
-from phoenix.client import Client
-from phoenix.config import EXPORT_DIR
-from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
-from phoenix.db.engines import aio_postgresql_engine, aio_sqlite_engine
+from phoenix.db.engines import (
+    _dumps as _json_serializer,
+)
+from phoenix.db.engines import (
+    aio_postgresql_engine,
+    aio_sqlite_engine,
+    configure_sqlite_transactions,
+    set_sqlite_pragma,
+)
+from phoenix.db.facilitator import Facilitator
 from phoenix.db.insertion.helpers import DataManipulation
-from phoenix.inferences.inferences import EMPTY_INFERENCES
-from phoenix.pointcloud.umap_parameters import get_umap_parameters
+from phoenix.server import app as server_app
+from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
+from phoenix.server.dml_event_handler import DmlEventHandler
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
-from phoenix.server.types import BatchedCaller, DbSessionFactory
-from phoenix.session.client import Client as LegacyClient
+from phoenix.server.redaction import Redactor
+from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
-from tests.unit.transport import ASGIWebSocketTransport
 from tests.unit.vcr import CustomVCR
 
 
-def pytest_terminal_summary(
-    terminalreporter: TerminalReporter, exitstatus: int, config: Config
+def pytest_configure(config: Config) -> None:
+    # freeze_time() touches every attribute of every loaded module; daytona_sdk
+    # answers by importing submodules whose pydantic models then fail to build
+    # against FakeDatetime, and the exception leaves the patch half-applied.
+    freezegun.configure(extend_ignore_list=["daytona_sdk", "daytona_api_client"])
+    config.addinivalue_line(
+        "markers",
+        "postgres_only: mark a test as requiring PostgreSQL (skipped under --db sqlite)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_monty_runtime_probe: run the real Monty runtime startup probe "
+        "(spawns a worker subprocess)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_agent_mcp_server: derive the agent's MCP server from the OpenAPI document",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_docs_mcp_server: build the real docs MCP toolset, which opens an HTTPS MCP "
+        "session to the Mintlify host during lifespan startup",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_agent_session_sweeper: run the app's agent-session sweeper loop",
+    )
+    config.addinivalue_line(
+        "markers",
+        "seeded_model_costs: sync the model cost manifest into the database during app startup",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_model_cost_fetcher: run the app's model cost manifest fetcher loop, which "
+        "downloads the manifest from GitHub unless the test patches the download",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_key_derivation: derive the encryption key with the real PBKDF2 "
+        "rounds instead of the memoized ones",
+    )
+    config.addinivalue_line(
+        "markers",
+        "pristine_db: give the test an empty database instead of one carrying the rows the "
+        "app seeds at startup",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_graphql_schema_build: build a fresh GraphQL schema for the app instead of "
+        "reusing the worker's memoized one",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_app_routers: build the app's routers fresh instead of reusing the worker's "
+        "memoized ones",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_fastapi_type_adapters: build fresh pydantic TypeAdapters for the app's routes "
+        "instead of reusing the worker's memoized ones",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_fastapi_dependants: analyze every route's dependencies fresh instead of reusing "
+        "the worker's memoized analysis",
+    )
+
+
+@pytest.fixture(autouse=True)
+def _stub_code_mode_startup_check(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The code-mode startup check spawns a worker subprocess, and MCP plus code
+    mode default on — so every app-lifespan test would pay that spawn inside
+    asgi_lifespan's 5s startup budget. Stubbed suite-wide; tests exercising the
+    check itself opt back in with ``@pytest.mark.real_monty_runtime_probe``."""
+    if request.node.get_closest_marker("real_monty_runtime_probe"):
+        return
+
+    async def _skip(self: Any) -> bool:
+        return True
+
+    monkeypatch.setattr("phoenix.server.monty_runtime.MontyRuntime.probe_runtime", _skip)
+
+
+@pytest.fixture(autouse=True)
+def _stub_agent_mcp_server(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deriving the agent's MCP server generates the OpenAPI document, about
+    half a second per app. Stubbed suite-wide; tests that need the real server
+    opt in with ``@pytest.mark.real_agent_mcp_server``."""
+    if request.node.get_closest_marker("real_agent_mcp_server"):
+        return
+
+    monkeypatch.setattr(
+        "phoenix.server.app.build_phoenix_mcp_server", lambda *_, **__: (None, None)
+    )
+
+
+@pytest.fixture(autouse=True)
+def _mcp_mount_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Building the ``/mcp`` mount derives a FastMCP server from the app's
+    OpenAPI document, about half a second per app. Off suite-wide; the MCP
+    tests patch ``get_env_enable_mcp_server`` on, which wins over the env var."""
+    monkeypatch.setenv("PHOENIX_ENABLE_MCP_SERVER", "false")
+
+
+class OfflineDocsMCPServer(MintlifyDocsMCPServer):
+    """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
+
+    Overrides ``get_tools`` to return an empty tool dict and the async
+    context-manager protocol to no-op, so neither app startup nor an agent
+    run opens an HTTP session to the Mintlify endpoint.
+    """
+
+    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, Any]:
+        return {}
+
+    async def __aenter__(self) -> "OfflineDocsMCPServer":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+
+@pytest.fixture(autouse=True)
+def _stub_docs_mcp_server(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The agent assistant and external resources default on, so every app
+    builds the docs MCP toolset and lifespan startup opens an HTTPS MCP session
+    to the Mintlify host: a network round trip per app, bounded only by the
+    client's init deadline. Stubbed suite-wide with the offline toolset; tests
+    that need the real transport opt in with ``@pytest.mark.real_docs_mcp_server``."""
+    if request.node.get_closest_marker("real_docs_mcp_server"):
+        return
+
+    monkeypatch.setattr("phoenix.server.app.MintlifyDocsMCPServer", OfflineDocsMCPServer)
+
+
+@pytest.fixture(autouse=True)
+def _stub_wasm_prefetch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app lifespan pre-fetches the sandbox WASM binary through a cache
+    directory shared by every xdist worker, with a network download on a miss
+    -- contention and I/O that do not fit inside asgi_lifespan's 5s startup
+    budget. Stubbed suite-wide; the download tests call it directly."""
+
+    async def _skip() -> None:
+        return None
+
+    monkeypatch.setattr("phoenix.server.app.prefetch_wasm_binary_if_needed", _skip)
+
+
+@pytest.fixture(autouse=True)
+def _agent_session_sweeper_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's agent-session sweeper makes its first pass concurrently with
+    the test body, so a test that seeds a session past its retention cannot
+    know whether the pass has already reaped it. Off suite-wide; the sweeper
+    tests call ``_sweep`` on their own instance, and a test that needs the
+    loop opts in with ``@pytest.mark.real_agent_session_sweeper``."""
+    if request.node.get_closest_marker("real_agent_session_sweeper"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.agent_session_sweeper.AgentSessionSweeper._run", _idle
+    )
+
+
+@pytest.fixture(autouse=True)
+def _stub_model_cost_seeding(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """App startup syncs the model cost manifest, hundreds of built-in models
+    with their token prices, through the ORM, and each test's database then
+    discards the rows. Stubbed suite-wide; tests that read built-in models or
+    prices through the app opt in with ``@pytest.mark.seeded_model_costs``,
+    which leaves the real step in the Facilitator so the rows exist before the
+    model store's first fetch is scheduled."""
+    if request.node.get_closest_marker("seeded_model_costs"):
+        return
+
+    async def _skip(db: DbSessionFactory) -> None:
+        return None
+
+    monkeypatch.setattr("phoenix.db.facilitator._ensure_model_costs", _skip)
+
+
+@pytest.fixture(autouse=True)
+def _model_cost_fetcher_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's model cost manifest fetcher downloads the manifest from GitHub
+    after startup. Off suite-wide so tests make no network calls; the fetcher
+    tests drive it on their own instance, and a test that needs the loop opts
+    in with ``@pytest.mark.real_model_cost_fetcher``."""
+    if request.node.get_closest_marker("real_model_cost_fetcher"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.model_cost_manifest_fetcher.ModelCostManifestFetcher._run",
+        _idle,
+    )
+
+
+_DERIVE_ENCRYPTION_KEY = EncryptionService._derive_encryption_key
+_MEMOIZED_ENCRYPTION_KEYS: dict[str, bytes] = {}
+
+
+def _memoized_encryption_key(secret: Optional[SecretStr]) -> bytes:
+    plaintext = secret.get_secret_value() if secret is not None else ""
+    if plaintext not in _MEMOIZED_ENCRYPTION_KEYS:
+        _MEMOIZED_ENCRYPTION_KEYS[plaintext] = _DERIVE_ENCRYPTION_KEY(secret)
+    return _MEMOIZED_ENCRYPTION_KEYS[plaintext]
+
+
+@pytest.fixture(autouse=True)
+def _memoized_key_derivation(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Memoize deterministic PBKDF2 derivation per worker to avoid repeated key stretching.
+
+    Tests of key derivation must opt out with ``@pytest.mark.real_key_derivation``.
+    """
+    if request.node.get_closest_marker("real_key_derivation"):
+        return
+
+    monkeypatch.setattr(
+        EncryptionService, "_derive_encryption_key", staticmethod(_memoized_encryption_key)
+    )
+
+
+_GraphQLExtensions = Iterable[Union[type[SchemaExtension], Callable[[], SchemaExtension]]]
+_MEMOIZED_GRAPHQL_SCHEMAS: dict[tuple[Any, ...], strawberry.Schema] = {}
+
+
+def _graphql_extension_key(extension: Any) -> Any:
+    # Extension classes identify themselves. The app passes its other
+    # extensions as lambdas built fresh per app; two such lambdas are
+    # equivalent when they share code, defaults, and captured values.
+    if isinstance(extension, type):
+        return extension
+    code = getattr(extension, "__code__", None)
+    if code is None:
+        return extension
+    captured = tuple(cell.cell_contents for cell in (extension.__closure__ or ()))
+    return (code, extension.__defaults__, captured)
+
+
+def _memoized_graphql_schema(extensions: Optional[_GraphQLExtensions] = None) -> strawberry.Schema:
+    extension_list = list(extensions or ())
+    key = tuple(_graphql_extension_key(extension) for extension in extension_list)
+    try:
+        schema = _MEMOIZED_GRAPHQL_SCHEMAS.get(key)
+    except TypeError:
+        return build_graphql_schema(extension_list)
+    if schema is None:
+        schema = _MEMOIZED_GRAPHQL_SCHEMAS[key] = build_graphql_schema(extension_list)
+    return schema
+
+
+@pytest.fixture(autouse=True)
+def _memoized_graphql_schema_build(
+    request: FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    xfails = len([x for x in terminalreporter.stats.get("xfailed", [])])
-    xpasses = len([x for x in terminalreporter.stats.get("xpassed", [])])
+    """Building the Strawberry schema converts every type, field, and enum of
+    the API into GraphQL core objects, a full pass over the API per app. The
+    schema is a pure function of the extension list, so the worker memoizes
+    it per list: every app after the worker's first reuses the same schema
+    object. A test that needs its own schema opts out with
+    ``@pytest.mark.real_graphql_schema_build``."""
+    if request.node.get_closest_marker("real_graphql_schema_build"):
+        return
 
-    xfail_threshold = 12  # our tests are currently quite unreliable
+    monkeypatch.setattr("phoenix.server.app.build_graphql_schema", _memoized_graphql_schema)
 
-    if config.getoption("--run-postgres"):
-        terminalreporter.write_sep("=", f"xfail threshold: {xfail_threshold}")
-        terminalreporter.write_sep("=", f"xpasses: {xpasses}, xfails: {xfails}")
 
-        if exitstatus == pytest.ExitCode.OK:
-            if xfails < xfail_threshold:
-                terminalreporter.write_sep(
-                    "=", "Within xfail threshold. Passing the test suite.", green=True
-                )
-                assert terminalreporter._session is not None
-                terminalreporter._session.exitstatus = pytest.ExitCode.OK
-            else:
-                terminalreporter.write_sep(
-                    "=", "Too many flaky tests. Failing the test suite.", red=True
-                )
-                assert terminalreporter._session is not None
-                terminalreporter._session.exitstatus = pytest.ExitCode.TESTS_FAILED
+_BUILD_FASTAPI_TYPE_ADAPTER = fastapi_v2.ModelField.__post_init__
+_MEMOIZED_FASTAPI_TYPE_ADAPTERS: dict[tuple[Any, ...], TypeAdapter[Any]] = {}
+# A few annotations FastAPI rebuilds per app never compare equal, so the
+# cache is bounded rather than left to grow with every app in the worker.
+_FASTAPI_TYPE_ADAPTER_CACHE_LIMIT = 4096
+# Everything on a pydantic FieldInfo that can change the adapter it yields.
+_FIELD_INFO_ATTRIBUTES = (
+    "default",
+    "default_factory",
+    "alias",
+    "alias_priority",
+    "validation_alias",
+    "serialization_alias",
+    "title",
+    "field_title_generator",
+    "description",
+    "examples",
+    "exclude",
+    "exclude_if",
+    "discriminator",
+    "deprecated",
+    "json_schema_extra",
+    "frozen",
+    "validate_default",
+    "repr",
+    "init",
+    "init_var",
+    "kw_only",
+)
+
+
+def _by_value_or_repr(value: Any) -> Any:
+    # Hashable values key by type and equality, which for classes and
+    # callables is identity, so same-named types and same-named factories
+    # stay apart and 0, 0.0, and False do not collide. Unhashable values
+    # such as lists and dicts key by repr.
+    try:
+        hash(value)
+    except TypeError:
+        return repr(value)
+    return (type(value), value)
+
+
+def _fastapi_type_adapter_key(field: fastapi_v2.ModelField) -> tuple[Any, ...]:
+    info = field.field_info
+    return (
+        field.mode,
+        _by_value_or_repr(info.annotation),
+        repr(info.metadata),
+        *(_by_value_or_repr(getattr(info, name, None)) for name in _FIELD_INFO_ATTRIBUTES),
+        repr(field.config),
+    )
+
+
+def _memoized_fastapi_model_field_post_init(self: fastapi_v2.ModelField) -> None:
+    key = _fastapi_type_adapter_key(self)
+    adapter = _MEMOIZED_FASTAPI_TYPE_ADAPTERS.get(key)
+    if adapter is None:
+        _BUILD_FASTAPI_TYPE_ADAPTER(self)
+        if len(_MEMOIZED_FASTAPI_TYPE_ADAPTERS) < _FASTAPI_TYPE_ADAPTER_CACHE_LIMIT:
+            _MEMOIZED_FASTAPI_TYPE_ADAPTERS[key] = self._type_adapter
+    else:
+        self._type_adapter = adapter
+
+
+@pytest.fixture(autouse=True)
+def _memoized_fastapi_type_adapters(
+    request: FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FastAPI rebuilds every route for each app that includes its router, and
+    each route's parameters and response model become ModelFields whose
+    ``__post_init__`` builds a pydantic TypeAdapter, a core schema generated
+    per field per app. An adapter is a pure function of the field's mode,
+    annotation, FieldInfo, and config, and is stateless once built, so the
+    worker memoizes them: every app after the worker's first reuses them. A
+    test that needs fresh adapters opts out with
+    ``@pytest.mark.real_fastapi_type_adapters``."""
+    if request.node.get_closest_marker("real_fastapi_type_adapters"):
+        return
+
+    monkeypatch.setattr(
+        fastapi_v2.ModelField, "__post_init__", _memoized_fastapi_model_field_post_init
+    )
+
+
+# The auth router is left out: its builder reads environment flags at
+# construction, so it is not a function of its arguments alone.
+_ROUTER_BUILDER_NAMES = (
+    "create_v1_router",
+    "create_client_errors_router",
+    "create_agents_router",
+    "create_legacy_agents_router",
+)
+_REAL_ROUTER_BUILDERS: dict[str, Callable[..., APIRouter]] = {
+    name: getattr(server_app, name) for name in _ROUTER_BUILDER_NAMES
+}
+_MEMOIZED_ROUTERS: dict[tuple[Any, ...], APIRouter] = {}
+
+
+def _memoized_router_builder(name: str) -> Callable[..., APIRouter]:
+    build = _REAL_ROUTER_BUILDERS[name]
+
+    def memoized(*args: Any, **kwargs: Any) -> APIRouter:
+        key = (name, args, tuple(sorted(kwargs.items())))
+        router = _MEMOIZED_ROUTERS.get(key)
+        if router is None:
+            router = _MEMOIZED_ROUTERS[key] = build(*args, **kwargs)
+        return router
+
+    return memoized
+
+
+@pytest.fixture(autouse=True)
+def _memoized_app_routers(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``create_app`` builds the v1, agents, and legacy-agents routers per
+    app from a flag, and building a router registers every route, inspecting
+    its signature and modelling its fields before the app even includes it.
+    Each of those routers is a pure function of its flag, and including one
+    records it on the app without mutating it, so the worker memoizes each
+    builder per argument list: every app after the worker's first reuses the
+    routers. A test that needs its own routers opts out with
+    ``@pytest.mark.real_app_routers``."""
+    if request.node.get_closest_marker("real_app_routers"):
+        return
+
+    for name in _ROUTER_BUILDER_NAMES:
+        monkeypatch.setattr(server_app, name, _memoized_router_builder(name))
+
+
+# The name route registration resolves at call time; looked up through the
+# module so a FastAPI release that drops it fails here, at import.
+_BUILD_FASTAPI_DEPENDANT: Callable[..., Dependant] = vars(fastapi_routing)["get_dependant"]
+_MEMOIZED_FASTAPI_DEPENDANTS: dict[tuple[Any, ...], Dependant] = {}
+_FASTAPI_DEPENDANT_CACHE_LIMIT = 4096
+# The list-valued fields of a Dependant. FastAPI inserts a route's own
+# dependencies into the list it gets back, so a memoized dependant is handed
+# out as a copy whose lists are its own.
+_DEPENDANT_LIST_FIELDS = tuple(
+    field.name for field in fields(Dependant) if field.default_factory is list
+)
+
+
+class _ByIdentity:
+    """A dictionary key that stands for one object, compared by identity, so
+    two callables that happen to compare equal do not share an entry."""
+
+    __slots__ = ("obj",)
+
+    def __init__(self, obj: Any) -> None:
+        self.obj = obj
+
+    def __hash__(self) -> int:
+        return id(self.obj)
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _ByIdentity) and other.obj is self.obj
+
+
+_SHARED_ROUTER_ENDPOINT_IDS: dict[int, set[int]] = {}
+
+
+def _shared_router_endpoint_ids() -> set[int]:
+    """The identities of every endpoint on a memoized router, recomputed when
+    a router is added to the memo."""
+    count = len(_MEMOIZED_ROUTERS)
+    if count not in _SHARED_ROUTER_ENDPOINT_IDS:
+        ids: set[int] = set()
+
+        def walk(routes: Iterable[Any]) -> None:
+            for route in routes:
+                nested = getattr(route, "original_router", None)
+                if nested is not None:
+                    walk(nested.routes)
+                elif (endpoint := getattr(route, "endpoint", None)) is not None:
+                    ids.add(id(endpoint))
+
+        for router in _MEMOIZED_ROUTERS.values():
+            walk(router.routes)
+        _SHARED_ROUTER_ENDPOINT_IDS.clear()
+        _SHARED_ROUTER_ENDPOINT_IDS[count] = ids
+    return _SHARED_ROUTER_ENDPOINT_IDS[count]
+
+
+def _is_memoizable_endpoint(call: Callable[..., Any]) -> bool:
+    # An endpoint recurs across apps when it is a function defined at module
+    # or class level, or when it belongs to a router the worker shares. A
+    # function created per app, such as the handlers a GraphQL router builds
+    # for each instance, is new every time, and caching its analysis would
+    # only retain the app it closes over.
+    if isinstance(call, FunctionType) and "<locals>" not in call.__qualname__:
+        return True
+    return id(call) in _shared_router_endpoint_ids()
+
+
+def _memoized_fastapi_dependant(
+    *,
+    path: str,
+    call: Callable[..., Any],
+    name: Optional[str] = None,
+    own_oauth_scopes: Optional[list[str]] = None,
+    parent_oauth_scopes: Optional[list[str]] = None,
+    use_cache: bool = True,
+    scope: Optional[Literal["function", "request"]] = None,
+) -> Dependant:
+    build = partial(
+        _BUILD_FASTAPI_DEPENDANT,
+        path=path,
+        call=call,
+        name=name,
+        own_oauth_scopes=own_oauth_scopes,
+        parent_oauth_scopes=parent_oauth_scopes,
+        use_cache=use_cache,
+        scope=scope,
+    )
+    if not _is_memoizable_endpoint(call):
+        return build()
+    key = (
+        path,
+        _ByIdentity(call),
+        name,
+        tuple(own_oauth_scopes or ()),
+        tuple(parent_oauth_scopes or ()),
+        use_cache,
+        scope,
+    )
+    dependant = _MEMOIZED_FASTAPI_DEPENDANTS.get(key)
+    if dependant is None:
+        dependant = build()
+        if len(_MEMOIZED_FASTAPI_DEPENDANTS) < _FASTAPI_DEPENDANT_CACHE_LIMIT:
+            _MEMOIZED_FASTAPI_DEPENDANTS[key] = dependant
+    handed_out = copy(dependant)
+    for list_field in _DEPENDANT_LIST_FIELDS:
+        setattr(handed_out, list_field, list(getattr(dependant, list_field)))
+    return handed_out
+
+
+@pytest.fixture(autouse=True)
+def _memoized_fastapi_dependants(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Registering a route has FastAPI analyze the endpoint's dependencies:
+    it inspects the signature, classifies every parameter, and models each
+    one, recursively through sub-dependencies. With the type adapters memoized
+    this analysis is what remains of route registration, and FastAPI repeats
+    it for every app that includes the route. The analysis is a pure function
+    of the endpoint, path, and scopes, so the worker memoizes it for
+    endpoints defined at module or class level and hands each app a copy with
+    its own lists. A test that needs the app's routes analyzed fresh opts out
+    with ``@pytest.mark.real_fastapi_dependants``."""
+    if request.node.get_closest_marker("real_fastapi_dependants"):
+        return
+
+    monkeypatch.setattr(fastapi_routing, "get_dependant", _memoized_fastapi_dependant)
+
+
+@pytest.fixture(autouse=True)
+def _widened_app_lifespan_budgets(monkeypatch: pytest.MonkeyPatch) -> None:
+    """asgi_lifespan's default five-second budgets are routinely exceeded by
+    app startup under full worker contention: setups measure eight seconds and
+    more at the tail of the suite. Several test modules construct
+    LifespanManager directly, so the default is widened once here; explicit
+    arguments still win, and the per-test timeout bounds a genuine hang."""
+    original = LifespanManager.__init__
+
+    def widened(self: Any, app: Any, *args: Any, **kwargs: Any) -> None:
+        if not args:
+            kwargs.setdefault("startup_timeout", 30)
+            kwargs.setdefault("shutdown_timeout", 30)
+        original(self, app, *args, **kwargs)
+
+    monkeypatch.setattr(LifespanManager, "__init__", widened)
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
-    skip_postgres = pytest.mark.skip(reason="Skipping Postgres tests")
-    if not config.getoption("--run-postgres"):
+    db = config.getoption("--db")
+    if db == "sqlite":
+        skip_marker = pytest.mark.skip(reason="Skipping Postgres tests (--db sqlite)")
         for item in items:
+            if item.get_closest_marker("postgres_only") is not None:
+                item.add_marker(skip_marker)
+                continue
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
-                    item.add_marker(skip_postgres)
+                    item.add_marker(skip_marker)
+    elif db == "postgresql":
+        skip_marker = pytest.mark.skip(reason="Skipping SQLite tests (--db postgresql)")
+        for item in items:
+            if "dialect" in item.fixturenames:
+                if "sqlite" in item.callspec.params.values():
+                    item.add_marker(skip_marker)
 
 
 @pytest.fixture
@@ -105,28 +663,84 @@ def anthropic_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     return api_key
 
 
-postgresql_connection = factories.postgresql("postgresql_proc")
+@pytest.fixture(scope="session")
+def _postgresql_template_db(postgresql_proc: Any) -> Iterator[str]:
+    """Create a template database with the full schema once per session.
+
+    Per-test databases are cloned from this template via CREATE DATABASE ... TEMPLATE,
+    which is a fast file-copy at the PG level (~5ms) instead of running create_all DDL
+    (~30-44ms) per test.
+    """
+
+    template_name = f"phoenix_template_{os.getpid()}"
+    janitor = DatabaseJanitor(
+        user=postgresql_proc.user,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        version=postgresql_proc.version,
+        dbname=template_name,
+        password=postgresql_proc.password or None,
+    )
+    janitor.init()
+    sync_url = URL.create(
+        "postgresql+psycopg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=template_name,
+    )
+    sync_engine = sqlalchemy.create_engine(sync_url)
+    models.Base.metadata.create_all(sync_engine)
+    sync_engine.dispose()
+    async_url = URL.create(
+        "postgresql+asyncpg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=template_name,
+    )
+    _seed_template_database(lambda: aio_postgresql_engine(async_url, migrate=False), "postgresql")
+    yield template_name
+    janitor.drop()
 
 
 @pytest.fixture(scope="function")
-async def postgresql_url(postgresql_connection: "Connection[Any]") -> AsyncIterator[URL]:
-    connection = postgresql_connection
-    user = connection.info.user
-    password = connection.info.password
-    database = connection.info.dbname
-    host = connection.info.host
-    port = connection.info.port
-    yield make_url(f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}")
-
-
-@pytest.fixture(scope="function")
-async def postgresql_engine(postgresql_url: URL) -> AsyncIterator[AsyncEngine]:
-    engine = aio_postgresql_engine(postgresql_url, migrate=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
-        await conn.run_sync(models.Base.metadata.create_all)
+async def postgresql_engine(
+    request: SubRequest,
+    postgresql_proc: Any,
+    _postgresql_template_db: str,
+) -> AsyncIterator[AsyncEngine]:
+    # A pristine database is created from scratch with the schema only,
+    # instead of cloned from the seeded template.
+    pristine = request.node.get_closest_marker("pristine_db") is not None
+    dbname = f"phoenix_test_{os.getpid()}_{token_hex(4)}"
+    janitor = DatabaseJanitor(
+        user=postgresql_proc.user,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        version=postgresql_proc.version,
+        dbname=dbname,
+        password=postgresql_proc.password or None,
+        template_dbname=None if pristine else _postgresql_template_db,
+    )
+    janitor.init()
+    url = URL.create(
+        "postgresql+asyncpg",
+        username=postgresql_proc.user,
+        password=postgresql_proc.password or None,
+        host=postgresql_proc.host,
+        port=postgresql_proc.port,
+        database=dbname,
+    )
+    engine = aio_postgresql_engine(url, migrate=False)
+    if pristine:
+        async with engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()
+    janitor.drop()
 
 
 @pytest.fixture(params=["sqlite", "postgresql"])
@@ -144,25 +758,178 @@ def sqlalchemy_dialect(dialect: str) -> Any:
         raise ValueError(f"Unsupported dialect: {dialect}")
 
 
+def _seed_template_database(make_engine: Callable[[], AsyncEngine], dialect: str) -> None:
+    """Run the app's startup seeding once against a template database, so the
+    Facilitator every app runs at startup finds its rows already in place and
+    each of its steps is a read or a delete that matches nothing. The model
+    cost manifest is left out: the suite stubs that step, and a test opts into
+    it per app.
+
+    The seeding runs on its own thread with its own event loop, because the
+    template fixtures are synchronous and pytest-asyncio owns the calling
+    thread's loop."""
+
+    async def skip_model_costs(db: DbSessionFactory) -> None:
+        return None
+
+    async def seed() -> None:
+        engine = make_engine()
+        try:
+            db = DbSessionFactory(db=_db(engine), dialect=dialect)
+            with pytest.MonkeyPatch.context() as mp:
+                mp.setattr("phoenix.db.facilitator._ensure_model_costs", skip_model_costs)
+                await Facilitator(db=db)()
+        finally:
+            await engine.dispose()
+
+    failure: list[BaseException] = []
+
+    def run() -> None:
+        try:
+            asyncio.run(seed())
+        except BaseException as exc:
+            failure.append(exc)
+
+    thread = threading.Thread(target=run, name=f"seed-{dialect}-template")
+    thread.start()
+    thread.join()
+    if failure:
+        raise failure[0]
+
+
+def _named_memory_sqlite_engine(uri: str) -> AsyncEngine:
+    """An async engine on a named shared-cache in-memory SQLite database."""
+
+    def async_creator() -> aiosqlite.Connection:
+        conn = aiosqlite.Connection(
+            lambda: sqlean.connect(uri, uri=True),
+            iter_chunk_size=64,
+        )
+        # aiosqlite>=0.22 moved the worker to Connection._thread; SQLAlchemy's
+        # aiosqlite dialect daemonizes it only when it creates the connection
+        # itself, not when an async_creator is used.
+        conn._thread.daemon = True
+        return conn
+
+    engine = create_async_engine(
+        url="sqlite+aiosqlite://",
+        async_creator=async_creator,
+        poolclass=StaticPool,
+        json_serializer=_json_serializer,
+    )
+    sqlalchemy.event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
+    configure_sqlite_transactions(engine)
+    return engine
+
+
+@pytest.fixture(scope="session")
+def _sqlite_schema_db() -> Iterator[str]:
+    """Create and seed the schema once per session in a named in-memory
+    SQLite database."""
+    db_name = f"phoenix_test_{os.getpid()}"
+    uri = f"file:{db_name}?mode=memory&cache=shared"
+    # Keeper connection keeps the named in-memory DB alive for the session
+    keeper = sqlean.connect(uri, uri=True)
+    sync_engine = sqlalchemy.create_engine(
+        "sqlite://",
+        creator=lambda: sqlean.connect(uri, uri=True),
+    )
+    models.Base.metadata.create_all(sync_engine)
+    _seed_template_database(lambda: _named_memory_sqlite_engine(uri), "sqlite")
+    yield db_name
+    sync_engine.dispose()
+    keeper.close()
+
+
 @pytest.fixture(scope="function")
 async def sqlite_engine(
     request: SubRequest,
     tmp_path_factory: TempPathFactory,
+    _sqlite_schema_db: str,
 ) -> AsyncIterator[AsyncEngine]:
     config = request.config
-    url = URL.create("sqlite+aiosqlite")
     if config.getoption("--sqlite-on-disk"):
+        # Fall back to per-test DB for on-disk debugging
+        url = URL.create("sqlite+aiosqlite")
         db_file = tmp_path_factory.mktemp("sqlite") / f"_{token_hex(8)}.db"
         print(f"SQLite file: {db_file}")
         url = url.set(database=str(db_file))
+        engine = aio_sqlite_engine(url, migrate=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(models.Base.metadata.drop_all)
+            await conn.run_sync(models.Base.metadata.create_all)
+        if not request.node.get_closest_marker("pristine_db"):
+            _seed_template_database(lambda: aio_sqlite_engine(url, migrate=False), "sqlite")
+        yield engine
+        await engine.dispose()
+    elif request.node.get_closest_marker("pristine_db"):
+        # A private, unseeded database: the schema only.
+        uri = f"file:phoenix_pristine_{os.getpid()}_{token_hex(4)}?mode=memory&cache=shared"
+        keeper = sqlean.connect(uri, uri=True)
+        sync_engine = sqlalchemy.create_engine(
+            "sqlite://", creator=lambda: sqlean.connect(uri, uri=True)
+        )
+        models.Base.metadata.create_all(sync_engine)
+        engine = _named_memory_sqlite_engine(uri)
+        yield engine
+        await engine.dispose()
+        sync_engine.dispose()
+        keeper.close()
     else:
-        url = url.set(database=":memory:")
-    engine = aio_sqlite_engine(url, migrate=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(models.Base.metadata.drop_all)
-        await conn.run_sync(models.Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
+        db_name = _sqlite_schema_db
+        uri = f"file:{db_name}?mode=memory&cache=shared"
+        engine = _named_memory_sqlite_engine(uri)
+        yield engine
+        await engine.dispose()
+
+
+@pytest.fixture(scope="function")
+async def _sqlite_test_conn(
+    sqlite_engine: AsyncEngine,
+) -> AsyncIterator[AsyncConnection]:
+    """Open a connection with a SAVEPOINT so each test's data is rolled back."""
+    conn = await sqlite_engine.connect()
+    txn = await conn.begin()
+    await conn.begin_nested()
+    yield conn
+    # Roll back the outer transaction to undo all data changes, including
+    # any nested SAVEPOINTs that may have been released or rolled back during the test.
+    # Wrap in try/except because error-path tests may leave the connection in a
+    # closed or otherwise unusable state.
+    try:
+        if txn.is_active:
+            await txn.rollback()
+    except Exception:
+        pass
+    try:
+        await conn.close()
+    except Exception:
+        pass
+
+
+def _serialized(
+    factory: Callable[[], contextlib.AbstractAsyncContextManager[AsyncSession]],
+) -> Callable[[], contextlib.AbstractAsyncContextManager[AsyncSession]]:
+    """Give sessions exclusive use of the connection these fixtures share.
+
+    Tests bind every session to one `AsyncConnection` held open under a
+    transaction and savepoint, so a test rolls back wholesale. Concurrent
+    sessions would then interleave transaction boundaries on a connection none
+    of them owns, and one rollback would remove a savepoint another still
+    needs.
+
+    Production shares nothing: its pool hands out a connection per checkout, so
+    the serialisation belongs to the fixture that creates the sharing.
+    """
+    lock = asyncio.Lock()
+
+    @contextlib.asynccontextmanager
+    async def serialized() -> AsyncIterator[AsyncSession]:
+        async with lock:
+            async with factory() as session:
+                yield session
+
+    return serialized
 
 
 @pytest.fixture(scope="function")
@@ -171,12 +938,25 @@ def db(
     dialect: str,
 ) -> DbSessionFactory:
     if dialect == "sqlite":
-        engine = request.getfixturevalue("sqlite_engine")
+        conn = request.getfixturevalue("_sqlite_test_conn")
+        return DbSessionFactory(db=_serialized(_db(conn)), dialect=dialect)
     elif dialect == "postgresql":
         engine = request.getfixturevalue("postgresql_engine")
+        return DbSessionFactory(db=_db(engine), dialect=dialect)
     else:
         raise ValueError(f"Unknown db fixture: {dialect}")
-    return DbSessionFactory(db=_db(engine), dialect=dialect)
+
+
+@pytest.fixture
+async def synced_builtin_evaluators(db: DbSessionFactory) -> None:
+    """Ensure builtin evaluators are synced to the database.
+
+    Tests that directly create DatasetEvaluators referencing builtin evaluators
+    should use this fixture to ensure the builtin evaluators exist in the database.
+    """
+    from phoenix.server.api.builtin_evaluator_sync import sync_builtin_evaluators
+
+    await sync_builtin_evaluators(db)
 
 
 @pytest.fixture
@@ -189,90 +969,43 @@ async def project(db: DbSessionFactory) -> None:
 @pytest.fixture
 async def app(
     db: DbSessionFactory,
-) -> AsyncIterator[ASGIApp]:
+) -> AsyncIterator[FastAPI]:
     async with contextlib.AsyncExitStack() as stack:
-        await stack.enter_async_context(patch_batched_caller())
+        await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
-        app = create_app(
+        yield create_app(
             db=db,
-            model=create_model_from_inferences(EMPTY_INFERENCES, None),
             authentication_enabled=False,
-            export_path=EXPORT_DIR,
-            umap_params=get_umap_parameters(None),
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )
-        manager = await stack.enter_async_context(LifespanManager(app))
+
+
+@pytest.fixture
+async def asgi_app(app: FastAPI) -> AsyncIterator[ASGIApp]:
+    async with LifespanManager(app) as manager:
         yield manager.app
 
 
 @pytest.fixture
-def httpx_clients(
-    app: ASGIApp,
-) -> tuple[httpx.Client, httpx.AsyncClient]:
-    class Transport(httpx.BaseTransport):
-        def __init__(self, asgi_transport: ASGIWebSocketTransport) -> None:
-            import nest_asyncio
-
-            nest_asyncio.apply()
-
-            self.asgi_transport = asgi_transport
-
-        def handle_request(self, request: Request) -> Response:
-            response = asyncio.run(self.asgi_transport.handle_async_request(request))
-
-            async def read_stream() -> bytes:
-                content = b""
-                assert isinstance(stream := response.stream, AsyncByteStream)
-                async for chunk in stream:
-                    content += chunk
-                return content
-
-            content = asyncio.run(read_stream())
-            return Response(
-                status_code=response.status_code,
-                headers=response.headers,
-                content=content,
-                request=request,
-            )
-
-    asgi_transport = ASGIWebSocketTransport(app=app)
-    transport = Transport(asgi_transport=asgi_transport)
-    base_url = "http://test"
-    return (
-        httpx.Client(transport=transport, base_url=base_url),
-        httpx.AsyncClient(transport=asgi_transport, base_url=base_url),
-    )
+def redactor(app: FastAPI, asgi_app: ASGIApp) -> Redactor:
+    assert asgi_app is not None
+    redactor = getattr(app.state, "redactor", None)
+    assert isinstance(redactor, Redactor)
+    return redactor
 
 
 @pytest.fixture
 def httpx_client(
-    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
-) -> httpx.AsyncClient:
-    return httpx_clients[1]
+    asgi_app: ASGIApp,
+) -> httpx2.AsyncClient:
+    asgi_transport = httpx2.ASGITransport(app=asgi_app)
+    return httpx2.AsyncClient(transport=asgi_transport, base_url="http://test")
 
 
 @pytest.fixture
-def gql_client(httpx_client: httpx.AsyncClient) -> Iterator[AsyncGraphQLClient]:
+def gql_client(httpx_client: httpx2.AsyncClient) -> Iterator[AsyncGraphQLClient]:
     yield AsyncGraphQLClient(httpx_client)
-
-
-@pytest.fixture
-def legacy_px_client(
-    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
-) -> LegacyClient:
-    sync_client, _ = httpx_clients
-    client = LegacyClient(warn_if_server_not_running=False)
-    client._client = sync_client  # type: ignore[assignment]
-    return client
-
-
-@pytest.fixture
-def px_client(
-    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
-) -> Client:
-    sync_client, _ = httpx_clients
-    return Client(http_client=sync_client)
 
 
 @pytest.fixture
@@ -292,19 +1025,21 @@ async def patch_grpc_server() -> AsyncIterator[None]:
 
 
 class TestBulkInserter(BulkInserter):
+    __test__ = False
+
     async def __aenter__(
         self,
     ) -> tuple[
         Callable[..., Awaitable[None]],
         Callable[[Span, str], Awaitable[None]],
-        Callable[[pb.Evaluation], Awaitable[None]],
         Callable[[DataManipulation], None],
     ]:
+        if self._spans:
+            await self._insert_spans(len(self._spans))
         # Return the overridden methods
         return (
             self._enqueue_annotations_immediate,
             self._queue_span_immediate,
-            self._queue_evaluation_immediate,
             self._enqueue_operation_immediate,
         )
 
@@ -325,20 +1060,35 @@ class TestBulkInserter(BulkInserter):
         self._spans.append((span, project_name))
         await self._insert_spans(1)
 
-    async def _queue_evaluation_immediate(self, evaluation: pb.Evaluation) -> None:
-        self._evaluations.append(evaluation)
-        await self._insert_evaluations(1)
-
 
 @contextlib.asynccontextmanager
-async def patch_batched_caller() -> AsyncIterator[None]:
-    cls = BatchedCaller
-    original = cls.__init__
-    name = original.__name__
-    changes = {"sleep_seconds": 0.001}
-    setattr(cls, name, lambda *_, **__: original(*_, **{**__, **changes}))
-    yield
-    setattr(cls, name, original)
+async def patch_dml_event_handler() -> AsyncIterator[None]:
+    """Run the app without the DML event daemon or the caches it invalidates.
+
+    The daemon answers writes by querying the database from a background task.
+    Tests bind every session to one connection under a savepoint, so a query
+    cancelled at shutdown invalidates the connection the test still needs.
+    Events still reach ``put`` for tests that assert on them. Without the
+    daemon the summary caches would never invalidate, so they are dropped and
+    every read goes to the database.
+    """
+    cls = DmlEventHandler
+    originals = {name: getattr(cls, name) for name in ("__aenter__", "__aexit__")}
+    for name in originals:
+        setattr(cls, name, _no_op)
+    cache_name = "CacheForDataLoaders"
+    cache_factory = getattr(server_app, cache_name)
+    setattr(server_app, cache_name, lambda: None)
+    try:
+        yield
+    finally:
+        for name, original in originals.items():
+            setattr(cls, name, original)
+        setattr(server_app, cache_name, cache_factory)
+
+
+async def _no_op(*_: Any, **__: Any) -> None:
+    pass
 
 
 @pytest.fixture

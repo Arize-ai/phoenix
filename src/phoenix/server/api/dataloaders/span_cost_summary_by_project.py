@@ -85,7 +85,7 @@ class SpanCostSummaryByProjectDataLoader(DataLoader[Key, Result]):
         for position, key in enumerate(keys):
             segment, param = _cache_key_fn(key)
             arguments[segment][param].append(position)
-        async with self._db() as session:
+        async with self._db.read() as session:
             for segment, params in arguments.items():
                 stmt = _get_stmt(segment, *params.keys())
                 data = await session.stream(stmt)
@@ -111,11 +111,11 @@ class SpanCostSummaryByProjectDataLoader(DataLoader[Key, Result]):
 def _get_stmt(
     segment: Segment,
     *params: Param,
-) -> Select[Any]:
+) -> Select[*tuple[Any, ...]]:
     project_rowids = params
     (start_time, end_time), filter_condition, session_filter_condition = segment
 
-    stmt: Select[Any] = (
+    stmt: Select[*tuple[Any, ...]] = (
         select(
             models.Trace.project_rowid,
             coalesce(func.sum(models.SpanCost.prompt_cost), 0).label("prompt_cost"),

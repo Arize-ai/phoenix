@@ -11,7 +11,7 @@ import {
   runExperiment,
   type RunExperimentParams,
 } from "@arizeai/phoenix-client/experiments";
-import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
+import { confirm, intro, log, outro, select, spinner } from "@clack/prompts";
 import { Factuality } from "autoevals";
 import dotenv from "dotenv";
 import OpenAI from "openai";
@@ -132,7 +132,10 @@ const main = async () => {
         ...log,
         log: (message) => s.message(message),
         info: (message) => s.message(message),
+        warn: (message) => s.message(message),
         error: (message) => s.message(message),
+        debug: (message) => s.message(message),
+        table: (data) => s.message(JSON.stringify(data)),
       },
       evaluators: [
         // You can implement code based evaluators like this
@@ -247,7 +250,10 @@ const main = async () => {
       }))
       .map((r) => ({
         ...r,
-        explanation: r?.explanation?.slice(0, 100).concat("..."),
+        explanation:
+          "explanation" in r && r.explanation
+            ? r.explanation.slice(0, 100).concat("...")
+            : undefined,
         metadata: "...Stripped for brevity...",
       }))
   );

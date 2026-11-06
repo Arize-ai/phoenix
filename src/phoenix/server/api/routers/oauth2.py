@@ -1,49 +1,63 @@
+"""OAuth2 relying party: Phoenix logs users in via an external IdP."""
+
+import base64
+import hashlib
+import hmac
+import html
+import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from os import getenv
 from random import randrange
 from typing import Any, Optional, TypedDict
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 
+import jmespath
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
-from authlib.jose import jwt
-from authlib.jose.errors import JoseError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
-from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
+from joserfc.errors import JoseError
+from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import URL, Secret, URLPath
-from starlette.responses import RedirectResponse
+from starlette.datastructures import URL, URLPath
+from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.routing import Router
 from typing_extensions import Annotated, NotRequired, TypeGuard
 
 from phoenix.auth import (
     DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES,
     PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME,
+    PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     delete_oauth2_code_verifier_cookie,
+    delete_oauth2_login_context_cookie,
     delete_oauth2_nonce_cookie,
     delete_oauth2_state_cookie,
     sanitize_email,
     set_access_token_cookie,
     set_oauth2_code_verifier_cookie,
+    set_oauth2_login_context_cookie,
     set_oauth2_nonce_cookie,
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
 )
 from phoenix.config import (
+    ENV_PHOENIX_ROOT_URL,
+    AssignableUserRoleName,
     get_env_disable_basic_auth,
     get_env_disable_rate_limit,
 )
 from phoenix.db import models
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.oauth2 import OAuth2Client
+from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client, search_claim_path
+from phoenix.server.oauth2_authorization_server import public_origin
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -76,7 +90,6 @@ create_tokens_rate_limiter = fastapi_route_rate_limiter(
 
 router = APIRouter(
     prefix="/oauth2",
-    include_in_schema=False,
 )
 
 if not get_env_disable_rate_limit():
@@ -99,45 +112,94 @@ async def login(
     # engineering attacks.
     if (oauth2_client := request.app.state.oauth2_clients.get_client(idp_name)) is None:
         return _redirect_to_login(request=request, error="unknown_idp")
-    secret = request.app.state.get_secret()
-    if (referer := request.headers.get("referer")) is not None:
-        # if the referer header is present, use it as the origin URL
-        parsed_url = urlparse(referer)
-        origin_url = _append_root_path_if_exists(
-            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
-        )
-    else:
-        # fall back to the base url as the origin URL
-        origin_url = str(request.base_url)
+    origin_url = _login_origin_url(request)
     authorization_url_data = await oauth2_client.create_authorization_url(
         redirect_uri=_get_create_tokens_endpoint(
             request=request, origin_url=origin_url, idp_name=idp_name
         ),
-        state=_generate_state_for_oauth2_authorization_code_flow(
-            secret=secret, origin_url=origin_url, return_url=return_url
-        ),
+        state=generate_token(),
     )
     assert isinstance(authorization_url := authorization_url_data.get("url"), str)
     assert isinstance(state := authorization_url_data.get("state"), str)
     assert isinstance(nonce := authorization_url_data.get("nonce"), str)
+    assert isinstance(key := getattr(request.app.state, "oauth2_login_context_key", None), bytes)
+    max_age = timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES)
     response = RedirectResponse(url=authorization_url, status_code=302)
     response = set_oauth2_state_cookie(
         response=response,
         state=state,
-        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        max_age=max_age,
+    )
+    response = set_oauth2_login_context_cookie(
+        response=response,
+        login_context=_encode_oauth2_login_context(
+            key=key,
+            state=state,
+            origin_url=origin_url,
+            return_url=return_url,
+            expires_at=datetime.now(timezone.utc) + max_age,
+        ),
+        max_age=max_age,
     )
     response = set_oauth2_nonce_cookie(
         response=response,
         nonce=nonce,
-        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        max_age=max_age,
     )
     if code_verifier := authorization_url_data.get("code_verifier"):
         response = set_oauth2_code_verifier_cookie(
             response=response,
             code_verifier=code_verifier,
-            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+            max_age=max_age,
         )
     return response
+
+
+_SERVER_OWNED_PATH_PREFIXES = ("/oauth2/authorize",)
+
+
+def _is_server_owned_path(path: Optional[str]) -> bool:
+    if not path:
+        return False
+    return any(
+        path == prefix or path.startswith((f"{prefix}?", f"{prefix}/"))
+        for prefix in _SERVER_OWNED_PATH_PREFIXES
+    )
+
+
+def _create_redirect_response(request: Request, return_url: Optional[str]) -> Response:
+    path_part, sep, query = (return_url or "/").partition("?")
+    redirect_path = f"{prepend_root_path(request.scope, path_part)}{sep}{query}"
+    if _is_server_owned_path(return_url):
+        # A 302 from the cross-site IdP callback keeps the redirect chain cross-site,
+        # withholding SameSite=Strict cookies; commit a same-origin document first.
+        escaped_url = html.escape(redirect_path)
+        js_url = json.dumps(redirect_path).replace("<", "\\u003c").replace(">", "\\u003e")
+        content = (
+            "<!doctype html>"
+            "<html>"
+            "<head>"
+            '<meta charset="utf-8">'
+            "<title>Redirecting...</title>"
+            # Matches the default theme background in templates/index.html so the
+            # interstitial doesn't flash white before the next page paints.
+            "<style>html{background:#0e0e0e;color-scheme:dark}</style>"
+            f"<script>window.location.replace({js_url});</script>"
+            "</head>"
+            "<body>"
+            f'<noscript><a href="{escaped_url}">Continue</a></noscript>'
+            "</body>"
+            "</html>"
+        )
+        return HTMLResponse(
+            content=content,
+            status_code=200,
+            headers={"Cache-Control": "no-store"},
+        )
+    return RedirectResponse(
+        url=redirect_path,
+        status_code=302,
+    )
 
 
 @router.get("/{idp_name}/tokens", dependencies=create_tokens_dependencies)
@@ -149,11 +211,14 @@ async def create_tokens(
     error: Optional[str] = Query(default=None),  # RFC 6749 §4.1.2.1: Error response
     error_description: Optional[str] = Query(default=None),
     stored_state: str = Cookie(alias=PHOENIX_OAUTH2_STATE_COOKIE_NAME),
+    stored_login_context: Optional[str] = Cookie(
+        default=None, alias=PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME
+    ),
     stored_nonce: str = Cookie(alias=PHOENIX_OAUTH2_NONCE_COOKIE_NAME),  # OIDC Core §3.1.2.1
     code_verifier: Optional[str] = Cookie(
         default=None, alias=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME
     ),  # RFC 7636 §4.1
-) -> RedirectResponse:
+) -> Response:
     # Security Note: Query parameters should be treated as untrusted user input. Never display
     # these values directly to users as they could be manipulated for XSS, phishing, or social
     # engineering attacks.
@@ -170,16 +235,23 @@ async def create_tokens(
     if authorization_code is None:
         logger.error("OAuth2 callback missing authorization code for IDP %s", idp_name)
         return _redirect_to_login(request=request, error="auth_failed")
-    secret = request.app.state.get_secret()
     # RFC 6749 §10.12: CSRF protection - validate state parameter
-    if state != stored_state:
+    if (
+        not state.isascii()
+        or not stored_state.isascii()
+        or not hmac.compare_digest(state, stored_state)
+    ):
         return _redirect_to_login(request=request, error="invalid_state")
     try:
-        payload = _parse_state_payload(secret=secret, state=state)
-    except JoseError:
+        login_context = _parse_oauth2_login_context(
+            stored_login_context,
+            key=getattr(request.app.state, "oauth2_login_context_key", None),
+            state=state,
+        )
+    except ValueError:
         return _redirect_to_login(request=request, error="invalid_state")
-    if (return_url := payload.get("return_url")) is not None and not _is_relative_url(
-        unquote(return_url)
+    if (return_url := login_context.get("return_url")) is not None and not _is_relative_url(
+        return_url
     ):
         return _redirect_to_login(request=request, error="unsafe_return_url")
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
@@ -191,7 +263,7 @@ async def create_tokens(
             state=state,
             code=authorization_code,
             redirect_uri=_get_create_tokens_endpoint(  # RFC 6749 §3.1.2
-                request=request, origin_url=payload["origin_url"], idp_name=idp_name
+                request=request, origin_url=login_context["origin_url"], idp_name=idp_name
             ),
         )
         # PKCE validation: code_verifier is required when PKCE is enabled (RFC 7636 §4.5)
@@ -214,7 +286,11 @@ async def create_tokens(
         logger.error("OAuth2 IDP %s does not appear to support OpenID Connect", idp_name)
         return _redirect_to_login(request=request, error="no_oidc_support")
 
-    id_token_claims = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+    try:
+        id_token_claims = await oauth2_client.parse_id_token(token_data, nonce=stored_nonce)
+    except JoseError as e:
+        logger.error("ID token validation failed for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="auth_failed")
 
     if oauth2_client.has_sufficient_claims(id_token_claims):
         user_claims = id_token_claims
@@ -224,13 +300,22 @@ async def create_tokens(
         )
 
     try:
-        user_info = _parse_user_info(user_claims)
+        user_info = _parse_user_info(
+            user_claims,
+            email_path=oauth2_client.email_path,
+        )
     except (MissingEmailScope, InvalidUserInfo) as e:
         logger.error("Error parsing user info for IDP %s: %s", idp_name, e)
         return _redirect_to_login(request=request, error="missing_email_scope")
 
+    # Validate access and extract role from claims
+    # Both validate_access and extract_and_map_role may raise PermissionError
     try:
         oauth2_client.validate_access(user_info.claims)
+        # Extract and map role from claims
+        # Returns None if role mapping not configured (preserves existing user roles)
+        # Raises PermissionError if strict mode enabled and role validation fails
+        role_name = oauth2_client.extract_and_map_role(user_info.claims)
     except PermissionError as e:
         logger.error("Access validation failed for IDP %s: %s", idp_name, e)
         return _redirect_to_login(request=request, error="auth_failed")
@@ -242,9 +327,11 @@ async def create_tokens(
                 oauth2_client_id=str(oauth2_client.client_id),
                 user_info=user_info,
                 allow_sign_up=oauth2_client.allow_sign_up,
+                role_name=role_name,
+                role_resync=oauth2_client.role_resync,
             )
-    except EmailAlreadyInUse as e:
-        logger.error("Email already in use for IDP %s: %s", idp_name, e)
+    except EmailAlreadyInUse:
+        logger.error("Email already in use for IDP %s", idp_name)
         return _redirect_to_login(request=request, error="email_in_use")
     except SignInNotAllowed as e:
         logger.error("Sign in not allowed for IDP %s: %s", idp_name, e)
@@ -255,11 +342,7 @@ async def create_tokens(
         access_token_expiry=access_token_expiry,
         refresh_token_expiry=refresh_token_expiry,
     )
-    redirect_path = prepend_root_path(request.scope, return_url or "/")
-    response = RedirectResponse(
-        url=redirect_path,
-        status_code=302,
-    )
+    response = _create_redirect_response(request, return_url)
     response = set_access_token_cookie(
         response=response, access_token=access_token, max_age=access_token_expiry
     )
@@ -267,6 +350,7 @@ async def create_tokens(
         response=response, refresh_token=refresh_token, max_age=refresh_token_expiry
     )
     response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_login_context_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
     response = delete_oauth2_code_verifier_cookie(response)
     return response
@@ -357,7 +441,10 @@ def _validate_token_data(token_data: dict[str, Any]) -> None:
     assert token_type.lower() == "bearer"
 
 
-def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
+def _parse_user_info(
+    user_info: dict[str, Any],
+    email_path: jmespath.parser.ParsedResult = DEFAULT_EMAIL_PATH,
+) -> UserInfo:
     """
     Parses user info from the IDP's ID token.
 
@@ -366,6 +453,8 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
 
     Args:
         user_info: Claims from the ID token (validated JWT payload)
+        email_path: JMESPath expression to extract email from claims.
+            Defaults to standard OIDC "email" claim.
 
     Returns:
         UserInfo object with validated user data
@@ -384,6 +473,7 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
 
     Application-Required Claims:
         - email: Required by this application for user identification
+          (extracted via email_attribute_path, defaults to "email" claim)
 
     Optional Standard Claims (OIDC Core §5.1):
         - name: Full name
@@ -414,14 +504,18 @@ def _parse_user_info(user_info: dict[str, Any]) -> UserInfo:
     if not idp_user_id:
         raise InvalidUserInfo("The 'sub' claim cannot be empty.")
 
-    # Validate 'email' claim (application requirement)
-    email = user_info.get("email")
-    if not isinstance(email, str) or not email.strip():
+    # Extract 'email' claim using JMESPath (application requirement)
+    email_value = search_claim_path(email_path, user_info, "EMAIL_ATTRIBUTE_PATH")
+
+    if not isinstance(email_value, str) or not email_value.strip():
+        # Get the expression string for the error message
+        path = getattr(email_path, "expression", "email")
         raise MissingEmailScope(
-            "Missing or invalid 'email' claim. "
-            "Please ensure your OIDC provider is configured to include the 'email' scope."
+            f"Missing or invalid '{path}' claim. "
+            "Please ensure your OIDC provider includes this claim, "
+            "or configure PHOENIX_OAUTH2_{IDP}_EMAIL_ATTRIBUTE_PATH."
         )
-    email = email.strip()
+    email = sanitize_email(email_value)
 
     # Optional: 'name' claim (Full name)
     username = user_info.get("name")
@@ -471,6 +565,8 @@ async def _process_oauth2_user(
     oauth2_client_id: str,
     user_info: UserInfo,
     allow_sign_up: bool,
+    role_name: Optional[AssignableUserRoleName],
+    role_resync: bool = True,
 ) -> models.User:
     """
     Processes an OAuth2 user, either signing in an existing user or creating/updating one.
@@ -479,11 +575,12 @@ async def _process_oauth2_user(
     1. When sign-up is not allowed (allow_sign_up=False):
        - Checks if the user exists and can sign in with the given OAuth2 credentials
        - Updates placeholder OAuth2 credentials if needed (e.g., temporary IDs)
+       - Updates the user's role if role_name is provided (role mapping configured)
        - If the user doesn't exist or has a password set, raises SignInNotAllowed
     2. When sign-up is allowed (allow_sign_up=True):
        - Finds the user by OAuth2 credentials (client_id and user_id)
-       - Creates a new user if one doesn't exist, with default member role
-       - Updates the user's email if it has changed
+       - Creates a new user if one doesn't exist, with the provided role (or VIEWER if None)
+       - Updates the user's email and role (if role_name provided) if they have changed
        - Handles username conflicts by adding a random suffix if needed
 
     The allow_sign_up parameter is typically controlled by the PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP
@@ -494,6 +591,11 @@ async def _process_oauth2_user(
         oauth2_client_id: The ID of the OAuth2 client
         user_info: User information from the OAuth2 provider
         allow_sign_up: Whether to allow creating new users
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to preserve
+                   existing user roles (backward compatibility when role mapping not configured)
+        role_resync: When False, an existing user's role is never overwritten from IDP claims.
+                   New users are still created with role_name, so role mapping stays active for
+                   provisioning while existing users keep their current Phoenix role on re-login.
 
     Returns:
         The user object
@@ -503,24 +605,30 @@ async def _process_oauth2_user(
         EmailAlreadyInUse: When the email is already in use by another account
     """  # noqa: E501
     if not allow_sign_up:
-        return await _get_existing_oauth2_user(
+        return await _sign_in_existing_oauth2_user(
             session,
             oauth2_client_id=oauth2_client_id,
             user_info=user_info,
+            role_name=role_name,
+            role_resync=role_resync,
         )
     return await _create_or_update_user(
         session,
         oauth2_client_id=oauth2_client_id,
         user_info=user_info,
+        role_name=role_name,
+        role_resync=role_resync,
     )
 
 
-async def _get_existing_oauth2_user(
+async def _sign_in_existing_oauth2_user(
     session: AsyncSession,
     /,
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
+    role_name: Optional[AssignableUserRoleName],
+    role_resync: bool = True,
 ) -> models.User:
     """Signs in an existing user with OAuth2 credentials.
 
@@ -542,6 +650,7 @@ async def _get_existing_oauth2_user(
     Profile Updates:
     - Email: Updated if different from IDP info
     - Profile Picture: Updated if provided in user_info
+    - Role: Updated ONLY if role_name is provided (role mapping configured)
     - Username: Never updated (remains unchanged)
     - OAuth2 Credentials: Updated based on the three cases above
 
@@ -549,6 +658,10 @@ async def _get_existing_oauth2_user(
         session: The database session
         oauth2_client_id: The ID of the OAuth2 client
         user_info: User information from the OAuth2 provider
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to preserve
+                   existing role (backward compatibility when role mapping not configured)
+        role_resync: When False, the user's role is never overwritten from IDP claims,
+                   preserving the user's current Phoenix role.
 
     Returns:
         The signed-in user
@@ -589,6 +702,17 @@ async def _get_existing_oauth2_user(
             raise SignInNotAllowed("Sign in is not allowed.")
     if profile_picture_url != user.profile_picture_url:
         user.profile_picture_url = profile_picture_url
+
+    # Update role ONLY if role mapping is configured (role_name is not None) and role resync is
+    # enabled. role_resync=False preserves the current Phoenix role; role_name is None preserves
+    # existing roles when role mapping is not configured.
+    if role_resync and role_name is not None and user.role.name != role_name:
+        role = await session.scalar(
+            select(models.UserRole).where(models.UserRole.name == role_name)
+        )
+        if role is not None:
+            user.role = role
+
     if user in session.dirty:
         await session.flush()
     return user
@@ -600,6 +724,8 @@ async def _create_or_update_user(
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
+    role_name: Optional[AssignableUserRoleName],
+    role_resync: bool = True,
 ) -> models.User:
     """
     Creates a new user or updates an existing one with OAuth2 credentials.
@@ -608,6 +734,10 @@ async def _create_or_update_user(
         session: The database session
         oauth2_client_id: The ID of the OAuth2 client
         user_info: User information from the OAuth2 provider
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER), or None to use
+                   VIEWER for new users and preserve existing users' roles (backward compatibility)
+        role_resync: When False, an existing user's role is never overwritten from IDP claims,
+                   preserving the user's current Phoenix role. New users are unaffected.
 
     Returns:
         The created or updated user
@@ -621,9 +751,38 @@ async def _create_or_update_user(
         idp_user_id=user_info.idp_user_id,
     )
     if user is None:
-        user = await _create_user(session, oauth2_client_id=oauth2_client_id, user_info=user_info)
-    elif user.email != user_info.email:
-        user = await _update_user_email(session, user_id=user.id, email=user_info.email)
+        # New user: use provided role_name, or default to VIEWER if role mapping not configured
+        user = await _create_user(
+            session,
+            oauth2_client_id=oauth2_client_id,
+            user_info=user_info,
+            role_name=role_name or "VIEWER",  # Default for new users
+        )
+    else:
+        # Existing user: update email, profile picture, and/or role if changed
+        if user.email != user_info.email:
+            user.email = user_info.email
+
+        # Update profile picture if changed
+        if user.profile_picture_url != user_info.profile_picture_url:
+            user.profile_picture_url = user_info.profile_picture_url
+
+        # Update role ONLY if role mapping is configured (role_name is not None) and role resync
+        # is enabled. role_resync=False preserves the current Phoenix role; role_name is None
+        # preserves existing roles when role mapping is not configured.
+        if role_resync and role_name is not None and user.role.name != role_name:
+            role = await session.scalar(
+                select(models.UserRole).where(models.UserRole.name == role_name)
+            )
+            if role is not None:
+                user.role = role
+
+        # Flush to execute the UPDATE and catch any email conflicts
+        if user in session.dirty:
+            try:
+                await session.flush()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise EmailAlreadyInUse()
     return user
 
 
@@ -657,28 +816,43 @@ async def _create_user(
     *,
     oauth2_client_id: str,
     user_info: UserInfo,
+    role_name: AssignableUserRoleName,
 ) -> models.User:
     """
     Creates a new user with the user info from the IDP.
+
+    Args:
+        session: The database session
+        oauth2_client_id: The ID of the OAuth2 client
+        user_info: User information from the OAuth2 provider
+        role_name: The Phoenix role name to assign (ADMIN, MEMBER, VIEWER)
+
+    Returns:
+        The created user
     """
+    email = user_info.email
+    # The users.username column is NOT NULL, but the OIDC `name` claim is
+    # optional and some IDPs omit it or return an empty string. Fall back
+    # to the local part of the email so we always have a non-empty value
+    # to satisfy the constraint; a random suffix is appended below if it
+    # collides with an existing username.
+    username = user_info.username or email.split("@", 1)[0]
     email_exists, username_exists = await _email_and_username_exist(
         session,
-        email=(email := user_info.email),
-        username=(username := user_info.username),
+        email=email,
+        username=username,
     )
     if email_exists:
-        raise EmailAlreadyInUse(f"An account for {email} is already in use.")
-    member_role_id = (
-        select(models.UserRole.id).where(models.UserRole.name == "MEMBER").scalar_subquery()
-    )
+        raise EmailAlreadyInUse()
+    role_id = select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
     user_id = await session.scalar(
         insert(models.User)
         .returning(models.User.id)
         .values(
-            user_role_id=member_role_id,
+            user_role_id=role_id,
             oauth2_client_id=oauth2_client_id,
             oauth2_user_id=user_info.idp_user_id,
-            username=_with_random_suffix(username) if username and username_exists else username,
+            username=_with_random_suffix(username) if username_exists else username,
             email=email,
             profile_picture_url=user_info.profile_picture_url,
             reset_password=False,
@@ -686,26 +860,6 @@ async def _create_user(
         )
     )
     assert isinstance(user_id, int)
-    user = await session.scalar(
-        select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
-    )  # query user again for joined load
-    assert isinstance(user, models.User)
-    return user
-
-
-async def _update_user_email(session: AsyncSession, /, *, user_id: int, email: str) -> models.User:
-    """
-    Updates an existing user's email.
-    """
-    try:
-        await session.execute(
-            update(models.User)
-            .where(models.User.id == user_id)
-            .values(email=email)
-            .options(joinedload(models.User.role))
-        )
-    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-        raise EmailAlreadyInUse(f"An account for {email} is already in use.")
     user = await session.scalar(
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))
     )  # query user again for joined load
@@ -743,7 +897,7 @@ async def _email_and_username_exist(
 
 
 class EmailAlreadyInUse(Exception):
-    pass
+    """Raised without the address, so that logging the error cannot record it."""
 
 
 class SignInNotAllowed(Exception):
@@ -782,6 +936,7 @@ def _redirect_to_login(*, request: Request, error: AuthErrorCode) -> RedirectRes
     url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
+    response = delete_oauth2_login_context_cookie(response)
     response = delete_oauth2_nonce_cookie(response)
     response = delete_oauth2_code_verifier_cookie(response)
     return response
@@ -796,6 +951,29 @@ def _append_root_path_if_exists(*, request: Request, base_url: str) -> str:
     return str(URLPath(root_path).make_absolute_url(base_url=base_url))
 
 
+def _login_origin_url(request: Request) -> str:
+    """Return the origin the IdP callback and post-login redirect are built on.
+
+    When the operator has declared the canonical public origin
+    (PHOENIX_ROOT_URL), it is authoritative: the IdP callback must never be
+    derived from request headers in that case. The Referer in particular is
+    whatever page sent the user here — during an /oauth2/authorize login
+    redirect it is the OAuth client's own UI, not Phoenix — and building the
+    callback on it would make the IdP deliver the authorization code to a
+    foreign origin.
+    """
+    if getenv(ENV_PHOENIX_ROOT_URL):
+        return public_origin(request)
+    if (referer := request.headers.get("referer")) is not None:
+        # if the referer header is present, use it as the origin URL
+        parsed_url = urlparse(referer)
+        return _append_root_path_if_exists(
+            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
+        )
+    # fall back to the base url as the origin URL
+    return str(request.base_url)
+
+
 def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: str) -> str:
     """
     Gets the endpoint for create tokens route.
@@ -805,51 +983,130 @@ def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: 
     return str(url_path.make_absolute_url(base_url=origin_url))
 
 
-def _generate_state_for_oauth2_authorization_code_flow(
-    *, secret: Secret, origin_url: str, return_url: Optional[str]
-) -> str:
-    """
-    Generates a JWT whose payload contains both an OAuth2 state (generated using
-    the `authlib` default algorithm) and a return URL. This allows us to pass
-    the return URL to the OAuth2 authorization server via the `state` query
-    parameter and have it returned to us in the callback without needing to
-    maintain state.
-    """
-    header = {"alg": _JWT_ALGORITHM}
-    payload = _OAuth2StatePayload(
-        random=generate_token(),
-        origin_url=origin_url,
-    )
-    if return_url is not None:
-        payload["return_url"] = return_url
-    jwt_bytes: bytes = jwt.encode(header=header, payload=payload, key=str(secret))
-    return jwt_bytes.decode()
-
-
-class _OAuth2StatePayload(TypedDict):
-    """
-    Represents the OAuth2 state payload.
-    """
-
-    random: str
+class _OAuth2LoginContext(TypedDict):
     origin_url: str
+    exp: int
     return_url: NotRequired[str]
 
 
-def _parse_state_payload(*, secret: Secret, state: str) -> _OAuth2StatePayload:
-    """
-    Validates the JWT signature and parses the return URL from the OAuth2 state.
-    """
-    payload = jwt.decode(s=state, key=str(secret))
-    if _is_oauth2_state_payload(payload):
-        return payload
-    raise ValueError("Invalid OAuth2 state payload.")
+def _sign_oauth2_login_context(*, key: bytes, state: str, encoded_payload: str) -> str:
+    # Covering state binds the cookie to one login attempt; "." cannot appear in base64url.
+    mac = hmac.new(key, f"{state}.{encoded_payload}".encode("utf-8"), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(mac).decode("ascii").rstrip("=")
+
+
+def _encode_oauth2_login_context(
+    *,
+    key: bytes,
+    state: str,
+    origin_url: str,
+    return_url: Optional[str],
+    expires_at: Optional[datetime] = None,
+) -> str:
+    if expires_at is None:
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES
+        )
+    payload: dict[str, Any] = {
+        "origin_url": origin_url,
+        "exp": int(expires_at.timestamp()),
+    }
+    if return_url is not None:
+        payload["return_url"] = return_url
+    raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    encoded_payload = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    signature = _sign_oauth2_login_context(key=key, state=state, encoded_payload=encoded_payload)
+    return f"{encoded_payload}.{signature}"
+
+
+_MAX_OAUTH2_LOGIN_CONTEXT_LENGTH = 4096
+
+
+def _parse_oauth2_login_context(
+    value: Optional[str],
+    *,
+    key: Optional[bytes],
+    state: str,
+    now: Optional[datetime] = None,
+) -> _OAuth2LoginContext:
+    """Verify and decode the login-context cookie."""
+    if (
+        not value
+        or len(value) > _MAX_OAUTH2_LOGIN_CONTEXT_LENGTH
+        or not value.isascii()
+        or not key
+        or not state
+        or not state.isascii()
+    ):
+        raise ValueError("Invalid OAuth2 login context.")
+    encoded_payload, sep, signature = value.partition(".")
+    if not sep or not encoded_payload or not signature or "." in signature:
+        raise ValueError("Invalid OAuth2 login context.")
+    expected_signature = _sign_oauth2_login_context(
+        key=key, state=state, encoded_payload=encoded_payload
+    )
+    if not hmac.compare_digest(signature, expected_signature):
+        raise ValueError("Invalid OAuth2 login context.")
+    try:
+        padded = encoded_payload + "=" * (-len(encoded_payload) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+    except (ValueError, UnicodeDecodeError, RecursionError):
+        raise ValueError("Invalid OAuth2 login context.") from None
+    if not _is_oauth2_login_context(payload):
+        raise ValueError("Invalid OAuth2 login context.")
+    current_time = now or datetime.now(timezone.utc)
+    if payload["exp"] <= int(current_time.timestamp()):
+        raise ValueError("Expired OAuth2 login context.")
+    return payload
+
+
+def _is_absolute_http_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(host)
+
+
+def _is_oauth2_login_context(payload: Any) -> TypeGuard[_OAuth2LoginContext]:
+    if not isinstance(payload, dict):
+        return False
+    keys = set(payload.keys())
+    if not {"origin_url", "exp"}.issubset(keys) or not keys.issubset(
+        {"origin_url", "exp", "return_url"}
+    ):
+        return False
+    exp = payload["exp"]
+    if not isinstance(exp, int) or isinstance(exp, bool):
+        return False
+    origin_url = payload["origin_url"]
+    if (
+        not isinstance(origin_url, str)
+        or not _encodes_as_utf8(origin_url)
+        or not _is_absolute_http_url(origin_url)
+    ):
+        return False
+    if "return_url" not in payload:
+        return True
+    return_url = payload["return_url"]
+    return isinstance(return_url, str) and _encodes_as_utf8(return_url)
+
+
+def _encodes_as_utf8(value: str) -> bool:
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def _is_relative_url(url: str) -> bool:
     """
-    Determines whether the URL is relative.
+    Determines whether the URL is a relative path on this origin.
     """
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in url):
+        return False
     return bool(_RELATIVE_URL_PATTERN.match(url))
 
 
@@ -860,17 +1117,4 @@ def _with_random_suffix(string: str) -> str:
     return f"{string}-{randrange(10_000, 100_000)}"
 
 
-def _is_oauth2_state_payload(maybe_state_payload: Any) -> TypeGuard[_OAuth2StatePayload]:
-    """
-    Determines whether the given object is an OAuth2 state payload.
-    """
-
-    return (
-        isinstance(maybe_state_payload, dict)
-        and {"random", "origin_url"}.issubset((keys := set(maybe_state_payload.keys())))
-        and keys.issubset({"random", "origin_url", "return_url"})
-    )
-
-
-_JWT_ALGORITHM = "HS256"
-_RELATIVE_URL_PATTERN = re.compile(r"^/($|\w)")
+_RELATIVE_URL_PATTERN = re.compile(r"^/(?:\Z|[?#]|\w)")

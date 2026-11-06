@@ -1,21 +1,18 @@
 #!/usr/bin/env node
+/* eslint-disable no-console */
 
-import Fastify, {
-  type FastifyInstance,
-  type FastifyRequest,
-  type FastifyReply,
-} from "fastify";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import cors from "@fastify/cors";
 import staticFiles from "@fastify/static";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+} from "fastify";
+
 import { SMTPHandler } from "./smtp/handler.js";
-import {
-  ServerConfigSchema,
-  type EmailListResponse,
-  type EmailResponse,
-  type ApiResponse,
-} from "./types/index.js";
+import { ServerConfigSchema } from "./types/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -122,14 +119,16 @@ async function setupServer(): Promise<void> {
   );
 }
 
-fastify.setErrorHandler(async (error, request, reply) => {
-  const statusCode = error.statusCode || 500;
-  const message = error.message || "Internal Server Error";
+fastify.setErrorHandler(
+  async (error: Error & { statusCode?: number }, request, reply) => {
+    const statusCode = error.statusCode || 500;
+    const message = error.message || "Internal Server Error";
 
-  fastify.log.error({ error, request: request.url }, "Request error");
+    fastify.log.error({ error, request: request.url }, "Request error");
 
-  return reply.code(statusCode).send({ success: false, error: message });
-});
+    return reply.code(statusCode).send({ success: false, error: message });
+  }
+);
 
 async function closeGracefully(signal: string): Promise<void> {
   console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);

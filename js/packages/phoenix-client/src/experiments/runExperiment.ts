@@ -1,8 +1,26 @@
+import {
+  attachGlobalTracerProvider,
+  createNoOpProvider,
+  type DiagLogLevel,
+  type GlobalTracerProviderRegistration,
+  MimeType,
+  type NodeTracerProvider,
+  objectAsAttributes,
+  OpenInferenceSpanKind,
+  SemanticConventions,
+  type Tracer,
+  register,
+  SpanStatusCode,
+} from "@arizeai/phoenix-otel";
 import { queue } from "async";
 import invariant from "tiny-invariant";
+
 import { createClient, type PhoenixClient } from "../client";
-import { ClientFn } from "../types/core";
-import {
+import { getDataset } from "../datasets/getDataset";
+import { createLogger, type Logger } from "../logger";
+import type { AnnotatorKind } from "../types/annotations";
+import type { ClientFn } from "../types/core";
+import type {
   Dataset,
   DatasetSelector,
   Example,
@@ -10,39 +28,38 @@ import {
 } from "../types/datasets";
 import type {
   Evaluator,
-  ExperimentInfo,
   ExperimentEvaluationRun,
+  ExperimentEvaluatorLike,
+  ExperimentInfo,
   ExperimentRun,
   ExperimentRunID,
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
-import { type Logger } from "../types/logger";
-import { getDataset } from "../datasets/getDataset";
+import { ensureString } from "../utils/ensureString";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
-import { AnnotatorKind } from "../types/annotations";
-import { createProvider, createNoOpProvider } from "./instrumentation";
+import { toObjectHeaders } from "../utils/toObjectHeaders";
 import {
-  type DiagLogLevel,
-  SpanStatusCode,
-  Tracer,
-  trace,
-} from "@opentelemetry/api";
-import {
-  MimeType,
-  OpenInferenceSpanKind,
-  SemanticConventions,
-} from "@arizeai/openinference-semantic-conventions";
-import { ensureString } from "../utils/ensureString";
-import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { objectAsAttributes } from "../utils/objectAsAttributes";
-import {
-  getDatasetUrl,
   getDatasetExperimentsUrl,
+  getDatasetUrl,
   getExperimentUrl,
 } from "../utils/urlUtils";
-import assert from "assert";
+import { getExperimentInfo } from "./getExperimentInfo";
+import { getExperimentEvaluators } from "./helpers";
+import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
+import { toExperimentEvaluationRequestBody } from "./helpers/toExperimentEvaluationRequestBody";
+import {
+  logEvalSummary,
+  logLinks,
+  logTaskSummary,
+  PROGRESS_PREFIX,
+} from "./logging";
+import {
+  cleanupOwnedTracerProvider,
+  getTraceExportUrl,
+  MISSING_BASE_URL_MESSAGE,
+} from "./tracing";
 
 /**
  * Validate that a repetition is valid
@@ -81,7 +98,7 @@ export type RunExperimentParams = ClientFn & {
   /**
    * The evaluators to use
    */
-  evaluators?: Evaluator[];
+  evaluators?: ExperimentEvaluatorLike[];
   /**
    * The logger to use
    */
@@ -123,6 +140,199 @@ export type RunExperimentParams = ClientFn & {
   diagLogLevel?: DiagLogLevel;
 };
 
+type PreparedExperiment = {
+  experiment: ExperimentInfo;
+  projectName: string;
+  taskTracer: Tracer;
+  taskProvider?: NodeTracerProvider;
+  taskGlobalRegistration: GlobalTracerProviderRegistration | null;
+};
+
+function prepareDryRunExperiment({
+  dataset,
+  datasetSelector,
+  projectName,
+  experimentMetadata,
+  repetitions,
+  nExamples,
+}: {
+  dataset: Dataset;
+  datasetSelector: DatasetSelector;
+  projectName: string;
+  experimentMetadata: Record<string, unknown>;
+  repetitions: number;
+  nExamples: number;
+}): PreparedExperiment {
+  const now = new Date().toISOString();
+  return {
+    experiment: {
+      id: localId(),
+      datasetId: dataset.id,
+      datasetVersionId: dataset.versionId,
+      datasetSplits: datasetSelector.splits ?? [],
+      projectName,
+      metadata: experimentMetadata,
+      repetitions,
+      createdAt: now,
+      updatedAt: now,
+      exampleCount: nExamples,
+      successfulRunCount: 0,
+      failedRunCount: 0,
+      missingRunCount: nExamples * repetitions,
+    },
+    projectName,
+    taskTracer: createNoOpProvider().getTracer("no-op"),
+    taskGlobalRegistration: null,
+  };
+}
+
+async function prepareRecordedExperiment({
+  client,
+  dataset,
+  datasetSelector,
+  projectName: defaultProjectName,
+  experimentName,
+  experimentDescription,
+  experimentMetadata,
+  repetitions,
+  useBatchSpanProcessor,
+  diagLogLevel,
+  setGlobalTracerProvider,
+}: {
+  client: PhoenixClient;
+  dataset: Dataset;
+  datasetSelector: DatasetSelector;
+  projectName: string;
+  experimentName: string | undefined;
+  experimentDescription: string | undefined;
+  experimentMetadata: Record<string, unknown>;
+  repetitions: number;
+  useBatchSpanProcessor: boolean;
+  diagLogLevel: DiagLogLevel | undefined;
+  setGlobalTracerProvider: boolean;
+}): Promise<PreparedExperiment> {
+  const response = await client
+    .POST("/v1/datasets/{dataset_id}/experiments", {
+      params: { path: { dataset_id: dataset.id } },
+      body: {
+        name: experimentName,
+        description: experimentDescription,
+        metadata: experimentMetadata,
+        project_name: defaultProjectName,
+        repetitions,
+        ...(datasetSelector.splits ? { splits: datasetSelector.splits } : {}),
+        ...(dataset.versionId ? { version_id: dataset.versionId } : {}),
+      },
+    })
+    .then((result) => result.data?.data);
+  invariant(response, `Failed to create experiment`);
+  const projectName = response.project_name ?? defaultProjectName;
+  const experiment: ExperimentInfo = {
+    id: response.id,
+    datasetId: response.dataset_id,
+    datasetVersionId: response.dataset_version_id,
+    datasetSplits: datasetSelector.splits ?? [],
+    projectName,
+    repetitions: response.repetitions,
+    metadata: response.metadata || {},
+    createdAt: response.created_at,
+    updatedAt: response.updated_at,
+    exampleCount: response.example_count,
+    successfulRunCount: response.successful_run_count,
+    failedRunCount: response.failed_run_count,
+    missingRunCount: response.missing_run_count,
+  };
+  invariant(client.config.baseUrl, MISSING_BASE_URL_MESSAGE);
+  const taskProvider = register({
+    projectName,
+    url: getTraceExportUrl(client.config),
+    headers: client.config.headers
+      ? toObjectHeaders(client.config.headers)
+      : undefined,
+    batch: useBatchSpanProcessor,
+    diagLogLevel,
+    global: false,
+  });
+  return {
+    experiment,
+    projectName,
+    taskProvider,
+    taskGlobalRegistration: setGlobalTracerProvider
+      ? attachGlobalTracerProvider(taskProvider)
+      : null,
+    taskTracer: taskProvider.getTracer(projectName),
+  };
+}
+
+function buildExperimentLinks({
+  client,
+  datasetId,
+  experimentId,
+  isDryRun,
+}: {
+  client: PhoenixClient;
+  datasetId: string;
+  experimentId: string;
+  isDryRun: boolean;
+}): Array<{ label: string; url: string }> {
+  const baseUrl = client.config.baseUrl;
+  if (isDryRun || !baseUrl) return [];
+  return [
+    { label: "Dataset", url: getDatasetUrl({ baseUrl, datasetId }) },
+    {
+      label: "Experiments",
+      url: getDatasetExperimentsUrl({ baseUrl, datasetId }),
+    },
+    {
+      label: "Experiment",
+      url: getExperimentUrl({ baseUrl, datasetId, experimentId }),
+    },
+  ];
+}
+
+function logEvaluatorStart({
+  evaluators,
+  logger,
+}: {
+  evaluators: ExperimentEvaluatorLike[] | undefined;
+  logger: Logger;
+}): void {
+  if (!evaluators || evaluators.length === 0) return;
+  const names = getExperimentEvaluators(evaluators)
+    .map((evaluator) => evaluator.name)
+    .join(", ");
+  logger.info(`${PROGRESS_PREFIX.start}Evaluations (${names})`);
+}
+
+async function refreshRecordedExperiment({
+  isDryRun,
+  client,
+  experiment,
+  ranExperiment,
+}: {
+  isDryRun: boolean;
+  client: PhoenixClient;
+  experiment: ExperimentInfo;
+  ranExperiment: RanExperiment;
+}): Promise<void> {
+  if (isDryRun) return;
+  const updated = await getExperimentInfo({
+    client,
+    experimentId: experiment.id,
+  });
+  Object.assign(ranExperiment, updated);
+}
+
+function logEvaluationSummary({
+  logger,
+  evaluationRuns,
+}: {
+  logger: Logger;
+  evaluationRuns: ExperimentEvaluationRun[] | undefined;
+}): void {
+  if (evaluationRuns?.length) logEvalSummary(logger, evaluationRuns);
+}
+
 /**
  * Runs an experiment using a given set of dataset of examples.
  *
@@ -160,10 +370,10 @@ export async function runExperiment({
   experimentDescription,
   experimentMetadata = {},
   client: _client,
-  dataset: DatasetSelector,
+  dataset: datasetSelector,
   task,
   evaluators,
-  logger = console,
+  logger = createLogger(),
   record = true,
   concurrency = 5,
   dryRun = false,
@@ -173,14 +383,18 @@ export async function runExperiment({
   diagLogLevel,
 }: RunExperimentParams): Promise<RanExperiment> {
   // Validation
-  assert(
+  invariant(
     isValidRepetitionParam(repetitions),
     "repetitions must be an integer greater than 0"
   );
-  let provider: NodeTracerProvider | undefined;
+  let taskProvider: NodeTracerProvider | undefined;
+  let taskGlobalRegistration: GlobalTracerProviderRegistration | null = null;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
-  const dataset = await getDataset({ dataset: DatasetSelector, client });
+  const dataset = await getDataset({
+    dataset: datasetSelector,
+    client,
+  });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const nExamples =
@@ -188,145 +402,134 @@ export async function runExperiment({
       ? Math.min(dryRun, dataset.examples.length)
       : dataset.examples.length;
 
-  let projectName = `${dataset.name}-exp-${new Date().toISOString()}`;
-  // initialize the tracer into scope
-  let taskTracer: Tracer;
-  let experiment: ExperimentInfo;
-  if (isDryRun) {
-    experiment = {
-      id: localId(),
-      datasetId: dataset.id,
-      datasetVersionId: dataset.versionId,
-      projectName,
-      metadata: experimentMetadata,
-    };
-    taskTracer = createNoOpProvider().getTracer("no-op");
-  } else {
-    const experimentResponse = await client
-      .POST("/v1/datasets/{dataset_id}/experiments", {
-        params: {
-          path: {
-            dataset_id: dataset.id,
-          },
-        },
-        body: {
-          name: experimentName,
-          description: experimentDescription,
-          metadata: experimentMetadata,
-          project_name: projectName,
-          repetitions,
-        },
+  const defaultProjectName = `${dataset.name}-exp-${new Date().toISOString()}`;
+  const prepared = isDryRun
+    ? prepareDryRunExperiment({
+        dataset,
+        datasetSelector,
+        projectName: defaultProjectName,
+        experimentMetadata,
+        repetitions,
+        nExamples,
       })
-      .then((res) => res.data?.data);
-    invariant(experimentResponse, `Failed to create experiment`);
-    projectName = experimentResponse.project_name ?? projectName;
-    experiment = {
-      id: experimentResponse.id,
-      datasetId: experimentResponse.dataset_id,
-      datasetVersionId: experimentResponse.dataset_version_id,
-      projectName,
-      metadata: experimentResponse.metadata,
-    };
-    // Initialize the tracer, now that we have a project name
-    const baseUrl = client.config.baseUrl;
-    invariant(
-      baseUrl,
-      "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-    );
-    provider = createProvider({
-      projectName,
-      baseUrl,
-      headers: client.config.headers ?? {},
-      useBatchSpanProcessor,
-      diagLogLevel,
-    });
-    // Register the provider
-    if (setGlobalTracerProvider) {
-      provider.register();
+    : await prepareRecordedExperiment({
+        client,
+        dataset,
+        datasetSelector,
+        projectName: defaultProjectName,
+        experimentName,
+        experimentDescription,
+        experimentMetadata,
+        repetitions,
+        useBatchSpanProcessor,
+        diagLogLevel,
+        setGlobalTracerProvider,
+      });
+  const { experiment, taskTracer } = prepared;
+  taskProvider = prepared.taskProvider;
+  taskGlobalRegistration = prepared.taskGlobalRegistration;
+  try {
+    if (!record) {
+      logger.info(
+        `Running experiment in readonly mode. Results will not be recorded.`
+      );
     }
-    taskTracer = provider.getTracer(projectName);
-  }
-  if (!record) {
+
+    const links = buildExperimentLinks({
+      client,
+      datasetId: dataset.id,
+      experimentId: experiment.id,
+      isDryRun,
+    });
+
+    const evCount = evaluators?.length ?? 0;
     logger.info(
-      `🔧 Running experiment in readonly mode. Results will not be recorded.`
+      `${PROGRESS_PREFIX.start}Experiment ${experimentName || "<unnamed>"} (dataset ${dataset.name}, ${nExamples} ${pluralize("example", nExamples)}, ${evCount} ${pluralize("evaluator", evCount)})`
     );
-  }
 
-  if (!isDryRun && client.config.baseUrl) {
-    const datasetUrl = getDatasetUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-    });
-    const datasetExperimentsUrl = getDatasetExperimentsUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-    });
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
+    const runs: Record<ExperimentRunID, ExperimentRun> = {};
+    await runTaskWithExamples({
+      client,
       experimentId: experiment.id,
+      task,
+      dataset,
+      logger,
+      onComplete: (run) => {
+        runs[run.id] = run;
+      },
+      concurrency,
+      isDryRun,
+      nExamples,
+      tracer: taskTracer,
+      repetitions,
+    });
+    const taskRuns = Object.values(runs);
+    const taskErrors = taskRuns.filter((run) => run.error != null).length;
+    const taskTotal = nExamples * repetitions;
+    const taskOkStr =
+      taskErrors > 0
+        ? `${taskRuns.length - taskErrors}/${taskTotal} ok  (${taskErrors} failed)`
+        : `${taskRuns.length}/${taskTotal} ok`;
+    logger.info(`${PROGRESS_PREFIX.completed}Tasks ${taskOkStr}`);
+
+    const ranExperiment: RanExperiment = {
+      ...experiment,
+      runs,
+    };
+
+    await cleanupOwnedTracerProvider({
+      provider: taskProvider,
+      globalRegistration: taskGlobalRegistration,
+    });
+    taskProvider = undefined;
+    taskGlobalRegistration = null;
+
+    logEvaluatorStart({ evaluators, logger });
+
+    const { evaluationRuns } = await evaluateExperiment({
+      experiment: ranExperiment,
+      evaluators: evaluators ?? [],
+      client,
+      logger,
+      concurrency,
+      dryRun,
+      diagLogLevel,
+      useBatchSpanProcessor,
+      setGlobalTracerProvider,
+    });
+    ranExperiment.evaluationRuns = evaluationRuns;
+
+    await refreshRecordedExperiment({
+      isDryRun,
+      client,
+      experiment,
+      ranExperiment,
     });
 
-    logger.info(`📊 View dataset: ${datasetUrl}`);
-    logger.info(`📺 View dataset experiments: ${datasetExperimentsUrl}`);
-    logger.info(`🔗 View this experiment: ${experimentUrl}`);
-  }
-
-  logger.info(
-    `🧪 Starting experiment "${experimentName || `<unnamed>`}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
-      "evaluator",
-      evaluators?.length ?? 0
-    )} and ${concurrency} concurrent runs`
-  );
-
-  const runs: Record<ExperimentRunID, ExperimentRun> = {};
-  await runTaskWithExamples({
-    client,
-    experimentId: experiment.id,
-    task,
-    dataset,
-    logger,
-    onComplete: (run) => {
-      runs[run.id] = run;
-    },
-    concurrency,
-    isDryRun,
-    nExamples,
-    tracer: taskTracer,
-    repetitions,
-  });
-  logger.info(`✅ Task runs completed`);
-
-  const ranExperiment: RanExperiment = {
-    ...experiment,
-    runs,
-  };
-
-  const { evaluationRuns } = await evaluateExperiment({
-    experiment: ranExperiment,
-    evaluators: evaluators ?? [],
-    client,
-    logger,
-    concurrency,
-    dryRun,
-    tracerProvider: provider,
-    diagLogLevel,
-    useBatchSpanProcessor,
-  });
-  ranExperiment.evaluationRuns = evaluationRuns;
-
-  logger.info(`✅ Experiment ${experiment.id} completed`);
-
-  if (!isDryRun && client.config.baseUrl) {
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: dataset.id,
-      experimentId: experiment.id,
+    logTaskSummary(logger, {
+      nExamples,
+      repetitions,
+      nRuns: taskRuns.length,
+      nErrors: taskErrors,
     });
-    logger.info(`🔍 View results: ${experimentUrl}`);
-  }
 
-  return ranExperiment;
+    logEvaluationSummary({
+      logger,
+      evaluationRuns: ranExperiment.evaluationRuns,
+    });
+
+    logLinks(logger, links);
+
+    return ranExperiment;
+  } finally {
+    // Safety net: on error paths the happy-path cleanup above is skipped,
+    // so ensure the task provider is always cleaned up. On the happy path
+    // taskProvider is already undefined (no-op).
+    await cleanupOwnedTracerProvider({
+      provider: taskProvider,
+      globalRegistration: taskGlobalRegistration,
+    });
+  }
 }
 
 /**
@@ -369,12 +572,14 @@ function runTaskWithExamples({
   repetitions?: number;
 }): Promise<void> {
   // Validate the input
-  assert(
+  invariant(
     isValidRepetitionParam(repetitions),
     "repetitions must be an integer greater than 0"
   );
 
-  logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
+  logger.debug(
+    `${PROGRESS_PREFIX.start}Tasks (${nExamples} ${pluralize("example", nExamples)} × ${repetitions} ${pluralize("repetition", repetitions)})`
+  );
   const run = async ({
     example,
     repetitionNumber,
@@ -383,15 +588,13 @@ function runTaskWithExamples({
     repetitionNumber: number;
   }) => {
     return tracer.startActiveSpan(`Task: ${task.name}`, async (span) => {
-      logger.info(
-        `🔧 Running task "${task.name}" on example "${example.id} of dataset "${dataset.id}"`
-      );
+      logger.debug(`${PROGRESS_PREFIX.progress}Task on example ${example.id}`);
       const traceId = span.spanContext().traceId;
       const thisRun: ExperimentRun = {
         id: localId(), // initialized with local id, will be replaced with server-assigned id when dry run is false
         traceId,
         experimentId,
-        datasetExampleId: example.id,
+        datasetExampleId: getExampleGlobalId(example),
         startTime: new Date(),
         endTime: new Date(), // will get replaced with actual end time
         output: null,
@@ -400,6 +603,7 @@ function runTaskWithExamples({
       try {
         const taskOutput = await promisifyResult(task(example));
         thisRun.output = taskOutput;
+        span.setStatus({ code: SpanStatusCode.OK });
       } catch (error) {
         thisRun.error =
           error instanceof Error ? error.message : "Unknown error";
@@ -415,7 +619,7 @@ function runTaskWithExamples({
             },
           },
           body: {
-            dataset_example_id: example.id,
+            dataset_example_id: getExampleGlobalId(example),
             output: thisRun.output,
             repetition_number: repetitionNumber,
             start_time: thisRun.startTime.toISOString(),
@@ -430,7 +634,6 @@ function runTaskWithExamples({
           typeof example.input === "string" ? MimeType.TEXT : MimeType.JSON;
         const outputMimeType =
           typeof thisRun.output === "string" ? MimeType.TEXT : MimeType.JSON;
-        span.setStatus({ code: SpanStatusCode.OK });
         span.setAttributes({
           [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
             OpenInferenceSpanKind.CHAIN,
@@ -476,7 +679,7 @@ export async function evaluateExperiment({
   experiment,
   evaluators,
   client: _client,
-  logger = console,
+  logger = createLogger(),
   concurrency = 5,
   dryRun = false,
   setGlobalTracerProvider = true,
@@ -489,7 +692,7 @@ export async function evaluateExperiment({
    **/
   experiment: RanExperiment;
   /** The evaluators to use */
-  evaluators: Evaluator[];
+  evaluators: ExperimentEvaluatorLike[];
   /** The client to use */
   client?: PhoenixClient;
   /** The logger to use */
@@ -526,184 +729,189 @@ export async function evaluateExperiment({
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const baseUrl = client.config.baseUrl;
-  invariant(
-    baseUrl,
-    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-  );
+  invariant(baseUrl, MISSING_BASE_URL_MESSAGE);
   let provider: NodeTracerProvider;
+  let globalRegistration: GlobalTracerProviderRegistration | null = null;
+  const ownsProvider = !paramsTracerProvider;
 
   // Always allow changing of tracer providers
   if (paramsTracerProvider) {
     provider = paramsTracerProvider;
   } else if (!isDryRun) {
-    provider = createProvider({
+    provider = register({
       projectName: "evaluators",
-      baseUrl,
-      headers: client.config.headers ?? {},
-      useBatchSpanProcessor,
+      url: getTraceExportUrl(client.config),
+      headers: client.config.headers
+        ? toObjectHeaders(client.config.headers)
+        : undefined,
+      batch: useBatchSpanProcessor,
       diagLogLevel,
+      global: false,
     });
-    if (setGlobalTracerProvider) {
-      provider.register();
-    }
+    globalRegistration = setGlobalTracerProvider
+      ? attachGlobalTracerProvider(provider)
+      : null;
   } else {
     provider = createNoOpProvider();
   }
   const tracer = isDryRun
     ? provider.getTracer("no-op")
     : provider.getTracer("evaluators");
-  const nRuns =
-    typeof dryRun === "number"
-      ? Math.min(dryRun, Object.keys(experiment.runs).length)
-      : Object.keys(experiment.runs).length;
-  const dataset = await getDataset({
-    dataset: { datasetId: experiment.datasetId },
-    client,
-  });
-  invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
-  invariant(
-    dataset.examples.length > 0,
-    `Dataset "${experiment.datasetId}" has no examples`
-  );
-  invariant(experiment.runs, `Experiment "${experiment.id}" has no runs`);
-
-  const runsToEvaluate = Object.values(experiment.runs).slice(0, nRuns);
-  if (evaluators?.length === 0) {
-    return {
-      ...experiment,
-      evaluationRuns: [],
-    };
-  }
-  logger.info(
-    `🧠 Evaluating experiment "${experiment.id}" with ${evaluators?.length ?? 0} ${pluralize(
-      "evaluator",
-      evaluators?.length ?? 0
-    )}`
-  );
-
-  if (!isDryRun && client.config.baseUrl) {
-    const experimentUrl = getExperimentUrl({
-      baseUrl: client.config.baseUrl,
-      datasetId: experiment.datasetId,
-      experimentId: experiment.id,
+  try {
+    const nRuns =
+      typeof dryRun === "number"
+        ? Math.min(dryRun, Object.keys(experiment.runs).length)
+        : Object.keys(experiment.runs).length;
+    const dataset = await getDataset({
+      dataset: {
+        datasetId: experiment.datasetId,
+        versionId: experiment.datasetVersionId,
+        splits: experiment.datasetSplits,
+      },
+      client,
     });
-    logger.info(`🔗 View experiment evaluation: ${experimentUrl}`);
-  }
-  type EvaluationId = string;
-  const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
+    invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
+    invariant(
+      dataset.examples.length > 0,
+      `Dataset "${experiment.datasetId}" has no examples`
+    );
+    invariant(experiment.runs, `Experiment "${experiment.id}" has no runs`);
 
-  const examplesById: Record<string, Example> = {};
-  for (const example of dataset.examples) {
-    examplesById[example.id] = example;
-  }
+    const runsToEvaluate = Object.values(experiment.runs).slice(0, nRuns);
+    if (evaluators?.length === 0) {
+      return {
+        ...experiment,
+        evaluationRuns: [],
+      };
+    }
+    type EvaluationId = string;
+    const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
-  const onEvaluationComplete = (run: ExperimentEvaluationRun) => {
-    evaluationRuns[run.id] = run;
-  };
+    // Index examples by node GlobalID, matching how runs record
+    // datasetExampleId.
+    const examplesById: Record<string, Example> = {};
+    for (const example of dataset.examples) {
+      examplesById[getExampleGlobalId(example)] = example;
+    }
 
-  // Run evaluators against all runs
-  // Flat list of evaluator + run tuples
-  const evaluatorsAndRuns = evaluators.flatMap((evaluator) =>
-    runsToEvaluate.map((run) => ({
-      evaluator,
-      run,
-    }))
-  );
-  const evaluatorsQueue = queue(
-    async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
-      return tracer.startActiveSpan(
-        `Evaluation: ${evaluatorAndRun.evaluator.name}`,
-        async (span) => {
-          const evalResult = await runEvaluator({
-            evaluator: evaluatorAndRun.evaluator,
-            run: evaluatorAndRun.run,
-            exampleCache: examplesById,
-            onComplete: onEvaluationComplete,
-            logger,
-          });
-          span.setAttributes({
-            [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
-              OpenInferenceSpanKind.EVALUATOR,
-            [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
-            [SemanticConventions.INPUT_VALUE]: JSON.stringify({
-              input: examplesById[evaluatorAndRun.run.datasetExampleId]?.input,
-              output: evaluatorAndRun.run.output,
-              expected:
-                examplesById[evaluatorAndRun.run.datasetExampleId]?.output,
-              metadata:
-                examplesById[evaluatorAndRun.run.datasetExampleId]?.metadata,
-            }),
-            [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
-            [SemanticConventions.OUTPUT_VALUE]: ensureString(evalResult.result),
-          });
-          if (evalResult.error) {
-            span.setStatus({
-              code: SpanStatusCode.ERROR,
-              message: evalResult.error,
+    const onEvaluationComplete = (run: ExperimentEvaluationRun) => {
+      evaluationRuns[run.id] = run;
+    };
+
+    // Run evaluators against all runs
+    // Flat list of evaluator + run tuples
+    const normalizedEvaluators = getExperimentEvaluators(evaluators);
+    const evaluatorsAndRuns = normalizedEvaluators.flatMap((evaluator) =>
+      runsToEvaluate.map((run) => ({
+        evaluator,
+        run,
+      }))
+    );
+    const evaluatorsQueue = queue(
+      async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
+        return tracer.startActiveSpan(
+          `Evaluation: ${evaluatorAndRun.evaluator.name}`,
+          async (span) => {
+            const evalResult = await runEvaluator({
+              evaluator: evaluatorAndRun.evaluator,
+              run: evaluatorAndRun.run,
+              exampleCache: examplesById,
+              onComplete: onEvaluationComplete,
+              logger,
             });
-          } else {
-            span.setStatus({ code: SpanStatusCode.OK });
-          }
-          if (evalResult.result) {
-            span.setAttributes(objectAsAttributes(evalResult.result));
-          }
-          evalResult.traceId = span.spanContext().traceId;
-          if (!isDryRun) {
-            // Log the evaluation to the server
-            // We log this without awaiting (e.g. best effort)
-            client.POST("/v1/experiment_evaluations", {
-              body: {
-                experiment_run_id: evaluatorAndRun.run.id,
-                name: evaluatorAndRun.evaluator.name,
-                annotator_kind: evaluatorAndRun.evaluator.kind,
-                start_time: evalResult.startTime.toISOString(),
-                end_time: evalResult.endTime.toISOString(),
-                result: {
-                  ...evalResult.result,
-                },
-                error: evalResult.error,
-                trace_id: evalResult.traceId,
-              },
+            span.setAttributes({
+              [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+                OpenInferenceSpanKind.EVALUATOR,
+              [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
+              [SemanticConventions.INPUT_VALUE]: ensureString({
+                input:
+                  examplesById[evaluatorAndRun.run.datasetExampleId]?.input,
+                output: evaluatorAndRun.run.output,
+                expected:
+                  examplesById[evaluatorAndRun.run.datasetExampleId]?.output,
+                metadata:
+                  examplesById[evaluatorAndRun.run.datasetExampleId]?.metadata,
+              }),
+              [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
+              [SemanticConventions.OUTPUT_VALUE]: ensureString(
+                evalResult.result
+              ),
             });
+            if (evalResult.error) {
+              span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: evalResult.error,
+              });
+            } else {
+              span.setStatus({ code: SpanStatusCode.OK });
+            }
+            if (evalResult.result) {
+              span.setAttributes(objectAsAttributes(evalResult.result));
+            }
+            evalResult.traceId = span.spanContext().traceId;
+            if (!isDryRun) {
+              // Log the evaluation to the server
+              // We log this without awaiting (e.g. best effort)
+              client.POST("/v1/experiment_evaluations", {
+                body: toExperimentEvaluationRequestBody({
+                  experimentRunId: evaluatorAndRun.run.id,
+                  name: evaluatorAndRun.evaluator.name,
+                  annotatorKind: evaluatorAndRun.evaluator.kind,
+                  startTime: evalResult.startTime,
+                  endTime: evalResult.endTime,
+                  result: evalResult.result,
+                  error: evalResult.error,
+                  traceId: evalResult.traceId,
+                }),
+              });
+            }
+            span.end();
+            return evalResult;
           }
-          span.end();
-          return evalResult;
+        );
+      },
+      concurrency
+    );
+    if (!evaluatorsAndRuns.length) {
+      logger.warn(`No evaluators to run`);
+      return {
+        ...experiment,
+        evaluationRuns: [],
+      };
+    }
+    evaluatorsAndRuns.forEach((evaluatorAndRun) =>
+      evaluatorsQueue.push(evaluatorAndRun, (err) => {
+        if (err) {
+          logger.error(
+            `Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
+          );
         }
-      );
-    },
-    concurrency
-  );
-  if (!evaluatorsAndRuns.length) {
-    logger.info(`⛔ No evaluators to run`);
+      })
+    );
+    await evaluatorsQueue.drain();
+    const evalTotal = Object.values(evaluationRuns).length;
+    const evalErrors = Object.values(evaluationRuns).filter(
+      (ev) => ev.error != null
+    ).length;
+    const evalExpected = runsToEvaluate.length * normalizedEvaluators.length;
+    const evalOkStr =
+      evalErrors > 0
+        ? `${evalTotal - evalErrors}/${evalExpected} ok  (${evalErrors} failed)`
+        : `${evalTotal}/${evalExpected} ok`;
+    logger.info(`${PROGRESS_PREFIX.completed}Evaluations ${evalOkStr}`);
+
     return {
       ...experiment,
-      evaluationRuns: [],
+      evaluationRuns: Object.values(evaluationRuns),
     };
-  }
-  evaluatorsAndRuns.forEach((evaluatorAndRun) =>
-    evaluatorsQueue.push(evaluatorAndRun, (err) => {
-      if (err) {
-        logger.error(
-          `❌ Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
-        );
-      }
-    })
-  );
-  await evaluatorsQueue.drain();
-  logger.info(`✅ Evaluation runs completed`);
-
-  if (provider) {
-    await provider.shutdown();
-    // Make sure it's not set globally anymore
-    if (setGlobalTracerProvider) {
-      trace.disable();
+  } finally {
+    if (ownsProvider) {
+      await cleanupOwnedTracerProvider({
+        provider,
+        globalRegistration,
+      });
     }
   }
-
-  return {
-    ...experiment,
-    evaluationRuns: Object.values(evaluationRuns),
-  };
 }
 
 /**
@@ -727,8 +935,8 @@ async function runEvaluator({
   const example = exampleCache[run.datasetExampleId];
   invariant(example, `Example "${run.datasetExampleId}" not found`);
   const evaluate = async () => {
-    logger.info(
-      `🧠 Evaluating run "${run.id}" with evaluator "${evaluator.name}"`
+    logger.debug(
+      `${PROGRESS_PREFIX.progress}Eval ${evaluator.name} on run ${run.id}`
     );
     const thisEval: ExperimentEvaluationRun = {
       id: localId(),
@@ -747,15 +955,13 @@ async function runEvaluator({
         output: run.output ?? null,
         expected: example.output,
         metadata: example?.metadata,
+        traceId: run.traceId,
       });
       thisEval.result = result;
-      logger.info(
-        `✅ Evaluator "${evaluator.name}" on run "${run.id}" completed`
-      );
     } catch (error) {
       thisEval.error = error instanceof Error ? error.message : "Unknown error";
       logger.error(
-        `❌ Evaluator "${evaluator.name}" on run "${run.id}" failed: ${thisEval.error}`
+        `Evaluator "${evaluator.name}" on run "${run.id}" failed: ${thisEval.error}`
       );
     }
     thisEval.endTime = new Date();
@@ -776,6 +982,7 @@ async function runEvaluator({
  * @param params.kind - The kind of evaluator (e.g., "CODE", "LLM")
  * @param params.evaluate - The evaluator function.
  * @returns The evaluator object.
+ * @deprecated use asExperimentEvaluator instead
  */
 export function asEvaluator({
   name,

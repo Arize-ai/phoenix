@@ -1,0 +1,71 @@
+name: phoenix-sqlean CI
+
+# Build-and-test for the vendored arize-phoenix-sqlean C extension
+# (packages/phoenix-sqlean, a fork of nalgeon/sqlean.py). Publishing is
+# handled by the build-sqlean/publish-sqlean jobs in publish.yaml.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to a PR cancels its older run, since each runs the full release
+# build. The PR number is unique where head_ref is not (forks can share a
+# branch name); run_id gives pushes to main and manual runs their own group.
+concurrency:
+  group: phoenix-sqlean-ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Filter Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      sqlean: ${{ steps.filter.outputs.sqlean }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          filters: |
+            sqlean:
+              - "packages/phoenix-sqlean/**"
+              - ".github/workflows/phoenix-sqlean-ci.yml"
+              - ".github/workflows/phoenix-sqlean-build.yml"
+
+  # The exact build publish.yaml runs: every shipped wheel, each tested by
+  # cibuildwheel, then checked as a set.
+  wheels:
+    name: Build and test wheels
+    needs: changes
+    if: needs.changes.outputs.sqlean == 'true'
+    uses: ./.github/workflows/phoenix-sqlean-build.yml
+
+  ci-required:
+    name: phoenix-sqlean CI Required
+    needs:
+      - changes
+      - wheels
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check all required jobs passed or were skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more CI jobs were cancelled"
+            exit 1
+          fi
+          echo "All CI jobs passed or were skipped"

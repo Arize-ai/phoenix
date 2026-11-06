@@ -1,0 +1,108 @@
+---
+title: "Input Mapping"
+description: "Control how dataset and task output values flow into evaluator inputs using JSONPath expressions and literal values."
+---
+
+When you associate an evaluator with a dataset, input mapping defines how data reaches the evaluator's parameters. Evaluators have an input schema — a set of named parameters they expect — and input mapping is how you connect those parameters to values from your experiments.
+
+This decoupling is what makes evaluators reusable. The same evaluator can work across datasets with different column structures because the mapping layer adapts the data shape at evaluation time.
+
+## Evaluation Parameters
+
+Every time an evaluator runs, it receives **evaluation parameters** — a dictionary with four top-level keys built from the dataset example and the task output:
+
+| Key | Source | Contains |
+|-----|--------|----------|
+| `input` | Dataset example | The input that was sent to the model under test |
+| `output` | Task result | The model's response for this experiment run |
+| `reference` | Dataset example | Ground-truth or expected values from the dataset |
+| `metadata` | Dataset example | Additional metadata attached to the dataset example |
+
+Input mapping extracts values from these parameters and passes them to the evaluator's inputs.
+
+<Info>
+In the future, when server evals extend to incoming traces, the evaluation parameters will be constructed from span and trace attributes rather than dataset examples — but the mapping mechanism will work the same way.
+</Info>
+
+## Mapping Modes
+
+Each evaluator parameter can be mapped in one of two modes, toggled inline in the UI next to each field.
+
+### Path Mapping (JSONPath)
+
+Path mapping uses [JSONPath](https://www.rfc-editor.org/rfc/rfc9535) expressions to extract values from the evaluation parameters. This is the right choice when the evaluator input should come from your data — a model response, a reference answer, a metadata field.
+
+Paths are evaluated against the full parameter dictionary. Common patterns:
+
+| Expression | Resolves to |
+|------------|-------------|
+| `output` | The full task output |
+| `output.answer` | A nested field in a JSON-structured output |
+| `reference.expected` | A field within dataset reference data |
+| `input.question` | A specific field from the dataset input |
+| `metadata.category` | A metadata field from the dataset example |
+| `output[0].content` | The first element of an array-valued output |
+| `output['trace-id']` | A field whose name contains special characters |
+
+The Phoenix UI provides a searchable dropdown of paths auto-generated from your dataset's columns, but you can type any valid JSONPath expression directly.
+
+<Warning>
+If a JSONPath expression matches nothing in the evaluation parameters, the evaluation fails with an error rather than silently passing `null`. Double-check that your paths match the actual structure of your dataset and task outputs.
+</Warning>
+
+### Literal Mapping
+
+Literal mapping sets a parameter to a fixed value typed directly into the field. Use this for static configuration that stays the same across every example in the dataset:
+
+- A regex pattern to match against
+- A list of words to check for
+- A fixed reference string
+- Grading criteria that apply to all examples
+
+Literal values take priority over path mappings. If both a path mapping and a literal mapping are defined for the same parameter, the literal value wins.
+
+## Default Behavior
+
+If no explicit mapping is provided for a parameter, Phoenix falls back to matching by name. If the evaluator expects a parameter called `output` and no mapping is configured for it, Phoenix automatically binds it to the `output` key in the evaluation parameters.
+
+This means for simple cases — where your evaluator parameters are named `input`, `output`, `reference`, or `metadata` — you don't need to configure any mapping at all. The defaults connect things correctly.
+
+## Resolution Order
+
+Phoenix resolves each evaluator parameter in the following order:
+
+1. **Path mapping** — If a JSONPath expression is defined for the parameter, evaluate it against the evaluation parameters.
+2. **Literal mapping** — If a literal value is defined, use it (overriding any path mapping result).
+3. **Name fallback** — If neither mapping is defined and the parameter name matches a top-level key in the evaluation parameters, use that value directly.
+
+After resolution, the values are validated against the evaluator's input schema. String-typed parameters receive automatic type coercion (non-string values are converted to their string representation), but structural mismatches raise an error.
+
+## Examples
+
+### Mapping a Built-in Evaluator
+
+An `exact_match` evaluator has two required parameters: `expected` and `actual`. If your dataset stores ground-truth labels under `reference.label` and the task output is a plain string:
+
+| Parameter | Mode | Value |
+|-----------|------|-------|
+| `expected` | Path | `reference.label` |
+| `actual` | Path | `output` |
+
+### Mapping an LLM Evaluator
+
+An LLM evaluator prompt uses template variables `{{question}}`, `{{answer}}`, and `{{golden_answer}}`. The dataset stores questions under `input.user_query` and reference answers under `reference.correct_answer`:
+
+| Template Variable | Mode | Value |
+|-------------------|------|-------|
+| `question` | Path | `input.user_query` |
+| `answer` | Path | `output` |
+| `golden_answer` | Path | `reference.correct_answer` |
+
+### Mixing Path and Literal Mappings
+
+A `contains` evaluator needs `text` (from the output) and `words` (a static list of required terms):
+
+| Parameter | Mode | Value |
+|-----------|------|-------|
+| `text` | Path | `output` |
+| `words` | Literal | `disclaimer, terms of service, privacy policy` |

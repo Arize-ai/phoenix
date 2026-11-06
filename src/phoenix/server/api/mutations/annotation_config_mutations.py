@@ -1,5 +1,3 @@
-from typing import Optional
-
 import strawberry
 from sqlalchemy import delete, select, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -12,7 +10,6 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     AnnotationType,
     CategoricalAnnotationValue,
-    OptimizationDirection,
 )
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
@@ -26,6 +23,13 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.annotations import NOTE_NAME
+from phoenix.server.api.input_types.AnnotationConfigInput import (
+    AnnotationConfigInput,
+    CategoricalAnnotationConfigInput,
+    ContinuousAnnotationConfigInput,
+    FreeformAnnotationConfigInput,
+)
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationConfig import (
     AnnotationConfig,
@@ -37,60 +41,15 @@ from phoenix.server.api.types.AnnotationConfig import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 
+ANNOTATION_CONFIG_NOTE_ERROR = (
+    "The name 'note' is reserved for notes and cannot be used for annotation configs."
+)
+
 ANNOTATION_TYPE_NAMES = (
     CategoricalAnnotationConfig.__name__,
     ContinuousAnnotationConfig.__name__,
     FreeformAnnotationConfig.__name__,
 )
-
-
-@strawberry.input
-class CategoricalAnnotationConfigValueInput:
-    label: str
-    score: Optional[float] = None
-
-
-@strawberry.input
-class CategoricalAnnotationConfigInput:
-    name: str
-    description: Optional[str] = None
-    optimization_direction: OptimizationDirection
-    values: list[CategoricalAnnotationConfigValueInput]
-
-
-@strawberry.input
-class ContinuousAnnotationConfigInput:
-    name: str
-    description: Optional[str] = None
-    optimization_direction: OptimizationDirection
-    lower_bound: Optional[float] = None
-    upper_bound: Optional[float] = None
-
-
-@strawberry.input
-class FreeformAnnotationConfigInput:
-    name: str
-    description: Optional[str] = None
-
-
-@strawberry.input(one_of=True)
-class AnnotationConfigInput:
-    categorical: Optional[CategoricalAnnotationConfigInput] = strawberry.UNSET
-    continuous: Optional[ContinuousAnnotationConfigInput] = strawberry.UNSET
-    freeform: Optional[FreeformAnnotationConfigInput] = strawberry.UNSET
-
-    def __post_init__(self) -> None:
-        if (
-            sum(
-                [
-                    self.categorical is not strawberry.UNSET,
-                    self.continuous is not strawberry.UNSET,
-                    self.freeform is not strawberry.UNSET,
-                ]
-            )
-            != 1
-        ):
-            raise BadRequest("Exactly one of categorical, continuous, or freeform must be set")
 
 
 @strawberry.input
@@ -157,6 +116,7 @@ def _to_pydantic_categorical_annotation_config(
     try:
         return CategoricalAnnotationConfigModel(
             type=AnnotationType.CATEGORICAL.value,
+            name=input.name,
             description=input.description,
             optimization_direction=input.optimization_direction,
             values=[
@@ -190,6 +150,10 @@ def _to_pydantic_freeform_annotation_config(
         return FreeformAnnotationConfigModel(
             type=AnnotationType.FREEFORM.value,
             description=input.description,
+            optimization_direction=input.optimization_direction,
+            thresholds=[input.threshold] if input.threshold is not None else None,
+            lower_bound=input.lower_bound,
+            upper_bound=input.upper_bound,
         )
     except ValueError as error:
         raise BadRequest(str(error))
@@ -197,7 +161,7 @@ def _to_pydantic_freeform_annotation_config(
 
 @strawberry.type
 class AnnotationConfigMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def create_annotation_config(
         self,
         info: Info[Context, None],
@@ -218,8 +182,8 @@ class AnnotationConfigMutationMixin:
         else:
             raise BadRequest("No annotation config provided")
 
-        if name == "note":
-            raise BadRequest("The name 'note' is reserved for span notes")
+        if name == NOTE_NAME:
+            raise BadRequest(ANNOTATION_CONFIG_NOTE_ERROR)
 
         async with info.context.db() as session:
             annotation_config = models.AnnotationConfig(
@@ -236,7 +200,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def update_annotation_config(
         self,
         info: Info[Context, None],
@@ -265,8 +229,8 @@ class AnnotationConfigMutationMixin:
         else:
             raise BadRequest("No annotation config provided")
 
-        if name == "note":
-            raise BadRequest("The name 'note' is reserved for span notes")
+        if name == NOTE_NAME:
+            raise BadRequest(ANNOTATION_CONFIG_NOTE_ERROR)
 
         async with info.context.db() as session:
             annotation_config = await session.get(models.AnnotationConfig, config_id)
@@ -285,7 +249,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def delete_annotation_configs(
         self,
         info: Info[Context, None],
@@ -317,7 +281,7 @@ class AnnotationConfigMutationMixin:
             ],
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def add_annotation_config_to_project(
         self,
         info: Info[Context, None],
@@ -374,10 +338,10 @@ class AnnotationConfigMutationMixin:
                 )
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
-                project=Project(project_rowid=project_id),
+                project=Project(id=project_id),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[misc]
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore[untyped-decorator]
     async def remove_annotation_config_from_project(
         self,
         info: Info[Context, None],
@@ -409,5 +373,5 @@ class AnnotationConfigMutationMixin:
                 raise NotFound("Could not find one or more input project annotation configs")
         return RemoveAnnotationConfigFromProjectPayload(
             query=Query(),
-            project=Project(project_rowid=project_id),
+            project=Project(id=project_id),
         )

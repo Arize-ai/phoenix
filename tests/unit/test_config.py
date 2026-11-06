@@ -1,25 +1,33 @@
+import os
+import tempfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, get_args
 from unittest.mock import MagicMock
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
+import phoenix.config as phoenix_config
 from phoenix.config import (
-    ENV_PHOENIX_ADMINS,
-    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
+    AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
     get_env_admins,
     get_env_auth_settings,
+    get_env_database_schema,
+    get_env_model_cost_manifest_url,
     get_env_phoenix_admin_secret,
+    get_env_postgres_azure_scope,
     get_env_postgres_connection_str,
+    get_env_postgres_use_azure_managed_identity,
     get_env_root_url,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
 )
+from phoenix.db.models import UserRoleName
+from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
 
 
 class TestPostgresConnectionString:
@@ -108,6 +116,53 @@ class TestPostgresConnectionString:
             assert get_env_postgres_connection_str() == expected
 
 
+class TestGetEnvDatabaseSchema:
+    """Tests for PHOENIX_SQL_DATABASE_SCHEMA (empty string must behave like unset for PostgreSQL)."""
+
+    _PG_URL = "postgresql://user:pass@localhost:5432/phoenix"
+
+    @staticmethod
+    def _clear_db_env(monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
+        for key in (
+            "PHOENIX_POSTGRES_USER",
+            "PHOENIX_POSTGRES_PASSWORD",
+            "PHOENIX_POSTGRES_HOST",
+            "PHOENIX_POSTGRES_PORT",
+            "PHOENIX_POSTGRES_DB",
+        ):
+            monkeypatch.delenv(key, raising=False)
+
+    def test_sqlite_url_returns_none_regardless_of_schema_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "sqlite:////tmp/phoenix.db")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "custom")
+        assert get_env_database_schema() is None
+
+    def test_postgres_unset_schema_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
+        assert get_env_database_schema() is None
+
+    def test_postgres_empty_string_schema_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "")
+        assert get_env_database_schema() is None
+
+    def test_postgres_non_empty_schema_returned(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "phoenix_app")
+        assert get_env_database_schema() == "phoenix_app"
+
+
 class TestGetEnvStartupAdmins:
     @pytest.mark.parametrize(
         "env_value, expected_result",
@@ -191,9 +246,9 @@ class TestGetEnvStartupAdmins:
         expected_result: dict[str, str],
     ) -> None:
         if env_value:
-            monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+            monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         else:
-            monkeypatch.delenv(ENV_PHOENIX_ADMINS, raising=False)
+            monkeypatch.delenv("PHOENIX_ADMINS", raising=False)
         result = get_env_admins()
         assert result == expected_result
 
@@ -257,7 +312,7 @@ class TestGetEnvStartupAdmins:
         env_value: str,
         expected_error_msg: str,
     ) -> None:
-        monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+        monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         with pytest.raises(ValueError) as e:
             get_env_admins()
         assert expected_error_msg in str(e.value)
@@ -294,6 +349,24 @@ class TestGetEnvRootUrl:
                 },
                 URL("http://127.0.0.1:6006"),
                 id="constructed_url_with_0.0.0.0_host",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_HOST": "::",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "",
+                },
+                URL("http://[::1]:6006"),
+                id="constructed_url_with_ipv6_unspecified_host",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_HOST": "fd00::5",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "",
+                },
+                URL("http://[fd00::5]:6006"),
+                id="constructed_url_with_ipv6_host",
             ),
             pytest.param(
                 {
@@ -391,7 +464,7 @@ class TestGetEnvPhoenixAdminSecret:
                 monkeypatch.delenv(key, raising=False)
             else:
                 monkeypatch.setenv(key, value)
-        assert str(get_env_phoenix_admin_secret()) == expected_result
+        assert get_env_phoenix_admin_secret().get_secret_value() == expected_result
 
     @pytest.mark.parametrize(
         "env_vars",
@@ -525,7 +598,7 @@ class TestGetEnvTlsEnabled:
 
 class TestGetEnvAuthSettings:
     @pytest.mark.parametrize(
-        "env_vars, expected_result",
+        "env_vars, expected_result, host",
         [
             pytest.param(
                 {},  # No environment variables set
@@ -536,6 +609,7 @@ class TestGetEnvAuthSettings:
                     "phoenix_admin_secret": "",
                     "oauth2_clients": [],
                 },
+                "127.0.0.1",
                 id="default_values",
             ),
             pytest.param(
@@ -550,7 +624,20 @@ class TestGetEnvAuthSettings:
                     "phoenix_admin_secret": "",
                     "oauth2_clients": [],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_secret",
+            ),
+            pytest.param(
+                {"PHOENIX_ENABLE_AUTH": "true"},
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                "127.0.0.1",
+                id="auth_enabled_without_secret",
             ),
             pytest.param(
                 {
@@ -565,6 +652,7 @@ class TestGetEnvAuthSettings:
                     "phoenix_admin_secret": "validadminsecret123456789012345678901234567890",
                     "oauth2_clients": [],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_both_secrets",
             ),
             pytest.param(
@@ -593,6 +681,7 @@ class TestGetEnvAuthSettings:
                         }
                     ],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_oauth2",
             ),
             pytest.param(
@@ -633,6 +722,7 @@ class TestGetEnvAuthSettings:
                         },
                     ],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_multiple_oauth2",
             ),
             pytest.param(
@@ -664,7 +754,20 @@ class TestGetEnvAuthSettings:
                         }
                     ],
                 },
+                "127.0.0.1",
                 id="auth_enabled_with_custom_oauth2_settings",
+            ),
+            pytest.param(
+                {},
+                {
+                    "enable_auth": True,
+                    "disable_basic_auth": False,
+                    "phoenix_secret": "",
+                    "phoenix_admin_secret": "",
+                    "oauth2_clients": [],
+                },
+                "0.0.0.0",
+                id="unset_auth_on_network_bind",
             ),
         ],
     )
@@ -673,6 +776,7 @@ class TestGetEnvAuthSettings:
         monkeypatch: MonkeyPatch,
         env_vars: dict[str, str],
         expected_result: dict[str, Any],
+        host: str,
     ) -> None:
         # Clear all auth-related environment variables first
         monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
@@ -692,12 +796,16 @@ class TestGetEnvAuthSettings:
         # Set the test environment variables
         for key, value in env_vars.items():
             monkeypatch.setenv(key, value)
+        monkeypatch.setenv("PHOENIX_HOST", host)
 
         result = get_env_auth_settings()
         assert result.enable_auth == expected_result["enable_auth"]
         assert result.disable_basic_auth == expected_result["disable_basic_auth"]
-        assert str(result.phoenix_secret) == expected_result["phoenix_secret"]
-        assert str(result.phoenix_admin_secret) == expected_result["phoenix_admin_secret"]
+        assert result.phoenix_secret.get_secret_value() == expected_result["phoenix_secret"]
+        assert (
+            result.phoenix_admin_secret.get_secret_value()
+            == expected_result["phoenix_admin_secret"]
+        )
 
         # Compare OAuth2 clients
         assert len(result.oauth2_clients) == len(expected_result["oauth2_clients"])
@@ -722,18 +830,11 @@ class TestGetEnvAuthSettings:
             pytest.param(
                 {
                     "PHOENIX_ENABLE_AUTH": "true",
-                },
-                "`PHOENIX_SECRET` must be set when auth is enabled with `PHOENIX_ENABLE_AUTH`",
-                id="auth_enabled_without_secret",
-            ),
-            pytest.param(
-                {
-                    "PHOENIX_ENABLE_AUTH": "true",
                     "PHOENIX_SECRET": "validsecret123456789012345678901234567890",
                     "PHOENIX_DISABLE_BASIC_AUTH": "true",
                 },
-                "OAuth2 is the only supported auth method but "
-                "no OAuth2 client configs are provided",
+                "PHOENIX_DISABLE_BASIC_AUTH is set, but no alternative authentication methods "
+                "are configured",
                 id="basic_auth_disabled_without_oauth2",
             ),
         ],
@@ -758,6 +859,9 @@ class TestGetEnvAuthSettings:
         monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", raising=False)
         monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME", raising=False)
         monkeypatch.delenv("PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_LDAP_HOST", raising=False)
+
+        monkeypatch.delenv("PHOENIX_HOST", raising=False)
 
         # Set the test environment variables
         for key, value in env_vars.items():
@@ -766,6 +870,159 @@ class TestGetEnvAuthSettings:
         with pytest.raises(ValueError) as e:
             get_env_auth_settings()
         assert expected_error_msg in str(e.value)
+
+
+class TestLoopbackBindRule:
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("127.0.0.1", True, id="ipv4_loopback"),
+            pytest.param("127.8.9.10", True, id="ipv4_loopback_range"),
+            pytest.param("::1", True, id="ipv6_loopback"),
+            pytest.param("[::1]", True, id="bracketed_ipv6_loopback"),
+            pytest.param("::ffff:127.0.0.1", True, id="ipv4_mapped_loopback"),
+            pytest.param("127.1", False, id="unparsed_ipv4_abbreviation"),
+            pytest.param("localhost", True, id="localhost"),
+            pytest.param("LOCALHOST", True, id="localhost_case_insensitive"),
+            pytest.param("0.0.0.0", False, id="ipv4_unspecified"),
+            pytest.param("::", False, id="ipv6_unspecified"),
+            pytest.param(None, False, id="none_means_all_interfaces"),
+            pytest.param("", False, id="empty"),
+            pytest.param("192.168.1.5", False, id="private_address"),
+            pytest.param("example.com", False, id="hostname"),
+        ],
+    )
+    def test_is_loopback_host(self, host: Optional[str], expected: bool) -> None:
+        assert phoenix_config.is_loopback_host(host) is expected
+
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("0.0.0.0", "127.0.0.1", id="ipv4_unspecified"),
+            pytest.param("::", "[::1]", id="ipv6_unspecified"),
+            pytest.param("::1", "[::1]", id="ipv6_loopback"),
+            pytest.param("fd00::5", "[fd00::5]", id="ipv6_address"),
+            pytest.param("192.168.1.5", "192.168.1.5", id="ipv4_address"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_local_url_host(self, host: str, expected: str) -> None:
+        assert phoenix_config.local_url_host(host) == expected
+
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            pytest.param("::", "[::]", id="ipv6_unspecified"),
+            pytest.param("0.0.0.0", "0.0.0.0", id="ipv4_unspecified"),
+            pytest.param("fd00::5", "[fd00::5]", id="ipv6_address"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_url_host(self, host: str, expected: str) -> None:
+        assert phoenix_config.url_host(host) == expected
+
+    def test_ipv4_mapped_loopback_is_loopback(self) -> None:
+        assert phoenix_config.is_loopback_host("::ffff:127.0.0.1") is True
+
+    @pytest.mark.parametrize(
+        "env_value, host, expected",
+        [
+            pytest.param("true", "127.0.0.1", True, id="explicit_true_wins"),
+            pytest.param("false", "0.0.0.0", False, id="explicit_false_wins"),
+            pytest.param(None, "127.0.0.1", False, id="unset_loopback"),
+            pytest.param(None, "::ffff:127.0.0.1", False, id="unset_ipv4_mapped_loopback"),
+            pytest.param(None, "0.0.0.0", True, id="unset_non_loopback"),
+            pytest.param(None, "127.1", True, id="unset_unparsed_spelling"),
+            pytest.param(None, None, True, id="unset_none"),
+        ],
+    )
+    def test_auth_enabled_for_host(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_value: Optional[str],
+        host: Optional[str],
+        expected: bool,
+    ) -> None:
+        if env_value is None:
+            monkeypatch.delenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, raising=False)
+        else:
+            monkeypatch.setenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, env_value)
+        assert phoenix_config.auth_enabled_for_host(host) is expected
+
+    @pytest.mark.parametrize(
+        "raw, expected",
+        [
+            pytest.param("127.1", "127.0.0.1", id="ipv4_abbreviation"),
+            pytest.param("  127.1  ", "127.0.0.1", id="abbreviation_whitespace"),
+            pytest.param("localhost", "localhost", id="localhost"),
+            pytest.param("::1", "::1", id="ipv6_loopback"),
+            pytest.param("[::1]", "::1", id="bracketed_ipv6_loopback"),
+            pytest.param("0.0.0.0", "0.0.0.0", id="ipv4_unspecified"),
+            pytest.param("::", "::", id="ipv6_unspecified"),
+            pytest.param("[::]", "::", id="bracketed_ipv6_unspecified"),
+            pytest.param(" [::] ", "::", id="bracketed_ipv6_whitespace"),
+            pytest.param("0:0:0:0:0:0:0:0", "::", id="expanded_ipv6_unspecified"),
+            pytest.param("0:0:0:0:0:0:0:1", "::1", id="expanded_ipv6_loopback"),
+            pytest.param("::ffff:127.0.0.1", "127.0.0.1", id="ipv4_mapped_loopback"),
+            pytest.param("[::ffff:7f00:1]", "127.0.0.1", id="ipv4_mapped_hex_loopback"),
+            pytest.param("::ffff:0.0.0.0", "0.0.0.0", id="ipv4_mapped_unspecified"),
+            pytest.param("example.com", "example.com", id="hostname"),
+        ],
+    )
+    def test_get_env_host_canonicalizes(
+        self, monkeypatch: MonkeyPatch, raw: str, expected: str
+    ) -> None:
+        monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, raw)
+        assert phoenix_config.get_env_host() == expected
+
+    def test_abbreviated_loopback_is_loopback(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, "127.1")
+        assert phoenix_config.is_loopback_host(phoenix_config.get_env_host())
+
+    def test_default_host_is_loopback(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv(phoenix_config.ENV_PHOENIX_HOST, raising=False)
+        assert phoenix_config.is_loopback_host(phoenix_config.get_env_host())
+
+    @pytest.mark.parametrize(
+        "env_value, host, expected",
+        [
+            pytest.param("true", "127.0.0.1", True, id="explicit_true_ipv4_loopback"),
+            pytest.param("true", "::1", True, id="explicit_true_ipv6_loopback"),
+            pytest.param("true", "localhost", True, id="explicit_true_localhost"),
+            pytest.param("true", "0.0.0.0", True, id="explicit_true_ipv4_unspecified"),
+            pytest.param("true", "::", True, id="explicit_true_ipv6_unspecified"),
+            pytest.param("true", None, True, id="explicit_true_unset_host"),
+            pytest.param("false", "127.0.0.1", False, id="explicit_false_ipv4_loopback"),
+            pytest.param("false", "::1", False, id="explicit_false_ipv6_loopback"),
+            pytest.param("false", "localhost", False, id="explicit_false_localhost"),
+            pytest.param("false", "0.0.0.0", False, id="explicit_false_ipv4_unspecified"),
+            pytest.param("false", "::", False, id="explicit_false_ipv6_unspecified"),
+            pytest.param("false", None, False, id="explicit_false_unset_host"),
+            pytest.param(None, "127.0.0.1", False, id="unset_ipv4_loopback"),
+            pytest.param(None, "::1", False, id="unset_ipv6_loopback"),
+            pytest.param(None, "localhost", False, id="unset_localhost"),
+            pytest.param(None, None, False, id="unset_default_host"),
+            pytest.param(None, "0.0.0.0", True, id="unset_ipv4_unspecified"),
+            pytest.param(None, "::", True, id="unset_ipv6_unspecified"),
+        ],
+    )
+    def test_auth_default_follows_env_host(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_value: Optional[str],
+        host: Optional[str],
+        expected: bool,
+    ) -> None:
+        if env_value is None:
+            monkeypatch.delenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, raising=False)
+        else:
+            monkeypatch.setenv(phoenix_config.ENV_PHOENIX_ENABLE_AUTH, env_value)
+        if host is None:
+            monkeypatch.delenv(phoenix_config.ENV_PHOENIX_HOST, raising=False)
+        else:
+            monkeypatch.setenv(phoenix_config.ENV_PHOENIX_HOST, host)
+        host = phoenix_config.get_env_host()
+        assert phoenix_config.auth_enabled_for_host(host) is expected
 
 
 def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
@@ -785,38 +1042,33 @@ def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
     mkdir_spy.assert_not_called()
 
 
-def test_allow_external_resources_env_var_exists() -> None:
-    """Test that the ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES constant is properly defined."""
-    assert ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES == "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
-
-
 def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the environment variable parsing logic works correctly."""
     import os
 
     # Test default (env var not set) - should be True
-    monkeypatch.delenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, raising=False)
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.delenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", raising=False)
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit True
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit true (lowercase)
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "true")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit False
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "False")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "False")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "false"
 
     # Test explicit false (lowercase)
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "false")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "false"
 
     # Test invalid value - should be false (not "true")
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "invalid")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() != "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "invalid")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() != "true"
 
 
 class TestOAuth2ClientConfigFromEnv:
@@ -1235,3 +1487,1403 @@ class TestOAuth2ClientConfigFromEnv:
         assert config.client_secret is None
         assert config.token_endpoint_auth_method == "none"
         assert config.use_pkce is True
+
+    def test_role_mapping_single(self, monkeypatch: MonkeyPatch) -> None:
+        """Test single role mapping configuration."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_path == "roles"
+        assert config.role_mapping == {"Owner": "ADMIN"}
+        assert config.role_attribute_strict is False
+
+    def test_role_resync_defaults_true(self, monkeypatch: MonkeyPatch) -> None:
+        """role_resync defaults to True."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_resync is True
+
+    def test_role_resync_disabled(self, monkeypatch: MonkeyPatch) -> None:
+        """ROLE_RESYNC is parsed as a boolean."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_RESYNC", "false")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_resync is False
+
+    def test_role_resync_disabled_without_role_attribute_path_raises(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """ROLE_RESYNC=false without ROLE_ATTRIBUTE_PATH is a no-op and is rejected at startup."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_RESYNC", "false")
+
+        with pytest.raises(ValueError, match="ROLE_RESYNC is set to"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_multiple(self, monkeypatch: MonkeyPatch) -> None:
+        """Test multiple role mappings configuration."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN,Developer:MEMBER,Reader:VIEWER"
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {
+            "Owner": "ADMIN",
+            "Developer": "MEMBER",
+            "Reader": "VIEWER",
+        }
+
+    def test_role_mapping_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that Phoenix roles in mapping are case-insensitive."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "owner:admin,dev:member,view:viewer")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {"owner": "ADMIN", "dev": "MEMBER", "view": "VIEWER"}
+
+    def test_role_mapping_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that whitespace around role mappings is handled correctly."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "  Owner : ADMIN , Developer : MEMBER  "
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {"Owner": "ADMIN", "Developer": "MEMBER"}
+
+    def test_role_mapping_missing_colon_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role mapping without colon separator fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "OwnerADMIN")
+
+        with pytest.raises(ValueError, match="Invalid ROLE_MAPPING format.*Expected format"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_empty_idp_role_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that empty IDP role in mapping fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", ":ADMIN")
+
+        with pytest.raises(ValueError, match="IDP role cannot be empty"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_system_role_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that SYSTEM role cannot be assigned via OAuth2 role mapping."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "SuperAdmin:SYSTEM")
+
+        with pytest.raises(
+            ValueError, match="SYSTEM role cannot be assigned via OAuth2.*internal-only"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_invalid_phoenix_role_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that invalid Phoenix role in mapping fails."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:SUPERUSER")
+
+        with pytest.raises(ValueError, match="not a valid Phoenix role.*Valid roles are"):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_empty_string_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that empty role mapping string results in empty dict."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {}
+
+    def test_role_mapping_trailing_commas_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that trailing commas and empty segments are ignored."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN,,Developer:MEMBER,")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_mapping == {"Owner": "ADMIN", "Developer": "MEMBER"}
+
+    def test_role_attribute_strict_mode(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role_attribute_strict mode can be enabled."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_STRICT", "true")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_strict is True
+
+    def test_role_attribute_path_without_mapping_allowed(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role_attribute_path can be set without role_mapping (uses defaults)."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "roles")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_path == "roles"
+        assert config.role_mapping == {}
+
+    def test_role_mapping_without_attribute_path_fails(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role_mapping requires role_attribute_path."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_MAPPING", "Owner:ADMIN")
+
+        with pytest.raises(
+            ValueError, match="ROLE_MAPPING is set but ROLE_ATTRIBUTE_PATH is not configured"
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_attribute_strict_without_attribute_path_fails(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """Test that role_attribute_strict requires role_attribute_path."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_STRICT", "true")
+
+        with pytest.raises(
+            ValueError,
+            match="ROLE_ATTRIBUTE_STRICT is set to true but ROLE_ATTRIBUTE_PATH is not configured",
+        ):
+            OAuth2ClientConfig.from_env("test")
+
+    def test_role_mapping_defaults(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that role mapping fields default to empty/None when not configured."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_attribute_path is None
+        assert config.role_mapping == {}
+        assert config.role_attribute_strict is False
+
+
+def test_oauth2_role_names_are_subset_of_user_role_names() -> None:
+    """Test that OAuth2 valid roles are a proper subset of UserRoleName from models.py.
+
+    This ensures that:
+    1. All OAuth2 roles are valid Phoenix user roles
+    2. SYSTEM role is explicitly excluded from OAuth2 (security requirement)
+    """
+    # Get all valid roles from both type aliases
+    all_user_roles = set(get_args(UserRoleName))
+    oauth2_roles = set(get_args(AssignableUserRoleName))
+
+    # Verify OAuth2 roles are a proper subset (not equal, must exclude SYSTEM)
+    assert oauth2_roles < all_user_roles, "OAuth2 roles must be a proper subset of all user roles"
+
+    # Verify SYSTEM is in UserRoleName but NOT in AssignableUserRoleName
+    assert "SYSTEM" in all_user_roles, "SYSTEM role must exist in UserRoleName"
+    assert "SYSTEM" not in oauth2_roles, "SYSTEM role must NOT be allowed for OAuth2"
+
+    # Verify expected OAuth2 roles are present
+    assert oauth2_roles == {"ADMIN", "MEMBER", "VIEWER"}, (
+        "OAuth2 should only allow ADMIN, MEMBER, VIEWER"
+    )
+
+
+class TestLDAPConfigFromEnv:
+    """Test LDAP configuration loading from environment variables."""
+
+    @pytest.mark.parametrize(
+        "env_vars, expected_error_msg",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "not-valid-json",
+                },
+                "is not valid JSON",
+                id="invalid_json_mappings",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '{"admin": ["..."]}',
+                },
+                "must be a JSON array",
+                id="mappings_not_array",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '["not-a-dict"]',
+                },
+                "must be an object",
+                id="mapping_not_object",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"role": "ADMIN"}]',
+                },
+                "missing required field 'group_dn'",
+                id="missing_group_dn",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "..."}]',
+                },
+                "missing required field 'role'",
+                id="missing_role",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "invalid_role"}]',
+                },
+                "role must be one of",
+                id="invalid_role_lowercase",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_TLS_MODE": "invalid",
+                },
+                "must be 'none', 'starttls', or 'ldaps'",
+                id="invalid_tls_mode",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=%s))",
+                    # Missing PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS
+                },
+                "GROUP_SEARCH_FILTER is set but",
+                id="group_search_filter_without_base_dns",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                "must be set",
+                id="missing_user_search_base_dns",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_TLS_CLIENT_CERT_FILE": "/path/to/cert.pem",
+                },
+                "requires PHOENIX_LDAP_TLS_CLIENT_KEY_FILE",
+                id="client_cert_without_key",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_TLS_CLIENT_KEY_FILE": "/path/to/key.pem",
+                },
+                "requires PHOENIX_LDAP_TLS_CLIENT_CERT_FILE",
+                id="client_key_without_cert",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "object GUID",
+                },
+                "LDAP attribute names do not contain spaces",
+                id="attr_unique_id_with_spaces",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "e mail",
+                },
+                "LDAP attribute names do not contain spaces",
+                id="attr_email_with_spaces",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    # No-email mode requires unique_id
+                },
+                "PHOENIX_LDAP_ATTR_UNIQUE_ID is required",
+                id="attr_email_empty_requires_unique_id",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "false",
+                    # No-email mode requires allow_sign_up=true
+                },
+                "PHOENIX_LDAP_ALLOW_SIGN_UP must be True",
+                id="attr_email_empty_requires_allow_sign_up",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    # No-email mode (via "null" sentinel) requires unique_id
+                },
+                "PHOENIX_LDAP_ATTR_UNIQUE_ID is required",
+                id="attr_email_null_sentinel_requires_unique_id",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "false",
+                    # No-email mode (via "null" sentinel) requires allow_sign_up=true
+                },
+                "PHOENIX_LDAP_ALLOW_SIGN_UP must be True",
+                id="attr_email_null_sentinel_requires_allow_sign_up",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                    "PHOENIX_ADMINS": "Admin User=admin@example.com",
+                    # No-email mode (via "null" sentinel) rejects PHOENIX_ADMINS
+                },
+                "PHOENIX_ADMINS is not supported",
+                id="attr_email_null_sentinel_rejects_phoenix_admins",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": "[]",
+                },
+                "must contain at least one mapping",
+                id="empty_group_role_mappings",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_USER_SEARCH_FILTER": "(&(objectClass=user)(sAMAccountName=admin))",
+                },
+                "must contain '%s' placeholder for username",
+                id="user_search_filter_missing_placeholder",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": '["ou=groups,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=admin))",
+                },
+                "must contain '%s' placeholder",
+                id="group_search_filter_missing_placeholder",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                    # Missing PHOENIX_LDAP_BIND_DN
+                },
+                "PHOENIX_LDAP_BIND_PASSWORD is set but PHOENIX_LDAP_BIND_DN is missing",
+                id="bind_password_without_bind_dn",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_BIND_DN": "not a valid dn",
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                },
+                "has invalid LDAP DN syntax",
+                id="bind_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["not a valid dn"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                "has invalid LDAP DN syntax",
+                id="user_search_base_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": '["not a valid dn"]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=%s))",
+                },
+                "has invalid LDAP DN syntax",
+                id="group_search_base_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "not a valid dn", "role": "MEMBER"}]'
+                    ),
+                },
+                "has invalid LDAP DN syntax",
+                id="group_role_mapping_dn_invalid_syntax",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    # Empty group_dn in role mapping is rejected (wildcard "*" should be used instead)
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "", "role": "MEMBER"}]',
+                },
+                "must be a non-empty string",
+                id="group_role_mapping_dn_empty_string",
+            ),
+        ],
+    )
+    def test_invalid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_error_msg: str,
+    ) -> None:
+        """Test that invalid LDAP configuration raises appropriate errors."""
+        # Clear all LDAP environment variables
+        for key in [k for k in os.environ if k.startswith("PHOENIX_LDAP_")]:
+            monkeypatch.delenv(key, raising=False)
+
+        # Set test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        from phoenix.config import LDAPConfig
+
+        with pytest.raises(ValueError) as exc_info:
+            LDAPConfig.from_env()
+        assert expected_error_msg in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "env_vars, expected_attrs",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"}]'
+                    ),
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 389,
+                    "tls_mode": "starttls",
+                    "tls_verify": True,
+                    "bind_dn": None,
+                    "bind_password": None,
+                    "user_search_base_dns": ("ou=people,dc=example,dc=com",),
+                    "user_search_filter": "(&(objectClass=user)(sAMAccountName=%s))",
+                    "attr_email": "mail",
+                    "attr_display_name": "displayName",
+                    "attr_member_of": "memberOf",
+                    "group_search_base_dns": (),
+                    "group_search_filter": None,
+                    "group_role_mappings": (
+                        {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                    ),
+                },
+                id="minimal_active_directory",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "dc1.example.com,dc2.example.com",
+                    "PHOENIX_LDAP_PORT": "636",
+                    "PHOENIX_LDAP_TLS_MODE": "ldaps",
+                    "PHOENIX_LDAP_TLS_VERIFY": "false",
+                    "PHOENIX_LDAP_BIND_DN": "cn=admin,dc=example,dc=com",
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=users,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_USER_SEARCH_FILTER": "(&(objectClass=person)(uid=%s))",
+                    "PHOENIX_LDAP_ATTR_EMAIL": "email",
+                    "PHOENIX_LDAP_ATTR_DISPLAY_NAME": "cn",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
+                },
+                {
+                    "hosts": ("dc1.example.com", "dc2.example.com"),
+                    "port": 636,
+                    "tls_mode": "ldaps",
+                    "tls_verify": False,
+                    "bind_dn": "cn=admin,dc=example,dc=com",
+                    "bind_password": "secret",
+                    "user_search_base_dns": ("ou=users,dc=example,dc=com",),
+                    "user_search_filter": "(&(objectClass=person)(uid=%s))",
+                    "attr_email": "email",
+                    "attr_display_name": "cn",
+                    "attr_member_of": "memberOf",
+                    "group_search_base_dns": (),
+                    "group_search_filter": None,
+                    "group_role_mappings": ({"group_dn": "*", "role": "VIEWER"},),
+                },
+                id="custom_settings_with_multiple_servers",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_ATTR_MEMBER_OF": "",
+                    "PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS": '["ou=groups,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_SEARCH_FILTER": "(&(objectClass=posixGroup)(memberUid=%s))",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "cn=phoenix-users,ou=groups,dc=example,dc=com", '
+                        '"role": "MEMBER"}]'
+                    ),
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 389,
+                    "tls_mode": "starttls",
+                    "tls_verify": True,
+                    "bind_dn": None,
+                    "bind_password": None,
+                    "user_search_base_dns": ("ou=people,dc=example,dc=com",),
+                    "user_search_filter": "(&(objectClass=user)(sAMAccountName=%s))",
+                    "attr_email": "mail",
+                    "attr_display_name": "displayName",
+                    "attr_member_of": None,
+                    "group_search_base_dns": ("ou=groups,dc=example,dc=com",),
+                    "group_search_filter": "(&(objectClass=posixGroup)(memberUid=%s))",
+                    "group_role_mappings": (
+                        {
+                            "group_dn": "cn=phoenix-users,ou=groups,dc=example,dc=com",
+                            "role": "MEMBER",
+                        },
+                    ),
+                },
+                id="posix_groups",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_TLS_MODE": "starttls",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 389,  # Should default to 389 for STARTTLS
+                    "tls_mode": "starttls",
+                },
+                id="starttls_defaults_to_port_389",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    # Group DN with mixed case and extra whitespace - should be canonicalized
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": (
+                        '[{"group_dn": "  CN=Admins,OU=Groups,DC=Example,DC=COM  ", "role": "admin"}]'
+                    ),
+                },
+                {
+                    # Should be canonicalized: lowercase, stripped, normalized
+                    "group_role_mappings": (
+                        {"group_dn": "cn=admins,ou=groups,dc=example,dc=com", "role": "ADMIN"},
+                    ),
+                },
+                id="group_dn_canonicalized_and_role_uppercase",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_TLS_MODE": "ldaps",
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "VIEWER"}]',
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "port": 636,  # Should default to 636 for LDAPS
+                    "tls_mode": "ldaps",
+                },
+                id="ldaps_defaults_to_port_636",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "attr_email": None,  # Empty string becomes None in no-email mode
+                    "attr_unique_id": "entryUUID",
+                    "allow_sign_up": True,
+                },
+                id="no_email_mode_valid",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "null",
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "attr_email": None,  # "null" sentinel becomes None in no-email mode
+                    "attr_unique_id": "entryUUID",
+                    "allow_sign_up": True,
+                },
+                id="no_email_mode_null_sentinel",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["ou=people,dc=example,dc=com"]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_ATTR_EMAIL": "NULL",  # Case-insensitive
+                    "PHOENIX_LDAP_ATTR_UNIQUE_ID": "entryUUID",
+                    "PHOENIX_LDAP_ALLOW_SIGN_UP": "true",
+                },
+                {
+                    "hosts": ("ldap.example.com",),
+                    "attr_email": None,  # "NULL" (uppercase) also becomes None
+                    "attr_unique_id": "entryUUID",
+                    "allow_sign_up": True,
+                },
+                id="no_email_mode_null_sentinel_uppercase",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    # Base DNs with extra whitespace - should be stripped
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["  ou=people,dc=example,dc=com  "]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                    "PHOENIX_LDAP_BIND_DN": "  cn=admin,dc=example,dc=com  ",
+                    "PHOENIX_LDAP_BIND_PASSWORD": "secret",
+                },
+                {
+                    # Base DNs should be stripped (but not canonicalized - passed to LDAP as-is)
+                    "user_search_base_dns": ("ou=people,dc=example,dc=com",),
+                    "bind_dn": "cn=admin,dc=example,dc=com",
+                },
+                id="base_dns_and_bind_dn_stripped",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    # Empty DN is valid - represents root DSE (search entire directory)
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '[""]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                {
+                    "user_search_base_dns": ("",),  # Empty DN stored as-is
+                },
+                id="empty_dn_valid_root_dse",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_LDAP_HOST": "ldap.example.com",
+                    # Whitespace-only becomes empty DN after strip
+                    "PHOENIX_LDAP_USER_SEARCH_BASE_DNS": '["   "]',
+                    "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS": '[{"group_dn": "*", "role": "MEMBER"}]',
+                },
+                {
+                    "user_search_base_dns": ("",),  # Whitespace stripped to empty
+                },
+                id="whitespace_only_dn_becomes_empty",
+            ),
+        ],
+    )
+    def test_valid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_attrs: dict[str, Any],
+    ) -> None:
+        """Test that valid LDAP configuration is loaded correctly."""
+        # Clear all LDAP environment variables
+        for key in [k for k in os.environ if k.startswith("PHOENIX_LDAP_")]:
+            monkeypatch.delenv(key, raising=False)
+
+        # Set test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        from phoenix.config import LDAPConfig
+
+        config = LDAPConfig.from_env()
+        assert config is not None
+
+        for attr, expected_value in expected_attrs.items():
+            assert getattr(config, attr) == expected_value, (
+                f"Mismatch for attribute '{attr}': "
+                f"expected {expected_value}, got {getattr(config, attr)}"
+            )
+
+    def test_returns_none_when_host_not_set(self, monkeypatch: MonkeyPatch) -> None:
+        """Test that from_env returns None when PHOENIX_LDAP_HOST is not set."""
+        monkeypatch.delenv("PHOENIX_LDAP_HOST", raising=False)
+
+        from phoenix.config import LDAPConfig
+
+        assert LDAPConfig.from_env() is None
+
+    def test_tls_custom_ca_cert(self, monkeypatch: MonkeyPatch, tmp_path: Any) -> None:
+        """Test that custom CA certificate file path is correctly loaded."""
+        # Create a dummy CA cert file
+        ca_cert_file = tmp_path / "ca.pem"
+        ca_cert_file.write_text("-----BEGIN CERTIFICATE-----\nfake cert\n-----END CERTIFICATE-----")
+
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=people,dc=example,dc=com"]')
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
+        monkeypatch.setenv("PHOENIX_LDAP_TLS_CA_CERT_FILE", str(ca_cert_file))
+
+        from phoenix.config import LDAPConfig
+
+        config = LDAPConfig.from_env()
+        assert config is not None
+        assert config.tls_ca_cert_file == str(ca_cert_file)
+
+    def test_tls_client_cert_and_key(self, monkeypatch: MonkeyPatch, tmp_path: Any) -> None:
+        """Test that client certificate and key paths are correctly loaded."""
+        # Create dummy client cert and key files
+        client_cert_file = tmp_path / "client.crt"
+        client_key_file = tmp_path / "client.key"
+        client_cert_file.write_text(
+            "-----BEGIN CERTIFICATE-----\nfake cert\n-----END CERTIFICATE-----"
+        )
+        client_key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\nfake key\n-----END PRIVATE KEY-----"
+        )
+
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=people,dc=example,dc=com"]')
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
+        monkeypatch.setenv("PHOENIX_LDAP_TLS_CLIENT_CERT_FILE", str(client_cert_file))
+        monkeypatch.setenv("PHOENIX_LDAP_TLS_CLIENT_KEY_FILE", str(client_key_file))
+
+        from phoenix.config import LDAPConfig
+
+        config = LDAPConfig.from_env()
+        assert config is not None
+        assert config.tls_client_cert_file == str(client_cert_file)
+        assert config.tls_client_key_file == str(client_key_file)
+
+
+class TestGetEnvAllowedProviders:
+    def test_unset_returns_none(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_PROVIDERS", raising=False)
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() is None
+
+    def test_none_returns_empty_set(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "NONE")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset()
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,ANTHROPIC")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+    def test_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "openai,Anthropic")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+    def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", " OPENAI , ANTHROPIC ")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+    def test_empty_entries_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,,ANTHROPIC,")
+        from phoenix.config import get_env_allowed_providers
+
+        assert get_env_allowed_providers() == frozenset({"OPENAI", "ANTHROPIC"})
+
+
+class TestValidateEnvAllowedProviders:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_PROVIDERS", raising=False)
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_none_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "NONE")
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_valid_providers_do_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,ANTHROPIC")
+        from phoenix.config import validate_env_allowed_providers
+
+        validate_env_allowed_providers()  # should not raise
+
+    def test_invalid_provider_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_PROVIDERS", "OPENAI,INVALID_PROVIDER")
+        from phoenix.config import validate_env_allowed_providers
+
+        with pytest.raises(ValueError, match="INVALID_PROVIDER"):
+            validate_env_allowed_providers()
+
+
+class TestGetEnvAllowedSandboxProviders:
+    def test_unset_returns_all_known_kinds(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
+        from phoenix.config import get_env_allowed_sandbox_providers
+        from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
+
+        assert get_env_allowed_sandbox_providers() == SANDBOX_BACKEND_TYPES
+
+    def test_none_returns_empty_set(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset()
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,DENO")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+    def test_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "vercel,Wasm")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"VERCEL", "WASM"})
+
+    def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", " WASM , DENO ")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+    def test_empty_entries_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,,DENO,")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+
+class TestValidateEnvAllowedSandboxProviders:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()
+
+    def test_none_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()
+
+    def test_valid_kinds_do_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCEL,DENO")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()
+
+    def test_invalid_kind_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCLE")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        with pytest.raises(ValueError, match="VERCLE"):
+            validate_env_allowed_sandbox_providers()
+
+    def test_legacy_per_language_key_rejected(self, monkeypatch: MonkeyPatch) -> None:
+        # Allowlist operates on provider kinds, not the old per-language keys —
+        # listing VERCEL_PYTHON instead of VERCEL is wrong-shape input.
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "VERCEL_PYTHON")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        with pytest.raises(ValueError, match="VERCEL_PYTHON"):
+            validate_env_allowed_sandbox_providers()
+
+
+class TestValidateEnvWasmBinaryPath:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        from phoenix.config import validate_env_wasm_binary_path
+
+        validate_env_wasm_binary_path()
+
+    def test_set_to_existing_file_does_not_raise(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
+        binary = tmp_path / "python-3.12.0.wasm"
+        binary.write_bytes(b"fake wasm")
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(binary))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        validate_env_wasm_binary_path()
+
+    def test_set_to_missing_file_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        missing = tmp_path / "does-not-exist.wasm"
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(missing))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="PHOENIX_WASM_BINARY_PATH"):
+            validate_env_wasm_binary_path()
+
+    def test_set_to_directory_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(tmp_path))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="PHOENIX_WASM_BINARY_PATH"):
+            validate_env_wasm_binary_path()
+
+    def test_set_to_empty_file_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        empty = tmp_path / "empty.wasm"
+        empty.touch()
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(empty))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="empty"):
+            validate_env_wasm_binary_path()
+
+
+class TestPostgresConnectionStringManagedIdentity:
+    """Tests for Azure managed identity path in get_env_postgres_connection_str()."""
+
+    def _clear_pg_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for key in (
+            "PHOENIX_POSTGRES_USER",
+            "PHOENIX_POSTGRES_PASSWORD",
+            "PHOENIX_POSTGRES_HOST",
+            "PHOENIX_POSTGRES_PORT",
+            "PHOENIX_POSTGRES_DB",
+            "PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY",
+            "PHOENIX_POSTGRES_USE_AWS_IAM_AUTH",
+        ):
+            monkeypatch.delenv(key, raising=False)
+
+    def test_managed_identity_minimal(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI with host + user produces a password-free connection string."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        parsed = urlparse(result)
+        assert parsed.hostname == "db.postgres.database.azure.com"
+        assert parsed.username == "mi-user"
+        assert parsed.password in (None, "")
+
+    def test_managed_identity_with_port_and_db(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI connection string includes port and database when set."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PORT", "5432")
+        monkeypatch.setenv("PHOENIX_POSTGRES_DB", "mydb")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        parsed = urlparse(result)
+        assert parsed.hostname == "db.postgres.database.azure.com"
+        assert parsed.port == 5432
+        assert parsed.path == "/mydb"
+
+    def test_managed_identity_password_set_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Setting a password alongside MI raises ValueError."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "should-not-be-here")
+
+        with pytest.raises(ValueError, match="must not be set"):
+            get_env_postgres_connection_str()
+
+    def test_managed_identity_and_iam_mutual_exclusion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Enabling both MI and AWS IAM auth simultaneously raises ValueError."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AWS_IAM_AUTH", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.example.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        with pytest.raises(ValueError, match="Cannot enable both"):
+            get_env_postgres_connection_str()
+
+    def test_managed_identity_no_host_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled but no host results in None (connection string not yet configured)."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "mi-user")
+
+        assert get_env_postgres_connection_str() is None
+
+    def test_managed_identity_no_user_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MI enabled but no user results in None (connection string not yet configured)."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+
+        assert get_env_postgres_connection_str() is None
+
+    def test_managed_identity_false_uses_password_auth(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Explicitly setting MI to false falls back to normal password auth."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "false")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.example.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "myuser")
+        monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "mypassword")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        assert quote("mypassword") in result
+        assert quote("myuser") in result
+
+    def test_managed_identity_username_with_at_sign_encoded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Usernames containing '@' (common for Azure MI display names) are URL-encoded."""
+        self._clear_pg_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "db.postgres.database.azure.com")
+        monkeypatch.setenv("PHOENIX_POSTGRES_USER", "my-identity@tenant.onmicrosoft.com")
+
+        result = get_env_postgres_connection_str()
+        assert result is not None
+        parsed = urlparse(result)
+        assert parsed.hostname == "db.postgres.database.azure.com"
+        assert unquote(parsed.username or "") == "my-identity@tenant.onmicrosoft.com"
+
+
+class TestGetEnvPostgresUseManagedIdentity:
+    """Tests for get_env_postgres_use_azure_managed_identity()."""
+
+    def test_unset_returns_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", raising=False)
+        assert get_env_postgres_use_azure_managed_identity() is False
+
+    def test_true_string_returns_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "true")
+        assert get_env_postgres_use_azure_managed_identity() is True
+
+    def test_false_string_returns_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY", "false")
+        assert get_env_postgres_use_azure_managed_identity() is False
+
+
+class TestGetEnvPostgresAzureScope:
+    """Tests for get_env_postgres_azure_scope()."""
+
+    def test_unset_returns_default_scope(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_POSTGRES_AZURE_SCOPE", raising=False)
+        assert (
+            get_env_postgres_azure_scope() == "https://ossrdbms-aad.database.windows.net/.default"
+        )
+
+    def test_custom_scope_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        custom_scope = "https://ossrdbms-aad.database.usgovcloudapi.net/.default"
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_SCOPE", custom_scope)
+        assert get_env_postgres_azure_scope() == custom_scope
+
+    def test_empty_scope_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_POSTGRES_AZURE_SCOPE", "")
+        assert (
+            get_env_postgres_azure_scope() == "https://ossrdbms-aad.database.windows.net/.default"
+        )
+
+
+class TestClientAssertionJWTFromEnv:
+    """Tests for TOKEN_ENDPOINT_AUTH_METHOD=client_assertion_jwt in OAuth2ClientConfig.from_env."""
+
+    _BASE_ENVS = {
+        "PHOENIX_OAUTH2_ENTRA_CLIENT_ID": "entra-client-id",
+        "PHOENIX_OAUTH2_ENTRA_OIDC_CONFIG_URL": (
+            "https://login.microsoftonline.com/tenant-id/v2.0/.well-known/openid-configuration"
+        ),
+        "PHOENIX_OAUTH2_ENTRA_TOKEN_ENDPOINT_AUTH_METHOD": "client_assertion_jwt",
+    }
+
+    @staticmethod
+    def _abs(*parts: str) -> str:
+        """An absolute path on every platform: Windows needs a drive, and >=3.13 enforces it."""
+        return str(Path(tempfile.gettempdir(), *parts))
+
+    @pytest.fixture(autouse=True)
+    def _base_envs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        for k, v in self._BASE_ENVS.items():
+            monkeypatch.setenv(k, v)
+        monkeypatch.delenv("AZURE_FEDERATED_TOKEN_FILE", raising=False)
+
+    def test_explicit_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", self._abs("explicit", "token")
+        )
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == self._abs("explicit", "token")
+        assert config.client_secret is None
+        assert config.token_endpoint_auth_method == "client_assertion_jwt"
+
+    def test_path_resolved_from_named_variable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        config = OAuth2ClientConfig.from_env("entra")
+        assert config.client_assertion_file == self._abs("webhook", "token")
+
+    def test_named_variable_is_not_read_implicitly(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The variable is set but this provider never named it, so it must not be picked up.
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
+        with pytest.raises(ValueError, match="client_assertion_file is required"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_one_provider_naming_the_variable_does_not_bind_another(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The crossover this design exists to prevent: a global variable reaching a provider
+        # that never asked for it.
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "azure-token"))
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_CLIENT_ID", "okta-client")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_OKTA_OIDC_CONFIG_URL",
+            "https://acme.okta.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_OKTA_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt")
+
+        assert OAuth2ClientConfig.from_env("entra").client_assertion_file == self._abs(
+            "webhook", "azure-token"
+        )
+        with pytest.raises(ValueError, match="client_assertion_file is required"):
+            OAuth2ClientConfig.from_env("okta")
+
+    def test_both_settings_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_FEDERATED_TOKEN_FILE", self._abs("webhook", "token"))
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", self._abs("explicit", "token")
+        )
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_named_variable_unset_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "AZURE_FEDERATED_TOKEN_FILE"
+        )
+        with pytest.raises(ValueError, match="unset or empty"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_relative_direct_path_is_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Same rule whichever setting supplied it: a relative path resolves against a working
+        # directory nothing about the deployment pins.
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE", "secrets/token")
+        with pytest.raises(ValueError, match="must be an absolute path"):
+            OAuth2ClientConfig.from_env("entra")
+
+    def test_relative_indirect_path_does_not_echo_the_value(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SOME_VARIABLE", "not-a-path-secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_ENTRA_CLIENT_ASSERTION_FILE_ENV_VAR", "SOME_VARIABLE")
+        with pytest.raises(ValueError) as exc_info:
+            OAuth2ClientConfig.from_env("entra")
+
+        assert "not-a-path-secret" not in str(exc_info.value)
+        assert "SOME_VARIABLE" in str(exc_info.value)
+
+    def test_any_idp_name_is_accepted(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # IDP names are operator-chosen, so the mechanism cannot be gated on one.
+        monkeypatch.setenv("PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ID", "some-id")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_COMPANY_SSO_OIDC_CONFIG_URL",
+            "https://sso.example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_COMPANY_SSO_TOKEN_ENDPOINT_AUTH_METHOD", "client_assertion_jwt"
+        )
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_COMPANY_SSO_CLIENT_ASSERTION_FILE", self._abs("spiffe", "jwt-svid")
+        )
+        config = OAuth2ClientConfig.from_env("company_sso")
+        assert config.client_assertion_file == self._abs("spiffe", "jwt-svid")
+
+    def test_assertion_file_unset_for_other_methods(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_ID", "some-id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET", "some-secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL",
+            "https://accounts.google.com/.well-known/openid-configuration",
+        )
+        config = OAuth2ClientConfig.from_env("google")
+        assert config.client_assertion_file is None
+
+
+class TestGetEnvModelCostManifestUrl:
+    @pytest.fixture(autouse=True)
+    def _clear_env(self, monkeypatch: MonkeyPatch) -> None:
+        for env_var in (
+            "PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE",
+            "PHOENIX_ALLOW_EXTERNAL_RESOURCES",
+        ):
+            monkeypatch.delenv(env_var, raising=False)
+
+    def test_defaults_to_github(self) -> None:
+        assert get_env_model_cost_manifest_url() == DEFAULT_MANIFEST_URL
+
+    def test_default_is_not_fetched_without_external_resources(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+        assert get_env_model_cost_manifest_url() is None
+
+    def test_disable_auto_update(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_DISABLE_MODEL_COST_AUTO_UPDATE", "true")
+        assert get_env_model_cost_manifest_url() is None

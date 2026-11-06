@@ -3,9 +3,10 @@ import sys
 import time
 from functools import lru_cache
 from threading import Thread
-from typing import Optional
+from typing import Optional, Sequence
 
 import psutil
+from fastapi.routing import APIRoute, Mount, _IncludedRouter
 from prometheus_client import (
     Counter,
     Gauge,
@@ -13,10 +14,14 @@ from prometheus_client import (
     Summary,
     start_http_server,
 )
+from starlette.applications import Starlette
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.routing import Match
+from starlette.routing import BaseRoute, Match
+from starlette.types import Scope
+
+from phoenix.server.utils import strip_root_path
 
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
@@ -113,21 +118,76 @@ SPAN_QUEUE_SIZE = Gauge(
     documentation="Current number of spans in the processing queue",
 )
 
+SPAN_INGESTION_FAILED_SPANS = Counter(
+    namespace="phoenix",
+    name="span_ingestion_failed_spans_total",
+    documentation="Number of accepted spans released after a confirmed insertion failure",
+    labelnames=["reason"],
+)
+
+SPAN_INGESTION_UNRESOLVED_SPANS = Counter(
+    namespace="phoenix",
+    name="span_ingestion_unresolved_spans_total",
+    documentation="Number of accepted spans released without a confirmed commit outcome",
+)
+
+SPAN_INGESTION_LAST_SUCCESS = Gauge(
+    namespace="phoenix",
+    name="span_ingestion_last_success_timestamp_seconds",
+    documentation="Unix timestamp of the last confirmed transaction that inserted spans",
+)
+
 BULK_LOADER_LAST_ACTIVITY = Gauge(
     namespace="phoenix",
     name="bulk_loader_last_activity_timestamp_seconds",
-    documentation="Unix timestamp when bulk loader last processed items",
+    documentation="Unix timestamp of the bulk loader loop heartbeat, including idle iterations",
 )
+
+RETENTION_SWEEPER_LAST_RUN = Gauge(
+    namespace="phoenix",
+    name="retention_sweeper_last_run_seconds",
+    documentation="Unix timestamp (seconds since epoch) of the last retention sweeper run",
+)
+
+RETENTION_POLICY_EXECUTIONS = Counter(
+    namespace="phoenix",
+    name="retention_policy_executions_total",
+    documentation="Total number of retention policy executions",
+    labelnames=["status"],
+)
+
+
+def _join_paths(prefix: str, path: str) -> str:
+    if not prefix:
+        return path
+    return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[str]:
+    """Resolve the templated path of the route matching ``scope``."""
+    for route in routes:
+        match, _ = route.matches(scope)
+        if match is not Match.FULL:
+            continue
+        if isinstance(route, _IncludedRouter):
+            prefix = route.include_context.prefix or ""
+            # scope["path"] includes the root path; strip prefixes from the root-relative path.
+            stripped_path = strip_root_path(scope, scope["path"])[len(prefix) :]
+            sub_scope = {**scope, "path": stripped_path, "root_path": ""} if prefix else scope
+            sub_path = _resolve_route_path(route.original_router.routes, sub_scope)
+            if sub_path is not None:
+                return _join_paths(prefix, sub_path)
+            continue
+        if isinstance(route, (APIRoute, Mount)):
+            return route.path
+    return None
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        for route in request.app.routes:
-            match, _ = route.matches(request.scope)
-            if match is Match.FULL:
-                path = route.path
-                break
-        else:
+        assert isinstance(request.app, Starlette)
+        path = _resolve_route_path(request.app.routes, request.scope)
+        if path is None:
             return await call_next(request)
         method = request.method
         start_time = time.perf_counter()
@@ -141,9 +201,13 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         return response
 
 
-def start_prometheus() -> None:
+def start_prometheus(host: str) -> None:
+    """Start the unauthenticated metrics endpoint on port 9090.
+
+    ``host`` comes from ``canonicalize_host``.
+    """
     Thread(target=gather_system_data, daemon=True).start()
-    start_http_server(9090, addr="::")
+    start_http_server(9090, addr=host)
 
 
 def gather_system_data() -> None:

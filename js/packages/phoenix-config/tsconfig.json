@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "@phoenix-config/env-file": ["./src/envFile.ts"]
+    },
+    "rootDir": ".",
+    "types": ["node"],
+    "noUncheckedIndexedAccess": true
+  },
+  "files": [],
+  "include": ["src/**/*.ts"],
+  "references": []
+}

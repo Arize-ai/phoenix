@@ -1,0 +1,320 @@
+---
+title: "Tool Response Handling"
+description: "Evaluate whether AI agents correctly process tool results, including error handling, data extraction, and safe information disclosure"
+---
+
+## Overview
+
+The **Tool Response Handling** evaluator determines whether an AI agent correctly processed a tool's result to produce an appropriate output. This evaluator focuses on the *what happens after* the tool calling — validating that the agent used the tool result accurately — rather than whether the right tool was selected or invoked correctly.
+
+### When to Use
+
+Use the Tool Response Handling evaluator when you need to:
+
+- **Detect hallucinated data** — Identify when the agent invents information not present in the tool result
+- **Validate data extraction** — Ensure dates, numbers, and structured fields are correctly parsed and transformed
+- **Check error handling** — Verify the agent retries transient errors and corrects argument errors appropriately
+- **Audit for information disclosure** — Check that credentials, internal URLs, or PII from tool results are not leaked to users
+- **Evaluate multi-tool handling** — Validate that the agent correctly incorporates results from multiple tool calls
+
+<Info>
+This evaluator validates how the agent handled the tool result, not whether the right tool was chosen or invoked correctly. Use the [Tool Selection evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-selection) to evaluate tool choice, and the [Tool Invocation evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-invocation) to validate argument correctness. Together, all three evaluators provide complete coverage of the tool-calling pipeline.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | For LLM spans that include a tool result and the agent's subsequent output. |
+
+**Relevant span kinds:** Tool spans or LLM spans in agentic applications where a tool result is consumed and a response is generated.
+
+## Input Requirements
+
+The Tool Response Handling evaluator requires four inputs:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `input` | `string` | The user query or conversation context |
+| `tool_call` | `string` | The tool invocation(s) made by the agent, including arguments |
+| `tool_result` | `string` | The tool's response (data, errors, or partial results) |
+| `output` | `string` | The agent's handling after receiving the tool result (may include retries, follow-ups, or final response) |
+
+<Note>
+In TypeScript, the fields use camelCase: `toolCall` and `toolResult`.
+</Note>
+
+### Formatting Tips
+
+While you can pass full JSON representations for each field, **human-readable formats typically produce more accurate evaluations**.
+
+**`input` (user query or conversation context):**
+```
+User: What's the weather in Seattle?
+```
+
+**`tool_call` (the tool invocation with arguments):**
+```
+get_weather(location="Seattle")
+```
+
+**`tool_result` (the tool's response):**
+```json
+{"temperature": 58, "unit": "fahrenheit", "conditions": "cloudy"}
+```
+
+**`output` (the agent's response after receiving the tool result):**
+```
+Seattle is currently 58°F and cloudy.
+```
+
+Additional tips:
+- **Include the full output sequence** — If the agent retried or made follow-up calls after an error, include the entire handling sequence, not just the final message
+- **Multi-tool calls are supported** — If the agent called multiple tools, include all tool calls and results; the evaluator checks that the agent handled all results correctly
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"correct"` or `"incorrect"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = correct, 0.0 = incorrect) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"maximize"` | Higher scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Criteria for Correct (1.0):**
+- Data is extracted accurately from the tool result with no hallucinated details
+- Dates, numbers, and structured fields are properly transformed and formatted
+- Transient errors (rate limits, timeouts) are retried; invalid argument errors are corrected
+- No sensitive information (credentials, internal URLs, PII) is disclosed
+- The agent's response actually uses the tool result rather than ignoring it
+
+**Criteria for Incorrect (0.0):**
+- The output includes information not present in the tool result (hallucination)
+- The meaning of the tool result is misrepresented or reversed
+- Dates, numbers, or structured data are incorrectly converted
+- The agent failed to retry retryable errors or correct fixable argument errors
+- The agent made repeated identical calls that continued to fail
+- Sensitive information from the tool result was leaked to the user
+- The agent's response ignored the tool result entirely
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToolResponseHandlingEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    tool_response_eval = ToolResponseHandlingEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(tool_response_eval.describe())
+
+    # Evaluate correct data extraction
+    eval_input = {
+        "input": "What's the weather in Seattle?",
+        "tool_call": 'get_weather(location="Seattle")',
+        "tool_result": '{"temperature": 58, "unit": "fahrenheit", "conditions": "cloudy"}',
+        "output": "Seattle is currently 58°F and cloudy."
+    }
+
+    scores = tool_response_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='tool_response_handling', score=1.0, label='correct', ...)
+
+    # Evaluate hallucinated data (incorrect)
+    eval_input_hallucinated = {
+        "input": "What restaurants are nearby?",
+        "tool_call": 'search_restaurants(location="downtown")',
+        "tool_result": '{"results": [{"name": "Cafe Luna", "rating": 4.2}]}',
+        "output": "I found Cafe Luna (4.2 stars) and Mario's Italian (4.8 stars) nearby."
+    }
+
+    scores = tool_response_eval.evaluate(eval_input_hallucinated)
+    print(scores[0])
+    # Score(name='tool_response_handling', score=0.0, label='incorrect', ...)
+    # Mario's Italian was hallucinated — not in the tool result
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createToolResponseHandlingEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const toolResponseEvaluator = createToolResponseHandlingEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate correct data extraction
+    const result = await toolResponseEvaluator.evaluate({
+      input: "What's the weather in Seattle?",
+      toolCall: 'get_weather(location="Seattle")',
+      toolResult: JSON.stringify({ temperature: 58, unit: "fahrenheit", conditions: "cloudy" }),
+      output: "Seattle is currently 58°F and cloudy.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "correct", explanation: "..." }
+
+    // Evaluate hallucinated data (incorrect)
+    const resultHallucinated = await toolResponseEvaluator.evaluate({
+      input: "What restaurants are nearby?",
+      toolCall: 'search_restaurants(location="downtown")',
+      toolResult: JSON.stringify({ results: [{ name: "Cafe Luna", rating: 4.2 }] }),
+      output: "I found Cafe Luna (4.2 stars) and Mario's Italian (4.8 stars) nearby.",
+    });
+
+    console.log(resultHallucinated);
+    // { score: 0, label: "incorrect", explanation: "..." }
+    // Mario's Italian was hallucinated — not in the tool result
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+When your data has different field names, use input mapping.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToolResponseHandlingEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    tool_response_eval = ToolResponseHandlingEvaluator(llm=llm)
+
+    eval_input = {
+        "user_query": "Find my recent orders",
+        "agent_tool_call": "get_orders(user_id='123')",
+        "api_response": '{"orders": [{"id": "ORD-001", "status": "shipped"}]}',
+        "agent_response": "Your order ORD-001 has shipped."
+    }
+
+    input_mapping = {
+        "input": "user_query",
+        "tool_call": "agent_tool_call",
+        "tool_result": "api_response",
+        "output": "agent_response"
+    }
+
+    scores = tool_response_eval.evaluate(eval_input, input_mapping)
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createToolResponseHandlingEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const toolResponseEvaluator = createToolResponseHandlingEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    const boundEvaluator = bindEvaluator(toolResponseEvaluator, {
+      inputMapping: {
+        input: "userQuery",
+        toolCall: "agentToolCall",
+        toolResult: "apiResponse",
+        output: "agentResponse",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      userQuery: "Find my recent orders",
+      agentToolCall: "get_orders(user_id='123')",
+      apiResponse: JSON.stringify({ orders: [{ id: "ORD-001", status: "shipped" }] }),
+      agentResponse: "Your order ORD-001 has shipped.",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import ToolResponseHandlingEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = ToolResponseHandlingEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="tool_response_handling",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"correct": 1.0, "incorrect": 0.0},
+        direction="maximize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG, createToolResponseHandlingEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createToolResponseHandlingEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: TOOL_RESPONSE_HANDLING_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Tool Response Handling evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## API Reference
+
+- **Python**: [ToolResponseHandlingEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createToolResponseHandlingEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Tool Selection Evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-selection) - For evaluating whether the right tool was chosen
+- [Tool Invocation Evaluator](/docs/phoenix/evaluation/pre-built-metrics/tool-invocation) - For evaluating whether tool arguments are correct
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - For evaluating factual accuracy of LLM responses

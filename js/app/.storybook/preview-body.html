@@ -1,0 +1,73 @@
+<style>
+  body {
+    overflow: auto;
+  }
+
+  /* Disable stock backgrounds on docs pages and story canvases */
+  .sbdocs.sbdocs-wrapper,
+  .sbdocs.sbdocs-content,
+  .sbdocs.sbdocs-preview {
+    background: transparent;
+  }
+
+  .docs-story {
+    overflow: auto;
+    padding: 0 !important;
+  }
+
+  .docs-story .innerZoomElementWrapper:has(> [data-phoenix-story-root="true"]) {
+    width: 100%;
+  }
+
+  .docs-story
+    .innerZoomElementWrapper:has(> [data-phoenix-story-root="true"])
+    > * {
+    border: 0 !important;
+    display: block !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .docs-story [data-phoenix-story-root="true"] {
+    min-height: 100%;
+    width: 100%;
+  }
+
+  .sb-show-main.sb-main-centered,
+  .sb-show-main.sb-main-fullscreen,
+  .sb-show-main.sb-main-padded {
+    display: block;
+    margin: 0;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .sb-show-main.sb-main-centered #storybook-root,
+  .sb-show-main.sb-main-fullscreen #storybook-root,
+  .sb-show-main.sb-main-padded #storybook-root {
+    box-sizing: border-box;
+    margin: 0;
+    max-height: none;
+    min-height: 100vh;
+    padding: 0;
+    width: 100%;
+  }
+
+  /* h1 styles for readability */
+  .sbdocs.sbdocs-wrapper h1 {
+    border-bottom: 3px solid color-mix(in srgb, currentColor 15%, transparent);
+    padding-bottom: 10px;
+  }
+  .sbdocs.sbdocs-wrapper h1:not(:first-of-type) {
+    padding-top: 150px;
+  }
+
+  /* subtler story borders (helps w flush elements) */
+  .sbdocs .sbdocs-preview {
+    border: none;
+    box-shadow: none;
+  }
+  .sbdocs-preview-actions button:not(:hover) {
+    opacity: 0.6;
+  }
+</style>

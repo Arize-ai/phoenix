@@ -6,7 +6,7 @@
  * - Query performance
  * - Index impact on query performance
  */
-import dbService from "./services/db-service.js";
+import dbService from './services/db-service.js';
 
 /**
  * Function to measure execution time
@@ -41,7 +41,7 @@ async function main(): Promise<void> {
     await dbService.initialize();
 
     // First, let's check if the table already exists and drop it to start fresh
-    await dbService.query("DROP TABLE IF EXISTS performance_test;");
+    await dbService.query('DROP TABLE IF EXISTS performance_test;');
 
     // Create a table with JSON and JSONB columns
     await dbService.query(`
@@ -52,50 +52,50 @@ async function main(): Promise<void> {
       );
     `);
     console.log(
-      "Created table with data_json (JSON) and data_jsonb (JSONB) columns"
+      'Created table with data_json (JSON) and data_jsonb (JSONB) columns'
     );
 
     // Generate sample data
     const sampleData = {
       user: {
-        name: "John Doe",
-        email: "john@example.com",
+        name: 'John Doe',
+        email: 'john@example.com',
         address: {
-          street: "123 Main St",
-          city: "Boston",
-          country: "USA",
+          street: '123 Main St',
+          city: 'Boston',
+          country: 'USA'
         },
-        roles: ["admin", "user", "editor"],
+        roles: ['admin', 'user', 'editor'],
         preferences: {
-          theme: "dark",
-          language: "en",
-          notifications: true,
+          theme: 'dark',
+          language: 'en',
+          notifications: true
         },
         stats: {
           logins: 42,
-          last_active: "2024-03-15",
-        },
+          last_active: '2024-03-15'
+        }
       },
       metadata: {
-        version: "1.0.0",
-        created_at: "2024-01-01",
-        updated_at: "2024-03-15",
-      },
+        version: '1.0.0',
+        created_at: '2024-01-01',
+        updated_at: '2024-03-15'
+      }
     };
 
     // Convert to JSON string for insertion
     const jsonString = JSON.stringify(sampleData);
 
     // Test 1: Insert Performance
-    console.log("\n----- INSERT PERFORMANCE -----");
+    console.log('\n----- INSERT PERFORMANCE -----');
 
     // Insert into JSON column
     const jsonInsertTime = await runPerformanceTest(
-      "Insert into JSON column",
+      'Insert into JSON column',
       async () => {
         for (let i = 0; i < 1000; i++) {
           await dbService.query(
-            "INSERT INTO performance_test (data_json) VALUES ($1)",
+            'INSERT INTO performance_test (data_json) VALUES ($1)',
             [jsonString]
           );
         }
@@ -104,11 +104,11 @@ async function main(): Promise<void> {
 
     // Insert into JSONB column
     const jsonbInsertTime = await runPerformanceTest(
-      "Insert into JSONB column",
+      'Insert into JSONB column',
       async () => {
         for (let i = 0; i < 1000; i++) {
           await dbService.query(
-            "INSERT INTO performance_test (data_jsonb) VALUES ($1)",
+            'INSERT INTO performance_test (data_jsonb) VALUES ($1)',
             [jsonString]
           );
         }
@@ -123,11 +123,11 @@ async function main(): Promise<void> {
     );
 
     // Test 2: Query Performance
-    console.log("\n----- QUERY PERFORMANCE -----");
+    console.log('\n----- QUERY PERFORMANCE -----');
 
     // Query JSON column
     const jsonQueryTime = await runPerformanceTest(
-      "Query JSON column (no index)",
+      'Query JSON column (no index)',
       async () => {
         for (let i = 0; i < 100; i++) {
           await dbService.query(`
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
 
     // Query JSONB column
     const jsonbQueryTime = await runPerformanceTest(
-      "Query JSONB column (no index)",
+      'Query JSONB column (no index)',
       async () => {
         for (let i = 0; i < 100; i++) {
           await dbService.query(`
@@ -159,10 +159,10 @@ async function main(): Promise<void> {
     );
 
     // Test 3: Index Impact
-    console.log("\n----- INDEX IMPACT -----");
+    console.log('\n----- INDEX IMPACT -----');
 
     // Create GIN index on JSONB column
-    await runPerformanceTest("Create GIN index on JSONB column", async () => {
+    await runPerformanceTest('Create GIN index on JSONB column', async () => {
       await dbService.query(`
         CREATE INDEX idx_performance_test_jsonb
         ON performance_test USING GIN (data_jsonb);
@@ -171,7 +171,7 @@ async function main(): Promise<void> {
 
     // Query JSONB column with index
     const jsonbQueryWithIndexTime = await runPerformanceTest(
-      "Query JSONB column (with GIN index)",
+      'Query JSONB column (with GIN index)',
       async () => {
         for (let i = 0; i < 100; i++) {
           await dbService.query(`
@@ -191,11 +191,11 @@ async function main(): Promise<void> {
     );
 
     // Test 4: JSONB-specific operators performance
-    console.log("\n----- JSONB-SPECIFIC OPERATORS PERFORMANCE -----");
+    console.log('\n----- JSONB-SPECIFIC OPERATORS PERFORMANCE -----');
 
     // Query using containment operator
     const jsonbContainmentTime = await runPerformanceTest(
-      "Query using JSONB containment operator @>",
+      'Query using JSONB containment operator @>',
       async () => {
         for (let i = 0; i < 100; i++) {
           await dbService.query(`
@@ -208,7 +208,7 @@ async function main(): Promise<void> {
 
     // Query using exists operator
     const jsonbExistsTime = await runPerformanceTest(
-      "Query using JSONB exists operator ?",
+      'Query using JSONB exists operator ?',
       async () => {
         for (let i = 0; i < 100; i++) {
           await dbService.query(`
@@ -262,7 +262,7 @@ Recommendation:
     // Close the database connection
     await dbService.close();
   } catch (error) {
-    console.error("Error in performance demo:", error);
+    console.error('Error in performance demo:', error);
     // Make sure to close the connection in case of error
     await dbService.close();
   }

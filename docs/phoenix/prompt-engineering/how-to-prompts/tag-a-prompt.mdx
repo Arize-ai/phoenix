@@ -1,0 +1,146 @@
+---
+title: "Tag a prompt"
+description: Tag prompt versions to deploy prompts safely to different environments
+---
+
+This guide shows how to tag prompt versions, so that you can deploy a specific version to an environment. For how versions and tags work, see [Prompt Version Tag](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt-version-tag).
+
+Phoenix keeps prompt versions in a linear history. This history is an audit trail of all changes. With it, you can:
+
+* Review the full history of a prompt.
+
+* See who made a specific change.
+
+* Revert to a previous version if necessary.
+
+<Frame caption="">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ddda4195-image.jpeg" alt="Prompt versions connected to development, staging, and production tags" />
+</Frame>
+
+## Creating a Tag
+
+To deploy a prompt to an environment (for example, staging), tag a specific version of the prompt as **ready**.
+
+Phoenix gives 3 default tags: **production**, **staging**, and **development**. You can also create your own tags.
+
+Each tag can have an optional description of its purpose. Tags are unique per prompt. Thus, one prompt cannot have two tags with the same name.
+
+<Frame caption="">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/76900b85-image.jpeg" alt="Creating a tag for a prompt version in Phoenix" />
+</Frame>
+
+## Creating a custom tag
+
+Create a custom tag to track a specific version of a prompt. For example, to mark the prompt version in your v0 release, create a custom tag with that name.
+
+When you create a custom tag, give:
+
+* A name for the tag. The name must be a valid identifier (see [Tag Naming Rules](#tag-naming-rules)).
+
+* An optional description of the tag's purpose.
+
+<Frame caption="Use custom tags to track releases or maybe just an arbitrary milestone">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a141b89-image.jpeg" alt="Phoenix prompt version with a custom tag" />
+</Frame>
+
+## Pulling a prompt by tag
+
+After you tag a prompt version, you can pull it into any environment, for example an application or an experiment. Prompt version tags are similar to git tags. Use them to make a "release" of a prompt (for example, to push a prompt to staging).
+
+To get a prompt version, use one of these:
+
+* A default tag name ("production", "staging", or "development")
+
+* A custom tag name
+
+* The latest version. This gives the most recent version, regardless of tags.
+
+For the full procedure to use prompts in code, see [Using a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt)
+
+## Listing tags
+
+List the tags of a prompt version to:
+
+* Review all tags of a prompt version.
+
+* Make sure which version has the tag for a specific environment.
+
+* Track the history of tag changes for a prompt version.
+
+The list is paginated, so you can browse large numbers of tags. Each tag in the list has:
+
+* The unique identifier of the tag
+
+* The name of the tag
+
+* The description of the tag (if it has one)
+
+## Using the Client
+
+### Tag Naming Rules
+
+A tag name must be a valid identifier. It can contain lowercase letters, numbers, hyphens, and underscores. It must start and end with a letter or a number.
+
+Examples: `staging`, `production-v1`, `release-2024`
+
+### Creating and Managing Tags
+
+Use the Phoenix client to create a tag, list tags, and get a prompt version by tag.
+
+<Tabs>
+
+  <Tab title="Python" icon="python">
+
+    ```python
+    from phoenix.client import Client
+
+    # Create a tag for a prompt version
+    Client().prompts.tags.create(
+        prompt_version_id="version-123",
+        name="production",
+        description="Ready for production environment"
+    )
+
+    # List tags for a prompt version
+    tags = Client().prompts.tags.list(prompt_version_id="version-123")
+    for tag in tags:
+        print(f"Tag: {tag.name}, Description: {tag.description}")
+
+    # Get a prompt version by tag
+    prompt_version = Client().prompts.get(
+        prompt_identifier="my-prompt",
+        tag="production"
+    )
+    ```
+
+  </Tab> 
+
+  <Tab title ="Async Python">
+
+    ```python
+    from phoenix.client import AsyncClient
+
+    # Create a tag for a prompt version
+    await AsyncClient().prompts.tags.create(
+        prompt_version_id="version-123",
+        name="production",
+        description="Ready for production environment"
+    )
+
+    # List tags for a prompt version
+    tags = await AsyncClient().prompts.tags.list(prompt_version_id="version-123")
+    for tag in tags:
+        print(f"Tag: {tag.name}, Description: {tag.description}")
+
+    # Get a prompt version by tag
+    prompt_version = await AsyncClient().prompts.get(
+        prompt_identifier="my-prompt",
+        tag="production"
+    )
+    ```
+
+  </Tab>
+
+</Tabs>
+
+

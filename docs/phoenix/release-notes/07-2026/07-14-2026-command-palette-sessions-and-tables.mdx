@@ -1,0 +1,185 @@
+---
+title: "07.14.2026: Command Palette, Session Tools, and Table Customization"
+description: "Jump anywhere with the ⌘K command palette, customize and reorder table columns, inspect session stats, discover credentials from a .env.phoenix file, filter projects by name, and use the GPT 5.6 family in the Playground."
+---
+
+# Breaking Change: Session Time-Range Filters Now Use Interval Overlap
+
+July 14, 2026
+
+**Breaking change in arize-phoenix 18.0.0**
+
+Session time-range filters now match on interval overlap. A session spans
+`[start_time, end_time]` and belongs to a selected time window whenever the two
+intervals overlap. Previously sessions were filtered by `start_time` alone, so a
+long-running session that began before the window — but had activity inside it —
+was excluded. Those sessions now appear.
+
+- **Wider, more accurate results** — session lists, counts, and metrics for a
+  time range now include every session active during the window, not only those
+  that started inside it
+- **Database migration** — upgrading to 18.0.0 runs a schema migration that adds
+  a composite index supporting the new filter. On large PostgreSQL deployments,
+  set `PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true` to build indexes without locking
+  writes. See [MIGRATION.md](https://github.com/Arize-ai/phoenix/blob/main/MIGRATION.md)
+  for operator guidance.
+
+# Batch Annotation Config Management
+
+July 14, 2026
+
+**Available in arize-phoenix 17.30.0+**
+
+The annotation settings page now supports selecting multiple annotation
+configurations at once. Select a range of configs and delete them in a single
+action, with a confirmation dialog that reports how many will be removed.
+
+# Customizable Data Tables
+
+July 12, 2026
+
+**Available in arize-phoenix 17.27.0+**
+
+Tables across Phoenix now adapt to how you work. A redesigned column selector
+lets you pick which columns appear and drag to reorder them, and your layout
+persists per project.
+
+- **Drag-and-drop reordering** — reorder columns on the traces, sessions, and
+  experiments tables from the redesigned column selector
+- **Customizable prompts table** — choose which columns the prompts table shows
+- **Authorship columns** — datasets and prompts surface who last updated them
+- **Span I/O previews** — hover a truncated input or output cell to preview the
+  full value in a tooltip
+
+# Dataset Metrics Tab
+
+July 11, 2026
+
+**Available in arize-phoenix 17.25.0+**
+
+The dataset page gains a **Metrics** tab that charts experiment results over
+time, so you can track how successive experiments on a dataset trend without
+opening each one individually.
+
+# Credential Discovery from a `.env.phoenix` File
+
+July 11, 2026
+
+**Available in arize-phoenix-client 2.13.0+ (Python) and @arizeai/phoenix-config 0.3.0+ (TypeScript)**
+
+Phoenix SDKs can now discover configuration from a `.env.phoenix` file. When a
+setting is not provided by argument or environment variable, the client walks up
+from the current working directory to the nearest `.env.phoenix` file and reads
+`PHOENIX_`-prefixed keys from it (dotenv format).
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always take precedence — the file
+never overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to
+disable discovery entirely.
+
+```python
+from phoenix.client import Client
+
+# Endpoint and key are read from .env.phoenix if not otherwise set
+client = Client()
+```
+
+The same discovery powers the TypeScript client, CLI, MCP server, and OpenTelemetry
+setup through `@arizeai/phoenix-config`.
+
+# Unified `PHOENIX_PROJECT` Environment Variable
+
+July 11, 2026
+
+**Available in arize-phoenix-client 2.13.0+ (Python) and @arizeai/phoenix-config 0.2.0+ (TypeScript)**
+
+Project name resolution is now consistent across every SDK surface. Both
+`PHOENIX_PROJECT` (canonical) and `PHOENIX_PROJECT_NAME` (supported alias) route
+to the same project, with explicit arguments still taking precedence over both.
+If the two variables are set to conflicting values, `PHOENIX_PROJECT` wins and a
+one-time warning naming both values is emitted.
+
+# Filter Projects by Name in the Python Client
+
+July 11, 2026
+
+**Available in arize-phoenix-client 2.13.0+ (Python)**
+
+`projects.list()` accepts a `name_contains` argument for a case-insensitive
+substring match, so you can locate projects without paging through the full list.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+projects = client.projects.list(name_contains="agent")
+```
+
+# GPT 5.6 Family in the Playground
+
+July 9, 2026
+
+**Available in arize-phoenix 17.23.0+**
+
+The OpenAI GPT 5.6 family (`gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`) is
+now selectable in the Playground and prompts for the OpenAI provider.
+
+# Global Search Command Palette (⌘K)
+
+July 8, 2026
+
+**Available in arize-phoenix 17.21.0+**
+
+Jump to anything in Phoenix without navigating the sidebar. Press `⌘K` (or click
+the search affordance in the side navigation) to open a command palette that
+searches projects, datasets, experiments, and prompts by name or description,
+alongside top-level pages and the resources you viewed most recently.
+
+- **Search everything** — projects, datasets, experiments, and prompts in one place
+- **Recently viewed** — recent resources surface instantly for quick return trips
+- **Keyboard-first** — open with `⌘K` and navigate results without the mouse
+
+# Session Workflow Enhancements
+
+July 8–13, 2026
+
+**Available in arize-phoenix 17.21.0+ through 17.28.0+**
+
+Working with sessions gets a set of upgrades across the sessions table and
+detail view:
+
+- **Session stats panel** — a collapsible aside on the sessions table shows the
+  session count, average traces per session, session duration (average, P50, and
+  P99), and per-label annotation summaries (arize-phoenix 17.21.0+)
+- **Total session count** — project cards display the total number of sessions
+  (arize-phoenix 17.21.0+)
+- **Turn dividers** — session detail view separates turns with dividers and a
+  copy control (arize-phoenix 17.21.0+)
+- **Session annotation editing** — add and edit session-level annotations
+  directly in the session detail view (arize-phoenix 17.28.0+)
+- **Automatic cleanup** — orphaned sessions (those left without any traces) are
+  swept after a one-hour grace period, keeping session lists clean (arize-phoenix 17.21.0+)
+
+# Playground Refinements
+
+July 11–14, 2026
+
+**Available in arize-phoenix 17.26.0+ through 17.30.0+**
+
+- **Output error count** — the Playground surfaces how many outputs errored in a run (arize-phoenix 17.30.0+)
+- **Collapsible sections** — collapse Playground panels to focus on the parts you're editing (arize-phoenix 17.28.0+)
+- **Clearer forced tool choice** — the tool-choice menu spells out what forcing a specific tool does (arize-phoenix 17.26.0+)
+
+<CardGroup cols={2}>
+  <Card title="Sessions" icon="layer-group" href="/docs/phoenix/tracing/llm-traces/sessions">
+    Group related traces into sessions and inspect them together.
+  </Card>
+  <Card title="Python Client" icon="python" href="/docs/phoenix/sdk-api-reference/python/arize-phoenix-client">
+    Manage projects, datasets, experiments, and annotations from Python.
+  </Card>
+</CardGroup>

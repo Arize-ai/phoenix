@@ -4,7 +4,6 @@ from typing import Mapping, Optional
 
 import httpx
 
-from phoenix.client.resources.annotations import Annotations, AsyncAnnotations
 from phoenix.client.resources.datasets import AsyncDatasets, Datasets
 from phoenix.client.resources.experiments import AsyncExperiments, Experiments
 from phoenix.client.resources.projects import AsyncProjects, Projects
@@ -13,6 +12,9 @@ from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 from phoenix.client.resources.traces import AsyncTraces, Traces
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
+from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
+
+_DEFAULT_CLIENT_TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
 
 
 class Client:
@@ -41,14 +43,15 @@ class Client:
                 be created.
         """
         if http_client is None:
-            base_url = base_url or get_base_url()
-            self._client = _WrappedClient(
+            if not base_url:
+                credential_source = "explicit arguments" if api_key or headers else None
+                base_url = get_base_url(credential_source=credential_source)
+            http_client = _WrappedClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
-                timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
+                timeout=_DEFAULT_CLIENT_TIMEOUT,
             )
-        else:
-            self._client = http_client
+        self._client = http_client
 
     @property
     def _client(self) -> httpx.Client:
@@ -57,14 +60,14 @@ class Client:
     @_client.setter
     def _client(self, value: httpx.Client) -> None:
         self._http_client = value
-        self._prompts = Prompts(value)
-        self._projects = Projects(value)
-        self._spans = Spans(value)
-        self._traces = Traces(value)
-        self._sessions = Sessions(value)
-        self._annotations = Annotations(self._spans)  # deprecated
-        self._datasets = Datasets(value)
-        self._experiments = Experiments(value)
+        guard = ServerVersionGuard(value)
+        self._prompts = Prompts(value, _guard=guard)
+        self._projects = Projects(value, _guard=guard)
+        self._spans = Spans(value, _guard=guard)
+        self._traces = Traces(value, _guard=guard)
+        self._sessions = Sessions(value, self._spans, _guard=guard)
+        self._datasets = Datasets(value, _guard=guard)
+        self._experiments = Experiments(value, _guard=guard)
 
     @property
     def prompts(self) -> Prompts:
@@ -112,15 +115,6 @@ class Client:
         return self._sessions
 
     @property
-    def annotations(self) -> Annotations:
-        """Returns an instance of the Annotations class for interacting with annotation-related API endpoints.
-
-        Returns:
-            Annotations: An instance of the Annotations class.
-        """  # noqa: E501
-        return self._annotations
-
-    @property
     def datasets(self) -> Datasets:
         """Returns an instance of the Datasets class for interacting with dataset-related API endpoints.
 
@@ -165,10 +159,13 @@ class AsyncClient:
                 will be created.
         """
         if http_client is None:
-            base_url = base_url or get_base_url()
+            if not base_url:
+                credential_source = "explicit arguments" if api_key or headers else None
+                base_url = get_base_url(credential_source=credential_source)
             http_client = httpx.AsyncClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
+                timeout=_DEFAULT_CLIENT_TIMEOUT,
             )
         self._client = http_client
 
@@ -179,14 +176,14 @@ class AsyncClient:
     @_client.setter
     def _client(self, value: httpx.AsyncClient) -> None:
         self._http_client = value
-        self._prompts = AsyncPrompts(value)
-        self._projects = AsyncProjects(value)
-        self._spans = AsyncSpans(value)
-        self._traces = AsyncTraces(value)
-        self._sessions = AsyncSessions(value)
-        self._annotations = AsyncAnnotations(self._spans)  # deprecated
-        self._datasets = AsyncDatasets(value)
-        self._experiments = AsyncExperiments(value)
+        guard = AsyncServerVersionGuard(value)
+        self._prompts = AsyncPrompts(value, _guard=guard)
+        self._projects = AsyncProjects(value, _guard=guard)
+        self._spans = AsyncSpans(value, _guard=guard)
+        self._traces = AsyncTraces(value, _guard=guard)
+        self._sessions = AsyncSessions(value, self._spans, _guard=guard)
+        self._datasets = AsyncDatasets(value, _guard=guard)
+        self._experiments = AsyncExperiments(value, _guard=guard)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -235,15 +232,6 @@ class AsyncClient:
         return self._sessions
 
     @property
-    def annotations(self) -> AsyncAnnotations:
-        """Returns an instance of the AsyncAnnotations class for interacting with annotation-related API endpoints.
-
-        Returns:
-            AsyncAnnotations: An instance of the AsyncAnnotations class.
-        """  # noqa: E501
-        return self._annotations
-
-    @property
     def datasets(self) -> AsyncDatasets:
         """Returns an instance of the AsyncDatasets class for interacting with dataset-related API endpoints.
 
@@ -267,9 +255,11 @@ def _update_headers(
     api_key: Optional[str],
 ) -> dict[str, str]:
     headers = dict(headers or {})
+    header_names = {key.lower() for key in headers}
     for k, v in get_env_client_headers().items():
-        if k not in headers:
+        if k.lower() not in header_names:
             headers[k] = v
+            header_names.add(k.lower())
     if api_key:
         headers = {
             **{k: v for k, v in (headers or {}).items() if k.lower() != "authorization"},

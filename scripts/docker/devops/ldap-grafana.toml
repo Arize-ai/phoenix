@@ -1,0 +1,22 @@
+[[servers]]
+host = "ldap-mitm-proxy"
+port = 3389
+use_ssl = false
+start_tls = true
+ssl_skip_verify = true
+bind_dn = "cn=readonly,dc=example,dc=com"
+bind_password = "readonly_password"
+timeout = 10
+search_filter = "(uid=%s)"
+search_base_dns = ["ou=users,dc=example,dc=com"]
+
+[servers.attributes]
+name = "displayName"
+username = "uid"
+member_of = "memberOf"
+email = "mail"
+
+[[servers.group_mappings]]
+group_dn = "*"
+org_role = "Viewer"
+org_id = 1

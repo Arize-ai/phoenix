@@ -1,48 +1,61 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import re
 import secrets
 from asyncio import gather
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
-from typing import NamedTuple, Optional, Union
+from typing import Optional, Union
 
 import sqlalchemy as sa
-from sqlalchemy import select
-from sqlalchemy.orm import InstrumentedAttribute, joinedload
+from pydantic import SecretStr
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.dml import ReturningDelete
 
 from phoenix import config
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
+    is_valid_password,
 )
 from phoenix.config import (
+    LDAPConfig,
     get_env_admins,
     get_env_default_admin_initial_password,
     get_env_default_retention_policy_days,
     get_env_disable_basic_auth,
+    get_env_oauth2_settings,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import ENUM_COLUMNS
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.cost_tracking.apply_manifest import apply_manifest_if_newer
+from phoenix.server.cost_tracking.manifest import BUNDLED_MANIFEST_PATH, parse_manifest
 from phoenix.server.email.types import WelcomeEmailSender
+from phoenix.server.jwt_store import end_sessions
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+USER_FEEDBACK_ANNOTATION_NAME = "user_feedback"
 
 
 class Facilitator:
@@ -70,6 +83,11 @@ class Facilitator:
             partial(_ensure_admins, email_sender=self._email_sender),
             _ensure_default_project_trace_retention_policy,
             _ensure_model_costs,
+            _ensure_builtin_evaluators,
+            _ensure_user_feedback_annotation_config,
+            _ensure_sandbox_providers,
+            _ensure_oauth2_clients,
+            _delete_expired_oauth2_authorization_codes,
             _delete_expired_childless_records,
         ):
             await fn(self._db)
@@ -95,11 +113,13 @@ async def _ensure_enums(db: DbSessionFactory) -> None:
 
 
 async def _ensure_user_roles(db: DbSessionFactory) -> None:
+    """Ensure system and admin accounts exist.
+
+    Apply a custom initial admin password only if the existing account still requires reset
+    and retains the default password. Invalidate its pending password resets and sessions.
     """
-    Ensure that the system and admin roles are present in the database. If they are not, they will
-    be added. The system user will have the email "system@localhost" and the admin user will have
-    the email "admin@localhost".
-    """
+    initial_password = get_env_default_admin_initial_password()
+    default_admin: Optional[models.LocalUser] = None
     async with db() as session:
         role_ids: dict[models.UserRoleName, int] = {
             name: id_
@@ -126,22 +146,122 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
                 password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
             )
             session.add(system_user)
-        if "ADMIN" not in existing_roles and (admin_role_id := role_ids.get("ADMIN")) is not None:
-            salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-            password = get_env_default_admin_initial_password()
-            compute = partial(compute_password_hash, password=password, salt=salt)
-            loop = asyncio.get_running_loop()
-            hash_ = await loop.run_in_executor(None, compute)
-            admin_user = models.LocalUser(
-                user_role_id=admin_role_id,
-                username=DEFAULT_ADMIN_USERNAME,
-                email=DEFAULT_ADMIN_EMAIL,
-                password_salt=salt,
-                password_hash=hash_,
-                reset_password=True,
-            )
-            session.add(admin_user)
+        if (admin_role_id := role_ids.get("ADMIN")) is not None:
+            if "ADMIN" not in existing_roles:
+                salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+                compute = partial(compute_password_hash, password=initial_password, salt=salt)
+                loop = asyncio.get_running_loop()
+                hash_ = await loop.run_in_executor(None, compute)
+                admin_user = models.LocalUser(
+                    user_role_id=admin_role_id,
+                    username=DEFAULT_ADMIN_USERNAME,
+                    email=DEFAULT_ADMIN_EMAIL,
+                    password_salt=salt,
+                    password_hash=hash_,
+                    reset_password=True,
+                )
+                session.add(admin_user)
+            elif initial_password.get_secret_value() != DEFAULT_ADMIN_PASSWORD:
+                default_admin = await session.scalar(
+                    sa.select(models.LocalUser).where(
+                        models.LocalUser.user_role_id == admin_role_id,
+                        models.LocalUser.email == DEFAULT_ADMIN_EMAIL,
+                        models.LocalUser.reset_password.is_(True),
+                    )
+                )
         await session.flush()
+
+    if (
+        default_admin is None
+        or not (original_salt := default_admin.password_salt)
+        or not (original_hash := default_admin.password_hash)
+    ):
+        return
+    loop = asyncio.get_running_loop()
+    has_default_password = partial(
+        is_valid_password,
+        password=SecretStr(DEFAULT_ADMIN_PASSWORD),
+        salt=original_salt,
+        password_hash=original_hash,
+    )
+    if not await loop.run_in_executor(None, has_default_password):
+        return
+    salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+    compute = partial(compute_password_hash, password=initial_password, salt=salt)
+    hash_ = await loop.run_in_executor(None, compute)
+    async with db() as session:
+        # A live replica may change the account while bootstrap verifies and hashes passwords.
+        updated_id = await session.scalar(
+            sa.update(models.LocalUser)
+            .where(
+                models.LocalUser.id == default_admin.id,
+                models.LocalUser.user_role_id == admin_role_id,
+                models.LocalUser.email == DEFAULT_ADMIN_EMAIL,
+                models.LocalUser.reset_password.is_(True),
+                models.LocalUser.password_salt == original_salt,
+                models.LocalUser.password_hash == original_hash,
+            )
+            .values(password_salt=salt, password_hash=hash_)
+            .returning(models.LocalUser.id)
+        )
+        if updated_id is not None:
+            # This process's token store has not started, so local cache eviction is unnecessary.
+            await session.execute(
+                sa.delete(models.PasswordResetToken).where(
+                    models.PasswordResetToken.user_id == updated_id
+                )
+            )
+            await end_sessions(session, updated_id)
+    if updated_id is not None:
+        logger.info(
+            "Applied PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD to the default admin account, "
+            "which still had the default password, and ended its existing sessions"
+        )
+
+
+PHOENIX_CLI_OAUTH2_CLIENT_ID = "phoenix-cli"
+PHOENIX_CLI_OAUTH2_CLIENT_NAME = "Phoenix CLI"
+PHOENIX_CLI_OAUTH2_REDIRECT_URIS = ["http://127.0.0.1/callback"]
+
+
+async def _ensure_oauth2_clients(db: DbSessionFactory) -> None:
+    """Idempotently seed and reconcile the first-party Phoenix CLI OAuth2 client."""
+    async with db() as session:
+        existing = await session.scalar(
+            sa.select(models.OAuth2Client).where(
+                models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+            )
+        )
+        if existing is not None:
+            if existing.redirect_uris != PHOENIX_CLI_OAUTH2_REDIRECT_URIS:
+                existing.redirect_uris = list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS)
+            return
+        session.add(
+            models.OAuth2Client(
+                client_id=PHOENIX_CLI_OAUTH2_CLIENT_ID,
+                name=PHOENIX_CLI_OAUTH2_CLIENT_NAME,
+                redirect_uris=list(PHOENIX_CLI_OAUTH2_REDIRECT_URIS),
+                grant_types=["authorization_code", "refresh_token"],
+                token_endpoint_auth_method="none",
+                is_first_party=True,
+            )
+        )
+        await session.flush()
+
+
+async def _delete_expired_oauth2_authorization_codes(db: DbSessionFactory) -> None:
+    """Remove authorization codes past their TTL so unredeemed approvals leave no residue."""
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        deleted_ids = (
+            await session.scalars(
+                sa.delete(models.OAuth2AuthorizationCode)
+                .where(models.OAuth2AuthorizationCode.expires_at <= now)
+                .returning(models.OAuth2AuthorizationCode.id)
+            )
+        ).all()
+        if deleted_ids:
+            logger.info("Deleted %s expired OAuth2 authorization codes", len(deleted_ids))
 
 
 async def _get_system_user_id(db: DbSessionFactory) -> None:
@@ -159,6 +279,37 @@ async def _get_system_user_id(db: DbSessionFactory) -> None:
     if system_user_id is None:
         raise ValueError("System user not found in database")
     config.SYSTEM_USER_ID = system_user_id
+
+
+async def _ensure_user_feedback_annotation_config(db: DbSessionFactory) -> None:
+    """
+    Ensure the app-owned user feedback annotation config exists.
+
+    Existing configs named "user_feedback" are left unchanged so startup is idempotent and
+    does not overwrite user data if a deployment already has a config with that name.
+    """
+    async with db() as session:
+        existing_config_id = await session.scalar(
+            sa.select(models.AnnotationConfig.id).where(
+                models.AnnotationConfig.name == USER_FEEDBACK_ANNOTATION_NAME
+            )
+        )
+        if existing_config_id is not None:
+            return
+        session.add(
+            models.AnnotationConfig(
+                name=USER_FEEDBACK_ANNOTATION_NAME,
+                config=CategoricalAnnotationConfig(
+                    type=AnnotationType.CATEGORICAL.value,
+                    description="User feedback labels for traces.",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="positive", score=1.0),
+                        CategoricalAnnotationValue(label="negative", score=0.0),
+                    ],
+                ),
+            )
+        )
 
 
 async def _ensure_admins(
@@ -198,6 +349,20 @@ async def _ensure_admins(
             return
         admin_role_id = await session.scalar(sa.select(models.UserRole.id).filter_by(name="ADMIN"))
         assert admin_role_id is not None, "Admin role not found in database"
+
+        # Determine which auth method to use for admin users
+        # Priority: LOCAL (if enabled) > LDAP (if configured and no OAuth2) > OAuth2
+        # Use try/except to handle invalid configurations gracefully
+        try:
+            ldap_config = LDAPConfig.from_env()
+        except Exception:
+            ldap_config = None
+        try:
+            oauth2_configs = get_env_oauth2_settings()
+        except Exception:
+            oauth2_configs = []
+        use_ldap = disable_basic_auth and ldap_config is not None and not oauth2_configs
+
         user: models.User
         for email, username in admins.items():
             if not disable_basic_auth:
@@ -206,6 +371,11 @@ async def _ensure_admins(
                     username=username,
                     password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
                     password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+                )
+            elif use_ldap:
+                user = models.LDAPUser(
+                    email=email,
+                    username=username,
                 )
             else:
                 user = models.OAuth2User(
@@ -222,7 +392,7 @@ async def _ensure_admins(
         return_exceptions=True,
     ):
         if isinstance(exc, Exception):
-            logger.error(f"Failed to send welcome email: {exc}")
+            logger.error("Failed to send welcome email (%s)", type(exc).__name__)
 
 
 _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
@@ -351,167 +521,54 @@ async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -
         )
 
 
-_COST_MODEL_MANIFEST: Path = (
-    Path(__file__).parent.parent / "server" / "cost_tracking" / "model_cost_manifest.json"
-)
-
-
-class _TokenTypeKey(NamedTuple):
-    """
-    Composite key for uniquely identifying token price configurations.
-
-    Token prices are differentiated by both their type (e.g., "input", "output", "audio")
-    and whether they represent prompt tokens (input to the model) or completion tokens
-    (output from the model). Some token types like "audio" can exist in both categories.
-
-    Attributes:
-        token_type: The category of token (e.g., "input", "output", "audio", "cache_write")
-        is_prompt: True if these are prompt/input tokens, False if completion/output tokens
-    """
-
-    token_type: str
-    is_prompt: bool
+_COST_MODEL_MANIFEST: Path = BUNDLED_MANIFEST_PATH
 
 
 async def _ensure_model_costs(db: DbSessionFactory) -> None:
-    """
-    Ensures that built-in generative models and their token pricing information are up-to-date
-    in the database based on the model cost manifest file.
-
-    This function performs a comprehensive synchronization between the database and the manifest:
-
-    1. **Model Management**: Creates new built-in models from the manifest or updates existing ones
-    2. **Token Price Synchronization**: Ensures all token prices match the manifest rates
-    3. **Cleanup**: Soft-deletes built-in models no longer present in the manifest
-
-    The function handles different token types including:
-    - Input tokens (prompt): Standard input tokens for generation
-    - Cache write tokens (prompt): Tokens written to cache systems
-    - Cache read tokens (prompt): Tokens read from cache systems
-    - Output tokens (non-prompt): Generated response tokens
-    - Audio tokens (both prompt and non-prompt): Audio processing tokens
-
-    Token prices are uniquely identified by (token_type, is_prompt) pairs to handle
-    cases like audio tokens that can be both prompt and non-prompt.
-
-    Args:
-        db (DbSessionFactory): Database session factory for database operations
-
-    Returns:
-        None
-
-    Raises:
-        FileNotFoundError: If the model cost manifest file is not found
-        json.JSONDecodeError: If the manifest file contains invalid JSON
-        ValueError: If manifest data is malformed or missing required fields
-    """
-    # Load the authoritative model cost data from the manifest file
-    with open(_COST_MODEL_MANIFEST) as f:
-        manifest = json.load(f)
-
-    async with db() as session:
-        # Fetch all existing built-in models with their token prices eagerly loaded
-        # Using .unique() to deduplicate models when multiple token prices are joined
-        built_in_models = {
-            omodel.name: omodel
-            for omodel in (
-                await session.scalars(
-                    select(models.GenerativeModel)
-                    .where(models.GenerativeModel.deleted_at.is_(None))
-                    .where(models.GenerativeModel.is_built_in.is_(True))
-                    .options(joinedload(models.GenerativeModel.token_prices))
-                )
-            ).unique()
-        }
-
-        seen_names: set[str] = set()
-        seen_patterns: set[tuple[re.Pattern[str], str]] = set()
-
-        for model_data in manifest["models"]:
-            name = str(model_data.get("name") or "").strip()
-            if not name:
-                logger.warning("Skipping model with empty name in manifest")
-                continue
-            if name in seen_names:
-                logger.warning(f"Skipping model '{name}' with duplicate name in manifest")
-                continue
-            seen_names.add(name)
-            regex = str(model_data.get("name_pattern") or "").strip()
-            try:
-                pattern = re.compile(regex)
-            except re.error as e:
-                logger.warning(f"Skipping model '{name}' with invalid regex: {e}")
-                continue
-            provider = str(model_data.get("provider") or "").strip()
-            if (pattern, provider) in seen_patterns:
-                logger.warning(
-                    f"Skipping model '{name}' with duplicate name_pattern/provider combination"
-                )
-                continue
-            seen_patterns.add((pattern, provider))
-            # Remove model from built_in_models dict (for cleanup tracking)
-            # or create new model if not found
-            model = built_in_models.pop(model_data["name"], None)
-            if model is None:
-                # Create new built-in model from manifest data
-                model = models.GenerativeModel(
-                    name=name,
-                    provider=provider,
-                    name_pattern=pattern,
-                    is_built_in=True,
-                )
-                session.add(model)
-            else:
-                # Update existing model's metadata from manifest
-                model.provider = provider
-                model.name_pattern = pattern
-
-            # Create lookup table for existing token prices by (token_type, is_prompt)
-            # Using pop() during iteration allows us to track which prices are no longer needed
-            existing_token_prices = {
-                _TokenTypeKey(token_price.token_type, token_price.is_prompt): token_price
-                for token_price in model.token_prices
-            }
-
-            # Synchronize token prices for all supported token types
-            for manifest_token_price in model_data["token_prices"]:
-                # Skip if this token type has no rate in the manifest
-                if not (base_rate := manifest_token_price.get("base_rate")):
-                    continue
-
-                key = _TokenTypeKey(
-                    manifest_token_price["token_type"],
-                    manifest_token_price["is_prompt"],
-                )
-                # Remove from tracking dict and get existing price (if any)
-                if not (token_price := existing_token_prices.pop(key, None)):
-                    # Create new token price if it doesn't exist
-                    token_price = models.TokenPrice(
-                        token_type=manifest_token_price["token_type"],
-                        is_prompt=manifest_token_price["is_prompt"],
-                        base_rate=base_rate,
-                    )
-                    model.token_prices.append(token_price)
-                elif token_price.base_rate != base_rate:
-                    # Update existing price if rate has changed
-                    token_price.base_rate = base_rate
-
-            # Remove any token prices that are no longer in the manifest
-            # These are prices that weren't popped from the token_prices dict above
-            for token_price in existing_token_prices.values():
-                model.token_prices.remove(token_price)
-
-    # Clean up built-in models that are no longer in the manifest
-    # These are models that weren't popped from built_in_models dict above
-    remaining_models = list(built_in_models.values())
-    if not remaining_models:
+    """Apply bundled model prices unless the database has an equal or newer manifest."""
+    # Prices are estimates, so a failure here must not stop the server from starting. The
+    # prices already in the database stay in use, and the next startup or fetch tries again.
+    try:
+        manifest = parse_manifest(_COST_MODEL_MANIFEST.read_bytes())
+        applied = await apply_manifest_if_newer(db, manifest)
+    except Exception:
+        logger.warning("Failed to apply the bundled model cost manifest at startup", exc_info=True)
         return
+    if applied:
+        logger.info(f"Applied the model cost manifest bundled with Phoenix, {applied}")
 
-    # Soft delete obsolete built-in models
+
+async def _ensure_sandbox_providers(db: DbSessionFactory) -> None:
+    """Seed sandbox provider rows. Idempotent."""
+    from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA  # noqa: PLC0415
+    from phoenix.server.sandbox.sync import (  # noqa: PLC0415
+        sync_languages,
+        sync_sandbox_default_configs,
+        sync_sandbox_providers,
+    )
+
     async with db() as session:
-        await session.execute(
-            sa.update(models.GenerativeModel)
-            .values(deleted_at=sa.func.now())
-            .where(models.GenerativeModel.id.in_([m.id for m in remaining_models]))
-            .where(~sa.exists().where(models.GenerativeModel.id == models.SpanCost.model_id))
-        )
+        await sync_languages(session)
+        await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
+        await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
+
+
+async def _ensure_builtin_evaluators(db: DbSessionFactory) -> None:
+    """
+    Synchronize the in-memory builtin evaluator registry to the database.
+
+    This function ensures the `builtin_evaluators` table stays in sync with
+    the in-memory registry. Builtin evaluators are part of the polymorphic
+    evaluator hierarchy (inheriting from Evaluator), so we must upsert into
+    both the base `evaluators` table and the `builtin_evaluators` subclass table.
+
+    This function:
+    1. Upserts all current builtin evaluators into base evaluators table
+    2. Upserts corresponding records into builtin_evaluators subclass table
+    3. Removes any stale evaluators no longer in the registry
+
+    Safe to call multiple times (idempotent).
+    """
+    from phoenix.server.api.builtin_evaluator_sync import sync_builtin_evaluators
+
+    await sync_builtin_evaluators(db)

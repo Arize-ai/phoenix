@@ -1,0 +1,60 @@
+---
+title: "Anthropic Tracing"
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+Anthropic is a leading provider for state-of-the-art LLMs. The Anthropic SDK can be instrumented using the [`openinference-instrumentation-anthropic`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-anthropic) package.
+
+## Install
+
+``` bash
+pip install arize-phoenix-otel openinference-instrumentation-anthropic anthropic
+```
+
+## Setup
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+From `anthropic` 1.14.0, the Anthropic SDK also records its own traces. With the instrumentor on, every call would appear twice in Phoenix, with tokens and cost counted twice. Pass `open_telemetry=False` when you create the client, as in the example below, or set `ANTHROPIC_OPEN_TELEMETRY=false` in your environment.
+
+## Run Anthropic
+
+A simple Anthropic application that is now instrumented
+
+```python
+import anthropic
+
+client = anthropic.Anthropic(open_telemetry=False)  # the instrumentor traces calls; skip the SDK's own spans
+
+message = client.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1000,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Why is the ocean salty?"
+                }
+            ]
+        }
+    ]
+)
+print(message.content)
+```
+
+## Observe
+
+Now that you have tracing setup, all invocations of pipelines will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources:
+
+* [Example Messages](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-anthropic/examples/sync_messages.py)
+
+* [Example Tool Calling](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-anthropic/examples/multiple_tool_calling.py)
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-anthropic)
+
+

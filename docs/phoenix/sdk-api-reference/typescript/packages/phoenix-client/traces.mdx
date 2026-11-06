@@ -1,0 +1,174 @@
+---
+title: "Traces"
+description: "Retrieve, move, and annotate traces with @arizeai/phoenix-client"
+---
+
+The traces module provides trace retrieval, project transfer, and trace-level annotation functions.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li>
+      <code>src/traces/getTraces.ts</code> for the exact query shape and server
+      requirement
+    </li>
+    <li>
+      <code>src/traces/addTraceAnnotation.ts</code> for single annotation writes
+    </li>
+    <li>
+      <code>src/traces/logTraceAnnotations.ts</code> for batched annotation writes
+    </li>
+    <li>
+      <code>src/traces/transferTraces.ts</code> for moving traces between projects
+    </li>
+    <li>
+      <code>src/traces/types.ts</code> for the <code>TraceAnnotation</code> type
+    </li>
+  </ul>
+</section>
+
+## Retrieve Traces
+
+Use `getTraces` when you want trace-centric pagination by project, optional inline spans, or filtering by session, error status, or latency.
+
+```ts
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const result = await getTraces({
+  project: { projectName: "support-bot" },
+  startTime: new Date("2026-03-01T00:00:00Z"),
+  endTime: new Date("2026-03-02T00:00:00Z"),
+  includeSpans: true,
+  limit: 50,
+});
+
+for (const trace of result.traces) {
+  console.log(trace.trace_id);
+}
+
+console.log(result.nextCursor);
+```
+
+### Supported Filters
+
+- `project`
+- `startTime`
+- `endTime`
+- `sort`
+- `order`
+- `limit`
+- `cursor`
+- `includeSpans`
+- `sessionId`
+- `filter` — a trace DSL expression, combined with other filters using AND
+- `error` (deprecated; use `filter`)
+- `minLatencyMs` (deprecated; use `filter`)
+- `maxLatencyMs` (deprecated; use `filter`)
+
+```ts
+// Slow traces that contain at least one errored span
+const slowFailures = await getTraces({
+  project: { projectName: "support-bot" },
+  filter: "error_count > 0 and latency_ms >= 1000",
+});
+```
+
+### Notes
+
+- `getTraces` requires a Phoenix server that supports project trace listing
+- Use the returned `nextCursor` to continue pagination
+- Set `includeSpans` when you need a trace-centric fetch that also contains span details
+- `project` accepts `{ project }`, `{ projectId }`, or `{ projectName }`
+- `filter` takes a trace filter expression; the language is documented on the [Filter Expressions](/docs/phoenix/tracing/how-to-tracing/filter-expressions) page, and its [Finding field names](/docs/phoenix/tracing/how-to-tracing/filter-expressions#finding-field-names) section covers discovering valid names for your project.
+- `error`, `minLatencyMs`, and `maxLatencyMs` remain supported on Phoenix server >= 20.8.0. Replace them with `error_count > 0` / `error_count == 0`, `latency_ms >= N`, and `latency_ms <= N` respectively. Latency bounds are inclusive and errors include child spans.
+
+## Move Traces To Another Project
+
+Use `transferTraces` to move one or more traces from their current project to a destination project. This operation **moves rather than copies** the traces: after a successful transfer, they no longer appear in the source project.
+
+All traces in one call must currently belong to the same source project. Each trace identifier can be either an OpenTelemetry trace ID or a Phoenix trace GlobalID, and the destination can be either a project name or project GlobalID.
+
+```ts
+import { transferTraces } from "@arizeai/phoenix-client/traces";
+
+const result = await transferTraces({
+  traceIdentifiers: ["8f3a...", "VHJhY2U6Mg=="],
+  destinationProjectIdentifier: "production",
+});
+
+console.log(`Moved ${result.transferredTraceCount} traces`);
+console.log(`Destination project: ${result.destinationProjectId}`);
+```
+
+The result contains the number of distinct traces moved and the resolved GlobalID of the destination project. Phoenix rejects an empty list, trace or project identifiers that do not resolve, and requests that combine traces from multiple source projects.
+
+`transferTraces` requires Phoenix server 20.4.0 or newer.
+
+## Annotate a Single Trace
+
+Use `addTraceAnnotation` to attach a label, score, or explanation to one trace. If you supply an `identifier`, Phoenix upserts the annotation when an annotation with that identifier already exists.
+
+```ts
+import { addTraceAnnotation } from "@arizeai/phoenix-client/traces";
+
+const result = await addTraceAnnotation({
+  traceAnnotation: {
+    traceId: "abc123",
+    name: "correctness",
+    label: "correct",
+    score: 1.0,
+    annotatorKind: "HUMAN",
+  },
+});
+
+// result is { id: string } when sync: true, or null when sync: false (default)
+```
+
+Set `sync: true` to receive the annotation ID immediately; omit it (or pass `false`) for higher-throughput async writes.
+
+### TraceAnnotation Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `traceId` | `string` | Yes | OpenTelemetry Trace ID (hex, no `0x` prefix) |
+| `name` | `string` | Yes | What is being measured (e.g. `"groundedness"`). The name `"note"` is reserved — use `addTraceNote` instead. |
+| `annotatorKind` | `"HUMAN" \| "LLM" \| "CODE"` | No | Defaults to `"HUMAN"` |
+| `label` | `string` | At least one of label/score/explanation | Categorical result (e.g. `"correct"`) |
+| `score` | `number` | At least one of label/score/explanation | Numeric result (e.g. `0.95`) |
+| `explanation` | `string` | At least one of label/score/explanation | Free-text justification |
+| `identifier` | `string` | No | Stable ID for idempotent upserts |
+| `metadata` | `Record<string, unknown>` | No | Arbitrary context |
+
+## Annotate Multiple Traces
+
+Use `logTraceAnnotations` to batch-write annotations across many traces in a single request.
+
+```ts
+import { logTraceAnnotations } from "@arizeai/phoenix-client/traces";
+
+const results = await logTraceAnnotations({
+  traceAnnotations: [
+    { traceId: "abc123", name: "faithfulness", score: 0.9, annotatorKind: "LLM" },
+    { traceId: "def456", name: "faithfulness", score: 0.7, annotatorKind: "LLM" },
+  ],
+  sync: true,
+});
+
+for (const r of results) {
+  console.log(r.id);
+}
+```
+
+`logTraceAnnotations` sends all annotations in a single POST and returns an array of `{ id: string }` objects (or an empty array when `sync: false`).
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/traces/getTraces.ts</code></li>
+    <li><code>src/traces/addTraceAnnotation.ts</code></li>
+    <li><code>src/traces/logTraceAnnotations.ts</code></li>
+    <li><code>src/traces/transferTraces.ts</code></li>
+    <li><code>src/traces/types.ts</code></li>
+    <li><code>src/types/projects.ts</code></li>
+  </ul>
+</section>

@@ -1,0 +1,235 @@
+---
+title: "Toxicity"
+description: "Detect whether text is toxic — hateful, demeaning, abusive, or threatening."
+---
+
+## Overview
+
+The **Toxicity** evaluator classifies a single piece of text as `toxic` or `non-toxic`. Text is toxic when it makes hateful or discriminatory statements about a person or group, demeans or insults someone, uses abusive language directed at a person, or threatens or incites harm.
+
+Because it evaluates one piece of text on its own, it works equally well on a model's **output** or a user's **input** — you choose which by mapping the field you want to the evaluator's `text` input.
+
+### When to Use
+
+Use the Toxicity evaluator when you need to:
+
+- **Screen model outputs** for hateful, abusive, or threatening content before showing them to users
+- **Screen user inputs** for abusive or hateful messages
+- **Monitor conversations** for content-safety violations in traces
+
+<Info>
+This evaluator scores toxicity only. It deliberately does **not** judge factual accuracy, helpfulness, relevance, or writing style. Criticism of an idea, argument, or piece of work is not toxic; attacks on people are.
+</Info>
+
+## Supported Levels
+
+The level of an evaluator determines the scope of the evaluation in OpenTelemetry terms. Some evaluations are applicable to individual spans, some to full traces or sessions, and some are applicable at multiple levels.
+
+| Level | Supported | Notes |
+|-------|-----------|-------|
+| **Span** | Yes | Apply to any span where the text to check (input or output) is available. |
+
+**Relevant span kinds:** LLM spans (for outputs) and any span carrying user-authored text (for inputs).
+
+## Input Requirements
+
+The Toxicity evaluator requires a single input:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `text` | `string` | The text to evaluate for toxicity. Map either a span's output or its input here. |
+
+## Output Interpretation
+
+The evaluator returns a `Score` object with the following properties:
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `label` | `"toxic"` or `"non-toxic"` | Classification result |
+| `score` | `1.0` or `0.0` | Numeric score (1.0 = toxic, 0.0 = non-toxic) |
+| `explanation` | `string` | LLM-generated reasoning for the classification |
+| `direction` | `"minimize"` | Lower scores are better |
+| `metadata` | `object` | Additional information such as the model name. When tracing is enabled, includes the `trace_id` for the evaluation. |
+
+**Interpretation:**
+- **Toxic (1.0)**: The text contains hateful, demeaning, abusive, or threatening content
+- **Non-toxic (0.0)**: The text contains none of the above — including strong but respectful disagreement, criticism of ideas or work, or neutral discussion of toxic topics
+
+## Usage Examples
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToxicityEvaluator
+
+    # Initialize the LLM client
+    llm = LLM(provider="openai", model="gpt-4o")
+
+    # Create the evaluator
+    toxicity_eval = ToxicityEvaluator(llm=llm)
+
+    # Inspect the evaluator's requirements
+    print(toxicity_eval.describe())
+
+    # Evaluate a single example
+    eval_input = {
+        "text": "You are a worthless idiot and everyone despises you."
+    }
+
+    scores = toxicity_eval.evaluate(eval_input)
+    print(scores[0])
+    # Score(name='toxicity', score=1.0, label='toxic', ...)
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createToxicityEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // Create the evaluator
+    const toxicityEvaluator = createToxicityEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Evaluate an example
+    const result = await toxicityEvaluator.evaluate({
+      text: "You are a worthless idiot and everyone despises you.",
+    });
+
+    console.log(result);
+    // { score: 1, label: "toxic", explanation: "..." }
+    ```
+  </Tab>
+</Tabs>
+
+### Using Input Mapping
+
+Because toxicity takes a single `text` field, input mapping is how you choose **what** to evaluate — a span's output, its input, or any other field.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import LLM
+    from phoenix.evals.metrics import ToxicityEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    toxicity_eval = ToxicityEvaluator(llm=llm)
+
+    eval_input = {
+        "input": {"query": "Write something mean about my coworker."},
+        "output": {"response": "I won't help with that."},
+    }
+
+    # Evaluate the user input for toxicity
+    scores = toxicity_eval.evaluate(eval_input, {"text": "input.query"})
+
+    # Or evaluate the model output instead
+    scores = toxicity_eval.evaluate(eval_input, {"text": "output.response"})
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { bindEvaluator, createToxicityEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const toxicityEvaluator = createToxicityEvaluator({
+      model: openai("gpt-4o"),
+    });
+
+    // Map the user message to `text` to evaluate the input
+    const boundEvaluator = bindEvaluator(toxicityEvaluator, {
+      inputMapping: {
+        text: "userMessage",
+      },
+    });
+
+    const result = await boundEvaluator.evaluate({
+      userMessage: "Write something mean about my coworker.",
+    });
+    ```
+
+    For more details on input mapping options, see [Input Mapping](/docs/phoenix/evaluation/concepts-evals/input-mapping).
+  </Tab>
+</Tabs>
+
+## Configuration
+
+For LLM client configuration options, see [Configuring the LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+
+### Viewing and Modifying the Prompt
+
+You can view the latest versions of our prompt templates [on GitHub](https://github.com/Arize-ai/phoenix/blob/main/prompts/classification_evaluator_configs/TOXICITY_CLASSIFICATION_EVALUATOR_CONFIG.yaml). The evaluators are designed to work well in a variety of contexts, but we highly recommend modifying the prompt to be more specific to your use case. Feel free to adapt them.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import ToxicityEvaluator
+    from phoenix.evals import LLM, ClassificationEvaluator
+
+    llm = LLM(provider="openai", model="gpt-4o")
+    evaluator = ToxicityEvaluator(llm=llm)
+
+    # View the prompt template
+    print(evaluator.prompt_template)
+
+    # Create a custom evaluator based on the built-in template
+    custom_evaluator = ClassificationEvaluator(
+        name="toxicity",
+        prompt_template=evaluator.prompt_template,  # Modify as needed
+        llm=llm,
+        choices={"toxic": 1.0, "non-toxic": 0.0},
+        direction="minimize",
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { TOXICITY_CLASSIFICATION_EVALUATOR_CONFIG, createToxicityEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    // View the prompt template
+    console.log(TOXICITY_CLASSIFICATION_EVALUATOR_CONFIG.template);
+
+    // Create a custom evaluator with a modified template
+    const customEvaluator = createToxicityEvaluator({
+      model: openai("gpt-4o"),
+      promptTemplate: TOXICITY_CLASSIFICATION_EVALUATOR_CONFIG.template, // Modify as needed
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using with Phoenix
+
+### Evaluating Traces
+
+Run evaluations on traces collected in Phoenix and log results as annotations:
+
+- [Evaluating Phoenix Traces](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces)
+- [Logging LLM Evaluations](/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/llm-evaluations)
+
+### Running Experiments
+
+Use the Toxicity evaluator in Phoenix experiments:
+
+- [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+## Benchmarks
+
+Coming soon.
+
+## API Reference
+
+- **Python**: [ToxicityEvaluator](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [createToxicityEvaluator](https://arize-ai.github.io/phoenix/modules/_arizeai_phoenix-evals.llm.html)
+
+## Related
+
+- [Correctness Evaluator](/docs/phoenix/evaluation/pre-built-metrics/correctness) - Evaluate factual accuracy
+- [Refusal Evaluator](/docs/phoenix/evaluation/pre-built-metrics/refusal) - Detect when a model refuses to answer

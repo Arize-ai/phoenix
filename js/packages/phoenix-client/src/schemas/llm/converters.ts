@@ -1,16 +1,17 @@
-import z from "zod";
+import invariant from "tiny-invariant";
+import type z from "zod";
 
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import { safelyParseJSON } from "../../utils/safelyParseJSON";
-import { JSONLiteral } from "../jsonLiteralSchema";
-import { OpenAIChatPart } from "./openai/messagePartSchemas";
-import { OpenAIMessage } from "./openai/messageSchemas";
-import { OpenAIToolCall } from "./openai/toolCallSchemas";
-import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
-import { OpenAIToolDefinition } from "./openai/toolSchemas";
-import { toolCallHeuristicSchema } from "./schemas";
+import type { JSONLiteral } from "../jsonLiteralSchema";
 import { SDKProviderConverterMap } from "./constants";
-import { LLMMessagePart, PromptSDKFormat } from "./types";
+import type { OpenAIChatPart } from "./openai/messagePartSchemas";
+import type { OpenAIMessage } from "./openai/messageSchemas";
+import type { OpenAIToolCall } from "./openai/toolCallSchemas";
+import type { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
+import type { OpenAIToolDefinition } from "./openai/toolSchemas";
+import { toolCallHeuristicSchema } from "./schemas";
+import type { LLMMessagePart, PromptSDKFormat } from "./types";
 import {
   detectMessagePartProvider,
   detectMessageProvider,
@@ -18,7 +19,6 @@ import {
   detectToolChoiceProvider,
   detectToolDefinitionProvider,
 } from "./utils";
-import invariant from "tiny-invariant";
 
 export const safelyConvertMessageToProvider = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
@@ -179,6 +179,11 @@ export const toOpenAIMessage = (message: unknown): OpenAIMessage | null => {
 /**
  * Convert from OpenAI message format to any other format
  */
+// Casts to ReturnType below are unavoidable: TypeScript cannot narrow a generic
+// type parameter (TargetProviderSDK) through switch/case control flow, so the
+// indexed access type remains unresolved in each branch. The casts are sound
+// because each branch accesses the correct provider's converter and
+// assertUnreachable ensures exhaustive coverage.
 export const fromOpenAIMessage = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -190,20 +195,27 @@ export const fromOpenAIMessage = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["messages"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["messages"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(message);
+      return SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(
+        message
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.messages.fromOpenAI.parse(
         message
-      );
+      ) as ReturnType;
     case "PHOENIX":
-      return SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(message);
+      return SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(
+        message
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.messages.fromOpenAI.parse(
         message
-      );
+      ) as ReturnType;
     default:
       return assertUnreachable(targetProvider);
   }
@@ -248,6 +260,7 @@ export const toOpenAIToolCall = (
  * @param params.targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
+// See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
 export const fromOpenAIToolCall = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -259,26 +272,29 @@ export const fromOpenAIToolCall = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolCalls"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolCalls"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return SDKProviderConverterMap.OPENAI.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     case "PHOENIX":
       return SDKProviderConverterMap.PHOENIX.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.toolCalls.fromOpenAI.parse(
         toolCall
-      );
+      ) as ReturnType;
     default:
-      assertUnreachable(targetProvider);
+      return assertUnreachable(targetProvider);
   }
 };
 
@@ -312,7 +328,7 @@ export const toOpenAIToolChoice = (
         validatedToolChoice
       );
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 };
 
@@ -323,6 +339,7 @@ export const toOpenAIToolChoice = (
  * @param params.targetProvider the provider to convert the tool choice to
  * @returns the tool choice in the target provider format
  */
+// See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
 export const fromOpenAIToolChoice = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -334,26 +351,29 @@ export const fromOpenAIToolChoice = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolChoices"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolChoices"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return SDKProviderConverterMap.OPENAI.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     case "PHOENIX":
       return SDKProviderConverterMap.PHOENIX.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.toolChoices.fromOpenAI.parse(
         toolChoice
-      );
+      ) as ReturnType;
     default:
-      assertUnreachable(targetProvider);
+      return assertUnreachable(targetProvider);
   }
 };
 
@@ -386,13 +406,14 @@ export const toOpenAIToolDefinition = (
     case null:
       return null;
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 };
 
 /**
  * Convert from OpenAI tool call format to any other format
  */
+// See comment on fromOpenAIMessage for why `as ReturnType` casts are needed.
 export const fromOpenAIToolDefinition = <
   TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
@@ -404,26 +425,29 @@ export const fromOpenAIToolDefinition = <
 }): z.infer<
   (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolDefinitions"]["fromOpenAI"]
 > => {
+  type ReturnType = z.infer<
+    (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolDefinitions"]["fromOpenAI"]
+  >;
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     case "ANTHROPIC":
       return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     case "PHOENIX":
       return SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      );
+      ) as ReturnType;
     default:
-      assertUnreachable(targetProvider);
+      return assertUnreachable(targetProvider);
   }
 };
 

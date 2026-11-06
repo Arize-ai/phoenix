@@ -1,0 +1,226 @@
+---
+title: "Connect Your Coding Agent"
+description: Connect your coding agent to Phoenix so it can instrument your app, read the traces that come back, and act on what it finds.
+---
+
+Works with Claude Code, Codex, Cursor, or any other coding agent. Once connected, you ask in plain language:
+
+```text
+Show me the latest traces in my default project and summarize any errors
+```
+
+## Connect your agent
+
+Each agent has one recommended setup. Every setup connects the agent to the [MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) built into Phoenix, which gives it your Phoenix data and the Phoenix [skills](/docs/phoenix/integrations/developer-tools/skills).
+
+| Agent | Recommended setup |
+| --- | --- |
+| Claude Code | Install the [Claude Code plugin](#plugins). |
+| Codex | Install the [Codex plugin](#plugins). |
+| Cursor | Add the [MCP server](/docs/phoenix/integrations/mcp#connect). On a Teams or Enterprise plan, an admin can add the [Cursor plugin](#plugins) to a team marketplace instead. |
+| VS Code, Gemini CLI, OpenCode, Claude Desktop, and other MCP clients | Add the [MCP server](/docs/phoenix/integrations/mcp#connect) with your client's steps. |
+| An agent with no MCP support | Install the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) and its skill: `npx skills add Arize-ai/phoenix --skill phoenix-cli`. |
+
+Then ask your agent a question, such as *List my Phoenix projects*.
+
+You don't need the CLI when your agent has the MCP server. Add it if you also want the agent to run `px` commands in a terminal, where you can see and rerun each one. See [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server)
+
+## Example prompts
+
+Instrument an app:
+
+```text
+Use the Phoenix tracing skill to instrument this application. First inspect the codebase and identify the LLM providers, frameworks, package manager, and existing OpenTelemetry setup. Then propose the Phoenix instrumentation plan before changing code.
+```
+
+Run the [Evaluate](/docs/phoenix/get-started/get-started-evaluations) flow end to end:
+
+```text
+Download https://storage.googleapis.com/arize-phoenix-assets/assets/images/arize-docs-images/evaluate/travel-support.csv and create a Phoenix dataset called "travel-support" from it, mapping the question column to input and expected_answer to output. Then write an LLM-as-a-judge evaluator that scores whether a reply answers the question and matches the expected answer. Run an experiment over the dataset with a travel support prompt, and tell me which examples scored lowest and why.
+```
+
+Every example scores 0 on that first run: the prompt knows nothing about this airline. Then reply *Add the Basic fare policy to the prompt, rerun the experiment, and compare the scores.*
+
+## Find your Phoenix endpoint
+
+Every setup needs your Phoenix **endpoint**: the base URL you open Phoenix at, with no trailing slash or path.
+
+| Deployment | Endpoint | MCP server URL the tools derive from it |
+| ---------- | -------- | --------------------------------------- |
+| Local Phoenix (`phoenix serve`) | `http://localhost:6006` | `http://localhost:6006/mcp` |
+| Deployed Phoenix | `https://phoenix.example.com` (your deployment's hostname) | `https://phoenix.example.com/mcp` |
+
+The plugins and `px` append `/mcp` themselves; only hand-written MCP config takes the full `/mcp` URL.
+
+The Codex plugin and `px` read it from your shell:
+
+```bash
+export PHOENIX_ENDPOINT=http://localhost:6006    # Your Phoenix endpoint
+export PHOENIX_PROJECT=my-project                # Project name
+export PHOENIX_API_KEY=your-api-key              # API key (if auth enabled)
+```
+
+## Plugins
+
+Each plugin registers the Phoenix MCP server and installs all five [Phoenix skills](/docs/phoenix/integrations/developer-tools/skills) as files, in one install that updates with the plugin. The plugins need Phoenix 19.0.0 or later.
+
+<AccordionGroup>
+  <Accordion title="Claude Code plugin">
+    Steps 1, 2, and 4 are slash commands inside a Claude Code session. If `/plugin` is not recognized, update Claude Code.
+
+    <Steps>
+      <Step title="Add the marketplace">
+        ```bash
+        /plugin marketplace add Arize-ai/phoenix
+        ```
+
+      </Step>
+      <Step title="Install the plugin">
+        ```bash
+        /plugin install arize-phoenix@arize-phoenix
+        ```
+
+        Claude Code asks for a scope: **user** for all your projects, **project** to share it with collaborators through `.claude/settings.json`, or **local** for this repository only.
+      </Step>
+      <Step title="Set your Phoenix endpoint">
+        Claude Code prompts for one setting, **Phoenix endpoint**, as it enables the plugin. Enter [your Phoenix endpoint](#find-your-phoenix-endpoint), or keep the default `http://localhost:6006`. The plugin appends `/mcp` itself, so a trailing slash or a pasted `/mcp` produces a wrong URL (`…//mcp` or `…/mcp/mcp`). This setting is stored in your user settings and applies to every project.
+      </Step>
+      <Step title="Verify">
+        Run `/mcp` and select **phoenix**. If your Phoenix has auth enabled, a browser window opens to sign in with your Phoenix account; without auth, it connects straight away.
+
+        `claude plugin details arize-phoenix@arize-phoenix` lists what it added.
+      </Step>
+    </Steps>
+
+    From a shell: `claude plugin marketplace add Arize-ai/phoenix` then `claude plugin install arize-phoenix@arize-phoenix` (add `--scope project` or `--scope local` to narrow it).
+
+    **What it registers**
+
+    | Component | What it is |
+    | --------- | ---------- |
+    | `phoenix` MCP server | Streamable HTTP to `<your-endpoint>/mcp`, the [Remote MCP Server](/docs/phoenix/integrations/mcp#remote-mcp-server). |
+    | Five skills | `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-harbor`, and `phoenix-tracing`. See [Skills](/docs/phoenix/integrations/developer-tools/skills). |
+
+    The `phoenix-cli` skill runs the optional `px` CLI. The plugin doesn't install `px`. To use that skill, [install the CLI](/docs/phoenix/integrations/developer-tools/cli#install).
+
+    **Change the endpoint.** `claude plugin install arize-phoenix@arize-phoenix --config endpoint=https://phoenix.example.com` at install time, `/plugin configure` afterward, or edit `~/.claude/settings.json`:
+
+    ```json
+    {
+      "pluginConfigs": {
+        "arize-phoenix@arize-phoenix": {
+          "options": { "endpoint": "https://phoenix.example.com" }
+        }
+      }
+    }
+    ```
+
+    **Authentication.** With auth on, the first use opens a browser sign-in. For headless use, register the server by hand with an [API key](/docs/phoenix/integrations/mcp#fallback-api-keys) instead.
+
+    **Update or remove**
+
+    ```bash
+    claude plugin update arize-phoenix@arize-phoenix     # pull the latest version
+    claude plugin disable arize-phoenix@arize-phoenix    # keep it installed, turn it off
+    claude plugin uninstall arize-phoenix@arize-phoenix  # remove the plugin
+    ```
+
+    Pass the scope you installed at, such as `--scope local`, to `disable` and `uninstall`.
+  </Accordion>
+
+  <Accordion title="Codex plugin">
+    Registers the `phoenix` MCP server and installs the five Phoenix skills.
+
+    **Prerequisites:** Phoenix 19.0.0 or later, and Node.js. The plugin starts its MCP bridge with `npx`. The `codex plugin` commands below run in your shell.
+
+    <Steps>
+      <Step title="Add the marketplace">
+        ```bash
+        codex plugin marketplace add Arize-ai/phoenix
+        ```
+
+        Codex clones the repository and reads the catalog from `.agents/plugins/marketplace.json`. The source can be `owner/repo` shorthand, `owner/repo@ref`, an HTTPS or SSH Git URL, or a local path; pass `--ref` to pin a Git ref.
+      </Step>
+      <Step title="Install the plugin">
+        ```bash
+        codex plugin add arize-phoenix@arize-phoenix
+        ```
+
+        Codex caches the plugin under `~/.codex/plugins/cache/arize-phoenix/arize-phoenix/<version>` and enables it in `~/.codex/config.toml`. You can also browse and install from the `/plugins` browser inside Codex.
+      </Step>
+      <Step title="Export your Phoenix endpoint">
+        The plugin reads `PHOENIX_ENDPOINT` from the shell you launch Codex from:
+
+        ```bash
+        export PHOENIX_ENDPOINT=https://phoenix.example.com   # base URL only; the plugin appends /mcp
+        export PHOENIX_API_KEY=your-api-key                   # only if auth is enabled
+        ```
+
+        Unset, it defaults to `http://localhost:6006`.
+      </Step>
+      <Step title="Verify">
+        ```bash
+        codex mcp list
+        ```
+
+        The `phoenix` server appears as enabled. Then launch `codex` and run `/mcp` to confirm it connects. If your Phoenix has auth enabled and `PHOENIX_API_KEY` is not set, a browser window opens on first use to sign in; with the key set, or with auth disabled, no login happens.
+      </Step>
+    </Steps>
+
+    | Variable | Effect |
+    | -------- | ------ |
+    | `PHOENIX_ENDPOINT` | Base URL; `/mcp` is appended for you. |
+    | `PHOENIX_API_KEY` | Optional. Sent as a bearer token, so no browser login. |
+
+    **Disable or remove.** In `~/.codex/config.toml`:
+
+    ```toml
+    [plugins."arize-phoenix@arize-phoenix"]
+    enabled = true
+    ```
+
+    ```bash
+    codex plugin marketplace upgrade arize-phoenix   # refresh the catalog snapshot
+    codex plugin remove arize-phoenix@arize-phoenix  # uninstall and clear the cache
+    codex plugin marketplace remove arize-phoenix    # drop the marketplace
+    ```
+
+  </Accordion>
+
+  <Accordion title="Cursor plugin">
+    The Cursor plugin isn't in Cursor's public marketplace. On a Teams or Enterprise plan, an admin adds it to a team marketplace. Otherwise, add the [MCP server](/docs/phoenix/integrations/mcp#connect) by hand. It serves four of the five skills.
+
+    <Steps>
+      <Step title="Add the plugin to a team marketplace">
+        In the Cursor dashboard, an admin opens **Plugins & MCPs**, then **Team Marketplaces**, selects **Add Marketplace**, and imports the repository `https://github.com/Arize-ai/phoenix`.
+      </Step>
+      <Step title="Set your Phoenix endpoint">
+        Set the plugin's **Phoenix endpoint** variable to [your Phoenix endpoint](#find-your-phoenix-endpoint), or keep the default `http://localhost:6006`. On a team marketplace, the admin sets it once for everyone. The plugin appends `/mcp`.
+      </Step>
+      <Step title="Install the plugin">
+        In Cursor, open **Customize** in the sidebar, find **Arize Phoenix**, and select **Install**.
+      </Step>
+      <Step title="Verify">
+        Use a Phoenix MCP tool once, for example by asking *List my Phoenix projects*. If your Phoenix has auth enabled, a browser window opens to sign in.
+      </Step>
+    </Steps>
+
+    **What it registers**
+
+    | Component | What it is |
+    | --------- | ---------- |
+    | `phoenix` MCP server | Streamable HTTP to `<your-endpoint>/mcp`, the [Remote MCP Server](/docs/phoenix/integrations/mcp#remote-mcp-server). |
+    | `phoenix-docs` MCP server | Search over the Phoenix docs. See [Phoenix Docs MCP](/docs/phoenix/integrations/mcp#phoenix-docs-mcp). |
+    | Five skills | `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-harbor`, and `phoenix-tracing`. |
+
+    **Authentication.** The plugin signs in through the browser and has no setting for an API key. For headless use, add the server by hand with an [API key](/docs/phoenix/integrations/mcp#fallback-api-keys) instead.
+
+    **Already added the servers by hand?** The plugin uses the same server names, `phoenix` and `phoenix-docs`. Remove your entries from `~/.cursor/mcp.json` or `.cursor/mcp.json` so each server appears once.
+
+    To install the plugin from a local checkout, see the [Cursor plugin README](https://github.com/Arize-ai/phoenix/blob/main/.cursor-plugin/README.md#local-development).
+  </Accordion>
+</AccordionGroup>
+
+## Learn more
+
+- [Tracing coding agents](/docs/phoenix/integrations/coding-agents/claude-code): have Phoenix record your coding agent's own turns, tool calls, and token costs.

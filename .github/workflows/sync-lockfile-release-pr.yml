@@ -1,0 +1,54 @@
+name: Sync uv.lock on Release PRs
+
+on:
+  push:
+    branches:
+      - "release-please--branches--main--components--arize-phoenix**"
+
+permissions:
+  contents: write
+
+jobs:
+  sync-lockfile:
+    name: Sync uv.lock
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Checkout release PR branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+          enable-cache: false
+
+      - name: Update lockfile
+        run: uv lock
+
+      - name: Commit and push if changed
+        env:
+          GH_TOKEN: ${{ steps.factory-token.outputs.token }}
+        run: |
+          if git diff --quiet uv.lock; then
+            echo "uv.lock is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "chore: sync uv.lock"
+          gh auth setup-git
+          git push

@@ -1,4 +1,6 @@
 # type: ignore
+import json
+import warnings
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
@@ -7,17 +9,17 @@ import pytest
 
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
+    EnforcedString,
     Evaluator,
     LLMEvaluator,
     Score,
+    SmartString,
     create_classifier,
     create_evaluator,
     evaluate_dataframe,
-    list_evaluators,
     to_thread,
 )
-from phoenix.evals.llm import LLM
-from phoenix.evals.templating import Template
+from phoenix.evals.llm import LLM, PromptTemplate
 
 
 # --- Shared Mock Classes ---
@@ -105,8 +107,8 @@ class TestScore:
                 id="Score with None values excluded from to_dict",
             ),
             pytest.param(
-                {"name": "test", "score": 0.8, "label": "good", "source": "llm"},
-                ["name", "score", "label", "source", "direction"],
+                {"name": "test", "score": 0.8, "label": "good", "kind": "llm"},
+                ["name", "score", "label", "kind", "direction"],
                 [],
                 id="Score with all non-None values included in to_dict",
             ),
@@ -178,10 +180,10 @@ class TestEvaluator:
         """Mock evaluator for testing."""
 
         def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
-            return [Score(name=self.name, score=0.8, source=self.source)]
+            return [Score(name=self.name, score=0.8, kind=self.kind)]
 
     @pytest.mark.parametrize(
-        "name,source,direction,expected_name,expected_source,expected_direction",
+        "name,kind,direction,expected_name,expected_kind,expected_direction",
         [
             pytest.param(
                 "test_evaluator",
@@ -194,10 +196,10 @@ class TestEvaluator:
             ),
             pytest.param(
                 "test_evaluator",
-                "heuristic",
+                "code",
                 "maximize",
                 "test_evaluator",
-                "heuristic",
+                "code",
                 "maximize",
                 id="Evaluator initialization with maximize direction",
             ),
@@ -215,17 +217,17 @@ class TestEvaluator:
     def test_evaluator_initialization(
         self,
         name,
-        source,
+        kind,
         direction,
         expected_name,
-        expected_source,
+        expected_kind,
         expected_direction,
     ):
         """Test evaluator initialization with various parameters."""
-        evaluator = self.MockEvaluator(name=name, source=source, direction=direction)
+        evaluator = self.MockEvaluator(name=name, kind=kind, direction=direction)
 
         assert evaluator.name == expected_name
-        assert evaluator.source == expected_source
+        assert evaluator.kind == expected_kind
         assert evaluator.direction == expected_direction
 
     @pytest.mark.parametrize(
@@ -237,11 +239,11 @@ class TestEvaluator:
         from pydantic import create_model
 
         InputModel = create_model("InputModel", input=(str, ...), output=(str, ...))
-        evaluator = self.MockEvaluator(name="test_evaluator", source="llm", input_schema=InputModel)
+        evaluator = self.MockEvaluator(name="test_evaluator", kind="llm", input_schema=InputModel)
         assert evaluator._get_required_fields(None) == {"input", "output"}
 
         # From mapping when schema absent
-        evaluator2 = self.MockEvaluator(name="test_evaluator", source="llm")
+        evaluator2 = self.MockEvaluator(name="test_evaluator", kind="llm")
         mapping = {"input": "user_input", "output": "model_output"}
         assert evaluator2._get_required_fields(mapping) == {"input", "output"}
 
@@ -252,7 +254,7 @@ class TestEvaluator:
         InputModel = create_model("InputModel", input=(str, ...))
         evaluator = self.MockEvaluator(
             name="test_evaluator",
-            source="llm",
+            kind="llm",
             input_schema=InputModel,
         )
 
@@ -265,10 +267,12 @@ class TestEvaluator:
         """Test evaluation with input mapping."""
         evaluator = self.MockEvaluator(
             name="test_evaluator",
-            source="llm",
+            kind="llm",
         )
 
-        result = evaluator.evaluate({"user_input": "test"}, input_mapping={"input": "user_input"})
+        result = evaluator.evaluate(
+            eval_input={"user_input": "test"}, input_mapping={"input": "user_input"}
+        )
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
@@ -298,7 +302,7 @@ class TestEvaluator:
         InputModel = create_model("InputModel", **fields)
         evaluator = self.MockEvaluator(
             name="test_evaluator",
-            source="llm",
+            kind="llm",
             input_schema=InputModel,
         )
 
@@ -313,11 +317,11 @@ class TestEvaluator:
         InputModel = create_model("InputModel", input=(str, ...))
         evaluator = self.MockEvaluator(
             name="test_evaluator",
-            source="llm",
+            kind="llm",
             input_schema=InputModel,
         )
 
-        result = await evaluator.async_evaluate({"input": "test"})
+        result = await evaluator.async_evaluate(eval_input={"input": "test"})
 
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
@@ -348,20 +352,10 @@ class TestLLMEvaluator:
         evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=prompt_template)
 
         assert evaluator.name == "test_evaluator"
-        assert evaluator.source == "llm"
+        assert evaluator.kind == "llm"
         assert evaluator.llm == llm
-        assert isinstance(evaluator.prompt_template, Template)
+        assert isinstance(evaluator.prompt_template, PromptTemplate)
         assert evaluator._get_required_fields(None) == expected_required_fields
-
-    def test_llm_evaluator_initialization_with_template_object(self):
-        """Test LLMEvaluator initialization with Template object."""
-        llm = MockLLM()
-        template = Template(template="Test template with {input}")
-
-        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=template)
-
-        assert evaluator.prompt_template == template
-        assert evaluator._get_required_fields(None) == {"input"}
 
     def test_llm_evaluator_initialization_with_explicit_required_fields(self):
         """Test LLMEvaluator initialization with explicit required_fields."""
@@ -376,6 +370,16 @@ class TestLLMEvaluator:
             prompt_template=template,
             input_schema=InputModel,
         )
+        assert evaluator._get_required_fields(None) == {"input"}
+
+    def test_llm_evaluator_initialization_with_prompt_template_instance(self):
+        """Test LLMEvaluator accepts PromptTemplate instance."""
+        llm = MockLLM()
+        prompt_template = PromptTemplate(template="Test template with {input}")
+
+        evaluator = LLMEvaluator(name="test_evaluator", llm=llm, prompt_template=prompt_template)
+
+        assert evaluator.prompt_template is prompt_template
         assert evaluator._get_required_fields(None) == {"input"}
 
 
@@ -482,36 +486,32 @@ class TestClassificationEvaluator:
         assert len(result) == 1
         assert result[0].name == "test_evaluator"
 
+    def test_classification_evaluator_with_message_list_template(self):
+        """Test ClassificationEvaluator with message list template."""
+        llm = MockLLM()
+        messages = [
+            {"role": "system", "content": "You are {role}"},
+            {"role": "user", "content": "Classify this: {text}"},
+        ]
+        choices = ["good", "bad"]  # Use labels that match MockLLM's return value
 
-class TestRegistryAndDecorator:
-    """Test registry and decorator functionality."""
+        evaluator = ClassificationEvaluator(
+            name="sentiment", llm=llm, prompt_template=messages, choices=choices
+        )
 
-    def test_list_evaluators_empty(self):
-        """Test list_evaluators with empty registry."""
-        # Clear registry for this test
-        from phoenix.evals.evaluators import _registry
+        # Verify the template is stored correctly as PromptTemplate
+        assert isinstance(evaluator.prompt_template, PromptTemplate)
+        assert set(evaluator.prompt_template.variables) == {"role", "text"}
 
-        original_registry = _registry.copy()
-        _registry.clear()
+        # Verify the required fields were extracted correctly
+        assert set(evaluator._get_required_fields(None)) == {"role", "text"}
 
-        try:
-            result = list_evaluators()
-            assert result == []
-        finally:
-            # Restore original registry
-            _registry.clear()
-            _registry.update(original_registry)
+        # Verify evaluation works with message list template
+        result = evaluator._evaluate({"role": "a classifier", "text": "hello world"})
 
-    def test_create_evaluator_registration(self):
-        """Test that create_evaluator registers the function."""
-
-        @create_evaluator("registered_evaluator", "heuristic")
-        def test_func(input_text: str) -> Score:
-            return Score(score=0.8)
-
-        # Check if it's registered
-        evaluators = list_evaluators()
-        assert "registered_evaluator" in evaluators
+        assert len(result) == 1
+        assert result[0].name == "sentiment"
+        assert result[0].label == "good"  # MockLLM returns "good"
 
 
 class TestCreateEvaluatorAsync:
@@ -519,7 +519,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_create_evaluator_with_async_function(self):
-        @create_evaluator("async_test", "heuristic")
+        @create_evaluator(name="async_test", kind="code")
         async def async_eval(output: str) -> float:
             return len(output) * 2
 
@@ -529,11 +529,11 @@ class TestCreateEvaluatorAsync:
         score = result[0]
         assert score.name == "async_test"
         assert score.score == 10
-        assert score.source == "heuristic"
+        assert score.kind == "code"
 
     @pytest.mark.asyncio
     async def test_async_evaluator_call_returns_awaitable(self):
-        @create_evaluator("async_call_test", "heuristic")
+        @create_evaluator(name="async_call_test", kind="code")
         async def async_eval(output: str) -> float:
             return len(output)
 
@@ -542,7 +542,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_preserves_original_function_behavior(self):
-        @create_evaluator("async_preserve_test", "heuristic")
+        @create_evaluator(name="async_preserve_test", kind="code")
         async def async_eval(text: str, multiplier: int = 2) -> float:
             return len(text) * multiplier
 
@@ -553,7 +553,7 @@ class TestCreateEvaluatorAsync:
         assert result_default == 8
 
     def test_async_evaluator_sync_evaluate_raises_error(self):
-        @create_evaluator("async_error_test", "heuristic")
+        @create_evaluator(name="async_error_test", kind="code")
         async def async_eval(output: str) -> float:
             return len(output)
 
@@ -562,7 +562,7 @@ class TestCreateEvaluatorAsync:
 
     @pytest.mark.asyncio
     async def test_async_evaluator_with_score_object(self):
-        @create_evaluator("async_score_test", "llm", "minimize")
+        @create_evaluator(name="async_score_test", kind="llm", direction="minimize")
         async def async_eval(input_text: str) -> Score:
             return Score(score=0.5, label="test", explanation="async result")
 
@@ -574,12 +574,12 @@ class TestCreateEvaluatorAsync:
         assert score.score == 0.5
         assert score.label == "test"
         assert score.explanation == "async result"
-        assert score.source == "llm"
+        assert score.kind == "llm"
         assert score.direction == "minimize"
 
     @pytest.mark.asyncio
     async def test_async_evaluator_with_tuple_return(self):
-        @create_evaluator("async_tuple_test", "heuristic")
+        @create_evaluator(name="async_tuple_test", kind="code")
         async def async_eval(output: str) -> tuple:
             return (0.8, "good", "This is an async evaluation result")
 
@@ -596,7 +596,7 @@ class TestCreateEvaluatorDecorator:
     """Test the enhanced create_evaluator decorator with various return types."""
 
     def test_sync_evaluator_call_preserves_original_function(self):
-        @create_evaluator("sync_call_test", "heuristic")
+        @create_evaluator(name="sync_call_test", kind="code")
         def sync_eval(text: str, multiplier: int = 2) -> float:
             return len(text) * multiplier
 
@@ -609,7 +609,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_score_object(self):
         """Test create_evaluator with Score object return."""
 
-        @create_evaluator("test_evaluator", "heuristic", "maximize")
+        @create_evaluator(name="test_evaluator", kind="code", direction="maximize")
         def test_func(input_text: str) -> Score:
             return Score(score=0.8, label="good", explanation="test explanation")
 
@@ -621,13 +621,13 @@ class TestCreateEvaluatorDecorator:
         assert score.score == 0.8
         assert score.label == "good"
         assert score.explanation == "test explanation"
-        assert score.source == "heuristic"
+        assert score.kind == "code"
         assert score.direction == "maximize"
 
     def test_create_evaluator_with_number_return(self):
         """Test create_evaluator with number return."""
 
-        @create_evaluator("number_evaluator", "heuristic")
+        @create_evaluator(name="number_evaluator", kind="code")
         def test_func(input_text: str) -> float:
             return 0.75
 
@@ -643,7 +643,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_boolean_return(self):
         """Test create_evaluator with boolean return."""
 
-        @create_evaluator("boolean_evaluator", "heuristic")
+        @create_evaluator(name="boolean_evaluator", kind="code")
         def test_func(input_text: str) -> bool:
             return True
 
@@ -659,7 +659,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_short_string_return(self):
         """Test create_evaluator with short string return (≤3 words)."""
 
-        @create_evaluator("short_string_evaluator", "heuristic")
+        @create_evaluator(name="short_string_evaluator", kind="code")
         def test_func(input_text: str) -> str:
             return "good"
 
@@ -675,7 +675,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_long_string_return(self):
         """Test create_evaluator with long string return (≥4 words)."""
 
-        @create_evaluator("long_string_evaluator", "heuristic")
+        @create_evaluator(name="long_string_evaluator", kind="code")
         def test_func(input_text: str) -> str:
             return "This is a much longer explanation that should go into the explanation field"
 
@@ -694,7 +694,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_dictionary_return(self):
         """Test create_evaluator with dictionary return."""
 
-        @create_evaluator("dict_evaluator", "heuristic")
+        @create_evaluator(name="dict_evaluator", kind="code")
         def test_func(input_text: str) -> dict:
             return {
                 "score": 0.9,
@@ -711,10 +711,35 @@ class TestCreateEvaluatorDecorator:
         assert score.label == "excellent"
         assert score.explanation == "This is a detailed explanation"
 
+    def test_create_evaluator_with_dictionary_return_preserves_metadata(self):
+        """Dictionary results keep their metadata, like a returned Score does."""
+        metadata = {"probabilities": {"correct": 0, "incorrect": 1}}
+
+        @create_evaluator(name="dict_evaluator", kind="code")
+        def test_func(input_text: str) -> dict:
+            return {"score": 0, "label": "incorrect", "metadata": metadata}
+
+        score = test_func.evaluate({"input_text": "test"})[0]
+
+        assert score.metadata["probabilities"] == metadata["probabilities"]
+
+    @pytest.mark.asyncio
+    async def test_async_create_evaluator_with_dictionary_return_preserves_metadata(self):
+        """Async evaluators keep the metadata of dictionary results too."""
+        metadata = {"probabilities": {"correct": 0, "incorrect": 1}}
+
+        @create_evaluator(name="dict_evaluator", kind="code")
+        async def test_func(input_text: str) -> dict:
+            return {"score": 0, "label": "incorrect", "metadata": metadata}
+
+        score = (await test_func.async_evaluate({"input_text": "test"}))[0]
+
+        assert score.metadata["probabilities"] == metadata["probabilities"]
+
     def test_create_evaluator_with_tuple_return(self):
         """Test create_evaluator with tuple return."""
 
-        @create_evaluator("tuple_evaluator", "heuristic")
+        @create_evaluator(name="tuple_evaluator", kind="code")
         def test_func(input_text: str) -> tuple:
             return (0.85, "very good", "This is a comprehensive evaluation")
 
@@ -730,7 +755,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_mixed_tuple_return(self):
         """Test create_evaluator with mixed tuple including nested dict."""
 
-        @create_evaluator("mixed_tuple_evaluator", "heuristic")
+        @create_evaluator(name="mixed_tuple_evaluator", kind="code")
         def test_func(input_text: str) -> tuple:
             return (0.7, {"score": 0.8, "label": "mixed"}, "This is a final explanation")
 
@@ -740,7 +765,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_unsupported_type_raises_error(self):
         """Test create_evaluator raises error for unsupported return types."""
 
-        @create_evaluator("unsupported_evaluator", "heuristic")
+        @create_evaluator(name="unsupported_evaluator", kind="code")
         def test_func(input_text: str) -> list:
             return [1, 2, 3]
 
@@ -750,7 +775,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_unsupported_type_error_message(self):
         """Test create_evaluator provides informative error message for unsupported types."""
 
-        @create_evaluator("error_test_evaluator", "heuristic")
+        @create_evaluator(name="error_test_evaluator", kind="code")
         def test_func(input_text: str) -> set:
             return {1, 2, 3}
 
@@ -764,7 +789,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_with_input_mapping(self):
         """Test create_evaluator with input mapping."""
 
-        @create_evaluator("mapping_evaluator", "heuristic")
+        @create_evaluator(name="mapping_evaluator", kind="code")
         def test_func(input_text: str) -> float:
             return 0.8
 
@@ -797,7 +822,7 @@ class TestCreateEvaluatorDecorator:
     ):
         """Test create_evaluator with various return types using parametrization."""
 
-        @create_evaluator("param_test_evaluator", "heuristic")
+        @create_evaluator(name="param_test_evaluator", kind="code")
         def test_func(input_text: str):
             return return_value
 
@@ -813,7 +838,7 @@ class TestCreateEvaluatorDecorator:
     def test_create_evaluator_preserves_metadata(self):
         """Test that create_evaluator preserves metadata when Score object is returned."""
 
-        @create_evaluator("metadata_evaluator", "heuristic")
+        @create_evaluator(name="metadata_evaluator", kind="code")
         def test_func(input_text: str) -> Score:
             return Score(
                 score=0.8, label="good", explanation="test", metadata={"custom_key": "custom_value"}
@@ -823,12 +848,15 @@ class TestCreateEvaluatorDecorator:
 
         assert len(result) == 1
         score = result[0]
-        assert score.metadata == {"custom_key": "custom_value"}
+        # Check custom metadata is preserved
+        assert score.metadata["custom_key"] == "custom_value"
+        # trace_id may be added by tracing if a valid span context exists
+        # but we don't require it to be present
 
-    def test_create_evaluator_with_custom_source_and_direction(self):
-        """Test create_evaluator with custom source and direction."""
+    def test_create_evaluator_with_custom_kind_and_direction(self):
+        """Test create_evaluator with custom kind and direction."""
 
-        @create_evaluator("custom_evaluator", "llm", "minimize")
+        @create_evaluator(name="custom_evaluator", kind="llm", direction="minimize")
         def test_func(input_text: str) -> float:
             return 0.3
 
@@ -837,7 +865,7 @@ class TestCreateEvaluatorDecorator:
         assert len(result) == 1
         score = result[0]
         assert score.name == "custom_evaluator"
-        assert score.source == "llm"
+        assert score.kind == "llm"
         assert score.direction == "minimize"
         assert score.score == 0.3
 
@@ -871,7 +899,7 @@ class TestIntrospectionAndSchema:
     """Tests for describe() based on input_schema inference."""
 
     def test_describe_for_simple_decorator(self):
-        @create_evaluator("simple_eval")
+        @create_evaluator(name="simple_eval")
         def simple_eval(output: str, expected: str) -> Score:
             return Score(score=1.0)
 
@@ -882,7 +910,7 @@ class TestIntrospectionAndSchema:
         assert schema["input_schema"]["properties"]["expected"]["type"] == "string"
 
     def test_describe_optional_and_defaults(self):
-        @create_evaluator("opt_eval")
+        @create_evaluator(name="opt_eval")
         def opt_eval(a: str, b: str or None = None, k: int = 1) -> Score:
             return Score(score=1.0)
 
@@ -898,10 +926,10 @@ class TestEvaluatorRequiredFieldsAndBinding:
 
     class MinimalEvaluator(Evaluator):
         def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
-            return [Score(name=self.name, score=1.0, source=self.source)]
+            return [Score(name=self.name, score=1.0, kind=self.kind)]
 
     def test_required_fields_from_mapping_when_no_schema(self):
-        e = self.MinimalEvaluator(name="min", source="heuristic")
+        e = self.MinimalEvaluator(name="min", kind="code")
         payload = {"in": {"msg": "hi"}}
         mapping = {"text": lambda row: row["in"]["msg"].upper()}
 
@@ -914,7 +942,7 @@ class TestEvaluatorRequiredFieldsAndBinding:
         assert len(scores) == 1 and scores[0].score == 1.0
 
     def test_bound_evaluator_evaluate_and_describe(self):
-        @create_evaluator("emph")
+        @create_evaluator(name="emph")
         def emph(text: str) -> Score:
             return Score(score=float(len(text) > 0))
 
@@ -923,7 +951,7 @@ class TestEvaluatorRequiredFieldsAndBinding:
 
         from phoenix.evals.evaluators import bind_evaluator
 
-        be = bind_evaluator(emph, mapping)
+        be = bind_evaluator(evaluator=emph, input_mapping=mapping)
         # Evaluate through bound mapping
         scores = be.evaluate(payload)
         assert len(scores) == 1 and scores[0].score == 1.0
@@ -942,7 +970,7 @@ class TestEvaluateDataframe:
 
             # Create a simple input schema that accepts any fields
             InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-            super().__init__(name=name, source="heuristic", input_schema=InputModel)
+            super().__init__(name=name, kind="code", input_schema=InputModel)
             self.score_value = score_value
 
         def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
@@ -966,7 +994,7 @@ class TestEvaluateDataframe:
 
     def test_evaluate_dataframe_continuous_numeric_index(self, sample_dataframe, mock_evaluator):
         """Test evaluate_dataframe with continuous numeric index (baseline test)."""
-        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=sample_dataframe, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [0, 1, 2]
@@ -992,7 +1020,7 @@ class TestEvaluateDataframe:
             index=[10, 20, 30],
         )  # Non-continuous indices
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [10, 20, 30]
@@ -1011,7 +1039,7 @@ class TestEvaluateDataframe:
             index=["row_a", "row_b", "row_c"],
         )  # String indices
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == ["row_a", "row_b", "row_c"]
@@ -1030,7 +1058,7 @@ class TestEvaluateDataframe:
             index=[1, "b", 3.0],
         )  # Mixed types
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [1, "b", 3.0]
@@ -1045,7 +1073,7 @@ class TestEvaluateDataframe:
             {"text": ["Single test."], "reference": ["Single test."]}, index=[42]
         )  # Single row with non-zero index
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == [42]
@@ -1058,7 +1086,7 @@ class TestEvaluateDataframe:
         """Test evaluate_dataframe with empty DataFrame."""
         df = pd.DataFrame({"text": [], "reference": []}, index=pd.Index([], dtype="int64"))
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved (empty)
         assert len(result_df.index) == 0
@@ -1073,7 +1101,9 @@ class TestEvaluateDataframe:
         evaluator1 = self.MockEvaluator("evaluator1", 0.8)
         evaluator2 = self.MockEvaluator("evaluator2", 0.9)
 
-        result_df = evaluate_dataframe(sample_dataframe, [evaluator1, evaluator2])
+        result_df = evaluate_dataframe(
+            dataframe=sample_dataframe, evaluators=[evaluator1, evaluator2]
+        )
 
         # Verify original index is preserved
         assert list(result_df.index) == [0, 1, 2]
@@ -1090,7 +1120,7 @@ class TestEvaluateDataframe:
 
     def test_evaluate_dataframe_execution_details_preserved(self, sample_dataframe, mock_evaluator):
         """Test that execution details are properly recorded."""
-        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=sample_dataframe, evaluators=[mock_evaluator])
 
         # Verify execution details column exists
         assert "mock_evaluator_execution_details" in result_df.columns
@@ -1099,9 +1129,8 @@ class TestEvaluateDataframe:
         assert result_df["mock_evaluator_execution_details"].notna().all()
 
         # Verify execution details contain expected fields
-        import json
 
-        details = json.loads(result_df["mock_evaluator_execution_details"].iloc[0])
+        details = result_df["mock_evaluator_execution_details"].iloc[0]
         assert "status" in details
         assert "exceptions" in details
         assert "execution_seconds" in details
@@ -1111,7 +1140,7 @@ class TestEvaluateDataframe:
         original_text = sample_dataframe["text"].tolist()
         original_reference = sample_dataframe["reference"].tolist()
 
-        result_df = evaluate_dataframe(sample_dataframe, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=sample_dataframe, evaluators=[mock_evaluator])
 
         # Verify original data is unchanged
         assert result_df["text"].tolist() == original_text
@@ -1120,8 +1149,8 @@ class TestEvaluateDataframe:
     def test_evaluate_dataframe_with_custom_parameters(self, sample_dataframe, mock_evaluator):
         """Test evaluate_dataframe with custom tqdm_bar_format and other parameters."""
         result_df = evaluate_dataframe(
-            sample_dataframe,
-            [mock_evaluator],
+            dataframe=sample_dataframe,
+            evaluators=[mock_evaluator],
             tqdm_bar_format="Testing: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt}",
             exit_on_error=False,
             max_retries=5,
@@ -1141,7 +1170,7 @@ class TestEvaluateDataframe:
         }
         df = pd.DataFrame(data, index=list(range(100, 200)))  # Indices 100-199
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved
         assert list(result_df.index) == list(range(100, 200))
@@ -1160,7 +1189,7 @@ class TestEvaluateDataframe:
             index=[1, 1, 2],
         )  # Duplicate indices
 
-        result_df = evaluate_dataframe(df, [mock_evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[mock_evaluator])
 
         # Verify original index is preserved (including duplicates)
         assert list(result_df.index) == [1, 1, 2]
@@ -1178,7 +1207,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, kind="code", input_schema=InputModel)
 
             def _evaluate(self, eval_input):
                 # Return a score that includes the text content to verify ordering
@@ -1197,7 +1226,7 @@ class TestEvaluateDataframe:
             index=[5, 5, 10],  # Duplicate indices with different content
         )
 
-        result_df = evaluate_dataframe(df, [evaluator])
+        result_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 
         # Verify original index is preserved exactly
         assert list(result_df.index) == [
@@ -1215,24 +1244,17 @@ class TestEvaluateDataframe:
         assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
         assert all(score is not None for score in scores), "Some scores are None"
 
-        # Parse scores to verify they match the expected content
-        import json
-
-        parsed_scores = [json.loads(score) for score in scores]
-
         # Verify each score corresponds to the correct row
-        assert "Evaluated: Short" in parsed_scores[0]["explanation"], (
-            "First score doesn't match first row"
-        )
-        assert "Evaluated: Medium length" in parsed_scores[1]["explanation"], (
+        assert "Evaluated: Short" in scores[0]["explanation"], "First score doesn't match first row"
+        assert "Evaluated: Medium length" in scores[1]["explanation"], (
             "Second score doesn't match second row"
         )
-        assert "Evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+        assert "Evaluated: Very long text here" in scores[2]["explanation"], (
             "Third score doesn't match third row"
         )
 
         # Verify score values are different (based on text length)
-        score_values = [score["score"] for score in parsed_scores]
+        score_values = [score["score"] for score in scores]
         assert score_values[0] != score_values[1] != score_values[2], (
             "Score values should be different"
         )
@@ -1253,7 +1275,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, kind="code", input_schema=InputModel)
 
             def _evaluate(self, eval_input):
                 return [Score(name=self.name, score=0.8, explanation="Test")]
@@ -1280,7 +1302,7 @@ class TestEvaluateDataframe:
                 index=index,
             )
 
-            result_df = evaluate_dataframe(df, [evaluator])
+            result_df = evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 
             # Verify exact structure
             assert list(result_df.index) == expected_index, (
@@ -1309,7 +1331,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, kind="code", input_schema=InputModel)
 
             def _evaluate(self, eval_input):
                 # Return a score that includes the text content to verify ordering
@@ -1330,7 +1352,7 @@ class TestEvaluateDataframe:
             index=[5, 5, 10],  # Duplicate indices with different content
         )
 
-        result_df = await async_evaluate_dataframe(df, [evaluator])
+        result_df = await async_evaluate_dataframe(dataframe=df, evaluators=[evaluator])
 
         # Verify original index is preserved exactly
         assert list(result_df.index) == [
@@ -1348,24 +1370,19 @@ class TestEvaluateDataframe:
         assert len(scores) == 3, f"Expected 3 scores, got {len(scores)}"
         assert all(score is not None for score in scores), "Some scores are None"
 
-        # Parse scores to verify they match the expected content
-        import json
-
-        parsed_scores = [json.loads(score) for score in scores]
-
         # Verify each score corresponds to the correct row
-        assert "Async evaluated: Short" in parsed_scores[0]["explanation"], (
+        assert "Async evaluated: Short" in scores[0]["explanation"], (
             "First score doesn't match first row"
         )
-        assert "Async evaluated: Medium length" in parsed_scores[1]["explanation"], (
+        assert "Async evaluated: Medium length" in scores[1]["explanation"], (
             "Second score doesn't match second row"
         )
-        assert "Async evaluated: Very long text here" in parsed_scores[2]["explanation"], (
+        assert "Async evaluated: Very long text here" in scores[2]["explanation"], (
             "Third score doesn't match third row"
         )
 
         # Verify score values are different (based on text length)
-        score_values = [score["score"] for score in parsed_scores]
+        score_values = [score["score"] for score in scores]
         assert score_values[0] != score_values[1] != score_values[2], (
             "Score values should be different"
         )
@@ -1386,7 +1403,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, kind="code", input_schema=InputModel)
                 self.fail_on_text = fail_on_text
 
             def _evaluate(self, eval_input):
@@ -1402,7 +1419,9 @@ class TestEvaluateDataframe:
         )
 
         # Should not crash even with failures
-        result_df = evaluate_dataframe(df, [evaluator], exit_on_error=False, max_retries=0)
+        result_df = evaluate_dataframe(
+            dataframe=df, evaluators=[evaluator], exit_on_error=False, max_retries=0
+        )
 
         # Verify structure is preserved
         assert list(result_df.index) == [1, 2]
@@ -1415,11 +1434,8 @@ class TestEvaluateDataframe:
         assert scores[1] is None  # Failure
 
         # Check execution details: failure should have FAILED status
-        import json
+        exec_details = result_df["failing_eval_execution_details"].tolist()
 
-        exec_details = [
-            json.loads(detail) for detail in result_df["failing_eval_execution_details"]
-        ]
         assert exec_details[0]["status"] == "COMPLETED"
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0
@@ -1434,7 +1450,7 @@ class TestEvaluateDataframe:
                 from pydantic import create_model
 
                 InputModel = create_model("InputModel", text=(str, ...), reference=(str, ...))
-                super().__init__(name=name, source="heuristic", input_schema=InputModel)
+                super().__init__(name=name, kind="code", input_schema=InputModel)
                 self.fail_on_text = fail_on_text
 
             def _evaluate(self, eval_input):
@@ -1457,7 +1473,7 @@ class TestEvaluateDataframe:
 
         # Should not crash even with failures
         result_df = await async_evaluate_dataframe(
-            df, [evaluator], exit_on_error=False, max_retries=0
+            dataframe=df, evaluators=[evaluator], exit_on_error=False, max_retries=0
         )
 
         # Verify structure is preserved
@@ -1471,11 +1487,530 @@ class TestEvaluateDataframe:
         assert scores[1] is None  # Failure
 
         # Check execution details: failure should have FAILED status
-        import json
+        exec_details = result_df["async_failing_eval_execution_details"].tolist()
 
-        exec_details = [
-            json.loads(detail) for detail in result_df["async_failing_eval_execution_details"]
-        ]
         assert exec_details[0]["status"] == "COMPLETED"
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0
+
+
+# TODO: Remove this once the deprecated 'source' argument and 'heuristic' KindType are removed.
+class TestDeprecatedSourceAndHeuristic:
+    """Tests for deprecated 'source' argument and 'heuristic' KindType support."""
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_kind,warning_regex",
+        [
+            pytest.param(
+                {"source": "llm"},
+                "llm",
+                r"'source'\s+is\s+deprecated",
+                id="score-source-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="score-both-deprecated",
+            ),
+            pytest.param(
+                {"kind": "heuristic"},
+                "code",
+                r"heuristic.*deprecated",
+                id="score-heuristic-deprecated",
+            ),
+            pytest.param({"kind": "code"}, "code", None, id="score-both-new"),
+        ],
+    )
+    def test_score_supports_deprecated_and_new_kinds(self, kwargs, expected_kind, warning_regex):
+        """Score should accept deprecated 'source' and convert 'heuristic' to 'code'."""
+
+        if warning_regex:
+            with pytest.warns(DeprecationWarning, match=warning_regex):
+                s = Score(**kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                s = Score(**kwargs)
+
+        assert s.kind == expected_kind
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_kind,warning_regex",
+        [
+            pytest.param(
+                {"source": "human"},
+                "human",
+                r"'source'\s+is\s+deprecated",
+                id="evaluator-source-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="evaluator-both-deprecated",
+            ),
+            pytest.param(
+                {"kind": "heuristic"},
+                "code",
+                r"heuristic.*deprecated",
+                id="evaluator-heuristic-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="evaluator-both-deprecated",
+            ),
+            pytest.param({"kind": "llm"}, "llm", None, id="evaluator-both-new"),
+        ],
+    )
+    def test_evaluator_supports_deprecated_and_new_kinds(
+        self, kwargs, expected_kind, warning_regex
+    ):
+        """Evaluator should accept deprecated 'source' and convert 'heuristic' to 'code'."""
+
+        class _MinimalEvaluator(Evaluator):
+            def _evaluate(self, eval_input):
+                return [Score(name=self.name, score=1.0, kind=self.kind)]
+
+        evaluator_kwargs = dict(name="min")
+        evaluator_kwargs.update(kwargs)
+
+        if warning_regex:
+            with pytest.warns(DeprecationWarning, match=warning_regex):
+                ev = _MinimalEvaluator(**evaluator_kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                ev = _MinimalEvaluator(**evaluator_kwargs)
+
+        assert ev.kind == expected_kind
+
+    @pytest.mark.parametrize(
+        "kwargs,expected_kind,warning_regex",
+        [
+            pytest.param(
+                {"source": "code"},
+                "code",
+                r"'source'\s+is\s+deprecated",
+                id="create-evaluator-source-deprecated",
+            ),
+            pytest.param(
+                {"source": "heuristic"},
+                "code",
+                r"deprecated",
+                id="create-evaluator-both-deprecated",
+            ),
+            pytest.param(
+                {"kind": "heuristic"},
+                "code",
+                r"heuristic.*deprecated",
+                id="create-evaluator-heuristic-deprecated",
+            ),
+            pytest.param({"kind": "human"}, "human", None, id="create-evaluator-kind-new"),
+        ],
+    )
+    def test_create_evaluator_supports_deprecated_and_new_kinds(
+        self, kwargs, expected_kind, warning_regex
+    ):
+        """create_evaluator should support 'source' and convert 'heuristic' to 'code'."""
+
+        def _fn(text: str) -> float:
+            return 1.0
+
+        if warning_regex:
+            with pytest.warns(DeprecationWarning, match=warning_regex):
+                deco = create_evaluator(name="depr", **kwargs)
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", DeprecationWarning)
+                deco = create_evaluator(name="depr", **kwargs)
+
+        ev = deco(_fn)
+        assert ev.kind == expected_kind
+
+    def test_conflicting_kind_and_source_raise_error_for_score(self):
+        """Providing both 'kind' and deprecated 'source' with different values should error."""
+        with pytest.raises(
+            ValueError, match=r"Provide only one of 'kind' or 'source' \(they differ\). Use 'kind'."
+        ):
+            Score(kind="llm", source="code")
+
+    def test_conflicting_kind_and_source_raise_error_for_evaluator(self):
+        """Evaluator constructor should also error on conflicting 'kind' and 'source'."""
+
+        class _MinimalEvaluator(Evaluator):
+            def _evaluate(self, eval_input):
+                return [Score(name=self.name, score=1.0, kind=self.kind)]
+
+        with pytest.raises(
+            ValueError, match=r"Provide only one of 'kind' or 'source' \(they differ\). Use 'kind'."
+        ):
+            _MinimalEvaluator(name="min", kind="llm", source="code")
+
+    @pytest.mark.parametrize(
+        "kind,source",
+        [
+            pytest.param("code", "code", id="score-equal-values"),
+            pytest.param("llm", "llm", id="score-equal-llm"),
+        ],
+    )
+    def test_equal_kind_and_source_allowed_for_score(self, kind, source):
+        """Equal 'kind' and 'source' should pass with deprecation warning and keep kind value."""
+        with pytest.warns(DeprecationWarning, match=r"deprecated"):
+            s = Score(kind=kind, source=source)
+        assert s.kind == kind
+
+    @pytest.mark.parametrize(
+        "kind,source",
+        [
+            pytest.param("code", "code", id="evaluator-equal-code"),
+            pytest.param("human", "human", id="evaluator-equal-human"),
+        ],
+    )
+    def test_equal_kind_and_source_allowed_for_evaluator(self, kind, source):
+        """Equal 'kind' and 'source' should pass for Evaluator with deprecation warning."""
+
+        class _MinimalEvaluator(Evaluator):
+            def _evaluate(self, eval_input):
+                return [Score(name=self.name, score=1.0, kind=self.kind)]
+
+        with pytest.warns(DeprecationWarning, match=r"deprecated"):
+            ev = _MinimalEvaluator(name="min", kind=kind, source=source)
+        assert ev.kind == kind
+
+    def test_conflicting_kind_and_source_raise_error_for_create_evaluator(self):
+        """Decorator factory should error when both provided and different."""
+        with pytest.raises(
+            ValueError, match=r"Provide only one of 'kind' or 'source' \(they differ\). Use 'kind'."
+        ):
+            create_evaluator(name="conflict", kind="llm", source="code")
+
+    def test_equal_kind_and_source_allowed_for_create_evaluator(self):
+        """Decorator factory should allow equal values and emit deprecation warning."""
+
+        def _fn(text: str) -> float:
+            return 1.0
+
+        with pytest.warns(DeprecationWarning, match=r"deprecated"):
+            deco = create_evaluator(name="equal", kind="code", source="code")
+        ev = deco(_fn)
+        assert ev.kind == "code"
+
+
+class TestTracedEvaluator:
+    """Test evaluator tracing and trace_id injection."""
+
+    class MockEvaluator(Evaluator):
+        """Mock evaluator for testing."""
+
+        def __init__(self, **kwargs):
+            from pydantic import BaseModel
+
+            # Create a simple input schema for testing
+            class TestInputSchema(BaseModel):
+                text: str
+
+            super().__init__(input_schema=TestInputSchema, **kwargs)
+
+        def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+            return [Score(name=self.name, score=0.8, kind=self.kind)]
+
+    def test_trace_id_in_score_metadata_with_tracing_enabled(self):
+        """Test that trace_id is added to Score metadata when tracing is enabled."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        # Set up in-memory exporter to capture spans
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+
+        try:
+            # Create and run evaluator
+            evaluator = self.MockEvaluator(name="test_eval", kind="code")
+            result = evaluator.evaluate({"text": "test input"})
+
+            # Verify trace_id is in metadata
+            assert len(result) == 1
+            assert "trace_id" in result[0].metadata
+            assert isinstance(result[0].metadata["trace_id"], str)
+            assert len(result[0].metadata["trace_id"]) == 32  # hex trace_id length
+        finally:
+            # Reset tracer provider
+            trace.set_tracer_provider(TracerProvider())
+
+    def test_trace_id_not_present_without_tracing(self):
+        """Test that evaluation works without trace_id when tracing is not configured."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        # Use a basic tracer provider without processors
+        trace.set_tracer_provider(TracerProvider())
+
+        try:
+            # Create and run evaluator
+            evaluator = self.MockEvaluator(name="test_eval", kind="code")
+            result = evaluator.evaluate({"text": "test input"})
+
+            # Verify evaluation still works
+            assert len(result) == 1
+            assert result[0].score == 0.8
+            # trace_id might be present but could be None or invalid
+            # The important thing is that evaluation doesn't fail
+        finally:
+            # Reset tracer provider
+            trace.set_tracer_provider(TracerProvider())
+
+    @pytest.mark.asyncio
+    async def test_async_trace_id_in_score_metadata_with_tracing_enabled(self):
+        """Test that trace_id is added to Score metadata in async evaluation."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        # Set up in-memory exporter to capture spans
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+
+        try:
+            # Create and run evaluator
+            evaluator = self.MockEvaluator(name="test_eval", kind="code")
+            result = await evaluator.async_evaluate({"text": "test input"})
+
+            # Verify trace_id is in metadata
+            assert len(result) == 1
+            assert "trace_id" in result[0].metadata
+            assert isinstance(result[0].metadata["trace_id"], str)
+            assert len(result[0].metadata["trace_id"]) == 32  # hex trace_id length
+        finally:
+            # Reset tracer provider
+            trace.set_tracer_provider(TracerProvider())
+
+    def test_evaluation_behavior_unchanged_when_tracing_fails(self):
+        """Test that evaluation continues to work even if tracing fails."""
+        # Create and run evaluator with NoOp tracing
+        evaluator = self.MockEvaluator(name="test_eval", kind="code")
+        result = evaluator.evaluate({"text": "test input"})
+
+        # Verify evaluation still works correctly
+        assert len(result) == 1
+        assert result[0].name == "test_eval"
+        assert result[0].score == 0.8
+        assert result[0].kind == "code"
+
+
+# ---------------------------------------------------------------------------
+# SmartString coercion
+# ---------------------------------------------------------------------------
+
+
+class TestSmartString:
+    """SmartString coerces non-strings to JSON, not Python repr."""
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            pytest.param("hello", "hello", id="string passthrough"),
+            pytest.param("", "", id="empty string passthrough"),
+            pytest.param(42, "42", id="integer → JSON number string"),
+            pytest.param(3.14, "3.14", id="float → JSON number string"),
+            pytest.param(True, "true", id="bool True → JSON 'true'"),
+            pytest.param(False, "false", id="bool False → JSON 'false'"),
+            pytest.param(
+                {"key": "value"},
+                '{"key": "value"}',
+                id="dict → JSON object (not Python repr)",
+            ),
+            pytest.param(
+                [1, 2, 3],
+                "[1, 2, 3]",
+                id="list → JSON array (not Python repr)",
+            ),
+            pytest.param(
+                {"nested": {"a": 1}},
+                '{"nested": {"a": 1}}',
+                id="nested dict → JSON",
+            ),
+            pytest.param(None, "null", id="None → JSON null"),
+        ],
+    )
+    def test_coercion(self, value: Any, expected: str) -> None:
+        from pydantic import BaseModel
+
+        class M(BaseModel):
+            v: SmartString
+
+        m = M(v=value)
+        assert m.v == expected
+
+    def test_dict_is_json_not_python_repr(self) -> None:
+        """Verify SmartString produces valid JSON, unlike EnforcedString (str())."""
+        from pydantic import BaseModel
+
+        d = {"key": "value"}
+
+        class S(BaseModel):
+            v: SmartString
+
+        class E(BaseModel):
+            v: EnforcedString
+
+        assert S(v=d).v == json.dumps(d)  # valid JSON
+        assert E(v=d).v == str(d)  # Python repr — different!
+        assert S(v=d).v != E(v=d).v
+
+
+# ---------------------------------------------------------------------------
+# LLMEvaluator schema generation — type-aware field definitions
+# ---------------------------------------------------------------------------
+
+
+class TestLLMEvaluatorSchemaGeneration:
+    """Auto-generated input_schema uses Any for section vars, SmartString for string vars."""
+
+    def _make_evaluator(self, template: str) -> LLMEvaluator:
+        """Create a concrete LLMEvaluator subclass with the given template."""
+        llm = MagicMock(spec=LLM)
+
+        class ConcreteEvaluator(LLMEvaluator):
+            def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+                return []
+
+        return ConcreteEvaluator(name="test", llm=llm, prompt_template=template)
+
+    def test_string_var_field_coerces_dict_to_json(self) -> None:
+        evaluator = self._make_evaluator("Rate: {{query}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        # Providing a dict for a string var → JSON string
+        result = schema.model_validate({"query": {"a": 1}})
+        assert result.query == '{"a": 1}'  # type: ignore[attr-defined]
+
+    def test_string_var_field_passes_through_string_unchanged(self) -> None:
+        evaluator = self._make_evaluator("Rate: {{query}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        result = schema.model_validate({"query": "my query"})
+        assert result.query == "my query"  # type: ignore[attr-defined]
+
+    def test_section_var_field_passes_through_list(self) -> None:
+        evaluator = self._make_evaluator("Docs: {{#docs}}{{.}}{{/docs}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        docs_list = ["doc1", "doc2"]
+        result = schema.model_validate({"docs": docs_list})
+        assert result.docs == docs_list  # type: ignore[attr-defined]
+
+    def test_section_var_field_passes_through_dict(self) -> None:
+        evaluator = self._make_evaluator("{{#obj}}{{key}}{{/obj}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        d = {"key": "val"}
+        result = schema.model_validate({"obj": d})
+        assert result.obj == d  # type: ignore[attr-defined]
+
+    def test_mixed_template_correct_field_types(self) -> None:
+        evaluator = self._make_evaluator("Query: {{query}}\n{{#docs}}{{.}}{{/docs}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        docs = ["d1", "d2"]
+        result = schema.model_validate({"query": "what?", "docs": docs})
+        assert result.query == "what?"  # type: ignore[attr-defined]
+        assert result.docs == docs  # type: ignore[attr-defined]
+
+    def test_explicit_input_schema_still_respected(self) -> None:
+        from pydantic import BaseModel
+
+        class MySchema(BaseModel):
+            query: str
+            docs: List[str]
+
+        llm = MagicMock(spec=LLM)
+
+        class ConcreteEvaluator(LLMEvaluator):
+            def _evaluate(self, eval_input: Dict[str, Any]) -> List[Score]:
+                return []
+
+        evaluator = ConcreteEvaluator(
+            name="test",
+            llm=llm,
+            prompt_template="{{query}} {{#docs}}{{.}}{{/docs}}",
+            input_schema=MySchema,
+        )
+        assert evaluator.input_schema is MySchema
+
+    def test_backward_compat_string_only_inputs_unchanged(self) -> None:
+        """Pure-string inputs behave identically before and after this change."""
+        evaluator = self._make_evaluator("{{query}} vs {{reference}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        result = schema.model_validate({"query": "q", "reference": "r"})
+        assert result.query == "q"  # type: ignore[attr-defined]
+        assert result.reference == "r"  # type: ignore[attr-defined]
+
+    def test_dotted_mustache_var_uses_root_object_in_schema(self) -> None:
+        evaluator = self._make_evaluator("User: {{user.name}}")
+        schema = evaluator.input_schema
+        assert schema is not None
+        assert set(schema.model_fields.keys()) == {"user"}
+        result = schema.model_validate({"user": {"name": "Alice"}})
+        assert result.user == {"name": "Alice"}  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# End-to-end: section var iterates, string var JSON-serialised in prompt
+# ---------------------------------------------------------------------------
+
+
+class TestLLMEvaluatorStructuredInputEndToEnd:
+    """Verify the rendered prompt contains correctly formatted structured inputs."""
+
+    def _render_prompt(self, template: str, eval_input: Dict[str, Any]) -> str:
+        """Helper: validate input through schema and render the prompt."""
+        llm = MagicMock(spec=LLM)
+
+        class ConcreteEvaluator(LLMEvaluator):
+            def _evaluate(self, eval_input_: Dict[str, Any]) -> List[Score]:
+                return []
+
+        evaluator = ConcreteEvaluator(name="test", llm=llm, prompt_template=template)
+        schema = evaluator.input_schema
+        assert schema is not None
+        validated = schema.model_validate(eval_input)
+        rendered = evaluator.prompt_template.render(validated.model_dump())
+        return rendered[0]["content"]
+
+    def test_list_input_to_section_var_iterates(self) -> None:
+        """A list passed to a section var is iterated by pystache, not stringified."""
+        template = "Docs:\n{{#docs}}- {{.}}\n{{/docs}}"
+        rendered = self._render_prompt(template, {"docs": ["alpha", "beta", "gamma"]})
+        assert "- alpha" in rendered
+        assert "- beta" in rendered
+        assert "- gamma" in rendered
+        # Should NOT contain Python list repr
+        assert "['alpha'" not in rendered
+
+    def test_dict_input_to_string_var_is_json(self) -> None:
+        """A dict passed to a string var is JSON-serialised, not Python repr."""
+        template = "Context: {{context}}"
+        rendered = self._render_prompt(template, {"context": {"key": "val"}})
+        assert rendered == 'Context: {"key": "val"}'
+        assert "{'key'" not in rendered  # no Python repr
+
+    def test_string_input_to_string_var_unchanged(self) -> None:
+        template = "Query: {{query}}"
+        rendered = self._render_prompt(template, {"query": "find me"})
+        assert rendered == "Query: find me"
+
+    def test_dotted_mustache_var_renders_from_root_object(self) -> None:
+        template = "User: {{user.name}}"
+        rendered = self._render_prompt(template, {"user": {"name": "Alice"}})
+        assert rendered == "User: Alice"

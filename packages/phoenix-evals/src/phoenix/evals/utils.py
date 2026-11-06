@@ -1,30 +1,133 @@
+import functools
 import inspect
 import json
+import os
+import warnings
+from io import BytesIO
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Union
+from urllib.error import HTTPError
+from urllib.request import urlopen
+from zipfile import ZipFile
 
 import pandas as pd
-from jsonpath_ng import parse  # type: ignore
-from jsonpath_ng.exceptions import JsonPathParserError  # type: ignore
+from jsonpath_ng.exceptions import JsonPathParserError
+from jsonpath_ng.parser import JsonPathParser
 
-from phoenix.evals.legacy.utils import (
-    _EXPLANATION,  # pyright: ignore[reportPrivateUsage]
-    _FUNCTION_NAME,  # pyright: ignore[reportPrivateUsage]
-    _RESPONSE,  # pyright: ignore[reportPrivateUsage]
-    NOT_PARSABLE,
-    SUPPORTED_AUDIO_FORMATS,
-    SUPPORTED_IMAGE_FORMATS,
-    download_benchmark_dataset,
-    emoji_guard,
-    get_audio_format_from_base64,
-    get_image_format_from_base64,
-    get_tqdm_progress_bar_formatter,
-    openai_function_call_kwargs,
-    parse_openai_function_call,
-    printif,
-    snap_to_rail,
-)
+
+def download_benchmark_dataset(task: str, dataset_name: str) -> "pd.DataFrame":
+    """Downloads an Arize evals benchmark dataset as a pandas dataframe.
+
+    Args:
+        task (str): Task to be performed.
+        dataset_name (str): Name of the dataset.
+
+    Returns:
+        pandas.DataFrame: A pandas dataframe containing the data.
+    """
+    jsonl_file_name = f"{dataset_name}.jsonl"
+    url = f"http://storage.googleapis.com/arize-phoenix-assets/evals/{task}/{jsonl_file_name}.zip"
+    try:
+        with urlopen(url) as response:
+            zip_byte_stream = BytesIO(response.read())
+            with ZipFile(zip_byte_stream) as zip_file:
+                with zip_file.open(jsonl_file_name) as jsonl_file:
+                    return pd.DataFrame(map(json.loads, jsonl_file.readlines()))
+    except HTTPError:
+        raise ValueError(f'Dataset "{dataset_name}" for "{task}" task does not exist.')
+
+
+def emoji_guard(emoji: str, fallback: str = "") -> str:
+    """Return emoji on non-Windows systems, fallback on Windows.
+
+    Args:
+        emoji (str): The emoji string to display.
+        fallback (str, optional): The fallback string for Windows. Defaults to "".
+
+    Returns:
+        str: The emoji or fallback string depending on the operating system.
+    """
+    if os.name == "nt":
+        return fallback
+    return emoji
+
 
 InputMappingType = Optional[Mapping[str, Union[str, Callable[[Mapping[str, Any]], Any]]]]
+
+
+def _deprecate_positional_args(
+    func_name: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """
+    Decorator to issue deprecation warnings for positional argument usage.
+
+    Args:
+        func_name: Name of the function being decorated (for warning message)
+    """
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            # Issue deprecation warning if called with ANY positional arguments
+            if len(args) > 0:
+                warnings.warn(
+                    f"Positional arguments for {func_name} are deprecated and will be removed "
+                    f"in a future version. Please use keyword arguments instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def _deprecate_source_and_heuristic(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator to deprecate the 'source' argument in favor of 'kind'.
+
+    Args:
+        func (Callable[..., Any]): Function to be decorated that may receive
+            a deprecated 'source' argument.
+
+    Returns:
+        Callable[..., Any]: Wrapper function that converts 'source' argument
+            to 'kind' and issues deprecation warning.
+    """
+    # TODO:Remove this once the `source` arg in Scores/Evaluators is no longer supported
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(func)
+
+        # Prevent silent override if both 'kind' and deprecated 'source' are provided and differ
+        if "source" in kwargs and "kind" in kwargs and kwargs["kind"] != kwargs["source"]:
+            raise ValueError("Provide only one of 'kind' or 'source' (they differ). Use 'kind'.")
+
+        if "source" in kwargs:
+            warnings.warn(
+                "'source' is deprecated; next time, use 'kind' instead. This time, we'll \
+                automatically convert it for you.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            # Only set kind from source if kind wasn't already provided (or equal)
+            if "kind" not in kwargs:
+                kwargs["kind"] = kwargs["source"]
+            kwargs.pop("source")
+        if kwargs.get("kind") == "heuristic":
+            warnings.warn(
+                "Kind 'heuristic' is deprecated; next time, use 'code' instead. This time, we'll \
+                automatically convert it for you.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["kind"] = "code"
+        bound_args = signature.bind_partial(*args, **kwargs)
+        bound_args.apply_defaults()
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return wrapper
 
 
 # --- Input Map/Transform Helpers ---
@@ -68,6 +171,7 @@ def _bind_mapping_function(
     return mapping_function(**bound.arguments)
 
 
+@_deprecate_positional_args("remap_eval_input")
 def remap_eval_input(
     eval_input: Mapping[str, Any],
     required_fields: Set[str],
@@ -183,7 +287,7 @@ def extract_with_jsonpath(data: Mapping[str, Any], path: str, match_all: bool = 
         JsonPathParserError: If the path is not parseable (invalid syntax).
         ValueError: If the path is invalid or not found (missing key, index out of bounds, etc).
     """
-    expr = parse(path)
+    expr = JsonPathParser().parse(path)
     matches = expr.find(data)
     if not matches:
         raise ValueError(f"Path not found: {path}")
@@ -245,28 +349,44 @@ def _format_score_data(
     eval_df = dataframe[span_id_cols + [score_column]].copy()
 
     # Parse JSON score data
-    cols = ["score", "label", "explanation", "source"]
-    parsed_score_col = eval_df[score_column].apply(
-        lambda x: json.loads(x) if isinstance(x, str) and x else None
-    )
+    cols = ["score", "label", "explanation", "kind"]
+
+    def _safe_json_load(x: Any) -> Any:
+        if isinstance(x, str):
+            if not x.strip():  # empty string
+                return None
+            return json.loads(x)  # JSON string
+        elif isinstance(x, dict):
+            return x  # already parsed
+        else:
+            return None
+
+    parsed_score_col = eval_df[score_column].apply(_safe_json_load)
+
     eval_df[cols] = parsed_score_col.apply(lambda d: pd.Series([(d or {}).get(k) for k in cols]))
 
     eval_df["metadata"] = parsed_score_col.apply(
         lambda d: _merge_metadata_with_direction(d) if d else None
     )
 
-    # Infer annotator_kind from score.source in first non-null score
+    # Infer annotator_kind from score.kind (preferred) or score.source in first non-null score
+    # TODO: Update this once we deprecate the source attribute
     annotator_kind = "LLM"  # default
     if not parsed_score_col.isna().all():
         no_na = parsed_score_col.dropna()
         first_score = None if no_na.empty else no_na.iloc[0]
-        if first_score and isinstance(first_score, dict) and "source" in first_score:
-            source = first_score["source"]
-            if source == "heuristic":
+        if first_score and isinstance(first_score, dict):
+            source_or_kind = None
+            if "kind" in first_score:
+                source_or_kind = first_score["kind"]
+            elif "source" in first_score:
+                source_or_kind = first_score["source"]
+            # TODO: Remove this once we deprecate heuristic kind
+            if source_or_kind in ["heuristic", "code"]:
                 annotator_kind = "CODE"
-            elif source == "llm":
+            elif source_or_kind == "llm":
                 annotator_kind = "LLM"
-            elif source == "human":
+            elif source_or_kind == "human":
                 annotator_kind = "HUMAN"
 
     # Add annotation name and kind columns
@@ -287,6 +407,7 @@ def _format_score_data(
     return eval_df
 
 
+@_deprecate_positional_args("to_annotation_dataframe")
 def to_annotation_dataframe(
     dataframe: pd.DataFrame,
     score_names: Optional[List[str]] = None,
@@ -327,15 +448,18 @@ def to_annotation_dataframe(
     """
 
     # Step 1: Identify all span_id sources
-    span_id_cols = [col for col in dataframe.columns if "span_id" in col.lower()]
-    index_is_span_id = dataframe.index.name and "span_id" in dataframe.index.name.lower()
+    span_id_cols = [
+        col for col in dataframe.columns if isinstance(col, str) and "span_id" in col.lower()
+    ]
+    index_name = dataframe.index.name if isinstance(dataframe.index.name, str) else None
+    index_is_span_id = bool(index_name and "span_id" in index_name.lower())
 
     # Step 2: Create a working copy and preserve all span info
     working_df = dataframe.copy()
 
     if index_is_span_id:
         # Add index as a span_id column if it isn't already a column
-        index_col_name = dataframe.index.name or "span_id"
+        index_col_name = index_name or "span_id"
         if index_col_name not in working_df.columns:
             working_df[index_col_name] = working_df.index
             span_id_cols.append(index_col_name)
@@ -370,26 +494,28 @@ def to_annotation_dataframe(
     return result_df
 
 
+def default_tqdm_progress_bar_formatter(title: str) -> str:
+    """Returns a progress bar formatter for use with tqdm.
+
+    Args:
+        title (str): The title of the progress bar, displayed as a prefix.
+
+    Returns:
+        str: A formatter to be passed to the bar_format argument of tqdm.
+    """
+    return (
+        title + " |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
+        "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}"
+    )
+
+
 __all__ = [
-    # evals 1.0
-    "NOT_PARSABLE",
-    "SUPPORTED_IMAGE_FORMATS",
-    "SUPPORTED_AUDIO_FORMATS",
-    "snap_to_rail",
-    "printif",
-    "parse_openai_function_call",
-    "openai_function_call_kwargs",
-    "get_tqdm_progress_bar_formatter",
-    "get_image_format_from_base64",
-    "get_audio_format_from_base64",
     "emoji_guard",
     "download_benchmark_dataset",
-    "_EXPLANATION",
-    "_RESPONSE",
-    "_FUNCTION_NAME",
     # evals 2.0
     "InputMappingType",
     "remap_eval_input",
     "extract_with_jsonpath",
     "to_annotation_dataframe",
+    "default_tqdm_progress_bar_formatter",
 ]

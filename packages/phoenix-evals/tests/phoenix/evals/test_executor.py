@@ -3,6 +3,7 @@ import os
 import platform
 import queue
 import signal
+import sys
 import threading
 import time
 from unittest.mock import AsyncMock, Mock
@@ -10,12 +11,14 @@ from unittest.mock import AsyncMock, Mock
 import nest_asyncio
 import pytest
 
+from phoenix.evals.exceptions import PhoenixContextLimitExceeded
 from phoenix.evals.executors import (
     AsyncExecutor,
     ExecutionStatus,
     SyncExecutor,
     get_executor_on_sync_context,
 )
+from phoenix.evals.rate_limiters import RateLimitError
 
 # AsyncExecutor tests
 
@@ -441,6 +444,57 @@ def test_sync_executor_retries():
     assert mock_generate.call_count == 4, "1 initial call + 3 retries"
 
 
+def test_sync_executor_recovers_from_transient_rate_limit_error():
+    attempts = 0
+
+    def dummy_fn(payload: int) -> int:
+        nonlocal attempts
+        if payload == 3:
+            attempts += 1
+            if attempts < 2:
+                raise RateLimitError("throttled")
+        return payload - 1
+
+    executor = SyncExecutor(
+        dummy_fn,
+        max_retries=3,
+        exit_on_error=True,
+        fallback_return_value=52,
+    )
+    inputs = [1, 2, 3, 4, 5]
+    outputs, execution_details = executor.run(inputs)
+
+    assert outputs == [0, 1, 2, 3, 4], "the throttled row succeeds on retry"
+    assert execution_details[2].status == ExecutionStatus.COMPLETED_WITH_RETRIES
+
+
+def test_sync_executor_still_treats_other_phoenix_exceptions_as_fatal():
+    def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            raise PhoenixContextLimitExceeded("boom")
+        return payload - 1
+
+    executor = SyncExecutor(
+        dummy_fn,
+        max_retries=3,
+        exit_on_error=True,
+        fallback_return_value=52,
+    )
+    inputs = [1, 2, 3, 4, 5]
+    outputs, execution_details = executor.run(inputs)
+
+    assert outputs == [0, 1, 52, 52, 52]
+    assert execution_details[2].status == ExecutionStatus.FAILED
+    assert len(execution_details[2].exceptions) == 1, "fatal: no retries"
+    assert [status.status for status in execution_details] == [
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.COMPLETED,
+        ExecutionStatus.FAILED,
+        ExecutionStatus.DID_NOT_RUN,
+        ExecutionStatus.DID_NOT_RUN,
+    ]
+
+
 # test executor factory
 
 
@@ -459,6 +513,10 @@ async def test_executor_factory_returns_sync_in_async_context():
     assert isinstance(executor, SyncExecutor)
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 async def test_executor_factory_returns_async_in_patched_async_context():
     nest_asyncio.apply()
 
@@ -535,6 +593,10 @@ def test_executor_factory_returns_sync_in_threads():
         raise exception_log.get()
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 async def test_executor_factory_returns_sync_in_threads_even_if_async_context():
     def sync_fn():
         pass
@@ -569,6 +631,10 @@ async def test_executor_factory_returns_sync_in_threads_even_if_async_context():
         raise exception_log.get()
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="nest_asyncio is incompatible with Python 3.14's C-level asyncio.current_task",
+)
 def test_executor_factory_returns_async_not_in_thread_if_async_context():
     def sync_fn():
         pass
@@ -699,3 +765,31 @@ async def test_executor_ramps_up_when_target_increases() -> None:
     assert outputs == inputs
     assert max_inflight <= 4
     assert max_inflight >= 3
+
+
+async def test_async_executor_timeouts_count_toward_max_retries():
+    attempts = 0
+
+    async def always_slow(payload: int) -> int:
+        nonlocal attempts
+        attempts += 1
+        await asyncio.sleep(10)
+        return payload
+
+    executor = AsyncExecutor(
+        always_slow,
+        timeout=1,
+        max_retries=2,
+        concurrency=1,
+        exit_on_error=True,
+        fallback_return_value=-1,
+        enable_dynamic_concurrency=False,
+    )
+
+    outputs, details = await executor.execute([42])
+
+    assert attempts == 3  # 1 initial + 2 retries
+    assert outputs == [-1]
+    assert details[0].status == ExecutionStatus.FAILED
+    assert len(details[0].exceptions) == 3
+    assert all(isinstance(exc, TimeoutError) for exc in details[0].exceptions)

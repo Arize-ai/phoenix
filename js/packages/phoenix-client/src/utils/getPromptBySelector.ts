@@ -1,7 +1,8 @@
 import invariant from "tiny-invariant";
-import { PromptSelector } from "../types/prompts";
-import { ClientFn } from "../types/core";
+
 import { createClient } from "../client";
+import type { ClientFn } from "../types/core";
+import type { PromptSelector } from "../types/prompts";
 
 /**
  * Parameters for the getPromptBySelector function

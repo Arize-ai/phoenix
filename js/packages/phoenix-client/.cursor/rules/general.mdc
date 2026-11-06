@@ -33,6 +33,7 @@ functions should be prefixed with an action:
 - `get` - gets the entity. Corrolates to HTTP `GET` a specific entity. E.x. `/projects/1`
 - `create` - makes a new entity. Corrolates to HTTP `POST`
 - `list` - get a paginated list of an entity. E.g. `GET` a list `/projects`
+- `update` - modifies an existing entity. Corrolates to HTTP `PATCH` or `PUT`. E.x. `updatePrompt`
 - `add` - attach an entity to another. E.x. `addAnnotation` would be used to attach an annotation to a `span` or `trace`
 - `delete` - permanently delete an entity
 

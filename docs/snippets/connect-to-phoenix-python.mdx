@@ -1,0 +1,10 @@
+Point your code at the Phoenix instance you started. The endpoint below is the default for a local `phoenix serve`; for a deployment running elsewhere, use its hostname instead.
+
+```python
+import os
+
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
+
+# Only if the deployment has authentication enabled
+# os.environ["PHOENIX_API_KEY"] = "your-api-key"
+```

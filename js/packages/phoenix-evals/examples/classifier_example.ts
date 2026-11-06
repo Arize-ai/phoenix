@@ -1,7 +1,8 @@
-/* eslint-disable no-console */
 import assert from "assert";
-import { createClassificationEvaluator } from "../src/llm";
 import { openai } from "@ai-sdk/openai";
+
+/* eslint-disable no-console */
+import { createClassificationEvaluator } from "../src/llm";
 
 const model = openai("gpt-4o-mini");
 

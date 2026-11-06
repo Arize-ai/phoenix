@@ -1,0 +1,105 @@
+---
+title: "AutoGen AgentChat Tracing"
+description: Auto-instrument your AgentChat application for seamless observability
+---
+
+import StartPhoenix from "../../../../snippets/start-phoenix.mdx";
+import ConnectToPhoenixPython from "../../../../snippets/connect-to-phoenix-python.mdx";
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[AutoGen AgentChat](https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/index.html) is the framework within Microsoft's AutoGen that enables robust multi-agent application.
+
+## Launch Phoenix
+
+<StartPhoenix />
+
+**Install packages:**
+
+```bash
+pip install arize-phoenix-otel
+```
+
+<ConnectToPhoenixPython />
+
+## Install
+
+```bash
+pip install openinference-instrumentation-autogen-agentchat \
+  openinference-instrumentation-openai autogen-agentchat autogen_ext openai tiktoken
+```
+
+## Setup
+
+<RegisterTracerPython projectName="agentchat-agent" />
+
+## Run AutoGen AgentChat
+
+We’re going to run an `AgentChat` example using a multi-agent team. To get started, install the required packages to use your LLMs with `AgentChat`. In this example, we’ll use OpenAI as the LLM provider.
+
+```sh
+pip install autogen_ext openai
+```
+
+```python expandable
+import asyncio
+import os
+from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
+from autogen_agentchat.teams import RoundRobinGroupChat
+from autogen_ext.models.openai._openai_client import OpenAIChatCompletionClient
+
+async def main():
+    model_client = OpenAIChatCompletionClient(
+        model="gpt-5.6-sol",
+        # AutoGen's built-in model table stops at GPT-5, so describe newer models yourself.
+        model_info={"vision": True, "function_calling": True, "json_output": True, "structured_output": True, "family": "unknown"},
+    )
+
+    # Create two agents: a primary and a critic
+    primary_agent = AssistantAgent(
+        "primary",
+        model_client=model_client,
+        system_message="You are a helpful AI assistant.",
+    )
+
+    critic_agent = AssistantAgent(
+        "critic",
+        model_client=model_client,
+        system_message="""
+        Provide constructive feedback.
+        Respond with 'APPROVE' when your feedbacks are addressed.
+        """,
+    )
+
+    # Termination condition: stop when the critic says "APPROVE"
+    text_termination = TextMentionTermination("APPROVE")
+
+    # Create a team with both agents
+    team = RoundRobinGroupChat(
+        [primary_agent, critic_agent],
+    termination_condition=text_termination | MaxMessageTermination(4)
+    )
+
+    # Run the team on a task
+    result = await team.run(task="Write a short poem about the fall season.")
+    await model_client.close()
+    print(result)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Observe
+
+Phoenix provides visibility into your AgentChat operations by automatically tracing all interactions.
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/agentchat-phoenix.png" alt="AutoGen AgentChat spans and model output in Phoenix" />
+</Frame>
+
+## Resources
+
+* [AutoGen AgentChat documentation](https://microsoft.github.io/autogen/stable//user-guide/agentchat-user-guide/index.html)
+
+* [AutoGen AgentChat OpenInference Package](https://pypi.org/project/openinference-instrumentation-autogen-agentchat/)
+

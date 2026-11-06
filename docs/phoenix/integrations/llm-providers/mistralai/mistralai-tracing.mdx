@@ -1,0 +1,57 @@
+---
+title: "MistralAI Tracing"
+description: Instrument LLM calls made using MistralAI's SDK via the MistralAIInstrumentor
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+MistralAI is a leading provider for state-of-the-art LLMs. The MistralAI SDK can be instrumented using the [`openinference-instrumentation-mistralai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-mistralai) package.
+
+## Install
+
+```bash
+pip install openinference-instrumentation-mistralai mistralai
+```
+
+## Setup
+
+Set the `MISTRAL_API_KEY` environment variable to authenticate calls made using the SDK.
+
+```javascript
+export MISTRAL_API_KEY=[your_key_here]
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Mistral
+
+```python
+import os
+
+from mistralai.client import Mistral
+
+api_key = os.environ["MISTRAL_API_KEY"]
+model = "mistral-small-latest"
+
+client = Mistral(api_key=api_key)
+
+chat_response = client.chat.complete(
+    model=model,
+    messages=[{"role": "user", "content": "What is the best French cheese?"}],
+)
+print(chat_response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing setup, all invocations of Mistral (completions, chat completions, embeddings) will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources
+
+* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples/chat_completions.py)
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai)
+
+* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-mistralai/examples)
+
+

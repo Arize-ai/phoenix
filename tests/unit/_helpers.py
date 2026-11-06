@@ -2,17 +2,54 @@ from datetime import datetime, timedelta, timezone
 from functools import singledispatch
 from secrets import token_hex
 from typing import Any, Dict, Optional, Sequence, Type, TypeVar, Union, cast
+from uuid import UUID, uuid5
 
-import httpx
-from sqlalchemy import select
+import httpx2
+from sqlalchemy import Result, Row, Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Span import Span
+
+_MESSAGE_ID_NAMESPACE = UUID("6f1a7f5e-3f4d-4a5b-8c9d-0e1f2a3b4c5d")
+
+
+def _selects_from(statement: Any, table: Type[models.Base]) -> bool:
+    """Whether a statement is a SELECT whose first column belongs to the table."""
+    if not isinstance(statement, Select):
+        return False
+    descriptions = statement.column_descriptions
+    return bool(descriptions) and descriptions[0].get("entity") is table
+
+
+def _peek_first_row(result: Result[Any]) -> tuple[Result[Any], Optional[Row[Any]]]:
+    """Read a result's first row and return a fresh result that still yields every row."""
+    frozen = result.freeze()
+    rows = frozen.data
+    return frozen(), (rows[0] if rows else None)
+
+
+def _message_uuid(label: str) -> str:
+    """A stable UUID standing in for a readable transcript-message label.
+
+    ``agent_session_messages.message_id`` is CHECK-constrained to UUID form at
+    the database level, so a bare label like ``"user-1"`` cannot be used as a
+    message id. This keeps the label readable at the call site and returns the
+    same id every time, so a test can still refer to a message by its label.
+    """
+    return str(uuid5(_MESSAGE_ID_NAMESPACE, label))
+
+
+def _agent_session_model_kwargs() -> dict[str, Any]:
+    return {
+        "model_provider": ModelProvider.OPENAI,
+        "model_name": "gpt-test",
+    }
 
 
 @singledispatch
@@ -34,7 +71,7 @@ async def _node(
     field: str,
     type_name: str,
     id_: int,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> dict[str, Any]:
     query = "query($id:ID!){node(id:$id){... on " + type_name + "{" + field + "}}}"
     gid = str(GlobalID(type_name, str(id_)))
@@ -104,6 +141,8 @@ async def _add_span(
     cumulative_error_count: int = 0,
     cumulative_llm_token_count_prompt: int = 0,
     cumulative_llm_token_count_completion: int = 0,
+    llm_token_count_prompt: Optional[int] = None,
+    llm_token_count_completion: Optional[int] = None,
 ) -> models.Span:
     start_time = start_time or datetime.now(timezone.utc)
     end_time = end_time or (start_time + timedelta(seconds=10))
@@ -128,6 +167,8 @@ async def _add_span(
         cumulative_error_count=cumulative_error_count,
         cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
         cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+        llm_token_count_prompt=llm_token_count_prompt,
+        llm_token_count_completion=llm_token_count_completion,
         attributes=attributes or {},
         trace_rowid=trace_rowid,
     )
@@ -142,13 +183,16 @@ async def _add_project_session(
     project: models.Project,
     session_id: Optional[str] = None,
     start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
 ) -> models.ProjectSession:
     start_time = start_time or datetime.now(timezone.utc)
+    end_time = end_time or start_time
+    assert start_time <= end_time, "a session's end_time cannot precede its start_time"
     project_session = models.ProjectSession(
         session_id=session_id or token_hex(4),
         project_id=project.id,
         start_time=start_time,
-        end_time=start_time,
+        end_time=end_time,
     )
     session.add(project_session)
     await session.flush()
@@ -324,3 +368,11 @@ async def verify_experiment_examples_junction_table(
     assert actual_examples_set == expected_examples_set, (
         f"Junction table entries {actual_examples_set} don't match expected {expected_examples_set}"
     )
+
+
+async def _user_role_id(session: AsyncSession, name: str) -> int:
+    """The id of a user role the app seeds at startup, which every test
+    database already carries."""
+    role_id = await session.scalar(select(models.UserRole.id).where(models.UserRole.name == name))
+    assert role_id is not None, f"user role {name!r} is not seeded"
+    return int(role_id)

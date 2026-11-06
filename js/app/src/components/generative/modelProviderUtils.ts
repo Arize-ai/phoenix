@@ -1,0 +1,245 @@
+import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
+import type { CredentialsProps } from "@phoenix/store/credentialsStore";
+import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
+
+import type {
+  GenerativeModelSDK,
+  GenerativeProviderKey,
+} from "./__generated__/useModelMenuDataQuery.graphql";
+
+const GENERATIVE_MODEL_SDK_TO_PROVIDER_KEY: Record<
+  GenerativeModelSDK,
+  GenerativeProviderKey
+> = {
+  OPENAI: "OPENAI",
+  AZURE_OPENAI: "AZURE_OPENAI",
+  ANTHROPIC: "ANTHROPIC",
+  AWS_BEDROCK: "AWS",
+  GOOGLE_GENAI: "GOOGLE",
+};
+
+export function getProviderKeyForGenerativeModelSDK(
+  sdk: GenerativeModelSDK
+): GenerativeProviderKey {
+  return GENERATIVE_MODEL_SDK_TO_PROVIDER_KEY[sdk];
+}
+
+/**
+ * Browser-local credential values keyed by provider, then by env var name.
+ */
+export type LocalProviderCredentials = CredentialsProps;
+
+/**
+ * Minimal provider info needed to determine readiness.
+ */
+export type ProviderCredentialStatus = {
+  key: string;
+  dependenciesInstalled: boolean;
+  credentialsSet: boolean;
+};
+
+/**
+ * Providers that can authenticate through an ambient default credential chain
+ * with no credentials visible to Phoenix — an attached IAM role for AWS
+ * Bedrock, or DefaultAzureCredential (Managed Identity / AD token) for Azure
+ * OpenAI. The server cannot detect these, so absence of explicit credentials
+ * does not mean the provider is unusable.
+ *
+ * Each maps to a description of where its ambient credentials come from, so
+ * a provider can't be added here without one.
+ */
+const DEFAULT_CREDENTIAL_CHAIN_SOURCES: Partial<Record<ModelProvider, string>> =
+  {
+    AWS: "the AWS credential chain, such as an IAM role",
+    AZURE_OPENAI: "an Azure managed identity",
+  };
+
+/**
+ * Where a provider's ambient default credentials come from, or null if it
+ * has no default credential chain.
+ */
+export function getDefaultCredentialChainSource({
+  providerKey,
+}: {
+  providerKey: string;
+}): string | null {
+  if (!isModelProvider(providerKey)) {
+    return null;
+  }
+  return DEFAULT_CREDENTIAL_CHAIN_SOURCES[providerKey] ?? null;
+}
+
+export function providerSupportsDefaultCredentialChain({
+  providerKey,
+}: {
+  providerKey: string;
+}): boolean {
+  return getDefaultCredentialChainSource({ providerKey }) !== null;
+}
+
+/**
+ * Whether a provider requires any credentials at all.
+ * Unknown providers are assumed to require credentials.
+ */
+export function providerRequiresCredentials({
+  providerKey,
+}: {
+  providerKey: string;
+}): boolean {
+  if (!isModelProvider(providerKey)) {
+    return true;
+  }
+  return ProviderToCredentialsConfigMap[providerKey].length > 0;
+}
+
+/**
+ * Whether the browser-local credential store satisfies every required
+ * credential for the provider.
+ */
+export function hasRequiredLocalCredentials({
+  providerKey,
+  localCredentials,
+}: {
+  providerKey: string;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  if (!isModelProvider(providerKey)) {
+    return false;
+  }
+  const requirements = ProviderToCredentialsConfigMap[providerKey].filter(
+    (requirement) => requirement.isRequired
+  );
+  if (!requirements.length) {
+    return false;
+  }
+  const stored = localCredentials[providerKey];
+  return requirements.every((requirement) =>
+    Boolean(stored?.[requirement.envVarName]?.trim())
+  );
+}
+
+/**
+ * Whether the provider's credentials are explicitly satisfied on the server
+ * or in the browser.
+ */
+function hasExplicitCredentials({
+  provider,
+  localCredentials,
+}: {
+  provider: ProviderCredentialStatus;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  return (
+    provider.credentialsSet ||
+    hasRequiredLocalCredentials({
+      providerKey: provider.key,
+      localCredentials,
+    })
+  );
+}
+
+/**
+ * Whether the provider needs credentials before it can be used: it requires
+ * credentials and none are explicitly set on the server or in the browser.
+ * Default-credential-chain providers (AWS Bedrock, Azure OpenAI) still count
+ * — ambient credentials cannot be detected, so the hint errs on the side of
+ * pointing the user at configuration.
+ */
+export function providerNeedsCredentials({
+  provider,
+  localCredentials,
+}: {
+  provider: ProviderCredentialStatus;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  return (
+    providerRequiresCredentials({ providerKey: provider.key }) &&
+    !hasExplicitCredentials({ provider, localCredentials })
+  );
+}
+
+/**
+ * Whether a provider is ready to use: its server dependencies are installed
+ * and its credentials are satisfied on the server or in the browser.
+ * Providers with no credential requirements (e.g. Ollama) are always ready.
+ * Providers that fall back to a default credential chain (AWS Bedrock, Azure
+ * OpenAI) are ready whenever their dependencies are installed, since ambient
+ * credentials cannot be detected.
+ */
+export function isProviderReady({
+  provider,
+  localCredentials,
+}: {
+  provider: ProviderCredentialStatus;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  return (
+    provider.dependenciesInstalled &&
+    (providerSupportsDefaultCredentialChain({ providerKey: provider.key }) ||
+      hasExplicitCredentials({ provider, localCredentials }))
+  );
+}
+
+/**
+ * Whether the user has explicitly provisioned credentials for the provider,
+ * regardless of whether its server dependencies are installed.
+ * Providers that require no credentials are always ready but never count as
+ * provisioned — otherwise they would mask the "no credentials yet" state.
+ * Likewise, default-credential-chain providers count only when credentials
+ * are explicitly set.
+ */
+export function isProviderProvisioned({
+  provider,
+  localCredentials,
+}: {
+  provider: ProviderCredentialStatus;
+  localCredentials: LocalProviderCredentials;
+}): boolean {
+  return (
+    providerRequiresCredentials({ providerKey: provider.key }) &&
+    hasExplicitCredentials({ provider, localCredentials })
+  );
+}
+
+/**
+ * Region prefixes of AWS Bedrock cross-region inference profiles, as in
+ * `us.anthropic.claude-*` or `global.anthropic.claude-*`: the prefixes the
+ * Bedrock preference can apply.
+ */
+export const BEDROCK_REGION_PREFIXES: readonly string[] =
+  awsBedrockModelPrefixes.filter((prefix) => prefix !== "");
+
+/**
+ * The known region prefix a Bedrock model id starts with (`us-gov` for
+ * `us-gov.anthropic.x`, never `us`), or null.
+ */
+export function getBedrockRegionPrefix(modelName: string): string | null {
+  return (
+    BEDROCK_REGION_PREFIXES.find((prefix) =>
+      modelName.startsWith(`${prefix}.`)
+    ) ?? null
+  );
+}
+
+/** A Bedrock model id without its known region prefix, if it has one. */
+export function stripBedrockRegionPrefix(modelName: string): string {
+  const regionPrefix = getBedrockRegionPrefix(modelName);
+  return regionPrefix ? modelName.slice(regionPrefix.length + 1) : modelName;
+}
+
+/**
+ * Prefixes a Bedrock model id with the preferred region. An id that already
+ * names a known region keeps it: the explicit region wins over the
+ * preference. An empty prefix leaves the id as is.
+ */
+export function applyBedrockModelPrefix({
+  modelName,
+  prefix,
+}: {
+  modelName: string;
+  prefix: string;
+}): string {
+  const hasRegionPrefix = getBedrockRegionPrefix(modelName) != null;
+  return !prefix || hasRegionPrefix ? modelName : `${prefix}.${modelName}`;
+}

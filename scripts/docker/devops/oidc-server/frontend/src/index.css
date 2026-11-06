@@ -54,12 +54,26 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--bg-gradient-start) 0%,
+    var(--bg-gradient-end) 100%
+  );
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -77,17 +91,25 @@ body {
 .container {
   background: var(--card-bg);
   border-radius: 16px;
-  box-shadow: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px var(--shadow-color-2);
+  box-shadow:
+    0 20px 25px -5px var(--shadow-color),
+    0 10px 10px -5px var(--shadow-color-2);
   padding: 40px;
   text-align: center;
   position: relative;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .logo {
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, var(--avatar-bg-start) 0%, var(--avatar-bg-end) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--avatar-bg-start) 0%,
+    var(--avatar-bg-end) 100%
+  );
   border-radius: 12px;
   margin: 0 auto 24px;
   display: flex;
@@ -153,7 +175,11 @@ body {
 .user-avatar {
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, var(--avatar-bg-start) 0%, var(--avatar-bg-end) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--avatar-bg-start) 0%,
+    var(--avatar-bg-end) 100%
+  );
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -234,7 +260,11 @@ body {
 .user-avatar-compact {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, var(--avatar-bg-start) 0%, var(--avatar-bg-end) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--avatar-bg-start) 0%,
+    var(--avatar-bg-end) 100%
+  );
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -285,7 +315,6 @@ body {
   white-space: nowrap;
 }
 
-
 .error {
   background: var(--error-bg);
   color: var(--error-text);
@@ -293,7 +322,9 @@ body {
   padding: 16px;
   margin-bottom: 24px;
   font-size: 14px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .loading {
@@ -313,8 +344,12 @@ body {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 768px) {
@@ -327,35 +362,35 @@ body {
   #root {
     padding: 16px;
   }
-  
+
   .container {
     padding: 24px;
   }
-  
+
   .title {
     font-size: 24px;
   }
-  
+
   .user-card {
     padding: 16px;
   }
-  
+
   .user-card-compact {
     padding: 12px;
     min-height: 60px;
   }
-  
+
   .user-avatar-compact {
     width: 36px;
     height: 36px;
     font-size: 14px;
     margin-right: 10px;
   }
-  
+
   .user-name-compact {
     font-size: 14px;
   }
-  
+
   .user-email-compact {
     font-size: 12px;
   }
@@ -435,7 +470,6 @@ body {
   line-height: 1.6;
   margin-bottom: 2rem;
 }
-
 
 .theme-toggle:hover .theme-toggle-icon {
   color: var(--text-primary);

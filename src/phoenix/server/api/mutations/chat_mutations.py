@@ -1,645 +1,508 @@
-import asyncio
 import logging
-from dataclasses import asdict, field
-from datetime import datetime, timezone
-from itertools import chain, islice
-from traceback import format_exc
-from typing import Any, Iterable, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Optional, Sequence, cast
 
 import strawberry
-from openinference.instrumentation import safe_json_dumps
-from openinference.semconv.trace import (
-    MessageAttributes,
-    OpenInferenceMimeTypeValues,
-    OpenInferenceSpanKindValues,
-    SpanAttributes,
-    ToolAttributes,
-    ToolCallAttributes,
-)
-from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
-from opentelemetry.trace import StatusCode
-from sqlalchemy import insert, select
+from pydantic import ValidationError
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
-from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
-from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import (
-    get_dataset_example_revisions,
-    insert_experiment_with_examples_snapshot,
+from phoenix.db.types.annotation_configs import (
+    CategoricalOutputConfig,
+    ContinuousOutputConfig,
+    FreeformOutputConfig,
 )
+from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
-from phoenix.server.api.helpers.dataset_helpers import get_dataset_example_output
+from phoenix.server.api.evaluators import (
+    CodeEvaluatorRunner,
+    create_llm_evaluator_from_inline,
+    get_builtin_evaluator_by_key,
+)
+from phoenix.server.api.evaluators import (
+    EvaluationResult as EvaluationResultDict,
+)
+from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.evaluators import (
+    validate_evaluator_prompt_and_configs,
+)
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClientCredential,
-    PlaygroundStreamingClient,
+    get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
-from phoenix.server.api.helpers.playground_spans import (
-    input_value_and_mime_type,
-    llm_input_messages,
-    llm_invocation_parameters,
-    llm_model_name,
-    llm_span_kind,
-    llm_tools,
-    prompt_metadata,
+from phoenix.server.api.input_types.EvaluatorPreviewInput import (
+    EvaluatorPreviewsInput,
 )
-from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
-from phoenix.server.api.input_types.ChatCompletionInput import (
-    ChatCompletionInput,
-    ChatCompletionOverDatasetInput,
+from phoenix.server.api.mutations.evaluator_mutations import (
+    _convert_output_config_inputs_to_pydantic,
 )
-from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
-from phoenix.server.api.subscriptions import (
-    _default_playground_experiment_name,
+from phoenix.server.api.types.Evaluator import BuiltInEvaluator, CodeEvaluator
+from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnotation
+from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
+from phoenix.server.api.types.SandboxConfig import SandboxConfig
+from phoenix.server.api.types.Trace import Trace
+from phoenix.server.monty_runtime import (
+    MontyBusy,
+    MontyDeadlineExceeded,
+    MontyServiceError,
+    MontyShuttingDown,
+    MontyUnavailable,
+    MontyWorkerCrashed,
+    MontyWorkerTurnTimedOut,
 )
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
-from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
-    TextChunk,
-    ToolCallChunk,
+from phoenix.server.sandbox import (
+    MissingSecretError,
+    SecretsContext,
+    build_sandbox_backend,
 )
-from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.DatasetVersion import DatasetVersion
-from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Span import Span
-from phoenix.server.dml_event import SpanInsertEvent
-from phoenix.server.experiments.utils import generate_experiment_project_name
-from phoenix.trace.attributes import unflatten
-from phoenix.trace.schemas import SpanException
-from phoenix.utilities.json import jsonify
-from phoenix.utilities.template_formatters import (
-    FStringTemplateFormatter,
-    MustacheTemplateFormatter,
-    NoOpFormatter,
-    TemplateFormatter,
-)
+from phoenix.server.sandbox.types import UnsupportedOperation
 
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
-ChatCompletionMessage = tuple[ChatCompletionMessageRole, str, Optional[str], Optional[List[Any]]]
+
+@strawberry.type
+class EvaluationResult:
+    evaluator_name: str
+    annotation: Optional[ExperimentRunAnnotation] = None
+    trace: Optional[Trace] = None
+    error: Optional[str] = None
 
 
 @strawberry.type
-class ChatCompletionFunctionCall:
-    name: str
-    arguments: str
+class EvaluatorPreviewsPayload:
+    results: list[EvaluationResult]
 
 
-@strawberry.type
-class ChatCompletionToolCall:
-    id: str
-    function: ChatCompletionFunctionCall
+def _to_annotation(eval_result: EvaluationResultDict) -> ExperimentRunAnnotation:
+    return ExperimentRunAnnotation.from_dict(
+        {
+            "name": eval_result["name"],
+            "annotator_kind": eval_result["annotator_kind"],
+            "label": eval_result["label"],
+            "score": eval_result["score"],
+            "explanation": eval_result["explanation"],
+            "error": eval_result["error"],
+            "metadata": eval_result["metadata"],
+            "start_time": eval_result["start_time"],
+            "end_time": eval_result["end_time"],
+            "trace_id": eval_result["trace_id"],
+        }
+    )
 
 
-@strawberry.type
-class ChatCompletionMutationPayload:
-    db_span: strawberry.Private[models.Span]
-    content: Optional[str]
-    tool_calls: List[ChatCompletionToolCall]
-    span: Span
-    error_message: Optional[str]
+def _to_evaluation_result(
+    eval_result: EvaluationResultDict,
+    evaluator_name: str,
+    trace: Optional[Trace] = None,
+) -> EvaluationResult:
+    if eval_result["error"] is not None:
+        return EvaluationResult(
+            evaluator_name=evaluator_name,
+            error=eval_result["error"],
+            trace=trace,
+        )
+    return EvaluationResult(
+        evaluator_name=evaluator_name,
+        annotation=_to_annotation(eval_result),
+        trace=trace,
+    )
 
 
-@strawberry.type
-class ChatCompletionMutationError:
-    message: str
+async def _evaluate_code_preview(
+    runner: CodeEvaluatorRunner,
+    *,
+    context: dict[str, Any],
+    input_mapping: InputMapping,
+    evaluator_name: str,
+    output_configs: Sequence[
+        CategoricalOutputConfig | ContinuousOutputConfig | FreeformOutputConfig
+    ],
+) -> list[EvaluationResultDict]:
+    try:
+        return await runner.evaluate(
+            context=context,
+            input_mapping=input_mapping,
+            name=evaluator_name,
+            output_configs=output_configs,
+        )
+    except MontyBusy as exc:
+        raise BadRequest("The Monty runtime is busy. Retry shortly.") from exc
+    except MontyUnavailable as exc:
+        raise BadRequest(
+            "The Monty runtime is unavailable. Check the server configuration and retry."
+        ) from exc
+    except MontyShuttingDown as exc:
+        raise BadRequest(
+            "The Monty runtime is shutting down. Retry after the server restarts."
+        ) from exc
+    except (MontyDeadlineExceeded, MontyWorkerTurnTimedOut) as exc:
+        raise BadRequest(
+            "Monty execution timed out. Retry or reduce the evaluator's work."
+        ) from exc
+    except MontyWorkerCrashed as exc:
+        raise BadRequest("The Monty worker stopped unexpectedly. Retry the preview.") from exc
+    except MontyServiceError as exc:
+        raise BadRequest("The Monty runtime failed unexpectedly. Retry the preview.") from exc
 
 
-@strawberry.type
-class ChatCompletionOverDatasetMutationExamplePayload:
-    dataset_example_id: GlobalID
-    repetition_number: int
-    experiment_run_id: GlobalID
-    result: Union[ChatCompletionMutationPayload, ChatCompletionMutationError]
+async def _resolve_inline_code_evaluator_backend(
+    *,
+    info: Info[Context, None],
+    sandbox_config_id: Optional[strawberry.relay.GlobalID],
+    language: str,
+) -> tuple[Any, Optional[int]]:
+    if sandbox_config_id is None:
+        raise BadRequest(
+            f"No sandbox configuration selected for language '{language}'. "
+            "Choose a sandbox configuration before testing this evaluator."
+        )
 
+    try:
+        sandbox_config_db_id = from_global_id_with_expected_type(
+            sandbox_config_id, SandboxConfig.__name__
+        )
+    except ValueError as exc:
+        raise BadRequest(str(exc))
 
-@strawberry.type
-class ChatCompletionOverDatasetMutationPayload:
-    dataset_id: GlobalID
-    dataset_version_id: GlobalID
-    experiment_id: GlobalID
-    examples: list[ChatCompletionOverDatasetMutationExamplePayload] = field(default_factory=list)
+    async with info.context.db() as session:
+        sandbox_cfg = await session.get(models.SandboxConfig, sandbox_config_db_id)
+        if sandbox_cfg is None:
+            raise BadRequest(f"Sandbox configuration with id {sandbox_config_id} was not found")
+        if not sandbox_cfg.enabled:
+            raise BadRequest(
+                (
+                    f"Sandbox configuration '{sandbox_cfg.name}' is disabled. Enable it before "
+                    "testing this evaluator."
+                )
+            )
+
+        sandbox_timeout = sandbox_cfg.timeout
+        provider = await session.scalar(
+            select(models.SandboxProvider).where(
+                models.SandboxProvider.backend_type == sandbox_cfg.backend_type
+            )
+        )
+        if provider is None:
+            raise BadRequest(
+                f"Sandbox provider for configuration '{sandbox_cfg.name}' was not found"
+            )
+        if not provider.enabled:
+            raise BadRequest(
+                (
+                    f"Sandbox provider '{provider.backend_type}' is disabled. Enable it before "
+                    "testing this evaluator."
+                )
+            )
+
+        if sandbox_cfg.language != language:
+            raise BadRequest("Sandbox provider language does not match code evaluator language")
+
+        try:
+            sandbox_backend = await build_sandbox_backend(
+                sandbox_cfg,
+                secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+                runtime=info.context.sandbox_runtime,
+            )
+        except (
+            MissingSecretError,
+            UnsupportedOperation,
+            ValidationError,
+            ValueError,
+        ) as exc:
+            raise BadRequest(str(exc))
+
+    if sandbox_backend is None:
+        raise BadRequest(
+            f"Sandbox backend '{provider.backend_type}' is unavailable for language '{language}'. "
+            "Ensure the backend is installed and configured."
+        )
+
+    return sandbox_backend, sandbox_timeout
 
 
 @strawberry.type
 class ChatCompletionMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     @classmethod
-    async def chat_completion_over_dataset(
-        cls,
-        info: Info[Context, None],
-        input: ChatCompletionOverDatasetInput,
-    ) -> ChatCompletionOverDatasetMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
+    async def evaluator_previews(
+        cls, info: Info[Context, None], input: EvaluatorPreviewsInput
+    ) -> EvaluatorPreviewsPayload:
+        all_results: list[EvaluationResult] = []
 
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-        dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
-        dataset_version_id = (
-            from_global_id_with_expected_type(
-                global_id=input.dataset_version_id, expected_type_name=DatasetVersion.__name__
-            )
-            if input.dataset_version_id
-            else None
-        )
-        project_name = generate_experiment_project_name()
-        async with info.context.db() as session:
-            dataset = await session.scalar(select(models.Dataset).filter_by(id=dataset_id))
-            if dataset is None:
-                raise NotFound("Dataset not found")
-            if dataset_version_id is None:
-                resolved_version_id = await session.scalar(
-                    select(models.DatasetVersion.id)
-                    .filter_by(dataset_id=dataset_id)
-                    .order_by(models.DatasetVersion.id.desc())
-                    .limit(1)
+        for preview_item in input.previews:
+            evaluator_input = preview_item.evaluator
+            context = cast(dict[str, Any], preview_item.context)
+            input_mapping = preview_item.input_mapping
+
+            if evaluator_id := evaluator_input.built_in_evaluator_id:
+                type_name, db_id = from_global_id(evaluator_id)
+
+                if type_name != BuiltInEvaluator.__name__:
+                    raise BadRequest(f"Expected built-in evaluator, got {type_name}")
+
+                # Look up the builtin evaluator key from the database
+                async with info.context.db() as session:
+                    builtin_evaluator_record = await session.get(models.BuiltinEvaluator, db_id)
+                if builtin_evaluator_record is None:
+                    raise BadRequest(f"Built-in evaluator with id {evaluator_id} not found")
+
+                builtin_evaluator_cls = get_builtin_evaluator_by_key(builtin_evaluator_record.key)
+                if builtin_evaluator_cls is None:
+                    key = builtin_evaluator_record.key
+                    raise BadRequest(f"Built-in evaluator class for key '{key}' not found")
+                builtin_evaluator = builtin_evaluator_cls()
+
+                eval_results = await builtin_evaluator.evaluate(
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    name=builtin_evaluator.name,
+                    output_configs=builtin_evaluator.output_configs,
                 )
-                if resolved_version_id is None:
-                    raise NotFound("No versions found for the given dataset")
-            else:
-                resolved_version_id = dataset_version_id
-            revisions = [
-                revision
-                async for revision in await session.stream_scalars(
-                    get_dataset_example_revisions(resolved_version_id).order_by(
-                        models.DatasetExampleRevision.id
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
+            elif inline_llm_evaluator := evaluator_input.inline_llm_evaluator:
+                prompt_version = inline_llm_evaluator.prompt_version
+                async with info.context.db() as session:
+                    llm_client = await get_playground_client(
+                        model_provider=prompt_version.model_provider.to_model_provider(),
+                        model_name=prompt_version.model_name,
+                        session=session,
+                        decrypt=info.context.decrypt,
+                        credentials=input.credentials,
+                        connection=prompt_version.resolved_custom_provider_id,
                     )
-                )
-            ]
-            if not revisions:
-                raise NotFound("No examples found for the given dataset and version")
-            user_id = get_user(info)
-            experiment = models.Experiment(
-                dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
-                dataset_version_id=resolved_version_id,
-                name=input.experiment_name
-                or _default_playground_experiment_name(input.prompt_name),
-                description=input.experiment_description,
-                repetitions=1,
-                metadata_=input.experiment_metadata or dict(),
-                project_name=project_name,
-                user_id=user_id,
-            )
-            await insert_experiment_with_examples_snapshot(session, experiment)
-
-        results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
-        batch_size = 3
-        start_time = datetime.now(timezone.utc)
-        unbatched_items = [
-            (revision, repetition_number)
-            for revision in revisions
-            for repetition_number in range(1, input.repetitions + 1)
-        ]
-        for batch in _get_batches(unbatched_items, batch_size):
-            batch_results = await asyncio.gather(
-                *(
-                    cls._chat_completion(
-                        info,
-                        llm_client,
-                        ChatCompletionInput(
-                            model=input.model,
-                            credentials=input.credentials,
-                            messages=input.messages,
-                            tools=input.tools,
-                            invocation_parameters=input.invocation_parameters,
-                            template=PromptTemplateOptions(
-                                format=input.template_format,
-                                variables=revision.input,
-                            ),
-                            prompt_name=input.prompt_name,
-                            repetitions=repetition_number,
-                        ),
-                        project_name=project_name,
+                try:
+                    prompt_version_orm = inline_llm_evaluator.prompt_version.to_orm_prompt_version(
+                        user_id=None
                     )
-                    for revision, repetition_number in batch
-                ),
-                return_exceptions=True,
-            )
-            results.extend(batch_results)
+                except ValidationError as error:
+                    raise BadRequest(str(error))
 
-        payload = ChatCompletionOverDatasetMutationPayload(
-            dataset_id=GlobalID(models.Dataset.__name__, str(dataset.id)),
-            dataset_version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
-            experiment_id=GlobalID(models.Experiment.__name__, str(experiment.id)),
-        )
-        experiment_runs = []
-        for (revision, repetition_number), result in zip(unbatched_items, results):
-            if isinstance(result, BaseException):
-                experiment_run = models.ExperimentRun(
-                    experiment_id=experiment.id,
-                    dataset_example_id=revision.dataset_example_id,
-                    output={},
-                    repetition_number=repetition_number,
-                    start_time=start_time,
-                    end_time=start_time,
-                    error=str(result),
+                all_configs = _convert_output_config_inputs_to_pydantic(
+                    inline_llm_evaluator.output_configs
                 )
-            else:
-                db_span: models.Span = result.db_span
-                experiment_run = models.ExperimentRun(
-                    experiment_id=experiment.id,
-                    dataset_example_id=revision.dataset_example_id,
-                    trace_id=db_span.trace.trace_id,
-                    output=models.ExperimentRunOutput(
-                        task_output=get_dataset_example_output(db_span),
-                    ),
-                    prompt_token_count=db_span.cumulative_llm_token_count_prompt,
-                    completion_token_count=db_span.cumulative_llm_token_count_completion,
-                    repetition_number=repetition_number,
-                    start_time=db_span.start_time,
-                    end_time=db_span.end_time,
-                    error=str(result.error_message) if result.error_message else None,
+                categorical_configs: list[CategoricalOutputConfig] = []
+                for config in all_configs:
+                    if not isinstance(config, CategoricalOutputConfig):
+                        raise BadRequest(
+                            "Only categorical annotation configs "
+                            "are supported for LLM evaluator previews"
+                        )
+                    categorical_configs.append(config)
+
+                evaluator = create_llm_evaluator_from_inline(
+                    prompt_version_orm=prompt_version_orm,
+                    llm_client=llm_client,
+                    output_configs=categorical_configs,
+                    name=inline_llm_evaluator.name,
+                    description=inline_llm_evaluator.description,
                 )
-            experiment_runs.append(experiment_run)
 
-        async with info.context.db() as session:
-            session.add_all(experiment_runs)
-            await session.flush()
+                try:
+                    validate_evaluator_prompt_and_configs(
+                        prompt_tools=prompt_version_orm.tools,
+                        prompt_response_format=prompt_version_orm.response_format,
+                        evaluator_output_configs=categorical_configs,
+                        evaluator_description=inline_llm_evaluator.description,
+                    )
+                except ValueError as error:
+                    raise BadRequest(str(error))
 
-        for (revision, repetition_number), experiment_run, result in zip(
-            unbatched_items, experiment_runs, results
-        ):
-            dataset_example_id = GlobalID(
-                models.DatasetExample.__name__, str(revision.dataset_example_id)
-            )
-            experiment_run_id = GlobalID(models.ExperimentRun.__name__, str(experiment_run.id))
-            example_payload = ChatCompletionOverDatasetMutationExamplePayload(
-                dataset_example_id=dataset_example_id,
-                repetition_number=repetition_number,
-                experiment_run_id=experiment_run_id,
-                result=result
-                if isinstance(result, ChatCompletionMutationPayload)
-                else ChatCompletionMutationError(message=str(result)),
-            )
-            payload.examples.append(example_payload)
-        return payload
+                eval_results = await evaluator.evaluate(
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    name=evaluator.name,
+                    output_configs=categorical_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    @classmethod
-    async def chat_completion(
-        cls, info: Info[Context, None], input: ChatCompletionInput
-    ) -> ChatCompletionMutationPayload:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            credentials = None
-            if input.credentials:
-                credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
+            elif code_evaluator_id := evaluator_input.code_evaluator_id:
+                type_name, db_id = from_global_id(code_evaluator_id)
+                if type_name != CodeEvaluator.__name__:
+                    raise BadRequest(f"Expected code evaluator, got {type_name}")
 
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-        return await cls._chat_completion(info, llm_client, input)
+                code_evaluator_version = (
+                    await info.context.data_loaders.latest_code_evaluator_versions.load(db_id)
+                )
+                if code_evaluator_version is None:
+                    raise BadRequest(
+                        f"Code evaluator with id {code_evaluator_id} has no current version"
+                    )
 
-    @classmethod
-    async def _chat_completion(
-        cls,
-        info: Info[Context, None],
-        llm_client: PlaygroundStreamingClient,
-        input: ChatCompletionInput,
-        project_name: str = PLAYGROUND_PROJECT_NAME,
-        project_description: str = "Traces from prompt playground",
-    ) -> ChatCompletionMutationPayload:
-        attributes: dict[str, Any] = {}
-        attributes.update(dict(prompt_metadata(input.prompt_name)))
+                async with info.context.db() as session:
+                    code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
+                    if code_evaluator_record is None:
+                        raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
+                    language = code_evaluator_record.language
 
-        messages = [
-            (
-                message.role,
-                message.content,
-                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-                message.tool_calls if isinstance(message.tool_calls, list) else None,
-            )
-            for message in input.messages
-        ]
-        if template_options := input.template:
-            messages = list(_formatted_messages(messages, template_options))
-            attributes.update(
-                {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
-            )
+                    sandbox_backend = None
+                    live_sandbox_config: models.SandboxConfig | None = None
+                    sandbox_timeout: int | None = None
+                    tip_sandbox_config_id = code_evaluator_record.sandbox_config_id
+                    if tip_sandbox_config_id is not None:
+                        live_sandbox_config = await session.get(
+                            models.SandboxConfig, tip_sandbox_config_id
+                        )
+                        if live_sandbox_config is None:
+                            raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                        if not live_sandbox_config.enabled:
+                            raise BadRequest(
+                                (
+                                    f"Sandbox configuration '{live_sandbox_config.name}' is "
+                                    "disabled. Enable it before testing this evaluator."
+                                )
+                            )
+                        live_sandbox_provider = await session.scalar(
+                            select(models.SandboxProvider).where(
+                                models.SandboxProvider.backend_type
+                                == live_sandbox_config.backend_type
+                            )
+                        )
+                        if live_sandbox_provider is None:
+                            pk = live_sandbox_config.backend_type
+                            raise BadRequest(f"SandboxProvider not found: {pk}")
+                        if not live_sandbox_provider.enabled:
+                            raise BadRequest(
+                                (
+                                    f"Sandbox provider '{live_sandbox_provider.backend_type}' is "
+                                    "disabled. Enable it before testing this evaluator."
+                                )
+                            )
+                        sandbox_timeout = live_sandbox_config.timeout
 
-        invocation_parameters = llm_client.construct_invocation_parameters(
-            input.invocation_parameters
-        )
-
-        text_content = ""
-        tool_calls: dict[str, ChatCompletionToolCall] = {}
-        events = []
-        attributes.update(
-            chain(
-                llm_span_kind(),
-                llm_model_name(input.model.name),
-                llm_tools(input.tools or []),
-                llm_input_messages(messages),
-                llm_invocation_parameters(invocation_parameters),
-                input_value_and_mime_type(input),
-            )
-        )
-
-        start_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
-        status_code = StatusCode.OK
-        status_message = ""
-        try:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                # Process the chunk
-                if isinstance(chunk, TextChunk):
-                    text_content += chunk.content
-                elif isinstance(chunk, ToolCallChunk):
-                    if chunk.id not in tool_calls:
-                        tool_calls[chunk.id] = ChatCompletionToolCall(
-                            id=chunk.id,
-                            function=ChatCompletionFunctionCall(
-                                name=chunk.function.name,
-                                arguments=chunk.function.arguments,
+                    evaluator_name = code_evaluator_record.name.root
+                    evaluator_description = code_evaluator_record.description
+                    evaluator_source_code = code_evaluator_version.source_code
+                    output_configs = [
+                        c
+                        for c in code_evaluator_record.output_configs
+                        if isinstance(
+                            c,
+                            (
+                                CategoricalOutputConfig,
+                                ContinuousOutputConfig,
+                                FreeformOutputConfig,
                             ),
                         )
-                    else:
-                        tool_calls[chunk.id].function.arguments += chunk.function.arguments
-                else:
-                    assert_never(chunk)
-        except Exception as e:
-            # Handle exceptions and record exception event
-            status_code = StatusCode.ERROR
-            status_message = str(e)
-            end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
-            assert end_time is not None
-            events.append(
-                SpanException(
-                    timestamp=end_time,
-                    message=status_message,
-                    exception_type=type(e).__name__,
-                    exception_escaped=False,
-                    exception_stacktrace=format_exc(),
-                )
-            )
-        else:
-            end_time = normalize_datetime(dt=local_now(), tz=timezone.utc)
+                    ]
 
-        attributes.update(llm_client.attributes)
-        if text_content or tool_calls:
-            attributes.update(
-                chain(
-                    _output_value_and_mime_type(text_content, tool_calls),
-                    _llm_output_messages(text_content, tool_calls),
-                )
-            )
-
-        # Now write the span to the database
-        trace_id = _generate_trace_id()
-        span_id = _generate_span_id()
-        async with info.context.db() as session:
-            # Get or create the project ID
-            if (
-                project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == project_name)
-                )
-            ) is None:
-                project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=project_name,
-                        description=project_description,
+                    if live_sandbox_config is not None:
+                        try:
+                            sandbox_backend = await build_sandbox_backend(
+                                live_sandbox_config,
+                                secrets=SecretsContext(
+                                    session=session, decrypt=info.context.decrypt
+                                ),
+                                runtime=info.context.sandbox_runtime,
+                            )
+                        except (
+                            MissingSecretError,
+                            UnsupportedOperation,
+                            ValidationError,
+                            ValueError,
+                        ) as exc:
+                            raise BadRequest(str(exc))
+                if sandbox_backend is None:
+                    raise BadRequest(
+                        f"Code evaluator '{evaluator_name}' has no sandbox backend configured"
+                        f" for language '{language}'. "
+                        "Please configure a sandbox provider at /settings/sandboxes."
                     )
+
+                # Test mutation runs are ephemeral by design: each click spins
+                # up a fresh sandbox via ``backend.execute``'s own
+                # ``async with`` lifecycle and tears it down on exit. The
+                # session manager is intentionally bypassed so test cleanup
+                # never depends on hitting the same replica on a follow-up
+                # request — a property the deprecated ``stopEvaluatorSession``
+                # mutation could not deliver under load balancing. No
+                # ``session_key`` is supplied because the ephemeral
+                # ``backend.execute`` path does not consult it.
+                runner = CodeEvaluatorRunner(
+                    name=evaluator_name,
+                    description=evaluator_description,
+                    source_code=evaluator_source_code,
+                    stored_output_configs=output_configs,
+                    sandbox_backend=sandbox_backend,
+                    language=language,
+                    timeout=sandbox_timeout,
+                    evaluator_version_id=str(
+                        GlobalID("CodeEvaluatorVersion", str(code_evaluator_version.id))
+                    ),
+                    sandbox_session_manager=None,
                 )
-            trace = models.Trace(
-                project_rowid=project_id,
-                trace_id=trace_id,
-                start_time=start_time,
-                end_time=end_time,
-            )
-            span = models.Span(
-                trace_rowid=trace.id,
-                span_id=span_id,
-                parent_id=None,
-                name="ChatCompletion",
-                span_kind=LLM,
-                start_time=start_time,
-                end_time=end_time,
-                attributes=unflatten(attributes.items()),
-                events=[_serialize_event(event) for event in events],
-                status_code=status_code.name,
-                status_message=status_message,
-                cumulative_error_count=int(status_code is StatusCode.ERROR),
-                cumulative_llm_token_count_prompt=attributes.get(LLM_TOKEN_COUNT_PROMPT, 0),
-                cumulative_llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
-                llm_token_count_prompt=attributes.get(LLM_TOKEN_COUNT_PROMPT, 0),
-                llm_token_count_completion=attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0),
-                trace=trace,
-            )
-            session.add(trace)
-            session.add(span)
-            await session.flush()
-            try:
-                span_cost = info.context.span_cost_calculator.calculate_cost(
-                    start_time=span.start_time,
-                    attributes=span.attributes,
+                eval_results = await _evaluate_code_preview(
+                    runner,
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    evaluator_name=evaluator_name,
+                    output_configs=output_configs,
                 )
-            except Exception as e:
-                logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
-                span_cost = None
-            if span_cost:
-                span_cost.span_rowid = span.id
-                span_cost.trace_rowid = trace.id
-                session.add(span_cost)
-                await session.flush()
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
-        gql_span = Span(span_rowid=span.id, db_span=span)
+            elif inline_code_evaluator := evaluator_input.inline_code_evaluator:
+                language = inline_code_evaluator.language.value
+                evaluator_name = inline_code_evaluator.name
+                evaluator_description = inline_code_evaluator.description
+                source_code = inline_code_evaluator.source_code
 
-        info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
+                output_configs = [
+                    c
+                    for c in _convert_output_config_inputs_to_pydantic(
+                        inline_code_evaluator.output_configs
+                    )
+                    if isinstance(
+                        c,
+                        (
+                            CategoricalOutputConfig,
+                            ContinuousOutputConfig,
+                            FreeformOutputConfig,
+                        ),
+                    )
+                ]
 
-        if status_code is StatusCode.ERROR:
-            return ChatCompletionMutationPayload(
-                db_span=span,
-                content=None,
-                tool_calls=[],
-                span=gql_span,
-                error_message=status_message,
-            )
-        else:
-            return ChatCompletionMutationPayload(
-                db_span=span,
-                content=text_content if text_content else None,
-                tool_calls=list(tool_calls.values()),
-                span=gql_span,
-                error_message=None,
-            )
+                sandbox_backend, sandbox_timeout = await _resolve_inline_code_evaluator_backend(
+                    info=info,
+                    sandbox_config_id=inline_code_evaluator.sandbox_config_id,
+                    language=language,
+                )
 
+                # Test mutation runs are ephemeral by design: each click spins
+                # up a fresh sandbox via ``backend.execute``'s own
+                # ``async with`` lifecycle and tears it down on exit. The
+                # session manager is intentionally bypassed so test cleanup
+                # never depends on hitting the same replica on a follow-up
+                # request — a property the deprecated ``stopEvaluatorSession``
+                # mutation could not deliver under load balancing. No
+                # ``session_key`` is supplied because the ephemeral
+                # ``backend.execute`` path does not consult it.
+                runner = CodeEvaluatorRunner(
+                    name=evaluator_name,
+                    description=evaluator_description,
+                    source_code=source_code,
+                    stored_output_configs=output_configs,
+                    sandbox_backend=sandbox_backend,
+                    language=language,
+                    timeout=sandbox_timeout,
+                    sandbox_session_manager=None,
+                )
+                eval_results = await _evaluate_code_preview(
+                    runner,
+                    context=context,
+                    input_mapping=input_mapping.to_orm(),
+                    evaluator_name=evaluator_name,
+                    output_configs=output_configs,
+                )
+                for eval_result in eval_results:
+                    all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
-def _formatted_messages(
-    messages: Iterable[ChatCompletionMessage],
-    template_options: PromptTemplateOptions,
-) -> Iterator[ChatCompletionMessage]:
-    """
-    Formats the messages using the given template options.
-    """
-    template_formatter = _template_formatter(template_format=template_options.format)
-    (
-        roles,
-        templates,
-        tool_call_id,
-        tool_calls,
-    ) = zip(*messages)
-    formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_options.variables),
-        templates,
-    )
-    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
-    return formatted_messages
+            else:
+                raise BadRequest("Either evaluator_id or inline evaluator must be provided")
 
-
-def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
-    """
-    Instantiates the appropriate template formatter for the template format.
-    """
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_format is PromptTemplateFormat.F_STRING:
-        return FStringTemplateFormatter()
-    if template_format is PromptTemplateFormat.NONE:
-        return NoOpFormatter()
-    assert_never(template_format)
-
-
-def _output_value_and_mime_type(
-    text: str, tool_calls: dict[str, ChatCompletionToolCall]
-) -> Iterator[tuple[str, Any]]:
-    if text and tool_calls:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield (
-            OUTPUT_VALUE,
-            safe_json_dumps({"content": text, "tool_calls": jsonify(list(tool_calls.values()))}),
-        )
-    elif tool_calls:
-        yield OUTPUT_MIME_TYPE, JSON
-        yield OUTPUT_VALUE, safe_json_dumps(jsonify(list(tool_calls.values())))
-    elif text:
-        yield OUTPUT_MIME_TYPE, TEXT
-        yield OUTPUT_VALUE, text
-
-
-def _llm_output_messages(
-    text_content: str, tool_calls: dict[str, ChatCompletionToolCall]
-) -> Iterator[tuple[str, Any]]:
-    yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}", "assistant"
-    if text_content:
-        yield f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_CONTENT}", text_content
-    for tool_call_index, tool_call in enumerate(tool_calls.values()):
-        if tool_call_id := tool_call.id:
-            yield (
-                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_ID}",
-                tool_call_id,
-            )
-        yield (
-            f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_NAME}",
-            tool_call.function.name,
-        )
-        if arguments := tool_call.function.arguments:
-            yield (
-                f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.{tool_call_index}.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
-                arguments,
-            )
-
-
-def _generate_trace_id() -> str:
-    return _hex(DefaultOTelIDGenerator().generate_trace_id())
-
-
-def _generate_span_id() -> str:
-    return _hex(DefaultOTelIDGenerator().generate_span_id())
-
-
-def _hex(number: int) -> str:
-    return hex(number)[2:]
-
-
-def _serialize_event(event: SpanException) -> dict[str, Any]:
-    return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in asdict(event).items()}
-
-
-_AnyT = TypeVar("_AnyT")
-
-
-def _get_batches(
-    iterable: Iterable[_AnyT],
-    batch_size: int,
-) -> Iterator[list[_AnyT]]:
-    """Splits an iterable into batches not exceeding a specified size."""
-    iterator = iter(iterable)
-    while batch := list(islice(iterator, batch_size)):
-        yield batch
-
-
-JSON = OpenInferenceMimeTypeValues.JSON.value
-TEXT = OpenInferenceMimeTypeValues.TEXT.value
-LLM = OpenInferenceSpanKindValues.LLM.value
-
-OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
-INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
-LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
-LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
-LLM_TOOLS = SpanAttributes.LLM_TOOLS
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-
-MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
-MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
-MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
-
-TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
-TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
-TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
-
-TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
-PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
+        return EvaluatorPreviewsPayload(results=all_results)

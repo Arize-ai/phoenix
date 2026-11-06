@@ -1,0 +1,137 @@
+---
+title: "Prompts"
+description: "Manage prompts with @arizeai/phoenix-client"
+---
+
+The prompts module lets you create prompt versions in Phoenix, fetch them back by selector, manage prompt version tags, list prompts, update a prompt's description and metadata, delete a prompt, and adapt prompt versions to supported provider SDKs.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/prompts/getPrompt.ts</code> for the exact selector shape</li>
+  </ul>
+</section>
+
+## Create A Prompt
+
+```ts
+import {
+  createPrompt,
+  promptVersion,
+} from "@arizeai/phoenix-client/prompts";
+
+await createPrompt({
+  name: "support-response",
+  description: "Customer support reply prompt",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-4o-mini",
+    template: [{ role: "user", content: "Reply to {{question}}" }],
+  }),
+});
+```
+
+## Fetch By Selector
+
+```ts
+import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+const prompt = await getPrompt({
+  prompt: { name: "support-response", tag: "production" },
+});
+```
+
+`prompt` can be selected by `{ name }`, `{ name, tag }`, or `{ versionId }`.
+
+## Manage Version Tags
+
+```ts
+import {
+  deletePromptVersionTag,
+  upsertPromptVersionTag,
+} from "@arizeai/phoenix-client/prompts";
+
+await upsertPromptVersionTag({
+  prompt: { versionId: "UHJvbXB0VmVyc2lvbjox" },
+  name: "production",
+  description: "Currently deployed version",
+});
+
+await deletePromptVersionTag({
+  prompt: { versionId: "UHJvbXB0VmVyc2lvbjox" },
+  name: "staging",
+});
+```
+
+Tag names are unique within a prompt, not within an individual version. Upserting a new name creates the tag on the target version. Upserting a name that already exists on another version of the same prompt moves that tag to the target version and updates its description. The same name can still be used independently by unrelated prompts.
+
+Deletion also resolves the name within the prompt identified by `prompt.versionId`; the tag can be attached to any version of that prompt.
+
+Tag upserts require Phoenix 8.22.0 or later. Tag deletion requires Phoenix 13.20.0 or later.
+
+## Update Description And Metadata
+
+```ts
+import { updatePrompt } from "@arizeai/phoenix-client/prompts";
+
+await updatePrompt({
+  promptIdentifier: "support-response",
+  description: "Customer support reply prompt",
+  metadata: { team: "ml", env: "production" },
+});
+```
+
+`promptIdentifier` is a prompt name or ID. Omit a field to leave it unchanged, and pass `description: null` to clear it. `metadata` replaces the existing metadata object as a whole rather than merging into it.
+
+Requires a Phoenix server on 19.18.0 or later.
+
+## Delete A Prompt
+
+```ts
+import { deletePrompt } from "@arizeai/phoenix-client/prompts";
+
+await deletePrompt({ prompt: { name: "support-response" } });
+
+// Or by prompt id
+await deletePrompt({ prompt: { promptId: "UHJvbXB0OjE=" } });
+```
+
+`prompt` takes the same selector style as `getPrompt`, narrowed to the two selectors that identify a prompt rather than one of its versions: `{ name }` and `{ promptId }`. Passing a version selector — `{ versionId }`, or `{ name, tag }` — rejects instead of falling back to the whole prompt, so a variable holding a version never deletes more than you named.
+
+Deletion cascades: every version of the prompt, along with its version tags and labels, is removed with it, and the deletion cannot be undone. A prompt that does not exist rejects with `Prompt not found: <identifier>`.
+
+Requires a Phoenix server on 13.20.0 or later.
+
+## Convert To Another SDK
+
+```ts
+import { toSDK } from "@arizeai/phoenix-client/prompts";
+
+const promptAsAI = toSDK({
+  sdk: "ai",
+  prompt,
+  variables: { question: "Where is my order?" },
+});
+```
+
+Supported `sdk` targets:
+
+- `ai`
+- `openai`
+- `anthropic`
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/prompts/createPrompt.ts</code></li>
+    <li><code>src/prompts/deletePrompt.ts</code></li>
+    <li><code>src/prompts/deletePromptVersionTag.ts</code></li>
+    <li><code>src/prompts/getPrompt.ts</code></li>
+    <li><code>src/prompts/listPrompts.ts</code></li>
+    <li><code>src/prompts/updatePrompt.ts</code></li>
+    <li><code>src/prompts/upsertPromptVersionTag.ts</code></li>
+    <li><code>src/utils/resolvePromptVersionId.ts</code></li>
+    <li><code>src/prompts/sdks/toSDK.ts</code></li>
+    <li><code>src/types/prompts.ts</code></li>
+  </ul>
+</section>

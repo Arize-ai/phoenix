@@ -1,0 +1,43 @@
+{
+  "name": "mock-llm-server",
+  "version": "1.0.0",
+  "description": "Mock LLM API server (OpenAI + Anthropic + Gemini) with real-time monitoring dashboard",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "build:all": "pnpm run build && pnpm run build:dashboard",
+    "build:dashboard": "cd dashboard && pnpm run build",
+    "dev": "tsx watch src/server.ts",
+    "fmt": "oxfmt --config ../../.oxfmtrc.jsonc",
+    "fmt:check": "oxfmt --check --config ../../.oxfmtrc.jsonc",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "start": "tsx src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^10.5.0",
+    "express": "^5.2.1",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
+    "@google/genai": "^2.11.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.1",
+    "@types/ws": "^8.18.1",
+    "json-schema-faker": "^0.6.2",
+    "openai": "^6.46.0",
+    "oxfmt": "^0.58.0",
+    "oxlint": "~1.73.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@12.0.0"
+}

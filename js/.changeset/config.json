@@ -1,11 +1,15 @@
 {
-  "$schema": "https://unpkg.com/@changesets/config@3.0.4/schema.json",
+  "$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [],
   "linked": [],
-  "access": "restricted",
+  "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["phoenix-experiment-runner"]
+  "ignore": ["phoenix-experiment-runner", "demo-document-relevancy-experiment"],
+  "privatePackages": {
+    "version": false,
+    "tag": false
+  }
 }

@@ -1,0 +1,81 @@
+---
+title: "05.15.2026: Session Trace Feedback and ATIF v1.7 Support"
+---
+
+# Trace Feedback in Session Turn View
+
+May 15, 2026
+
+**Available in arize-phoenix 15.10.0+**
+
+The Session Details view now includes a feedback toolbar on each turn. Click the thumbs-up or thumbs-down icon to create a `user_feedback` trace annotation on the underlying trace. Click the annotate icon to open the full annotation panel for label and score entry.
+
+Feedback is keyed per-viewer using a client-managed identifier, so clicking the same icon a second time removes it (toggle behavior). The annotation summary in the turn footer updates immediately to reflect the new annotation count.
+
+# ATIF v1.7 Trajectory Upload
+
+May 15, 2026
+
+**Available in arize-phoenix-client 2.7.0+**
+
+`upload_atif_trajectories_as_spans` now supports [ATIF v1.7](https://github.com/harbor-framework/harbor/blob/main/rfcs/0001-trajectory-format.md), which introduces embedded subagent trajectories, `trajectory_id`-based linking, and deterministic dispatch steps.
+
+## Embedded subagents
+
+Pass a parent trajectory with `subagent_trajectories` inline and the full multi-agent span tree is built automatically. No separate upload call is needed:
+
+```python
+from phoenix.client import Client
+from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
+
+client = Client()
+
+parent = {
+    "schema_version": "v1.7",
+    "trajectory_id": "parent-traj-abc",
+    "agent": {"model_name": "claude-opus-4"},
+    "steps": [
+        {
+            "role": "agent",
+            "content": "Delegating to search subagent.",
+            "tool_calls": [{"id": "tc1", "name": "search_agent", "arguments": {"query": "latest results"}}],
+        }
+    ],
+    "subagent_trajectories": [
+        {
+            "schema_version": "v1.7",
+            "trajectory_id": "child-traj-xyz",
+            "agent": {"model_name": "gpt-4o"},
+            "steps": [
+                {"role": "agent", "content": "Found 5 results.", "tool_calls": []}
+            ],
+        }
+    ],
+}
+
+upload_atif_trajectories_as_spans(client, [parent], project_name="my-project")
+```
+
+The resulting trace nests the child agent's spans under the parent's tool span, preserving the delegation hierarchy in the Phoenix UI.
+
+## Trajectory IDs and deterministic span IDs
+
+Trajectories that include a `trajectory_id` field use it as the canonical span identity key. Re-uploading the same trajectory produces the same span IDs, making uploads idempotent. Trajectories without a `trajectory_id` fall back to a stable document hash.
+
+## Deterministic dispatch steps
+
+Steps with `llm_call_count: 0` represent orchestration that issued tool calls without an LLM invocation (rule-based routing, hard-coded delegation). Phoenix emits TOOL spans for these steps but does not create a synthetic LLM span, matching the actual execution structure.
+
+## Session ID support
+
+Trajectories can now include an optional `session_id` in the header. When present, Phoenix groups all spans from that trajectory under the specified session, linking them to related traces in the Sessions view.
+
+```python
+trajectory = {
+    "schema_version": "v1.7",
+    "trajectory_id": "traj-001",
+    "session_id": "session-abc123",
+    "agent": {"model_name": "gpt-4o"},
+    "steps": [...],
+}
+```

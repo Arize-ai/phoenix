@@ -1,5 +1,6 @@
-import { useState } from "react";
 import { Mail, Eye, Code, FileText, Settings } from "lucide-react";
+import { useState } from "react";
+
 import type { Email, EmailContentType } from "../types/index.js";
 
 interface EmailViewerProps {
@@ -22,9 +23,9 @@ export function EmailViewer({ email }: EmailViewerProps) {
 
   if (!email) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+      <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
         <div className="text-center">
-          <Mail className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+          <Mail className="mx-auto mb-4 h-12 w-12 text-gray-300 dark:text-gray-600" />
           <p>Select an email to view its content</p>
         </div>
       </div>
@@ -34,8 +35,8 @@ export function EmailViewer({ email }: EmailViewerProps) {
   return (
     <>
       {/* Email Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+      <div className="border-b border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+        <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
           {email.subject || "(No Subject)"}
         </h2>
         <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
@@ -61,9 +62,9 @@ export function EmailViewer({ email }: EmailViewerProps) {
       </div>
 
       {/* Email Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex flex-1 flex-col">
         {/* Content Type Selector */}
-        <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-2">
+        <div className="border-b border-gray-200 px-4 py-2 dark:border-gray-700">
           <div className="flex space-x-1">
             {[
               { type: "html" as EmailContentType, label: "HTML", icon: Eye },
@@ -82,13 +83,13 @@ export function EmailViewer({ email }: EmailViewerProps) {
               <button
                 key={type}
                 onClick={() => setContentType(type)}
-                className={`px-3 py-1 text-sm rounded flex items-center gap-1 ${
+                className={`flex items-center gap-1 rounded px-3 py-1 text-sm ${
                   contentType === type
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700"
-                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    ? "border border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
                 }`}
               >
-                <Icon className="w-3 h-3" />
+                <Icon className="h-3 w-3" />
                 {label}
               </button>
             ))}
@@ -99,34 +100,34 @@ export function EmailViewer({ email }: EmailViewerProps) {
         <div className="flex-1 overflow-y-auto p-4">
           {contentType === "html" && email.html ? (
             <div className="space-y-2">
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex items-center justify-between">
                 <div className="text-sm text-gray-600 dark:text-gray-400">
                   HTML Content:
                 </div>
                 <button
                   onClick={() => setShowHtmlSource(!showHtmlSource)}
-                  className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
+                  className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
                   {showHtmlSource ? "👁️ Show Rendered" : "🔍 Show Source"}
                 </button>
               </div>
               {showHtmlSource ? (
-                <div className="border border-gray-200 dark:border-gray-700 rounded p-4 bg-gray-50 dark:bg-gray-800">
-                  <pre className="whitespace-pre-wrap font-mono text-xs text-gray-700 dark:text-gray-300 overflow-x-auto">
+                <div className="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+                  <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap text-gray-700 dark:text-gray-300">
                     {email.html}
                   </pre>
                 </div>
               ) : (
-                <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden bg-white dark:bg-gray-900">
+                <div className="overflow-hidden rounded border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
                   <iframe
                     srcDoc={email.html}
-                    className="w-full h-96 border-0"
+                    className="h-96 w-full border-0"
                     sandbox="allow-same-origin"
                     title="Email HTML Content"
                   />
                 </div>
               )}
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 {showHtmlSource
                   ? "📋 Raw HTML source code"
                   : "📋 Rendered in iframe for proper styling isolation"}
@@ -134,33 +135,33 @@ export function EmailViewer({ email }: EmailViewerProps) {
             </div>
           ) : contentType === "text" && email.text ? (
             <div className="space-y-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
                 Text Content:
               </div>
-              <div className="border border-gray-200 dark:border-gray-700 rounded p-4 bg-gray-50 dark:bg-gray-800 whitespace-pre-wrap font-mono text-sm text-gray-900 dark:text-gray-100">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4 font-mono text-sm whitespace-pre-wrap text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                 {email.text}
               </div>
             </div>
           ) : contentType === "raw" ? (
             <div className="space-y-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
                 Raw Email Data:
               </div>
-              <div className="border border-gray-200 dark:border-gray-700 rounded p-4 bg-gray-50 dark:bg-gray-800 whitespace-pre-wrap font-mono text-xs overflow-x-auto text-gray-900 dark:text-gray-100">
+              <div className="overflow-x-auto rounded border border-gray-200 bg-gray-50 p-4 font-mono text-xs whitespace-pre-wrap text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                 {JSON.stringify(email, null, 2)}
               </div>
             </div>
           ) : contentType === "headers" && email.headers ? (
             <div className="space-y-2">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
                 Email Headers:
               </div>
-              <div className="border border-gray-200 dark:border-gray-700 rounded p-4 bg-gray-50 dark:bg-gray-800">
+              <div className="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
                 <div className="space-y-1 font-mono text-xs">
                   {Object.entries(email.headers).map(([key, value]) => (
                     <div
                       key={key}
-                      className="border-b border-gray-100 dark:border-gray-700 pb-1"
+                      className="border-b border-gray-100 pb-1 dark:border-gray-700"
                     >
                       <span className="font-semibold text-blue-700 dark:text-blue-400">
                         {key}:
@@ -176,7 +177,7 @@ export function EmailViewer({ email }: EmailViewerProps) {
               </div>
             </div>
           ) : (
-            <div className="text-gray-500 dark:text-gray-400 text-center">
+            <div className="text-center text-gray-500 dark:text-gray-400">
               <div>
                 {contentType === "html" &&
                   !email.html &&
@@ -193,15 +194,15 @@ export function EmailViewer({ email }: EmailViewerProps) {
 
           {/* Attachments */}
           {email.attachments && email.attachments.length > 0 && (
-            <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <div className="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+              <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
                 Attachments ({email.attachments.length}):
               </div>
               <div className="space-y-2">
                 {email.attachments.map((att, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center gap-2 p-2 border border-gray-200 dark:border-gray-700 rounded bg-gray-50 dark:bg-gray-800"
+                    className="flex items-center gap-2 rounded border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800"
                   >
                     <span className="font-medium text-gray-900 dark:text-gray-100">
                       {att.filename}

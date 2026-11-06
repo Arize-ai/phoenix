@@ -4,34 +4,37 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum, auto
-from hashlib import pbkdf2_hmac
+from hashlib import pbkdf2_hmac, sha256
 from typing import Any, Literal, Optional, Protocol
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 from starlette.responses import Response
 from typing_extensions import TypeVar
 
-from phoenix.config import get_env_cookies_path, get_env_phoenix_use_secure_cookies
+from phoenix.config import (
+    get_env_cookies_path,
+    get_env_phoenix_use_secure_cookies,
+)
 
 ResponseType = TypeVar("ResponseType", bound=Response)
 
 
-def compute_password_hash(*, password: Secret, salt: bytes) -> bytes:
+def compute_password_hash(*, password: SecretStr, salt: bytes) -> bytes:
     """
     Salts and hashes a password using PBKDF2, HMAC and SHA256.
 
     Args:
-        password (str): the password to hash
+        password: the password to hash, wrapped in pydantic ``SecretStr``
         salt (bytes): the salt to use, must not be zero-length
     Returns:
         bytes: the hashed password
     """
     assert salt
-    password_bytes = str(password).encode("utf-8")
+    password_bytes = password.get_secret_value().encode("utf-8")
     return pbkdf2_hmac("sha256", password_bytes, salt, NUM_ITERATIONS)
 
 
-def is_valid_password(*, password: Secret, salt: bytes, password_hash: bytes) -> bool:
+def is_valid_password(*, password: SecretStr, salt: bytes, password_hash: bytes) -> bool:
     """
     Determines whether the password is valid by salting and hashing the password
     and comparing against the existing hash value.
@@ -78,7 +81,21 @@ def validate_password_format(password: str) -> None:
     """
     Checks that the password has a valid format.
     """
-    PASSWORD_REQUIREMENTS.validate(password)
+    get_password_requirements().validate(password)
+
+
+def get_password_requirements() -> _PasswordRequirements:
+    """
+    Returns the active password requirements based on configuration.
+
+    When PHOENIX_ENABLE_STRONG_PASSWORD_POLICY is enabled, returns strong password
+    requirements. Otherwise, returns the default minimal requirements.
+    """
+    from phoenix.config import get_env_enable_strong_password_policy
+
+    if get_env_enable_strong_password_policy():
+        return STRONG_PASSWORD_REQUIREMENTS
+    return PASSWORD_REQUIREMENTS
 
 
 def set_access_token_cookie(
@@ -114,6 +131,18 @@ def set_oauth2_state_cookie(
         cookie_max_age=max_age,
         samesite="lax",
         value=state,
+    )
+
+
+def set_oauth2_login_context_cookie(
+    *, response: ResponseType, login_context: str, max_age: timedelta
+) -> ResponseType:
+    return _set_cookie(
+        response=response,
+        cookie_name=PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME,
+        cookie_max_age=max_age,
+        samesite="lax",
+        value=login_context,
     )
 
 
@@ -162,27 +191,36 @@ def _set_cookie(
 
 
 def delete_access_token_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_ACCESS_TOKEN_COOKIE_NAME, path=get_env_cookies_path())
     return response
 
 
 def delete_refresh_token_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_REFRESH_TOKEN_COOKIE_NAME, path=get_env_cookies_path())
     return response
 
 
 def delete_oauth2_state_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_OAUTH2_STATE_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_OAUTH2_STATE_COOKIE_NAME, path=get_env_cookies_path())
+    return response
+
+
+def delete_oauth2_login_context_cookie(response: ResponseType) -> ResponseType:
+    response.delete_cookie(
+        key=PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME, path=get_env_cookies_path()
+    )
     return response
 
 
 def delete_oauth2_nonce_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_OAUTH2_NONCE_COOKIE_NAME)
+    response.delete_cookie(key=PHOENIX_OAUTH2_NONCE_COOKIE_NAME, path=get_env_cookies_path())
     return response
 
 
 def delete_oauth2_code_verifier_cookie(response: ResponseType) -> ResponseType:
-    response.delete_cookie(key=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME)
+    response.delete_cookie(
+        key=PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME, path=get_env_cookies_path()
+    )
     return response
 
 
@@ -271,20 +309,45 @@ NUM_ITERATIONS = 10_000
 """The number of iterations to use for the PBKDF2 key derivation function."""
 MIN_PASSWORD_LENGTH = 4
 """The minimum length of a password."""
+STRONG_PASSWORD_LENGTH = 12
+"""The minimum length of a password when the strong password policy is enabled."""
 PASSWORD_REQUIREMENTS = _PasswordRequirements(length=MIN_PASSWORD_LENGTH)
 """The requirements for a valid password."""
+STRONG_PASSWORD_REQUIREMENTS = _PasswordRequirements(
+    length=STRONG_PASSWORD_LENGTH,
+    digits=True,
+    lower_case=True,
+    upper_case=True,
+    special_chars=True,
+)
+"""The requirements for a valid password when the strong password policy is enabled."""
 REQUIREMENTS_FOR_PHOENIX_SECRET = _PasswordRequirements(
     length=DEFAULT_SECRET_LENGTH, digits=True, lower_case=True
 )
 """The requirements for the Phoenix secret key."""
 JWT_ALGORITHM = "HS256"
 """The algorithm to use for the JSON Web Token."""
+TOKEN_RANDOM_CLAIM = "phx_rnd"
+"""Phoenix-specific entropy claim, independent of the OpenID Connect ``nonce``."""
+TOKEN_RANDOM_BYTES = 32
+"""
+256 bits of entropy prevent database readers with the seed-derived signing key
+from reproducing an issued token with a matching stored hash.
+"""
+
+
+def compute_token_hash(token: str) -> bytes:
+    """Return the SHA-256 digest of the complete encoded token."""
+    return sha256(token.encode("utf-8")).digest()
+
+
 PHOENIX_ACCESS_TOKEN_COOKIE_NAME = "phoenix-access-token"
 """The name of the cookie that stores the Phoenix access token."""
 PHOENIX_REFRESH_TOKEN_COOKIE_NAME = "phoenix-refresh-token"
 """The name of the cookie that stores the Phoenix refresh token."""
 PHOENIX_OAUTH2_STATE_COOKIE_NAME = "phoenix-oauth2-state"
 """The name of the cookie that stores the state used for the OAuth2 authorization code flow."""
+PHOENIX_OAUTH2_LOGIN_CONTEXT_COOKIE_NAME = "phoenix-oauth2-login-context"
 PHOENIX_OAUTH2_NONCE_COOKIE_NAME = "phoenix-oauth2-nonce"
 """The name of the cookie that stores the nonce used for the OAuth2 authorization code flow."""
 PHOENIX_OAUTH2_CODE_VERIFIER_COOKIE_NAME = "phoenix-oauth2-code-verifier"

@@ -6,31 +6,24 @@ from random import choice, sample
 from secrets import token_bytes, token_hex
 from typing import Any, Literal, NamedTuple, Optional, Sequence, cast
 
-import httpx
+import httpx2
 import pandas as pd
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import format_span_id, format_trace_id
-from strawberry.relay import GlobalID
-from typing_extensions import assert_never
-
-import phoenix as px
+from phoenix.client import Client as _PhoenixClient
 from phoenix.client.__generated__ import v1
-from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
 
 from .._helpers import (
-    _ADMIN,
-    _MEMBER,
+    _SYSTEM_USER_GID,
     _AppInfo,
     _await_or_return,
     _ExistingSpan,
     _get,
-    _GetUser,
     _gql,
     _grpc_span_exporter,
-    _RoleOrUser,
     _SecurityArtifact,
     _start_span,
 )
@@ -76,22 +69,11 @@ class TestClientForSpanAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize(
-        "role_or_user, api_key_kind",
-        [
-            (_MEMBER, "User"),
-            (_ADMIN, "User"),
-            (_ADMIN, "System"),
-        ],
-    )
     async def test_add_span_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
-        api_key_kind: Literal["User", "System"],
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests creating and updating single annotations.
@@ -110,9 +92,8 @@ class TestClientForSpanAnnotations:
         assert _existing_spans, "At least one existing span is required for this test"
         span_gid1, span_id1, *_ = choice(_existing_spans)
 
-        # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app, api_key_kind))
+        # Set up test environment using admin secret
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -157,7 +138,7 @@ class TestClientForSpanAnnotations:
             def get_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
                     variables={"id": str(span_gid1)},
@@ -175,14 +156,7 @@ class TestClientForSpanAnnotations:
             )
 
             # Expected user ID for the annotation
-            expected_user_id: str
-            if api_key_kind == "User":
-                expected_user_id = u.gid
-            elif api_key_kind == "System":
-                system_user_gid = str(GlobalID(type_name="User", node_id=str(1)))
-                expected_user_id = system_user_gid
-            else:
-                assert_never(api_key_kind)
+            expected_user_id = _SYSTEM_USER_GID
 
             # Get the annotation and verify all fields match what was provided
             assert anno["name"] == annotation_name, "Annotation name should match input"
@@ -202,14 +176,11 @@ class TestClientForSpanAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_span_annotations(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling multiple annotations at once.
@@ -230,8 +201,7 @@ class TestClientForSpanAnnotations:
         (span_gid1, span_id1, *_), (span_gid2, span_id2, *_) = sample(_existing_spans, 2)
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -301,7 +271,7 @@ class TestClientForSpanAnnotations:
                 def get_batch_annotation() -> Optional[dict[str, Any]]:
                     res, _ = _gql(
                         _app,
-                        u,
+                        api_key,
                         query=self.query,
                         operation_name="GetSpanAnnotations",
                         variables={"id": str(span_gids[j])},
@@ -343,14 +313,11 @@ class TestClientForSpanAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_span_annotations_dataframe(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests using DataFrames for annotations.
@@ -375,8 +342,7 @@ class TestClientForSpanAnnotations:
         (span_gid1, span_id1, *_), (span_gid2, span_id2, *_) = sample(_existing_spans, 2)
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -428,7 +394,7 @@ class TestClientForSpanAnnotations:
             def get_df_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
                     variables={"id": str(span_gid)},
@@ -500,7 +466,7 @@ class TestClientForSpanAnnotations:
             def get_df2_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
                     variables={"id": str(span_gid)},
@@ -574,7 +540,7 @@ class TestClientForSpanAnnotations:
             def get_df3_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetSpanAnnotations",
                     variables={"id": str(span_gid)},
@@ -605,14 +571,11 @@ class TestClientForSpanAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling annotations with zero scores.
@@ -631,8 +594,7 @@ class TestClientForSpanAnnotations:
         span_gid1, span_id1, *_ = choice(_existing_spans)
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -664,7 +626,7 @@ class TestClientForSpanAnnotations:
         def get_zero_score_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 operation_name="GetSpanAnnotations",
                 variables={"id": str(span_gid1)},
@@ -687,14 +649,11 @@ class TestClientForSpanAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation_dataframe(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling zero scores in DataFrames.
@@ -713,8 +672,7 @@ class TestClientForSpanAnnotations:
         span_gid1, span_id1, *_ = choice(_existing_spans)
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -754,7 +712,7 @@ class TestClientForSpanAnnotations:
         def get_zero_score_df_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 operation_name="GetSpanAnnotations",
                 variables={"id": str(span_gid1)},
@@ -778,7 +736,6 @@ class TestClientForSpanAnnotations:
     async def test_burst_annotations_with_unique_identifiers(
         self,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests sending multiple span annotations in a burst with unique identifiers.
@@ -920,22 +877,11 @@ class TestClientForSpanDocumentAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize(
-        "role_or_user, api_key_kind",
-        [
-            (_MEMBER, "User"),
-            (_ADMIN, "User"),
-            (_ADMIN, "System"),
-        ],
-    )
     async def test_add_document_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
-        api_key_kind: Literal["User", "System"],
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test creating and updating single span document annotations.
@@ -946,9 +892,8 @@ class TestClientForSpanDocumentAnnotations:
         assert _existing_spans, "At least one span required"
         span_gid1, span_id1, *_ = choice(_existing_spans)
 
-        # Setup authenticated user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app, api_key_kind))
+        # Setup authenticated user using admin secret
+        api_key = _app.admin_secret
 
         # Setup client
         from phoenix.client import AsyncClient
@@ -989,7 +934,7 @@ class TestClientForSpanDocumentAnnotations:
             def get_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetSpanDocumentEvaluations",
                     variables={"id": str(span_gid1)},
@@ -1007,14 +952,7 @@ class TestClientForSpanDocumentAnnotations:
             )
 
             # Expected user ID for the annotation
-            expected_user_id: str
-            if api_key_kind == "User":
-                expected_user_id = u.gid
-            elif api_key_kind == "System":
-                system_user_gid = str(GlobalID(type_name="User", node_id=str(1)))
-                expected_user_id = system_user_gid
-            else:
-                assert_never(api_key_kind)
+            expected_user_id = _SYSTEM_USER_GID
 
             # Verify annotation fields
             assert anno["name"] == annotation_name
@@ -1031,14 +969,11 @@ class TestClientForSpanDocumentAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_document_annotations(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test batch span document annotation operations.
@@ -1050,8 +985,7 @@ class TestClientForSpanDocumentAnnotations:
         (span_gid1, span_id1, *_), (span_gid2, span_id2, *_) = sample(_existing_spans, 2)
 
         # Setup authenticated user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Setup client
         from phoenix.client import AsyncClient
@@ -1112,7 +1046,7 @@ class TestClientForSpanDocumentAnnotations:
                 def get_batch_annotation() -> Optional[dict[str, Any]]:
                     res, _ = _gql(
                         _app,
-                        u,
+                        api_key,
                         query=self.query,
                         operation_name="GetSpanDocumentEvaluations",
                         variables={"id": str(span_gids[j])},
@@ -1145,14 +1079,11 @@ class TestClientForSpanDocumentAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_document_annotations_dataframe(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test DataFrame span document annotations.
@@ -1164,8 +1095,7 @@ class TestClientForSpanDocumentAnnotations:
         (span_gid1, span_id1, *_), (span_gid2, span_id2, *_) = sample(_existing_spans, 2)
 
         # Setup authenticated user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Setup client
         from phoenix.client import AsyncClient
@@ -1217,7 +1147,7 @@ class TestClientForSpanDocumentAnnotations:
             def get_df_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetSpanDocumentEvaluations",
                     variables={"id": str(span_gid)},
@@ -1243,14 +1173,11 @@ class TestClientForSpanDocumentAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_document_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test zero score handling in span document annotations."""
@@ -1259,8 +1186,7 @@ class TestClientForSpanDocumentAnnotations:
         span_gid1, span_id1, *_ = choice(_existing_spans)
 
         # Setup authenticated user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Setup client
         from phoenix.client import AsyncClient
@@ -1291,7 +1217,7 @@ class TestClientForSpanDocumentAnnotations:
         def get_zero_score_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 operation_name="GetSpanDocumentEvaluations",
                 variables={"id": str(span_gid1)},
@@ -1332,7 +1258,7 @@ class TestClientForSpanDocumentAnnotations:
         _, span_id1, *_ = choice(_existing_spans)
 
         # Setup HTTP client for direct requests
-        async with httpx.AsyncClient(base_url=_app.base_url) as client:
+        async with httpx2.AsyncClient(base_url=_app.base_url) as client:
             headers = {
                 "Authorization": f"Bearer {_app.admin_secret}",
                 "Content-Type": "application/json",
@@ -1402,22 +1328,11 @@ class TestClientForTraceAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize(
-        "role_or_user, api_key_kind",
-        [
-            (_MEMBER, "User"),
-            (_ADMIN, "User"),
-            (_ADMIN, "System"),
-        ],
-    )
     async def test_add_trace_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
-        api_key_kind: Literal["User", "System"],
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests creating and updating single trace annotations.
@@ -1434,9 +1349,8 @@ class TestClientForTraceAnnotations:
         span1, *_ = _existing_spans
         trace_id1 = span1.trace.trace_id
 
-        # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app, api_key_kind))
+        # Set up test environment using admin secret
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -1505,14 +1419,11 @@ class TestClientForTraceAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_trace_annotations(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling multiple trace annotations at once.
@@ -1537,8 +1448,7 @@ class TestClientForTraceAnnotations:
         trace_gid2 = span2.trace.id
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -1608,7 +1518,7 @@ class TestClientForTraceAnnotations:
                 def get_batch_annotation() -> Optional[dict[str, Any]]:
                     res, _ = _gql(
                         _app,
-                        u,
+                        api_key,
                         query=self.query,
                         operation_name="GetTraceAnnotations",
                         variables={"id": str(trace_gids[j])},
@@ -1650,14 +1560,11 @@ class TestClientForTraceAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_trace_annotations_dataframe(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests using DataFrames for trace annotations.
@@ -1686,8 +1593,7 @@ class TestClientForTraceAnnotations:
         trace_gid2 = span2.trace.id
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -1739,7 +1645,7 @@ class TestClientForTraceAnnotations:
             def get_df_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetTraceAnnotations",
                     variables={"id": str(trace_gid)},
@@ -1811,7 +1717,7 @@ class TestClientForTraceAnnotations:
             def get_df2_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetTraceAnnotations",
                     variables={"id": str(trace_gid)},
@@ -1885,7 +1791,7 @@ class TestClientForTraceAnnotations:
             def get_df3_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     operation_name="GetTraceAnnotations",
                     variables={"id": str(trace_gid)},
@@ -1916,14 +1822,11 @@ class TestClientForTraceAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling trace annotations with zero scores.
@@ -1944,8 +1847,7 @@ class TestClientForTraceAnnotations:
         trace_id1 = span1.trace.trace_id
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -1977,7 +1879,7 @@ class TestClientForTraceAnnotations:
         def get_zero_score_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 operation_name="GetTraceAnnotations",
                 variables={"id": str(trace_gid1)},
@@ -2000,14 +1902,11 @@ class TestClientForTraceAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation_dataframe(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling zero scores in trace annotation DataFrames.
@@ -2028,8 +1927,7 @@ class TestClientForTraceAnnotations:
         trace_id1 = span1.trace.trace_id
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -2068,7 +1966,7 @@ class TestClientForTraceAnnotations:
         def get_zero_score_df_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 operation_name="GetTraceAnnotations",
                 variables={"id": str(trace_gid1)},
@@ -2092,7 +1990,6 @@ class TestClientForTraceAnnotations:
     async def test_burst_trace_annotations_with_unique_identifiers(
         self,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests sending multiple trace annotations in a burst with unique identifiers.
@@ -2232,22 +2129,11 @@ class TestClientForSessionAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize(
-        "role_or_user, api_key_kind",
-        [
-            (_MEMBER, "User"),
-            (_ADMIN, "User"),
-            (_ADMIN, "System"),
-        ],
-    )
     async def test_add_session_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
-        api_key_kind: Literal["User", "System"],
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests creating and updating single session annotations.
@@ -2267,9 +2153,8 @@ class TestClientForSessionAnnotations:
         session_id1 = session1.session_id
         session_gid1 = session1.id
 
-        # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app, api_key_kind))
+        # Set up test environment using admin secret
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -2279,6 +2164,12 @@ class TestClientForSessionAnnotations:
 
         # Test data
         annotation_name = token_hex(8)
+        label = "helpful"
+        score = 0.9
+        explanation = "This session was very helpful to the user"
+        new_label = "extremely_helpful"
+        new_score = 1.0
+        new_explanation = "This session was extremely helpful after review"
 
         # ============================================================================
         # Test Case: Create New Session Annotation
@@ -2289,9 +2180,9 @@ class TestClientForSessionAnnotations:
                 annotation_name=annotation_name,
                 session_id=session_id1,
                 annotator_kind="CODE",
-                label="helpful",
-                score=0.9,
-                explanation="This session was very helpful to the user",
+                label=label,
+                score=score,
+                explanation=explanation,
                 metadata={"model_name": "gpt-4", "version": "2024-01"},
                 identifier="test-id-123",
                 sync=sync,
@@ -2304,19 +2195,25 @@ class TestClientForSessionAnnotations:
 
         # Verify the annotation was created correctly by querying the GraphQL API
 
-        def get_session_annotation() -> Optional[dict[str, Any]]:
+        def get_session_annotation(
+            expected: tuple[str, float, str],
+        ) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 operation_name="GetSessionAnnotations",
                 variables={"id": str(session_gid1)},
             )
-            annotations = {anno["name"]: anno for anno in res["data"]["node"]["sessionAnnotations"]}
-            return annotations.get(annotation_name)
+            annotations = {
+                (anno["name"], anno["label"], anno["score"], anno["explanation"]): anno
+                for anno in res["data"]["node"]["sessionAnnotations"]
+            }
+            return annotations.get((annotation_name, *expected))
 
         anno = await _get(
             query_fn=get_session_annotation,
+            args=((label, score, explanation),),
             error_msg="Session annotation should be present in session annotations",
             no_wait=sync,
         )
@@ -2324,9 +2221,9 @@ class TestClientForSessionAnnotations:
         # Verify the annotation exists and has the expected values
         assert anno["name"] == annotation_name
         assert anno["annotatorKind"] == "CODE"
-        assert anno["label"] == "helpful"
-        assert anno["score"] == 0.9
-        assert anno["explanation"] == "This session was very helpful to the user"
+        assert anno["label"] == label
+        assert anno["score"] == score
+        assert anno["explanation"] == explanation
         assert anno["metadata"] == {"model_name": "gpt-4", "version": "2024-01"}
         assert anno["identifier"] == "test-id-123"
         assert anno["source"] == "API"
@@ -2343,9 +2240,9 @@ class TestClientForSessionAnnotations:
                 annotation_name=annotation_name,
                 session_id=session_id1,
                 annotator_kind="HUMAN",  # Changed
-                label="extremely_helpful",  # Changed
-                score=1.0,  # Changed
-                explanation="This session was extremely helpful after review",  # Changed
+                label=new_label,  # Changed
+                score=new_score,  # Changed
+                explanation=new_explanation,  # Changed
                 metadata={"model_name": "gpt-4", "version": "2024-02", "reviewed": True},  # Changed
                 identifier="test-id-123",  # Same identifier - should update
                 sync=sync,
@@ -2359,6 +2256,7 @@ class TestClientForSessionAnnotations:
         # Verify the annotation was updated correctly
         updated_anno = await _get(
             query_fn=get_session_annotation,
+            args=((new_label, new_score, new_explanation),),
             error_msg="Updated session annotation should be present in session annotations",
             no_wait=sync,
         )
@@ -2367,11 +2265,9 @@ class TestClientForSessionAnnotations:
         assert updated_anno["id"] == original_annotation_id  # ID should remain the same
         assert updated_anno["name"] == annotation_name
         assert updated_anno["annotatorKind"] == "HUMAN"  # Updated
-        assert updated_anno["label"] == "extremely_helpful"  # Updated
-        assert updated_anno["score"] == 1.0  # Updated
-        assert (
-            updated_anno["explanation"] == "This session was extremely helpful after review"
-        )  # Updated
+        assert updated_anno["label"] == new_label  # Updated
+        assert updated_anno["score"] == new_score  # Updated
+        assert updated_anno["explanation"] == new_explanation  # Updated
         assert updated_anno["metadata"] == {
             "model_name": "gpt-4",
             "version": "2024-02",
@@ -2382,14 +2278,11 @@ class TestClientForSessionAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_session_annotations(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling multiple session annotations at once.
@@ -2420,9 +2313,8 @@ class TestClientForSessionAnnotations:
 
         session_ids = [session_id1, session_id2]
 
-        # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app, "User"))
+        # Set up test environment using admin secret
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -2483,7 +2375,7 @@ class TestClientForSessionAnnotations:
         def get_session_annotation_1() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 variables={"id": str(session_gid1)},
             )
@@ -2510,7 +2402,7 @@ class TestClientForSessionAnnotations:
             def get_session_annotation_2() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     _app,
-                    u,
+                    api_key,
                     query=self.query,
                     variables={"id": str(session_gid2)},
                 )
@@ -2535,14 +2427,11 @@ class TestClientForSessionAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_session_annotations_dataframe(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests using DataFrames for session annotations.
@@ -2569,9 +2458,8 @@ class TestClientForSessionAnnotations:
         session_id1 = span1.trace.session.session_id
         session_id2 = span2.trace.session.session_id
 
-        # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app, "User"))
+        # Set up test environment using admin secret
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -2667,14 +2555,11 @@ class TestClientForSessionAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling session annotations with zero scores.
@@ -2695,8 +2580,7 @@ class TestClientForSessionAnnotations:
         session_id1 = span1.trace.session.session_id
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -2731,7 +2615,7 @@ class TestClientForSessionAnnotations:
         def get_zero_score_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 variables={"id": str(session_gid1)},
             )
@@ -2753,14 +2637,11 @@ class TestClientForSessionAnnotations:
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation_dataframe(
         self,
         sync: bool,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests handling zero scores in session annotation DataFrames.
@@ -2781,8 +2662,7 @@ class TestClientForSessionAnnotations:
         session_id1 = span1.trace.session.session_id
 
         # Set up test environment with logged-in user
-        u = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(u.create_api_key(_app))
+        api_key = _app.admin_secret
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -2824,7 +2704,7 @@ class TestClientForSessionAnnotations:
         def get_zero_score_df_annotation() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _app,
-                u,
+                api_key,
                 query=self.query,
                 variables={"id": str(session_gid1)},
             )
@@ -2847,7 +2727,6 @@ class TestClientForSessionAnnotations:
     async def test_burst_session_annotations_with_unique_identifiers(
         self,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Tests sending multiple session annotations in a burst with unique identifiers.
@@ -3057,7 +2936,7 @@ class TestSendingAnnotationsBeforeSpan:
                             session {
                                 id
                             }
-                            spans {
+                            spans(first: 1000) {
                                 edges {
                                     node {
                                         id
@@ -3131,7 +3010,7 @@ class TestSendingAnnotationsBeforeSpan:
         - Existing annotations can be updated (UPSERT)
         """
         # Get IDs from the span
-        assert (span_context := _span.get_span_context())  # type: ignore[no-untyped-call]
+        assert (span_context := _span.get_span_context())
         span_id = format_span_id(span_context.span_id)
         trace_id = format_trace_id(span_context.trace_id)
         assert (
@@ -3277,41 +3156,43 @@ class TestSendingAnnotationsBeforeSpan:
                 sync=False,
             )
 
-            px.Client(endpoint=_app.base_url, api_key=api_key).log_evaluations(
-                SpanEvaluations(
-                    eval_name=span_eval_name,
-                    dataframe=pd.DataFrame(
-                        {
-                            "span_id": [span_id],
-                            "label": [span_eval_labels[-1]],
-                            "score": [span_eval_scores[-1]],
-                            "explanation": [span_eval_explanations[-1]],
-                        }
-                    ),
+            _eval_client = _PhoenixClient(base_url=_app.base_url, api_key=api_key)
+            _eval_client.spans.log_span_annotations_dataframe(
+                dataframe=pd.DataFrame(
+                    {
+                        "span_id": [span_id],
+                        "label": [span_eval_labels[-1]],
+                        "score": [span_eval_scores[-1]],
+                        "explanation": [span_eval_explanations[-1]],
+                    }
                 ),
-                TraceEvaluations(
-                    eval_name=trace_eval_name,
-                    dataframe=pd.DataFrame(
-                        {
-                            "trace_id": [trace_id],
-                            "label": [trace_eval_labels[-1]],
-                            "score": [trace_eval_scores[-1]],
-                            "explanation": [trace_eval_explanations[-1]],
-                        }
-                    ),
+                annotation_name=span_eval_name,
+                annotator_kind="LLM",
+            )
+            _eval_client.traces.log_trace_annotations_dataframe(
+                dataframe=pd.DataFrame(
+                    {
+                        "trace_id": [trace_id],
+                        "label": [trace_eval_labels[-1]],
+                        "score": [trace_eval_scores[-1]],
+                        "explanation": [trace_eval_explanations[-1]],
+                    }
                 ),
-                DocumentEvaluations(
-                    eval_name=doc_eval_name,
-                    dataframe=pd.DataFrame(
-                        {
-                            "span_id": [span_id],
-                            "document_position": [document_position],
-                            "label": [doc_eval_labels[-1]],
-                            "score": [doc_eval_scores[-1]],
-                            "explanation": [doc_eval_explanations[-1]],
-                        }
-                    ),
+                annotation_name=trace_eval_name,
+                annotator_kind="LLM",
+            )
+            _eval_client.spans.log_document_annotations_dataframe(
+                dataframe=pd.DataFrame(
+                    {
+                        "span_id": [span_id],
+                        "document_position": [document_position],
+                        "label": [doc_eval_labels[-1]],
+                        "score": [doc_eval_scores[-1]],
+                        "explanation": [doc_eval_explanations[-1]],
+                    }
                 ),
+                annotation_name=doc_eval_name,
+                annotator_kind="LLM",
             )
             # Use a significant sleep duration to verify that annotations sent before
             # span ingestion are properly processed in chronological order
@@ -3592,41 +3473,43 @@ class TestSendingAnnotationsBeforeSpan:
             sync=False,
         )
 
-        px.Client(endpoint=_app.base_url, api_key=api_key).log_evaluations(
-            SpanEvaluations(
-                eval_name=span_eval_name,
-                dataframe=pd.DataFrame(
-                    {
-                        "span_id": [span_id],
-                        "label": [new_span_eval_label],
-                        "score": [new_span_eval_score],
-                        "explanation": [new_span_eval_explanation],
-                    }
-                ),
+        _eval_client = _PhoenixClient(base_url=_app.base_url, api_key=api_key)
+        _eval_client.spans.log_span_annotations_dataframe(
+            dataframe=pd.DataFrame(
+                {
+                    "span_id": [span_id],
+                    "label": [new_span_eval_label],
+                    "score": [new_span_eval_score],
+                    "explanation": [new_span_eval_explanation],
+                }
             ),
-            TraceEvaluations(
-                eval_name=trace_eval_name,
-                dataframe=pd.DataFrame(
-                    {
-                        "trace_id": [trace_id],
-                        "label": [new_trace_eval_label],
-                        "score": [new_trace_eval_score],
-                        "explanation": [new_trace_eval_explanation],
-                    }
-                ),
+            annotation_name=span_eval_name,
+            annotator_kind="LLM",
+        )
+        _eval_client.traces.log_trace_annotations_dataframe(
+            dataframe=pd.DataFrame(
+                {
+                    "trace_id": [trace_id],
+                    "label": [new_trace_eval_label],
+                    "score": [new_trace_eval_score],
+                    "explanation": [new_trace_eval_explanation],
+                }
             ),
-            DocumentEvaluations(
-                eval_name=doc_eval_name,
-                dataframe=pd.DataFrame(
-                    {
-                        "span_id": [span_id],
-                        "document_position": [document_position],
-                        "label": [new_doc_eval_label],
-                        "score": [new_doc_eval_score],
-                        "explanation": [new_doc_eval_explanation],
-                    }
-                ),
+            annotation_name=trace_eval_name,
+            annotator_kind="LLM",
+        )
+        _eval_client.spans.log_document_annotations_dataframe(
+            dataframe=pd.DataFrame(
+                {
+                    "span_id": [span_id],
+                    "document_position": [document_position],
+                    "label": [new_doc_eval_label],
+                    "score": [new_doc_eval_score],
+                    "explanation": [new_doc_eval_explanation],
+                }
             ),
+            annotation_name=doc_eval_name,
+            annotator_kind="LLM",
         )
 
         # Check updated annotations

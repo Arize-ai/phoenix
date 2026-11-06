@@ -1,0 +1,45 @@
+---
+title: "Start Phoenix"
+description: Run Phoenix locally, in a container, or on your own infrastructure, then send it your first trace.
+---
+
+import LaunchPhoenixTerminal from "../snippets/launch-phoenix-terminal.mdx";
+import LaunchPhoenixDocker from "../snippets/launch-phoenix-docker.mdx";
+import LaunchPhoenixSelfHost from "../snippets/launch-phoenix-self-host.mdx";
+import PhoenixAuthNote from "../snippets/phoenix-auth-note.mdx";
+
+Phoenix serves its UI and OTLP HTTP on port **6006**, and OTLP gRPC on port **4317**. Start it one of these ways and leave it running while you work through [Observe](/docs/phoenix/get-started/get-started-tracing) and [Evaluate](/docs/phoenix/get-started/get-started-evaluations).
+
+## Run Phoenix
+
+<Tabs>
+  <Tab title="Local">
+    Phoenix is a Python package, so `uvx` is the quickest way to run it, whatever language your agent is in.
+
+    <LaunchPhoenixTerminal />
+
+    Open [http://localhost:6006](http://localhost:6006) to see the UI.
+  </Tab>
+  <Tab title="Container">
+    <LaunchPhoenixDocker />
+  </Tab>
+  <Tab title="Self-host">
+    <LaunchPhoenixSelfHost />
+  </Tab>
+</Tabs>
+
+## Connect to a remote Phoenix
+
+The quickstarts assume a local Phoenix at `http://localhost:6006`. Anywhere else, only `PHOENIX_COLLECTOR_ENDPOINT` changes.
+
+<PhoenixAuthNote />
+
+## Have an existing app?
+
+Run the Phoenix CLI setup from your app's root directory. It detects your coding agent, hands it the instrumentation, and finishes when the first trace arrives:
+
+```bash
+npx -y @arizeai/phoenix-cli setup
+```
+
+See [Connect a project with px setup](/docs/phoenix/integrations/developer-tools/cli#connect-a-project-with-px-setup) for the full flow, CI usage, and unsupported agents.

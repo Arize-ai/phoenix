@@ -1,0 +1,80 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  "extends": ["../../.oxlintrc.json"],
+
+  "options": {
+    "typeAware": true
+  },
+
+  "plugins": ["react", "typescript", "import"],
+
+  "env": {
+    "browser": true
+  },
+
+  "settings": {
+    "react": {
+      "version": "19.2.0"
+    }
+  },
+
+  "rules": {
+    "eslint/no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react",
+            "importNames": ["forwardRef"],
+            "message": "Use ref as a prop instead (React 19). See https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop"
+          }
+        ]
+      }
+    ],
+    "import/no-cycle": "error",
+    // Existing React Compiler bailouts are suppressed at their callsites so
+    // every newly introduced compiler diagnostic blocks local and CI linting.
+    "react/error-boundaries": "error",
+    "react/exhaustive-deps": "error",
+    "react/globals": "error",
+    "react/immutability": "error",
+    "react/incompatible-library": "error",
+    "react/preserve-manual-memoization": "error",
+    "react/purity": "error",
+    "react/refs": "error",
+    "react/rules-of-hooks": "error",
+    "react/set-state-in-effect": "error",
+    "react/set-state-in-render": "error",
+    "react/static-components": "error",
+    "react/unsupported-syntax": "error",
+    "react/use-memo": "error",
+    "react/void-use-memo": "error",
+    "react/no-unknown-property": ["error", { "ignore": ["css"] }],
+    "react/react-in-jsx-scope": "off",
+    "typescript/no-empty-object-type": [
+      "error",
+      {
+        "allowInterfaces": "with-single-extends"
+      }
+    ]
+  },
+
+  // TODO: Enable jsx-a11y globally after the remaining app violations are addressed.
+  "overrides": [
+    {
+      "files": ["stories/**/*.stories.tsx"],
+      "plugins": ["react", "typescript", "jsx-a11y"],
+      "rules": {
+        // Stories are isolated component demos: autofocus and label-less
+        // controls are deliberate showcase constructs there, not shipped UI.
+        // Keep the rest of jsx-a11y active so stories stay honest examples.
+        "jsx-a11y/no-autofocus": "off",
+        "jsx-a11y/control-has-associated-label": "off",
+        "jsx-a11y/prefer-tag-over-role": "off"
+      }
+    }
+  ],
+
+  "ignorePatterns": ["playwright-report/**", "test-results/**"]
+}

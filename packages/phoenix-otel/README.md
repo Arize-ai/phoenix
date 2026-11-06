@@ -1,9 +1,9 @@
 <h1 align="center" style="border-bottom: none">
     <div>
-        <a href="https://phoenix.arize.com/?utm_medium=github&utm_content=header_img&utm_campaign=phoenix-client">
+        <a href="https://phoenix.arize.com/?utm_medium=github&utm_content=header_img&utm_campaign=phoenix-otel">
             <picture>
-                <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix.svg">
-                <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix-white.svg">
+                <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix-white.svg">
+                <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix.svg">
                 <img alt="Arize Phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix.svg" width="100" />
             </picture>
         </a>
@@ -16,9 +16,10 @@
     <a href="https://pypi.org/project/arize-phoenix-otel/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix-otel" alt="PyPI Version">
     </a>
-    <a href="https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html">
+    <a href="https://arize-phoenix.readthedocs.io/projects/otel/">
         <img src="https://img.shields.io/badge/docs-blue?logo=readthedocs&logoColor=white" alt="Documentation">
     </a>
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=packages/phoenix-otel/README.md" />
 </p>
 
 Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults. Phoenix OTEL also gives you access to tracing decorators for common GenAI patterns.
@@ -39,6 +40,7 @@ Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-awar
 - **Production Ready**: Built-in batching and authentication
 - **Phoenix Integration**: Seamless integration with Phoenix Cloud and self-hosted instances
 - **OpenTelemetry Compatible**: Works with existing OpenTelemetry infrastructure
+- **Server Version Independent**: Versioned separately from the Phoenix server — any recent `arize-phoenix-otel` works with any Phoenix server version, with no version pairing to track (traces are sent over OTLP using OpenInference semantic conventions, both backward compatible)
 
 These defaults are aware of environment variables you may have set to configure Phoenix:
 
@@ -66,8 +68,8 @@ from phoenix.otel import register
 # Recommended: Automatic instrumentation + production settings
 tracer_provider = register(
     auto_instrument=True,  # Auto-trace OpenAI, LangChain, LlamaIndex, etc.
-    batch=True,           # Production-ready batching
-    project_name="my-app" # Organize your traces
+    batch=True,  # Production-ready batching
+    project_name="my-app",  # Organize your traces
 )
 ```
 
@@ -101,17 +103,23 @@ Configure where to send your traces:
 **Environment Variables** (Recommended):
 
 ```bash
-export PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com/s/your-space"
+export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_PROJECT_NAME="my-project"
 ```
+
+`register()` picks the transport from the endpoint. A URL with no path, like the one above, uses gRPC to the same host on port `4317` (`PHOENIX_GRPC_PORT`). A URL with a path, or a Phoenix Cloud URL, uses HTTP. If the gRPC port is not reachable, for example behind a reverse proxy or an ingress, pass `protocol="http/protobuf"`.
 
 **Direct Configuration**:
 
 ```python
-tracer_provider = register(
-    endpoint="http://localhost:6006/v1/traces",  # HTTP endpoint
-    protocol="grpc"  # Or force gRPC protocol
-)
+# A URL with a path uses HTTP, sent to the URL as given
+tracer_provider = register(endpoint="http://localhost:6006/v1/traces")
+
+# A URL with no path uses gRPC, sent to host:port as given
+tracer_provider = register(endpoint="http://localhost:4317")
+
+# Pass protocol to choose the transport yourself
+tracer_provider = register(protocol="http/protobuf")
 ```
 
 ## Usage Examples
@@ -130,10 +138,10 @@ tracer_provider = register(auto_instrument=True)
 ```python
 tracer_provider = register(
     project_name="my-production-app",
-    auto_instrument=True,      # Auto-trace AI/ML libraries
-    batch=True,               # Background batching for performance
-    api_key="your-api-key",   # Authentication
-    endpoint="https://app.phoenix.arize.com/s/your-space"
+    auto_instrument=True,  # Auto-trace AI/ML libraries
+    batch=True,  # Background batching for performance
+    api_key="your-api-key",  # Authentication
+    endpoint="https://your-phoenix-instance.com/v1/traces",
 )
 ```
 
@@ -160,9 +168,11 @@ tracer_provider = register()
 # Get a tracer for manual instrumentation
 tracer = tracer_provider.get_tracer(__name__)
 
+
 @tracer.chain
 def process_data(data):
     return data + " processed"
+
 
 @tracer.tool
 def weather(location):
@@ -173,15 +183,55 @@ def weather(location):
 
 | Variable                     | Description          | Example                                      |
 | ---------------------------- | -------------------- | -------------------------------------------- |
-| `PHOENIX_COLLECTOR_ENDPOINT` | Where to send traces | `https://app.phoenix.arize.com/s/your-space` |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Where to send traces | `https://your-phoenix-instance.com`          |
 | `PHOENIX_PROJECT_NAME`       | Project name         | `my-llm-app`                                 |
 | `PHOENIX_API_KEY`            | Authentication key   | `your-api-key`                               |
 | `PHOENIX_CLIENT_HEADERS`     | Custom headers       | `Authorization=Bearer token`                 |
-| `PHOENIX_GRPC_PORT`          | gRPC port override   | `4317`                                       |
+| `PHOENIX_GRPC_PORT`          | gRPC port, used when `PHOENIX_COLLECTOR_ENDPOINT` has no path | `4317` |
+| `PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` discovery | `false`        |
+
+### Credential File Discovery (`.env.phoenix`)
+
+When a setting is not provided by argument or environment variable, `register()`
+looks for a `.env.phoenix` file in the current working directory — walking up
+toward the filesystem root and stopping at the first match — and reads
+`PHOENIX_`-prefixed keys from it (dotenv format):
+
+```bash
+# .env.phoenix
+PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
+PHOENIX_API_KEY=your-api-key
+```
+
+Explicit arguments and environment variables always take precedence — the file
+never overrides anything already set. Set `PHOENIX_DISCOVER_CONFIG=false` to
+disable discovery entirely.
+
+Credentials (`PHOENIX_API_KEY`, `PHOENIX_CLIENT_HEADERS`, and
+`OTEL_EXPORTER_OTLP_HEADERS`) and server location
+(`PHOENIX_COLLECTOR_ENDPOINT`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and
+`PHOENIX_GRPC_PORT`) are each resolved as a group from one source tier. This
+prevents a file-only gRPC port from rewriting a process-provided endpoint. If
+explicit or process credentials are paired with an endpoint from
+`.env.phoenix`, Phoenix OTel warns once and continues without logging credential
+values.
+
+Discovery results, including a missing file, are cached per working directory
+for the process lifetime. Long-running processes can call
+`phoenix.otel.settings.clear_env_file_cache()` after creating or changing the
+file.
+
+## Coding Agent Skill
+
+The Phoenix repo includes a [phoenix-tracing skill](https://github.com/Arize-ai/phoenix/tree/main/skills/phoenix-tracing) that teaches coding agents (Claude Code, Cursor, etc.) how to instrument LLM applications with OpenInference tracing. Install it with:
+
+```bash
+npx skills add Arize-ai/phoenix --skill phoenix-tracing
+```
 
 ## Documentation
 
-- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/otel/en/latest/index.html)** - Complete API reference and guides
+- **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/otel/)** - Complete API reference and guides
 - **[Phoenix Docs](https://arize.com/docs/phoenix)** - Detailed tracing examples and patterns
 - **[OpenInference](https://github.com/Arize-ai/openinference)** - Auto-instrumentation libraries for frameworks
 
@@ -189,9 +239,10 @@ def weather(location):
 
 Join our community to connect with thousands of AI builders:
 
-- 🌍 Join our [Slack community](https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg).
+- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
 - 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 💼 Follow us on [LinkedIn](https://www.linkedin.com/showcase/113218220).
 - 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.

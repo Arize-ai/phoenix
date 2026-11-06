@@ -12,9 +12,14 @@
     </div>
 </h1>
 
+<p align="center">
+    <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=js/README.md" />
+</p>
+
 Official TypeScript libraries for interacting with a running [Arize Phoenix](https://github.com/Arize-ai/phoenix) instance.
 
 | Package                   | Description                                                                            | Version                                                          |
 | ------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `@arizeai/phoenix-otel`   | lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults.       | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)   |
 | `@arizeai/phoenix-client` | strongly-typed REST & prompt SDK for creating datasets, running experiments, and more. | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client) |
 | `@arizeai/phoenix-evals`  | LLM-powered evaluators and helpers for scoring model outputs.                          | ![npm](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)  |

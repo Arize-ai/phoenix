@@ -1,17 +1,26 @@
 from __future__ import annotations
 
 import string
+from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any
 from urllib.parse import quote
 
-import httpx
+import httpx2
 import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.trace_retention import (
+    MaxCountRule,
+    TraceRetentionCronExpression,
+    TraceRetentionRule,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
@@ -33,7 +42,7 @@ class TestProjects:
 
     async def test_get_projects(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -83,7 +92,7 @@ class TestProjects:
 
     async def test_get_project_by_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -109,7 +118,7 @@ class TestProjects:
     @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_get_project_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         project_name: str,
         project_description: str,
@@ -145,7 +154,7 @@ class TestProjects:
     @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_create_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         project_name: str,
         project_description: str,
@@ -188,7 +197,7 @@ class TestProjects:
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
     async def test_update_project_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         special_chars_name: str,
         description: str,
@@ -234,7 +243,7 @@ class TestProjects:
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
     async def test_delete_project_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         special_chars_name: str,
         description: str,
@@ -271,7 +280,7 @@ class TestProjects:
 
     async def test_cannot_delete_default_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -335,7 +344,7 @@ class TestProjects:
 
     async def test_get_nonexistent_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """
         Test retrieving a project that doesn't exist.
@@ -362,7 +371,7 @@ class TestProjects:
 
     async def test_update_nonexistent_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """
         Test updating a project that doesn't exist.
@@ -395,7 +404,7 @@ class TestProjects:
 
     async def test_delete_nonexistent_project(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """
         Test deleting a project that doesn't exist.
@@ -421,7 +430,7 @@ class TestProjects:
 
     async def test_list_projects_with_cursor(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -531,7 +540,7 @@ class TestProjects:
 
     async def test_list_projects_empty(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -582,7 +591,7 @@ class TestProjects:
 
     async def test_list_projects_limit_larger_than_available(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -630,9 +639,103 @@ class TestProjects:
                 f"Project at index {i} should have ID {projects[i].id}, got {project_id}"
             )
 
+    async def test_list_projects_name_contains_filter(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test filtering projects by name substring with the name_contains parameter.
+
+        This test verifies that:
+        1. Only projects whose name contains the substring are returned
+        2. Matching is case-insensitive
+        3. SQL LIKE wildcards (% and _) in the filter are treated literally
+        4. Unicode names are matched correctly
+        5. The filter combines with cursor-based pagination
+        6. No projects are returned when nothing matches
+        """
+        names = [
+            "Alpha Project",
+            "alphabet soup",
+            "Beta Project",
+            "100% complete",
+            "under_score",
+            "项目名称",
+        ]
+        async with db() as session:
+            for name in names:
+                session.add(models.Project(name=name, description=token_hex(8)))
+            await session.flush()
+
+        url = "v1/projects"
+
+        # Case-insensitive substring match
+        response = await httpx_client.get(url, params={"name_contains": "ALPHA"})
+        assert response.status_code == 200, (
+            f"GET /projects with name_contains should return 200, got {response.status_code}: {response.text}"
+        )
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"Alpha Project", "alphabet soup"}, (
+            f"name_contains='ALPHA' should match case-insensitively, got {returned_names}"
+        )
+
+        # LIKE wildcard % must be treated literally
+        response = await httpx_client.get(url, params={"name_contains": "100%"})
+        assert response.status_code == 200
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"100% complete"}, (
+            f"name_contains='100%' should match the literal percent sign only, got {returned_names}"
+        )
+
+        # LIKE wildcard _ must be treated literally
+        response = await httpx_client.get(url, params={"name_contains": "under_"})
+        assert response.status_code == 200
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"under_score"}, (
+            f"name_contains='under_' should match the literal underscore only, got {returned_names}"
+        )
+
+        # Unicode substring match
+        response = await httpx_client.get(url, params={"name_contains": "名称"})
+        assert response.status_code == 200
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"项目名称"}, (
+            f"name_contains='名称' should match the unicode name, got {returned_names}"
+        )
+
+        # No match returns an empty list
+        response = await httpx_client.get(url, params={"name_contains": token_hex(16)})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"] == [], "No projects should match a random filter string"
+        assert data["next_cursor"] is None, "next_cursor should be null when nothing matches"
+
+        # Combines with pagination
+        response = await httpx_client.get(url, params={"name_contains": "project", "limit": 1})
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["data"]) == 1, "limit=1 should return exactly 1 matching project"
+        assert data["next_cursor"] is not None, (
+            "next_cursor should be present when more matching projects remain"
+        )
+        first_page_name = data["data"][0]["name"]
+        response = await httpx_client.get(
+            url, params={"name_contains": "project", "cursor": data["next_cursor"]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        returned_names = {p["name"] for p in data["data"]}
+        assert {first_page_name} | returned_names == {"Alpha Project", "Beta Project"}, (
+            f"Paginated pages should cover all matching projects, got {returned_names}"
+        )
+        assert data["next_cursor"] is None, (
+            "next_cursor should be null when all matching projects have been returned"
+        )
+
     async def test_include_experiment_projects_parameter(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -763,6 +866,100 @@ class TestProjects:
             "Playground project should always be included - it's special and visibility isn't affected by parameters"
         )
 
+    async def test_include_dataset_evaluator_projects_parameter(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        seed_languages: None,
+    ) -> None:
+        """
+        Test that dataset evaluator projects are excluded by default but can be included with a parameter.
+
+        This test verifies that:
+        1. Dataset evaluator projects are excluded by default from the response
+        2. Dataset evaluator projects are included when include_dataset_evaluator_projects=True
+        3. Regular projects are always included regardless of the parameter
+        """
+        # Create regular projects that will always be included
+        regular_projects = await self._insert_projects(db, 2)
+
+        async with db() as session:
+            dataset_evaluator_project = models.Project(
+                name="dataset-evaluator-project",
+                description="A project created from a dataset evaluator - should be filtered by default",
+            )
+            session.add(dataset_evaluator_project)
+            await session.flush()
+
+            dataset = models.Dataset(name="test-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            code_evaluator = models.CodeEvaluator(
+                name=Identifier(root="test-evaluator"),
+                description="Test evaluator",
+                metadata_={},
+                language="PYTHON",
+            )
+            session.add(code_evaluator)
+            await session.flush()
+
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=code_evaluator.id,
+                name=Identifier(root="test-dataset-evaluator"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project_id=dataset_evaluator_project.id,
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+        # Test default behavior - should exclude dataset evaluator projects
+        url = "v1/projects"
+        response = await httpx_client.get(url)
+        assert response.status_code == 200, (
+            f"GET /projects failed with status code {response.status_code}: {response.text}"
+        )
+
+        data = response.json()
+        returned_projects = data["data"]
+
+        # Should return only regular projects
+        expected_count = len(regular_projects)
+        assert len(returned_projects) == expected_count, (
+            f"Expected {expected_count} projects (regular only), got {len(returned_projects)}"
+        )
+
+        # Dataset evaluator project should be filtered out by default
+        dataset_evaluator_project_ids = [
+            str(GlobalID(Project.__name__, str(dataset_evaluator_project.id)))
+        ]
+        returned_project_ids = [p["id"] for p in returned_projects]
+        assert not any(id_ in returned_project_ids for id_ in dataset_evaluator_project_ids), (
+            "Dataset evaluator project should be excluded by default to reduce clutter"
+        )
+
+        # Test with include_dataset_evaluator_projects=True - should include all projects
+        response = await httpx_client.get(url, params={"include_dataset_evaluator_projects": True})
+        assert response.status_code == 200, (
+            f"GET /projects with include_dataset_evaluator_projects=True failed with status code {response.status_code}: {response.text}"
+        )
+
+        data = response.json()
+        returned_projects = data["data"]
+
+        # Should return all projects when including dataset evaluator projects
+        expected_count = len(regular_projects) + 1
+        assert len(returned_projects) == expected_count, (
+            f"Expected {expected_count} projects (regular + dataset evaluator), got {len(returned_projects)}"
+        )
+
+        # Dataset evaluator project should now be included
+        returned_project_ids = [p["id"] for p in returned_projects]
+        assert any(id_ in returned_project_ids for id_ in dataset_evaluator_project_ids), (
+            "Dataset evaluator project should be included when explicitly requested"
+        )
+
     @staticmethod
     def _compare_project(
         data: dict[str, Any],
@@ -832,3 +1029,501 @@ class TestProjects:
         for i, p in enumerate(projects):
             print(f"Created test project {i + 1}: id={p.id}, name='{p.name}'")
         return projects
+
+
+class TestSetProjectRetentionPolicy:
+    """PATCH /projects/{project_identifier}/retention"""
+
+    @staticmethod
+    async def _policy(db: DbSessionFactory) -> models.ProjectTraceRetentionPolicy:
+        async with db() as session:
+            policy = models.ProjectTraceRetentionPolicy(
+                name=token_hex(8),
+                cron_expression=TraceRetentionCronExpression(root="0 1 * * 1"),
+                rule=TraceRetentionRule(root=MaxCountRule(max_count=1)),
+            )
+            session.add(policy)
+            await session.flush()
+        return policy
+
+    @staticmethod
+    async def _project(
+        db: DbSessionFactory,
+        policy_id: int | None = None,
+    ) -> models.Project:
+        async with db() as session:
+            project = models.Project(name=token_hex(16), trace_retention_policy_id=policy_id)
+            session.add(project)
+            await session.flush()
+        return project
+
+    @staticmethod
+    async def _policy_id_of(db: DbSessionFactory, project_rowid: int) -> int | None:
+        async with db() as session:
+            return await session.scalar(
+                select(models.Project.trace_retention_policy_id).where(
+                    models.Project.id == project_rowid
+                )
+            )
+
+    async def test_assigns_policy_to_project(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db)
+        policy_gid = str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": policy_gid},
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["policy_id"] == policy_gid
+        assert data["project_id"] == str(GlobalID(Project.__name__, str(project.id)))
+        assert await self._policy_id_of(db, project.id) == policy.id
+
+    async def test_accepts_project_global_id(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db)
+        project_gid = str(GlobalID(Project.__name__, str(project.id)))
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project_gid}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))},
+        )
+        assert response.status_code == 200
+        assert await self._policy_id_of(db, project.id) == policy.id
+
+    async def test_null_policy_id_resets_to_default(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db, policy_id=policy.id)
+        assert await self._policy_id_of(db, project.id) == policy.id
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": None},
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["policy_id"] is None
+        # NULL means the project falls back to the default policy.
+        assert await self._policy_id_of(db, project.id) is None
+
+    async def test_default_policy_global_id_resets_to_default(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        project = await self._project(db, policy_id=policy.id)
+        default_policy_id = str(
+            GlobalID(
+                "ProjectTraceRetentionPolicy",
+                str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID),
+            )
+        )
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": default_policy_id},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["data"]["policy_id"] is None
+        assert await self._policy_id_of(db, project.id) is None
+
+    async def test_reassigns_between_policies(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        first, second = await self._policy(db), await self._policy(db)
+        project = await self._project(db, policy_id=first.id)
+
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(second.id)))},
+        )
+        assert response.status_code == 200
+        assert await self._policy_id_of(db, project.id) == second.id
+
+    async def test_does_not_mutate_the_policy_itself(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """Policies are shared entities; assignment must not edit or delete them."""
+        policy = await self._policy(db)
+        project = await self._project(db)
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))},
+        )
+        assert response.status_code == 200
+        async with db() as session:
+            stored = await session.get(models.ProjectTraceRetentionPolicy, policy.id)
+        assert stored is not None
+        assert stored.name == policy.name
+
+    async def test_unknown_policy_returns_404(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project = await self._project(db)
+        missing = str(GlobalID("ProjectTraceRetentionPolicy", "99999"))
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": missing},
+        )
+        assert response.status_code == 404
+        assert await self._policy_id_of(db, project.id) is None
+
+    async def test_unknown_project_returns_404(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        policy = await self._policy(db)
+        response = await httpx_client.patch(
+            f"v1/projects/{token_hex(16)}/retention",
+            json={"policy_id": str(GlobalID("ProjectTraceRetentionPolicy", str(policy.id)))},
+        )
+        assert response.status_code == 404
+
+    async def test_malformed_policy_id_returns_422(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project = await self._project(db)
+        response = await httpx_client.patch(
+            f"v1/projects/{project.name}/retention",
+            json={"policy_id": "not-a-global-id"},
+        )
+        assert response.status_code == 422
+
+    async def test_missing_policy_id_field_returns_422(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """policy_id is required-but-nullable, so omitting it is not a silent reset."""
+        project = await self._project(db)
+        response = await httpx_client.patch(f"v1/projects/{project.name}/retention", json={})
+        assert response.status_code == 422
+
+
+class TestDeleteProjectTraces:
+    """DELETE /projects/{project_identifier}/traces"""
+
+    _START_TIME = "2024-01-01T00:00:00Z"
+    _END_TIME = "2025-01-01T00:00:00Z"
+
+    @staticmethod
+    async def _project_with_traces(
+        db: DbSessionFactory,
+        num_traces: int = 3,
+    ) -> tuple[models.Project, list[models.Trace]]:
+        """Create a project whose traces start on consecutive days from 2024-01-01."""
+        async with db() as session:
+            project = models.Project(name=token_hex(16), description=token_hex(16))
+            session.add(project)
+            await session.flush()
+            traces = []
+            for i in range(num_traces):
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    start_time=datetime(2024, 1, 1 + i, tzinfo=timezone.utc),
+                    end_time=datetime(2024, 1, 1 + i, 0, 1, tzinfo=timezone.utc),
+                )
+                session.add(trace)
+                traces.append(trace)
+            await session.flush()
+        return project, traces
+
+    @staticmethod
+    async def _trace_count(db: DbSessionFactory, project_rowid: int) -> int:
+        async with db() as session:
+            return len(
+                (
+                    await session.scalars(
+                        select(models.Trace.id).where(models.Trace.project_rowid == project_rowid)
+                    )
+                ).all()
+            )
+
+    async def test_delete_traces_in_interval_but_keep_project(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 3)
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 204
+        assert await self._trace_count(db, project.id) == 0
+        # The project itself survives so ingestion can continue against it.
+        async with db() as session:
+            assert await session.get(models.Project, project.id) is not None
+
+    async def test_delete_project_traces_accepts_project_global_id(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 2)
+        gid = str(GlobalID(Project.__name__, str(project.id)))
+        response = await httpx_client.delete(
+            f"v1/projects/{gid}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 204
+        assert await self._trace_count(db, project.id) == 0
+
+    async def test_delete_project_traces_respects_inclusive_exclusive_interval(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """The interval includes start_time and excludes end_time."""
+        project, _ = await self._project_with_traces(db, 3)  # Jan 1, 2, 3
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={
+                "start_time": "2024-01-02T00:00:00Z",
+                "end_time": "2024-01-03T00:00:00Z",
+            },
+        )
+        assert response.status_code == 204
+        # Jan 2 is deleted. Jan 1 precedes the inclusive lower bound, and Jan 3 is exactly
+        # the exclusive upper bound, so both survive.
+        async with db() as session:
+            remaining = (
+                await session.scalars(
+                    select(models.Trace.start_time).where(models.Trace.project_rowid == project.id)
+                )
+            ).all()
+        assert set(remaining) == {
+            datetime(2024, 1, 1, tzinfo=timezone.utc),
+            datetime(2024, 1, 3, tzinfo=timezone.utc),
+        }
+
+    async def test_delete_project_traces_leaves_other_projects_untouched(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        target, _ = await self._project_with_traces(db, 2)
+        bystander, _ = await self._project_with_traces(db, 2)
+        response = await httpx_client.delete(
+            f"v1/projects/{target.name}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 204
+        assert await self._trace_count(db, target.id) == 0
+        assert await self._trace_count(db, bystander.id) == 2
+
+    async def test_delete_project_traces_deletes_orphaned_project_sessions(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(16))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                session_id=token_hex(16),
+                project_id=project.id,
+                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2024, 1, 1, 0, 5, tzinfo=timezone.utc),
+            )
+            session.add(project_session)
+            await session.flush()
+            session.add(
+                models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    project_session_rowid=project_session.id,
+                    start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                    end_time=datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
+                )
+            )
+            await session.flush()
+            session_rowid = project_session.id
+
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 204
+        async with db() as session:
+            assert await session.get(models.ProjectSession, session_rowid) is None
+
+    async def test_bounded_delete_preserves_session_with_newer_trace(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(16))
+            session.add(project)
+            await session.flush()
+            project_session = models.ProjectSession(
+                session_id=token_hex(16),
+                project_id=project.id,
+                start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2024, 1, 3, tzinfo=timezone.utc),
+            )
+            session.add(project_session)
+            await session.flush()
+            session.add_all(
+                [
+                    models.Trace(
+                        trace_id=token_hex(16),
+                        project_rowid=project.id,
+                        project_session_rowid=project_session.id,
+                        start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                        end_time=datetime(2024, 1, 1, 0, 1, tzinfo=timezone.utc),
+                    ),
+                    models.Trace(
+                        trace_id=token_hex(16),
+                        project_rowid=project.id,
+                        project_session_rowid=project_session.id,
+                        start_time=datetime(2024, 1, 3, tzinfo=timezone.utc),
+                        end_time=datetime(2024, 1, 3, 0, 1, tzinfo=timezone.utc),
+                    ),
+                ]
+            )
+            await session.flush()
+            session_rowid = project_session.id
+
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={
+                "start_time": self._START_TIME,
+                "end_time": "2024-01-02T00:00:00Z",
+            },
+        )
+        assert response.status_code == 204
+        assert await self._trace_count(db, project.id) == 1
+        async with db() as session:
+            assert await session.get(models.ProjectSession, session_rowid) is not None
+
+    async def test_delete_project_traces_from_empty_project_is_a_noop(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=token_hex(16))
+            session.add(project)
+            await session.flush()
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 204
+
+    async def test_delete_project_traces_from_unknown_project_returns_404(
+        self,
+        httpx_client: httpx2.AsyncClient,
+    ) -> None:
+        response = await httpx_client.delete(
+            f"v1/projects/{token_hex(16)}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            pytest.param({}, id="both-missing"),
+            pytest.param({"end_time": _END_TIME}, id="start-time-missing"),
+            pytest.param({"start_time": _START_TIME}, id="end-time-missing"),
+        ],
+    )
+    async def test_delete_project_traces_requires_both_bounds(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        params: dict[str, str],
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 1)
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params=params,
+        )
+        assert response.status_code == 422
+        assert await self._trace_count(db, project.id) == 1
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            pytest.param(
+                {"start_time": "not-a-timestamp", "end_time": _END_TIME},
+                id="malformed-start-time",
+            ),
+            pytest.param(
+                {"start_time": _START_TIME, "end_time": "not-a-timestamp"},
+                id="malformed-end-time",
+            ),
+        ],
+    )
+    async def test_delete_project_traces_rejects_malformed_bounds(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        params: dict[str, str],
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 1)
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params=params,
+        )
+        assert response.status_code == 422
+        assert await self._trace_count(db, project.id) == 1
+
+    @pytest.mark.parametrize(
+        ("start_time", "end_time"),
+        [
+            pytest.param(
+                "2024-01-02T00:00:00Z",
+                "2024-01-02T00:00:00Z",
+                id="empty-interval",
+            ),
+            pytest.param(
+                "2024-01-03T00:00:00Z",
+                "2024-01-02T00:00:00Z",
+                id="reversed-interval",
+            ),
+        ],
+    )
+    async def test_delete_project_traces_rejects_non_increasing_bounds(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        start_time: str,
+        end_time: str,
+    ) -> None:
+        project, _ = await self._project_with_traces(db, 1)
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"start_time": start_time, "end_time": end_time},
+        )
+        assert response.status_code == 422
+        assert await self._trace_count(db, project.id) == 1

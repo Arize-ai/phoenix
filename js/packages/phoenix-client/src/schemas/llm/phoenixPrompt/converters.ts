@@ -1,23 +1,22 @@
 import { assertUnreachable } from "../../../utils/assertUnreachable";
-import { OpenAIToolDefinition } from "../openai/toolSchemas";
-import { OpenAIMessage } from "../openai/messageSchemas";
-import { OpenAIToolCall } from "../openai/toolCallSchemas";
-import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
-import { phoenixMessageSchema } from "./messageSchemas";
+import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
+import { jsonSchemaZodSchema } from "../../jsonSchema";
+import type { OpenAIChatPartText } from "../openai/messagePartSchemas";
+import type { OpenAIMessage } from "../openai/messageSchemas";
+import type { OpenAIResponseFormat } from "../openai/responseFormatSchema";
+import type { OpenAIToolCall } from "../openai/toolCallSchemas";
+import type { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
+import type { OpenAIToolDefinition } from "../openai/toolSchemas";
+import type { ToolCallPart, ToolResultPart } from "./messagePartSchemas";
 import {
-  ToolCallPart,
-  ToolResultPart,
   asToolResultPart,
   phoenixContentPartSchema,
 } from "./messagePartSchemas";
-import { phoenixToolCallSchema } from "./toolCallSchemas";
-import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
-import { OpenAIChatPartText } from "../openai/messagePartSchemas";
+import { phoenixMessageSchema } from "./messageSchemas";
 import { phoenixResponseFormatSchema } from "./responseFormatSchema";
-import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
-import { phoenixToolDefinitionSchema } from "./toolSchemas";
+import { phoenixToolCallSchema } from "./toolCallSchemas";
 import { phoenixToolChoiceSchema } from "./toolChoiceSchemas";
-import { jsonSchemaZodSchema } from "../../jsonSchema";
+import { phoenixToolFunctionDefinitionSchema } from "./toolSchemas";
 
 /*
  * Conversion Functions
@@ -132,6 +131,9 @@ export const phoenixResponseFormatToOpenAI =
         name: phoenix.json_schema.name,
         description: phoenix.json_schema.description,
         schema: jsonSchemaZodSchema.parse(phoenix.json_schema.schema),
+        ...(phoenix.json_schema.strict !== undefined && {
+          strict: phoenix.json_schema.strict,
+        }),
       },
     })
   );
@@ -151,7 +153,7 @@ export const phoenixToolCallToOpenAI = phoenixToolCallSchema.transform(
 );
 
 export const phoenixToolDefinitionToOpenAI =
-  phoenixToolDefinitionSchema.transform(
+  phoenixToolFunctionDefinitionSchema.transform(
     (phoenix): OpenAIToolDefinition => ({
       type: "function",
       function: {
@@ -173,6 +175,8 @@ export const phoenixToolChoiceToOpenAI = phoenixToolChoiceSchema.transform(
         return "required";
       case "specific_function":
         return { type: "function", function: { name: phoenix.function_name } };
+      default:
+        return assertUnreachable(phoenix);
     }
   }
 );

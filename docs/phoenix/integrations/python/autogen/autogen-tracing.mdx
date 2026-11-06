@@ -1,0 +1,70 @@
+---
+title: "AutoGen Tracing"
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+<Warning>
+`openinference-instrumentation-autogen` is now a thin, deprecated compatibility facade that
+delegates to `AG2Instrumentor`. For new applications, install
+`openinference-instrumentation-ag2` and follow the [AG2 Tracing](/docs/phoenix/integrations/python/ag2/ag2-tracing)
+guide instead.
+</Warning>
+
+<Card horizontal href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/autogen_tutorial.ipynb" title="Google Colab" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal>
+colab.research.google.com
+</Card>
+AutoGen is an agent framework from Microsoft that allows for complex Agent creation. It is unique in its ability to create multiple agents that work together.
+
+
+The AutoGen Agent framework allows creation of multiple agents and connection of those agents to work together to accomplish tasks.
+
+## Install
+
+Phoenix instruments Autogen by instrumenting the underlying model library it's using. If your agents are set up to call OpenAI, use our OpenAI instrumentor per the example below.
+
+If your agents are using a different model, be sure to instrument that model instead by installing its respective OpenInference library.
+
+```bash
+pip install openinference-instrumentation-openai openinference-instrumentation-autogen autogen openai arize-phoenix-otel arize-phoenix
+```
+
+## Setup
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Autogen
+
+```python expandable
+import os
+
+from autogen import AssistantAgent, UserProxyAgent
+
+assistant = AssistantAgent(
+    name="assistant",
+    llm_config={"model": "gpt-4o-mini", "api_key": os.environ["OPENAI_API_KEY"]},
+    system_message="You are a helpful assistant.",
+)
+user = UserProxyAgent(
+    name="user",
+    human_input_mode="NEVER",
+    code_execution_config=False,
+    max_consecutive_auto_reply=0,
+)
+result = user.initiate_chat(assistant, message="Say hello in one sentence.", max_turns=1)
+print(result.summary or "AutoGen conversation complete")
+```
+
+From here you can use Autogen as normal, and Phoenix will automatically trace any model calls made.
+
+## Observe
+
+The Phoenix support is simple in its first incarnation but allows for capturing all of the prompt and responses that occur under the framework between each agent.
+
+The individual prompt and responses are captured directly through OpenAI calls. If you're using a different underlying model provider than OpenAI, instrument your application using the respective instrumentor instead.
+
+## Resources:
+
+* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/autogen_tutorial.ipynb)
+
+

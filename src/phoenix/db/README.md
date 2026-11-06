@@ -37,7 +37,7 @@ alembic upgrade head
 
 If the above command fails, it may be necessary to undo partially applied changes from a failed migration by first running down-migrations. This can be accomplished by identifying the ID of the migration revision you wish to return to. Revisions are defined [here](./migrations/versions/).
 
-⚠️ Running down-migrations can result in lost data. Only run down-migrations if you know what you are doing and consider backing up your database first. If you have any questions or doubts, contact the Phoenix team in the `#phoenix-support` channel of the [Arize AI Slack community](https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email) or via GitHub.
+⚠️ Running down-migrations can result in lost data. Only run down-migrations if you know what you are doing and consider backing up your database first. If you have any questions or doubts, contact the Phoenix team in the `#phoenix-support` channel of the [Arize AI Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g) or via GitHub.
 
 ```bash
 alembic downgrade <revision-id>
@@ -527,6 +527,51 @@ erDiagram
         double tokens
         double cost_per_token
     }
+
+    Evaluator ||--o| CodeEvaluator : specializes
+    Evaluator ||--o| LLMEvaluator : specializes
+    Evaluator ||--o{ DatasetEvaluator : used_in
+    Evaluator {
+        bigint id PK
+        string name
+        string description
+        jsonb metadata
+        string kind
+        bigint user_id FK
+        datetime created_at
+    }
+
+    CodeEvaluator {
+        bigint id PK
+        string kind
+        datetime updated_at
+    }
+
+    Prompt ||--o{ LLMEvaluator : used_by
+    PromptVersionTag ||--o{ LLMEvaluator : pins_version
+    LLMEvaluator {
+        bigint id PK
+        string kind
+        bigint prompt_id FK
+        bigint prompt_version_tag_id FK
+        string annotation_name
+        jsonb output_config
+        datetime updated_at
+    }
+
+    Dataset ||--o{ DatasetEvaluator : has
+    DatasetEvaluator {
+        bigint id PK
+        bigint dataset_id FK
+        bigint evaluator_id FK
+        bigint builtin_evaluator_id
+        string display_name
+        jsonb input_mapping
+        datetime created_at
+        datetime updated_at
+    }
+
+    User ||--o{ Evaluator : creates
 ```
 
 ---
@@ -888,6 +933,45 @@ erDiagram
     }
 ```
 
+### Evaluators
+
+This subgroup shows how evaluators are defined and linked to datasets for running evaluations. Evaluators can be either code-based or LLM-based, with LLM evaluators referencing prompts for their evaluation logic:
+
+```mermaid
+erDiagram
+    User ||--o{ Evaluator : creates
+
+    Evaluator ||--o| CodeEvaluator : specializes
+    Evaluator ||--o| LLMEvaluator : specializes
+    Evaluator ||--o{ DatasetEvaluator : used_in
+    Evaluator {
+        bigint user_id FK
+    }
+
+    CodeEvaluator {
+        bigint id PK
+        string kind
+    }
+
+    Prompt ||--o{ LLMEvaluator : used_by
+
+    PromptVersionTag ||--o{ LLMEvaluator : pins_version
+
+    LLMEvaluator {
+        bigint id PK
+        string kind
+        bigint prompt_id FK
+        bigint prompt_version_tag_id FK
+    }
+
+    Dataset ||--o{ DatasetEvaluator : has
+
+    DatasetEvaluator {
+        bigint dataset_id FK
+        bigint evaluator_id FK
+    }
+```
+
 ### User-Created Content
 
 This subgroup shows all entities that track user ownership through user_id foreign keys, representing content created or managed by users across datasets, experiments, prompts, and annotations:
@@ -900,6 +984,7 @@ erDiagram
     User ||--o{ DatasetLabel : creates
     User ||--o{ Experiment : creates
     User ||--o{ ExperimentTag : creates
+    User ||--o{ Evaluator : creates
     User ||--o{ PromptVersion : creates
     User ||--o{ PromptVersionTag : creates
     User ||--o{ SpanAnnotation : creates
@@ -907,6 +992,10 @@ erDiagram
     User ||--o{ TraceAnnotation : creates
     User ||--o{ ProjectSessionAnnotation : creates
     User {
+    }
+
+    Evaluator {
+        bigint user_id FK
     }
 
     Dataset {

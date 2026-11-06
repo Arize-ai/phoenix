@@ -1,0 +1,91 @@
+---
+title: "Release Notes"
+---
+
+# List Traces by Project
+
+March 13, 2026
+
+**Available in arize-phoenix 13.15.0+**
+
+A new `GET /v1/projects/{project_identifier}/traces` REST endpoint lists traces for a project with rich filtering, sorting, and pagination support. Use it to build custom trace browsers, feed traces into downstream pipelines, or retrieve traces by session.
+
+```bash
+# List the 50 most recent traces, sorted by start time
+GET /v1/projects/my-project/traces?limit=50&sort=start_time&order=desc
+
+# Include full span details inline
+GET /v1/projects/my-project/traces?include_spans=true&limit=20
+
+# Filter to traces from a specific session
+GET /v1/projects/my-project/traces?session_identifier=my-session-id
+```
+
+- **Sort by `start_time` or `latency_ms`** in ascending or descending order
+- **Cursor-based pagination** for consistent traversal of large trace sets
+- **`include_spans=true`** to embed full span details per trace in a single response (batch-loaded to avoid N+1 queries)
+- **Session filtering** via `session_identifier` — accepts plain session IDs or GlobalIDs; multiple values are OR-combined
+- **Time range filtering** with `start_time` and `end_time` (ISO 8601)
+
+# Span Filters: Name, Kind, and Status Code
+
+March 18, 2026
+
+**Available in arize-phoenix 13.15.0+ (server), arize-phoenix-client 2.1.0+ (Python), @arizeai/phoenix-client 6.5.1+ (TypeScript)**
+
+The spans API now supports filtering by span name, span kind, and status code. Pass any combination of these filters to narrow results without post-processing the full span list.
+
+Filters are OR-combined within a field and AND-combined across fields — for example, `name=["llm_call", "retriever"] & span_kind=LLM` returns spans named `llm_call` or `retriever` that are also of kind `LLM`.
+
+**REST API:**
+
+```bash
+# Filter by span kind
+GET /v1/projects/my-project/spans?span_kind=LLM
+
+# Filter by multiple names
+GET /v1/projects/my-project/spans?name=llm_call&name=retriever
+
+# Filter by status code
+GET /v1/projects/my-project/spans?status_code=ERROR
+```
+
+**Python SDK:**
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Get all LLM spans with errors
+spans = client.spans.get_spans(
+    project_identifier="my-project",
+    span_kind="LLM",
+    status_code="ERROR",
+)
+
+# Filter by multiple names
+spans = client.spans.get_spans(
+    project_identifier="my-project",
+    name=["llm_call", "retriever"],
+)
+```
+
+**TypeScript SDK:**
+
+```typescript
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+// Get all LLM spans with errors
+const { spans } = await getSpans({
+  project: { projectName: "my-project" },
+  spanKind: "LLM",
+  statusCode: "ERROR",
+});
+
+// Filter by multiple span names
+const { spans: namedSpans } = await getSpans({
+  project: { projectName: "my-project" },
+  name: ["llm_call", "retriever"],
+});
+```

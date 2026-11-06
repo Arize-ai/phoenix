@@ -1,13 +1,29 @@
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import datetime, timezone
+from secrets import token_hex
 from typing import Any
 
 import pytest
-import pytz
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    OptimizationDirection,
+)
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptStringTemplate,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.types.Experiment import Experiment
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -194,6 +210,71 @@ class TestDatasetExampleCountResolver:
         assert not response.errors
         assert response.data == {"node": {"exampleCount": 1}}
 
+    async def test_count_is_zero_when_version_belongs_to_another_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(2))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 0}}
+
+    async def test_bulk_query_returns_count_for_every_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        query = """
+          query {
+            datasets(first: 50) {
+              edges {
+                node {
+                  id
+                  exampleCount
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(query=query)
+        assert not response.errors
+        assert response.data
+        counts = {
+            edge["node"]["id"]: edge["node"]["exampleCount"]
+            for edge in response.data["datasets"]["edges"]
+        }
+        assert counts == dict(many_datasets_with_examples)
+
+    async def test_count_with_split_filter(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        query = """
+          query ($datasetId: ID!, $splitIds: [ID!]) {
+            node(id: $datasetId) {
+              ... on Dataset {
+                exampleCount(splitIds: $splitIds)
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(3))),
+                "splitIds": [str(GlobalID("DatasetSplit", str(1)))],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 2}}
+
 
 class TestDatasetExamplesResolver:
     QUERY = """
@@ -233,17 +314,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "second-input"},
-                        "output": {"output": "second-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "second-input"},
@@ -251,6 +321,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -286,17 +367,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "first-input"},
-                        "output": {"output": "first-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "first-input"},
@@ -304,6 +374,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -361,17 +442,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "first-input"},
-                        "output": {"output": "first-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "first-input"},
@@ -379,6 +449,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "first-input"},
+                        "output": {"output": "first-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -401,17 +482,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "second-input"},
-                        "output": {"output": "second-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "second-input"},
@@ -419,6 +489,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -441,17 +522,6 @@ class TestDatasetExamplesResolver:
         edges = [
             {
                 "node": {
-                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
-                    "revision": {
-                        "input": {"input": "second-input"},
-                        "output": {"output": "second-output"},
-                        "metadata": {},
-                    },
-                    "createdAt": "2020-02-02T00:00:00+00:00",
-                }
-            },
-            {
-                "node": {
                     "id": str(GlobalID(type_name="DatasetExample", node_id=str(1))),
                     "revision": {
                         "input": {"input": "second-input"},
@@ -459,6 +529,17 @@ class TestDatasetExamplesResolver:
                         "metadata": {},
                     },
                     "createdAt": "2020-01-01T00:00:00+00:00",
+                }
+            },
+            {
+                "node": {
+                    "id": str(GlobalID(type_name="DatasetExample", node_id=str(2))),
+                    "revision": {
+                        "input": {"input": "second-input"},
+                        "output": {"output": "second-output"},
+                        "metadata": {},
+                    },
+                    "createdAt": "2020-02-02T00:00:00+00:00",
                 }
             },
         ]
@@ -479,6 +560,69 @@ class TestDatasetExamplesResolver:
         )
         assert not response.errors
         assert response.data == {"node": {"examples": {"edges": []}}}
+
+    FILTER_IDS_QUERY = """
+      query ($datasetId: ID!, $filterIds: [ID!]) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            examples(filterIds: $filterIds) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def test_filter_ids_returns_only_requested_examples(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(2)))
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [example_id],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": [{"node": {"id": example_id}}]}}}
+
+    async def test_filter_ids_excludes_examples_from_other_datasets(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        # An example ID that exists nowhere (or in another dataset) yields no edges
+        # rather than leaking rows from outside the dataset in view.
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [str(GlobalID("DatasetExample", str(999)))],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": []}}}
+
+    async def test_filter_ids_rejects_ids_of_wrong_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [str(GlobalID("Dataset", str(1)))],
+            },
+        )
+        assert response.errors
 
 
 @pytest.mark.parametrize(
@@ -576,11 +720,21 @@ async def test_versions_resolver_returns_versions_in_correct_order(
 
 
 class TestDatasetExperimentCountResolver:
-    QUERY = """
-      query ($datasetId: ID!, $datasetVersionId: ID = null) {
+    QUERY_WITHOUT_OPTIONAL_ARGS = """
+      query ($datasetId: ID!) {
         node(id: $datasetId) {
           ... on Dataset {
-            experimentCount(datasetVersionId: $datasetVersionId)
+            experimentCount
+          }
+        }
+      }
+    """
+
+    QUERY = """
+      query ($datasetId: ID!, $datasetVersionId: ID = null, $includeEphemeral: Boolean = false) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experimentCount(datasetVersionId: $datasetVersionId, includeEphemeral: $includeEphemeral)
           }
         }
       }
@@ -593,6 +747,20 @@ class TestDatasetExperimentCountResolver:
     ) -> None:
         response = await gql_client.execute(
             query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 2}}
+
+    async def test_experiment_count_handles_omitted_optional_args(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_deletion: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY_WITHOUT_OPTIONAL_ARGS,
             variables={
                 "datasetId": str(GlobalID("Dataset", str(1))),
             },
@@ -614,6 +782,36 @@ class TestDatasetExperimentCountResolver:
         )
         assert not response.errors
         assert response.data == {"node": {"experimentCount": 1}}
+
+    async def test_experiment_count_excludes_ephemeral_by_default(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_ephemeral_experiment: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 1}}
+
+    async def test_experiment_count_includes_ephemeral_when_true(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_ephemeral_experiment: Any,
+    ) -> None:
+        """includeEphemeral=true means include ephemeral in the count (all experiments)."""
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "includeEphemeral": True,
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"experimentCount": 2}}
 
 
 class TestDatasetExperimentsResolver:
@@ -652,6 +850,279 @@ class TestDatasetExperimentsResolver:
             {"node": {"sequenceNumber": 1, "id": str(GlobalID(Experiment.__name__, str(2)))}},
         ]
         assert response.data == {"node": {"experiments": {"edges": edges}}}
+
+
+class TestDatasetExperimentsSortAndSequenceFilter:
+    QUERY = """
+      query ($datasetId: ID!, $sequenceNumbers: [Int!], $sort: ExperimentSort) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(sequenceNumbers: $sequenceNumbers, sort: $sort) {
+              edges {
+                node {
+                  sequenceNumber
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def test_defaults_to_newest_first(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=4)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+        assert not response.errors
+        assert response.data is not None
+        sequence_numbers = [
+            edge["node"]["sequenceNumber"] for edge in response.data["node"]["experiments"]["edges"]
+        ]
+        assert sequence_numbers == [4, 3, 2, 1]
+
+    async def test_sort_by_sequence_number_ascending(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=4)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sort": {"col": "sequenceNumber", "dir": "asc"},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        sequence_numbers = [
+            edge["node"]["sequenceNumber"] for edge in response.data["node"]["experiments"]["edges"]
+        ]
+        assert sequence_numbers == [1, 2, 3, 4]
+
+    async def test_filter_by_sequence_numbers_returns_only_requested(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=7)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sequenceNumbers": [2, 5],
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        # Default newest-first ordering, and the sequenceNumber field reads the
+        # true per-dataset ordinal (not a 1..n recount over the filtered subset).
+        assert response.data["node"]["experiments"]["edges"] == [
+            {"node": {"sequenceNumber": 5, "name": "experiment-5"}},
+            {"node": {"sequenceNumber": 2, "name": "experiment-2"}},
+        ]
+
+    async def test_filter_by_sequence_numbers_composes_with_sort(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=7)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sequenceNumbers": [5, 2],
+                "sort": {"col": "sequenceNumber", "dir": "asc"},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"]["experiments"]["edges"] == [
+            {"node": {"sequenceNumber": 2, "name": "experiment-2"}},
+            {"node": {"sequenceNumber": 5, "name": "experiment-5"}},
+        ]
+
+    async def test_filter_by_sequence_numbers_matches_visible_ordinal_with_ephemeral(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        # An ephemeral experiment is created first but excluded by default, so the
+        # visible sequence numbers run 1..3 over the persisted experiments. The
+        # filter must resolve against that same visible ordinal.
+        dataset_id, _ = await _create_dataset_with_experiments(
+            db,
+            experiment_count=3,
+            create_ephemeral_experiment_first=True,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(dataset_id))),
+                "sequenceNumbers": [2],
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        assert response.data["node"]["experiments"]["edges"] == [
+            {"node": {"sequenceNumber": 2, "name": "experiment-2"}},
+        ]
+
+
+class TestDatasetBaselineExperimentResolver:
+    QUERY = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            baselineExperiment {
+              id
+              name
+              sequenceNumber
+              isBaseline
+            }
+          }
+        }
+      }
+    """
+
+    async def test_returns_null_when_no_baseline_is_set(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, _ = await _create_dataset_with_experiments(db, experiment_count=3)
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {"node": {"baselineExperiment": None}}
+
+    async def test_returns_baseline_experiment_with_sequence_number(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=4,
+            baseline_experiment_index=3,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[2]))),
+                    "name": "experiment-3",
+                    "sequenceNumber": 3,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+    async def test_sequence_number_skips_ephemeral_experiments(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+    ) -> None:
+        dataset_id, experiment_ids = await _create_dataset_with_experiments(
+            db,
+            experiment_count=3,
+            baseline_experiment_index=2,
+            create_ephemeral_experiment_first=True,
+        )
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"datasetId": str(GlobalID("Dataset", str(dataset_id)))},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "node": {
+                "baselineExperiment": {
+                    "id": str(GlobalID(Experiment.__name__, str(experiment_ids[1]))),
+                    "name": "experiment-2",
+                    "sequenceNumber": 2,
+                    "isBaseline": True,
+                }
+            }
+        }
+
+
+async def _create_dataset_with_experiments(
+    db: DbSessionFactory,
+    *,
+    experiment_count: int,
+    baseline_experiment_index: int | None = None,
+    create_ephemeral_experiment_first: bool = False,
+) -> tuple[int, list[int]]:
+    async with db() as session:
+        dataset_id = await session.scalar(
+            insert(models.Dataset)
+            .returning(models.Dataset.id)
+            .values(name="baseline-test-dataset", metadata_={})
+        )
+        assert dataset_id is not None
+        dataset_version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .returning(models.DatasetVersion.id)
+            .values(dataset_id=dataset_id, metadata_={})
+        )
+        assert dataset_version_id is not None
+
+        if create_ephemeral_experiment_first:
+            await session.execute(
+                insert(models.Experiment).values(
+                    dataset_id=dataset_id,
+                    dataset_version_id=dataset_version_id,
+                    name="playground",
+                    is_ephemeral=True,
+                    repetitions=1,
+                    metadata_={},
+                )
+            )
+
+        experiment_ids = list(
+            await session.scalars(
+                insert(models.Experiment).returning(models.Experiment.id),
+                [
+                    {
+                        "dataset_id": dataset_id,
+                        "dataset_version_id": dataset_version_id,
+                        "name": f"experiment-{index + 1}",
+                        "repetitions": 1,
+                        "metadata_": {},
+                    }
+                    for index in range(experiment_count)
+                ],
+            )
+        )
+
+        if baseline_experiment_index is not None:
+            await session.execute(
+                insert(models.ExperimentTag).values(
+                    experiment_id=experiment_ids[baseline_experiment_index - 1],
+                    dataset_id=dataset_id,
+                    name=BASELINE_EXPERIMENT_TAG_NAME,
+                    description=None,
+                )
+            )
+
+    return dataset_id, experiment_ids
 
 
 @pytest.fixture
@@ -863,6 +1334,225 @@ async def test_experiments_without_filter(
     assert len(data["node"]["experiments"]["edges"]) == 4
 
 
+async def test_experiments_excludes_ephemeral_by_default(
+    gql_client: AsyncGraphQLClient,
+    dataset_with_ephemeral_experiment: Any,
+) -> None:
+    query = """
+      query ($datasetId: ID!) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments {
+              edges {
+                node {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={"datasetId": str(GlobalID("Dataset", str(1)))},
+    )
+    assert not response.errors
+    assert response.data == {
+        "node": {"experiments": {"edges": [{"node": {"name": "persisted-exp"}}]}}
+    }
+
+
+async def test_experiments_includes_ephemeral_when_true(
+    gql_client: AsyncGraphQLClient,
+    dataset_with_ephemeral_experiment: Any,
+) -> None:
+    """includeEphemeral=true means include ephemeral in the list (all experiments)."""
+    query = """
+      query ($datasetId: ID!, $includeEphemeral: Boolean = false) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            experiments(includeEphemeral: $includeEphemeral) {
+              edges {
+                node {
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "datasetId": str(GlobalID("Dataset", str(1))),
+            "includeEphemeral": True,
+        },
+    )
+    assert not response.errors
+    # Both experiments returned (order by id desc: playground then persisted-exp)
+    assert response.data == {
+        "node": {
+            "experiments": {
+                "edges": [
+                    {"node": {"name": "playground"}},
+                    {"node": {"name": "persisted-exp"}},
+                ]
+            }
+        }
+    }
+
+
+class TestDatasetsEvaluatorsResolver:
+    async def test_returns_associated_dataset_evaluators(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_evaluators: Any,
+    ) -> None:
+        """Test that dataset evaluators associated with a dataset are returned."""
+        query = """
+          query ($datasetId: ID!) {
+            node(id: $datasetId) {
+              ... on Dataset {
+                datasetEvaluators {
+                  edges {
+                    node {
+                      id
+                      name
+                      evaluator {
+                        ... on LLMEvaluator {
+                          name
+                          kind
+                          description
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+
+        # Should return 2 evaluators
+        edges = response.data["node"]["datasetEvaluators"]["edges"]
+        assert len(edges) == 2
+        assert edges[0]["node"]["evaluator"]["name"] == "evaluator-1"
+        assert edges[0]["node"]["evaluator"]["kind"] == "LLM"
+        assert edges[1]["node"]["evaluator"]["name"] == "evaluator-2"
+        assert edges[1]["node"]["evaluator"]["kind"] == "LLM"
+
+
+@pytest.fixture
+async def dataset_with_evaluators(db: DbSessionFactory) -> None:
+    """
+    Creates a dataset with two evaluators associated via the dataset_evaluators junction table.
+    """
+    async with db() as session:
+        # Create dataset
+        dataset = models.Dataset(
+            id=1,
+            name="test-dataset",
+            description="Dataset for testing evaluators",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+
+        # Create a prompt for the evaluators
+        prompt = models.Prompt(name=Identifier(token_hex(4)))
+        session.add(prompt)
+        await session.flush()
+
+        # Create a prompt version
+        prompt_version = models.PromptVersion(
+            prompt_id=prompt.id,
+            template_type=PromptTemplateType.STRING,
+            template_format=PromptTemplateFormat.F_STRING,
+            template=PromptStringTemplate(type="string", template="Test template: {input}"),
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai", openai=PromptOpenAIInvocationParametersContent()
+            ),
+            tools=None,
+            response_format=None,
+            model_provider=ModelProvider.OPENAI,
+            model_name="gpt-4",
+            metadata_={},
+        )
+        session.add(prompt_version)
+        await session.flush()
+
+        # Create two evaluators
+        evaluator_1 = models.LLMEvaluator(
+            name=Identifier("evaluator-1"),
+            description="First evaluator",
+            output_configs=[
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="goodness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="goodness description",
+                    values=[
+                        CategoricalAnnotationValue(label="good", score=1.0),
+                        CategoricalAnnotationValue(label="bad", score=0.0),
+                    ],
+                )
+            ],
+            prompt_id=prompt.id,
+        )
+        evaluator_2 = models.LLMEvaluator(
+            name=Identifier("evaluator-2"),
+            description="Second evaluator",
+            output_configs=[
+                CategoricalOutputConfig(
+                    type="CATEGORICAL",
+                    name="correctness",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    description="correctness description",
+                    values=[
+                        CategoricalAnnotationValue(label="correct", score=1.0),
+                        CategoricalAnnotationValue(label="incorrect", score=0.0),
+                    ],
+                )
+            ],
+            prompt_id=prompt.id,
+        )
+        session.add_all([evaluator_1, evaluator_2])
+        await session.flush()
+
+        # Associate evaluators with dataset via junction table
+        dataset_evaluator_1 = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator_1.id,
+            name=Identifier(root="evaluator-1"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=[],
+            project=models.Project(
+                name=f"{dataset.name}/evaluator-1", description="Project for evaluator-1"
+            ),
+        )
+        dataset_evaluator_2 = models.DatasetEvaluators(
+            dataset_id=dataset.id,
+            evaluator_id=evaluator_2.id,
+            name=Identifier(root="evaluator-2"),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+            output_configs=[],
+            project=models.Project(
+                name=f"{dataset.name}/evaluator-2", description="Project for evaluator-2"
+            ),
+        )
+        session.add_all([dataset_evaluator_1, dataset_evaluator_2])
+
+
 @pytest.fixture
 async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
     """
@@ -895,13 +1585,13 @@ async def dataset_with_patch_revision(db: DbSessionFactory) -> None:
                     {
                         "dataset_id": datasets[0].id,
                         "created_at": datetime(
-                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                            year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
                         ),
                     },
                     {
                         "dataset_id": datasets[0].id,
                         "created_at": datetime(
-                            year=2020, month=2, day=2, hour=0, minute=0, tzinfo=pytz.utc
+                            year=2020, month=2, day=2, hour=0, minute=0, tzinfo=timezone.utc
                         ),
                     },
                 ],
@@ -967,7 +1657,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
         dataset_example = models.DatasetExample(
             id=1,
             dataset_id=1,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
         )
         session.add(dataset_example)
         await session.flush()
@@ -977,7 +1667,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             dataset_id=1,
             description="version-1-description",
             metadata_={"version-1-metadata-key": "version-1-metadata-value"},
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
         )
         session.add(dataset_version_1)
         await session.flush()
@@ -1000,7 +1690,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             description="version-2-description",
             metadata_={"version-2-metadata-key": "version-2-metadata-value"},
             created_at=datetime(
-                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc
+                year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc
             ),  # same created_at as version 1
         )
         session.add(dataset_version_2)
@@ -1012,7 +1702,7 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
             description="version-3-description",
             metadata_={"version-3-metadata-key": "version-3-metadata-value"},
             created_at=datetime(
-                year=2020, month=1, day=1, hour=0, minute=1, tzinfo=pytz.utc
+                year=2020, month=1, day=1, hour=0, minute=1, tzinfo=timezone.utc
             ),  # created one minute after version 2
         )
         session.add(dataset_version_3)
@@ -1029,6 +1719,100 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
         )
         session.add(dataset_example_revision_3)
         await session.flush()
+
+
+@pytest.fixture
+async def many_datasets_with_examples(db: DbSessionFactory) -> Mapping[str, int]:
+    """
+    Twelve datasets where dataset i contains i active examples plus one deleted
+    example that must not be counted. The first two examples of dataset 3 are
+    assigned to dataset split 1. Returns a mapping from dataset global ID to its
+    expected active example count.
+    """
+    expected_counts: dict[str, int] = {}
+    async with db() as session:
+        split = models.DatasetSplit(
+            id=1,
+            name="train",
+            description=None,
+            color="#0000FF",
+            metadata_={},
+        )
+        session.add(split)
+        example_id = 0
+        revision_id = 0
+        for dataset_index in range(1, 13):
+            session.add(
+                models.Dataset(
+                    id=dataset_index,
+                    name=f"dataset-{dataset_index}",
+                    description=None,
+                    metadata_={},
+                )
+            )
+            await session.flush()
+            session.add(
+                models.DatasetVersion(
+                    id=dataset_index,
+                    dataset_id=dataset_index,
+                    description=None,
+                    metadata_={},
+                )
+            )
+            await session.flush()
+            for example_index in range(dataset_index):
+                example_id += 1
+                session.add(models.DatasetExample(id=example_id, dataset_id=dataset_index))
+                await session.flush()
+                revision_id += 1
+                session.add(
+                    models.DatasetExampleRevision(
+                        id=revision_id,
+                        dataset_example_id=example_id,
+                        dataset_version_id=dataset_index,
+                        input={},
+                        output={},
+                        metadata_={},
+                        revision_kind="CREATE",
+                    )
+                )
+                if dataset_index == 3 and example_index < 2:
+                    session.add(
+                        models.DatasetSplitDatasetExample(
+                            dataset_split_id=1,
+                            dataset_example_id=example_id,
+                        )
+                    )
+            session.add(
+                models.DatasetVersion(
+                    id=dataset_index + 100,
+                    dataset_id=dataset_index,
+                    description=None,
+                    metadata_={},
+                )
+            )
+            example_id += 1
+            session.add(models.DatasetExample(id=example_id, dataset_id=dataset_index))
+            await session.flush()
+            for version_id, revision_kind in (
+                (dataset_index, "CREATE"),
+                (dataset_index + 100, "DELETE"),
+            ):
+                revision_id += 1
+                session.add(
+                    models.DatasetExampleRevision(
+                        id=revision_id,
+                        dataset_example_id=example_id,
+                        dataset_version_id=version_id,
+                        input={},
+                        output={},
+                        metadata_={},
+                        revision_kind=revision_kind,
+                    )
+                )
+            await session.flush()
+            expected_counts[str(GlobalID("Dataset", str(dataset_index)))] = dataset_index
+    return expected_counts
 
 
 @pytest.fixture
@@ -1052,7 +1836,7 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
         dataset_example = models.DatasetExample(
             id=1,
             dataset_id=1,
-            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=pytz.utc),
+            created_at=datetime(year=2020, month=1, day=1, hour=0, minute=0, tzinfo=timezone.utc),
         )
         session.add(dataset_example)
         await session.flush()
@@ -1113,6 +1897,51 @@ async def dataset_with_deletion(db: DbSessionFactory) -> None:
                     "dataset_id": 1,
                     "dataset_version_id": 2,
                     "name": "exp-2",
+                    "repetitions": 1,
+                    "metadata_": {},
+                },
+            ],
+        )
+
+
+@pytest.fixture
+async def dataset_with_ephemeral_experiment(db: DbSessionFactory) -> None:
+    async with db() as session:
+        session.add(
+            models.Dataset(
+                id=1,
+                name="dataset-name",
+                description=None,
+                metadata_={},
+            )
+        )
+        await session.flush()
+
+        session.add(
+            models.DatasetVersion(
+                id=1,
+                dataset_id=1,
+                description=None,
+                metadata_={},
+            )
+        )
+        await session.flush()
+
+        await session.execute(
+            insert(models.Experiment).returning(models.Experiment.id),
+            [
+                {
+                    "dataset_id": 1,
+                    "dataset_version_id": 1,
+                    "name": "persisted-exp",
+                    "repetitions": 1,
+                    "metadata_": {},
+                },
+                {
+                    "dataset_id": 1,
+                    "dataset_version_id": 1,
+                    "name": "playground",
+                    "is_ephemeral": True,
                     "repetitions": 1,
                     "metadata_": {},
                 },
@@ -1232,3 +2061,81 @@ async def test_dataset_filter_and_sort(
     datasets = data["datasets"]
     dataset_names = [edge["node"]["name"] for edge in datasets["edges"]]
     assert dataset_names == expected_names
+
+
+@pytest.fixture
+async def dataset_created_and_updated_by_different_users(db: DbSessionFactory) -> dict[str, str]:
+    """
+    A dataset owned by one user whose latest version was authored by another, plus a dataset with
+    no owner and an unattributed version. Returns the expected creator and last editor usernames.
+    """
+    async with db() as session:
+        user_role_id = await session.scalar(
+            select(models.UserRole.id).where(models.UserRole.name == "MEMBER")
+        )
+        assert user_role_id is not None
+
+        def _user(username: str) -> models.User:
+            return models.User(
+                user_role_id=user_role_id,
+                username=username,
+                email=f"{token_hex(4)}@test.com",
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LOCAL",
+            )
+
+        owner, editor = _user("owner"), _user("editor")
+        session.add_all([owner, editor])
+        await session.flush()
+
+        collaborative = models.Dataset(name="collaborative-dataset", metadata_={})
+        collaborative.user_id = owner.id
+        unattributed = models.Dataset(name="unattributed-dataset", metadata_={})
+        session.add_all([collaborative, unattributed])
+        await session.flush()
+
+        # The latest version's author is the editor, not the dataset's owner.
+        for author_id in (owner.id, editor.id):
+            session.add(
+                models.DatasetVersion(dataset_id=collaborative.id, metadata_={}, user_id=author_id)
+            )
+            await session.flush()
+
+        session.add(models.DatasetVersion(dataset_id=unattributed.id, metadata_={}))
+        await session.commit()
+
+        return {"createdBy": "owner", "updatedBy": "editor"}
+
+
+async def test_dataset_created_by_is_its_owner_and_updated_by_is_its_latest_version_author(
+    gql_client: AsyncGraphQLClient,
+    dataset_created_and_updated_by_different_users: dict[str, str],
+) -> None:
+    query = """
+      query {
+        datasets {
+          edges {
+            node {
+              name
+              createdBy { username }
+              updatedBy { username }
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data
+    nodes = {edge["node"]["name"]: edge["node"] for edge in response.data["datasets"]["edges"]}
+
+    expected = dataset_created_and_updated_by_different_users
+    collaborative = nodes["collaborative-dataset"]
+    assert collaborative["createdBy"]["username"] == expected["createdBy"]
+    assert collaborative["updatedBy"]["username"] == expected["updatedBy"]
+
+    unattributed = nodes["unattributed-dataset"]
+    assert unattributed["createdBy"] is None
+    assert unattributed["updatedBy"] is None

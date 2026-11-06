@@ -46,6 +46,8 @@ Create Date: 2025-05-01 08:08:22.700715
 
 """  # noqa: E501
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -56,6 +58,34 @@ revision: str = "6a88424799fe"
 down_revision: Union[str, None] = "8a3764fe7f1a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+
+@contextmanager
+def _preserve_sqlite_sequence(table_name: str) -> Iterator[None]:
+    """Keep the AUTOINCREMENT high-water mark across a SQLite table rebuild."""
+    connection = op.get_bind()
+    if connection.dialect.name != "sqlite":
+        yield
+        return
+    sequence = connection.execute(
+        sa.text("SELECT seq FROM sqlite_sequence WHERE name = :name"),
+        {"name": table_name},
+    ).scalar()
+    yield
+    if sequence is None:
+        return
+    parameters = {"name": table_name, "sequence": sequence}
+    result = connection.execute(
+        sa.text(
+            "UPDATE sqlite_sequence SET seq = MAX(COALESCE(seq, 0), :sequence) WHERE name = :name"
+        ),
+        parameters,
+    )
+    if not result.rowcount:
+        connection.execute(
+            sa.text("INSERT INTO sqlite_sequence (name, seq) VALUES (:name, :sequence)"),
+            parameters,
+        )
 
 
 def upgrade() -> None:
@@ -87,11 +117,17 @@ def upgrade() -> None:
     Raises:
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
     """  # noqa: E501
-    with op.batch_alter_table("users") as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # For SQLite, first add the column as nullable
         batch_op.add_column(sa.Column("auth_method", sa.String, nullable=True))
 
-    with op.batch_alter_table("users") as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         batch_op.execute("""
             UPDATE users
             SET auth_method = CASE
@@ -151,7 +187,10 @@ def downgrade() -> None:
     """  # noqa: E501
     # Use batch_alter_table for SQLite compatibility
     # This ensures the downgrade works on both SQLite and PostgreSQL
-    with op.batch_alter_table("users") as batch_op:
+    with (
+        _preserve_sqlite_sequence("users"),
+        op.batch_alter_table("users", table_kwargs={"sqlite_autoincrement": True}) as batch_op,
+    ):
         # Drop the CHECK constraint and column
         batch_op.drop_constraint("non_local_auth_has_no_password", type_="check")
         batch_op.drop_constraint("local_auth_has_password_no_oauth", type_="check")

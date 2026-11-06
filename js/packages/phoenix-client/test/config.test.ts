@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { defaultGetEnvironmentOptions } from "../src/config";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import { getMergedOptions } from "../src";
+import { defaultGetEnvironmentOptions } from "../src/config";
 
 describe("Phoenix client configuration", () => {
   beforeEach(() => {
@@ -19,6 +20,25 @@ describe("Phoenix client configuration", () => {
       const options = defaultGetEnvironmentOptions();
       expect(options).toEqual({
         baseUrl: "https://test-host.com",
+      });
+    });
+
+    it("should parse PHOENIX_ENDPOINT from environment", () => {
+      process.env.PHOENIX_ENDPOINT = "https://api-host.com";
+      const options = defaultGetEnvironmentOptions();
+      expect(options).toEqual({
+        baseUrl: "https://api-host.com",
+      });
+    });
+
+    it("should infer the base URL from PHOENIX_COLLECTOR_ENDPOINT", () => {
+      // The full precedence matrix is covered in @arizeai/phoenix-config;
+      // this and the test above only prove the client is wired to the
+      // resolver.
+      process.env.PHOENIX_COLLECTOR_ENDPOINT = "https://collector-host.com";
+      const options = defaultGetEnvironmentOptions();
+      expect(options).toEqual({
+        baseUrl: "https://collector-host.com",
       });
     });
 

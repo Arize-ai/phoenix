@@ -2,6 +2,15 @@
 
 Typescript packages for interfacing with Phoenix and evaluating LLM applications.
 
+## App
+
+### [app](./app/)
+
+The Phoenix web application (workspace package `phoenix-ui`). It consumes
+`@arizeai/phoenix-client` and `@arizeai/phoenix-evals` via `workspace:*`. See
+[app/README.md](./app/README.md) and the repo-root [DEVELOPMENT.md](../DEVELOPMENT.md)
+for frontend development workflows.
+
 ## Packages
 
 ### [phoenix-client](./packages/phoenix-client/)
@@ -29,7 +38,7 @@ This repository is managed as a monorepo using [pnpm workspaces](https://pnpm.io
 ### 1. Install pnpm (if you don't have it)
 
 ```sh
-npm install -g pnpm
+npm install -g pnpm@12.0.0
 ```
 
 ### 2. Install all dependencies for all packages
@@ -44,13 +53,13 @@ This will install dependencies for all packages in the monorepo.
 
 ### 3. Run scripts across all packages
 
-You can run scripts (like build, lint, test, prettier) across all packages using pnpm's recursive mode:
+You can run scripts (like build, lint, test, formatting) across all packages using pnpm's recursive mode:
 
 ```sh
 pnpm run -r build      # Build all packages
 pnpm run -r lint       # Lint all packages
 pnpm run -r test       # Run tests for all packages (if defined)
-pnpm run -r prettier:check # Check formatting for all packages
+pnpm run -r fmt:check  # Check formatting for all packages
 ```
 
 ### Changesets

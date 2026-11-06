@@ -1,9 +1,10 @@
 import invariant from "tiny-invariant";
+
+import { assertUnreachable } from "../../utils/assertUnreachable";
 import { toAI } from "./toAI";
 import { toAnthropic } from "./toAnthropic";
 import { toOpenAI } from "./toOpenAI";
-import { SupportedSDK, Variables, toSDKParamsBase } from "./types";
-import { assertUnreachable } from "../../utils/assertUnreachable";
+import type { SupportedSDK, toSDKParamsBase, Variables } from "./types";
 
 /**
  * Parameters for an SDK conversion function
@@ -14,10 +15,10 @@ import { assertUnreachable } from "../../utils/assertUnreachable";
  * toOpenAI(params)
  * ```
  */
-export type SDKParams<T extends SupportedSDK> = Parameters<
-  (typeof PROVIDER_TO_SDK)[T]
+export type SDKParams<SDK extends SupportedSDK> = Parameters<
+  (typeof PROVIDER_TO_SDK)[SDK]
 >[number] extends toSDKParamsBase
-  ? Parameters<(typeof PROVIDER_TO_SDK)[T]>[number]
+  ? Parameters<(typeof PROVIDER_TO_SDK)[SDK]>[number]
   : never;
 
 /**
@@ -32,7 +33,7 @@ export const PROVIDER_TO_SDK = {
 /**
  * Get the conversion function for a specific SDK name
  */
-const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
+const getTargetSDK = <SDK extends SupportedSDK>(sdk: SDK) => {
   switch (sdk) {
     case "openai":
       return PROVIDER_TO_SDK.openai;
@@ -41,7 +42,7 @@ const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
     case "ai":
       return PROVIDER_TO_SDK.ai;
     default:
-      assertUnreachable(sdk);
+      return assertUnreachable(sdk);
   }
 };
 
@@ -49,19 +50,19 @@ const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
  * Parameters specific to the toSDK function
  */
 export type ToSDKParams<
-  T extends SupportedSDK,
-  V extends Variables = Variables,
+  SDK extends SupportedSDK,
+  PromptVariables extends Variables = Variables,
 > = {
   /**
    * String representing the SDK to convert to
    */
-  sdk: T;
+  sdk: SDK;
   /**
    * Optional variables to format the prompt with
    * Keys are the variable names, values are the variable values
    * The variable format is determined via prompt.template_format
    */
-  variables?: V;
+  variables?: PromptVariables;
 };
 
 /**
@@ -85,11 +86,16 @@ export type ToSDKParams<
  * @param params - The parameters to convert a prompt to an SDK's parameters
  * @returns The SDK's parameters
  */
-export const toSDK = <T extends SupportedSDK, V extends Variables = Variables>({
+export const toSDK = <
+  SDK extends SupportedSDK,
+  PromptVariables extends Variables = Variables,
+>({
   sdk: _sdk,
   ...rest
-}: ToSDKParams<T, V> & SDKParams<T>) => {
+}: ToSDKParams<SDK, PromptVariables> & SDKParams<SDK>) => {
   const sdk = getTargetSDK(_sdk);
   invariant(sdk, `No SDK found for provider ${_sdk}`);
-  return sdk<V>(rest) as ReturnType<(typeof PROVIDER_TO_SDK)[T]>;
+  return sdk<PromptVariables>(rest) as ReturnType<
+    (typeof PROVIDER_TO_SDK)[SDK]
+  >;
 };

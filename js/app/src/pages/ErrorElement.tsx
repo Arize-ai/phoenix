@@ -1,0 +1,185 @@
+import { css } from "@emotion/react";
+import { useMemo } from "react";
+import { isRouteErrorResponse, useRouteError } from "react-router";
+
+import {
+  isRedirectingToLogin,
+  isRedirectingToLoginError,
+} from "@phoenix/authFetch";
+import {
+  Button,
+  classifyServerConnectionError,
+  ExternalLink,
+  Flex,
+  Loading,
+  ServerConnectionErrorContent,
+} from "@phoenix/components";
+
+import { NotFoundContent, ProjectOnboardingNotFound } from "./NotFound";
+import type { NotFoundErrorData } from "./redirects/notFound";
+
+export function ErrorElement() {
+  const error = useRouteError();
+
+  const is404 = isRouteErrorResponse(error) && error.status === 404;
+  let notFoundData: NotFoundErrorData | undefined;
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    notFoundData = error.data;
+  }
+
+  const content = useMemo(() => {
+    if (is404) {
+      if (notFoundData?.kind === "project-onboarding") {
+        return (
+          <ProjectOnboardingNotFound projectName={notFoundData.projectName} />
+        );
+      }
+      return (
+        <NotFoundContent
+          entityType={notFoundData?.entityType}
+          identifier={notFoundData?.identifier}
+        />
+      );
+    }
+    if (error instanceof Error && error.message === "Failed to fetch") {
+      // We know this means the server disconnected
+      return <ServerDisconnectedContent />;
+    }
+    if (error instanceof Error) {
+      const connectionErrorKind = classifyServerConnectionError(error);
+      if (connectionErrorKind != null) {
+        return <ServerConnectionErrorContent kind={connectionErrorKind} />;
+      }
+    }
+    return <ErrorContent error={error} />;
+  }, [error, is404, notFoundData]);
+
+  if (isRedirectingToLoginError(error) || isRedirectingToLogin()) {
+    // The browser is already navigating to the login page; show a single
+    // neutral pending state instead of an error page while the handoff
+    // completes. The flag check also covers errors from fetches interrupted
+    // by that navigation, which some browsers reject with a generic error
+    // rather than an AbortError.
+    return <Loading />;
+  }
+
+  if (notFoundData?.kind === "project-onboarding") {
+    return (
+      <main
+        css={css`
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        `}
+      >
+        {content}
+      </main>
+    );
+  }
+
+  return (
+    <main
+      css={css`
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      `}
+    >
+      <section
+        css={css`
+          width: 100%;
+          max-width: 500px;
+          box-sizing: border-box;
+          padding: 0 var(--global-dimension-size-200);
+          /* Add spacing on the bottom so it gets pushed down */
+          margin-top: 200px;
+          display: flex;
+          flex-direction: column;
+        `}
+      >
+        {content}
+      </section>
+    </main>
+  );
+}
+
+function ServerDisconnectedContent() {
+  return (
+    <>
+      <Flex direction="column" width="100%" alignItems="center">
+        <h1>Server disconnected</h1>
+      </Flex>
+      <p>
+        We are unable to reach the Phoenix server. Please ensure that Phoenix is
+        running and try again.
+      </p>
+    </>
+  );
+}
+
+function ErrorContent({ error }: { error: unknown }) {
+  return (
+    <>
+      <Flex direction="column" width="100%" alignItems="center">
+        <h1>Something went wrong</h1>
+      </Flex>
+      <p>
+        We strive to do our very best but 🐛 bugs happen. It would mean a lot to
+        us if you could file a an issue. If you feel comfortable, please include
+        the error details below in your issue. We will get back to you as soon
+        as we can.
+      </p>
+      <p
+        css={css`
+          display: flex;
+          flex-direction: row;
+          justify-content: flex-end;
+          gap: var(--global-dimension-size-100);
+        `}
+      >
+        <span>💙 the phoenix team</span>
+      </p>
+      <div
+        css={css`
+          display: flex;
+          flex-direction: row;
+          justify-content: flex-end;
+          align-items: center;
+          gap: var(--global-dimension-size-100);
+        `}
+      >
+        <ExternalLink href="https://github.com/Arize-ai/phoenix/issues/new?assignees=&labels=bug&template=bug_report.md&title=%5BBUG%5D">
+          file an issue with us
+        </ExternalLink>
+
+        <Button
+          variant="primary"
+          size="S"
+          onPress={() => {
+            window.location.href = "/";
+          }}
+        >
+          Return Home
+        </Button>
+      </div>
+      <details open>
+        <summary>error details</summary>
+        <pre
+          css={css`
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            overflow: hidden;
+            overflow-y: auto;
+            max-height: 500px;
+          `}
+        >
+          {error instanceof Error ? error.message : null}
+        </pre>
+      </details>
+    </>
+  );
+}

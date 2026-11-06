@@ -1,0 +1,577 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  ENV_PHOENIX_API_KEY,
+  ENV_PHOENIX_CLIENT_HEADERS,
+  ENV_PHOENIX_BASE_URL,
+  ENV_PHOENIX_COLLECTOR_ENDPOINT,
+  ENV_PHOENIX_ENDPOINT,
+  ENV_PHOENIX_GRPC_PORT,
+  ENV_PHOENIX_HOST,
+  ENV_PHOENIX_LOG_LEVEL,
+  ENV_PHOENIX_PORT,
+  ENV_PHOENIX_PROJECT,
+  ENV_PHOENIX_PROJECT_NAME,
+  type EnvironmentConfig,
+  getBaseUrlFromEnvironment,
+  getEnvironmentConfig,
+  getHeadersFromEnvironment,
+  getIntFromEnvironment,
+  getProjectFromEnvironment,
+  getStrFromEnvironment,
+  resetBaseUrlConflictWarningForTesting,
+  resetProjectConflictWarningForTesting,
+} from "./env";
+import { ENV_PHOENIX_DISCOVER_CONFIG } from "./envFile";
+import type { Headers } from "./types";
+
+/**
+ * Type assertion helpers to ensure no `any` types leak through.
+ * These will cause compile-time errors if types are incorrect.
+ */
+type AssertEquals<T, Expected> = T extends Expected
+  ? Expected extends T
+    ? true
+    : false
+  : false;
+
+// Compile-time type checks - these ensure our return types are well-defined
+type _CheckIntReturn = AssertEquals<
+  ReturnType<typeof getIntFromEnvironment>,
+  number | undefined
+>;
+const _intReturnCheck: _CheckIntReturn = true;
+
+type _CheckStrReturn = AssertEquals<
+  ReturnType<typeof getStrFromEnvironment>,
+  string | undefined
+>;
+const _strReturnCheck: _CheckStrReturn = true;
+
+type _CheckHeadersReturn = AssertEquals<
+  ReturnType<typeof getHeadersFromEnvironment>,
+  Headers | undefined
+>;
+const _headersReturnCheck: _CheckHeadersReturn = true;
+
+// Ensure EnvironmentConfig has well-defined property types (no `any`)
+type _CheckConfigPort = AssertEquals<
+  EnvironmentConfig["PHOENIX_PORT"],
+  number | undefined
+>;
+const _configPortCheck: _CheckConfigPort = true;
+
+type _CheckConfigGrpcPort = AssertEquals<
+  EnvironmentConfig["PHOENIX_GRPC_PORT"],
+  number | undefined
+>;
+const _configGrpcPortCheck: _CheckConfigGrpcPort = true;
+
+type _CheckConfigHost = AssertEquals<
+  EnvironmentConfig["PHOENIX_HOST"],
+  string | undefined
+>;
+const _configHostCheck: _CheckConfigHost = true;
+
+type _CheckConfigHeaders = AssertEquals<
+  EnvironmentConfig["PHOENIX_CLIENT_HEADERS"],
+  Headers | undefined
+>;
+const _configHeadersCheck: _CheckConfigHeaders = true;
+
+type _CheckConfigEndpoint = AssertEquals<
+  EnvironmentConfig["PHOENIX_COLLECTOR_ENDPOINT"],
+  string | undefined
+>;
+const _configEndpointCheck: _CheckConfigEndpoint = true;
+
+type _CheckConfigApiKey = AssertEquals<
+  EnvironmentConfig["PHOENIX_API_KEY"],
+  string | undefined
+>;
+const _configApiKeyCheck: _CheckConfigApiKey = true;
+
+// Suppress unused variable warnings for type checks
+void _intReturnCheck;
+void _strReturnCheck;
+void _headersReturnCheck;
+void _configPortCheck;
+void _configGrpcPortCheck;
+void _configHostCheck;
+void _configHeadersCheck;
+void _configEndpointCheck;
+void _configApiKeyCheck;
+
+describe("env", () => {
+  // Store original env values
+  const originalEnv: Record<string, string | undefined> = {};
+  const envKeys = [
+    ENV_PHOENIX_PORT,
+    ENV_PHOENIX_GRPC_PORT,
+    ENV_PHOENIX_HOST,
+    ENV_PHOENIX_ENDPOINT,
+    ENV_PHOENIX_BASE_URL,
+    ENV_PHOENIX_CLIENT_HEADERS,
+    ENV_PHOENIX_COLLECTOR_ENDPOINT,
+    ENV_PHOENIX_API_KEY,
+    ENV_PHOENIX_LOG_LEVEL,
+    ENV_PHOENIX_PROJECT_NAME,
+    ENV_PHOENIX_PROJECT,
+    ENV_PHOENIX_DISCOVER_CONFIG,
+  ];
+
+  beforeEach(() => {
+    // Save and clear all Phoenix env vars before each test
+    for (const key of envKeys) {
+      originalEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+    process.env[ENV_PHOENIX_DISCOVER_CONFIG] = "false";
+  });
+
+  afterEach(() => {
+    // Restore original env vars after each test
+    for (const key of envKeys) {
+      if (originalEnv[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = originalEnv[key];
+      }
+    }
+  });
+
+  describe("environment variable constants", () => {
+    it("should export correct environment variable names", () => {
+      expect(ENV_PHOENIX_PORT).toBe("PHOENIX_PORT");
+      expect(ENV_PHOENIX_GRPC_PORT).toBe("PHOENIX_GRPC_PORT");
+      expect(ENV_PHOENIX_HOST).toBe("PHOENIX_HOST");
+      expect(ENV_PHOENIX_CLIENT_HEADERS).toBe("PHOENIX_CLIENT_HEADERS");
+      expect(ENV_PHOENIX_COLLECTOR_ENDPOINT).toBe("PHOENIX_COLLECTOR_ENDPOINT");
+      expect(ENV_PHOENIX_API_KEY).toBe("PHOENIX_API_KEY");
+      expect(ENV_PHOENIX_PROJECT_NAME).toBe("PHOENIX_PROJECT_NAME");
+      expect(ENV_PHOENIX_PROJECT).toBe("PHOENIX_PROJECT");
+    });
+  });
+
+  describe("getIntFromEnvironment", () => {
+    it("should return undefined when env var is not set", () => {
+      const result = getIntFromEnvironment("UNSET_VAR");
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined when env var is empty string", () => {
+      process.env["EMPTY_VAR"] = "";
+      const result = getIntFromEnvironment("EMPTY_VAR");
+      expect(result).toBeUndefined();
+      delete process.env["EMPTY_VAR"];
+    });
+
+    it("should parse valid integer string", () => {
+      process.env[ENV_PHOENIX_PORT] = "6006";
+      const result = getIntFromEnvironment(ENV_PHOENIX_PORT);
+      expect(result).toBe(6006);
+    });
+
+    it("should parse zero", () => {
+      process.env[ENV_PHOENIX_PORT] = "0";
+      const result = getIntFromEnvironment(ENV_PHOENIX_PORT);
+      expect(result).toBe(0);
+    });
+
+    it("should parse negative integers", () => {
+      process.env[ENV_PHOENIX_PORT] = "-1";
+      const result = getIntFromEnvironment(ENV_PHOENIX_PORT);
+      expect(result).toBe(-1);
+    });
+
+    it("should return undefined for non-numeric strings", () => {
+      process.env[ENV_PHOENIX_PORT] = "not-a-number";
+      const result = getIntFromEnvironment(ENV_PHOENIX_PORT);
+      expect(result).toBeUndefined();
+    });
+
+    it("should parse integers with leading zeros", () => {
+      process.env[ENV_PHOENIX_PORT] = "007";
+      const result = getIntFromEnvironment(ENV_PHOENIX_PORT);
+      expect(result).toBe(7);
+    });
+
+    it("should truncate floating point numbers", () => {
+      process.env[ENV_PHOENIX_PORT] = "6006.5";
+      const result = getIntFromEnvironment(ENV_PHOENIX_PORT);
+      expect(result).toBe(6006);
+    });
+  });
+
+  describe("getStrFromEnvironment", () => {
+    it("should return undefined when env var is not set", () => {
+      const result = getStrFromEnvironment("UNSET_VAR");
+      expect(result).toBeUndefined();
+    });
+
+    it("should treat an empty env var as unset", () => {
+      process.env["EMPTY_VAR"] = "";
+      const result = getStrFromEnvironment("EMPTY_VAR");
+      expect(result).toBeUndefined();
+      delete process.env["EMPTY_VAR"];
+    });
+
+    it("should treat a whitespace-only env var as unset", () => {
+      process.env["BLANK_VAR"] = "   ";
+      const result = getStrFromEnvironment("BLANK_VAR");
+      expect(result).toBeUndefined();
+      delete process.env["BLANK_VAR"];
+    });
+
+    it("should return the string value", () => {
+      process.env[ENV_PHOENIX_HOST] = "http://localhost:6006";
+      const result = getStrFromEnvironment(ENV_PHOENIX_HOST);
+      expect(result).toBe("http://localhost:6006");
+    });
+
+    // Values are typically written by shells and setup scripts, where a stray
+    // space is a typo rather than part of the value.
+    it("should trim surrounding whitespace", () => {
+      process.env[ENV_PHOENIX_HOST] = "  spaced  ";
+      const result = getStrFromEnvironment(ENV_PHOENIX_HOST);
+      expect(result).toBe("spaced");
+    });
+  });
+
+  describe("getHeadersFromEnvironment", () => {
+    it("should return undefined when env var is not set", () => {
+      const result = getHeadersFromEnvironment("UNSET_VAR");
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined when env var is empty string", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = "";
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+
+    it("should parse valid JSON headers object", () => {
+      const headers = { Authorization: "Bearer token", "X-Custom": "value" };
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = JSON.stringify(headers);
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toEqual(headers);
+    });
+
+    it("should parse empty object", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = "{}";
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toEqual({});
+    });
+
+    it("should return undefined for invalid JSON", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = "not-json";
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined for JSON array", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = '["a", "b"]';
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined for JSON with non-string values", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = '{"key": 123}';
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined for JSON with nested objects", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = '{"key": {"nested": "value"}}';
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined for JSON null", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = "null";
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined for JSON string primitive", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = '"just a string"';
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+
+    it("should return undefined for JSON with mixed value types", () => {
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] =
+        '{"valid": "string", "invalid": true}';
+      const result = getHeadersFromEnvironment(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("getEnvironmentConfig", () => {
+    it("should return all undefined values when no env vars are set", () => {
+      const config = getEnvironmentConfig();
+
+      expect(config).toEqual({
+        PHOENIX_PORT: undefined,
+        PHOENIX_GRPC_PORT: undefined,
+        PHOENIX_HOST: undefined,
+        PHOENIX_CLIENT_HEADERS: undefined,
+        PHOENIX_COLLECTOR_ENDPOINT: undefined,
+        PHOENIX_API_KEY: undefined,
+        PHOENIX_LOG_LEVEL: undefined,
+        PHOENIX_PROJECT: undefined,
+      });
+    });
+
+    it("should return parsed values when env vars are set", () => {
+      process.env[ENV_PHOENIX_PORT] = "6006";
+      process.env[ENV_PHOENIX_GRPC_PORT] = "4317";
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] =
+        '{"Authorization": "Bearer xyz"}';
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      process.env[ENV_PHOENIX_API_KEY] = "my-api-key";
+
+      const config = getEnvironmentConfig();
+
+      expect(config).toEqual({
+        PHOENIX_PORT: 6006,
+        PHOENIX_GRPC_PORT: 4317,
+        PHOENIX_HOST: "http://phoenix.local",
+        PHOENIX_CLIENT_HEADERS: { Authorization: "Bearer xyz" },
+        PHOENIX_COLLECTOR_ENDPOINT: "http://collector.local",
+        PHOENIX_API_KEY: "my-api-key",
+      });
+    });
+
+    it("should return partial config when some env vars are set", () => {
+      process.env[ENV_PHOENIX_PORT] = "8080";
+      process.env[ENV_PHOENIX_API_KEY] = "secret";
+
+      const config = getEnvironmentConfig();
+
+      expect(config.PHOENIX_PORT).toBe(8080);
+      expect(config.PHOENIX_GRPC_PORT).toBeUndefined();
+      expect(config.PHOENIX_HOST).toBeUndefined();
+      expect(config.PHOENIX_CLIENT_HEADERS).toBeUndefined();
+      expect(config.PHOENIX_COLLECTOR_ENDPOINT).toBeUndefined();
+      expect(config.PHOENIX_API_KEY).toBe("secret");
+    });
+
+    it("should have correct property keys matching environment variable names", () => {
+      const config = getEnvironmentConfig();
+      const keys = Object.keys(config);
+
+      expect(keys).toContain(ENV_PHOENIX_PORT);
+      expect(keys).toContain(ENV_PHOENIX_GRPC_PORT);
+      expect(keys).toContain(ENV_PHOENIX_HOST);
+      expect(keys).toContain(ENV_PHOENIX_CLIENT_HEADERS);
+      expect(keys).toContain(ENV_PHOENIX_COLLECTOR_ENDPOINT);
+      expect(keys).toContain(ENV_PHOENIX_API_KEY);
+      expect(keys).toContain(ENV_PHOENIX_LOG_LEVEL);
+      expect(keys).toContain(ENV_PHOENIX_PROJECT);
+      expect(keys).toHaveLength(8);
+    });
+
+    it("should resolve the project name into the config", () => {
+      process.env[ENV_PHOENIX_PROJECT] = "canonical-project";
+
+      const config = getEnvironmentConfig();
+
+      expect(config[ENV_PHOENIX_PROJECT]).toBe("canonical-project");
+    });
+  });
+
+  describe("getProjectFromEnvironment", () => {
+    beforeEach(() => {
+      resetProjectConflictWarningForTesting();
+    });
+
+    it("should return undefined when neither variable is set", () => {
+      expect(getProjectFromEnvironment()).toBeUndefined();
+    });
+
+    it("should read PHOENIX_PROJECT when only it is set", () => {
+      process.env[ENV_PHOENIX_PROJECT] = "canonical";
+      expect(getProjectFromEnvironment()).toBe("canonical");
+    });
+
+    it("should read PHOENIX_PROJECT_NAME when only the alias is set", () => {
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "alias";
+      expect(getProjectFromEnvironment()).toBe("alias");
+    });
+
+    it("should prefer PHOENIX_PROJECT over PHOENIX_PROJECT_NAME", () => {
+      process.env[ENV_PHOENIX_PROJECT] = "canonical";
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "alias";
+      expect(getProjectFromEnvironment()).toBe("canonical");
+    });
+
+    it("should not warn when both are set to the same value", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_PROJECT] = "same";
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "same";
+
+      expect(getProjectFromEnvironment()).toBe("same");
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it("should warn once when both are set to different values", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_PROJECT] = "canonical";
+      process.env[ENV_PHOENIX_PROJECT_NAME] = "alias";
+
+      expect(getProjectFromEnvironment()).toBe("canonical");
+      expect(getProjectFromEnvironment()).toBe("canonical");
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT_NAME");
+      expect(warn.mock.calls[0]?.[0]).toContain("PHOENIX_PROJECT");
+      warn.mockRestore();
+    });
+  });
+
+  describe("getBaseUrlFromEnvironment", () => {
+    beforeEach(() => {
+      resetBaseUrlConflictWarningForTesting();
+    });
+
+    it("should return undefined when neither variable is set", () => {
+      expect(getBaseUrlFromEnvironment()).toBeUndefined();
+    });
+
+    it("should read PHOENIX_ENDPOINT when only it is set", () => {
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
+    });
+
+    it("should read the undocumented PHOENIX_BASE_URL fallback when only it is set", () => {
+      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://base.local");
+    });
+
+    it("should prefer PHOENIX_ENDPOINT over the PHOENIX_BASE_URL fallback", () => {
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
+    });
+
+    // PHOENIX_BASE_URL was documented for years but never read, so a config
+    // carrying both must keep resolving to the variable that already worked.
+    it("should prefer PHOENIX_COLLECTOR_ENDPOINT over the PHOENIX_BASE_URL fallback", () => {
+      process.env[ENV_PHOENIX_BASE_URL] = "http://base.local";
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+    });
+
+    it("should infer from PHOENIX_COLLECTOR_ENDPOINT when only it is set", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+    });
+
+    it("should strip an OTLP /v1/traces suffix when inferring from PHOENIX_COLLECTOR_ENDPOINT", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] =
+        "http://collector.local/v1/traces";
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+    });
+
+    it("should read PHOENIX_HOST when only it is set", () => {
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://phoenix.local");
+    });
+
+    it("should build a URL from a bare PHOENIX_HOST bind host, rewriting 0.0.0.0", () => {
+      process.env[ENV_PHOENIX_HOST] = "0.0.0.0";
+      process.env[ENV_PHOENIX_PORT] = "7007";
+      expect(getBaseUrlFromEnvironment()).toBe("http://127.0.0.1:7007");
+    });
+
+    it.each([
+      [
+        { [ENV_PHOENIX_HOST]: "::", [ENV_PHOENIX_PORT]: "7007" },
+        "http://127.0.0.1:7007",
+      ],
+      [{ [ENV_PHOENIX_HOST]: "[::]" }, "http://127.0.0.1:6006"],
+      [
+        { [ENV_PHOENIX_HOST]: "::1", [ENV_PHOENIX_PORT]: "1234" },
+        "http://[::1]:1234",
+      ],
+      [{ [ENV_PHOENIX_HOST]: "[::1]" }, "http://[::1]:6006"],
+      [{ [ENV_PHOENIX_HOST]: "[::1]:1234" }, "http://[::1]:1234"],
+    ])(
+      "should normalize IPv6 PHOENIX_HOST %o to %s",
+      (envVars, expectedUrl) => {
+        Object.assign(process.env, envVars);
+        expect(getBaseUrlFromEnvironment()).toBe(expectedUrl);
+      }
+    );
+
+    it("should default the port for a bare PHOENIX_HOST without one", () => {
+      process.env[ENV_PHOENIX_HOST] = "phoenix.internal";
+      expect(getBaseUrlFromEnvironment()).toBe("http://phoenix.internal:6006");
+    });
+
+    it("should prefer PHOENIX_ENDPOINT over the other variables without warning", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_ENDPOINT] = "http://api.local";
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://api.local");
+      // API access and trace ingest may legitimately live at different URLs.
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it("should prefer PHOENIX_COLLECTOR_ENDPOINT over PHOENIX_HOST", () => {
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+    });
+
+    it("should not warn when both are set to the same value", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://same.local";
+      process.env[ENV_PHOENIX_HOST] = "http://same.local";
+
+      expect(getBaseUrlFromEnvironment()).toBe("http://same.local");
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
+    it("should warn once when both are set to different values", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      process.env[ENV_PHOENIX_COLLECTOR_ENDPOINT] = "http://collector.local";
+      process.env[ENV_PHOENIX_HOST] = "http://phoenix.local";
+
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+      expect(getBaseUrlFromEnvironment()).toBe("http://collector.local");
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_COLLECTOR_ENDPOINT);
+      expect(warn.mock.calls[0]?.[0]).toContain(ENV_PHOENIX_HOST);
+      warn.mockRestore();
+    });
+  });
+
+  describe("EnvironmentConfig type", () => {
+    it("should allow typed access to config properties", () => {
+      process.env[ENV_PHOENIX_PORT] = "6006";
+      process.env[ENV_PHOENIX_CLIENT_HEADERS] = '{"X-Test": "value"}';
+
+      const config: EnvironmentConfig = getEnvironmentConfig();
+
+      // These type assertions verify the types are correct at compile time
+      const port: number | undefined = config.PHOENIX_PORT;
+      const grpcPort: number | undefined = config.PHOENIX_GRPC_PORT;
+      const host: string | undefined = config.PHOENIX_HOST;
+      const headers: Headers | undefined = config.PHOENIX_CLIENT_HEADERS;
+      const endpoint: string | undefined = config.PHOENIX_COLLECTOR_ENDPOINT;
+      const apiKey: string | undefined = config.PHOENIX_API_KEY;
+
+      expect(port).toBe(6006);
+      expect(grpcPort).toBeUndefined();
+      expect(host).toBeUndefined();
+      expect(headers).toEqual({ "X-Test": "value" });
+      expect(endpoint).toBeUndefined();
+      expect(apiKey).toBeUndefined();
+    });
+  });
+});

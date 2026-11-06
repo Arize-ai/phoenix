@@ -1,0 +1,103 @@
+---
+title: "Observe"
+description: Trace a model call and send it to Phoenix, in Python or TypeScript.
+---
+
+Trace an OpenAI call and send it to Arize Phoenix. Background: [What are traces](/docs/phoenix/tracing/concepts-tracing/what-are-traces).
+
+You need a running Phoenix; see [Start Phoenix](/docs/phoenix/get-started). The example calls OpenAI, so set `OPENAI_API_KEY` too. Have an existing app? [Let your coding agent set it up](/docs/phoenix/get-started#have-an-existing-app).
+
+## Instrument OpenAI
+
+Register Phoenix as the trace destination and turn on auto-instrumentation. Phoenix instruments every installed [OpenInference](/docs/phoenix/integrations) package it finds, OpenAI here.
+
+<Tabs>
+  <Tab title="Python">
+    ```bash
+    pip install -U arize-phoenix-otel openai openinference-instrumentation-openai
+    ```
+
+    {/* snippet: examples/quickstarts/python/observe.py#register */}
+    ```python
+    from phoenix.otel import register
+
+    register(
+        project_name="tracing-quickstart",
+        protocol="http/protobuf",
+        auto_instrument=True,
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript">
+    ```bash
+    npm install openai @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai
+    ```
+
+    Put this in `instrumentation.ts` and import it before anything else:
+
+    {/* snippet: examples/quickstarts/typescript/instrumentation.ts#register */}
+    ```typescript
+    import OpenAI from "openai";
+    import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+    import { register, registerInstrumentations } from "@arizeai/phoenix-otel";
+
+    export const provider = register({ projectName: "tracing-quickstart" });
+
+    const instrumentation = new OpenAIInstrumentation();
+    instrumentation.manuallyInstrument(OpenAI);
+    registerInstrumentations({ instrumentations: [instrumentation] });
+    ```
+  </Tab>
+</Tabs>
+
+## Make a call
+
+Any OpenAI call now produces a trace.
+
+<Tabs>
+  <Tab title="Python">
+    {/* snippet: examples/quickstarts/python/observe.py#call */}
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI()
+    client.chat.completions.create(
+        model="gpt-5-mini",
+        messages=[{"role": "user", "content": "Why did my invoice change?"}],
+    )
+    ```
+  </Tab>
+
+  <Tab title="TypeScript">
+    {/* snippet: examples/quickstarts/typescript/app.ts#call */}
+    ```typescript
+    import "./instrumentation";
+    import OpenAI from "openai";
+    import { provider } from "./instrumentation";
+
+    const client = new OpenAI();
+    await client.chat.completions.create({
+      model: "gpt-5-mini",
+      messages: [{ role: "user", content: "Why did my invoice change?" }],
+    });
+    await provider.shutdown();
+    ```
+  </Tab>
+</Tabs>
+
+## Look at the trace
+
+Open the `tracing-quickstart` project in Phoenix and click the trace: the prompt, response, tokens, and latency are on the span. To trace your own code around the LLM call, wrap it with a [decorator](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument#using-decorators) or [`traceChain`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel).
+
+## Learn more about traces
+
+Other ways to read your traces:
+
+- **In code**, with [Extract data from spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans).
+- **From a coding agent**, with the [CLI](/docs/phoenix/integrations/developer-tools/cli) or [MCP](/docs/phoenix/integrations/mcp).
+- **By asking [PXI](/docs/phoenix/pxi)**, for example *"why did this trace fail?"*
+- **Across multi-turn conversations**, with [Sessions](/docs/phoenix/tracing/llm-traces/sessions).
+
+To go deeper on tracing, the [Tracing Tutorial](/docs/phoenix/tracing/tutorial) covers how to read spans, understand timing, and use trace data to debug and analyze your agent. The code on this page lives in [examples/quickstarts](https://github.com/Arize-ai/phoenix/tree/main/examples/quickstarts), ready to run.
+

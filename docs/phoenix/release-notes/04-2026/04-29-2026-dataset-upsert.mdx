@@ -1,0 +1,57 @@
+---
+title: "04.29.2026: Dataset Upsert"
+description: "create_dataset now upserts — if a dataset with the same name exists, examples are updated in place rather than raising a conflict error."
+---
+
+**Breaking change in arize-phoenix-client 2.6.0+ (Python) and arize-phoenix 15.0.0+ (server)**
+
+`client.datasets.create_dataset()` now defaults to upsert semantics: if a dataset with the given name already exists, incoming examples are merged into the latest version rather than returning a `409 Conflict`. New examples are created; existing examples matched by their stable `id` are updated. This is a breaking change for callers that relied on the old fail-on-duplicate behavior.
+
+## Upsert behavior
+
+- **New dataset** — created as before; no behavior change.
+- **Existing dataset, no `id` on examples** — examples are appended as new examples in a new version.
+- **Existing dataset, `id` supplied** — examples whose `id` matches an existing example are updated in place; unmatched `id`s are inserted as new examples.
+
+To opt back in to the strict create-only behavior, pass `action="create"` directly on the REST endpoint — the Python client does not expose this option, as upsert is now the recommended default.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+# Upsert: creates the dataset on first call, merges on subsequent calls
+dataset = client.datasets.create_dataset(
+    name="golden-set",
+    examples=[
+        {"input": {"query": "What is RAG?"}, "output": {"answer": "Retrieval-Augmented Generation"}, "id": "ex-001"},
+        {"input": {"query": "What is an LLM?"}, "output": {"answer": "Large Language Model"}, "id": "ex-002"},
+    ],
+)
+print(dataset.name, dataset.example_count)
+```
+
+## Supply stable example IDs for deterministic updates
+
+Provide an `id` field on each example so re-uploads update the same row rather than inserting duplicates:
+
+```python
+import pandas as pd
+from phoenix.client import Client
+
+client = Client()
+
+df = pd.DataFrame({
+    "question": ["What is RAG?", "What is an LLM?"],
+    "answer":   ["Retrieval-Augmented Generation", "Large Language Model"],
+    "example_id": ["ex-001", "ex-002"],
+})
+
+dataset = client.datasets.create_dataset(
+    name="golden-set",
+    dataframe=df,
+    input_keys=["question"],
+    output_keys=["answer"],
+    example_id_key="example_id",
+)
+```

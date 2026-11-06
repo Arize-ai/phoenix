@@ -19,7 +19,6 @@ api_reference
  ┃ ┃ ┣ client.rst
  ┃ ┃ ┣ evals.rst
  ┃ ┃ ┣ experiments.rst
- ┃ ┃ ┣ inferences_schema.rst
  ┃ ┃ ┗ session.rst
  ┃ ┃ ┗ ...
  ┃ ┣ conf.py

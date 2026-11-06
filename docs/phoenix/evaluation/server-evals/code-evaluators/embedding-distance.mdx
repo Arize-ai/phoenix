@@ -1,0 +1,154 @@
+---
+title: "Embedding Distance"
+sidebarTitle: "Embedding Distance"
+description: "Score semantic similarity between two strings using an embeddings API."
+---
+
+Embed the model output and the reference with an embeddings model, then report their cosine similarity. This is the standard fuzzy-match check for free-text outputs — wording differences shouldn't count as failures as long as the meaning matches.
+
+The example uses **OpenAI**'s `text-embedding-3-small`. The same shape works for any HTTP embeddings endpoint; swap the client and model name to switch providers.
+
+## Code
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+import math
+import os
+
+from openai import OpenAI
+
+_MODEL = "text-embedding-3-small"
+_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+
+def _embed(text):
+    response = _client.embeddings.create(model=_MODEL, input=text)
+    return response.data[0].embedding
+
+
+def _cosine(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def evaluate(output, reference):
+    if not output or not reference:
+        return {
+            "label": "missing",
+            "score": 0.0,
+            "explanation": "Missing output or reference.",
+        }
+
+    similarity = _cosine(_embed(str(output)), _embed(str(reference)))
+    return {
+        "score": similarity,
+        "explanation": (
+            f"Cosine similarity {similarity:.4f} (model={_MODEL})."
+        ),
+    }
+```
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+openai
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+import OpenAI from "openai";
+
+const MODEL = "text-embedding-3-small";
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+async function embed(text: string): Promise<number[]> {
+  const response = await client.embeddings.create({
+    model: MODEL,
+    input: text,
+  });
+  return response.data[0].embedding;
+}
+
+function cosine(a: number[], b: number[]): number {
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+async function evaluate({ output, reference }: EvaluatorParams) {
+  if (!output || !reference) {
+    return {
+      label: "missing",
+      score: 0,
+      explanation: "Missing output or reference.",
+    };
+  }
+
+  const [vecOut, vecRef] = await Promise.all([
+    embed(String(output)),
+    embed(String(reference)),
+  ]);
+  const similarity = cosine(vecOut, vecRef);
+  return {
+    score: similarity,
+    explanation: `Cosine similarity ${similarity.toFixed(4)} (model=${MODEL}).`,
+  };
+}
+```
+
+The TypeScript runtime supports `async` — Phoenix `await`s the returned promise. The two embedding requests run in parallel via `Promise.all`, so wall-clock latency is roughly one request, not two.
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+openai
+```
+</Tab>
+</Tabs>
+
+## Input mapping
+
+| Parameter | Bind to |
+|-----------|---------|
+| `output` | The model output to score, usually `output`. |
+| `reference` | The ground-truth string, usually `reference`. |
+
+## Output configuration
+
+Continuous score in the range `-1.0` to `1.0` (cosine similarity). Optimization direction: **maximize**.
+
+In practice, OpenAI's text-embedding-3 models produce non-negative similarities on natural-language pairs, so a `0.0` – `1.0` range with a low-end threshold (e.g. `0.7` for "close enough") is also reasonable.
+
+## Runtime requirements
+
+| Setting | Value |
+|---------|-------|
+| Sandbox | A **hosted** backend that matches your language. Python: **E2B**, **Daytona — Python**, **Vercel Sandbox — Python**, or **Modal**. TypeScript: **Daytona — TypeScript** or **Vercel Sandbox — TypeScript** (the local Deno sandbox is started with `--no-npm` and cannot install the `openai` package). |
+| Dependencies | Python: `openai`. TypeScript: `openai` (npm). Add it under **Dependencies** when creating the sandbox configuration. |
+| Internet access | **Required** — toggle **Allow Internet Access** on for the configuration. The sandbox must reach `api.openai.com`. |
+| Environment variables | `OPENAI_API_KEY` — preferably set as a **secret reference** to a key in [Settings → Secrets](/docs/phoenix/settings/secrets), not a literal value. |
+
+<Warning>
+Each `evaluate(...)` call makes **two** embedding requests (one for `output`, one for `reference`). When running this across a large dataset:
+
+- Raise the sandbox configuration's **Timeout** if the default is too tight for a cold-start install plus two API calls.
+- Watch the upstream provider's rate limits and per-token cost — at production volume this adds up fast.
+- If `reference` is fixed across many examples (e.g. a shared gold answer), pre-compute its embedding once and store it on the example. The evaluator then needs only one API call per row, or none at all if you also pre-embed the output.
+</Warning>
+
+## Related
+
+- [Pairwise Evaluator](/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise) — apply embedding distance to two candidate outputs and pick a winner.
+- [scikit-learn TF-IDF](/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn) — a cheaper, offline alternative when embeddings are overkill.

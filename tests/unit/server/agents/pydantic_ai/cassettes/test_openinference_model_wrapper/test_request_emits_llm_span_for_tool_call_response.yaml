@@ -1,0 +1,17 @@
+interactions:
+- request:
+    body: '{"max_tokens":256,"messages":[{"role":"user","content":[{"text":"What''s
+      the weather in Paris?","type":"text"}]}],"model":"claude-haiku-4-5","stream":false,"system":"You
+      must call the get_weather tool. Do not answer in text.","tool_choice":{"type":"auto"},"tools":[{"name":"get_weather","description":"Look
+      up the current weather for a city.","input_schema":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}]}'
+    headers: {}
+    method: POST
+    uri: https://api.anthropic.com/v1/messages?beta=true
+  response:
+    body:
+      string: '{"model":"claude-haiku-4-5-20251001","id":"msg_01SJHq8MZVb1RSFW2SXBTpGh","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_01RwM5fKAupnYN2gqp68y9vn","name":"get_weather","input":{"city":"Paris"},"caller":{"type":"direct"}}],"stop_reason":"tool_use","stop_sequence":null,"stop_details":null,"usage":{"input_tokens":582,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"output_tokens":54,"service_tier":"standard","inference_geo":"not_available"}}'
+    headers: {}
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -24,7 +24,7 @@ class AnnotationConfigsByProjectDataLoader(DataLoader[Key, Result]):
             .where(models.ProjectAnnotationConfig.project_id.in_(keys))
         )
         results: defaultdict[Key, list[models.AnnotationConfig]] = defaultdict(list)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for id_, config in data:
                 results[id_].append(config)

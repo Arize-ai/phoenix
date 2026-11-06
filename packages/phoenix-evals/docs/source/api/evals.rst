@@ -15,7 +15,7 @@ LLM
 
 Prompt Template
 ~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.templating.Template
+.. autoclass:: phoenix.evals.llm.PromptTemplate
    :members:
    :show-inheritance:
 
@@ -73,7 +73,7 @@ Score
 ~~~~~~
 .. autoclass:: phoenix.evals.Score
    :members:
-   :exclude-members: name, score, label, explanation, metadata, source, direction
+   :exclude-members: name, score, label, explanation, metadata, kind, direction
    :show-inheritance:
 
 
@@ -88,4 +88,4 @@ Utilities
 
 .. automodule:: phoenix.evals.utils
    :members:
-   :exclude-members: InputMappingType, download_benchmark_dataset, emoji_guard,  openai_function_call_kwargs, parse_openai_function_call, printif
+   :exclude-members: InputMappingType, download_benchmark_dataset, emoji_guard

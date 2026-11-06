@@ -1,9 +1,7 @@
-from sqlalchemy import func, select
-from sqlalchemy.sql.functions import coalesce
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
-from phoenix.db import models
+from phoenix.db.session_aggregates import SESSION_ROWID, token_counts_by_session
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import TokenUsage
 
@@ -17,25 +15,13 @@ class SessionTokenUsagesDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        stmt = (
-            select(
-                models.Trace.project_session_rowid.label("id_"),
-                func.sum(coalesce(models.Span.cumulative_llm_token_count_prompt, 0)).label(
-                    "prompt"
-                ),
-                func.sum(coalesce(models.Span.cumulative_llm_token_count_completion, 0)).label(
-                    "completion"
-                ),
-            )
-            .join_from(models.Span, models.Trace)
-            .where(models.Span.parent_id.is_(None))
-            .where(models.Trace.project_session_rowid.in_(keys))
-            .group_by(models.Trace.project_session_rowid)
-        )
-        async with self._db() as session:
+        stmt = token_counts_by_session().as_grouped_subquery(keys)
+        async with self._db.read() as session:
             result: dict[Key, TokenUsage] = {
-                id_: TokenUsage(prompt=prompt, completion=completion)
-                async for id_, prompt, completion in await session.stream(stmt)
-                if id_ is not None
+                row._mapping[SESSION_ROWID]: TokenUsage(
+                    prompt=row.prompt, completion=row.completion
+                )
+                async for row in await session.stream(stmt)
+                if row._mapping[SESSION_ROWID] is not None
             }
         return [result.get(key, TokenUsage()) for key in keys]

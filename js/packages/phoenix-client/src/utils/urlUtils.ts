@@ -8,7 +8,13 @@
  * @returns The base URL for the Phoenix web UI
  */
 function getWebBaseUrl(baseUrl: string): string {
-  return new URL(baseUrl).toString();
+  const url = new URL(baseUrl);
+  // Ensure the pathname ends with a trailing slash for proper path concatenation
+  // Without this, the URL constructor treats the last segment as a file and replaces it
+  if (!url.pathname.endsWith("/")) {
+    url.pathname += "/";
+  }
+  return url.toString();
 }
 
 /**
@@ -28,7 +34,9 @@ export function getExperimentUrl({
   datasetId: string;
   experimentId: string;
 }): string {
-  return `${getWebBaseUrl(baseUrl)}datasets/${datasetId}/compare?experimentId=${experimentId}`;
+  const url = new URL(`datasets/${datasetId}/compare`, getWebBaseUrl(baseUrl));
+  url.searchParams.set("experimentId", experimentId);
+  return url.toString();
 }
 
 /**
@@ -45,7 +53,11 @@ export function getDatasetExperimentsUrl({
   baseUrl: string;
   datasetId: string;
 }): string {
-  return `${getWebBaseUrl(baseUrl)}datasets/${datasetId}/experiments`;
+  const url = new URL(
+    `datasets/${datasetId}/experiments`,
+    getWebBaseUrl(baseUrl)
+  );
+  return url.toString();
 }
 
 /**
@@ -62,5 +74,6 @@ export function getDatasetUrl({
   baseUrl: string;
   datasetId: string;
 }): string {
-  return `${getWebBaseUrl(baseUrl)}datasets/${datasetId}/examples`;
+  const url = new URL(`datasets/${datasetId}/examples`, getWebBaseUrl(baseUrl));
+  return url.toString();
 }

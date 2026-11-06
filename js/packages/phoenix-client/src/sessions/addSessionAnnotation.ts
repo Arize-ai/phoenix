@@ -1,6 +1,9 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { SessionAnnotation, toSessionAnnotationData } from "./types";
+import { ANNOTATE_SESSIONS } from "../constants/serverRequirements";
+import type { ClientFn } from "../types/core";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
+import type { SessionAnnotation } from "./types";
+import { toSessionAnnotationData } from "./types";
 
 /**
  * Parameters to add a span annotation
@@ -18,11 +21,13 @@ export interface AddSessionAnnotationParams extends ClientFn {
 /**
  * Add an annotation to a session.
  *
- * The annotation can be of type "LLM", "CODE", or "HUMAN" and can include a label, score, and metadata.
+ * The annotation can be of type "LLM", "CODE", "HUMAN", "DECISION", or "AGENT" and can include a label, score, and metadata.
  * If an identifier is provided and an annotation with that identifier already exists, it will be updated.
  *
  * @param params - The parameters to add a span annotation
  * @returns The ID of the created or updated annotation
+ *
+ * @requires Phoenix server >= 12.0.0
  *
  * @example
  * ```ts
@@ -47,6 +52,7 @@ export async function addSessionAnnotation({
   sync = false,
 }: AddSessionAnnotationParams): Promise<{ id: string } | null> {
   const client = _client ?? createClient();
+  await ensureServerCapability({ client, requirement: ANNOTATE_SESSIONS });
 
   const { data, error } = await client.POST("/v1/session_annotations", {
     params: {

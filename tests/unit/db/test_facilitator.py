@@ -1,28 +1,58 @@
+import asyncio
+import json
+import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from secrets import token_bytes, token_hex
+from threading import Event
 from typing import Any
 
 import pytest
 import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
+from pydantic import SecretStr
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from starlette.types import ASGIApp
 
-from phoenix.config import ENV_PHOENIX_ADMINS
+from phoenix.auth import (
+    DEFAULT_ADMIN_EMAIL,
+    DEFAULT_ADMIN_PASSWORD,
+    compute_password_hash,
+    is_valid_password,
+)
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
+    PHOENIX_CLI_OAUTH2_CLIENT_ID,
+    PHOENIX_CLI_OAUTH2_REDIRECT_URIS,
+    USER_FEEDBACK_ANNOTATION_NAME,
+    Facilitator,
     _ensure_admins,
     _ensure_default_project_trace_retention_policy,
     _ensure_enums,
     _ensure_model_costs,
+    _ensure_oauth2_clients,
+    _ensure_user_roles,
 )
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.cost_tracking.apply_manifest import get_applied_manifest_version
+from phoenix.server.cost_tracking.manifest import SUPPORTED_SCHEMA_VERSION
 from phoenix.server.types import DbSessionFactory
+from tests.unit.server.cost_tracking.test_apply_manifest import (
+    _active_built_in_prices,
+    _apply,
+    _manifest,
+    _manifest_date,
+    _manifest_model,
+)
+
+# These tests exercise seeding from an empty database, so they opt out of the
+# seeded template every other test's database comes from.
+pytestmark = pytest.mark.pristine_db
 
 
 class _MockWelcomeEmailSender:
@@ -53,6 +83,253 @@ class TestEnsureEnums:
             assert sorted(actual) == sorted(column.type.enums)
 
 
+class TestEnsureUserRoles:
+    async def test_applies_initial_password_to_existing_unchanged_default_admin(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", raising=False)
+        await _ensure_enums(db)
+        await _ensure_user_roles(db)
+        await _ensure_oauth2_clients(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            cli_client_id = await session.scalar(
+                select(models.OAuth2Client.id).where(
+                    models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+                )
+            )
+            assert admin is not None
+            assert cli_client_id is not None
+            assert admin.reset_password is True
+            assert admin.password_salt is not None and admin.password_hash is not None
+            assert is_valid_password(
+                password=SecretStr(DEFAULT_ADMIN_PASSWORD),
+                salt=admin.password_salt,
+                password_hash=admin.password_hash,
+            )
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+            session.add(models.PasswordResetToken(user_id=admin.id, expires_at=expires_at))
+            # A session opened with the public password before the replacement.
+            refresh_token = models.RefreshToken(user_id=admin.id, expires_at=expires_at)
+            session.add(refresh_token)
+            await session.flush()
+            session.add(
+                models.AccessToken(
+                    user_id=admin.id,
+                    expires_at=expires_at,
+                    refresh_token_id=refresh_token.id,
+                )
+            )
+            session.add(models.ApiKey(user_id=admin.id, name="existing-key"))
+            # An OAuth2 grant and an unredeemed authorization code obtained the same way.
+            session.add(models.OAuth2Grant(user_id=admin.id, oauth2_client_id=cli_client_id))
+            session.add(
+                models.OAuth2AuthorizationCode(
+                    code_hash=token_hex(16),
+                    user_id=admin.id,
+                    oauth2_client_id=cli_client_id,
+                    redirect_uri=PHOENIX_CLI_OAUTH2_REDIRECT_URIS[0],
+                    code_challenge=token_hex(16),
+                    code_challenge_method="S256",
+                    expires_at=expires_at,
+                )
+            )
+
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "upgraded-initial-secret")
+        with caplog.at_level("INFO", logger="phoenix.db.facilitator"):
+            await _ensure_user_roles(db)
+        assert "Applied PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD" in caplog.text
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            reset_token = await session.scalar(select(models.PasswordResetToken))
+            refresh_tokens = (await session.scalars(select(models.RefreshToken))).all()
+            access_tokens = (await session.scalars(select(models.AccessToken))).all()
+            api_key_names = (await session.scalars(select(models.ApiKey.name))).all()
+            authorization_codes = (
+                await session.scalars(select(models.OAuth2AuthorizationCode))
+            ).all()
+            grant_revoked_ats = (await session.scalars(select(models.OAuth2Grant.revoked_at))).all()
+        assert admin is not None
+        assert admin.reset_password is True
+        assert admin.password_salt is not None and admin.password_hash is not None
+        assert is_valid_password(
+            password=SecretStr("upgraded-initial-secret"),
+            salt=admin.password_salt,
+            password_hash=admin.password_hash,
+        )
+        assert reset_token is None
+        assert refresh_tokens == []
+        assert access_tokens == []
+        # A password reset leaves API keys in place, and so does the replacement.
+        assert api_key_names == ["existing-key"]
+        assert authorization_codes == []
+        assert len(grant_revoked_ats) == 1 and grant_revoked_ats[0] is not None
+
+        # Once customized, a subsequent change to PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD
+        # does not overwrite the password.
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "different-secret")
+        await _ensure_user_roles(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+        assert admin is not None
+        assert admin.password_salt is not None and admin.password_hash is not None
+        assert is_valid_password(
+            password=SecretStr("upgraded-initial-secret"),
+            salt=admin.password_salt,
+            password_hash=admin.password_hash,
+        )
+
+    @pytest.mark.parametrize("reset_password", [False, True])
+    async def test_preserves_concurrent_password_change_and_reset_token(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+        reset_password: bool,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", raising=False)
+        await _ensure_enums(db)
+        await _ensure_user_roles(db)
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "bootstrap-secret")
+
+        loop = asyncio.get_running_loop()
+        verified_default_password = asyncio.Event()
+        resume_bootstrap = Event()
+
+        def verify_and_pause(*, password: SecretStr, salt: bytes, password_hash: bytes) -> bool:
+            valid = is_valid_password(password=password, salt=salt, password_hash=password_hash)
+            loop.call_soon_threadsafe(verified_default_password.set)
+            assert resume_bootstrap.wait(timeout=10), "Bootstrap was not resumed"
+            return valid
+
+        monkeypatch.setattr("phoenix.db.facilitator.is_valid_password", verify_and_pause)
+        new_salt = token_bytes(32)
+        new_hash = compute_password_hash(password=SecretStr("operator-secret"), salt=new_salt)
+        bootstrap = asyncio.create_task(_ensure_user_roles(db))
+        try:
+            async with asyncio.timeout(10):
+                await verified_default_password.wait()
+                async with db() as session:
+                    admin = await session.scalar(
+                        select(models.LocalUser).where(
+                            models.LocalUser.email == DEFAULT_ADMIN_EMAIL
+                        )
+                    )
+                    assert admin is not None
+                    admin.password_salt = new_salt
+                    admin.password_hash = new_hash
+                    admin.reset_password = reset_password
+                    reset_token = models.PasswordResetToken(
+                        user_id=admin.id,
+                        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+                    )
+                    session.add(reset_token)
+                    await session.flush()
+                    reset_token_id = reset_token.id
+        finally:
+            resume_bootstrap.set()
+            await asyncio.wait_for(bootstrap, timeout=10)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            assert admin is not None
+            assert admin.password_salt == new_salt
+            assert admin.password_hash == new_hash
+            assert admin.reset_password is reset_password
+            assert await session.get(models.PasswordResetToken, reset_token_id) is not None
+
+    async def test_does_not_overwrite_admin_after_password_reset(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", raising=False)
+        await _ensure_enums(db)
+        await _ensure_user_roles(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+            assert admin is not None
+            admin.reset_password = False
+            original_hash = admin.password_hash
+            original_salt = admin.password_salt
+
+        monkeypatch.setenv("PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD", "upgraded-initial-secret")
+        await _ensure_user_roles(db)
+
+        async with db() as session:
+            admin = await session.scalar(
+                select(models.LocalUser).where(models.LocalUser.email == DEFAULT_ADMIN_EMAIL)
+            )
+        assert admin is not None
+        assert admin.reset_password is False
+        assert admin.password_hash == original_hash
+        assert admin.password_salt == original_salt
+
+
+class TestEnsureOAuth2Clients:
+    async def test_seeds_cli_with_port_agnostic_callback(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        await _ensure_oauth2_clients(db)
+
+        async with db() as session:
+            client = await session.scalar(
+                select(models.OAuth2Client).where(
+                    models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+                )
+            )
+
+        assert client is not None
+        assert client.redirect_uris == PHOENIX_CLI_OAUTH2_REDIRECT_URIS
+
+    async def test_reconciles_existing_cli_redirect_uris(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            session.add(
+                models.OAuth2Client(
+                    client_id=PHOENIX_CLI_OAUTH2_CLIENT_ID,
+                    name="Existing CLI",
+                    redirect_uris=[],
+                    grant_types=["authorization_code"],
+                    token_endpoint_auth_method="none",
+                    is_first_party=True,
+                )
+            )
+
+        await _ensure_oauth2_clients(db)
+
+        async with db() as session:
+            client = await session.scalar(
+                select(models.OAuth2Client).where(
+                    models.OAuth2Client.client_id == PHOENIX_CLI_OAUTH2_CLIENT_ID
+                )
+            )
+
+        assert client is not None
+        assert client.name == "Existing CLI"
+        assert client.grant_types == ["authorization_code"]
+        assert client.redirect_uris == PHOENIX_CLI_OAUTH2_REDIRECT_URIS
+
+
 class TestEnsureStartupAdmins:
     @pytest.mark.parametrize("email_sending_fails", [False, True])
     async def test_ensure_startup_admins(
@@ -62,7 +339,7 @@ class TestEnsureStartupAdmins:
         email_sending_fails: bool,
     ) -> None:
         monkeypatch.setenv(
-            ENV_PHOENIX_ADMINS,
+            "PHOENIX_ADMINS",
             (
                 "Washington, George, Jr.=george@example.com;"
                 "Franklin, Benjamin=benjamin@example.com;"
@@ -126,8 +403,92 @@ class TestEnsureStartupAdmins:
         user = users.pop("benjamin@example.com")
         assert not users, "There should be no other users in the database"
         assert user.username == "Franklin, Benjamin"
+        assert admin_role_id is not None
         assert user.user_role_id == admin_role_id
         assert user.reset_password
+
+    async def test_ldap_user_creation_when_basic_auth_disabled(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        """When PHOENIX_DISABLE_BASIC_AUTH=true and LDAP is configured (no OAuth2),
+        startup admins should be created as LDAP users."""
+        # Configure admins and disable basic auth
+        monkeypatch.setenv("PHOENIX_ADMINS", "LDAP Admin=ldap_admin@example.com")
+        monkeypatch.setenv("PHOENIX_DISABLE_BASIC_AUTH", "true")
+
+        # Configure minimal LDAP settings (required for LDAPConfig.from_env() to return non-None)
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_PORT", "389")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_DN", "cn=admin,dc=example,dc=com")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_PASSWORD", "secret")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=users,dc=example,dc=com"]')
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_FILTER", "(uid=%s)")
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
+
+        # Initialize enums and create admin
+        await _ensure_enums(db)
+        await _ensure_admins(db)
+
+        # Verify LDAP user was created with correct attributes
+        async with db() as session:
+            user = await session.scalar(
+                select(models.User).where(models.User.email == "ldap_admin@example.com")
+            )
+        assert user is not None
+        assert user.username == "LDAP Admin"
+        assert user.auth_method == "LDAP"  # LDAP users have auth_method='LDAP'
+        assert user.oauth2_client_id is None  # LDAP users don't use oauth2 fields
+        assert user.oauth2_user_id is None  # LDAP users don't use oauth2 fields
+        assert user.ldap_unique_id is None  # NULL until first LDAP login (then set to unique_id)
+        assert user.password_hash is None  # LDAP users don't have passwords
+        assert user.password_salt is None
+
+    async def test_oauth2_user_creation_when_oauth2_configured(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: MonkeyPatch,
+    ) -> None:
+        """When PHOENIX_DISABLE_BASIC_AUTH=true and OAuth2 is configured,
+        startup admins should be created as OAuth2 users (not LDAP)."""
+        # Configure admins and disable basic auth
+        monkeypatch.setenv("PHOENIX_ADMINS", "OAuth2 Admin=oauth_admin@example.com")
+        monkeypatch.setenv("PHOENIX_DISABLE_BASIC_AUTH", "true")
+
+        # Configure OAuth2 (this takes priority over LDAP)
+        monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_CLIENT_ID", "test-client-id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_CLIENT_SECRET", "test-secret")
+        monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_OIDC_CONFIG_URL", "https://example.com/.well-known")
+
+        # Also configure LDAP to verify OAuth2 takes priority
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_PORT", "389")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_DN", "cn=admin,dc=example,dc=com")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_PASSWORD", "secret")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=users,dc=example,dc=com"]')
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_FILTER", "(uid=%s)")
+        monkeypatch.setenv(
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
+        )
+
+        # Initialize enums and create admin
+        await _ensure_enums(db)
+        await _ensure_admins(db)
+
+        # Verify OAuth2 user was created (NOT LDAP)
+        async with db() as session:
+            user = await session.scalar(
+                select(models.User).where(models.User.email == "oauth_admin@example.com")
+            )
+        assert user is not None
+        assert user.username == "OAuth2 Admin"
+        assert user.auth_method == "OAUTH2"  # Should be OAUTH2, not LDAP
+        assert user.oauth2_client_id is None  # Generic OAuth2 user (no specific client)
+        assert user.password_hash is None
+        assert user.password_salt is None
 
 
 class TestEnsureDefaultProjectTraceRetentionPolicy:
@@ -165,382 +526,260 @@ class TestEnsureDefaultProjectTraceRetentionPolicy:
         assert policy.id == 1
 
 
+def _write_manifest(path: Path, manifest_models: list[dict[str, Any]], *, day: int) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": SUPPORTED_SCHEMA_VERSION,
+                "generated_at": _manifest_date(day).isoformat(),
+                "models": manifest_models,
+            }
+        )
+    )
+
+
 class TestEnsureModelCosts:
-    @pytest.fixture
-    def _patch_manifest(
+    async def test_boot_keeps_a_newer_fetched_manifest(
         self,
         tmp_path: Path,
         monkeypatch: MonkeyPatch,
-    ) -> Path:
-        """Create empty manifest file and patch the global variable."""
-        import json
-
-        manifest_file = tmp_path / "test_model_cost_manifest.json"
-        manifest_file.write_text(json.dumps({"models": []}))
-
-        # Monkey patch the global variable to point to our test file
+        db: DbSessionFactory,
+    ) -> None:
         from phoenix.db import facilitator
 
-        monkeypatch.setattr(facilitator, "_COST_MODEL_MANIFEST", manifest_file)
-        return manifest_file
+        bundled = tmp_path / "bundled.json"
+        _write_manifest(bundled, [_manifest_model("bundled-model")], day=1)
+        monkeypatch.setattr(facilitator, "_COST_MODEL_MANIFEST", bundled)
+        await _ensure_enums(db)
 
-    async def _get_models(
+        await _ensure_model_costs(db)
+        assert await _active_built_in_prices(db) == {"bundled-model": 1e-6}
+
+        assert await _apply(db, _manifest("bundled-model", "fetched-model", day=2, input_rate=4e-6))
+        await _ensure_model_costs(db)
+        assert await _active_built_in_prices(db) == {"bundled-model": 4e-6, "fetched-model": 4e-6}
+
+        # An upgrade bundles a newer manifest, which takes over again.
+        _write_manifest(bundled, [_manifest_model("bundled-model")], day=3)
+        await _ensure_model_costs(db)
+        assert await _active_built_in_prices(db) == {"bundled-model": 1e-6}
+        async with db() as session:
+            marker = await get_applied_manifest_version(session)
+        assert marker is not None and marker.generated_at == _manifest_date(3)
+
+    @pytest.mark.seeded_model_costs
+    async def test_pricing_failure_is_non_fatal_while_other_steps_raise(
         self,
+        tmp_path: Path,
+        monkeypatch: MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
         db: DbSessionFactory,
-        is_built_in: bool,
-    ) -> dict[str, models.GenerativeModel]:
-        """Fetch GenerativeModels from database with token prices eagerly loaded."""
+    ) -> None:
+        from phoenix.db import facilitator
+
+        broken = tmp_path / "broken.json"
+        broken.write_text("not json")
+        monkeypatch.setattr(facilitator, "_COST_MODEL_MANIFEST", broken)
+
+        with caplog.at_level(logging.WARNING, logger=facilitator.__name__):
+            await Facilitator(db=db)()
+        assert any(
+            "Failed to apply the bundled model cost manifest" in r.message for r in caplog.records
+        )
+        # Steps after _ensure_model_costs still ran.
         async with db() as session:
-            result = await session.scalars(
-                select(models.GenerativeModel)
-                .where(models.GenerativeModel.deleted_at.is_(None))
-                .where(models.GenerativeModel.is_built_in.is_(is_built_in))
-                .options(joinedload(models.GenerativeModel.token_prices))
+            assert (
+                await session.scalar(
+                    select(models.AnnotationConfig.id).where(
+                        models.AnnotationConfig.name == USER_FEEDBACK_ANNOTATION_NAME
+                    )
+                )
+                is not None
             )
-        return {model.name: model for model in result.unique()}
 
-    def _extract_token_prices(self, model: models.GenerativeModel) -> dict[tuple[str, bool], float]:
-        """Extract token prices as a comparable dictionary."""
-        return {(tp.token_type, tp.is_prompt): tp.base_rate for tp in model.token_prices}
+        async def _fail_enums(_: DbSessionFactory) -> None:
+            raise RuntimeError("db down")
 
-    async def _get_deleted_model_names(self, db: DbSessionFactory) -> set[str]:
-        """Get names of soft-deleted built-in models."""
-        async with db() as session:
-            deleted_models = await session.scalars(
-                select(models.GenerativeModel)
-                .where(models.GenerativeModel.deleted_at.isnot(None))
-                .where(models.GenerativeModel.is_built_in.is_(True))
-            )
-            return {model.name for model in deleted_models}
+        monkeypatch.setattr(facilitator, "_ensure_enums", _fail_enums)
+        with pytest.raises(RuntimeError, match="db down"):
+            await Facilitator(db=db)()
 
-    def _update_manifest(self, manifest_path: Path, models: list[dict[str, Any]]) -> None:
-        """Update manifest file with new data."""
-        import json
 
-        manifest_path.write_text(json.dumps({"models": models}, indent=2))
+async def _count_built_in_models(db: DbSessionFactory) -> int:
+    async with db() as session:
+        count = await session.scalar(
+            select(sa.func.count())
+            .select_from(models.GenerativeModel)
+            .where(models.GenerativeModel.is_built_in.is_(True))
+        )
+    return int(count or 0)
 
-    async def test_ensure_model_costs(
+
+async def test_unit_test_apps_skip_model_cost_seeding(
+    db: DbSessionFactory,
+    asgi_app: ASGIApp,
+) -> None:
+    """The suite-wide stub is in force: app startup leaves the built-in model
+    table empty."""
+    assert await _count_built_in_models(db) == 0
+
+
+@pytest.mark.seeded_model_costs
+async def test_marker_seeds_model_costs_during_startup(
+    db: DbSessionFactory,
+    asgi_app: ASGIApp,
+) -> None:
+    """Opting in leaves the real step in the Facilitator, so app startup seeds
+    the manifest's built-in models."""
+    assert await _count_built_in_models(db) > 0
+
+
+class TestEnsureBuiltinEvaluators:
+    """Tests for _ensure_builtin_evaluators function."""
+
+    async def test_ensure_builtin_evaluators_syncs_registry_to_database(
         self,
-        _patch_manifest: Path,
         db: DbSessionFactory,
     ) -> None:
         """
-        Comprehensive test of _ensure_model_costs function covering:
-        1. Empty manifest (no models created)
-        2. Model creation from manifest
-        3. Model updates (name_pattern, token prices)
-        4. Token price additions and removals
-        5. Model cleanup (soft deletion of obsolete models)
+        Test that _ensure_builtin_evaluators properly syncs the in-memory
+        builtin evaluator registry to the database.
         """
+        from phoenix.db.facilitator import _ensure_builtin_evaluators
+        from phoenix.server.api.evaluators import get_builtin_evaluators
 
-        # Initialize enums first
+        # First ensure enums exist (required for evaluator kinds)
         await _ensure_enums(db)
 
-        # === STEP 1: Empty manifest ===
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert not built_in_models, "There should be no built-in models initially"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
+        # Initially, there should be no builtin evaluators in the database
+        async with db() as session:
+            base_evaluators = list(
+                await session.scalars(
+                    select(models.Evaluator).where(models.Evaluator.kind == "BUILTIN")
+                )
+            )
+            builtin_evaluators = list(await session.scalars(select(models.BuiltinEvaluator)))
+        assert len(base_evaluators) == 0, "No builtin evaluators should exist initially"
+        assert len(builtin_evaluators) == 0, "No builtin evaluator records should exist initially"
 
-        await _ensure_model_costs(db)
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert not built_in_models, "There should be no built-in models because manifest is empty"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
+        # Sync builtin evaluators
+        await _ensure_builtin_evaluators(db)
 
-        # === STEP 2: Create new models ===
-        initial_manifest: list[dict[str, Any]] = [
-            {
-                "name": "test-model-1",
-                "name_pattern": r"(?i)^(test-model-1)$",
-                "token_prices": [
-                    {
-                        "base_rate": 0.000001,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },
-                    {
-                        "base_rate": 0.0000001,
-                        "is_prompt": True,
-                        "token_type": "cache_write",
-                    },
-                    {
-                        "base_rate": 0.0000005,
-                        "is_prompt": True,
-                        "token_type": "cache_read",
-                    },
-                    {
-                        "base_rate": 0.000003,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },
-                    {
-                        "base_rate": 0.000003,
-                        "is_prompt": False,
-                        "token_type": "audio",
-                    },
-                ],
-            },
-            {
-                "name": "test-model-2",
-                "name_pattern": r"(?i)^(test-model-2|alt-name-2)$",
-                "token_prices": [
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },
-                    {
-                        "base_rate": 0.000010,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },
-                ],
-            },
+        # Verify all builtin evaluators from registry are now in the database
+        registry_evaluators = list(get_builtin_evaluators())
+        expected_count = len(registry_evaluators)
+
+        async with db() as session:
+            base_evaluators = list(
+                await session.scalars(
+                    select(models.Evaluator).where(models.Evaluator.kind == "BUILTIN")
+                )
+            )
+            builtin_evaluators = list(await session.scalars(select(models.BuiltinEvaluator)))
+
+        assert len(base_evaluators) == expected_count, (
+            f"Expected {expected_count} base evaluator records, got {len(base_evaluators)}"
+        )
+        assert len(builtin_evaluators) == expected_count, (
+            f"Expected {expected_count} builtin evaluator records, got {len(builtin_evaluators)}"
+        )
+
+        # Verify that all registry keys are present in the database
+        registry_keys = {key for key, _ in registry_evaluators}
+        db_builtin_keys = {e.key for e in builtin_evaluators}
+
+        assert registry_keys == db_builtin_keys, (
+            f"Builtin evaluator keys mismatch: registry={registry_keys}, db={db_builtin_keys}"
+        )
+
+        # Verify that base evaluators and builtin evaluators have matching IDs
+        db_base_ids = {e.id for e in base_evaluators}
+        db_builtin_ids = {e.id for e in builtin_evaluators}
+        assert db_base_ids == db_builtin_ids, (
+            f"Base and builtin evaluator IDs should match: base={db_base_ids}, builtin={db_builtin_ids}"
+        )
+
+    async def test_ensure_builtin_evaluators_is_idempotent(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """Test that calling _ensure_builtin_evaluators multiple times is idempotent."""
+        from phoenix.db.facilitator import _ensure_builtin_evaluators
+        from phoenix.server.api.evaluators import get_builtin_evaluators
+
+        await _ensure_enums(db)
+
+        # Call sync multiple times
+        for _ in range(3):
+            await _ensure_builtin_evaluators(db)
+
+        # Verify count matches registry exactly
+        registry_count = len(list(get_builtin_evaluators()))
+        async with db() as session:
+            builtin_count = await session.scalar(
+                select(sa.func.count()).select_from(models.BuiltinEvaluator)
+            )
+        assert builtin_count == registry_count, (
+            f"Expected {registry_count} builtin evaluators after multiple syncs, got {builtin_count}"
+        )
+
+
+class TestEnsureUserFeedbackAnnotationConfig:
+    async def test_ensure_user_feedback_annotation_config_seeds_if_absent(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.db.facilitator import _ensure_user_feedback_annotation_config
+        from phoenix.db.types.annotation_configs import (
+            CategoricalAnnotationConfig,
+            OptimizationDirection,
+        )
+
+        await _ensure_user_feedback_annotation_config(db)
+
+        async with db() as session:
+            annotation_config = await session.scalar(
+                select(models.AnnotationConfig).where(
+                    models.AnnotationConfig.name == "user_feedback"
+                )
+            )
+
+        assert annotation_config is not None
+        assert isinstance(annotation_config.config, CategoricalAnnotationConfig)
+        assert annotation_config.config.optimization_direction == OptimizationDirection.MAXIMIZE
+        assert [(value.label, value.score) for value in annotation_config.config.values] == [
+            ("positive", 1.0),
+            ("negative", 0.0),
         ]
-        self._update_manifest(_patch_manifest, initial_manifest)
 
-        await _ensure_model_costs(db)
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert len(built_in_models) == 2, "Should have created 2 models"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
-        # Verify model 1 details
-        model1 = built_in_models["test-model-1"]
-        assert model1.name_pattern.pattern == r"(?i)^(test-model-1)$"
-        assert model1.is_built_in is True
-        assert model1.deleted_at is None
-
-        # Check token prices for model 1 (should have all types)
-        actual_prices_1 = self._extract_token_prices(model1)
-        expected_prices_1 = {
-            ("input", True): 0.000001,
-            ("output", False): 0.000002,
-            ("cache_write", True): 0.0000001,
-            ("cache_read", True): 0.0000005,
-            ("audio", True): 0.000003,
-            ("audio", False): 0.000003,  # Audio appears for both prompt and non-prompt
-        }
-        assert actual_prices_1 == expected_prices_1, (
-            f"Model 1 token prices mismatch: got {actual_prices_1}, expected {expected_prices_1}"
+    async def test_ensure_user_feedback_annotation_config_leaves_existing_config_unchanged(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.db.facilitator import _ensure_user_feedback_annotation_config
+        from phoenix.db.types.annotation_configs import (
+            AnnotationType,
+            FreeformAnnotationConfig,
         )
 
-        # Verify model 2 details (minimal pricing)
-        model2 = built_in_models["test-model-2"]
-        assert model2.name_pattern.pattern == r"(?i)^(test-model-2|alt-name-2)$"
+        async with db() as session:
+            session.add(
+                models.AnnotationConfig(
+                    name="user_feedback",
+                    config=FreeformAnnotationConfig(type=AnnotationType.FREEFORM.value),
+                )
+            )
 
-        actual_prices_2 = self._extract_token_prices(model2)
-        expected_prices_2 = {
-            ("input", True): 0.000005,
-            ("output", False): 0.000010,
-        }
-        assert actual_prices_2 == expected_prices_2, (
-            f"Model 2 token prices mismatch: got {actual_prices_2}, expected {expected_prices_2}"
-        )
+        await _ensure_user_feedback_annotation_config(db)
 
-        # === STEP 3: Update existing models ===
-        # Update model 1: change name_pattern and some prices
-        # Update model 2: add cache prices
-        # Add model 3: audio-only model
-        updated_manifest: list[dict[str, Any]] = [
-            {
-                "name": "test-model-1",
-                "name_pattern": r"(?i)^(test-model-1|new-alias)$",  # Changed name_pattern
-                "token_prices": [
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },  # Changed price
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },  # Same price
-                    {
-                        "base_rate": 0.000001,
-                        "is_prompt": True,
-                        "token_type": "cache_read",
-                    },  # Changed price
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },  # Changed price
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": False,
-                        "token_type": "audio",
-                    },  # Changed price
-                    # cache_write removed
-                ],
-            },
-            {
-                "name": "test-model-2",
-                "name_pattern": r"(?i)^(test-model-2|alt-name-2)$",  # Same
-                "token_prices": [
-                    {
-                        "base_rate": 0.000005,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },  # Same
-                    {
-                        "base_rate": 0.000015,
-                        "is_prompt": False,
-                        "token_type": "output",
-                    },  # Changed
-                    {
-                        "base_rate": 0.000001,
-                        "is_prompt": True,
-                        "token_type": "cache_write",
-                    },  # Added
-                    {
-                        "base_rate": 0.000002,
-                        "is_prompt": True,
-                        "token_type": "cache_read",
-                    },  # Added
-                ],
-            },
-            {
-                "name": "audio-model",
-                "name_pattern": r"(?i)^(audio-model)$",
-                "token_prices": [
-                    {
-                        "base_rate": 0.000008,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },  # Audio-only pricing
-                    {
-                        "base_rate": 0.000008,
-                        "is_prompt": False,
-                        "token_type": "audio",
-                    },
-                ],
-            },
-        ]
-        self._update_manifest(_patch_manifest, updated_manifest)
+        async with db() as session:
+            annotation_configs = list(
+                await session.scalars(
+                    select(models.AnnotationConfig).where(
+                        models.AnnotationConfig.name == "user_feedback"
+                    )
+                )
+            )
 
-        await _ensure_model_costs(db)
-        built_in_models = await self._get_models(db, is_built_in=True)
-        assert len(built_in_models) == 3, "Should have 3 models after update"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
-        # Verify model 1 updates
-        model1_updated = built_in_models["test-model-1"]
-        assert model1_updated.name_pattern.pattern == r"(?i)^(test-model-1|new-alias)$"
-
-        actual_prices_1_updated = self._extract_token_prices(model1_updated)
-        expected_prices_1_updated = {
-            ("input", True): 0.000002,  # Changed
-            ("output", False): 0.000002,  # Same
-            ("cache_read", True): 0.000001,  # Changed
-            ("audio", True): 0.000005,  # Changed
-            ("audio", False): 0.000005,  # Changed
-            # cache_write should be removed
-        }
-        assert actual_prices_1_updated == expected_prices_1_updated, (
-            f"Model 1 updated prices mismatch: got {actual_prices_1_updated}, expected {expected_prices_1_updated}"
-        )
-
-        # Verify model 2 updates
-        model2_updated = built_in_models["test-model-2"]
-        actual_prices_2_updated = self._extract_token_prices(model2_updated)
-        expected_prices_2_updated = {
-            ("input", True): 0.000005,  # Same
-            ("output", False): 0.000015,  # Changed
-            ("cache_write", True): 0.000001,  # Added
-            ("cache_read", True): 0.000002,  # Added
-        }
-        assert actual_prices_2_updated == expected_prices_2_updated, (
-            f"Model 2 updated prices mismatch: got {actual_prices_2_updated}, expected {expected_prices_2_updated}"
-        )
-
-        # Verify new audio model
-        audio_model = built_in_models["audio-model"]
-        actual_prices_audio = self._extract_token_prices(audio_model)
-        expected_prices_audio = {
-            ("audio", True): 0.000008,
-            ("audio", False): 0.000008,
-        }
-        assert actual_prices_audio == expected_prices_audio, (
-            f"Audio model prices mismatch: got {actual_prices_audio}, expected {expected_prices_audio}"
-        )
-
-        # === STEP 4: Remove models (test soft deletion) ===
-        # Keep only model 2, remove model 1 and audio model
-        final_manifest: list[dict[str, Any]] = [
-            {
-                "name": "test-model-2",
-                "name_pattern": r"(?i)^(final-model-2)$",  # Final name_pattern change
-                "token_prices": [
-                    {
-                        "base_rate": 0.000010,
-                        "is_prompt": True,
-                        "token_type": "input",
-                    },  # Final price change
-                    {"base_rate": 0.000020, "is_prompt": False, "token_type": "output"},
-                    {
-                        "base_rate": 0.000030,
-                        "is_prompt": True,
-                        "token_type": "audio",
-                    },  # Add audio pricing
-                    {"base_rate": 0.000030, "is_prompt": False, "token_type": "audio"},
-                    # cache prices removed
-                ],
-            }
-        ]
-        self._update_manifest(_patch_manifest, final_manifest)
-
-        await _ensure_model_costs(db)
-
-        # Check active built-in models
-        active_models = await self._get_models(db, is_built_in=True)
-        assert len(active_models) == 1, "Should have only 1 active model"
-        assert "test-model-2" in active_models, "Model 2 should still be active"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
-        # Verify final model 2 state
-        final_model2 = active_models["test-model-2"]
-        assert final_model2.name_pattern.pattern == r"(?i)^(final-model-2)$"
-
-        actual_prices_final = self._extract_token_prices(final_model2)
-        expected_prices_final = {
-            ("input", True): 0.000010,
-            ("output", False): 0.000020,
-            ("audio", True): 0.000030,
-            ("audio", False): 0.000030,
-        }
-        assert actual_prices_final == expected_prices_final, (
-            f"Final model prices mismatch: got {actual_prices_final}, expected {expected_prices_final}"
-        )
-
-        # Verify soft deletion of removed models
-        deleted_model_names = await self._get_deleted_model_names(db)
-        expected_deleted = {"test-model-1", "audio-model"}
-        assert deleted_model_names == expected_deleted, (
-            f"Wrong models deleted: got {deleted_model_names}, expected {expected_deleted}"
-        )
-
-        # === STEP 5: Empty manifest again (cleanup all) ===
-        self._update_manifest(_patch_manifest, [])
-        await _ensure_model_costs(db)
-
-        final_active_models = await self._get_models(db, is_built_in=True)
-        assert not final_active_models, "All models should be soft-deleted"
-        user_defined_models = await self._get_models(db, is_built_in=False)
-        assert not user_defined_models, "No user-defined models should exist"
-
-        # Verify all models are now soft-deleted
-        all_deleted_names = await self._get_deleted_model_names(db)
-        expected_all_deleted = {"test-model-1", "test-model-2", "audio-model"}
-        assert all_deleted_names == expected_all_deleted, (
-            f"All models should be deleted: got {all_deleted_names}, expected {expected_all_deleted}"
-        )
+        assert len(annotation_configs) == 1
+        assert isinstance(annotation_configs[0].config, FreeformAnnotationConfig)

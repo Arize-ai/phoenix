@@ -1,6 +1,7 @@
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { DocumentAnnotation, toDocumentAnnotationData } from "./types";
+import type { ClientFn } from "../types/core";
+import type { DocumentAnnotation } from "./types";
+import { toDocumentAnnotationData } from "./types";
 
 /**
  * Parameters to add a document annotation
@@ -18,7 +19,7 @@ export interface AddDocumentAnnotationParams extends ClientFn {
 /**
  * Add an annotation to a document within a span.
  *
- * The annotation can be of type "LLM", "CODE", or "HUMAN" and can include a label, score, explanation, and metadata.
+ * The annotation can be of type "LLM", "CODE", "HUMAN", "DECISION", or "AGENT" and can include a label, score, explanation, and metadata.
  * At least one of label, score, or explanation must be provided.
  *
  * @param params - The parameters to add a document annotation

@@ -43,7 +43,7 @@ class SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(DataLoader[Key, Resu
         )
 
         results: defaultdict[Key, Result] = defaultdict(SpanCostSummary)
-        async with self._db() as session:
+        async with self._db.read() as session:
             data = await session.stream(stmt)
             async for (
                 experiment_id,

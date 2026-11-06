@@ -1,14 +1,20 @@
 from asyncio import sleep
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
-import httpx
+import httpx2
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from faker import Faker
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+from opentelemetry.proto.resource.v1.resource_pb2 import Resource
+from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
@@ -65,7 +71,7 @@ async def project_with_a_single_trace_and_span(
 @pytest.mark.parametrize("sync", [False, True])
 async def test_rest_trace_annotation(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
     sync: bool,
     fake: Faker,
@@ -109,8 +115,176 @@ async def test_rest_trace_annotation(
     assert orm_annotation.user_id is None
 
 
+async def test_rest_trace_annotation_rejects_note_name(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": [
+            {
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "name": "note",
+                "annotator_kind": "HUMAN",
+                "result": {
+                    "explanation": "This should fail",
+                },
+                "metadata": {},
+            }
+        ]
+    }
+
+    response = await httpx_client.post("v1/trace_annotations?sync=true", json=request_body)
+    assert response.status_code == 400
+    assert (
+        "The name 'note' is reserved for trace and span notes. Use POST /v1/trace_notes instead."
+    ) in response.text
+
+
+async def test_rest_create_trace_note(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    note_text = fake.pystr()
+    request_body = {
+        "data": {
+            "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+            "note": note_text,
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 200
+
+    response_data = response.json()
+    assert "data" in response_data
+    assert "id" in response_data["data"]
+
+    async with db() as session:
+        orm_annotation = await session.scalar(
+            select(models.TraceAnnotation).where(
+                models.TraceAnnotation.name == "note",
+                models.TraceAnnotation.explanation == note_text,
+            )
+        )
+
+    assert orm_annotation is not None
+    assert orm_annotation.name == "note"
+    assert orm_annotation.annotator_kind == "HUMAN"
+    assert orm_annotation.explanation == note_text
+    assert orm_annotation.source == "API"
+    assert orm_annotation.identifier.startswith("px-trace-note:")
+    assert UUID(orm_annotation.identifier.removeprefix("px-trace-note:")).version == 4
+    assert orm_annotation.label is None
+    assert orm_annotation.score is None
+    assert orm_annotation.metadata_ == dict()
+
+
+async def test_rest_create_trace_note_not_found(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": {
+            "trace_id": "nonexistent-trace-id",
+            "note": "This should fail",
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
+
+
+async def test_rest_create_multiple_trace_notes(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    note_texts = [fake.pystr() for _ in range(3)]
+
+    for note_text in note_texts:
+        request_body = {
+            "data": {
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "note": note_text,
+            }
+        }
+        response = await httpx_client.post("v1/trace_notes", json=request_body)
+        assert response.status_code == 200
+
+    async with db() as session:
+        result = await session.execute(
+            select(models.TraceAnnotation).where(models.TraceAnnotation.name == "note")
+        )
+        annotations = list(result.scalars().all())
+
+    assert len(annotations) == 3
+    explanations = {annotation.explanation for annotation in annotations}
+    assert explanations == set(note_texts)
+
+    identifiers = [annotation.identifier for annotation in annotations]
+    assert len(identifiers) == len(set(identifiers))
+    assert all(
+        UUID(identifier.removeprefix("px-trace-note:")).version == 4 for identifier in identifiers
+    )
+
+
+async def test_rest_create_trace_note_blank_text_rejected(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": {
+            "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+            "note": "   ",
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 422
+
+
+async def test_rest_create_trace_note_with_identifier_upserts(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    identifier = "px-coding-session:test-upsert"
+    first_note, second_note = fake.pystr(), fake.pystr()
+
+    for note_text in (first_note, second_note):
+        response = await httpx_client.post(
+            "v1/trace_notes",
+            json={
+                "data": {
+                    "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                    "note": note_text,
+                    "identifier": identifier,
+                }
+            },
+        )
+        assert response.status_code == 200
+
+    async with db() as session:
+        annotations = list(
+            (
+                await session.scalars(
+                    select(models.TraceAnnotation).where(models.TraceAnnotation.name == "note")
+                )
+            ).all()
+        )
+
+    assert len(annotations) == 1
+    assert annotations[0].identifier == identifier
+    assert annotations[0].explanation == second_note
+
+
 async def test_traces_endpoint_otlp_compliance(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     """Test that /traces endpoint returns protobuf response when protobuf request is sent"""
     request = ExportTraceServiceRequest()
@@ -129,7 +303,7 @@ async def test_traces_endpoint_otlp_compliance(
 
 
 async def test_delete_trace_by_trace_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     project_with_a_single_trace_and_span: None,
 ) -> None:
@@ -168,7 +342,7 @@ async def test_delete_trace_by_trace_id(
 
 
 async def test_delete_trace_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: None,
 ) -> None:
     """
@@ -187,7 +361,7 @@ async def test_delete_trace_not_found(
 
 
 async def test_delete_trace_with_multiple_spans(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     """
@@ -277,7 +451,7 @@ async def test_delete_trace_with_multiple_spans(
 
 
 async def test_delete_trace_by_relay_global_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     project_with_a_single_trace_and_span: None,
 ) -> None:
@@ -330,7 +504,7 @@ async def test_delete_trace_by_relay_global_id(
 
 
 async def test_delete_trace_by_relay_id_not_found(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: None,
 ) -> None:
     """
@@ -347,3 +521,299 @@ async def test_delete_trace_by_relay_id_not_found(
     response = await httpx_client.delete(url)
     assert response.status_code == 404
     assert f"Trace with relay ID '{non_existent_global_id}' not found" in response.text
+
+
+def _make_otlp_request(
+    *,
+    project_resource_attr: str | None = None,
+) -> ExportTraceServiceRequest:
+    """Build a minimal OTLP ExportTraceServiceRequest with one span.
+
+    Args:
+        project_resource_attr: If provided, sets the ``openinference.project.name``
+            resource attribute on the ResourceSpans.
+    """
+    resource_attrs: list[KeyValue] = []
+    if project_resource_attr is not None:
+        resource_attrs.append(
+            KeyValue(
+                key=ResourceAttributes.PROJECT_NAME,
+                value=AnyValue(string_value=project_resource_attr),
+            )
+        )
+
+    span = otlp.Span(
+        trace_id=bytes.fromhex("a" * 32),
+        span_id=bytes.fromhex("b" * 16),
+        name="test-span",
+        start_time_unix_nano=1_000_000_000,
+        end_time_unix_nano=2_000_000_000,
+    )
+    resource_spans = ResourceSpans(
+        resource=Resource(attributes=resource_attrs),
+        scope_spans=[ScopeSpans(spans=[span])],
+    )
+    return ExportTraceServiceRequest(resource_spans=[resource_spans])
+
+
+async def test_post_traces_project_header_overrides_resource_attribute(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """The x-project-name header takes precedence over the resource attribute."""
+    req = _make_otlp_request(project_resource_attr="resource-project")
+
+    response = await httpx_client.post(
+        "v1/traces",
+        content=req.SerializeToString(),
+        headers={
+            "Content-Type": "application/x-protobuf",
+            "x-project-name": "header-project",
+        },
+    )
+    assert response.status_code == 200
+
+    # Allow the background task to complete
+    await sleep(0.1)
+
+    async with db() as session:
+        header_project = await session.scalar(
+            select(models.Project).where(models.Project.name == "header-project")
+        )
+        resource_project = await session.scalar(
+            select(models.Project).where(models.Project.name == "resource-project")
+        )
+
+    assert header_project is not None, "Project named by the header should be created"
+    assert resource_project is None, "Resource attribute project should NOT be created"
+
+
+async def test_post_traces_resource_attribute_used_when_no_header(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """When no header is sent, the openinference.project.name resource attribute is used."""
+    req = _make_otlp_request(project_resource_attr="attr-project")
+
+    response = await httpx_client.post(
+        "v1/traces",
+        content=req.SerializeToString(),
+        headers={"Content-Type": "application/x-protobuf"},
+    )
+    assert response.status_code == 200
+
+    await sleep(0.1)
+
+    async with db() as session:
+        project = await session.scalar(
+            select(models.Project).where(models.Project.name == "attr-project")
+        )
+
+    assert project is not None, "Project from resource attribute should be created"
+
+
+# ---------------------------------------------------------------------------
+# POST /v1/traces/transfer
+# ---------------------------------------------------------------------------
+
+
+async def _project_with_traces(
+    db: DbSessionFactory,
+    project_name: str,
+    num_traces: int,
+    trace_id_prefix: str,
+) -> tuple[int, list[int]]:
+    """Create a project with `num_traces` traces; return (project_rowid, trace_rowids)."""
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project).values(name=project_name).returning(models.Project.id)
+        )
+        trace_rowids: list[int] = []
+        for i in range(num_traces):
+            trace_rowid = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    trace_id=f"{trace_id_prefix}{i:04d}",
+                    project_rowid=project_rowid,
+                    start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                    end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+                )
+                .returning(models.Trace.id)
+            )
+            assert trace_rowid is not None
+            trace_rowids.append(trace_rowid)
+    assert project_rowid is not None
+    return project_rowid, trace_rowids
+
+
+async def test_transfer_traces_moves_traces_to_destination(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(db, "src-proj", 2, "aaaa")
+    dest_rowid, _ = await _project_with_traces(db, "dst-proj", 1, "bbbb")
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(rowid))) for rowid in trace_rowids],
+            "destination_project_identifier": "dst-proj",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["transferred_trace_count"] == 2
+    assert data["destination_project_id"] == str(GlobalID("Project", str(dest_rowid)))
+
+    async with db() as session:
+        moved = (
+            await session.scalars(
+                select(models.Trace.project_rowid).where(models.Trace.id.in_(trace_rowids))
+            )
+        ).all()
+    assert set(moved) == {dest_rowid}, "traces should be re-parented to the destination"
+    assert source_rowid not in set(moved)
+
+
+async def test_transfer_traces_accepts_project_global_id(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    _, trace_rowids = await _project_with_traces(db, "src-gid", 1, "cccc")
+    dest_rowid, _ = await _project_with_traces(db, "dst-gid", 1, "dddd")
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
+            "destination_project_identifier": str(GlobalID("Project", str(dest_rowid))),
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["transferred_trace_count"] == 1
+
+
+async def test_transfer_traces_deduplicates_repeated_ids(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    _, trace_rowids = await _project_with_traces(db, "src-dupe", 1, "eeee")
+    await _project_with_traces(db, "dst-dupe", 1, "ffff")
+    trace_gid = str(GlobalID("Trace", str(trace_rowids[0])))
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [trace_gid, trace_gid],
+            "destination_project_identifier": "dst-dupe",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["transferred_trace_count"] == 1
+
+
+async def test_transfer_traces_rejects_multiple_source_projects(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    _, traces_a = await _project_with_traces(db, "multi-a", 1, "1111")
+    _, traces_b = await _project_with_traces(db, "multi-b", 1, "2222")
+    await _project_with_traces(db, "multi-dst", 1, "3333")
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [
+                str(GlobalID("Trace", str(traces_a[0]))),
+                str(GlobalID("Trace", str(traces_b[0]))),
+            ],
+            "destination_project_identifier": "multi-dst",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_transfer_traces_empty_trace_identifiers(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    await _project_with_traces(db, "empty-dst", 1, "4444")
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={"trace_identifiers": [], "destination_project_identifier": "empty-dst"},
+    )
+    assert response.status_code == 422
+
+
+async def test_transfer_traces_unknown_trace(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    await _project_with_traces(db, "unknown-dst", 1, "5555")
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", "99999"))],
+            "destination_project_identifier": "unknown-dst",
+        },
+    )
+    assert response.status_code == 404
+
+
+async def test_transfer_traces_unknown_destination_project(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    _, trace_rowids = await _project_with_traces(db, "src-nodst", 1, "6666")
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
+            "destination_project_identifier": "does-not-exist",
+        },
+    )
+    assert response.status_code == 404
+
+
+async def test_transfer_traces_accepts_otel_trace_ids(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(db, "src-otel", 2, "abcd")
+    dest_rowid, _ = await _project_with_traces(db, "dst-otel", 1, "beef")
+
+    # Mix an OpenTelemetry trace_id with a GlobalID in a single request.
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": ["abcd0000", str(GlobalID("Trace", str(trace_rowids[1])))],
+            "destination_project_identifier": "dst-otel",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["transferred_trace_count"] == 2
+
+    async with db() as session:
+        moved = (
+            await session.scalars(
+                select(models.Trace.project_rowid).where(models.Trace.id.in_(trace_rowids))
+            )
+        ).all()
+    assert set(moved) == {dest_rowid}
+
+
+async def test_transfer_traces_unparseable_identifier(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    await _project_with_traces(db, "malformed-dst", 1, "7777")
+    # An identifier that is not a GlobalID is treated as an OpenTelemetry trace_id;
+    # when no trace has it, the request is a 404.
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": ["not-a-global-id"],
+            "destination_project_identifier": "malformed-dst",
+        },
+    )
+    assert response.status_code == 404

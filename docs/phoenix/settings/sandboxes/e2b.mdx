@@ -1,0 +1,22 @@
+---
+title: "E2B"
+description: "Run code evaluators in E2B's hosted micro-VM sandboxes."
+---
+
+<div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/e2b.svg" alt="E2B" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
+<div>
+
+[**E2B**](https://e2b.dev/) runs each evaluation inside a fresh micro-VM on its own infrastructure. That gives you kernel-level isolation — much stronger than the local sandboxes — plus the ability to install Python packages on the fly and reach the public internet when the configuration allows it. The trade-off is per-call network latency and the need to manage an E2B account.
+
+</div>
+</div>
+
+## Setup
+
+1. **Create an E2B account** at [e2b.dev](https://e2b.dev/) if you don't already have one.
+2. **Generate an API key** in the E2B dashboard.
+3. **Add the key to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **E2B** row, click the gear icon, and paste your key as `E2B_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
+4. **Create a configuration.** In the **Sandbox Configurations** card, click **New Sandbox**, pick **E2B**, set the timeout and any environment variables or dependencies the evaluator needs, and save.
+
+Once the configuration exists, code evaluators can select it from their settings.

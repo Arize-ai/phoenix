@@ -2,17 +2,16 @@
 FROM node:22-slim AS builder
 
 # Install pnpm globally
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@12.0.0 --activate
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml ./
 COPY ui/package.json ./ui/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Install UI dependencies
 RUN cd ui && pnpm install

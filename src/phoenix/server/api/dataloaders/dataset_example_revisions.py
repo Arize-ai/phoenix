@@ -92,7 +92,7 @@ class DatasetExampleRevisionsDataLoader(DataLoader[Key, Result]):
                 isouter=True,  # keep rows where the version id is null
             )
         )
-        async with self._db() as session:
+        async with self._db.read() as session:
             results = {
                 (example_id, version_id): DatasetExampleRevision.from_orm_revision(revision)
                 async for (

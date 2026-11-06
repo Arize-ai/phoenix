@@ -1,9 +1,13 @@
-import { ClassificationResult, WithLLM } from "../types/evals";
-import { WithTelemetry } from "../types/otel";
-import type { WithPrompt } from "../types/prompts";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { tracer } from "../telemetry";
+
+import { decideClassification } from "../decision/decideClassification";
+import { getTelemetryOptions } from "../telemetry";
+import type { ClassificationResult, WithLLM } from "../types/evals";
+import type { WithTelemetry } from "../types/otel";
+import type { WithPrompt } from "../types/prompts";
+import { isDecisionModel } from "../utils/isDecisionModel";
+
 export type ClassifyArgs = WithLLM &
   WithTelemetry &
   WithPrompt & {
@@ -22,6 +26,12 @@ export type ClassifyArgs = WithLLM &
   };
 /**
  * A function that leverages an llm to perform a classification
+ *
+ * When given an AI SDK decision model (e.g. `openai.decisionModel("gpt-6-luna")`)
+ * the classification is routed through `experimental_decide` as a single
+ * choice question, with the prompt sent as plain text. Decision models cannot
+ * generate text, so no explanation is returned in that case, and
+ * `schemaName` / `schemaDescription` are ignored.
  */
 export async function generateClassification(
   args: ClassifyArgs
@@ -29,11 +39,14 @@ export async function generateClassification(
   const { labels, model, schemaName, schemaDescription, telemetry, ...prompt } =
     args;
 
-  const experimental_telemetry = {
-    isEnabled: telemetry?.isEnabled ?? true,
-    functionId: "generateClassification",
-    tracer: telemetry?.tracer ?? tracer,
-  };
+  if (isDecisionModel(model)) {
+    return decideClassification({
+      model,
+      labels,
+      prompt,
+      telemetry,
+    });
+  }
 
   const result = await generateObject({
     model,
@@ -43,7 +56,13 @@ export async function generateClassification(
       explanation: z.string(), // We place the explanation in hopes it uses reasoning to explain the label.
       label: z.enum(labels),
     }),
-    experimental_telemetry,
+    telemetry: getTelemetryOptions({
+      functionId: "generateClassification",
+      telemetry,
+    }),
+    // AI SDK 7 rejects system messages inside `messages` by default; keep
+    // accepting them since prompt templates may include system messages.
+    allowSystemInMessages: true,
     ...prompt,
   });
   return {

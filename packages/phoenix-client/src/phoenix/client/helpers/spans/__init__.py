@@ -6,12 +6,27 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from phoenix.client.__generated__ import v1
 
+from .rag import (
+    async_get_input_output_context,
+    async_get_retrieved_documents,
+    get_input_output_context,
+    get_retrieved_documents,
+)
+
 Span = v1.Span
 
 if TYPE_CHECKING:
     import pandas as pd
 
-__all__ = ["uniquify_spans", "uniquify_spans_dataframe", "dataframe_to_spans"]
+__all__ = [
+    "uniquify_spans",
+    "uniquify_spans_dataframe",
+    "dataframe_to_spans",
+    "get_input_output_context",
+    "get_retrieved_documents",
+    "async_get_input_output_context",
+    "async_get_retrieved_documents",
+]
 
 # Source implementation:opentelemetry.sdk.trace.id_generator.RandomIdGenerator
 
@@ -179,7 +194,7 @@ def uniquify_spans_dataframe(
     if "context.trace_id" in df.columns:
         unique_trace_ids = df["context.trace_id"].dropna().unique()  # pyright: ignore
         for old_trace_id in unique_trace_ids:  # pyright: ignore
-            old_trace_id_str = str(old_trace_id)
+            old_trace_id_str = str(old_trace_id)  # pyright: ignore[reportUnknownArgumentType]
             if old_trace_id_str and old_trace_id_str not in trace_id_mapping:
                 trace_id_mapping[old_trace_id_str] = _generate_trace_id()
 
@@ -241,9 +256,13 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
 
     Args:
         df (pd.DataFrame): A pandas DataFrame typically returned by get_spans_dataframe.
+            Timestamps in 'start_time' and 'end_time' columns must be timezone-aware.
 
     Returns:
         list[v1.Span]: A list of Span objects reconstructed from the DataFrame.
+
+    Raises:
+        ValueError: If start_time or end_time columns contain timezone-naive timestamps.
 
     Examples:
         Basic usage::
@@ -278,10 +297,18 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
     for idx, row in df.iterrows():  # pyright: ignore
         span: dict[str, Any] = {}
 
-        if df.index.name == "span_id" or df.index.name is None:  # pyright: ignore
+        # Determine span_id: prefer context.span_id column, fall back to index only if it's
+        # actually a span_id (not a default integer index)
+        span_id = ""
+        if "context.span_id" in row and pd.notna(row["context.span_id"]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
+            span_id = str(row["context.span_id"])  # pyright: ignore
+        elif "span_id" in row and pd.notna(row["span_id"]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
+            span_id = str(row["span_id"])  # pyright: ignore
+        elif isinstance(idx, str):  # pyright: ignore
             span_id = str(idx)
-        else:
-            span_id = str(row.get("context.span_id", ""))  # pyright: ignore
+
+        if not span_id:
+            raise ValueError(f"Row {idx}: Missing span_id")
 
         # Build context
         context: dict[str, str] = {}
@@ -310,6 +337,13 @@ def dataframe_to_spans(df: "pd.DataFrame") -> list[Span]:
             if field in row and pd.notna(row[field]):  # pyright: ignore[reportGeneralTypeIssues,reportUnknownMemberType,reportUnknownArgumentType]
                 value = row[field]  # pyright: ignore
                 if field in ["start_time", "end_time"]:
+                    if hasattr(value, "tzinfo") and value.tzinfo is None:  # pyright: ignore
+                        raise ValueError(
+                            f"Row {idx}: column '{field}' contains a timezone-naive timestamp. "
+                            f"All timestamps must be timezone-aware (e.g., use UTC). "
+                            f"Convert naive timestamps using: "
+                            f"df['{field}'] = df['{field}'].dt.tz_localize('UTC')"
+                        )
                     if hasattr(value, "isoformat"):  # pyright: ignore
                         value = value.isoformat()  # pyright: ignore
                     else:

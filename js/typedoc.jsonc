@@ -1,13 +1,17 @@
 {
-  "entryPoints": ["packages/phoenix-client", "packages/phoenix-evals"],
+  "entryPoints": [
+    "packages/phoenix-client",
+    "packages/phoenix-evals",
+    "packages/phoenix-otel",
+  ],
   "entryPointStrategy": "packages",
   "name": "Arize Phoenix TS",
   "exclude": [
     "packages/phoenix-cli",
-    "packages/phoenix-mcp",
     "packages/phoenix-client/examples/**",
     "packages/phoenix-evals/examples/**",
     "packages/phoenix-evals/benchmarks/**",
+    "packages/phoenix-otel/examples/**",
   ],
   "packageOptions": {
     "entryPoints": ["src/**/*.ts"],

@@ -1,56 +1,50 @@
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timedelta, timezone
+from collections import deque
+from collections.abc import AsyncIterator, Mapping
 from typing import (
     Any,
     AsyncGenerator,
+    Callable,
     Coroutine,
-    Iterable,
-    Mapping,
     Optional,
-    Sequence,
     TypeVar,
     cast,
 )
 
 import strawberry
-from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, func, insert, select
-from sqlalchemy.orm import load_only
-from strawberry.relay.types import GlobalID
+from opentelemetry.context import Context as OtelContext
+from sqlalchemy import and_, insert, select
+from sqlalchemy import func as sa_func
 from strawberry.types import Info
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
-from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import insert_experiment_with_examples_snapshot
+from phoenix.db.helpers import (
+    get_dataset_example_revisions,
+    insert_experiment_with_examples_snapshot,
+)
+from phoenix.db.types.experiment_config import PlaygroundConfig
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError, NotFound
+from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.helpers.message_helpers import (
+    formatted_messages,
+    prompt_chat_template_to_playground_messages,
+)
 from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClientCredential,
-    PlaygroundStreamingClient,
+    PlaygroundClient,
+    get_playground_client,
     initialize_playground_clients,
 )
-from phoenix.server.api.helpers.playground_registry import (
-    PLAYGROUND_CLIENT_REGISTRY,
-)
-from phoenix.server.api.helpers.playground_spans import (
-    get_db_experiment_run,
-    get_db_span,
-    get_db_trace,
-    streaming_llm_span,
-)
-from phoenix.server.api.helpers.playground_users import get_user
-from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.input_types.ConnectionConfigInput import to_connection_config
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -58,23 +52,15 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionResult,
 )
 from phoenix.server.api.types.Dataset import Dataset
-from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
-from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.experiments.utils import generate_experiment_project_name
 from phoenix.server.types import DbSessionFactory
-from phoenix.utilities.template_formatters import (
-    FStringTemplateFormatter,
-    MustacheTemplateFormatter,
-    NoOpFormatter,
-    TemplateFormatter,
-    TemplateFormatterError,
-)
+from phoenix.tracers import Tracer
 
 GenericType = TypeVar("GenericType")
 
@@ -82,14 +68,124 @@ logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
 
-ChatCompletionMessage: TypeAlias = tuple[
-    ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]
-]
-DatasetExampleID: TypeAlias = GlobalID
-ChatCompletionResult: TypeAlias = tuple[
-    DatasetExampleID, Optional[models.Span], models.ExperimentRun
-]
+RepetitionNumber: TypeAlias = int
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
+
+
+async def _stream_single_chat_completion(
+    *,
+    input: ChatCompletionInput,
+    llm_client: "PlaygroundClient[Any]",
+    repetition_number: RepetitionNumber,
+    db: DbSessionFactory,
+    project_id: int,
+    on_span_insertion: Callable[[], None],
+    span_cost_calculator: SpanCostCalculator,
+    otel_context: OtelContext,
+) -> ChatStream:
+    tracer = Tracer(span_cost_calculator=span_cost_calculator)
+    try:
+        messages = prompt_chat_template_to_playground_messages(
+            input.prompt_version.template.to_orm()
+        )
+        if template_options := input.template:
+            messages = formatted_messages(
+                messages=messages,
+                template_format=template_options.format,
+                template_variables=cast(Mapping[str, Any], template_options.variables),
+            )
+        invocation_parameters = input.prompt_version.invocation_parameters.to_orm()
+        tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
+        response_format = (
+            input.prompt_version.response_format.to_orm()
+            if input.prompt_version.response_format
+            else None
+        )
+
+        async for chunk in llm_client.chat_completion_create(
+            messages=messages,
+            tools=tools,
+            response_format=response_format,
+            invocation_parameters=invocation_parameters,
+            tracer=tracer,
+            otel_context=otel_context,
+            stream_model_output=input.stream_model_output,
+        ):
+            chunk.repetition_number = repetition_number
+            yield chunk
+    except Exception as error:
+        yield ChatCompletionSubscriptionError(
+            message=str(error),
+            repetition_number=repetition_number,
+        )
+
+    db_traces = tracer.get_db_traces(project_id=project_id)
+    async with db() as session:
+        session.add_all(db_traces)
+        await session.flush()
+    if db_traces and db_traces[0].spans:
+        db_span = db_traces[0].spans[0]
+        yield ChatCompletionSubscriptionResult(
+            span=Span(id=db_span.id, db_record=db_span),
+            repetition_number=repetition_number,
+        )
+        on_span_insertion()
+
+
+async def _cleanup_chat_completion_resources(
+    in_progress: list[
+        tuple[
+            RepetitionNumber,
+            ChatStream,
+            asyncio.Task[ChatCompletionSubscriptionPayload],
+        ]
+    ],
+    not_started: deque[tuple[RepetitionNumber, ChatStream]],
+) -> None:
+    """
+    Cleanup all resources on cancellation or error. MUST be called in a finally block.
+
+    The cleanup sequence (cancel → await tasks → aclose generators) is critical and must
+    not be reordered. task.cancel() only *schedules* a CancelledError—it doesn't wait for
+    the task to process it. If we call stream.aclose() immediately, the task still "owns"
+    the generator and we get "async generator is already running". By awaiting all tasks
+    first, we let them process cancellation and release their generators.
+
+    We cancel all tasks uniformly (including done ones—it's a no-op) because a task being
+    "done" doesn't mean its generator is closed; it just completed one iteration. We use
+    explicit aclose() rather than relying on GC to ensure generators run their finally
+    blocks immediately, preventing data loss and resource leaks.
+    """
+    import inspect
+
+    logger.info(f"Cleaning up: {len(in_progress)} in progress, {len(not_started)} not started")
+
+    # 1. Cancel all tasks (no-op for done tasks)
+    for _, _, task in in_progress:
+        task.cancel()
+
+    # 2. Wait for tasks to process cancellation and release generators
+    if in_progress:
+        await asyncio.gather(
+            *[task for _, _, task in in_progress],
+            return_exceptions=True,
+        )
+
+    # 3. Now it's safe to close generators
+    if in_progress:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream, _ in in_progress if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    # 4. Close not-started generators (no tasks to cancel, just close directly)
+    if not_started:
+        await asyncio.gather(
+            *[stream.aclose() for _, stream in not_started if inspect.isasyncgen(stream)],
+            return_exceptions=True,
+        )
+
+    logger.info("Resource cleanup complete")
 
 
 @strawberry.type
@@ -98,68 +194,24 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            playground_credentials = None
-            if input.credentials:
-                playground_credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=playground_credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
-        messages = [
-            (
-                message.role,
-                message.content,
-                message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-                message.tool_calls if isinstance(message.tool_calls, list) else None,
-            )
-            for message in input.messages
-        ]
-        attributes = None
-        if template_options := input.template:
-            messages = list(
-                _formatted_messages(
-                    messages=messages,
-                    template_format=template_options.format,
-                    template_variables=template_options.variables,
-                )
-            )
-            attributes = {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
-        invocation_parameters = llm_client.construct_invocation_parameters(
-            input.invocation_parameters
+        model_provider = input.prompt_version.model_provider.to_model_provider()
+        custom_provider_id = input.prompt_version.resolved_custom_provider_id
+        connection = (
+            custom_provider_id
+            if custom_provider_id is not None
+            else to_connection_config(model_provider, input.connection_config)
         )
-        async with streaming_llm_span(
-            input=input,
-            messages=messages,
-            invocation_parameters=invocation_parameters,
-            attributes=attributes,
-        ) as span:
-            async for chunk in llm_client.chat_completion_create(
-                messages=messages, tools=input.tools or [], **invocation_parameters
-            ):
-                span.add_response_chunk(chunk)
-                yield chunk
-        span.set_attributes(llm_client.attributes)
-        if span.status_message is not None:
-            yield ChatCompletionSubscriptionError(message=span.status_message)
+        headers = cast(dict[str, str], input.headers) if input.headers else None
         async with info.context.db() as session:
+            llm_client = await get_playground_client(
+                model_provider=model_provider,
+                model_name=input.prompt_version.model_name,
+                session=session,
+                decrypt=info.context.decrypt,
+                credentials=input.credentials,
+                connection=connection,
+                headers=headers,
+            )
             if (
                 playground_project_id := await session.scalar(
                     select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
@@ -173,55 +225,82 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            db_trace = get_db_trace(span, playground_project_id)
-            db_span = get_db_span(span, db_trace)
-            session.add(db_span)
-            await session.flush()
-            try:
-                span_cost = info.context.span_cost_calculator.calculate_cost(
-                    start_time=db_span.start_time,
-                    attributes=span.attributes,
-                )
-            except Exception as e:
-                logger.exception(f"Failed to calculate cost for span {db_span.id}: {e}")
-                span_cost = None
-            if span_cost:
-                span_cost.span_rowid = db_span.id
-                span_cost.trace_rowid = db_span.trace_rowid
-                session.add(span_cost)
+            assert playground_project_id is not None
 
-        info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
-        yield ChatCompletionSubscriptionResult(span=Span(span_rowid=db_span.id, db_span=db_span))
+        not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
+            (
+                repetition_number,
+                _stream_single_chat_completion(
+                    input=input,
+                    llm_client=llm_client,
+                    repetition_number=repetition_number,
+                    db=info.context.db,
+                    project_id=playground_project_id,
+                    on_span_insertion=lambda: info.context.event_queue.put(
+                        SpanInsertEvent(ids=(playground_project_id,))
+                    ),
+                    span_cost_calculator=info.context.span_cost_calculator,
+                    otel_context=OtelContext(),
+                ),
+            )
+            for repetition_number in range(1, input.repetitions + 1)
+        )
+        in_progress: list[
+            tuple[
+                RepetitionNumber,
+                ChatStream,
+                asyncio.Task[ChatCompletionSubscriptionPayload],
+            ]
+        ] = []
+        max_in_progress = 3
+
+        try:
+            while not_started or in_progress:
+                while not_started and len(in_progress) < max_in_progress:
+                    rep_num, stream = not_started.popleft()
+                    task = _create_task_with_timeout(stream)
+                    in_progress.append((rep_num, stream, task))
+                async_tasks_to_run = [task for _, _, task in in_progress]
+                completed_tasks, _ = await asyncio.wait(
+                    async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
+                )
+                for completed_task in completed_tasks:
+                    idx = [task for _, _, task in in_progress].index(completed_task)
+                    repetition_number, stream, _ = in_progress[idx]
+                    try:
+                        yield completed_task.result()
+                    except StopAsyncIteration:
+                        del in_progress[idx]  # removes exhausted stream
+                    except asyncio.TimeoutError:
+                        del in_progress[idx]  # removes timed-out stream
+                        yield ChatCompletionSubscriptionError(
+                            message="Playground task timed out",
+                            repetition_number=repetition_number,
+                        )
+                    except Exception as error:
+                        del in_progress[idx]  # removes failed stream
+                        yield ChatCompletionSubscriptionError(
+                            message="An unexpected error occurred",
+                            repetition_number=repetition_number,
+                        )
+                        logger.exception(error)
+                    else:
+                        task = _create_task_with_timeout(stream)
+                        in_progress[idx] = (repetition_number, stream, task)
+        finally:
+            await _cleanup_chat_completion_resources(
+                in_progress=in_progress,
+                not_started=not_started,
+            )
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
         self, info: Info[Context, None], input: ChatCompletionOverDatasetInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
-        provider_key = input.model.provider_key
-        llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
-        if llm_client_class is None:
-            raise BadRequest(f"Unknown LLM provider: '{provider_key.value}'")
-        try:
-            # Convert GraphQL credentials to PlaygroundCredential objects
-            playground_credentials = None
-            if input.credentials:
-                playground_credentials = [
-                    PlaygroundClientCredential(env_var_name=cred.env_var_name, value=cred.value)
-                    for cred in input.credentials
-                ]
-
-            llm_client = llm_client_class(
-                model=input.model,
-                credentials=playground_credentials,
-            )
-        except CustomGraphQLError:
-            raise
-        except Exception as error:
-            raise BadRequest(
-                f"Failed to connect to LLM API for {provider_key.value} {input.model.name}: "
-                f"{str(error)}"
-            )
-
+        """
+        Run dataset playground experiment in the background via ExperimentRunner and stream
+        subscription payloads (chunks, results, errors) to the client.
+        """
         dataset_id = from_global_id_with_expected_type(input.dataset_id, Dataset.__name__)
         version_id = (
             from_global_id_with_expected_type(
@@ -230,11 +309,15 @@ class Subscription:
             if input.dataset_version_id
             else None
         )
+
         async with info.context.db() as session:
+            # Validate dataset exists
             if (
                 await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
                 raise NotFound(f"Could not find dataset with ID {dataset_id}")
+
+            # Resolve version ID
             if version_id is None:
                 if (
                     resolved_version_id := await session.scalar(
@@ -257,46 +340,35 @@ class Subscription:
                     )
                 ) is None:
                     raise NotFound(f"Could not find dataset version with ID {version_id}")
-            revision_ids = (
-                select(func.max(models.DatasetExampleRevision.id))
-                .join(models.DatasetExample)
-                .where(
-                    and_(
-                        models.DatasetExample.dataset_id == dataset_id,
-                        models.DatasetExampleRevision.dataset_version_id <= resolved_version_id,
-                    )
-                )
-                .group_by(models.DatasetExampleRevision.dataset_example_id)
-            )
-            if not (
-                revisions := [
-                    rev
-                    async for rev in await session.stream_scalars(
-                        select(models.DatasetExampleRevision)
-                        .where(
-                            and_(
-                                models.DatasetExampleRevision.id.in_(revision_ids),
-                                models.DatasetExampleRevision.revision_kind != "DELETE",
-                            )
-                        )
-                        .order_by(models.DatasetExampleRevision.dataset_example_id.asc())
-                        .options(
-                            load_only(
-                                models.DatasetExampleRevision.dataset_example_id,
-                                models.DatasetExampleRevision.input,
-                            )
-                        )
-                    )
+
+            # Parse split IDs if provided
+            resolved_split_ids: Optional[list[int]] = None
+            if input.split_ids is not None and len(input.split_ids) > 0:
+                resolved_split_ids = [
+                    from_global_id_with_expected_type(split_id, models.DatasetSplit.__name__)
+                    for split_id in input.split_ids
                 ]
-            ):
+
+            # Validate at least one example exists (don't load all - daemon will paginate)
+            example_count = await session.scalar(
+                select(sa_func.count()).select_from(
+                    get_dataset_example_revisions(
+                        resolved_version_id,
+                        split_ids=resolved_split_ids,
+                    ).subquery()
+                )
+            )
+            if not example_count:
                 raise NotFound("No examples found for the given dataset and version")
+
+            # === Create project (same as chat_completion_over_dataset) ===
             project_name = generate_experiment_project_name()
             if (
-                playground_project_id := await session.scalar(
+                await session.scalar(
                     select(models.Project.id).where(models.Project.name == project_name)
                 )
             ) is None:
-                playground_project_id = await session.scalar(
+                await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
@@ -304,7 +376,8 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
-            user_id = get_user(info)
+
+            # === Create experiment (same as chat_completion_over_dataset) ===
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
@@ -313,233 +386,91 @@ class Subscription:
                 description=input.experiment_description,
                 repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
+                is_ephemeral=bool(input.create_ephemeral_experiment),
                 project_name=project_name,
-                user_id=user_id,
+                user_id=info.context.user_id,
             )
+            if resolved_split_ids:
+                experiment.experiment_dataset_splits = [
+                    models.ExperimentDatasetSplit(dataset_split_id=split_id)
+                    for split_id in resolved_split_ids
+                ]
             await insert_experiment_with_examples_snapshot(session, experiment)
-        yield ChatCompletionSubscriptionExperiment(
-            experiment=to_gql_experiment(experiment)
-        )  # eagerly yields experiment so it can be linked by consumers of the subscription
 
-        results: asyncio.Queue[ChatCompletionResult] = asyncio.Queue()
-        not_started: list[tuple[DatasetExampleID, ChatStream]] = [
-            (
-                GlobalID(DatasetExample.__name__, str(revision.dataset_example_id)),
-                _stream_chat_completion_over_dataset_example(
-                    input=input,
-                    llm_client=llm_client,
-                    revision=revision,
-                    results=results,
-                    repetition_number=repetition_number,
-                    experiment_id=experiment.id,
-                    project_id=playground_project_id,
+            # === Create execution config (task prompt frozen in JSON; evaluators via junction) ===
+            prompt_version: models.PromptVersion = input.prompt_version.to_orm_prompt_version()
+            # Connection JSON is mutually exclusive with custom_provider_id (DB constraint).
+            # If custom provider is set, connection overrides are ignored.
+            task_connection = (
+                None
+                if prompt_version.custom_provider_id is not None
+                else to_connection_config(prompt_version.model_provider, input.connection_config)
+            )
+
+            prompt_version_id = (
+                from_global_id_with_expected_type(input.prompt_version_id, "PromptVersion")
+                if input.prompt_version_id
+                else None
+            )
+
+            # ExperimentPromptTask inherits from ExperimentJob
+            # (polymorphic joined table inheritance), so creating it
+            # automatically inserts into both tables.
+            execution_config = models.ExperimentPromptTask(
+                id=experiment.id,
+                # claimed_at=NULL means not running; start_experiment(experiment.id) will claim it
+                max_concurrency=input.max_concurrency,
+                prompt_version_id=prompt_version_id,
+                model_provider=prompt_version.model_provider,
+                model_name=prompt_version.model_name,
+                custom_provider_id=prompt_version.custom_provider_id,
+                template_type=prompt_version.template_type,
+                template_format=prompt_version.template_format,
+                template=prompt_version.template,
+                tools=prompt_version.tools,
+                response_format=prompt_version.response_format,
+                invocation_parameters=prompt_version.invocation_parameters,
+                connection=task_connection,
+                playground_config=PlaygroundConfig(
+                    template_variables_path=input.template_variables_path,
+                    appended_messages_path=input.appended_messages_path,
                 ),
+                stream_model_output=input.stream_model_output,
             )
-            for revision in revisions
-            for repetition_number in range(1, input.repetitions + 1)
-        ]
-        in_progress: list[
-            tuple[
-                Optional[DatasetExampleID],
-                ChatStream,
-                asyncio.Task[ChatCompletionSubscriptionPayload],
-            ]
-        ] = []
-        max_in_progress = 3
-        write_batch_size = 10
-        write_interval = timedelta(seconds=10)
-        last_write_time = datetime.now()
-        while not_started or in_progress:
-            while not_started and len(in_progress) < max_in_progress:
-                ex_id, stream = not_started.pop()
-                task = _create_task_with_timeout(stream)
-                in_progress.append((ex_id, stream, task))
-            async_tasks_to_run = [task for _, _, task in in_progress]
-            completed_tasks, _ = await asyncio.wait(
-                async_tasks_to_run, return_when=asyncio.FIRST_COMPLETED
-            )
-            for completed_task in completed_tasks:
-                idx = [task for _, _, task in in_progress].index(completed_task)
-                example_id, stream, _ = in_progress[idx]
-                try:
-                    yield completed_task.result()
-                except StopAsyncIteration:
-                    del in_progress[idx]  # removes exhausted stream
-                except asyncio.TimeoutError:
-                    del in_progress[idx]  # removes timed-out stream
-                    if example_id is not None:
-                        yield ChatCompletionSubscriptionError(
-                            message="Playground task timed out", dataset_example_id=example_id
-                        )
-                except Exception as error:
-                    del in_progress[idx]  # removes failed stream
-                    if example_id is not None:
-                        yield ChatCompletionSubscriptionError(
-                            message="An unexpected error occurred", dataset_example_id=example_id
-                        )
-                    logger.exception(error)
-                else:
-                    task = _create_task_with_timeout(stream)
-                    in_progress[idx] = (example_id, stream, task)
-
-                exceeded_write_batch_size = results.qsize() >= write_batch_size
-                exceeded_write_interval = datetime.now() - last_write_time > write_interval
-                write_already_in_progress = any(
-                    _is_result_payloads_stream(stream) for _, stream, _ in in_progress
+            session.add(execution_config)
+            for evaluator_input in input.evaluators:
+                session.add(
+                    models.ExperimentDatasetEvaluator(
+                        experiment_id=experiment.id,
+                        dataset_evaluator_id=from_global_id_with_expected_type(
+                            evaluator_input.id, "DatasetEvaluator"
+                        ),
+                    )
                 )
-                if (
-                    not results.empty()
-                    and (exceeded_write_batch_size or exceeded_write_interval)
-                    and not write_already_in_progress
-                ):
-                    result_payloads_stream = _chat_completion_result_payloads(
-                        db=info.context.db,
-                        results=_drain_no_wait(results),
-                        span_cost_calculator=info.context.span_cost_calculator,
-                    )
-                    task = _create_task_with_timeout(result_payloads_stream)
-                    in_progress.append((None, result_payloads_stream, task))
-                    last_write_time = datetime.now()
-        if remaining_results := await _drain(results):
-            async for result_payload in _chat_completion_result_payloads(
-                db=info.context.db,
-                results=remaining_results,
-                span_cost_calculator=info.context.span_cost_calculator,
-            ):
-                yield result_payload
 
+        # === Yield experiment immediately ===
+        yield ChatCompletionSubscriptionExperiment(experiment=to_gql_experiment(experiment))
 
-async def _stream_chat_completion_over_dataset_example(
-    *,
-    input: ChatCompletionOverDatasetInput,
-    llm_client: PlaygroundStreamingClient,
-    revision: models.DatasetExampleRevision,
-    repetition_number: int,
-    results: asyncio.Queue[ChatCompletionResult],
-    experiment_id: int,
-    project_id: int,
-) -> ChatStream:
-    example_id = GlobalID(DatasetExample.__name__, str(revision.dataset_example_id))
-    invocation_parameters = llm_client.construct_invocation_parameters(input.invocation_parameters)
-    messages = [
-        (
-            message.role,
-            message.content,
-            message.tool_call_id if isinstance(message.tool_call_id, str) else None,
-            message.tool_calls if isinstance(message.tool_calls, list) else None,
-        )
-        for message in input.messages
-    ]
-    try:
-        format_start_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
-        messages = list(
-            _formatted_messages(
-                messages=messages,
-                template_format=input.template_format,
-                template_variables=revision.input,
-            )
-        )
-    except TemplateFormatterError as error:
-        format_end_time = cast(datetime, normalize_datetime(dt=local_now(), tz=timezone.utc))
-        yield ChatCompletionSubscriptionError(
-            message=str(error),
-            dataset_example_id=example_id,
-            repetition_number=repetition_number,
-        )
-        await results.put(
-            (
-                example_id,
-                None,
-                models.ExperimentRun(
-                    experiment_id=experiment_id,
-                    dataset_example_id=revision.dataset_example_id,
-                    trace_id=None,
-                    output={},
-                    repetition_number=repetition_number,
-                    start_time=format_start_time,
-                    end_time=format_end_time,
-                    error=str(error),
-                    trace=None,
-                ),
-            )
-        )
-        return
-    async with streaming_llm_span(
-        input=input,
-        messages=messages,
-        invocation_parameters=invocation_parameters,
-        attributes={PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(revision.input)},
-    ) as span:
-        async for chunk in llm_client.chat_completion_create(
-            messages=messages, tools=input.tools or [], **invocation_parameters
-        ):
-            span.add_response_chunk(chunk)
-            chunk.dataset_example_id = example_id
-            chunk.repetition_number = repetition_number
-            yield chunk
-        span.set_attributes(llm_client.attributes)
-    db_trace = get_db_trace(span, project_id)
-    db_span = get_db_span(span, db_trace)
-    db_run = get_db_experiment_run(
-        db_span,
-        db_trace,
-        experiment_id=experiment_id,
-        example_id=revision.dataset_example_id,
-        repetition_number=repetition_number,
-    )
-    await results.put((example_id, db_span, db_run))
-    if span.status_message is not None:
-        yield ChatCompletionSubscriptionError(
-            message=span.status_message,
-            dataset_example_id=example_id,
-            repetition_number=repetition_number,
+        # === Register with daemon and stream results ===
+        # Pass credentials as ephemeral data (not stored in DB)
+        credentials = input.credentials or ()
+        _, receive_stream = await info.context.experiment_runner.start_experiment(
+            experiment.id,
+            credentials=credentials,
+            subscribe=True,
         )
 
-
-async def _chat_completion_result_payloads(
-    *,
-    db: DbSessionFactory,
-    results: Sequence[ChatCompletionResult],
-    span_cost_calculator: SpanCostCalculator,
-) -> ChatStream:
-    if not results:
-        return
-    async with db() as session:
-        for _, span, run in results:
-            if span:
-                session.add(span)
-                await session.flush()
-                try:
-                    span_cost = span_cost_calculator.calculate_cost(
-                        start_time=span.start_time,
-                        attributes=span.attributes,
-                    )
-                except Exception as e:
-                    logger.exception(f"Failed to calculate cost for span {span.id}: {e}")
-                    span_cost = None
-                if span_cost:
-                    span_cost.span_rowid = span.id
-                    span_cost.trace_rowid = span.trace_rowid
-                    session.add(span_cost)
-            session.add(run)
-        await session.flush()
-    for example_id, span, run in results:
-        yield ChatCompletionSubscriptionResult(
-            span=Span(span_rowid=span.id, db_span=span) if span else None,
-            experiment_run=to_gql_experiment_run(run),
-            dataset_example_id=example_id,
-            repetition_number=run.repetition_number,
-        )
-
-
-def _is_result_payloads_stream(
-    stream: ChatStream,
-) -> bool:
-    """
-    Checks if the given generator was instantiated from
-    `_chat_completion_result_payloads`
-    """
-    return stream.ag_code == _chat_completion_result_payloads.__code__  # type: ignore
+        # Stream results until producer closes the stream (signals completion via EndOfStream)
+        try:
+            async for payload in receive_stream:
+                yield payload
+        finally:
+            # Close the receive stream - experiment continues in background
+            # User must explicitly cancel via mutation if they want to stop it
+            await receive_stream.aclose()
+            # Stop the experiment if it's ephemeral
+            if input.create_ephemeral_experiment:
+                await info.context.experiment_runner.stop_experiment(experiment.id)
 
 
 def _create_task_with_timeout(
@@ -577,74 +508,16 @@ async def _wait_for(
         raise asyncio.TimeoutError()
 
 
-async def _drain(queue: asyncio.Queue[GenericType]) -> list[GenericType]:
-    values: list[GenericType] = []
-    while not queue.empty():
-        values.append(await queue.get())
-    return values
-
-
-def _drain_no_wait(queue: asyncio.Queue[GenericType]) -> list[GenericType]:
-    values: list[GenericType] = []
-    while True:
-        try:
-            values.append(queue.get_nowait())
-        except asyncio.QueueEmpty:
-            break
-    return values
-
-
 async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
     return await iterable.__anext__()
 
 
-def _formatted_messages(
-    *,
-    messages: Iterable[ChatCompletionMessage],
-    template_format: PromptTemplateFormat,
-    template_variables: Mapping[str, Any],
-) -> Iterator[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]]:
-    """
-    Formats the messages using the given template options.
-    """
-    template_formatter = _template_formatter(template_format=template_format)
-    (
-        roles,
-        templates,
-        tool_call_id,
-        tool_calls,
-    ) = zip(*messages)
-    formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_variables),
-        templates,
-    )
-    formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)
-    return formatted_messages
-
-
-def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
-    """
-    Instantiates the appropriate template formatter for the template format
-    """
-    if template_format is PromptTemplateFormat.MUSTACHE:
-        return MustacheTemplateFormatter()
-    if template_format is PromptTemplateFormat.F_STRING:
-        return FStringTemplateFormatter()
-    if template_format is PromptTemplateFormat.NONE:
-        return NoOpFormatter()
-    assert_never(template_format)
-
-
-def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> str:
+def _default_playground_experiment_name(prompt_name: Optional[Identifier] = None) -> str:
     name = "playground-experiment"
     if prompt_name:
         name = f"{name} prompt:{prompt_name}"
     return name
 
 
+LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
-LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
-LLM_PROVIDER = SpanAttributes.LLM_PROVIDER

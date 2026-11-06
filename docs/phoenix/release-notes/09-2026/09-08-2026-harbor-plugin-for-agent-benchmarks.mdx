@@ -1,0 +1,88 @@
+---
+title: "09.08.2026: Harbor Plugin for Agent Benchmarks"
+description: "Record Harbor agent benchmark jobs in Phoenix as datasets and experiments, with verifier rewards as evaluations and ATIF trajectories as traces."
+---
+
+**Available in arize-phoenix-client 3.4.0+, with trajectory traces in 3.5.0+**
+
+Phoenix now ships a job plugin for [Harbor](https://harborframework.com/). Select it on a Harbor run
+and the job lands in Phoenix as a dataset, one experiment per resolved agent configuration, a run per
+trial, and every verifier reward as a named evaluation. No tracing code goes inside the sandbox.
+
+<Frame caption="Each agent and model configuration in a Harbor job becomes its own experiment on the job's dataset, so reward, latency, and cost line up across runs.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/harbor/harbor-experiments.png" alt="Phoenix dataset page for a Harbor dataset showing eight experiments, with annotation score comparison, run latency, and cost charts above a table listing each experiment's agent configuration, infra_ok score, and a link to its traces" />
+</Frame>
+
+## Rewards Become Scores
+
+reward distributions show up in experiment comparison. An `infra_ok` evaluation helps distinguish
+low task scores from execution errors.
+health, which tells a failed agent apart from a broken sandbox.
+
+<Frame caption="One trial in experiment comparison: the task instruction, the optional reference output, and the agent's final response, with the verifier's rewards recorded as evaluations.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/harbor/harbor-experiment-run.png" alt="Phoenix experiment comparison for a single Harbor trial, showing the task input and reference output beside the agent's response, with reward, infra_ok, agent_turn_count, and tool_call_count evaluations and their averages" />
+</Frame>
+
+## Trajectories Become Traces
+
+<Frame caption="A Harbor trial's trajectory as a Phoenix trace, opened from its experiment run: the `harbor.trial` root, the agent beneath it, and an LLM and a tool span for each iteration.">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/harbor/harbor-trial-trace.png" alt="Phoenix experiment run trace for a Harbor trial, with the harbor.trial root span above the codex agent span and its iteration, openai/gpt-5.6 LLM, and exec_command tool spans, beside the selected tool span's input and output" />
+</Frame>
+
+- **`trace_mode="atif"` is the default.** The plugin reads the saved trajectory after the final trial
+  attempt and converts it into one trace and one session, with AGENT, LLM, and TOOL spans under a
+  `harbor.trial` root. A multi-step trial adds a span for each attempted step, and
+  context-management operations appear as `compaction` spans.
+- **Tracing never changes a score.** If the agent saves no valid trajectory, the plugin logs a
+  warning and records the run and its evaluations without a trace. Pass `trace_mode=null` on the
+  Harbor command line to turn tracing off entirely.
+- **The sandbox stays offline.** The plugin converts trajectories after the trial, so the agent's
+  environment needs no Phoenix endpoint and no Phoenix credentials.
+
+## Run a Job with the Plugin
+
+Install Harbor and the plugin into the same Python environment:
+
+```bash
+uv pip install "arize-phoenix-client[harbor]"
+```
+
+The plugin registers under the name `arize-phoenix`, so a Harbor run picks it up directly:
+
+```bash
+harbor run \
+  -d terminal-bench/terminal-bench-2 \
+  -a terminus-2 \
+  -m openai/gpt-5-mini \
+  --plugin arize-phoenix \
+  --yes
+```
+
+Configure it in Python when you want the dataset name or the naming template under version control:
+
+```python
+from phoenix.client.harbor import PhoenixJobPlugin
+
+plugin = PhoenixJobPlugin(
+    dataset="terminal-bench",
+    experiment_name_template="{job.name} · {agent.name} · {agent.model}",
+    trace_mode="atif",
+)
+```
+
+- **Experiment names follow a template.** `experiment_name_template` accepts fields like
+  `{job.name}`, `{agent.name}`, `{agent.model}`, and `{agent.short_digest}`, and
+- **Resuming the same Harbor job** reuses its experiments without duplicating recorded runs.
+- **Resuming is idempotent**, so a re-run adds to the same experiment instead of duplicating it.
+The plugin requires Harbor 0.21.0+, Python 3.12+, and Phoenix server 15.0+. Endpoint and API key fall back to
+The plugin requires Harbor 0.21.0+ on Python 3.12+. Endpoint and API key fall back to
+`PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`.
+
+<CardGroup cols={2}>
+  <Card title="Harbor" icon="anchor" href="/docs/phoenix/integrations/evaluation-integrations/harbor">
+    Install the plugin, map its objects, and read its scores correctly
+  </Card>
+  <Card title="Importing ATIF Trajectories" icon="file-import" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/importing-atif-trajectories">
+    The trajectory format the plugin converts
+  </Card>
+</CardGroup>

@@ -1,0 +1,351 @@
+---
+title: "07.28.2026: Experiment Charts, Span Downloads, and Root-Span Filters"
+description: "Metric charts above the experiments table, span and trace downloads as OTLP JSON, span-ID and root-span filtering, span detail as searchable tables, a Toxicity evaluator, the Monty local sandbox, and Claude Opus 5."
+---
+
+# Metric Charts for Experiments
+
+July 28, 2026
+
+**Available in arize-phoenix 19.10.0+**
+
+The chart strip that sits above the spans, traces, and sessions tables now sits above the
+**experiments** table too. Pick up to three charts from the **Charts** menu and every chart plots
+the dataset's seven most recent experiments side by side, so a regression shows up before you open
+a single run.
+
+- **Chart catalog** — annotation score comparison, run latency, cost, token usage, and error rate,
+  plus a dedicated chart for each annotation name on the dataset. Annotation scores, latency, and
+  cost are selected by default.
+- **Per-dataset selection** — your chart choice and the strip's height persist per dataset across
+  reloads.
+- **Drag to reorder** — charts in the **Selected** section of the Charts menu have a drag handle,
+  so you can order the strip however you read it. This applies to the project table charts as
+  well.
+- **Token charts break down by sub-type** — token count and cost charts split prompt and completion
+  usage into a series per token type (`input`/`output`, `cache_read`, `cache_write`, `reasoning`,
+  `audio`) instead of showing one opaque total.
+- **Breakdown bars in tooltips** — cost and token tooltips on spans, traces, sessions, and
+  experiments draw a proportional bar per token type alongside each value's share of the total.
+- **Readable when narrow** — chart panels keep their axes, legend, and titles legible as the strip
+  is resized or the window shrinks (arize-phoenix 19.9.0+).
+
+<CardGroup cols={2}>
+  <Card title="Experiments" icon="flask" href="/docs/phoenix/datasets-and-experiments/how-to-experiments">
+    Run and compare experiments over a dataset
+  </Card>
+</CardGroup>
+
+# Download Spans and Traces
+
+July 27, 2026
+
+**Available in arize-phoenix 19.6.0+ (bulk downloads) and 19.7.0+ (span detail downloads)**
+
+Take your traces with you. Select rows in the spans or traces table and download them, or grab a
+single span straight from its detail header.
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/pull-requests/14853-download-spans-dialog.png" alt="The Download selection dialog with a Spans/Traces scope toggle, a JSONL/OTLP JSON format toggle, and a file name field, opened over a selection of spans in a project table" />
+</Frame>
+
+- **Bulk download** — select spans or traces in a project table and export them as **OTLP JSON**
+  (an OTLP `resource_spans` envelope, ready to replay into any OTLP-compatible collector) or as
+  **JSONL** in Phoenix's span format. Choosing the *traces* scope pulls every span in each selected
+  trace, not just the selected rows.
+- **Span detail downloads** — the span header has a download menu with **Download span JSON**,
+  **Download span OTLP JSON**, and **Download trace**.
+- **Streamed and paginated** — downloads page through the API and are assembled incrementally, so
+  large selections don't have to fit in one response.
+
+The bulk export is built on the existing OTLP search endpoint, which now accepts span IDs:
+
+```bash
+curl -H "Authorization: Bearer $PHOENIX_API_KEY" \
+  "$PHOENIX_HOST/v1/projects/my-project/spans/otlpv1?span_id=4bf92f3577b34da6&limit=1000"
+```
+
+# Filter Spans by Span ID
+
+July 24, 2026
+
+**Available in arize-phoenix 19.6.0+ (server), @arizeai/phoenix-client 7.1.0+ and @arizeai/phoenix-cli 1.11.0+ (TypeScript)**
+
+Fetch exactly the spans you already have IDs for — no time-range guessing, no filter expression.
+Both span endpoints (`/v1/projects/{project_identifier}/spans` and `.../spans/otlpv1`) accept a
+repeatable `span_id` query parameter.
+
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const client = createClient();
+
+const result = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  spanIds: ["4bf92f3577b34da6", "00f067aa0ba902b7"],
+});
+console.log(result.spans.length);
+```
+
+From the CLI:
+
+```bash
+# Fetch specific spans by OpenTelemetry span ID
+px span list --project my-project --span-id 4bf92f3577b34da6 00f067aa0ba902b7
+
+# Bound a listing on both ends
+px span list --project my-project --since 2026-07-24T00:00:00Z --until 2026-07-25T00:00:00Z
+px trace list --project my-project --since 2026-07-24T00:00:00Z --until 2026-07-25T00:00:00Z
+```
+
+- **`--span-id`** on `px span list` takes one or more span IDs.
+- **`--until`** on `px span list` and `px trace list` sets an exclusive end timestamp, pairing with
+  the existing `--since`.
+
+The Python client's `client.spans.get_spans()` gains the same `span_ids` argument in its next
+release.
+
+# Root-Span Filtering in the Span Query DSL
+
+July 27, 2026
+
+**Available in arize-phoenix 19.7.0+**
+
+Root-span scoping is now part of the filter expression instead of a separate flag, so it composes
+with everything else in the query. Two predicates are available, and they differ in how they treat
+orphans — spans that carry a `parent_id` whose parent is not in the database:
+
+- **`parent_span is None`** — matches spans with no parent span present, so orphans count as roots.
+- **`parent_id is None`** — matches only spans that carry no parent pointer at all.
+
+```python
+from phoenix.client import Client
+from phoenix.client.types.spans import SpanQuery
+
+client = Client()
+
+# Root spans (including orphans) that took longer than a second
+query = SpanQuery().where("parent_span is None and latency_ms > 1000")
+df = client.spans.get_spans_dataframe(query=query, project_identifier="my-project")
+```
+
+Both spellings work anywhere a span filter condition is accepted, including the filter bar on the
+spans and traces tables. The `root_spans_only` and `orphan_span_as_root_span` parameters on
+`get_spans_dataframe()` and the span query endpoint are now deprecated in favor of the filter
+predicates.
+
+<CardGroup cols={2}>
+  <Card title="Extract Data from Spans" icon="filter" href="/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans">
+    Query and export spans with the SpanQuery DSL
+  </Card>
+</CardGroup>
+
+# Span Detail as Searchable Tables
+
+July 27, 2026
+
+**Available in arize-phoenix 19.7.0+**
+
+Reading a wide span used to mean scrolling through nested JSON. The span info tab now presents its
+data as tables you can search and scan.
+
+- **Attributes as a searchable table** — flattened key/value rows with a search field and a count
+  of every attribute on the span (the count reflects the span, not the current search).
+- **Annotations and notes as tables** — sortable, resizable tables with annotator kind, value,
+  author, and timestamp, and a delete action per row.
+- **Collapse or expand every section at once** — one control in the span info tab flips all cards,
+  so you can take in the shape of a span without scrolling. Individual cards stay independent
+  afterward.
+- **Clip or wrap rows** — the spans, traces, sessions, and experiments tables get a toggle that
+  either clips each row to a single line for even scanning or wraps each row over as many lines as
+  its content needs.
+
+# Toxicity Evaluator
+
+July 23, 2026
+
+**Available in arize-phoenix-evals 3.3.0+ (Python) and @arizeai/phoenix-evals 2.1.0+ (TypeScript)**
+
+A new built-in classification evaluator labels a single piece of text `toxic` or `non-toxic` —
+hateful or discriminatory statements, demeaning insults, abusive language directed at a person, and
+threats or incitement to harm. Because it judges one field on its own, the same evaluator works on
+a model's output or a user's input; input mapping decides which.
+
+```python
+from phoenix.evals import LLM
+from phoenix.evals.metrics import ToxicityEvaluator
+
+llm = LLM(provider="openai", model="gpt-4o-mini")
+toxicity_eval = ToxicityEvaluator(llm=llm)
+
+# Score a model output
+scores = toxicity_eval.evaluate(
+    {"text": "You are a worthless idiot and everyone despises you."}
+)
+print(scores[0])
+# Score(name='toxicity', score=1.0, label='toxic', ...)
+
+# Or point it at the user's message instead
+scores = toxicity_eval.evaluate(
+    {
+        "input": {"query": "Write something mean about my coworker."},
+        "output": {"response": "I won't help with that."},
+    },
+    {"text": "input.query"},
+)
+```
+
+```typescript
+import { createToxicityEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const toxicityEvaluator = createToxicityEvaluator({
+  model: openai("gpt-4o-mini"),
+});
+
+const result = await toxicityEvaluator.evaluate({
+  text: "You are a worthless idiot and everyone despises you.",
+});
+console.log(result.label); // "toxic"
+```
+
+Scores carry `direction: "minimize"`, so lower is better, plus the judge's explanation.
+
+<CardGroup cols={2}>
+  <Card title="Toxicity" icon="triangle-exclamation" href="/docs/phoenix/evaluation/pre-built-metrics/toxicity">
+    Detect hateful, demeaning, abusive, or threatening text
+  </Card>
+</CardGroup>
+
+# Monty — a Local Restricted-Python Sandbox
+
+July 28, 2026
+
+**Available in arize-phoenix 19.10.0+**
+
+**Monty** joins WebAssembly and Deno as a local sandbox provider in **Settings → Sandboxes**. It
+runs restricted Python in a pool of worker subprocesses on the Phoenix machine with memory and
+recursion limits, so simple [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators)
+start in milliseconds and need no third-party credentials.
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/pull-requests/14853-monty-sandbox.png" alt="The Settings Sandboxes page listing Monty as a local Restricted Python provider, enabled alongside WebAssembly and Deno, with a default-monty-python sandbox configuration below" />
+</Frame>
+
+- **Local, like WebAssembly and Deno** — no environment variables, outbound network, or
+  third-party dependencies. Use a hosted sandbox when an evaluator needs any of those.
+- **Shared runtime** — one worker pool serves code evaluators, evaluator validation, and MCP code
+  mode, and enforces per-execution deadlines and bounded output capture.
+- **Optional dependency** — the provider reports as unavailable until `pydantic-monty` is
+  installed in the server environment.
+
+MCP code-mode execution also moved into the same subprocess isolation in arize-phoenix 19.9.0+,
+so generated code never runs in the server process.
+
+<CardGroup cols={2}>
+  <Card title="Sandboxes" icon="box" href="/docs/phoenix/settings/sandboxes">
+    Configure the sandbox providers that execute code evaluators
+  </Card>
+</CardGroup>
+
+# Claude Opus 5 and New Gemini Flash Models
+
+July 27, 2026
+
+**Available in arize-phoenix 19.5.0+ (Gemini), 19.8.0+ (Claude Opus 5), @arizeai/phoenix-cli 1.13.0+**
+
+- **Claude Opus 5** is registered in the Playground for Anthropic and AWS Bedrock
+  (`anthropic.claude-opus-5`), and appears in the PXI curated model list.
+- **Gemini 3.6 Flash** and **Gemini 3.5 Flash-lite** join the Google provider in the Playground.
+- **The `pxi` terminal client defaults to `claude-opus-5`** — override with `--model` as before.
+- **Built-in token prices refreshed** so cost tracking stays accurate for the current model
+  lineup.
+
+# AI SDK v7 for the TypeScript SDKs
+
+July 24, 2026
+
+**Breaking change in @arizeai/phoenix-client 7.0.0 and @arizeai/phoenix-evals 2.0.0**
+
+Following `@arizeai/phoenix-otel` 2.0.0, the TypeScript client and evals packages move to **Vercel
+AI SDK v7**.
+
+- **`@arizeai/phoenix-client` 7.0.0** requires the optional `ai` peer dependency at `^7.0.0`. AI
+  SDK v7 no longer emits OpenTelemetry spans through the global tracer provider on its own, so to
+  trace AI SDK calls inside an experiment task, pass the `@ai-sdk/otel` integration per call,
+  constructed inside the task:
+
+```typescript
+import { generateText } from "ai";
+import { OpenTelemetry } from "@ai-sdk/otel";
+import { openai } from "@ai-sdk/openai";
+
+const task = async (example: { input: { question: string } }) => {
+  const { text } = await generateText({
+    model: openai("gpt-4o-mini"),
+    prompt: example.input.question,
+    telemetry: { integrations: [new OpenTelemetry()] },
+  });
+  return text;
+};
+```
+
+- Evaluators from `@arizeai/phoenix-evals` are traced automatically and need no setup. Core client
+  APIs keep Node.js 18 compatibility; AI SDK v7-backed features require the Node.js version AI SDK
+  v7 supports. Type-checking the published declarations now requires TypeScript >= 5.3.
+- **`@arizeai/phoenix-evals` 2.0.0** emits evaluator spans under the OpenTelemetry `gen_ai.*`
+  conventions from `@ai-sdk/otel` instead of the AI SDK v6 `ai.*` span format, and requires
+  Node.js >= 22.12. The `telemetry.tracer` and `telemetry.isEnabled` options are unchanged.
+- **`@arizeai/phoenix-otel` 2.1.0** re-exports `OTLPTraceExporter` from the package root and adds
+  an ESM-only `@arizeai/phoenix-otel/vercel` subpath re-exporting `@arizeai/openinference-vercel`,
+  so custom span-processor setups no longer need to install the underlying packages:
+
+```typescript
+import {
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+import {
+  isOpenInferenceSpan,
+  OpenInferenceSimpleSpanProcessor,
+} from "@arizeai/phoenix-otel/vercel";
+
+register({
+  projectName: "my-agent",
+  spanProcessors: [
+    new OpenInferenceSimpleSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: ensureCollectorEndpoint("http://localhost:6006"),
+      }),
+      spanFilter: isOpenInferenceSpan,
+    }),
+  ],
+});
+```
+
+# Also in This Release
+
+July 23–28, 2026
+
+**Available in arize-phoenix 19.5.0–19.10.0 and @arizeai/phoenix-cli 1.12.0+**
+
+- **Dataset example provenance over REST** — dataset examples created from a span now return a
+  `source` object with the originating `span_id` and `span_node_id`, so you can walk from an
+  example back to the trace it came from (arize-phoenix 19.5.0+).
+- **Retention policy project management** — a retention policy's projects are shown as a filterable
+  token list, with a searchable picker for adding projects and a remove action on each token;
+  removed projects fall back to the default policy (arize-phoenix 19.7.0+).
+- **Annotation metrics time series in GraphQL** — `spanAnnotationMetricsTimeSeries`,
+  `traceAnnotationMetricsTimeSeries`, and `sessionAnnotationMetricsTimeSeries` on `Project` return
+  annotation summaries bucketed over a time range (arize-phoenix 19.5.0+).
+- **pytest plugin metadata** — the `@pytest.mark.phoenix` marker accepts `experiment_description`
+  and `experiment_metadata`, the plugin records the current commit as `git_sha` when it runs inside
+  a Git checkout, and evaluator spans are traced through their own pipeline so they no longer mix
+  with task spans (arize-phoenix 19.7.0+).
+- **`px project list --name-contains`** — a case-insensitive name filter for the project listing
+  (@arizeai/phoenix-cli 1.12.0+).
+- **Invalid span MIME types fall back to text** instead of breaking the span view, and PXI API key
+  errors surface to the user rather than being swallowed (arize-phoenix 19.8.0+).

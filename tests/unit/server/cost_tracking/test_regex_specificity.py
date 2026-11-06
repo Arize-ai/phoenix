@@ -2,6 +2,7 @@ import pytest
 
 from phoenix.server.cost_tracking.regex_specificity import (
     _find_bracket_end,
+    _has_end_anchor,
     _has_start_anchor,
     _is_valid_quantifier,
     _score_bracket,
@@ -26,6 +27,8 @@ from phoenix.server.cost_tracking.regex_specificity import (
         pytest.param("(?i)abc^", False, id="anchor not at start"),
         pytest.param("(?i)^", True, id="just anchor with flags"),
         pytest.param("(?i)", False, id="just flags"),
+        pytest.param("(?:abc)", False, id="non-capturing group is not a flag"),
+        pytest.param("(?:^abc)", False, id="anchor inside group"),
     ],
 )
 def test_has_start_anchor(pattern: str, expected: bool) -> None:
@@ -43,10 +46,30 @@ def test_has_start_anchor(pattern: str, expected: bool) -> None:
         pytest.param("(?i)abc", "abc", id="inline flag only"),
         pytest.param("(?i)(?m)^abc$", "abc", id="multiple flags + anchors"),
         pytest.param("(?i)^(?m)abc$", "(?m)abc", id="flag-anchor-flag"),
+        pytest.param("(?:abc)", "(?:abc)", id="leading non-capturing group kept"),
+        pytest.param("(?=abc)abc", "(?=abc)abc", id="leading lookahead kept"),
+        pytest.param("(?i)(?:abc)$", "(?:abc)", id="flag then group"),
+        pytest.param("abc\\$", "abc\\$", id="escaped dollar kept"),
+        pytest.param("abc\\\\$", "abc\\\\", id="escaped backslash then end anchor"),
     ],
 )
 def test_strip_anchors(pattern: str, expected: str) -> None:
     assert _strip_anchors(pattern) == expected
+
+
+@pytest.mark.parametrize(
+    "pattern,expected",
+    [
+        pytest.param("abc$", True, id="end anchor"),
+        pytest.param("abc", False, id="no anchor"),
+        pytest.param("$", True, id="just anchor"),
+        pytest.param("abc\\$", False, id="escaped dollar"),
+        pytest.param("abc\\\\$", True, id="escaped backslash then anchor"),
+        pytest.param("abc\\\\\\$", False, id="escaped backslash then escaped dollar"),
+    ],
+)
+def test_has_end_anchor(pattern: str, expected: bool) -> None:
+    assert _has_end_anchor(pattern) == expected
 
 
 @pytest.mark.parametrize(
@@ -85,6 +108,15 @@ def test_strip_anchors(pattern: str, expected: str) -> None:
         pytest.param("a[bc]d", 2500, id="literal class literal"),
         pytest.param("a{3}b", 1950, id="quantifier literal"),
         pytest.param("a|b|c", 2400, id="multiple alternations"),
+        pytest.param("(abc)", 3000, id="capturing group"),
+        pytest.param("(?:abc)", 3000, id="non-capturing group"),
+        pytest.param("(?=abc)", 3000, id="lookahead"),
+        pytest.param("(?!abc)", 3000, id="negative lookahead"),
+        pytest.param("(?<=abc)", 3000, id="lookbehind"),
+        pytest.param("(?<!abc)", 3000, id="negative lookbehind"),
+        pytest.param("(?P<name>abc)", 3000, id="named group"),
+        pytest.param("(?i:abc)", 3000, id="scoped flags"),
+        pytest.param("(?-i:abc)", 3000, id="scoped flag removal"),
     ],
 )
 def test_score_content(content: str, expected: int) -> None:
@@ -266,10 +298,28 @@ def test_find_bracket_end(pattern: str, start: int, expected: int) -> None:
         pytest.param("[-a]", 508, id="dash at start of class"),
         pytest.param("[a-z-]", 512, id="dash at end of range"),
         pytest.param("[-a-z]", 512, id="dash at start of range"),
+        pytest.param("(?:gpt-4)", 5018, id="leading non-capturing group"),
+        pytest.param("(?:gpt-4|gpt-4o)$", 15734, id="leading group with alternation"),
+        pytest.param("^(?:gpt)-4o-mini$", 21034, id="non-leading group"),
+        pytest.param("gpt\\$", 3960, id="escaped dollar is not an anchor"),
+        pytest.param("gpt\\\\$", 8962, id="escaped backslash before anchor"),
     ],
 )
 def test_score(pattern: str, expected: int) -> None:
     assert score(pattern) == expected
+
+
+@pytest.mark.parametrize(
+    "grouped,plain",
+    [
+        pytest.param("(?:gpt-4)", "gpt-4", id="leading"),
+        pytest.param("^(?:gpt)-4o-mini$", "^gpt-4o-mini$", id="non-leading"),
+    ],
+)
+def test_group_scores_like_its_content(grouped: str, plain: str) -> None:
+    # A non-capturing group matches the same strings as its content, so the only
+    # difference in score should be the length bonus for the extra characters.
+    assert score(grouped) - score(plain) == (len(grouped) - len(plain)) * 2
 
 
 @pytest.mark.parametrize(

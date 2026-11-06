@@ -1,5 +1,5 @@
-This directory contains a set of manifests and overlays that describe our various kubernetes deployment options.
-These deployments can be invoked from the respository root.
+This directory contains a set of manifests and overlays that describe our various Kubernetes deployment options.
+These deployments can be invoked from the repository root.
 
 Examples:
 

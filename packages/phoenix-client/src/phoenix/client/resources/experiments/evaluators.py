@@ -57,7 +57,15 @@ def get_func_name(fn: Callable[..., Any]) -> str:
 def validate_evaluator_signature(sig: inspect.Signature) -> None:
     """Check that the wrapped function has a valid signature for use as an evaluator."""
     params = sig.parameters
-    valid_named_params = {"input", "output", "expected", "reference", "metadata", "example"}
+    valid_named_params = {
+        "input",
+        "output",
+        "expected",
+        "reference",
+        "metadata",
+        "example",
+        "trace_id",
+    }
     if len(params) == 0:
         raise ValueError("Evaluation function must have at least one parameter.")
     if len(params) > 1:
@@ -90,6 +98,7 @@ def _bind_evaluator_signature(sig: inspect.Signature, **kwargs: Any) -> inspect.
         "reference": copy.deepcopy(kwargs.get("reference")),
         "metadata": copy.deepcopy(kwargs.get("metadata")),
         "example": example_proxy,
+        "trace_id": kwargs.get("trace_id"),
     }
 
     params = sig.parameters
@@ -157,6 +166,7 @@ def create_evaluator(
         `reference`: An alias for `expected`
         `metadata`: Metadata associated with the dataset example
         `example`: The dataset `Example` object with all associated fields
+        `trace_id`: The trace ID from the experiment task run, if available
 
     Args:
         kind (str | AnnotatorKind): Broadly indicates how the evaluator scores an experiment run.
@@ -167,8 +177,8 @@ def create_evaluator(
             function into an `EvaluationResult`. This allows configuring the evaluation
             payload by setting a label, score and explanation. By default, numeric outputs will
             be recorded as scores, boolean outputs will be recorded as scores and labels, and
-            string outputs will be recorded as labels. If the output is a 2-tuple, the first item
-            will be recorded as the score and the second item will recorded as the explanation.
+            string outputs will be recorded as labels. A 2-tuple is recorded as (score, label);
+            a 3-tuple is recorded as (score, label, explanation).
 
     Examples:
         Configuring an evaluator that returns a boolean
@@ -200,16 +210,18 @@ def create_evaluator(
                 label = res.choices[0].message.content
                 return label
 
-        Configuring an evaluator that returns a score and explanation
+        Configuring an evaluator that returns a score, label, and explanation
 
         .. code-block:: python
             from textdistance import levenshtein
 
             @create_evaluator(kind="CODE", name="levenshtein-distance")
-            def ld(output: str, expected: str) -> tuple[float, str]:
+            def ld(output: str, expected: str) -> tuple[float, str, str]:
+                distance = levenshtein(output, expected)
                 return (
-                    levenshtein(output, expected),
-                    f"Levenshtein distance between {output} and {expected}"
+                    distance,
+                    "match" if distance == 0 else "mismatch",
+                    f"Levenshtein distance between {output} and {expected}",
                 )
     """
     if scorer is None:

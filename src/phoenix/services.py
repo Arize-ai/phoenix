@@ -6,11 +6,10 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 from time import sleep, time
-from typing import Optional
 
 import psutil
 
-from phoenix.config import SERVER_DIR, get_pids_path, get_running_pid
+from phoenix.config import ENV_PHOENIX_HOST, SERVER_DIR, get_pids_path, get_running_pid
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,11 @@ class Service:
     def command(self) -> list[str]:
         raise NotImplementedError(f"{type(self)} must define `command`")
 
+    @property
+    def environment(self) -> dict[str, str]:
+        """Environment variables passed to the child process."""
+        return {**os.environ}
+
     def start(self) -> psutil.Popen:
         """Starts the service."""
 
@@ -54,7 +58,7 @@ class Service:
             stderr=subprocess.STDOUT,
             bufsize=1,
             text=True,
-            env={**os.environ},
+            env=self.environment,
         )
         return process
 
@@ -100,35 +104,17 @@ class AppService(Service):
 
     working_dir = SERVER_DIR
 
-    # Internal references to the name / directory of the inferences(s)
-    __primary_inferences_name: str
-    __reference_inferences_name: Optional[str]
-    __corpus_inferences_name: Optional[str]
-    __trace_dataset_name: Optional[str]
-
     def __init__(
         self,
         database_url: str,
-        export_path: Path,
         host: str,
         port: int,
         root_path: str,
-        primary_inferences_name: str,
-        umap_params: str,
-        reference_inferences_name: Optional[str],
-        corpus_inferences_name: Optional[str],
-        trace_dataset_name: Optional[str],
     ):
         self.database_url = database_url
-        self.export_path = export_path
         self.host = host
         self.port = port
         self.root_path = root_path  # TODO(mikeldking): Add support for root_path
-        self.__primary_inferences_name = primary_inferences_name
-        self.__umap_params = umap_params
-        self.__reference_inferences_name = reference_inferences_name
-        self.__corpus_inferences_name = corpus_inferences_name
-        self.__trace_dataset_name = trace_dataset_name
         super().__init__()
 
     @property
@@ -136,25 +122,15 @@ class AppService(Service):
         command = [
             sys.executable,
             "main.py",
+            "serve",
             "--database-url",
             self.database_url,
-            "--export_path",
-            str(self.export_path),
-            "--host",
-            str(self.host),
             "--port",
             str(self.port),
-            "--umap_params",
-            self.__umap_params,
-            "datasets",
-            "--primary",
-            str(self.__primary_inferences_name),
         ]
-        if self.__reference_inferences_name is not None:
-            command.extend(["--reference", str(self.__reference_inferences_name)])
-        if self.__corpus_inferences_name is not None:
-            command.extend(["--corpus", str(self.__corpus_inferences_name)])
-        if self.__trace_dataset_name is not None:
-            command.extend(["--trace", str(self.__trace_dataset_name)])
         logger.info(f"command: {' '.join(command)}")
         return command
+
+    @property
+    def environment(self) -> dict[str, str]:
+        return {**super().environment, ENV_PHOENIX_HOST: self.host}

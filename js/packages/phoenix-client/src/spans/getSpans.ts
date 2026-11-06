@@ -1,14 +1,55 @@
+import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
-import { ClientFn } from "../types/core";
-import { operations } from "../__generated__/api/v1";
-import { ProjectSelector } from "../types/projects";
+import {
+  GET_SPANS_BY_ATTRIBUTE,
+  GET_SPANS_FILTERS,
+  GET_SPANS_SPAN_IDS,
+  GET_SPANS_TRACE_IDS,
+} from "../constants/serverRequirements";
+import type { ClientFn } from "../types/core";
+import type { ProjectIdentifier } from "../types/projects";
+import { resolveProjectIdentifier } from "../types/projects";
+import type { SpanKindFilter, SpanStatusCode } from "../types/spans";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
+
+export type SpanAttributeValue = string | number | boolean;
+export type SpanAttributes = Record<string, SpanAttributeValue>;
+
+function serializeAttributeValue(value: SpanAttributeValue): string {
+  if (typeof value === "boolean") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new RangeError(
+        `Non-finite attribute filter values are not supported: ${value}`
+      );
+    }
+    return String(value);
+  }
+  if (value === "") {
+    return JSON.stringify(value);
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === "string" ? value : JSON.stringify(value);
+  } catch {
+    return value;
+  }
+}
+
+function serializeAttributes(attributes: SpanAttributes): string[] {
+  return Object.entries(attributes).map(
+    ([key, value]) => `${key}:${serializeAttributeValue(value)}`
+  );
+}
 
 /**
  * Parameters to get spans from a project using auto-generated types
  */
 export interface GetSpansParams extends ClientFn {
   /** The project to get spans from */
-  project: ProjectSelector;
+  project: ProjectIdentifier;
   /** Inclusive lower bound time. Must be a valid ISO 8601 string or Date object. */
   startTime?: Date | string | null;
   /** Exclusive upper bound time. Must be a valid ISO 8601 string or Date object. */
@@ -17,6 +58,24 @@ export interface GetSpansParams extends ClientFn {
   cursor?: string | null;
   /** Maximum number of spans to return */
   limit?: number;
+  /** Filter spans by one or more trace IDs */
+  traceIds?: string[] | null;
+  /** Filter spans by one or more span IDs */
+  spanIds?: string[] | null;
+  /** Filter by parent span ID. Use `null` or the string `"null"` to get root spans only. */
+  parentId?: string | null;
+  /** Filter by span name(s) */
+  name?: string | string[] | null;
+  /** Filter by span kind(s) (LLM, CHAIN, TOOL, RETRIEVER, etc.) */
+  spanKind?: SpanKindFilter | SpanKindFilter[] | null;
+  /** Filter by status code(s) (OK, ERROR, UNSET) */
+  statusCode?: SpanStatusCode | SpanStatusCode[] | null;
+  /**
+   * Filter by attribute key/value pairs with AND semantics. The value's JS type
+   * selects how the stored attribute is matched: `{ "user.id": 12345 }` matches
+   * a stored integer, while `{ "user.id": "12345" }` matches a stored string.
+   */
+  attributes?: SpanAttributes | null;
 }
 
 export type GetSpansResponse = operations["getSpans"]["responses"]["200"];
@@ -39,6 +98,10 @@ export type GetSpansResult = {
  * @param params - The parameters to search for spans
  * @returns A paginated response containing spans and optional next cursor
  *
+ * @requires Phoenix server >= 13.9.0 when filtering by `traceIds`
+ * @requires Phoenix server >= 19.6.0 when filtering by `spanIds`
+ * @requires Phoenix server >= 14.9.0 when filtering by `attributes`
+ *
  * @example
  * ```ts
  * // Get recent spans from a project
@@ -59,6 +122,20 @@ export type GetSpansResult = {
  * });
 
  *
+ * // Get all spans for specific traces (requires Phoenix server >= 13.9.0)
+ * const result = await getSpans({
+ *   client,
+ *   project: { projectName: "my-project" },
+ *   traceIds: ["trace-abc-123", "trace-def-456"],
+ * });
+ *
+ * // Get specific spans by span ID (requires Phoenix server >= 19.6.0)
+ * const result = await getSpans({
+ *   client,
+ *   project: { projectName: "my-project" },
+ *   spanIds: ["span-abc-123", "span-def-456"],
+ * });
+ *
  * // Paginate through results
  * let cursor: string | undefined;
  * do {
@@ -78,6 +155,80 @@ export type GetSpansResult = {
  * } while (cursor);
  * ```
  */
+type SpansQuery = NonNullable<operations["getSpans"]["parameters"]["query"]>;
+
+async function ensureSpanFilterCapabilities({
+  client,
+  traceIds,
+  spanIds,
+  name,
+  spanKind,
+  statusCode,
+  attributeFilters,
+}: Pick<
+  GetSpansParams,
+  "traceIds" | "spanIds" | "name" | "spanKind" | "statusCode"
+> & {
+  client: NonNullable<GetSpansParams["client"]>;
+  attributeFilters: string[] | undefined;
+}): Promise<void> {
+  if (traceIds) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_TRACE_IDS });
+  }
+  if (spanIds) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_SPAN_IDS });
+  }
+  if (name != null || spanKind != null || statusCode != null) {
+    await ensureServerCapability({ client, requirement: GET_SPANS_FILTERS });
+  }
+  if (attributeFilters) {
+    await ensureServerCapability({
+      client,
+      requirement: GET_SPANS_BY_ATTRIBUTE,
+    });
+  }
+}
+
+function buildSpansQuery({
+  cursor,
+  limit,
+  startTime,
+  endTime,
+  traceIds,
+  spanIds,
+  parentId,
+  name,
+  spanKind,
+  statusCode,
+  attributeFilters,
+}: Omit<GetSpansParams, "client" | "project" | "attributes"> & {
+  limit: number;
+  attributeFilters: string[] | undefined;
+}): SpansQuery {
+  const params: SpansQuery = { limit };
+  if (cursor) params.cursor = cursor;
+  if (startTime) {
+    params.start_time =
+      startTime instanceof Date ? startTime.toISOString() : startTime;
+  }
+  if (endTime) {
+    params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
+  }
+  if (traceIds) params.trace_id = traceIds;
+  if (spanIds) params.span_id = spanIds;
+  if (parentId !== undefined) {
+    params.parent_id = parentId === null ? "null" : parentId;
+  }
+  if (name) params.name = Array.isArray(name) ? name : [name];
+  if (spanKind)
+    params.span_kind = Array.isArray(spanKind) ? spanKind : [spanKind];
+  if (statusCode) {
+    params.status_code = Array.isArray(statusCode) ? statusCode : [statusCode];
+  }
+  if (attributeFilters) params.attribute = attributeFilters;
+  return params;
+}
+
 export async function getSpans({
   client: _client,
   project,
@@ -85,27 +236,44 @@ export async function getSpans({
   limit = 100,
   startTime,
   endTime,
+  traceIds,
+  spanIds,
+  parentId,
+  name,
+  spanKind,
+  statusCode,
+  attributes,
 }: GetSpansParams): Promise<GetSpansResult> {
   const client = _client ?? createClient();
-  const projectIdentifier =
-    "projectId" in project ? project.projectId : project.projectName;
-
-  const params: NonNullable<operations["getSpans"]["parameters"]["query"]> = {
+  const serializedAttributes =
+    attributes != null ? serializeAttributes(attributes) : undefined;
+  const attributeFilters =
+    serializedAttributes != null && serializedAttributes.length > 0
+      ? serializedAttributes
+      : undefined;
+  await ensureSpanFilterCapabilities({
+    client,
+    traceIds,
+    spanIds,
+    name,
+    spanKind,
+    statusCode,
+    attributeFilters,
+  });
+  const projectIdentifier = resolveProjectIdentifier(project);
+  const params = buildSpansQuery({
+    cursor,
     limit,
-  };
-
-  if (cursor) {
-    params.cursor = cursor;
-  }
-
-  if (startTime) {
-    params.start_time =
-      startTime instanceof Date ? startTime.toISOString() : startTime;
-  }
-
-  if (endTime) {
-    params.end_time = endTime instanceof Date ? endTime.toISOString() : endTime;
-  }
+    startTime,
+    endTime,
+    traceIds,
+    spanIds,
+    parentId,
+    name,
+    spanKind,
+    statusCode,
+    attributeFilters,
+  });
 
   const { data, error } = await client.GET(
     "/v1/projects/{project_identifier}/spans",

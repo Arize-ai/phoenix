@@ -1,0 +1,57 @@
+---
+title: "Smolagents Tracing"
+description: How to use the SmolagentsInstrumentor to trace smolagents by Hugging Face
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+smolagents is a minimalist AI agent framework developed by Hugging Face, designed to simplify the creation and deployment of powerful agents with just a few lines of code. It focuses on simplicity and efficiency, making it easy for developers to leverage large language models (LLMs) for various applications.
+
+Phoenix provides auto-instrumentation, allowing you to track and visualize every step and call made by your agent.
+
+<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/smolagents_tracing_tutorial.ipynb" icon="https://ssl.gstatic.com/colaboratory-static/common/e2b7758e110827a5ed289fa36b2a079b/img/favicon.ico" horizontal>
+  colab.research.google.com
+</Card>
+
+## Install
+
+```bash
+pip install openinference-instrumentation-smolagents \
+  openinference-instrumentation-openai smolagents openai
+```
+
+## Setup
+
+Add your OpenAI API key as an environment variable:
+
+```bash
+export OPENAI_API_KEY=[your_key_here]
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Create & Run an Agent
+
+Create your Hugging Face Model, and at every run, traces will be sent to Phoenix.
+
+```python
+from smolagents import CodeAgent, OpenAIServerModel
+
+model = OpenAIServerModel(model_id="gpt-4o-mini")
+agent = CodeAgent(tools=[], model=model)
+print(agent.run("Why is the ocean salty? Answer in two sentences."))
+```
+
+## Observe
+
+Now that you have tracing setup, all invocations and steps of your Agent will be streamed to your running Phoenix for observability and evaluation.
+
+## Resources
+
+* [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-smolagents)
+
+* [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-smolagents/examples)
+
+* [Smolagents Tracing Documentation](https://huggingface.co/docs/smolagents/en/tutorials/inspect_runs)
+
+

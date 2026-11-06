@@ -99,6 +99,18 @@ get_profile_config() {
             # Grafana profile doesn't need override - pure profile in main file
             echo "profile"
             ;;
+        "ldap")
+            echo "override:overrides/ldap.yml"
+            ;;
+        "ldap-no-email")
+            echo "override:overrides/ldap-no-email.yml"
+            ;;
+        "ldap-posix")
+            echo "override:overrides/ldap-posix.yml"
+            ;;
+        "ldap-test")
+            echo "override:overrides/ldap-test.yml"
+            ;;
         schema*)
             # Dynamic schema profile
             local schema_name="${1#schema=}"
@@ -286,7 +298,7 @@ wait_for_phoenix() {
             echo "$logs"
             echo "────────────────────────────────────────────────────────"
             
-            if echo "$logs" | grep -qi -E "(exception|error|failed|traceback|phoenix\.exceptions)"; then
+            if echo "$logs" | grep -qi -E "(exception|traceback|phoenix\.exceptions)"; then
                 echo ""
                 log_error "Exception detected in Phoenix logs - stopping wait"
                 echo "   Phoenix appears to have crashed. Try: ./dev.sh destroy && ./dev.sh up"
@@ -335,6 +347,21 @@ show_services() {
                 "grafana")
                     echo "  Monitoring: Grafana + Prometheus enabled"
                     ;;
+                "ldap")
+                    echo "  Authentication: LDAP server enabled"
+                    echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
+                    echo "  LDAP Tests:     docker logs ${PROJECT_NAME:-devops}-ldap-test"
+                    ;;
+                "ldap-no-email")
+                    echo "  Authentication: LDAP server enabled (no-email mode)"
+                    echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
+                    echo "  Email Mode:     null email markers (users identified by entryUUID)"
+                    ;;
+                "ldap-posix")
+                    echo "  Authentication: LDAP server enabled (POSIX groups mode)"
+                    echo "  LDAP Admin:     http://localhost:6443 (admin@example.com / admin_password)"
+                    echo "  Group Mode:     POSIX (memberUid via GROUP_SEARCH_FILTER, no memberOf)"
+                    ;;
                 schema*)
                     echo "  Schema: $CURRENT_SCHEMA"
                     ;;
@@ -377,9 +404,12 @@ list_profiles() {
     echo "  basic-auth         Basic authentication (username/password)"
     echo "  in-memory          In-memory SQLite database"
     echo "  toxiproxy          Enable network simulation with Toxiproxy"
-    echo "  grafana            Enable Grafana and Prometheus monitoring"
-    echo "  schema=NAME        Dynamic schema profile (custom database name)"
-    echo ""
+  echo "  grafana            Enable Grafana and Prometheus monitoring"
+  echo "  ldap               Enable LDAP authentication (mock LDAP server)"
+  echo "  ldap-no-email      Enable LDAP authentication (users without email)"
+  echo "  ldap-posix         Enable LDAP authentication (POSIX groups, no memberOf)"
+  echo "  schema=NAME        Dynamic schema profile (custom database name)"
+  echo ""
     echo "Usage:"
     echo "  ./dev.sh up                              # Standard mode (production - no Vite)"
     echo "  ./dev.sh up --profile vite               # Enable Vite dev server"
@@ -388,9 +418,12 @@ list_profiles() {
     echo "  ./dev.sh up --profile basic-auth         # Basic authentication"
     echo "  ./dev.sh up --profile in-memory          # In-memory SQLite database"
     echo "  ./dev.sh up --profile toxiproxy          # Enable network simulation"
-    echo "  ./dev.sh up --profile grafana            # Enable Grafana monitoring"
-    echo "  ./dev.sh up --profile schema=myapp       # Custom schema 'myapp'"
-    echo "  ./dev.sh up --profiles vite,grafana      # Multiple profiles"
+  echo "  ./dev.sh up --profile grafana            # Enable Grafana monitoring"
+  echo "  ./dev.sh up --profile ldap               # Enable LDAP authentication"
+  echo "  ./dev.sh up --profile ldap-no-email      # LDAP without email addresses"
+  echo "  ./dev.sh up --profile ldap-posix         # LDAP with POSIX groups"
+  echo "  ./dev.sh up --profile schema=myapp       # Custom schema 'myapp'"
+  echo "  ./dev.sh up --profiles vite,grafana      # Multiple profiles"
 }
 
 # Check dependencies
@@ -409,7 +442,7 @@ case "${COMMAND:-help}" in
         fi
         
         echo "📦 Starting all services..."
-        compose_cmd up -d --build
+        compose_cmd up -d
         
         if wait_for_phoenix; then
             log_success "Environment ready!"
@@ -484,6 +517,39 @@ case "${COMMAND:-help}" in
         fi
         ;;
 
+    "prune")
+        log_info "Cleaning up Docker build cache..."
+        CACHE_SIZE=$(docker system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "unknown")
+        echo "   Current build cache size: $CACHE_SIZE"
+        
+        if docker builder prune -a -f >/dev/null 2>&1; then
+            log_success "Build cache cleaned!"
+            CACHE_SIZE=$(docker system df -v 2>/dev/null | grep "Build cache usage" | awk '{print $4}' || echo "0B")
+            echo "   New build cache size: $CACHE_SIZE"
+        else
+            log_error "Failed to clean build cache"
+        fi
+        ;;
+
+    "clean")
+        log_warning "Full Docker cleanup: images, containers, volumes, build cache, and networks"
+        log_warning "This will remove EVERYTHING Docker-related (not just this project)!"
+        read -p "Are you sure? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            log_info "Stopping project services..."
+            stop_all_containers
+            
+            log_info "Running full Docker system cleanup..."
+            docker system prune -a --volumes -f
+            
+            log_success "Full cleanup complete! Disk space recovered."
+            echo "   Run './dev.sh up' to start fresh."
+        else
+            log_error "Operation cancelled."
+        fi
+        ;;
+
     "status")
         show_status
         ;;
@@ -527,6 +593,8 @@ Phoenix Development Environment
   down                     Stop all services  
   reset                    Remove all images (rebuild on next 'up')
   destroy                  Wipe data volumes (database, grafana, prometheus)
+  prune                    Clean Docker build cache (frees disk space)
+  clean                    Full Docker cleanup (WARNING: removes everything)
   status                   Show running services and current profile
   profiles                 List available profiles
   env                      Extract environment variables from Phoenix container
@@ -543,6 +611,9 @@ Phoenix Development Environment
   in-memory                    In-memory SQLite database
   toxiproxy                    Enable network simulation with Toxiproxy
   grafana                      Enable Grafana and Prometheus monitoring
+  ldap                         Enable LDAP authentication (mock LDAP server)
+  ldap-no-email                Enable LDAP authentication (users without email)
+  ldap-posix                   Enable LDAP with POSIX groups (no memberOf)
   schema=NAME                  Dynamic schema profile (custom database name)
 
 💡 Which command to use?
@@ -550,6 +621,7 @@ Phoenix Development Environment
   Dependencies changed?   → rebuild
   Need fresh images?      → reset
   Need fresh data?        → destroy
+  Low on disk space?      → prune (or clean for full cleanup)
   Test PKCE?              → up --profile pkce-public
 
 🌐 Access:
@@ -563,7 +635,11 @@ Examples:
   ./dev.sh up --profiles vite,grafana      # Multiple profiles
   ./dev.sh up --profile pkce-public        # Test PKCE public client
   ./dev.sh up --profile grafana            # Enable monitoring
+  ./dev.sh up --profile ldap               # Test LDAP authentication
+  ./dev.sh up --profile ldap-no-email      # LDAP without email addresses
+  ./dev.sh up --profile ldap-posix         # LDAP with POSIX groups
   ./dev.sh status                          # Check what's running
+  ./dev.sh prune                           # Free up disk space
   ./dev.sh env | grep DATABASE             # Check database config
 EOF
         ;;

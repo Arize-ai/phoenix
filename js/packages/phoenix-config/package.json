@@ -1,0 +1,51 @@
+{
+  "name": "@arizeai/phoenix-config",
+  "version": "0.5.1",
+  "description": "central configuration for Phoenix",
+  "keywords": [
+    "arize",
+    "phoenix"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-config",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json"
+  ],
+  "main": "dist/src/index.js",
+  "module": "dist/esm/index.js",
+  "browser": "./dist/browser/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "browser": "./dist/browser/index.js",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json tsconfig.esm.json tsconfig.browser.json && tsc-alias -p tsconfig.browser.json && tsc-alias -p tsconfig.esm.json && tsc-alias -p tsconfig.json",
+    "clean": "rimraf dist",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json && echo '{\"type\": \"module\"}' > ./dist/browser/package.json",
+    "test": "pnpm run build && vitest run && pnpm run test:browser-build",
+    "test:browser-build": "vite build --config vite.browser.config.ts",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

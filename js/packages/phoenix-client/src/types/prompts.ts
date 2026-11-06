@@ -1,4 +1,4 @@
-import { components } from "../__generated__/api/v1";
+import type { components } from "../__generated__/api/v1";
 
 /**
  * Supported prompt model providers
@@ -11,7 +11,15 @@ export type PromptModelProvider =
   | "DEEPSEEK"
   | "XAI"
   | "OLLAMA"
-  | "AWS";
+  | "AWS"
+  | "CEREBRAS"
+  | "FIREWORKS"
+  | "GROQ"
+  | "MOONSHOT"
+  | "MINIMAX"
+  | "PERPLEXITY"
+  | "ZAI"
+  | "META";
 
 /**
  * Supported prompt provider SDKs
@@ -69,6 +77,16 @@ export type PromptSelector =
   | GetPromptByNameSelector
   | GetPromptByVersionSelector
   | GetPromptByTagSelector;
+
+/**
+ * A selector for a prompt as a whole, rather than for one of its versions.
+ *
+ * Narrower than {@link PromptSelector}: a version id or a name + tag picks out a
+ * single version, which is not what operations on the prompt itself act on. Use
+ * this wherever the API needs the `{prompt_identifier}` path segment — the name
+ * and the prompt id are the two things the Phoenix REST API accepts there.
+ */
+export type PromptIdentifier = GetPromptByIdSelector | GetPromptByNameSelector;
 
 /**
  * The prompt data needed to create a prompt.
@@ -156,10 +174,23 @@ export type PromptChatMessagePart =
   | components["schemas"]["ToolCallContentPart"]
   | components["schemas"]["ToolResultContentPart"];
 
+export type PromptToolFunction = components["schemas"]["PromptToolFunction"];
+export type PromptToolRaw = components["schemas"]["PromptToolRaw"];
+
 /**
  * The Phoenix prompt tool type from the API.
  */
 export type PromptTool = components["schemas"]["PromptTools"]["tools"][number];
+
+export function isPromptToolRaw(tool: PromptTool): tool is PromptToolRaw {
+  return tool.type === "raw";
+}
+
+export function isPromptToolFunction(
+  tool: PromptTool
+): tool is PromptToolFunction {
+  return tool.type === "function";
+}
 
 /**
  * The Phoenix prompt tool choice type from the API.

@@ -1,0 +1,176 @@
+---
+title: "01.21.2026 Phoenix CLI: Datasets, Experiments & Annotations for AI Coding Workflows"
+---
+
+<CardGroup cols={2}>
+  <Card title="CLI Reference" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Full documentation
+  </Card>
+  <Card title="npm" icon="npm" href="https://www.npmjs.com/package/@arizeai/phoenix-cli">
+    Install from npm
+  </Card>
+</CardGroup>
+
+## Overview
+
+The Phoenix CLI now supports **datasets**, **experiments**, and **annotations**. You can pull evaluation data, experiment results, and human feedback directly into your terminal or pipe them into AI coding assistants.
+
+```bash
+# List available datasets
+px datasets
+
+# Fetch dataset examples
+px dataset <dataset-name>
+
+# Export experiment results
+px experiments --dataset <dataset-name> ./experiments/
+
+# Get experiment details
+px experiment <experiment-id> --format json
+
+# Include annotations in traces
+px traces --limit 10 --include-annotations
+```
+
+## Common Workflows
+
+### Analyze Dataset Examples
+
+Pull test cases for review:
+
+```bash
+# Get all examples from a dataset
+px dataset <dataset-name> --format raw --no-progress | \
+  jq '.examples[] | {input, output}'
+
+# Filter by split (if dataset has splits defined)
+px dataset <dataset-name> --split train --format raw --no-progress | \
+  jq '.examples[]'
+```
+
+### Review Experiment Results
+
+Check evaluation results:
+
+```bash
+# Get experiment runs with their inputs and outputs
+px experiment <experiment-id> --format raw --no-progress | \
+  jq '.[] | {input, output, latency_ms, trace_id}'
+
+# Find runs with annotations
+px experiment <experiment-id> --format raw --no-progress | \
+  jq '.[] | select(.annotations | length > 0)'
+```
+
+### Use Annotations
+
+Access human feedback on traces:
+
+```bash
+# Get traces with annotations
+px traces --include-annotations --limit 50 --format raw | \
+  jq '.[] | select(.spans[].annotations != null)'
+```
+
+### Export for Analysis
+
+Save data to files for further processing:
+
+```bash
+# Export traces to directory
+px traces --include-annotations --limit 100 ./production-samples/
+
+# Export experiments to directory
+px experiments --dataset <dataset-name> ./all-experiments/
+
+# Filter examples with jq
+px traces --include-annotations --format raw --no-progress | \
+  jq '.[] | select(.spans[].annotations[] | select(.name == "quality" and .score >= 4))'
+```
+
+## Dataset and Experiment Commands
+
+### Datasets
+
+```bash
+# List all datasets with metadata
+px datasets --format json
+
+# Fetch dataset with specific splits
+px dataset <dataset-name> --split train --split validation
+
+# Get specific version
+px dataset <dataset-name> --version <version-id>
+```
+
+### Experiments
+
+```bash
+# List experiments for a dataset
+px experiments --dataset <dataset-name>
+
+# Export all experiment data
+px experiments --dataset <dataset-name> ./experiments/
+
+# Fetch single experiment with full details
+px experiment <experiment-id> --format raw
+```
+
+### Annotations
+
+```bash
+# Include annotations in any trace command
+px traces --include-annotations --limit 10
+
+# Get specific trace with annotations
+px trace <trace-id> --include-annotations
+```
+
+## Example: Reviewing Experiment Results
+
+Get data from an experiment and dataset:
+
+```bash
+# Export experiment runs to a file
+px experiment <experiment-id> --format raw --no-progress > experiment-runs.json
+
+# Extract inputs and outputs
+jq '.[] | {input, output, latency_ms}' experiment-runs.json > run-summary.json
+
+# Export dataset examples
+px dataset <dataset-name> --format raw --no-progress | \
+  jq '.examples[] | {input, output}' \
+  > dataset-examples.json
+```
+
+You can then ask an AI assistant to review the experiment results or analyze patterns in the dataset.
+
+## Installation
+
+```bash
+npm install -g @arizeai/phoenix-cli
+```
+
+Or run directly:
+
+```bash
+npx @arizeai/phoenix-cli datasets
+```
+
+## Upgrading
+
+If you already have the CLI installed, upgrade to 0.2.0 or later:
+
+```bash
+npm update -g @arizeai/phoenix-cli
+```
+
+Check your version:
+
+```bash
+px --version
+```
+
+## Feedback
+
+Share feedback or contribute on [GitHub](https://github.com/Arize-ai/phoenix).

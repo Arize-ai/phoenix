@@ -1,3 +1,4 @@
+# pyright: reportCallIssue=false
 from __future__ import annotations
 
 import json
@@ -8,21 +9,18 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 import pytest
+from phoenix.client.__generated__ import v1
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
-from phoenix.client.__generated__ import v1
-
 from .._helpers import (
-    _ADMIN,  # pyright: ignore[reportPrivateUsage]
-    _MEMBER,  # pyright: ignore[reportPrivateUsage]
     _AppInfo,  # pyright: ignore[reportPrivateUsage]
     _await_or_return,  # pyright: ignore[reportPrivateUsage]
     _ExistingProject,
     _ExistingSpan,
-    _GetUser,  # pyright: ignore[reportPrivateUsage]
     _gql,
-    _RoleOrUser,
+    _grpc_span_exporter,  # pyright: ignore[reportPrivateUsage]
+    _start_span,  # pyright: ignore[reportPrivateUsage]
     _until_spans_exist,
 )
 
@@ -38,13 +36,10 @@ SpanGlobalId: TypeAlias = str
 
 class TestClientForSpanAnnotationsRetrieval:
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_get_span_annotations_dataframe_and_list(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         num_spans = len(_existing_spans)
@@ -53,8 +48,7 @@ class TestClientForSpanAnnotationsRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -135,7 +129,7 @@ class TestClientForSpanAnnotationsRetrieval:
             res = anno["result"]
             assert isinstance(res, dict)
             assert res.get("label") == expected_label
-            assert abs(float(res.get("score", 0.0)) - expected_score) < 1e-6
+            assert abs((res.get("score") or 0.0) - expected_score) < 1e-6
             assert res.get("explanation") == expected_explanation
 
         spans_input_df = pd.DataFrame({"context.span_id": [span_id1, span_id2]})
@@ -161,13 +155,10 @@ class TestClientForSpanAnnotationsRetrieval:
             assert row.loc["result.explanation"] == expl
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_note_annotations_filtering_behavior(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         num_spans = len(_existing_spans)
@@ -176,8 +167,7 @@ class TestClientForSpanAnnotationsRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -342,13 +332,10 @@ class TestClientForSpanAnnotationsRetrieval:
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_get_span_annotations_with_spans_objects(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test getting span annotations using Span objects from get_spans."""
@@ -358,8 +345,7 @@ class TestClientForSpanAnnotationsRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -487,13 +473,10 @@ class TestClientForSpansRetrieval:
     """Test the get_spans method with various filtering and pagination options."""
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_basic_span_retrieval(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test basic span retrieval returns ergonomic span format."""
@@ -502,8 +485,7 @@ class TestClientForSpansRetrieval:
         existing_span1 = choice(_existing_spans)
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -545,12 +527,10 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that start_time and end_time filters work correctly."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -629,7 +609,11 @@ class TestClientForSpansRetrieval:
         # Verify they are the correct spans
         found_indices: set[int] = set()
         for span in our_middle_spans:
-            if "attributes" in span and "time_index" in span["attributes"]:
+            if (
+                "attributes" in span
+                and span["attributes"] is not None
+                and "time_index" in span["attributes"]
+            ):
                 found_indices.add(span["attributes"]["time_index"])
 
         assert found_indices == {1, 2, 3}, f"Expected indices {{1, 2, 3}} but got {found_indices}"
@@ -679,7 +663,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that the method automatically handles pagination to fetch up to the limit."""
@@ -687,8 +670,7 @@ class TestClientForSpansRetrieval:
         existing_span1 = choice(_existing_spans)
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -724,7 +706,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that project identifier works with both project names and IDs."""
@@ -733,8 +714,7 @@ class TestClientForSpansRetrieval:
         project_id = str(existing_span1.trace.project.id)
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -766,15 +746,13 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         assert _existing_spans, "At least one existing span is required for this test"
         existing_span = choice(_existing_spans)
         project_name = existing_span.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -832,7 +810,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test behavior when no spans match the filter criteria."""
@@ -840,8 +817,7 @@ class TestClientForSpansRetrieval:
         existing_span = choice(_existing_spans)
         project_name = existing_span.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -867,15 +843,12 @@ class TestClientForSpansRetrieval:
     async def test_invalid_project_identifier(
         self,
         is_async: bool,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test error handling for invalid project identifier."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         import httpx
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
@@ -895,7 +868,6 @@ class TestClientForSpansRetrieval:
         self,
         is_async: bool,
         _existing_spans: Sequence[_ExistingSpan],
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test the get_spans method returns spans correctly."""
@@ -905,8 +877,7 @@ class TestClientForSpansRetrieval:
         span_id1 = existing_span1.span_id
         project_name = existing_span1.trace.project.name
 
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -964,12 +935,10 @@ class TestClientForSpanCreation:
     async def test_basic_span_operations(
         self,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test basic span creation, duplicates, and error handling in one efficient test."""
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import Client
         from phoenix.client.exceptions import SpanCreationError
@@ -1035,7 +1004,50 @@ class TestClientForSpanCreation:
         assert error.total_invalid == 1
         assert error.total_queued == 0
 
-        # Test 4: Non-existent project name is accepted (may be auto-created)
+        # Test 4: Timezone-naive timestamps are rejected by the server
+        naive_span = self._create_test_span(
+            "naive_timestamps",
+            context={"trace_id": f"trace_{token_hex(16)}", "span_id": f"span_{token_hex(8)}"},
+            start_time=datetime.now().isoformat(),
+            end_time=(datetime.now() + timedelta(seconds=1)).isoformat(),
+        )
+        with pytest.raises(SpanCreationError) as exc_info:
+            client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=[naive_span],
+            )
+        err = exc_info.value
+        assert err.total_invalid == 1
+        assert err.total_queued == 0
+        assert any("timezone-naive" in (inv.get("error") or "") for inv in err.invalid_spans), (
+            "Expected timezone-naive error message"
+        )
+
+        # Test 5: Timezone-naive event timestamp is rejected by the server
+        span_with_naive_event = self._create_test_span(
+            "naive_event_timestamp",
+            context={"trace_id": f"trace_{token_hex(16)}", "span_id": f"span_{token_hex(8)}"},
+            events=[
+                {
+                    "name": "test_event",
+                    "timestamp": datetime.now().isoformat(),
+                    "attributes": {},
+                }
+            ],
+        )
+        with pytest.raises(SpanCreationError) as exc_info:
+            client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans=[span_with_naive_event],
+            )
+        err = exc_info.value
+        assert err.total_invalid == 1
+        assert err.total_queued == 0
+        assert any("timezone-naive" in (inv.get("error") or "") for inv in err.invalid_spans), (
+            "Expected timezone-naive error for event timestamp"
+        )
+
+        # Test 6: Non-existent project name is accepted (may be auto-created)
         # Only GlobalIDs are validated for existence
         result_nonexistent = client.spans.log_spans(  # pyright: ignore[reportAttributeAccessIssue]
             project_identifier="non_existent_project_xyz",
@@ -1044,7 +1056,7 @@ class TestClientForSpanCreation:
         assert result_nonexistent["total_received"] == 1
         assert result_nonexistent["total_queued"] == 1
 
-        # Test 5: Error handling for non-existent project by GlobalID
+        # Test 7: Error handling for non-existent project by GlobalID
         import httpx
 
         with pytest.raises(httpx.HTTPStatusError) as http_exc_info:
@@ -1059,7 +1071,6 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test round-tripping spans through helper functions efficiently."""
@@ -1070,8 +1081,7 @@ class TestClientForSpanCreation:
         try:
             random.seed(100 + (1 if is_async else 0))
 
-            user = _get_user(_app, _MEMBER).log_in(_app)
-            api_key = str(user.create_api_key(_app))
+            api_key = _app.admin_secret
 
             from phoenix.client import AsyncClient
             from phoenix.client import Client as SyncClient
@@ -1142,7 +1152,7 @@ class TestClientForSpanCreation:
             our_df = df[our_spans_mask].copy()
 
             # Test 1: DataFrame to spans conversion
-            reconstructed_spans = dataframe_to_spans(our_df)
+            reconstructed_spans = dataframe_to_spans(our_df)  # pyright: ignore[reportArgumentType]
             assert len(reconstructed_spans) == num_spans
 
             spans_by_name = {span["name"]: span for span in reconstructed_spans}
@@ -1177,7 +1187,7 @@ class TestClientForSpanCreation:
             original_df_trace_ids = our_df["context.trace_id"].tolist()  # pyright: ignore[reportUnknownVariableType]
             original_df_span_ids = our_df["context.span_id"].tolist()  # pyright: ignore[reportUnknownVariableType]
 
-            unique_df = uniquify_spans_dataframe(our_df, in_place=False)
+            unique_df = uniquify_spans_dataframe(our_df, in_place=False)  # pyright: ignore[reportArgumentType]
 
             # Verify DataFrame uniquification
             assert unique_df["context.trace_id"].tolist() != original_df_trace_ids
@@ -1214,12 +1224,10 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test efficient batch span creation and retrieval."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1267,11 +1275,9 @@ class TestClientForSpanCreation:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1499,11 +1505,101 @@ class TestClientForSpanCreation:
             )
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_log_spans_dataframe_with_integer_index(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        """Test log_spans_dataframe with default integer index (not span_id index).
+
+        This test verifies that when a DataFrame has a default integer index (0, 1, 2...),
+        the span IDs are correctly extracted from the context.span_id column instead of
+        incorrectly using the integer index values as span IDs.
+        """
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        import pandas as pd
+
+        trace_id = f"int_idx_{token_hex(16)}"
+        span_id_1 = f"span_{token_hex(8)}"
+        span_id_2 = f"span_{token_hex(8)}"
+
+        base_time = datetime.now(timezone.utc)
+
+        # Create DataFrame with default integer index (NOT setting span_id as index)
+        test_data: dict[str, Any] = {
+            "name": ["IntIndexSpan1", "IntIndexSpan2"],
+            "span_kind": ["CHAIN", "CHAIN"],
+            "parent_id": [None, None],
+            "start_time": [
+                base_time.isoformat(),
+                (base_time + timedelta(milliseconds=100)).isoformat(),
+            ],
+            "end_time": [
+                (base_time + timedelta(seconds=1)).isoformat(),
+                (base_time + timedelta(seconds=1, milliseconds=100)).isoformat(),
+            ],
+            "status_code": ["OK", "OK"],
+            "context.span_id": [span_id_1, span_id_2],
+            "context.trace_id": [trace_id, trace_id],
+            "attributes.test.value": ["test1", "test2"],
+        }
+
+        # Create DataFrame with default integer index (0, 1)
+        input_df = pd.DataFrame(test_data)
+        # Explicitly verify the index is integer-based, not span_id
+        assert input_df.index.tolist() == [0, 1]
+        assert input_df.index.name is None
+
+        project_name = _existing_project.name
+
+        # Log spans using DataFrame with integer index
+        result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans_dataframe(  # pyright: ignore[reportAttributeAccessIssue]
+                project_identifier=project_name,
+                spans_dataframe=input_df,
+            )
+        )
+        assert result["total_queued"] == 2
+
+        # Wait for spans to be processed - use the actual span IDs from the column
+        await _until_spans_exist(_app, [span_id_1, span_id_2])
+
+        # Retrieve spans and verify they have the correct span IDs
+        output_df = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans_dataframe(
+                project_identifier=project_name,
+                limit=10,
+            )
+        )
+
+        # Filter to our test spans
+        our_spans = output_df[output_df["context.trace_id"] == trace_id]
+        assert len(our_spans) == 2
+
+        # Verify the span IDs are the ones from context.span_id column, NOT "0" and "1"
+        retrieved_span_ids = set(our_spans.index.tolist())
+        expected_span_ids = {span_id_1, span_id_2}
+        assert retrieved_span_ids == expected_span_ids, (
+            f"Expected span IDs {expected_span_ids}, got {retrieved_span_ids}. "
+            "Integer index values may have been incorrectly used as span IDs."
+        )
+
+        # Verify span names to ensure correct data mapping
+        span_names = set(our_spans["name"].tolist())
+        assert span_names == {"IntIndexSpan1", "IntIndexSpan2"}
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_unflatten_attributes_on_span_creation(
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that flattened attributes are properly unflattened when creating spans.
@@ -1513,8 +1609,7 @@ class TestClientForSpanCreation:
         It uses GraphQL to check the raw database structure (nested) and the REST API
         to verify round-trip behavior (flattened).
         """
-        user = _get_user(_app, _MEMBER).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1580,7 +1675,7 @@ class TestClientForSpanCreation:
             node(id: $projectId) {
                 ... on Project {
                     trace(traceId: $traceId) {
-                        spans {
+                        spans(first: 1000) {
                             edges {
                                 node {
                                     id
@@ -1596,7 +1691,7 @@ class TestClientForSpanCreation:
 
         trace_result, _ = _gql(
             _app,
-            user,
+            _app.admin_secret,
             query=trace_query,
             variables={"projectId": str(_existing_project.id), "traceId": trace_id},
         )
@@ -1615,7 +1710,9 @@ class TestClientForSpanCreation:
         assert span_global_id is not None, f"Could not find span with spanId {span_id}"
 
         # Now query for the attributes using the Global ID
-        attr_result, _ = _gql(_app, user, query=gql_query, variables={"spanId": span_global_id})
+        attr_result, _ = _gql(
+            _app, _app.admin_secret, query=gql_query, variables={"spanId": span_global_id}
+        )
         assert not attr_result.get("errors"), f"GraphQL errors: {attr_result.get('errors')}"
 
         # Get the nested attributes from GraphQL (as stored in the database)
@@ -1709,22 +1806,105 @@ class TestClientForSpanCreation:
         assert rest_attrs["documents.1.content"] == "Second document"
 
 
+class TestClientForSpanNotes:
+    """Test the add_span_note method."""
+
+    # Use GraphQL to verify each note was stored correctly
+    QUERY = """
+        query GetSpanAnnotation($annotationId: ID!) {
+            node(id: $annotationId) {
+                ... on SpanAnnotation {
+                    name
+                    score
+                    label
+                    explanation
+                    annotatorKind
+                    identifier
+                }
+            }
+        }
+    """
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_add_span_note(
+        self,
+        is_async: bool,
+        _existing_spans: Sequence[_ExistingSpan],
+        _app: _AppInfo,
+    ) -> None:
+        """Test multiple notes can be added to a span and verify content via GraphQL.
+
+        Notes are append-only: each call creates a new note with an auto-generated
+        UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+        annotations are keyed by (name, span_id, identifier) — distinct identifiers
+        let you keep multiple same-named annotations on one span.
+        """
+        assert _existing_spans, "At least one existing span is required for this test"
+        existing_span = choice(_existing_spans)
+        span_id = existing_span.span_id
+
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        num_notes = 3
+        note_texts: dict[str, str] = {}
+
+        # Add multiple notes to the same span
+        for _ in range(num_notes):
+            note_text = f" Test note {token_hex(8)} "
+            result = await _await_or_return(
+                Client(base_url=_app.base_url, api_key=api_key).spans.add_span_note(
+                    span_id=span_id,
+                    note=note_text,
+                )
+            )
+
+            assert isinstance(result, dict)
+            assert "id" in result
+            annotation_global_id = result["id"]
+            assert annotation_global_id, "Note should have a non-empty ID"
+            note_texts[annotation_global_id] = note_text
+
+        # Verify all notes have unique IDs (key property of notes vs regular annotations)
+        assert len(note_texts) == num_notes, "Each note should have a unique ID"
+
+        for annotation_global_id, note_text in note_texts.items():
+            gql_result, _ = _gql(
+                _app,
+                _app.admin_secret,
+                query=self.QUERY,
+                operation_name="GetSpanAnnotation",
+                variables={"annotationId": annotation_global_id},
+            )
+            assert not gql_result.get("errors"), f"GraphQL errors: {gql_result.get('errors')}"
+
+            annotation_data = gql_result["data"]["node"]
+            assert annotation_data is not None, "Annotation should exist"
+
+            # Verify the note properties
+            assert annotation_data["name"] == "note"
+            assert annotation_data["score"] is None
+            assert annotation_data["label"] is None
+            assert annotation_data["explanation"] == note_text.strip()
+            assert annotation_data["annotatorKind"] == "HUMAN"
+
+
 class TestClientForSpanDeletion:
     """Test the delete_span method with various span identifiers."""
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_delete_span_by_opentelemetry_span_id(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test deleting a span by OpenTelemetry span_id."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1791,18 +1971,14 @@ class TestClientForSpanDeletion:
         assert span_id not in span_ids_after, "Test span should be deleted"
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_delete_span_by_global_id(
         self,
         is_async: bool,
-        role_or_user: _RoleOrUser,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test deleting a span by Phoenix Global ID."""
-        user = _get_user(_app, role_or_user).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1884,12 +2060,10 @@ class TestClientForSpanDeletion:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that deleting a parent span orphans its children but doesn't delete them."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1999,15 +2173,12 @@ class TestClientForSpanDeletion:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test error handling when trying to delete a non-existent span."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         import httpx
-
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
@@ -2030,12 +2201,10 @@ class TestClientForSpanDeletion:
         self,
         is_async: bool,
         _existing_project: _ExistingProject,
-        _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
         """Test that timeout parameter is properly handled."""
-        user = _get_user(_app, _ADMIN).log_in(_app)
-        api_key = str(user.create_api_key(_app))
+        api_key = _app.admin_secret
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -2090,3 +2259,298 @@ class TestClientForSpanDeletion:
         )
         span_ids_after = {s["context"]["span_id"] for s in spans_after}
         assert span_id not in span_ids_after, "Test span should be deleted"
+
+
+class TestClientGetSpansAttributeFilters:
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_attribute_filter_returns_matching_spans(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        """Test that the ``attributes`` filter returns only spans with matching attributes."""
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+        unique_val = token_hex(8)
+        trace_id = f"trace_attr_{token_hex(16)}"
+
+        matching_span = v1.Span(
+            name="matching_span",
+            context={"trace_id": trace_id, "span_id": f"span_match_{token_hex(8)}"},
+            span_kind="CHAIN",
+            start_time=datetime.now(timezone.utc).isoformat(),
+            end_time=(datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+            status_code="OK",
+            attributes={"session.id": unique_val, "other.attr": "foo"},
+        )
+        non_matching_span = v1.Span(
+            name="non_matching_span",
+            context={"trace_id": trace_id, "span_id": f"span_nomatch_{token_hex(8)}"},
+            span_kind="CHAIN",
+            start_time=datetime.now(timezone.utc).isoformat(),
+            end_time=(datetime.now(timezone.utc) + timedelta(seconds=1)).isoformat(),
+            status_code="OK",
+            attributes={"session.id": token_hex(8), "other.attr": "bar"},
+        )
+
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=[matching_span, non_matching_span],
+            )
+        )
+        assert create_result["total_queued"] == 2
+
+        await _until_spans_exist(
+            _app,
+            [matching_span["context"]["span_id"], non_matching_span["context"]["span_id"]],
+        )
+
+        filtered_spans = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                attributes={"session.id": unique_val},
+                limit=100,
+            )
+        )
+        filtered_span_ids = {s["context"]["span_id"] for s in filtered_spans}
+        assert matching_span["context"]["span_id"] in filtered_span_ids
+        assert non_matching_span["context"]["span_id"] not in filtered_span_ids
+
+    async def test_otlp_exported_span_is_filterable_by_attribute_across_endpoints(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """OTLP → REST smoke test: seed via real gRPC OTLP export, then filter by attribute.
+
+        Seeds a single span via the same exporter path used in production (OTLP gRPC
+        ``OTLPSpanExporter``), then issues ``GET /v1/projects/{id}/spans`` and
+        ``GET /v1/projects/{id}/spans/otlpv1`` with the same ``attribute`` filter.
+        The value contains colons (``sess:abc:123``) to exercise ``split(':', 1)``
+        end-to-end. Parity check: both routers return the same span (both invoke
+        ``_parse_attribute`` — spans.py:731-732 and spans.py:925-926).
+        """
+        import httpx2
+        from opentelemetry.sdk.trace.export import SpanExportResult
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        project_name = f"otlp-attr-smoke-{token_hex(8)}"
+        session_id_value = "sess:abc:123"
+
+        memory = InMemorySpanExporter()
+        _start_span(
+            project_name=project_name,
+            attributes={"session.id": session_id_value},
+            exporter=memory,
+        ).end()
+        sdk_spans = memory.get_finished_spans()
+        assert len(sdk_spans) == 1
+        sdk_span = sdk_spans[0]
+        assert (sdk_ctx := sdk_span.get_span_context())
+        from opentelemetry.trace import format_span_id
+
+        span_id = format_span_id(sdk_ctx.span_id)
+
+        headers = {"authorization": f"Bearer {_app.admin_secret}"}
+        assert (
+            _grpc_span_exporter(_app, headers=headers).export(sdk_spans) is SpanExportResult.SUCCESS
+        )
+
+        await _until_spans_exist(_app, [span_id])
+
+        filter_value = f'session.id:"{session_id_value}"'
+
+        async with httpx2.AsyncClient(base_url=_app.base_url, headers=headers) as client:
+            resp_rest = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": filter_value},
+            )
+            assert resp_rest.status_code == 200, resp_rest.text
+            rest_data = resp_rest.json()["data"]
+            assert len(rest_data) >= 1
+            rest_span_ids = {s["context"]["span_id"] for s in rest_data}
+            assert span_id in rest_span_ids
+            for s in rest_data:
+                assert s["attributes"].get("session.id") == session_id_value
+
+            resp_otlp = await client.get(
+                f"v1/projects/{project_name}/spans/otlpv1",
+                params={"attribute": filter_value},
+            )
+            assert resp_otlp.status_code == 200, resp_otlp.text
+            otlp_data = resp_otlp.json()["data"]
+            assert len(otlp_data) >= 1
+            otlp_span_ids = {s["span_id"] for s in otlp_data}
+            assert rest_span_ids == otlp_span_ids
+
+    async def test_otlp_metadata_jsonstring_is_filterable_via_dotted_path(
+        self,
+        _app: _AppInfo,
+    ) -> None:
+        """SDK-style metadata round-trip: OpenInference SDKs emit `metadata` as a
+        single JSON-stringified attribute (see `setMetadata` in
+        @arizeai/openinference-core/contextAttributes.ts). Phoenix's ingestion
+        pipeline (`load_json_strings` in src/phoenix/trace/attributes.py) parses
+        these back to nested objects before storage, so dotted-path attribute
+        filters must match regardless of which wire shape the SDK used.
+
+        This pins the contract end-to-end: OTLP gRPC export of a JSON-string
+        `metadata` attribute → ingestion → REST attribute filter by nested key.
+        """
+        import httpx2
+        from opentelemetry.sdk.trace.export import SpanExportResult
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        project_name = f"otlp-metadata-blob-{token_hex(8)}"
+        blob = json.dumps({"tier": "premium", "count": 5, "flag": True, "customer_id": "7890"})
+
+        memory = InMemorySpanExporter()
+        _start_span(
+            project_name=project_name,
+            attributes={"metadata": blob},
+            exporter=memory,
+        ).end()
+        sdk_spans = memory.get_finished_spans()
+        assert len(sdk_spans) == 1
+        from opentelemetry.trace import format_span_id
+
+        sdk_ctx = sdk_spans[0].get_span_context()
+        assert sdk_ctx
+        span_id = format_span_id(sdk_ctx.span_id)
+
+        headers = {"authorization": f"Bearer {_app.admin_secret}"}
+        assert (
+            _grpc_span_exporter(_app, headers=headers).export(sdk_spans) is SpanExportResult.SUCCESS
+        )
+        await _until_spans_exist(_app, [span_id])
+
+        async with httpx2.AsyncClient(base_url=_app.base_url, headers=headers) as client:
+            # String-valued nested key — the common case.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.tier:premium"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Int-valued nested key — bare numeric dispatches as int, matches.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.count:5"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Bool-valued nested key — bool dispatch precedes int dispatch.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.flag:true"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Numeric-looking-string footgun applies inside metadata too:
+            # bare `customer_id:7890` dispatches as int and does NOT match the
+            # stored string "7890".
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": "metadata.customer_id:7890"},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id not in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+            # Forced-string quoting escape hatch works inside metadata.
+            resp = await client.get(
+                f"v1/projects/{project_name}/spans",
+                params={"attribute": 'metadata.customer_id:"7890"'},
+            )
+            assert resp.status_code == 200, resp.text
+            assert span_id in {s["context"]["span_id"] for s in resp.json()["data"]}
+
+
+class TestClientGetSpansSort:
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_sort_by_start_time_orders_spans_logged_out_of_order(
+        self,
+        is_async: bool,
+        _existing_project: _ExistingProject,
+        _app: _AppInfo,
+    ) -> None:
+        api_key = _app.admin_secret
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
+
+        project_name = _existing_project.name
+        trace_id = f"trace_sort_{token_hex(16)}"
+        now = datetime.now(timezone.utc)
+        # Logged oldest-in-the-middle so that insertion order differs from start time.
+        start_offsets_in_insertion_order = [
+            timedelta(minutes=5),
+            timedelta(),
+            timedelta(minutes=10),
+        ]
+        spans = [
+            v1.Span(
+                name=f"span_{index}",
+                context={"trace_id": trace_id, "span_id": f"span_sort_{token_hex(8)}"},
+                span_kind="CHAIN",
+                start_time=(now - timedelta(minutes=30) + offset).isoformat(),
+                end_time=(now - timedelta(minutes=30) + offset + timedelta(seconds=1)).isoformat(),
+                status_code="OK",
+            )
+            for index, offset in enumerate(start_offsets_in_insertion_order)
+        ]
+        span_ids = [span["context"]["span_id"] for span in spans]
+        newest_first = [span_ids[2], span_ids[0], span_ids[1]]
+
+        create_result = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.log_spans(
+                project_identifier=project_name,
+                spans=spans,
+            )
+        )
+        assert create_result["total_queued"] == len(spans)
+        await _until_spans_exist(_app, span_ids)
+
+        by_insertion = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+            )
+        )
+        assert [s["context"]["span_id"] for s in by_insertion] == list(reversed(span_ids))
+
+        by_start_time = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                sort="start_time",
+            )
+        )
+        assert [s["context"]["span_id"] for s in by_start_time] == newest_first
+
+        ascending = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                sort="start_time",
+                order="asc",
+            )
+        )
+        assert [s["context"]["span_id"] for s in ascending] == list(reversed(newest_first))
+
+        latest_two = await _await_or_return(
+            Client(base_url=_app.base_url, api_key=api_key).spans.get_spans(
+                project_identifier=project_name,
+                sort="start_time",
+                limit=2,
+            )
+        )
+        assert [s["context"]["span_id"] for s in latest_two] == newest_first[:2]

@@ -1,0 +1,125 @@
+---
+title: "Regex Match"
+sidebarTitle: "Regex Match"
+description: "Pass when the output matches a regular expression pattern."
+---
+
+Compiles a regex and reports a binary `match` / `mismatch` against the model's output — handy for asserting format invariants like phone numbers, currency strings, UUIDs, or identifier prefixes without paying for a model call.
+
+For a zero-code option, see the pre-built [Regex Match](/docs/phoenix/evaluation/server-evals/pre-built-metrics/regex) metric. Use the version below when you want to extend the logic — capture groups, multiple alternative patterns, richer explanations.
+
+## Code
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+import re
+
+
+def evaluate(output, pattern):
+    if output is None:
+        return {
+            "label": "missing",
+            "score": 0.0,
+            "explanation": "Output is missing.",
+        }
+
+    try:
+        compiled = re.compile(pattern)
+    except re.error as exc:
+        return {
+            "label": "invalid_pattern",
+            "score": 0.0,
+            "explanation": f"Failed to compile regex {pattern!r}: {exc}",
+        }
+
+    match = compiled.search(str(output))
+    if match is None:
+        return {
+            "label": "mismatch",
+            "score": 0.0,
+            "explanation": f"Output does not match /{pattern}/.",
+        }
+    return {
+        "label": "match",
+        "score": 1.0,
+        "explanation": f"Matched substring: {match.group(0)!r}",
+    }
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+function evaluate({ output, pattern }: EvaluatorParams) {
+  if (output == null) {
+    return {
+      label: "missing",
+      score: 0,
+      explanation: "Output is missing.",
+    };
+  }
+
+  let regex: RegExp;
+  try {
+    regex = new RegExp(pattern as string);
+  } catch (err) {
+    return {
+      label: "invalid_pattern",
+      score: 0,
+      explanation: `Failed to compile regex ${JSON.stringify(pattern)}: ${
+        (err as Error).message
+      }`,
+    };
+  }
+
+  const match = String(output).match(regex);
+  if (match === null) {
+    return {
+      label: "mismatch",
+      score: 0,
+      explanation: `Output does not match /${pattern}/.`,
+    };
+  }
+  return {
+    label: "match",
+    score: 1,
+    explanation: `Matched substring: ${JSON.stringify(match[0])}`,
+  };
+}
+```
+</Tab>
+</Tabs>
+
+Both `re.search` and `String.match` find a match anywhere in the string. If you need the *entire* output to match, switch to `re.fullmatch` in Python, or anchor the pattern with `^...$` in TypeScript.
+
+## Input mapping
+
+| Parameter | Bind to |
+|-----------|---------|
+| `output` | The model output, usually `output`. |
+| `pattern` | Use a **literal** regex string (e.g. `^[A-Z]{3}-\d{4}$`) when every example shares the same pattern, or a dataset path (e.g. `metadata.expected_pattern`) when patterns vary per example. |
+
+## Output configuration
+
+Categorical labels:
+
+| Label | Score |
+|-------|-------|
+| `match` | `1.0` |
+| `mismatch` | `0.0` |
+| `missing` | `0.0` |
+| `invalid_pattern` | `0.0` |
+
+Optimization direction: **maximize**.
+
+## Runtime requirements
+
+| Setting | Value |
+|---------|-------|
+| Sandbox | Any — works in the in-process **WebAssembly** (Python) or **Deno** (TypeScript) backends. |
+| Dependencies | None — uses `re` / built-in `RegExp`. |
+| Internet access | Not required. |
+| Environment variables | None. |
+
+<Warning>
+Untrusted regex patterns can be vulnerable to catastrophic backtracking (ReDoS). If `pattern` is sourced from per-example dataset values rather than a fixed literal, prefer patterns from a trusted column you control.
+</Warning>

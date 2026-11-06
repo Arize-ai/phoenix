@@ -1,9 +1,10 @@
-import { describe, it, assertType, expect } from "vitest";
+import type OpenAI from "openai";
+import invariant from "tiny-invariant";
+import { assertType, describe, expect, it } from "vitest";
+
 import { toOpenAI } from "../../../src/prompts/sdks/toOpenAI";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
-import type OpenAI from "openai";
-import { PromptVersion } from "../../../src/types/prompts";
-import invariant from "tiny-invariant";
+import type { PromptVersion } from "../../../src/types/prompts";
 import {
   BASE_MOCK_PROMPT_VERSION,
   BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
@@ -61,6 +62,30 @@ describe("toOpenAI type compatibility", () => {
 
     assertType<ChatCompletionCreateParams>(result);
   });
+
+  it.each([true, false, undefined])(
+    "preserves response format strict=%s",
+    (strict) => {
+      const jsonSchema = {
+        ...BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT.response_format.json_schema,
+        strict,
+      };
+      const prompt = {
+        ...BASE_MOCK_PROMPT_VERSION,
+        response_format: {
+          type: "json_schema",
+          json_schema: jsonSchema,
+        },
+      } satisfies PromptVersion;
+
+      const result = toSDK({ sdk: "openai", prompt });
+
+      expect(result?.response_format).toEqual({
+        type: "json_schema",
+        json_schema: jsonSchema,
+      });
+    }
+  );
 
   it("should handle typed variables", () => {
     const mockPrompt = {
@@ -264,4 +289,43 @@ describe("toOpenAI type compatibility", () => {
       ],
     });
   });
+
+  it.each([
+    ["azure_openai", "azure_openai"],
+    ["deepseek", "deepseek"],
+    ["xai", "xai"],
+    ["ollama", "ollama"],
+    ["cerebras", "cerebras"],
+    ["fireworks", "fireworks"],
+    ["groq", "groq"],
+    ["moonshot", "moonshot"],
+    ["perplexity", "perplexity"],
+    ["together", "together"],
+    ["zai", "zai"],
+    ["meta", "meta"],
+  ])(
+    "forwards OpenAI-family invocation parameters from legacy %s discriminator",
+    (type, contentKey) => {
+      const mockPrompt = {
+        ...BASE_MOCK_PROMPT_VERSION,
+        invocation_parameters: {
+          type,
+          [contentKey]: {
+            temperature: 0.2,
+            max_completion_tokens: 128,
+            top_p: 0.9,
+          },
+        },
+      } as PromptVersion;
+
+      const result = toOpenAI({ prompt: mockPrompt });
+
+      expect(result).not.toBeNull();
+      invariant(result, "Expected non-null result");
+
+      expect(result.temperature).toBe(0.2);
+      expect(result.max_completion_tokens).toBe(128);
+      expect(result.top_p).toBe(0.9);
+    }
+  );
 });

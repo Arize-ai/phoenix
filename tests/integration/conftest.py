@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from collections.abc import Generator, Iterator
 from itertools import count, starmap
 from secrets import token_hex
@@ -12,13 +13,12 @@ from _pytest.fixtures import SubRequest
 from faker import Faker
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from portpicker import pick_unused_port  # type: ignore[import-untyped]
+from phoenix.client.__generated__ import v1
 from smtpdfix import AuthController, Config, SMTPDFix
 from smtpdfix.certs import _generate_certs
 from sqlalchemy import URL, make_url
 from typing_extensions import assert_never
 
-from phoenix.client.__generated__ import v1
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 
 from ._helpers import (
@@ -26,7 +26,10 @@ from ._helpers import (
     _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
+    _admin_auth,
     _AppInfo,
+    _auth_env,
+    _DefaultAdminMarker,
     _delete_users,
     _Email,
     _GetUser,
@@ -46,17 +49,57 @@ from ._helpers import (
     _Username,
 )
 
+# Partition the port number space across pytest-xdist workers so that two
+# workers can never hand out the same port. Each worker draws sequentially
+# from a disjoint window carved out of [_PORT_RANGE_START, _PORT_RANGE_END),
+# eliminating cross-worker bind races under -n. The range sits above common
+# service ports and below Linux's default ephemeral range (32768), so the
+# kernel won't lease our reserved ports to unrelated outbound connections.
+_PORT_RANGE_START = 20000
+_PORT_RANGE_END = 32768
+
+
+def _is_port_free(port: int) -> bool:
+    """Return True iff `port` can be bound on loopback right now.
+
+    Binds to 127.0.0.1 rather than 0.0.0.0: a loopback bind still fails
+    against an existing 0.0.0.0 binding (0.0.0.0 covers all interfaces
+    including loopback), so the check catches the cases that actually
+    matter in a test environment while avoiding exposing even an
+    unlistening socket on all interfaces.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
 
 @pytest.fixture(scope="session")
-def _ports() -> Iterator[int]:
-    def _(used: list[int]) -> Iterator[int]:
-        while True:
-            port = pick_unused_port()
-            if port not in used:
-                used.append(port)
+def _ports(request: pytest.FixtureRequest, worker_id: str) -> Iterator[int]:
+    # `worker_id` is provided by pytest-xdist: "gw0", "gw1", ... under -n,
+    # or "master" when running without xdist. `workercount` is set by xdist
+    # on each worker's config.workerinput; it's stable in practice but not
+    # part of xdist's documented public API.
+    if worker_id == "master":
+        worker_idx, worker_count = 0, 1
+    else:
+        worker_idx = int(worker_id.removeprefix("gw"))
+        worker_count = request.config.workerinput["workercount"]  # type: ignore[attr-defined]
+
+    window_size = (_PORT_RANGE_END - _PORT_RANGE_START) // worker_count
+    start = _PORT_RANGE_START + worker_idx * window_size
+    end = start + window_size
+
+    def _allocate() -> Iterator[int]:
+        for port in count(start):
+            if port >= end:
+                raise RuntimeError(f"Worker {worker_id} exhausted its port window [{start}, {end})")
+            if _is_port_free(port):
                 yield port
 
-    return _([])
+    return _allocate()
 
 
 @pytest.fixture(scope="session")
@@ -143,10 +186,10 @@ def _users(
                 role=role_str,
             )
             json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=False)
-            resp = _httpx_client(app, app.admin_secret).post(url=url, json=json_)
+            resp = _httpx_client(app, _admin_auth(app)).post(url=url, json=json_)
             resp.raise_for_status()
             gid = _GqlId(cast(v1.CreateUserResponseBody, resp.json())["data"]["id"])
-            app, role, profile = yield _User(gid, role, profile)
+            app, role, profile = yield _User(gid, role, profile, profile_picture_url=None)
 
     g = _()
     next(g)
@@ -157,7 +200,7 @@ def _users(
 def _new_user(
     _users: _UserGenerator,
 ) -> Iterator[_UserFactory]:
-    clean_ups: list[Callable[[], None]] = []
+    clean_ups: list[Callable[[], list[_GqlId]]] = []
 
     def _(
         app: _AppInfo,
@@ -167,7 +210,7 @@ def _new_user(
         profile: Optional[_Profile] = None,
     ) -> _User:
         user = _users.send((app, role, profile))
-        clean_ups.append(lambda: _delete_users(app, app.admin_secret, users=[user]))
+        clean_ups.append(lambda: _delete_users(app, _admin_auth(app), users=[user]))
         return user
 
     yield _
@@ -190,7 +233,9 @@ def _get_user(
         profile: Optional[_Profile] = None,
     ) -> _User:
         assert profile is None or isinstance(role_or_user, UserRoleInput)
-        if isinstance(role_or_user, _User):
+        if isinstance(role_or_user, _DefaultAdminMarker):
+            return app.default_admin
+        elif isinstance(role_or_user, _User):
             user = role_or_user
             return user
         elif isinstance(role_or_user, UserRoleInput):
@@ -227,6 +272,8 @@ def _env_ports(
     return {
         "PHOENIX_PORT": str(next(_ports)),
         "PHOENIX_GRPC_PORT": str(next(_ports)),
+        # Disable error masking to see actual errors in tests
+        "PHOENIX_MASK_INTERNAL_SERVER_ERRORS": "false",
     }
 
 
@@ -235,21 +282,27 @@ def _env_database(
     _sql_database_url: URL,
 ) -> Iterator[dict[str, str]]:
     """Configure database environment variables for testing."""
+    import asyncio
+
     env = {"PHOENIX_SQL_DATABASE_URL": _sql_database_url.render_as_string()}
     if not _sql_database_url.get_backend_name().startswith("postgresql"):
         yield env
     else:
-        with _random_schema(_sql_database_url) as schema:
+        loop = asyncio.new_event_loop()
+        ctx = _random_schema(_sql_database_url)
+        schema = loop.run_until_complete(ctx.__aenter__())
+        try:
             yield {**env, "PHOENIX_SQL_DATABASE_SCHEMA": schema}
+        finally:
+            loop.run_until_complete(ctx.__aexit__(None, None, None))
+            loop.close()
 
 
 @pytest.fixture(scope="package")
 def _env_auth() -> dict[str, str]:
     """Configure authentication and security environment variables for testing."""
     return {
-        "PHOENIX_ENABLE_AUTH": "true",
-        "PHOENIX_SECRET": token_hex(16),
-        "PHOENIX_ADMIN_SECRET": token_hex(16),
+        **_auth_env(),
         "PHOENIX_DISABLE_RATE_LIMIT": "true",
         "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,",
     }
@@ -304,14 +357,15 @@ def _smtpd(
 
 @pytest.fixture(autouse=True, scope="session")
 def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
-    from opentelemetry.exporter.otlp.proto.grpc import exporter
-    from opentelemetry.exporter.otlp.proto.http import trace_exporter
+    from opentelemetry.exporter.otlp.common import http as otlp_http
+    from opentelemetry.exporter.otlp.proto.grpc import exporter as grpc_exporter
 
-    assert isinstance(exporter, ModuleType)
-    assert isinstance(trace_exporter, ModuleType)
+    assert isinstance(grpc_exporter, ModuleType)
+    assert isinstance(otlp_http, ModuleType)
 
-    name = "_MAX_RETRYS"
-    assert isinstance(getattr(exporter, name), int)
-    assert isinstance(getattr(trace_exporter, name), int)
-    setattr(exporter, name, 2)
-    setattr(trace_exporter, name, 2)
+    grpc_name = "_MAX_RETRYS"  # upstream name is misspelled
+    http_name = "_MAX_RETRIES"
+    assert isinstance(getattr(grpc_exporter, grpc_name), int)
+    assert isinstance(getattr(otlp_http, http_name), int)
+    setattr(grpc_exporter, grpc_name, 2)
+    setattr(otlp_http, http_name, 2)

@@ -69,7 +69,21 @@ from typing import Any, Optional, Union, cast
 import numpy as np
 from openinference.semconv import trace
 from openinference.semconv.trace import DocumentAttributes, SpanAttributes
-from typing_extensions import assert_never
+from typing_extensions import TypeAlias, assert_never
+
+# Mirrors opentelemetry.util.types.AttributeValue, which mypy does not accept as a type
+# alias since opentelemetry-api 1.45 (it is defined by chained assignment).
+AttributeValue: TypeAlias = Union[
+    str,
+    bool,
+    int,
+    float,
+    bytes,
+    Sequence["AttributeValue"],
+    Mapping[str, "AttributeValue"],
+    None,
+]
+Attributes: TypeAlias = Optional[Mapping[str, AttributeValue]]
 
 DOCUMENT_METADATA = DocumentAttributes.DOCUMENT_METADATA
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
@@ -202,7 +216,7 @@ def load_json_strings(key_values: Iterable[tuple[str, Any]]) -> Iterator[tuple[s
             except Exception:
                 yield key, value
             else:
-                if dict_value:
+                if dict_value is not None:
                     yield key, dict_value
         else:
             yield key, value
@@ -256,7 +270,7 @@ class _Trie(defaultdict[Union[str, int], "_Trie"]):
 
     def add_branch(self, branch: Union[str, int]) -> "_Trie":
         if branch in self.indices:
-            self.indices.discard(cast(int, branch))
+            self.indices.discard(branch)
         self.branches.add(branch)
         return self[branch]
 

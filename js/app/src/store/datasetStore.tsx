@@ -1,0 +1,326 @@
+import { commitLocalUpdate, fetchQuery, graphql } from "react-relay";
+import { ConnectionHandler } from "relay-runtime";
+import { create } from "zustand";
+import { devtools, persist } from "zustand/middleware";
+
+import { DATASET_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
+import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
+import {
+  DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
+  sanitizeExperimentMetricChartKeys,
+} from "@phoenix/pages/dataset/constants";
+import RelayEnvironment from "@phoenix/RelayEnvironment";
+
+import type { datasetStore_latestVersionQuery } from "./__generated__/datasetStore_latestVersionQuery.graphql";
+import type { datasetStore_summaryQuery } from "./__generated__/datasetStore_summaryQuery.graphql";
+
+interface DatasetVersion {
+  id: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface DatasetStoreProps {
+  /**
+   * The dataset currently loaded in the store
+   */
+  datasetId: string;
+  /**
+   * The dataset name
+   */
+  datasetName: string;
+  /**
+   * Tracks the latest version of the dataset
+   * so that the UI stays consistent with any edits
+   */
+  latestVersion: DatasetVersion | null;
+  /**
+   * Track if the latest version is being refreshed
+   */
+  isRefreshingLatestVersion: boolean;
+  /**
+   * Bumped to ask the examples table to refetch its rows when the version has
+   * not changed but the rows' related records have (e.g. a split was deleted
+   * out from under them).
+   */
+  examplesRefreshToken: number;
+  /**
+   * The metric charts to show above the experiments table
+   */
+  experimentsMetricChartKeys: ExperimentMetricChartKey[];
+  /**
+   * Whether the metric charts above the experiments table are shown
+   */
+  areExperimentsMetricChartsVisible: boolean;
+  /**
+   * Whether the experiments table shows each experiment's deltas against the
+   * dataset's baseline experiment
+   */
+  areExperimentsDeltasVisible: boolean;
+}
+
+export type InitialDatasetStoreProps = Pick<
+  DatasetStoreProps,
+  "latestVersion" | "datasetId" | "datasetName"
+>;
+
+export interface DatasetStoreState extends DatasetStoreProps {
+  /**
+   * Refreshes the latest version of the dataset
+   */
+  refreshLatestVersion: () => Promise<void>;
+  /**
+   * Re-reads the dataset's labels and splits into the Relay store, for
+   * changes made to those instance-wide entities outside this page's own
+   * controls (e.g. by a PXI script).
+   */
+  refreshSummary: () => Promise<void>;
+  /**
+   * Asks the examples table to refetch its current rows.
+   */
+  requestExamplesRefresh: () => void;
+  /**
+   * Set the metric charts to show above the experiments table
+   */
+  setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => void;
+  /**
+   * Show or hide the metric charts above the experiments table
+   */
+  setAreExperimentsMetricChartsVisible: (isVisible: boolean) => void;
+  /**
+   * Show or hide the experiments table's deltas against the baseline
+   */
+  setAreExperimentsDeltasVisible: (isVisible: boolean) => void;
+}
+
+const makeDatasetStoreKey = (datasetId: string) =>
+  `${DATASET_STORAGE_KEY_PREFIX}${datasetId}`;
+
+export const createDatasetStore = (initialProps: InitialDatasetStoreProps) => {
+  return create<DatasetStoreState>()(
+    persist(
+      devtools(
+        (set, get) => ({
+          ...initialProps,
+          isRefreshingLatestVersion: false,
+          examplesRefreshToken: 0,
+          refreshSummary: async () => {
+            await fetchDatasetSummary({ datasetId: get().datasetId });
+          },
+          requestExamplesRefresh: () => {
+            set(
+              { examplesRefreshToken: get().examplesRefreshToken + 1 },
+              false,
+              { type: "requestExamplesRefresh" }
+            );
+          },
+          refreshLatestVersion: async () => {
+            const dataset = get();
+            set({ isRefreshingLatestVersion: true }, false, {
+              type: "refreshLatestVersionInit",
+            });
+            try {
+              const newVersion = await fetchLatestVersion({
+                datasetId: dataset.datasetId,
+              });
+              if (newVersion) {
+                prependVersionToHistory({
+                  datasetId: dataset.datasetId,
+                  versionId: newVersion.id,
+                });
+              }
+              set(
+                { latestVersion: newVersion, isRefreshingLatestVersion: false },
+                false,
+                { type: "refreshLatestVersionSuccess" }
+              );
+            } catch (error) {
+              // Leave `latestVersion` alone — a failed refresh must not look like
+              // a successful one — but never strand the in-flight flag.
+              set({ isRefreshingLatestVersion: false }, false, {
+                type: "refreshLatestVersionError",
+              });
+              throw error;
+            }
+          },
+          experimentsMetricChartKeys: DEFAULT_EXPERIMENT_METRIC_CHART_KEYS,
+          setExperimentsMetricChartKeys: (keys: ExperimentMetricChartKey[]) => {
+            set({ experimentsMetricChartKeys: keys }, false, {
+              type: "setExperimentsMetricChartKeys",
+            });
+          },
+          areExperimentsMetricChartsVisible: true,
+          setAreExperimentsMetricChartsVisible: (isVisible: boolean) => {
+            set({ areExperimentsMetricChartsVisible: isVisible }, false, {
+              type: "setAreExperimentsMetricChartsVisible",
+            });
+          },
+          areExperimentsDeltasVisible: true,
+          setAreExperimentsDeltasVisible: (isVisible: boolean) => {
+            set({ areExperimentsDeltasVisible: isVisible }, false, {
+              type: "setAreExperimentsDeltasVisible",
+            });
+          },
+        }),
+        {
+          name: "datasetStore",
+        }
+      ),
+      {
+        name: makeDatasetStoreKey(initialProps.datasetId),
+        // Only the view preferences persist; the rest of the store (latest
+        // version, refresh state) must stay fresh per load
+        partialize: (state) => ({
+          experimentsMetricChartKeys: state.experimentsMetricChartKeys,
+          areExperimentsMetricChartsVisible:
+            state.areExperimentsMetricChartsVisible,
+          areExperimentsDeltasVisible: state.areExperimentsDeltasVisible,
+        }),
+        merge: (persistedState, currentState) => {
+          const merged = {
+            ...currentState,
+            ...(persistedState as Partial<DatasetStoreState>),
+          };
+          merged.experimentsMetricChartKeys = sanitizeExperimentMetricChartKeys(
+            merged.experimentsMetricChartKeys,
+            DEFAULT_EXPERIMENT_METRIC_CHART_KEYS
+          );
+          merged.areExperimentsMetricChartsVisible =
+            merged.areExperimentsMetricChartsVisible !== false;
+          merged.areExperimentsDeltasVisible =
+            merged.areExperimentsDeltasVisible !== false;
+          return merged;
+        },
+      }
+    )
+  );
+};
+
+export type DatasetStore = ReturnType<typeof createDatasetStore>;
+
+async function fetchLatestVersion({
+  datasetId,
+}: {
+  datasetId: string;
+}): Promise<DatasetVersion | null> {
+  const data = await fetchQuery<datasetStore_latestVersionQuery>(
+    RelayEnvironment,
+    graphql`
+      query datasetStore_latestVersionQuery($datasetId: ID!) {
+        dataset: node(id: $datasetId) {
+          id
+          ... on Dataset {
+            exampleCount
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
+              edges {
+                version: node {
+                  id
+                  description
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      datasetId,
+    }
+  ).toPromise();
+  const versions = data?.dataset.latestVersions?.edges;
+  const latestVersion =
+    (versions && versions.length && versions[0].version) || null;
+  return latestVersion;
+}
+
+/**
+ * Re-fetches the fields of the dataset that summarize instance-wide entities
+ * (labels, splits) plus its row count. The result is normalized into the Relay
+ * store, so the page header, table rows, and pickers re-render from it.
+ */
+async function fetchDatasetSummary({
+  datasetId,
+}: {
+  datasetId: string;
+}): Promise<void> {
+  await fetchQuery<datasetStore_summaryQuery>(
+    RelayEnvironment,
+    graphql`
+      query datasetStore_summaryQuery($datasetId: ID!) {
+        dataset: node(id: $datasetId) {
+          id
+          ... on Dataset {
+            exampleCount
+            labels {
+              id
+              name
+              color
+            }
+            splits {
+              id
+              name
+              color
+            }
+          }
+        }
+      }
+    `,
+    { datasetId },
+    { fetchPolicy: "network-only" }
+  ).toPromise();
+}
+
+/**
+ * The `@connection` key of the versions table on the dataset's Versions tab.
+ * Kept in sync with `DatasetHistoryTable_versions` in `DatasetHistoryTable`.
+ */
+const HISTORY_CONNECTION_KEY = "DatasetHistoryTable_versions";
+
+/**
+ * Adds a newly created version to the top of the Versions tab's list.
+ *
+ * The Versions tab is its own route, and its loader renders from the Relay
+ * store when the list is already cached, so a version created from another
+ * tab would otherwise stay missing until a full reload. The list is sorted
+ * newest first, matching where the version is inserted. Nothing happens when
+ * the list has never been loaded or already holds the version.
+ */
+function prependVersionToHistory({
+  datasetId,
+  versionId,
+}: {
+  datasetId: string;
+  versionId: string;
+}) {
+  commitLocalUpdate(RelayEnvironment, (store) => {
+    const dataset = store.get(datasetId);
+    const version = store.get(versionId);
+    if (!dataset || !version) {
+      return;
+    }
+    const connection = ConnectionHandler.getConnection(
+      dataset,
+      HISTORY_CONNECTION_KEY
+    );
+    if (!connection) {
+      return;
+    }
+    const isListed = (connection.getLinkedRecords("edges") ?? []).some(
+      (edge) => edge?.getLinkedRecord("node")?.getDataID() === versionId
+    );
+    if (isListed) {
+      return;
+    }
+    const edge = ConnectionHandler.createEdge(
+      store,
+      connection,
+      version,
+      "DatasetVersionEdge"
+    );
+    ConnectionHandler.insertEdgeBefore(connection, edge);
+  });
+}
