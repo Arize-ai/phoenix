@@ -97,6 +97,14 @@ PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
     "SESSION evaluators and is rejected for SPAN. The target is fixed at creation."
 )
 
+PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION = (
+    "Whether each evaluation writes a trace to the project evaluator's trace project. A trace "
+    "records the evaluator's inputs, outputs, latency, and token cost. With tracing off, "
+    "evaluations still write their annotations but no trace, which saves storage at the cost "
+    "of that visibility. Changing it applies to evaluations that start afterwards and does "
+    "not re-evaluate anything."
+)
+
 
 @strawberry.enum
 class EvaluatorKind(Enum):
@@ -1753,6 +1761,12 @@ class ProjectEvaluator(Node):
     @strawberry.field
     async def enabled(self, info: Info[Context, None]) -> bool:
         return (await self._get_record(info)).enabled
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
+    async def tracing_enabled(self, info: Info[Context, None]) -> bool:
+        return (await self._get_record(info)).tracing_enabled
 
     @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:

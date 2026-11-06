@@ -29,6 +29,8 @@ type ProjectEvaluatorTracesProps = {
   projectId: string;
   projectEvaluatorId: string;
   hasEverRun: boolean;
+  /** Whether evaluations still write traces; older traces stay either way. */
+  isTracingEnabled: boolean;
 };
 
 /**
@@ -47,6 +49,7 @@ function ProjectEvaluatorTracesContent({
   projectId,
   projectEvaluatorId,
   hasEverRun,
+  isTracingEnabled,
 }: ProjectEvaluatorTracesProps) {
   // Read once at mount. The table writes each applied filter back to the URL,
   // and deriving the variables from the live param would re-execute the query
@@ -83,6 +86,7 @@ function ProjectEvaluatorTracesContent({
                   projectId={projectId}
                   projectEvaluatorId={projectEvaluatorId}
                   hasEverRun={hasEverRun}
+                  isTracingEnabled={isTracingEnabled}
                   seed={seed}
                 />
               ) : (
@@ -100,6 +104,7 @@ function ProjectEvaluatorTracesTable({
   projectId,
   projectEvaluatorId,
   hasEverRun,
+  isTracingEnabled,
   seed,
 }: ProjectEvaluatorTracesProps & { seed: SettledSpanFilterSeed }) {
   const { timeRangeISOStrings } = useTimeRange();
@@ -147,12 +152,34 @@ function ProjectEvaluatorTracesTable({
       seed={seed}
       selectedRowId={traceId}
       projectEvaluatorId={projectEvaluatorId}
-      emptyState={<ProjectEvaluatorTracesEmpty hasEverRun={hasEverRun} />}
+      emptyState={
+        <ProjectEvaluatorTracesEmpty
+          hasEverRun={hasEverRun}
+          isTracingEnabled={isTracingEnabled}
+        />
+      }
     />
   );
 }
 
-function ProjectEvaluatorTracesEmpty({ hasEverRun }: { hasEverRun: boolean }) {
+function ProjectEvaluatorTracesEmpty({
+  hasEverRun,
+  isTracingEnabled,
+}: {
+  hasEverRun: boolean;
+  isTracingEnabled: boolean;
+}) {
+  if (!isTracingEnabled) {
+    return (
+      <TableEmptyWrap>
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="trace" />}
+          title="Tracing is off"
+          description="This evaluator stores only the annotations its evaluations write. To record a trace of each evaluation, edit the evaluator and turn on tracing under Advanced."
+        />
+      </TableEmptyWrap>
+    );
+  }
   if (!hasEverRun) {
     return (
       <TableEmptyWrap>

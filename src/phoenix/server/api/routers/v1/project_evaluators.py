@@ -40,6 +40,12 @@ from phoenix.server.evaluators.services.management import EVALUATOR_TYPENAME_BY_
 router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
 
 
+_TRACING_ENABLED_DESCRIPTION = (
+    "Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the "
+    "binding's trace project. Off saves storage; annotations are still written."
+)
+
+
 class CreateProjectEvaluatorRequest(EvaluatorRequest):
     name: Identifier = Field(description="Unique among this project's evaluators.")
     evaluator_id: str = Field(
@@ -52,6 +58,7 @@ class CreateProjectEvaluatorRequest(EvaluatorRequest):
     sampling_rate: float = Field(ge=0, le=1, allow_inf_nan=False)
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = Field(default=True, description=_TRACING_ENABLED_DESCRIPTION)
     input_mapping: Optional[InputMapping] = Field(
         default=None,
         description=(
@@ -78,6 +85,7 @@ class PatchProjectEvaluatorRequest(EvaluatorRequest):
     sampling_rate: float = Field(default=UNDEFINED, ge=0, le=1, allow_inf_nan=False)
     filter_condition: str = Field(default=UNDEFINED)
     enabled: bool = Field(default=UNDEFINED)
+    tracing_enabled: bool = Field(default=UNDEFINED, description=_TRACING_ENABLED_DESCRIPTION)
     input_mapping: Optional[InputMapping] = Field(
         default=UNDEFINED,
         description=(
@@ -114,6 +122,7 @@ class ProjectEvaluator(V1RoutesBaseModel):
         description="Written in the filter language of the target: span, trace, or session."
     )
     enabled: bool
+    tracing_enabled: bool = Field(description=_TRACING_ENABLED_DESCRIPTION)
     input_mapping: Optional[InputMapping] = Field(
         description=(
             "The binding's own input mapping; null means the evaluator's mapping applies "
@@ -171,6 +180,7 @@ def _binding_response(row: models.ProjectEvaluator, kind: models.EvaluatorKind) 
         sampling_rate=row.sampling_rate,
         filter_condition=row.filter_condition,
         enabled=row.enabled,
+        tracing_enabled=row.tracing_enabled,
         input_mapping=row.input_mapping,
         evaluation_delay_seconds=row.evaluation_delay_seconds,
     )
@@ -212,6 +222,7 @@ async def create_project_evaluator(
                 sampling_rate=body.sampling_rate,
                 filter_condition=body.filter_condition,
                 enabled=body.enabled,
+                tracing_enabled=body.tracing_enabled,
                 input_mapping=body.input_mapping,
                 evaluation_delay_seconds=body.evaluation_delay_seconds,
             ),

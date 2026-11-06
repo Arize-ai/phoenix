@@ -3628,6 +3628,12 @@ export interface components {
              * @default true
              */
             enabled?: boolean;
+            /**
+             * Tracing Enabled
+             * @description Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written.
+             * @default true
+             */
+            tracing_enabled?: boolean;
             /** @description Null uses the evaluator's mapping. LLM evaluators have none, so only variables rooted at input, output, or metadata bind (for example {{metadata.turns}}); anything else needs input_mapping. */
             input_mapping?: components["schemas"]["InputMapping"] | null;
             /**
@@ -5902,6 +5908,11 @@ export interface components {
             filter_condition?: string;
             /** Enabled */
             enabled?: boolean;
+            /**
+             * Tracing Enabled
+             * @description Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written.
+             */
+            tracing_enabled?: boolean;
             /** @description Omit to preserve. Null clears the binding's mapping, so the evaluator's applies. */
             input_mapping?: components["schemas"]["InputMapping"] | null;
             /**
@@ -6173,6 +6184,11 @@ export interface components {
             filter_condition: string;
             /** Enabled */
             enabled: boolean;
+            /**
+             * Tracing Enabled
+             * @description Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written.
+             */
+            tracing_enabled: boolean;
             /** @description The binding's own input mapping; null means the evaluator's mapping applies (LLM evaluators have none). */
             input_mapping: components["schemas"]["InputMapping"] | null;
             /**

@@ -60,6 +60,7 @@ import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/C
 import { DecisionProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/DecisionProjectEvaluatorDetails";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
+import { ProjectEvaluatorAdvancedDetails } from "@phoenix/pages/project/evaluators/ProjectEvaluatorAdvancedDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
@@ -346,6 +347,9 @@ function ProjectEvaluatorDetailsPageContent({
                       <ProjectEvaluatorScopeDetails
                         projectEvaluatorRef={projectEvaluator}
                       />
+                      <ProjectEvaluatorAdvancedDetails
+                        projectEvaluatorRef={projectEvaluator}
+                      />
                       <AnnotationConfigurationCard
                         projectEvaluatorRef={projectEvaluator}
                       />
@@ -377,6 +381,7 @@ function ProjectEvaluatorDetailsPageContent({
                 projectId={projectEvaluator.traceProject.id}
                 projectEvaluatorId={projectEvaluator.id}
                 hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
+                isTracingEnabled={projectEvaluator.tracingEnabled}
               />
             </Suspense>
           </LazyTabPanel>

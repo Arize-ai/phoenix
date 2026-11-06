@@ -16606,6 +16606,12 @@
             "title": "Enabled",
             "default": true
           },
+          "tracing_enabled": {
+            "type": "boolean",
+            "title": "Tracing Enabled",
+            "description": "Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written.",
+            "default": true
+          },
           "input_mapping": {
             "anyOf": [
               {
@@ -22437,6 +22443,11 @@
             "type": "boolean",
             "title": "Enabled"
           },
+          "tracing_enabled": {
+            "type": "boolean",
+            "title": "Tracing Enabled",
+            "description": "Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written."
+          },
           "input_mapping": {
             "anyOf": [
               {
@@ -23127,6 +23138,11 @@
             "type": "boolean",
             "title": "Enabled"
           },
+          "tracing_enabled": {
+            "type": "boolean",
+            "title": "Tracing Enabled",
+            "description": "Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written."
+          },
           "input_mapping": {
             "anyOf": [
               {
@@ -23156,6 +23172,7 @@
           "sampling_rate",
           "filter_condition",
           "enabled",
+          "tracing_enabled",
           "input_mapping",
           "evaluation_delay_seconds"
         ],

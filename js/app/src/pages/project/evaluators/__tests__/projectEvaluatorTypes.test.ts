@@ -42,6 +42,7 @@ describe("withProjectEvaluatorTarget", () => {
             filterCondition: "custom filter",
             samplingRate: 0.25,
             evaluationDelaySeconds: 90,
+            tracingEnabled: false,
           },
           targetType,
         })
@@ -50,6 +51,7 @@ describe("withProjectEvaluatorTarget", () => {
         filterCondition: EXPECTED_DEFAULT_FILTER_BY_TARGET[targetType],
         samplingRate: 0.25,
         evaluationDelaySeconds: 90,
+        tracingEnabled: false,
       });
     }
   );
