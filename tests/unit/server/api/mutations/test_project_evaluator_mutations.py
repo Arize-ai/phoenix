@@ -1317,7 +1317,7 @@ def _llm_update_input(
 
 @pytest.mark.parametrize(
     "start",
-    ["create", "add", "enable", "re_enable", "filter_edit", "sampling_edit"],
+    ["create", "create_code", "add", "enable", "re_enable", "filter_edit", "sampling_edit"],
 )
 async def test_span_evaluator_skips_spans_that_arrived_before_it_started(
     gql_client: AsyncGraphQLClient,
@@ -1348,6 +1348,13 @@ async def test_span_evaluator_skips_spans_that_arrived_before_it_started(
         added = await gql_client.execute(_ADD_CODE, {"input": add_input})
         assert added.data and not added.errors
         project_evaluator_id = added.data["addProjectCodeEvaluator"]["evaluator"]["id"]
+    elif start == "create_code":
+        created = await gql_client.execute(
+            _CREATE_CODE,
+            {"input": {**_code_create_input(project, sandbox_config), "samplingRate": 1.0}},
+        )
+        assert created.data and not created.errors
+        project_evaluator_id = created.data["createProjectCodeEvaluator"]["evaluator"]["id"]
     else:
         create_input = {
             **_llm_input(project, name="span-llm", text="{{input}}"),
@@ -1359,7 +1366,7 @@ async def test_span_evaluator_skips_spans_that_arrived_before_it_started(
         created = await gql_client.execute(_CREATE_LLM, {"input": create_input})
         assert created.data and not created.errors
         project_evaluator_id = created.data["createProjectLlmEvaluator"]["evaluator"]["id"]
-    if start not in ("create", "add"):
+    if start not in ("create", "create_code", "add"):
         # Started before these spans, as if the producer had passed them while it was off.
         async with db() as session:
             await session.merge(

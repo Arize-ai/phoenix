@@ -160,6 +160,33 @@ async def test_queue_counts_stop_at_the_limit(
     ]
 
 
+async def test_summed_queue_counts_stay_at_the_limit(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
+    async with db() as session:
+        project = await _add_project(session)
+    await _seed_pending_spans(db, project, [timedelta(minutes=1)] * 3)
+    _, trace_evaluator_id = await _seed_criteria(db, project.id, evaluation_target="TRACE")
+    async with db() as session:
+        for _ in range(3):
+            session.add(
+                models.EvalTraceWorkUnit(
+                    trace_rowid=(await _add_trace(session, project)).id,
+                    project_evaluator_id=trace_evaluator_id,
+                    decided_through=datetime.now(timezone.utc),
+                )
+            )
+
+    queue = await load_evaluation_queue(db)
+    assert [queue.target(target).queued_count for target in ("SPAN", "TRACE")] == [2, 2]
+    assert queue.queued_count == 2
+    project_queue = await ProjectEvaluationQueueDataLoader(
+        db, ProjectEvaluatorQueuesDataLoader(db)
+    ).load(project.id)
+    assert project_queue.queued_count == 2
+
+
 def test_added_rate_stops_at_the_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
     now = datetime.now(timezone.utc)

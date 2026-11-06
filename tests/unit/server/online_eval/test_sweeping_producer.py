@@ -22,6 +22,7 @@ from phoenix.server.online_eval.derivation import (
 )
 from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
+from phoenix.server.online_eval.project_evaluator_state import start_at_database_time
 from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
     SweepingEvaluationProducer,
@@ -209,6 +210,39 @@ async def test_queues_with_501_schedulable_criteria(
             select(func.count()).select_from(models.EvalSessionWorkUnit)
         )
     assert work_count == 501
+
+
+@pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
+async def test_sweep_position_never_moves_back_past_an_enable(
+    db: DbSessionFactory, evaluation_target: models.EvaluationTarget
+) -> None:
+    """An enable starts the sweep at now, ahead of the due time a sweep would write."""
+    async with db() as session:
+        project = await _add_project(session)
+    _, project_evaluator_id = await _seed_criteria(
+        db, project.id, evaluation_target=evaluation_target
+    )
+    await _set_delay(db, project_evaluator_id, 300)
+    async with db() as session:
+        await start_at_database_time(session, project_evaluator_id)
+
+    async def swept_through_at() -> datetime | None:
+        async with db() as session:
+            return await session.scalar(
+                select(models.ProjectEvaluatorState.swept_through_at).where(
+                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
+                )
+            )
+
+    enabled_at = await swept_through_at()
+    assert enabled_at is not None
+    producer = (
+        TraceEvaluationProducer(db)
+        if evaluation_target == "TRACE"
+        else SessionEvaluationProducer(db)
+    )
+    await producer._tick()
+    assert await swept_through_at() == enabled_at
 
 
 async def test_sweep_position_reaches_a_full_page_or_the_due_time(
