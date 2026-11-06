@@ -135,18 +135,15 @@ export const getErrorMessagesFromRelaySubscriptionError = (
 
 /**
  * Extracts the server's message from the `error` body openapi-fetch returns
- * for a failed REST request. FastAPI sends `{ detail: string }` for an
- * HTTPException and `{ detail: [{ msg, ... }] }` for a request validation error.
- * Phoenix serves HTTPExceptions as plain text, which openapi-fetch keeps as a
- * string.
- * @param error - the `error` returned by openapi-fetch
- * @returns the detail message, or an empty string when the body has none
+ * for a failed REST request. Phoenix serves HTTPExceptions as plain text;
+ * FastAPI otherwise sends `{ detail: string }` for an HTTPException and
+ * `{ detail: [{ msg, ... }] }` for a request validation error.
  */
 export const getRestErrorDetail = (error: unknown): string => {
   if (typeof error === "string") {
     const text = error.trim();
-    // An HTML page, e.g. a reverse proxy's 502, is not a message to show.
-    return text.startsWith("<") ? "" : text;
+    const isHtmlPage = text.startsWith("<");
+    return isHtmlPage ? "" : text;
   }
   if (!isPlainObject(error)) {
     return "";

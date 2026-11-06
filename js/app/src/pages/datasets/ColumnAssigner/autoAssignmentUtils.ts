@@ -15,15 +15,7 @@ export type AutoAssignmentResult = ColumnAssignerValue & {
   exampleIdKey: string | null;
 };
 
-/**
- * True when a preview value of `column` is a Phoenix DatasetExample node ID,
- * as in the `id` column of a Phoenix CSV/JSONL export. The server rejects
- * those IDs when creating a new dataset (422), so create mode must not
- * auto-select such a column as the Example ID.
- * Only the preview rows are checked: a column whose node IDs start after
- * the preview still gets auto-selected (the server's 422 detail then says why).
- */
-function holdsDatasetExampleIds({
+function holdsDatasetExampleNodeIds({
   column,
   columns,
   rows,
@@ -42,8 +34,30 @@ function holdsDatasetExampleIds({
 }
 
 /**
- * Auto-assign columns based on name matching heuristics. In create mode an
- * ID-named column holding DatasetExample node IDs is not auto-selected.
+ * Node IDs name examples of an existing dataset, which a new dataset cannot
+ * contain, so an exported `id` column is left unselected in create mode.
+ */
+function isAutoExampleIdColumn({
+  column,
+  columns,
+  rows,
+  mode,
+}: {
+  column: string;
+  columns: string[];
+  rows: PreviewData;
+  mode: "create" | "append";
+}): boolean {
+  if (!isAutoIdColumn(column)) {
+    return false;
+  }
+  return (
+    mode === "append" || !holdsDatasetExampleNodeIds({ column, columns, rows })
+  );
+}
+
+/**
+ * Auto-assign columns based on name matching heuristics.
  */
 export function computeAutoAssignment({
   columns,
@@ -65,13 +79,7 @@ export function computeAutoAssignment({
     if (isAutoSplitColumn(column)) {
       result.splitKey ??= column; // first match wins
     }
-    if (
-      isAutoIdColumn(column) &&
-      !(
-        mode === "create" &&
-        holdsDatasetExampleIds({ column, columns, rows: previewRows })
-      )
-    ) {
+    if (isAutoExampleIdColumn({ column, columns, rows: previewRows, mode })) {
       result.exampleIdKey ??= column; // first match wins
     }
     const bucket = getAutoAssignment(column);

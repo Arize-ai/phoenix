@@ -612,7 +612,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           bodySerializer: () => formData,
         });
         if (!response.ok || !result) {
-          // openapi-fetch has already read the body into `error`.
           throw new Error(
             getRestErrorDetail(error) ||
               response.statusText ||
