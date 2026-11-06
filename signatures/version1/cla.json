@@ -2879,6 +2879,14 @@
       "created_at": "2026-11-06T00:00:47Z",
       "repoId": 564072810,
       "pullRequestNo": 17374
+    },
+    {
+      "name": "kyuminjo",
+      "id": 136665534,
+      "comment_id": 6676548103,
+      "created_at": "2026-11-06T04:03:27Z",
+      "repoId": 564072810,
+      "pullRequestNo": 17700
     }
   ]
 }
