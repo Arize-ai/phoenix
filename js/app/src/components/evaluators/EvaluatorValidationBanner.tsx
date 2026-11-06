@@ -1,7 +1,5 @@
 import { Alert } from "@phoenix/components";
-
-export const EVALUATOR_VALIDATION_MESSAGE =
-  "Please fix the highlighted errors before submitting.";
+import { EVALUATOR_VALIDATION_MESSAGE } from "@phoenix/constants";
 
 /**
  * The banner an evaluator form shows above its fields when a submit attempt

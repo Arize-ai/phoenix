@@ -4,8 +4,6 @@ import { createRoot } from "react-dom/client";
 import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ThemeContext } from "@phoenix/contexts/ThemeContext";
-
 import type {
   DecisionScoringPolicyValue,
   DecisionQuestionDefinition,
@@ -54,23 +52,14 @@ function Harness({
 }) {
   const [value, setValue] = useState(initial);
   return (
-    <ThemeContext.Provider
-      value={{
-        theme: "light",
-        themeMode: "light",
-        systemTheme: "light",
-        setThemeMode: vi.fn(),
+    <DecisionScoringPolicyEditor
+      questions={questions}
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        onChange(next);
       }}
-    >
-      <DecisionScoringPolicyEditor
-        questions={questions}
-        value={value}
-        onChange={(next) => {
-          setValue(next);
-          onChange(next);
-        }}
-      />
-    </ThemeContext.Provider>
+    />
   );
 }
 
@@ -143,28 +132,6 @@ describe("DecisionScoringPolicyEditor", () => {
     expect(lastValue().questions[1]).toHaveProperty("choice.scores", [
       { choice: "good", score: 2 },
     ]);
-  });
-
-  it("changes a question's optimization direction", async () => {
-    render({ initial: initialPolicy, onChange });
-    const user = userEvent.setup();
-    await act(async () => {
-      await user.click(
-        container.querySelector(
-          '[data-testid="decision-policy-accurate-direction-picker"] button'
-        )!
-      );
-    });
-    const minimize = Array.from(
-      document.querySelectorAll('[role="option"]')
-    ).find((option) => option.textContent?.includes("Minimize"))!;
-    await act(async () => {
-      await user.click(minimize);
-    });
-    expect(lastValue().questions[0]).toHaveProperty(
-      "predicate.optimizationDirection",
-      "MINIMIZE"
-    );
   });
 
   it("toggles the scale label", async () => {

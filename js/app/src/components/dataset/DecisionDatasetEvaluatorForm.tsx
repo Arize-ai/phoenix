@@ -193,7 +193,7 @@ function DecisionDatasetEvaluatorFormContent({
               preview={preview}
               onTest={onTest}
               helpText={getEvaluatorPreviewHelpText("DECISION")}
-              isDisabled={isSubmitting}
+              isDisabled={!isDraftReady || isSubmitting}
             />
           }
         />

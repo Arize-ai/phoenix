@@ -1,104 +1,41 @@
-import { Autocomplete, Input, useFilter } from "react-aria-components";
-
 import {
-  Button,
-  Icon,
-  Icons,
-  Menu,
-  MenuContainer,
-  MenuHeader,
-  MenuItem,
-  MenuTrigger,
-  SearchField,
-  SelectChevronUpDownIcon,
-  Text,
-} from "@phoenix/components";
-import { CompactEmptyState } from "@phoenix/components/core/empty";
-import { SearchIcon } from "@phoenix/components/core/field";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { sourceMenuTriggerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
+  PromptOrDecisionMenu,
+  type PromptOrDecisionMenuItem,
+} from "@phoenix/pages/playground/PromptOrDecisionMenu";
 
-export type DecisionMenuItem = {
-  id: string;
-  name: string;
-};
+export type DecisionMenuItem = PromptOrDecisionMenuItem;
 
 /**
- * Picks a saved decision from a searchable menu, drawn like the playground's
- * prompt menu. Sits to the left of a {@link DecisionVersionSelector} in a
- * `CompositeField` once a decision is selected.
+ * Picks a saved decision, drawn like the playground's prompt menu. Joins a
+ * {@link DecisionVersionSelector} in a `CompositeField` once a decision is
+ * selected.
  */
 export function DecisionMenu({
   decisions,
   selectedDecision,
   isDisabled,
+  hasVersionSelector,
   onSelectDecision,
 }: {
   decisions: readonly DecisionMenuItem[];
   /** The selected decision; it need not be in `decisions`. */
   selectedDecision: DecisionMenuItem | null;
   isDisabled?: boolean;
+  hasVersionSelector: boolean;
   onSelectDecision: (decisionId: string) => void;
 }) {
-  const { contains } = useFilter({ sensitivity: "base" });
-  const hasDecisions = decisions.length > 0;
-  const emptyText = hasDecisions ? "Select a decision" : "No saved decisions";
   return (
-    <MenuTrigger>
-      <Button
-        data-testid="decision-menu-button"
-        size="S"
-        className="left-child"
-        isDisabled={isDisabled || !hasDecisions}
-        data-has-selection={selectedDecision ? true : undefined}
-        css={sourceMenuTriggerCSS}
-      >
-        <Truncate
-          maxWidth="var(--text-max-width)"
-          title={selectedDecision?.name}
-        >
-          {selectedDecision?.name ?? (
-            <Text color="text-500" fontStyle="italic">
-              {emptyText}
-            </Text>
-          )}
-        </Truncate>
-        <SelectChevronUpDownIcon />
-      </Button>
-      <MenuContainer placement="bottom start" minHeight={0}>
-        <Autocomplete filter={contains}>
-          <MenuHeader>
-            <SearchField
-              aria-label="Search decisions"
-              variant="quiet"
-              autoFocus
-            >
-              <SearchIcon />
-              <Input placeholder="Search decisions" />
-            </SearchField>
-          </MenuHeader>
-          <Menu
-            selectionMode="single"
-            selectedKeys={selectedDecision ? [selectedDecision.id] : []}
-            items={decisions}
-            renderEmptyState={() => (
-              <CompactEmptyState
-                icon={<Icon svg={<Icons.Edit />} />}
-                description="No decisions"
-              />
-            )}
-            onAction={(key) => onSelectDecision(String(key))}
-          >
-            {({ id, name }) => (
-              <MenuItem id={id} textValue={name}>
-                <Truncate maxLines={2} title={name}>
-                  {name}
-                </Truncate>
-              </MenuItem>
-            )}
-          </Menu>
-        </Autocomplete>
-      </MenuContainer>
-    </MenuTrigger>
+    <PromptOrDecisionMenu
+      data-testid="decision-menu-button"
+      items={decisions}
+      selectedItem={selectedDecision}
+      onSelect={onSelectDecision}
+      isDisabled={isDisabled}
+      hasVersionSelector={hasVersionSelector}
+      placeholder="Select a decision"
+      noItemsText="No saved decisions"
+      searchLabel="Search decisions"
+      noMatchesText="No decisions"
+    />
   );
 }

@@ -19,7 +19,7 @@ import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 export const DEFAULT_OPTIMIZATION_DIRECTION: EvaluatorOptimizationDirection =
   "MAXIMIZE";
 
-export const optimizationDirectionOptions: {
+const optimizationDirectionOptions: {
   value: EvaluatorOptimizationDirection;
   label: string;
 }[] = [
@@ -37,11 +37,10 @@ const getOptimizationDirectionLabel = (
   );
 };
 
-export type OptimizationDirectionSelectProps = {
+type OptimizationDirectionSelectProps = {
   value: EvaluatorOptimizationDirection;
   onChange: (value: EvaluatorOptimizationDirection) => void;
   isDisabled?: boolean;
-  size?: "S" | "M" | "L";
   /** Helper text rendered beneath the field via the `description` slot. */
   description?: string;
   "aria-label"?: string;
@@ -56,7 +55,6 @@ export function OptimizationDirectionSelect({
   value,
   onChange,
   isDisabled,
-  size,
   description,
   "aria-label": ariaLabel = "Optimization direction",
   "data-testid": testId = "optimization-direction-picker",
@@ -67,7 +65,6 @@ export function OptimizationDirectionSelect({
       value={value}
       onChange={(key) => onChange(key as EvaluatorOptimizationDirection)}
       isDisabled={isDisabled}
-      size={size}
       aria-label={ariaLabel}
       css={css`
         width: 100%;

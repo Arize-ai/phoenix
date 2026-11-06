@@ -1,6 +1,6 @@
 import { pickDeclaredInputMapping } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
-import { EVALUATOR_VALIDATION_MESSAGE } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
+import { EVALUATOR_VALIDATION_MESSAGE } from "@phoenix/constants";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 

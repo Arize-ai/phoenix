@@ -11,7 +11,6 @@ import {
   EvaluatorStoreProvider,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
-import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
 import galleryQuery, {
   type projectEvaluatorGalleryModalQuery,
@@ -80,30 +79,7 @@ vi.mock(
   () => ({ DecisionVersionPicker: () => null })
 );
 vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
-  DecisionPromptEditor: () => {
-    const store = usePlaygroundStore();
-    return (
-      <button
-        onClick={() => {
-          const instance = store.getState().instances[0];
-          store.getState().updateInstance({
-            instanceId: 1,
-            patch: {
-              model: {
-                ...instance.model,
-                modelName: "jev-latest",
-                provider: "TYPESAFE",
-                modelType: "DECISION",
-              },
-            },
-            dirty: true,
-          });
-        }}
-      >
-        Pick model
-      </button>
-    );
-  },
+  DecisionPromptEditor: () => null,
 }));
 
 installTestStorage();
@@ -208,7 +184,7 @@ describe("Project decision evaluator forms", () => {
       </>
     );
 
-  it("creates the evaluator on the default model and binds it to the project's spans", async () => {
+  it("creates the evaluator and binds it to the project's spans", async () => {
     await renderCreate();
     await click("Create");
 
@@ -231,7 +207,6 @@ describe("Project decision evaluator forms", () => {
 
   it("sends nothing while a field fails validation", async () => {
     await renderCreate(<RejectAllFields />);
-    await click("Pick model");
     await click("Create");
 
     expect(commit).not.toHaveBeenCalled();

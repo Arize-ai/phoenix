@@ -43,6 +43,26 @@ const policy: DecisionScoringPolicyValue = {
   ],
 };
 
+const invalidPolicy: DecisionScoringPolicyValue = {
+  questions: [
+    {
+      predicate: {
+        name: "relevant",
+        threshold: 1.5,
+        optimizationDirection: "MAXIMIZE",
+      },
+    },
+    {
+      choice: {
+        name: "tone",
+        scores: [{ choice: "friendly", score: Number.NaN }],
+        optimizationDirection: "MAXIMIZE",
+      },
+    },
+    policy.questions[2],
+  ],
+};
+
 function ScoringEditor({
   initial,
   isDisabled,
@@ -76,9 +96,14 @@ export const Default: Story = {
   render: () => <ScoringEditor initial={policy} />,
 };
 
-export const Defaults: Story = {
+export const UnsetScores: Story = {
   tags: ["updated", "complete", "unreviewed", "!dev"],
   render: () => <ScoringEditor initial={buildDefaultPolicy(questions)} />,
+};
+
+export const Invalid: Story = {
+  tags: ["updated", "complete", "unreviewed", "!dev"],
+  render: () => <ScoringEditor initial={invalidPolicy} />,
 };
 
 export const Disabled: Story = {

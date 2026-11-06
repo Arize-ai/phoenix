@@ -6,12 +6,10 @@ import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/Evalua
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
-import {
-  EVALUATOR_VALIDATION_MESSAGE,
-  EvaluatorValidationBanner,
-} from "@phoenix/components/evaluators/EvaluatorValidationBanner";
+import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators/useLlmEvaluatorDraftRegistration";
+import { EVALUATOR_VALIDATION_MESSAGE } from "@phoenix/constants";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
 export const EditLLMEvaluatorDialogContent = ({

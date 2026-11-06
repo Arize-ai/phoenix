@@ -229,6 +229,7 @@ export function ProjectEvaluatorTestBench({
       >
         <Button
           size="S"
+          variant="primary"
           leadingVisual={
             <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
           }

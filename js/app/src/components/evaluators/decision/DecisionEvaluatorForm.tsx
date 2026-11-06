@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 import {
   Alert,
@@ -14,11 +14,19 @@ import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/D
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { DecisionPromptEditor } from "@phoenix/pages/playground/DecisionPromptEditor";
+import {
+  createDecisionDraft,
+  hasDecisionErrors,
+  validateDecisionDraft,
+} from "@phoenix/pages/playground/decisionUtils";
 import { DecisionVersionSelector } from "@phoenix/pages/playground/DecisionVersionSelector";
 import { PlaygroundInstanceModelControls } from "@phoenix/pages/playground/PlaygroundInstanceControls";
 import { sourceMenuContainerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
 import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
+import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 /**
  * A decision evaluator's definition, laid out like the LLM evaluator form: a
@@ -40,6 +48,29 @@ export function DecisionEvaluatorForm({
   showInputMapping?: boolean;
 }) {
   const { initialEvaluator } = draft;
+  const evaluatorStore = useEvaluatorStoreInstance();
+  const playgroundStore = usePlaygroundStore();
+  const [showAllDecisionErrors, setShowAllDecisionErrors] = useState(false);
+  const triggerDecisionValidation = useCallback(async () => {
+    setShowAllDecisionErrors(true);
+    const state = playgroundStore.getState();
+    const decisionDraft =
+      selectPlaygroundInstanceDecisionPrompt(
+        DECISION_EVALUATOR_DRAFT_INSTANCE_ID
+      )(state) ?? createDecisionDraft();
+    return !hasDecisionErrors(
+      validateDecisionDraft({
+        draft: decisionDraft,
+        templateFormat: state.templateFormat,
+      })
+    );
+  }, [playgroundStore]);
+  useEffect(() => {
+    const unregister = evaluatorStore
+      .getState()
+      .registerValidator("decisionPrompt", triggerDecisionValidation);
+    return unregister;
+  }, [evaluatorStore, triggerDecisionValidation]);
   return (
     <>
       {initialEvaluator ? (
@@ -72,6 +103,7 @@ export function DecisionEvaluatorForm({
                 decisions={[]}
                 selectedDecision={initialEvaluator.decisionVersion.decision}
                 isDisabled
+                hasVersionSelector
                 onSelectDecision={() => undefined}
               />
               <DecisionVersionSelector
@@ -114,6 +146,7 @@ export function DecisionEvaluatorForm({
           <View paddingY="size-100" marginBottom="size-200" flex="none">
             <DecisionPromptEditor
               playgroundInstanceId={DECISION_EVALUATOR_DRAFT_INSTANCE_ID}
+              showAllErrors={showAllDecisionErrors}
             />
           </View>
           <View marginBottom="size-200" flex="none">

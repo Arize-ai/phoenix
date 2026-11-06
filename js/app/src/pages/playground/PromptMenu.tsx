@@ -30,10 +30,8 @@ import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 import type { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
-import {
-  sourceMenuContainerCSS,
-  sourceMenuTriggerCSS,
-} from "@phoenix/pages/playground/searchablePickerStyles";
+import { PromptOrDecisionMenu } from "@phoenix/pages/playground/PromptOrDecisionMenu";
+import { sourceMenuContainerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 export type PromptVersion = {
@@ -187,6 +185,7 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
             prompts={prompts}
             selectedPrompt={selectedPrompt}
             onSelectPrompt={handleSelectPrompt}
+            hasVersionSelector
           />
           <PromptVersionSelector
             prompt={selectedPrompt}
@@ -206,6 +205,7 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
         prompts={prompts}
         selectedPrompt={selectedPrompt}
         onSelectPrompt={handleSelectPrompt}
+        hasVersionSelector={false}
       />
     </div>
   );
@@ -219,74 +219,24 @@ export function PromptSelector({
   prompts,
   selectedPrompt,
   onSelectPrompt,
+  hasVersionSelector,
 }: {
   prompts: PromptData[];
   selectedPrompt: PromptData | null;
   onSelectPrompt: (promptId: string) => void;
+  hasVersionSelector: boolean;
 }) {
-  const { contains } = useFilter({ sensitivity: "base" });
-
-  const promptItems = useMemo(() => {
-    return prompts.map((p) => ({
-      id: p.id,
-      name: p.name,
-    }));
-  }, [prompts]);
-
-  const hasPrompts = prompts.length > 0;
-
-  const emptyText = hasPrompts ? "Select a prompt" : "No saved prompts";
   return (
-    <MenuTrigger>
-      <Button
-        size="S"
-        className="left-child"
-        isDisabled={!hasPrompts}
-        data-has-selection={selectedPrompt ? true : undefined}
-        css={sourceMenuTriggerCSS}
-      >
-        <Truncate maxWidth="var(--text-max-width)" title={selectedPrompt?.name}>
-          {selectedPrompt?.name ?? (
-            <Text color="text-500" fontStyle="italic">
-              {emptyText}
-            </Text>
-          )}
-        </Truncate>
-        <SelectChevronUpDownIcon />
-      </Button>
-      <MenuContainer placement="bottom start" minHeight={0}>
-        <Autocomplete filter={contains}>
-          <MenuHeader>
-            <SearchField aria-label="Search prompts" variant="quiet" autoFocus>
-              <SearchIcon />
-              <Input placeholder="Search prompts" />
-            </SearchField>
-          </MenuHeader>
-          <Menu
-            selectionMode="single"
-            selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
-            items={promptItems}
-            renderEmptyState={() => (
-              <CompactEmptyState
-                icon={<Icon svg={<Icons.Edit />} />}
-                description="No prompts"
-              />
-            )}
-            onAction={(key) => {
-              onSelectPrompt(String(key));
-            }}
-          >
-            {({ id, name }) => (
-              <MenuItem id={id} textValue={name}>
-                <Truncate maxLines={2} title={name}>
-                  {name}
-                </Truncate>
-              </MenuItem>
-            )}
-          </Menu>
-        </Autocomplete>
-      </MenuContainer>
-    </MenuTrigger>
+    <PromptOrDecisionMenu
+      items={prompts}
+      selectedItem={selectedPrompt}
+      onSelect={onSelectPrompt}
+      hasVersionSelector={hasVersionSelector}
+      placeholder="Select a prompt"
+      noItemsText="No saved prompts"
+      searchLabel="Search prompts"
+      noMatchesText="No prompts"
+    />
   );
 }
 

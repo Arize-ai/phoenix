@@ -129,22 +129,21 @@ export function DecisionVersionPicker({
   const selectedDecision = value
     ? { id: value.decisionId, name: value.decisionName }
     : null;
-  const menu = (
-    <Suspense fallback={<Loading size="S" />}>
-      <SavedDecisionMenu
-        selectedDecision={selectedDecision}
-        isDisabled={isDisabled}
-        onSelectDecision={(decisionId) => select(decisionId, {})}
-      />
-    </Suspense>
-  );
+  const showVersionSelector = value != null && !isDisabled;
   return (
     <div css={pickerCSS}>
       {error ? <Alert variant="danger">{error}</Alert> : null}
       <div css={sourceMenuContainerCSS}>
-        {value && !isDisabled ? (
-          <CompositeField>
-            {menu}
+        <CompositeField>
+          <Suspense fallback={<Loading size="S" />}>
+            <SavedDecisionMenu
+              selectedDecision={selectedDecision}
+              isDisabled={isDisabled}
+              hasVersionSelector={showVersionSelector}
+              onSelectDecision={(decisionId) => select(decisionId, {})}
+            />
+          </Suspense>
+          {showVersionSelector ? (
             <DecisionVersionSelector
               decision={{
                 id: value.decisionId,
@@ -157,10 +156,8 @@ export function DecisionVersionPicker({
               }
               onSelectTag={(tagName) => select(value.decisionId, { tagName })}
             />
-          </CompositeField>
-        ) : (
-          menu
-        )}
+          ) : null}
+        </CompositeField>
       </div>
     </div>
   );
@@ -176,10 +173,12 @@ const pickerCSS = css`
 function SavedDecisionMenu({
   selectedDecision,
   isDisabled,
+  hasVersionSelector,
   onSelectDecision,
 }: {
   selectedDecision: DecisionMenuItem | null;
   isDisabled?: boolean;
+  hasVersionSelector: boolean;
   onSelectDecision: (decisionId: string) => void;
 }) {
   const data = useLazyLoadQuery<DecisionVersionPickerDecisionsQuery>(
@@ -203,6 +202,7 @@ function SavedDecisionMenu({
       decisions={data.decisions.edges.map(({ decision }) => decision)}
       selectedDecision={selectedDecision}
       isDisabled={isDisabled}
+      hasVersionSelector={hasVersionSelector}
       onSelectDecision={(decisionId) => {
         if (decisionId !== selectedDecision?.id) {
           onSelectDecision(decisionId);

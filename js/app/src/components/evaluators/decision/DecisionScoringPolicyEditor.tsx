@@ -174,8 +174,12 @@ function QuestionFields({
           role="group"
           aria-label={`${choice.name} scores`}
         >
-          <Text>Choice</Text>
-          <Text>Score</Text>
+          <Text size="XS" weight="heavy">
+            Choice
+          </Text>
+          <Text size="XS" weight="heavy">
+            Score
+          </Text>
           {definition.choices.map((value) => (
             <Fragment key={value}>
               <TextField isDisabled value={value} aria-label={value}>

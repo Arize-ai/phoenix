@@ -311,21 +311,6 @@ describe("Decision dataset evaluator authoring", () => {
     );
     expect(document.body.textContent).not.toContain("Saved evaluator name");
   });
-  it("tests a new draft on the default decision model", async () => {
-    await render();
-    await click("Test");
-    expect(calls(PREVIEW)).toHaveLength(1);
-    expect(calls(PREVIEW)[0][1].variables.input.previews[0]).toMatchObject({
-      evaluator: {
-        inlineDecisionEvaluator: {
-          decisionVersion: {
-            modelProvider: "TYPESAFE",
-            modelName: "jev-latest",
-          },
-        },
-      },
-    });
-  });
   it("previews the unsaved definition, scoring and current mapping without saving", async () => {
     await render();
     await click("Author revised Decision");
