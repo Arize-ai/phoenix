@@ -159,19 +159,27 @@ def report_on_status_comment(
 
 
 def add_preview_label(*, pr_number: int, token: Optional[str]) -> None:
-    """Label the PR for factory-preview.yml, creating the label on use so no repo lacks it."""
-    run_gh(
-        "label",
-        "create",
-        PREVIEW_LABEL,
-        "--color",
-        PREVIEW_LABEL_COLOR,
-        "--description",
-        PREVIEW_LABEL_DESCRIPTION,
-        "--force",
-        token=token,
-    )
-    run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+    """Label the PR for factory-preview.yml, creating the label if the repo lacks it.
+
+    The preview is a convenience on top of a PR that is already ready for review, so a
+    failure here is a warning, not the run's outcome.
+    """
+    try:
+        existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
+        if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:
+            run_gh(
+                "label",
+                "create",
+                PREVIEW_LABEL,
+                "--color",
+                PREVIEW_LABEL_COLOR,
+                "--description",
+                PREVIEW_LABEL_DESCRIPTION,
+                token=token,
+            )
+        run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
