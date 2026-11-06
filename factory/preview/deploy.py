@@ -26,7 +26,8 @@ import seed_log
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
-SEED_TIMEOUT_SECONDS = 10 * 60
+# The launcher's own budget, its drain, and two minutes for the log to catch up.
+SEED_WAIT_SECONDS = seed_log.SEED_TIMEOUT_SECONDS + seed_log.RELAY_DRAIN_SECONDS + 120
 # SKIPPED is not final here: Railway superseded the deployment with one it queued itself,
 # for example from the service's creation, and that one is the one to follow.
 DEPLOYMENT_FINAL_STATUSES = {
@@ -64,8 +65,12 @@ def railway(query: str, **variables: Any) -> dict[str, Any]:
         raise RailwayError(f"HTTP {error.code}: {error.read().decode(errors='replace')}") from error
     except (urllib.error.URLError, TimeoutError) as error:
         raise RailwayError(f"request failed: {error}") from error
+    except ValueError as error:
+        raise RailwayError(f"response was not JSON: {error}") from error
     if payload.get("errors"):
         raise RailwayError(json.dumps(payload["errors"]))
+    if "data" not in payload:
+        raise RailwayError(f"response had no data: {json.dumps(payload)[:500]}")
     return dict(payload["data"])
 
 
@@ -183,8 +188,9 @@ def wait_for_deployment(
     listed yet, and a failed poll, count as pending.
     """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
-    deployment_id, status = "", "PENDING"
+    deployment_id = ""
     while time.monotonic() < deadline:
+        status = "PENDING"
         try:
             ours = [
                 d
@@ -193,11 +199,8 @@ def wait_for_deployment(
             ]
             if ours:
                 deployment_id, status = str(ours[0]["id"]), str(ours[0]["status"])
-            else:
-                status = "PENDING"
         except RailwayError as error:
             print(f"::warning::Polling deployments: {error}", flush=True)
-            status = "PENDING"
         print(f"deployment {deployment_id or '(pending)'}: {status}", flush=True)
         if status in DEPLOYMENT_FINAL_STATUSES:
             return deployment_id, status
@@ -258,7 +261,7 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     run that has started but not finished is still pending. Output lines are taken from
     anywhere after the run started, so lines the relay flushed after the outcome count too.
     """
-    deadline = time.monotonic() + SEED_TIMEOUT_SECONDS
+    deadline = time.monotonic() + SEED_WAIT_SECONDS
     log = LogTail(deployment_id)
     while time.monotonic() < deadline:
         log.refresh()
@@ -287,13 +290,19 @@ def run_gh(*args: str, input_text: Optional[str] = None) -> str:
     ).stdout
 
 
+def ghcr_package(image: str) -> tuple[str, str]:
+    """(org, package name) of a ghcr.io image reference, with or without a tag."""
+    org, _, package = image.removeprefix("ghcr.io/").partition("/")
+    return org, package.partition(":")[0]
+
+
 def delete_image_tags(*, image: str, pr_number: int) -> int:
     """Delete every GHCR version tagged for this PR (pr-N and pr-N-*); return how many.
 
     GitHub refuses to delete a package's last tagged version, so a refusal is reported and
     skipped rather than failing the teardown.
     """
-    org, _, package = image.removeprefix("ghcr.io/").partition("/")
+    org, package = ghcr_package(image)
     tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
     try:
         version_ids = set(
@@ -334,8 +343,7 @@ def image_visibility(*, image: str) -> str:
     is `unknown`, which also stops the run: a wrong guess here costs the 15-minute wait and
     a misleading comment.
     """
-    org, _, package = image.removeprefix("ghcr.io/").partition("/")
-    package = package.partition(":")[0]
+    org, package = ghcr_package(image)
     for attempt in range(3):
         try:
             return run_gh(
@@ -447,13 +455,14 @@ def format_deploy_comment(
 def run_deploy(args: argparse.Namespace) -> int:
     visibility = image_visibility(image=args.image)
     if visibility != "public":
-        package = args.image.partition(":")[0]
+        org, package = ghcr_package(args.image)
         problem = (
-            f"its package is private, so Railway can't pull it. A maintainer needs to make"
-            f" `{package}` public once (see Bootstrap in factory/README.md), then re-add the label"
-            if visibility == "private"
-            else f"GitHub would not say whether `{package}` is public, so the deploy did not"
+            f"GitHub would not say whether `{org}/{package}` is public, so the deploy did not"
             " start. Re-add the label to try again"
+            if visibility == "unknown"
+            else f"its package is {visibility}, so Railway can't pull it. A maintainer needs to"
+            f" make `{org}/{package}` public once (see Bootstrap in factory/README.md), then"
+            " re-add the label"
         )
         upsert_comment(
             pr_number=args.pr, body=f"The image for this preview was pushed, but {problem}."
@@ -495,12 +504,11 @@ def run_deploy(args: argparse.Namespace) -> int:
             ),
         )
         raise
+    logs = ""
     if status == "SUCCESS":
         seed_outcome, seed_output = wait_for_seed(deployment_id)
-        logs = ""
     else:
         seed_outcome, seed_output = "preview: the seed did not run", ""
-        logs = ""
         if deployment_id:
             log = LogTail(deployment_id)
             log.refresh()

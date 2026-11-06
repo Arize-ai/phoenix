@@ -23,11 +23,6 @@ import seed_log
 
 SEED_PATH = Path("/phoenix/preview/seed.py")
 HEALTHY_TIMEOUT_SECONDS = 300
-SEED_TIMEOUT_SECONDS = 480
-# How long to wait for the relay to drain the pipe after the seed exits. The pipe closes
-# when the seed and anything it spawned let go of it; a helper that outlives the seed is
-# the one case this does not cover, and the outcome then precedes its remaining lines.
-RELAY_DRAIN_SECONDS = 30
 
 children: list[subprocess.Popen[bytes]] = []
 stopping = False
@@ -83,7 +78,7 @@ def run_seed(url: str) -> None:
     relay_thread = threading.Thread(target=relay, args=(seed.stdout,), daemon=True)
     relay_thread.start()
     try:
-        seed.wait(timeout=SEED_TIMEOUT_SECONDS)
+        seed.wait(timeout=seed_log.SEED_TIMEOUT_SECONDS)
         outcome = (
             seed_log.FINISHED_LINE
             if seed.returncode == 0
@@ -92,8 +87,11 @@ def run_seed(url: str) -> None:
     except subprocess.TimeoutExpired:
         seed.kill()
         seed.wait()
-        outcome = f"{seed_log.TIMED_OUT_PREFIX}{SEED_TIMEOUT_SECONDS} seconds"
-    relay_thread.join(timeout=RELAY_DRAIN_SECONDS)
+        outcome = f"{seed_log.TIMED_OUT_PREFIX}{seed_log.SEED_TIMEOUT_SECONDS} seconds"
+    # The pipe closes when the seed and anything it spawned let go of it; a helper that
+    # outlives the seed is the one case this does not cover, and the outcome then precedes
+    # its remaining lines.
+    relay_thread.join(timeout=seed_log.RELAY_DRAIN_SECONDS)
     print(outcome, flush=True)
 
 
