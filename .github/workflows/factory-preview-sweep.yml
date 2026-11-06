@@ -1,0 +1,47 @@
+name: Factory Preview Sweep
+
+# Deletes the Railway service and GHCR tags of every preview whose PR is closed or no
+# longer labeled `factory-preview`. Previews are removed only here, never by the PR's own
+# events, so a deploy in progress is never pulled out from under. See "Previewing a PR" in
+# factory/README.md.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: factory-preview-sweep
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+    env:
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            factory/preview
+            pyproject.toml
+          sparse-checkout-cone-mode: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+          enable-cache: false
+      - name: Delete the previews of closed and unlabeled PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
+        run: uv run --script factory/preview/deploy.py sweep --image "ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
