@@ -7,23 +7,13 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 
-import {
-  Alert,
-  Button,
-  Flex,
-  Label,
-  ListBox,
-  Loading,
-  Popover,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
-} from "@phoenix/components";
+import { Alert, CompositeField, Loading } from "@phoenix/components";
 import { DecisionVersionSelector } from "@phoenix/pages/playground/DecisionVersionSelector";
+import { sourceMenuContainerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
 
 import type { DecisionVersionPickerDecisionsQuery } from "./__generated__/DecisionVersionPickerDecisionsQuery.graphql";
 import type { DecisionVersionPickerVersionQuery } from "./__generated__/DecisionVersionPickerVersionQuery.graphql";
+import { DecisionMenu, type DecisionMenuItem } from "./DecisionMenu";
 import type { DecisionQuestionDefinition } from "./decisionPolicyUtils";
 import { toDecisionQuestionDefinitions } from "./decisionPolicyUtils";
 
@@ -90,7 +80,8 @@ const versionQuery = graphql`
 
 /**
  * Picks a saved decision, then one of its versions or tags. Selecting a
- * decision picks its latest version. The version menu is the playground's
+ * decision picks its latest version. The decision menu is drawn like the
+ * playground's prompt menu and the version menu is its
  * {@link DecisionVersionSelector}.
  */
 export function DecisionVersionPicker({
@@ -135,43 +126,59 @@ export function DecisionVersionPicker({
     }
   };
 
+  const selectedDecision = value
+    ? { id: value.decisionId, name: value.decisionName }
+    : null;
+  const showVersionSelector = value != null && !isDisabled;
   return (
-    <Flex direction="column" gap="size-100">
+    <div css={pickerCSS}>
       {error ? <Alert variant="danger">{error}</Alert> : null}
-      <Flex direction="row" gap="size-100" alignItems="end">
-        <Suspense fallback={<Loading />}>
-          <DecisionSelect
-            selectedDecisionId={value?.decisionId ?? null}
-            isDisabled={isDisabled}
-            onSelectDecision={(decisionId) => select(decisionId, {})}
-          />
-        </Suspense>
-        {value && !isDisabled ? (
-          <DecisionVersionSelector
-            decision={{
-              id: value.decisionId,
-              name: value.decisionName,
-              versionId: value.versionId,
-              tag: value.tagName,
-            }}
-            onSelectVersion={(versionId) =>
-              select(value.decisionId, { versionId })
-            }
-            onSelectTag={(tagName) => select(value.decisionId, { tagName })}
-          />
-        ) : null}
-      </Flex>
-    </Flex>
+      <div css={sourceMenuContainerCSS}>
+        <CompositeField>
+          <Suspense fallback={<Loading size="S" />}>
+            <SavedDecisionMenu
+              selectedDecision={selectedDecision}
+              isDisabled={isDisabled}
+              hasVersionSelector={showVersionSelector}
+              onSelectDecision={(decisionId) => select(decisionId, {})}
+            />
+          </Suspense>
+          {showVersionSelector ? (
+            <DecisionVersionSelector
+              decision={{
+                id: value.decisionId,
+                name: value.decisionName,
+                versionId: value.versionId,
+                tag: value.tagName,
+              }}
+              onSelectVersion={(versionId) =>
+                select(value.decisionId, { versionId })
+              }
+              onSelectTag={(tagName) => select(value.decisionId, { tagName })}
+            />
+          ) : null}
+        </CompositeField>
+      </div>
+    </div>
   );
 }
 
-function DecisionSelect({
-  selectedDecisionId,
+const pickerCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+`;
+
+function SavedDecisionMenu({
+  selectedDecision,
   isDisabled,
+  hasVersionSelector,
   onSelectDecision,
 }: {
-  selectedDecisionId: string | null;
+  selectedDecision: DecisionMenuItem | null;
   isDisabled?: boolean;
+  hasVersionSelector: boolean;
   onSelectDecision: (decisionId: string) => void;
 }) {
   const data = useLazyLoadQuery<DecisionVersionPickerDecisionsQuery>(
@@ -191,40 +198,16 @@ function DecisionSelect({
     { fetchPolicy: "network-only" }
   );
   return (
-    <Select
-      aria-label="Decision"
-      placeholder="Select a decision"
+    <DecisionMenu
+      decisions={data.decisions.edges.map(({ decision }) => decision)}
+      selectedDecision={selectedDecision}
       isDisabled={isDisabled}
-      value={selectedDecisionId}
-      onChange={(key) => {
-        if (key != null && key !== selectedDecisionId) {
-          onSelectDecision(String(key));
+      hasVersionSelector={hasVersionSelector}
+      onSelectDecision={(decisionId) => {
+        if (decisionId !== selectedDecision?.id) {
+          onSelectDecision(decisionId);
         }
       }}
-      data-testid="decision-version-picker-decision-select"
-      css={css`
-        flex: 1 1 auto;
-        min-width: 0;
-      `}
-    >
-      <Label>Decision</Label>
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover>
-        <ListBox>
-          {data.decisions.edges.map(({ decision }) => (
-            <SelectItem
-              key={decision.id}
-              id={decision.id}
-              textValue={decision.name}
-            >
-              {decision.name}
-            </SelectItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
+    />
   );
 }

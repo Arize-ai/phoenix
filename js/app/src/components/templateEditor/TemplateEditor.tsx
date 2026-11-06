@@ -40,7 +40,8 @@ type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
   "aria-label"?: string;
   /**
    * Behave like a text input: one line, no gutter, no wrapping. An edit
-   * that would add a line (Enter, a pasted newline) is dropped.
+   * that would add a line (Enter, a pasted newline) is dropped, and Tab
+   * moves focus to the next field instead of inserting a tab.
    */
   singleLine?: boolean;
 };
@@ -188,6 +189,7 @@ export const TemplateEditor = ({
       theme={codeMirrorTheme}
       extensions={extensions}
       basicSetup={singleLine ? singleLineSetupOptions : basicSetupOptions}
+      indentWithTab={!singleLine}
       readOnly={readOnly}
       onCreateEditor={(editorView) => {
         editorViewRef.current = editorView;
