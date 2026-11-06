@@ -69,6 +69,28 @@ def strip_origins(text: Optional[str], *, root_path: str) -> Optional[str]:
     return re.sub(pattern, "", text)
 
 
+_STACK_FRAME_LOCATION = re.compile(r":\d+:\d+")
+_STACK_FRAME_URL = re.compile(r"(?:\(|@|\bat )([^\s()]+):\d+:\d+\)?\s*$")
+_BROWSER_EXTENSION_URL = re.compile(r"(?:chrome|moz|safari-web)-extension://")
+
+
+def is_from_browser_extension(stack: Optional[str]) -> bool:
+    """Whether every frame of a browser stack trace is a browser extension's script.
+
+    A line with a `:line:column` location is a frame. Its script URL is read from
+    Chrome's `at fn (url:1:2)` / `at url:1:2` form and from Firefox's and Safari's
+    `fn@url:1:2` form; a frame it cannot be read from, such as an eval frame, counts
+    as not an extension's.
+    """
+    if not stack:
+        return False
+    frames = [line for line in stack.splitlines() if _STACK_FRAME_LOCATION.search(line)]
+    return bool(frames) and all(
+        (match := _STACK_FRAME_URL.search(frame)) and _BROWSER_EXTENSION_URL.match(match.group(1))
+        for frame in frames
+    )
+
+
 rate_limiter = ServerRateLimiter(
     per_second_rate_limit=1,
     enforcement_window_seconds=20,
@@ -97,7 +119,11 @@ def create_client_errors_router(authentication_enabled: bool) -> APIRouter:
                 "stack": strip_origins(report.stack, root_path=root_path),
             }
         )
-        logger.error(
+        # Extensions running in the page's main world raise their own errors on the
+        # page's window, and older bundles report them; they are not Phoenix errors.
+        level = logging.INFO if is_from_browser_extension(report.stack) else logging.ERROR
+        logger.log(
+            level,
             "Client error at %s: %s",
             report.url or "<unknown url>",
             report.message,
