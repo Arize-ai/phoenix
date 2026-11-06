@@ -58,18 +58,6 @@ export function useQueueStatsPoll(refreshKey: number) {
   return { fetchKey: `${refreshKey}:${poll.count}`, lastHour: poll.lastHour };
 }
 
-const QUEUE_LABEL_BY_TARGET: Record<string, string> = {
-  SPAN: "Spans",
-  TRACE: "Traces",
-  SESSION: "Sessions",
-};
-
-export function getQueueLabel(target: { evaluationTarget: string }): string {
-  return (
-    QUEUE_LABEL_BY_TARGET[target.evaluationTarget] ?? target.evaluationTarget
-  );
-}
-
 /** Each kind of evaluation's color in the queue meter and its legend. */
 export const QUEUE_METER_COLOR_BY_TARGET = {
   SPAN: "category1",
@@ -111,14 +99,14 @@ export function QueueStatusBadge({
   );
 }
 
-/** A per-minute rate as a whole number per hour. */
-export function formatPerHour(perMinute: number): string {
-  return intFormatter(Math.round(perMinute * 60));
+/** Evaluations added per hour, from the per-minute rate; a queue count. */
+export function formatAddedPerHour(addedPerMinute: number): string {
+  return formatQueueCount(Math.round(addedPerMinute * 60));
 }
 
-/** The queued rate as evaluations queued per hour, a queue count. */
-export function formatQueuedPerHour(perMinute: number): string {
-  return formatQueueCount(Math.round(perMinute * 60));
+/** Evaluations completed per hour, from the per-minute rate. */
+export function formatCompletedPerHour(completedPerMinute: number): string {
+  return intFormatter(Math.round(completedPerMinute * 60));
 }
 
 /** How long an evaluation may wait before its queue counts as Degraded. */
@@ -126,6 +114,13 @@ export const DEGRADED_WAIT_MS = 10 * 60_000;
 
 export function hasWaitedTooLong(since: string): boolean {
   return Date.now() - new Date(since).getTime() > DEGRADED_WAIT_MS;
+}
+
+/** A lag p95 above this shows as a warning. */
+export const LAG_WARNING_SECONDS = 10 * 60;
+
+export function isLagWarning(lagSeconds: number): boolean {
+  return lagSeconds > LAG_WARNING_SECONDS;
 }
 
 /** The badge sits on the same line height as the mono values beside it. */

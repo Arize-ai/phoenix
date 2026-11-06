@@ -13,14 +13,14 @@ const runSummary = {
 describe("formatRetainedOutcomeCounts", () => {
   it("omits the parts of the funnel that are empty", () => {
     expect(formatRetainedOutcomeCounts(runSummary)).toBe(
-      "118 evaluated · 2 failed · 3 queued"
+      "118 evaluated · 2 failed · 3 in queue"
     );
     expect(formatRetainedOutcomeCounts({ ...runSummary, failedCount: 0 })).toBe(
-      "118 evaluated · 3 queued"
+      "118 evaluated · 3 in queue"
     );
     expect(
       formatRetainedOutcomeCounts({ ...runSummary, clearedCount: 4 })
-    ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
+    ).toBe("118 evaluated · 2 failed · 4 cleared · 3 in queue");
   });
 });
 

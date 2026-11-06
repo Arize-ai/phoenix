@@ -99,8 +99,8 @@ export function formatElapsedShort(
 }
 
 /**
- * "118 evaluated · 2 failed · 3 cleared · 4 queued", dropping the parts that
- * are zero. Outcomes count every retained evaluation; queued is now.
+ * "118 evaluated · 2 failed · 3 cleared · 4 in queue", dropping the parts that
+ * are zero. Outcomes count every retained evaluation; in queue is now.
  */
 export function formatRetainedOutcomeCounts(
   runSummary: Pick<
@@ -113,7 +113,7 @@ export function formatRetainedOutcomeCounts(
     evaluatedCount > 0 && `${countFormatter.format(evaluatedCount)} evaluated`,
     failedCount > 0 && `${countFormatter.format(failedCount)} failed`,
     clearedCount > 0 && `${countFormatter.format(clearedCount)} cleared`,
-    queuedCount > 0 && `${formatQueueCount(queuedCount)} queued`,
+    queuedCount > 0 && `${formatQueueCount(queuedCount)} in queue`,
   ]
     .filter((part): part is string => part !== false)
     .join(" · ");

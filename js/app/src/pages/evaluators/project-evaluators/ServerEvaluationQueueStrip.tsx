@@ -16,19 +16,19 @@ import {
 } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { EvaluationQueueMeter } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import {
-  DEGRADED_WAIT_MS,
-  formatPerHour,
-  formatQueuedPerHour,
-  getQueueLabel,
+  formatAddedPerHour,
+  formatCompletedPerHour,
   getQueueStatusDetail,
   hasWaitedTooLong,
   HoverDetail,
+  isLagWarning,
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
   useQueueStatsPoll,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
+  formatEvaluationTarget,
   formatElapsedShort,
   formatLag,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
@@ -158,7 +158,7 @@ function ServerEvaluationQueueStripContent({
   const colors = useCategoryChartColors();
   const segments = queue.targets.map((target) => ({
     id: target.evaluationTarget,
-    label: getQueueLabel(target),
+    label: formatEvaluationTarget(target.evaluationTarget),
     count: target.queuedCount,
     color:
       colors[
@@ -176,7 +176,7 @@ function ServerEvaluationQueueStripContent({
   const lag = data.lastHourActivity.lag;
   const isWaitingTooLong =
     queue.oldestWaitingAt != null && hasWaitedTooLong(queue.oldestWaitingAt);
-  const isLagging = lag != null && lag.p95Seconds * 1000 > DEGRADED_WAIT_MS;
+  const isLagging = lag != null && isLagWarning(lag.p95Seconds);
   const clearableCount = getClearableCount(queue);
   useEffect(() => {
     onClearableCount(clearableCount);
@@ -216,17 +216,19 @@ function ServerEvaluationQueueStripContent({
             <EvaluationQueueMeter segments={segments} />
           </Flex>
         </StatItem>
-        <StatItem label="Queued / hr">
-          <StatValue>{formatQueuedPerHour(queue.addedPerMinute)}</StatValue>
+        <StatItem label="Added per hour">
+          <StatValue>{formatAddedPerHour(queue.addedPerMinute)}</StatValue>
         </StatItem>
-        <StatItem label="Completed / hr">
-          <StatValue>{formatPerHour(queue.completedPerMinute)}</StatValue>
+        <StatItem label="Completed per hour">
+          <StatValue>
+            {formatCompletedPerHour(queue.completedPerMinute)}
+          </StatValue>
         </StatItem>
-        <StatItem label="Net / hr">
+        <StatItem label="Net per hour">
           <HoverDetail
             detail={
               <Text size="S" color="text-700">
-                Queued minus completed, last hour
+                Added minus completed, last hour
               </Text>
             }
           >
@@ -237,12 +239,12 @@ function ServerEvaluationQueueStripContent({
             </StatValue>
           </HoverDetail>
         </StatItem>
-        <StatItem label="Lag p95">
+        <StatItem label="Lag p95, last hour">
           <HoverDetail
             detail={
               <>
                 <Text size="S" color="text-700">
-                  Queued to result, last hour
+                  Added to completed
                 </Text>
                 {lag != null ? (
                   <Text size="S">{`p50 ${formatLag(lag.p50Seconds)} · p99 ${formatLag(lag.p99Seconds)}`}</Text>

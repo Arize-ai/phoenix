@@ -6,7 +6,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
-import { DEGRADED_WAIT_MS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import { isLagWarning } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 
 const lagValueCSS = css`
@@ -36,7 +36,7 @@ export function ProjectEvaluatorLagCell({
       </Text>
     );
   }
-  const isLagging = lag.p95Seconds * 1000 > DEGRADED_WAIT_MS;
+  const isLagging = isLagWarning(lag.p95Seconds);
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>

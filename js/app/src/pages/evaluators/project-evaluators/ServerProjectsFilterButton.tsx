@@ -140,7 +140,7 @@ function ServerProjectsFilterContent({
               trailingContent={
                 queuedCount > 0 && totalQueued > 0 ? (
                   <Text size="S" fontFamily="mono" color="text-700">
-                    {`${formatQueueCount(queuedCount)} queued`}
+                    {`${formatQueueCount(queuedCount)} in queue`}
                   </Text>
                 ) : undefined
               }

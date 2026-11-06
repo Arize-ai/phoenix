@@ -47,7 +47,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
-import { DEGRADED_WAIT_MS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import { LAG_WARNING_SECONDS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
@@ -74,8 +74,6 @@ import {
   getEvaluatorTimeSeriesRows,
   getQueueSizeRows,
 } from "./evaluatorActivity";
-
-const DEGRADED_LAG_SECONDS = DEGRADED_WAIT_MS / 1000;
 
 /**
  * At most two rows of evaluators, scrolling past that, so a project with many
@@ -245,7 +243,7 @@ function EvaluatorTimeSeriesChart({
   const lagTicks = isLag
     ? getDurationTicks(
         Math.max(
-          DEGRADED_LAG_SECONDS,
+          LAG_WARNING_SECONDS,
           ...chartData.flatMap((row) =>
             series.map(({ dataKey }) => row[dataKey] ?? 0)
           )
@@ -327,12 +325,12 @@ function EvaluatorTimeSeriesChart({
               )}
               {isLag && (
                 <ReferenceLine
-                  y={DEGRADED_LAG_SECONDS}
+                  y={LAG_WARNING_SECONDS}
                   stroke={semanticColors.warning}
                   strokeDasharray="4 4"
                   ifOverflow="extendDomain"
                   label={{
-                    value: formatLag(DEGRADED_LAG_SECONDS),
+                    value: formatLag(LAG_WARNING_SECONDS),
                     position: "insideTopRight",
                     fill: semanticColors.warning,
                     fontSize: 12,

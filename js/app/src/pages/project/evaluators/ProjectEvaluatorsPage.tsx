@@ -14,7 +14,7 @@ import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evalua
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ClearQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
 import {
-  ProjectEvaluatorQueueAside,
+  ProjectQueueAside,
   QueueStatsRefreshContext,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
@@ -206,7 +206,7 @@ function ProjectEvaluatorsPageContent({
             minSize={QUEUE_ASIDE_MIN_SIZE_PIXELS}
             maxSize={QUEUE_ASIDE_MAX_SIZE_PIXELS}
           >
-            <ProjectEvaluatorQueueAside
+            <ProjectQueueAside
               projectId={projectId}
               refreshKey={queueRefreshKey}
               action={(clearableCount) => (

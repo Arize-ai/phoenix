@@ -35,7 +35,7 @@ export function ProjectEvaluatorStatusCell({
             <Text size="XS">{status.explanation}</Text>
           ) : null}
           <Text size="XS" color="text-700">
-            {`Last run: ${formatRelativeOrNever(runSummary.lastRunAt)}`}
+            {`Last evaluated: ${formatRelativeOrNever(runSummary.lastRunAt)}`}
             {counts ? ` · ${counts}` : ""}
           </Text>
         </Flex>

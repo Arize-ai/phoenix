@@ -49,12 +49,12 @@ const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
     explanation: "Its next evaluation has waited more than 10 minutes",
   },
   HEALTHY: {
-    label: "Running",
+    label: "Healthy",
     variant: "success",
     explanation: null,
   },
   STARTING: {
-    label: "Queued",
+    label: "Starting",
     variant: "info",
     explanation: null,
   },

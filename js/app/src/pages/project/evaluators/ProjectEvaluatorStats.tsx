@@ -164,7 +164,7 @@ function ProjectEvaluatorActivityPanel({
             <Badge variant={status.variant}>{status.label}</Badge>
           )}
         </StatField>
-        <StatField label="last run">
+        <StatField label="last evaluated">
           {runSummary.lastRunAt == null ? (
             <Text size="S">{formatRelativeOrNever(runSummary.lastRunAt)}</Text>
           ) : (
@@ -182,7 +182,7 @@ function ProjectEvaluatorActivityPanel({
             </TooltipTrigger>
           )}
         </StatField>
-        <StatField label="queued">
+        <StatField label="in queue">
           <Text size="S">
             {formatQueueCount(runSummary.queuedCount)}
             {runSummary.oldestWaitingOrRetryingAt != null
@@ -190,7 +190,7 @@ function ProjectEvaluatorActivityPanel({
               : ""}
           </Text>
         </StatField>
-        <StatField label="load">
+        <StatField label="share of evaluation time">
           <ProjectEvaluatorLoad
             evaluationLoad={projectEvaluator.evaluationLoad}
             size="S"

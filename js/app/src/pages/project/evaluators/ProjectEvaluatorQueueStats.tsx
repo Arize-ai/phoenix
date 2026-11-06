@@ -15,6 +15,7 @@ import { useCategoryChartColors } from "@phoenix/components/chart";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import type {
+  EvaluationTarget,
   ProjectEvaluatorQueueStatsQuery,
   ProjectEvaluatorQueueStatsQuery$data,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorQueueStatsQuery.graphql";
@@ -28,13 +29,12 @@ import {
   EvaluationQueueSwatch,
 } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import {
-  DEGRADED_WAIT_MS,
-  formatPerHour,
-  formatQueuedPerHour,
-  getQueueLabel,
+  formatAddedPerHour,
+  formatCompletedPerHour,
   getQueueStatusDetail,
   hasWaitedTooLong,
   HoverDetail,
+  isLagWarning,
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
@@ -42,6 +42,7 @@ import {
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   formatElapsedShort,
+  formatEvaluationTarget,
   formatLag,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
@@ -64,19 +65,19 @@ function noop() {}
 
 type EvaluationQueue = ProjectEvaluatorQueueStatsQuery$data["evaluationQueue"];
 
-/** The rates the queue reports, in total and for each evaluation target. */
+/** A project's added and completed rates. */
 type QueueRates = Pick<
   EvaluationQueue,
   "addedPerMinute" | "completedPerMinute"
 >;
 
 /**
- * The evaluators table's aside: this project's share of the server's
- * evaluation queue, with the queue-wide figures behind the status. Span,
- * trace, and session evaluations of all projects share one queue, so another
- * project's backlog can slow this one.
+ * The evaluators table's aside: this project's part of the server's
+ * evaluation queue, beside the server queue's status. Span, trace, and session
+ * evaluations of all projects share one queue, so another project's backlog
+ * can slow this one.
  */
-export function ProjectEvaluatorQueueAside({
+export function ProjectQueueAside({
   projectId,
   refreshKey,
   action,
@@ -144,20 +145,12 @@ function ProjectEvaluatorQueueStatsContent({
           oldestWaitingAt
           addedPerMinute
           completedPerMinute
-          runningCount
           projects(first: 5) {
             project {
               id
               name
             }
             queuedCount
-          }
-          targets {
-            evaluationTarget
-            queuedCount
-            oldestWaitingAt
-            addedPerMinute
-            completedPerMinute
           }
         }
         project: node(id: $projectId) {
@@ -212,8 +205,8 @@ function ProjectEvaluatorQueueStatsContent({
   }, [clearableCount, onClearableCount]);
   return (
     <>
-      <QueueStatusStat queue={queue} />
-      <QueuedStat
+      <ServerQueueStatusStat queue={queue} />
+      <ProjectQueuedStat
         queue={queue}
         projectId={projectId}
         projectTargets={projectQueue?.targets ?? []}
@@ -222,23 +215,25 @@ function ProjectEvaluatorQueueStatsContent({
       />
       <Flex direction="row" gap="size-400">
         <QueueRateStat
-          label="Queued / hr"
-          project={projectQueue}
-          formatRate={(rates) => formatQueuedPerHour(rates.addedPerMinute)}
-          description="This project's evaluations queued in the last hour"
+          label="Added per hour"
+          rates={projectQueue}
+          formatRate={(rates) => formatAddedPerHour(rates.addedPerMinute)}
+          description="This project's evaluations added in the last hour"
         />
         <QueueRateStat
-          label="Completed / hr"
-          project={projectQueue}
-          formatRate={(rates) => formatPerHour(rates.completedPerMinute)}
-          description="This project's evaluations evaluated or failed in the last hour"
+          label="Completed per hour"
+          rates={projectQueue}
+          formatRate={(rates) =>
+            formatCompletedPerHour(rates.completedPerMinute)
+          }
+          description="This project's evaluations completed in the last hour"
         />
       </Flex>
-      <QueueLagStat
+      <ProjectLagStat
         lagP95Seconds={
           data.project?.evaluationActivity?.lag?.p95Seconds ?? null
         }
-        projectOldestQueuedAt={projectQueue?.oldestWaitingAt ?? null}
+        projectOldestWaitingAt={projectQueue?.oldestWaitingAt ?? null}
       />
     </>
   );
@@ -248,38 +243,38 @@ function ProjectEvaluatorQueueStatsContent({
 function QueueStatsPlaceholder() {
   return (
     <>
-      <StatItem label="Status">
+      <StatItem label="Server queue">
         <StatValue>--</StatValue>
       </StatItem>
       <StatItem label="In queue">
         <StatValue>--</StatValue>
       </StatItem>
       <Flex direction="row" gap="size-400">
-        <StatItem label="Queued / hr">
+        <StatItem label="Added per hour">
           <StatValue>--</StatValue>
         </StatItem>
-        <StatItem label="Completed / hr">
+        <StatItem label="Completed per hour">
           <StatValue>--</StatValue>
         </StatItem>
       </Flex>
-      <StatItem label="Lag p95">
+      <StatItem label="Lag p95, last hour">
         <StatValue>--</StatValue>
       </StatItem>
     </>
   );
 }
 
-function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
+function ServerQueueStatusStat({ queue }: { queue: EvaluationQueue }) {
   const detail = getQueueStatusDetail(queue);
   return (
-    <StatItem label="Status">
+    <StatItem label="Server queue">
       {/* The queue-wide figures live here: the other stats are this project's. */}
       <HoverDetail
         detail={
           <>
             {detail != null ? <Text size="S">{detail}</Text> : null}
             <Text size="S">
-              {`All projects, per hour: ${formatQueuedPerHour(queue.addedPerMinute)} queued · ${formatPerHour(queue.completedPerMinute)} completed`}
+              {`All projects, per hour: ${formatAddedPerHour(queue.addedPerMinute)} added · ${formatCompletedPerHour(queue.completedPerMinute)} completed`}
             </Text>
             {queue.oldestWaitingAt != null ? (
               <Text size="S">{`All projects, longest wait: ${formatElapsedShort(queue.oldestWaitingAt)}`}</Text>
@@ -317,7 +312,7 @@ function getOtherProjectsQueued({
     .reduce((sum, { queuedCount }) => sum + queuedCount, 0);
 }
 
-function QueuedStat({
+function ProjectQueuedStat({
   queue,
   projectId,
   projectTargets,
@@ -328,7 +323,7 @@ function QueuedStat({
   projectId: string;
   /** This project's queued evaluations of each kind. */
   projectTargets: ReadonlyArray<{
-    evaluationTarget: string;
+    evaluationTarget: EvaluationTarget;
     queuedCount: number;
   }>;
   projectQueuedCount: number;
@@ -349,7 +344,7 @@ function QueuedStat({
         ] ?? "category4";
       return {
         id: target.evaluationTarget,
-        label: getQueueLabel(target),
+        label: formatEvaluationTarget(target.evaluationTarget),
         count: target.queuedCount,
         color: colors[color],
       };
@@ -423,13 +418,13 @@ function QueuedStat({
 
 function QueueRateStat({
   label,
-  project,
+  rates,
   formatRate,
   description,
 }: {
   label: string;
   /** This project's rates, or null if the project couldn't be read. */
-  project: QueueRates | null;
+  rates: QueueRates | null;
   formatRate: (rates: QueueRates) => string;
   description: string;
 }) {
@@ -442,38 +437,37 @@ function QueueRateStat({
           </Text>
         }
       >
-        <StatValue>{project != null ? formatRate(project) : "--"}</StatValue>
+        <StatValue>{rates != null ? formatRate(rates) : "--"}</StatValue>
       </HoverDetail>
     </StatItem>
   );
 }
 
 /**
- * How stale this project's results are: p95 time from queued to result over
+ * How stale this project's results are: p95 time from added to completed over
  * the last hour. The longest wait now goes in the hover, since a stuck queue
  * completes nothing and so has no lag.
  */
-function QueueLagStat({
+function ProjectLagStat({
   lagP95Seconds,
-  projectOldestQueuedAt,
+  projectOldestWaitingAt,
 }: {
   lagP95Seconds: number | null;
-  projectOldestQueuedAt: string | null;
+  projectOldestWaitingAt: string | null;
 }) {
   const isWaitingTooLong =
-    projectOldestQueuedAt != null && hasWaitedTooLong(projectOldestQueuedAt);
-  const isLagging =
-    lagP95Seconds != null && lagP95Seconds * 1000 > DEGRADED_WAIT_MS;
+    projectOldestWaitingAt != null && hasWaitedTooLong(projectOldestWaitingAt);
+  const isLagging = lagP95Seconds != null && isLagWarning(lagP95Seconds);
   return (
-    <StatItem label="Lag p95">
+    <StatItem label="Lag p95, last hour">
       <HoverDetail
         detail={
           <>
             <Text size="S" color="text-700">
-              Queued to result, last hour
+              Added to completed
             </Text>
             <Text size="S" color={isWaitingTooLong ? "warning" : undefined}>
-              {`Longest wait: ${projectOldestQueuedAt != null ? formatElapsedShort(projectOldestQueuedAt) : "none"}`}
+              {`Longest wait: ${projectOldestWaitingAt != null ? formatElapsedShort(projectOldestWaitingAt) : "none"}`}
             </Text>
           </>
         }

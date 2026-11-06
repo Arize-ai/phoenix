@@ -12,7 +12,7 @@ export type RankedProject = {
   /** Evaluations of this project in the queue now. */
   queuedCount: number;
   /** Evaluations completed in the time range, evaluated or failed. */
-  evaluationCount: number;
+  completedCount: number;
 };
 
 /**
@@ -39,12 +39,12 @@ export function rankProjects({
       id: project.id,
       name: project.name,
       queuedCount: queuedById.get(project.id)?.queuedCount ?? 0,
-      evaluationCount: evaluatedCount + failedCount,
+      completedCount: evaluatedCount + failedCount,
     }))
     .sort(
       (a, b) =>
         b.queuedCount - a.queuedCount ||
-        b.evaluationCount - a.evaluationCount ||
+        b.completedCount - a.completedCount ||
         a.name.localeCompare(b.name)
     );
 }
@@ -64,7 +64,7 @@ export function getShownProjectIds(
       .map((project) => project.id);
   }
   return ranked
-    .filter((project) => project.queuedCount > 0 || project.evaluationCount > 0)
+    .filter((project) => project.queuedCount > 0 || project.completedCount > 0)
     .slice(0, DEFAULT_SHOWN_PROJECT_COUNT)
     .map((project) => project.id);
 }

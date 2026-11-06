@@ -544,7 +544,7 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "queue",
-        header: "queued",
+        header: "in queue",
         size: 96,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
@@ -553,8 +553,8 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "load",
-        header: "load",
-        size: 72,
+        header: "share of evaluation time",
+        size: 180,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <ProjectEvaluatorLoadCell
@@ -678,7 +678,7 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "averageCost",
-        header: "avg cost / run",
+        header: "avg cost / evaluation",
         size: 200,
         meta: { textAlign: "right" },
         cell: ({ row }) => (

@@ -36,29 +36,34 @@ type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
 const PROJECT_EVALUATORS_LIMIT = 1000;
 
 /**
- * While the queue is Degraded, the evaluators driving it: the fewest that
- * together hold most of it, each holding a sizable part on its own.
+ * While the server queue is Degraded, the evaluators driving it: the fewest
+ * that together hold most of it, each holding a sizable part on its own.
  */
 const DRIVERS_CUMULATIVE_SHARE = 0.8;
 const DRIVER_MIN_SHARE = 0.1;
 
-/** An evaluator's part of the queue, at most all of it. */
-function getQueueShare({
-  queuedCount,
-  totalQueued,
+/** An evaluator's part of the server queue, at most all of it. */
+function getEvaluatorShareOfServerQueue({
+  evaluatorQueuedCount,
+  serverQueuedCount,
 }: {
-  queuedCount: number;
-  totalQueued: number;
+  evaluatorQueuedCount: number;
+  serverQueuedCount: number;
 }): number {
-  return totalQueued > 0 ? Math.min(1, queuedCount / totalQueued) : 0;
+  return serverQueuedCount > 0
+    ? Math.min(1, evaluatorQueuedCount / serverQueuedCount)
+    : 0;
 }
 
-function getQueueDriverIds(
-  rows: ReadonlyArray<{ id: string; runSummary: { queuedCount: number } }>,
-  totalQueued: number
-): Set<string> {
+function getServerQueueDriverIds({
+  rows,
+  serverQueuedCount,
+}: {
+  rows: ReadonlyArray<{ id: string; runSummary: { queuedCount: number } }>;
+  serverQueuedCount: number;
+}): Set<string> {
   const drivers = new Set<string>();
-  if (totalQueued <= 0) {
+  if (serverQueuedCount <= 0) {
     return drivers;
   }
   const ranked = [...rows].sort(
@@ -66,9 +71,9 @@ function getQueueDriverIds(
   );
   let cumulative = 0;
   for (const row of ranked) {
-    const share = getQueueShare({
-      queuedCount: row.runSummary.queuedCount,
-      totalQueued,
+    const share = getEvaluatorShareOfServerQueue({
+      evaluatorQueuedCount: row.runSummary.queuedCount,
+      serverQueuedCount,
     });
     if (cumulative >= DRIVERS_CUMULATIVE_SHARE || share < DRIVER_MIN_SHARE) {
       break;
@@ -106,7 +111,7 @@ const shareCellCSS = css`
   }
 `;
 
-function QueueShareCell({
+function ServerQueueShareCell({
   share,
   isDriver,
 }: {
@@ -250,13 +255,13 @@ export function ProjectEvaluatorsTabTable({
         node.name.toLowerCase().includes(trimmedFilter) ||
         node.project.name.toLowerCase().includes(trimmedFilter)
     );
-  const totalQueued = data.evaluationQueue.queuedCount;
+  const serverQueuedCount = data.evaluationQueue.queuedCount;
   const driverIds =
     data.evaluationQueue.status === "DEGRADED"
-      ? getQueueDriverIds(
-          data.projectEvaluators.edges.map((edge) => edge.node),
-          totalQueued
-        )
+      ? getServerQueueDriverIds({
+          rows: data.projectEvaluators.edges.map((edge) => edge.node),
+          serverQueuedCount,
+        })
       : new Set<string>();
   const columns: ColumnDef<TableRow>[] = [
     {
@@ -319,8 +324,8 @@ export function ProjectEvaluatorsTabTable({
     {
       id: "queue",
       header: () => (
-        <ColumnHeaderWithHelp help="Evaluations waiting to run, including retries, or running now, and how long the longest-waiting one has waited.">
-          queued
+        <ColumnHeaderWithHelp help="Evaluations waiting, retrying or running now, and how long the oldest has waited.">
+          in queue
         </ColumnHeaderWithHelp>
       ),
       size: 110,
@@ -334,17 +339,20 @@ export function ProjectEvaluatorsTabTable({
     {
       id: "share",
       header: () => (
-        <ColumnHeaderWithHelp help="This evaluator's part of everything queued on the server. Highlighted when the queue is degraded and this evaluator is one of the few holding most of it.">
-          queue share
+        <ColumnHeaderWithHelp help="This evaluator's part of the server queue. Highlighted when the queue is degraded and this evaluator is one of the few holding most of it.">
+          share of server queue
         </ColumnHeaderWithHelp>
       ),
-      size: 150,
+      size: 180,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       accessorFn: (row) =>
-        getQueueShare({ queuedCount: row.runSummary.queuedCount, totalQueued }),
+        getEvaluatorShareOfServerQueue({
+          evaluatorQueuedCount: row.runSummary.queuedCount,
+          serverQueuedCount,
+        }),
       cell: ({ row, getValue }) => (
-        <QueueShareCell
+        <ServerQueueShareCell
           share={getValue() as number}
           isDriver={driverIds.has(row.original.id)}
         />
@@ -367,11 +375,11 @@ export function ProjectEvaluatorsTabTable({
     {
       id: "load",
       header: () => (
-        <ColumnHeaderWithHelp help="Share of the server's evaluation time this evaluator used over the last hour, whatever the time range.">
-          load
+        <ColumnHeaderWithHelp help="This evaluator's part of the server's evaluation time over the last hour, whatever the time range.">
+          share of evaluation time
         </ColumnHeaderWithHelp>
       ),
-      size: 100,
+      size: 200,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
@@ -424,10 +432,10 @@ export function ProjectEvaluatorsTabTable({
       id: "averageCost",
       header: () => (
         <ColumnHeaderWithHelp help="Total cost divided by the number of evaluations traced in the time range.">
-          avg cost / run
+          avg cost / evaluation
         </ColumnHeaderWithHelp>
       ),
-      size: 130,
+      size: 170,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
