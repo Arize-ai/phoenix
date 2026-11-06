@@ -1,6 +1,12 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
-import { Outlet, useLoaderData, useNavigate, useParams } from "react-router";
+import {
+  Outlet,
+  useLoaderData,
+  useNavigate,
+  useOutletContext,
+  useParams,
+} from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -99,10 +105,19 @@ const mainCSS = css`
 `;
 
 /** What the routes nested under the details page read from it through the outlet. */
-export type ProjectEvaluatorDetailsOutletContext = {
+type ProjectEvaluatorDetailsOutletContext = {
   /** The evaluator's own trace project, where the traces its runs produce live. */
   traceProjectId: string;
 };
+
+/**
+ * The details page's outlet context, for the routes it renders over itself.
+ * `useOutletContext` takes the caller's word for the type, so the one place
+ * that names it is next to the outlet that provides it.
+ */
+export function useProjectEvaluatorDetailsOutletContext() {
+  return useOutletContext<ProjectEvaluatorDetailsOutletContext>();
+}
 
 export function ProjectEvaluatorDetailsPage() {
   const loaderData = useLoaderData<typeof projectEvaluatorDetailsLoader>();

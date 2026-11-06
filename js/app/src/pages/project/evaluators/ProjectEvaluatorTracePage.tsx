@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { useNavigate, useOutletContext, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Dialog, Drawer, Flex } from "@phoenix/components";
@@ -13,7 +13,7 @@ import {
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
-import type { ProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
+import { useProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   TraceDetails,
@@ -31,7 +31,7 @@ export function ProjectEvaluatorTracePage() {
   const paths = useProjectEvaluatorPaths();
   // Rendered through the details page's outlet, so the evaluator is loaded.
   const { traceProjectId: projectId } =
-    useOutletContext<ProjectEvaluatorDetailsOutletContext>();
+    useProjectEvaluatorDetailsOutletContext();
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "evaluator-trace-details",
   });
