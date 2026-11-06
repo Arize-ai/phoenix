@@ -13,6 +13,7 @@ import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ClearQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
+import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   ProjectQueueAside,
   QueueStatsRefreshContext,
@@ -142,6 +143,8 @@ function ProjectEvaluatorsPageContent({
     () => setQueueRefreshKey((key) => key + 1),
     []
   );
+  // One poll keeps the queue aside and the charts in step.
+  const { fetchKey, lastHour } = useQueueStatsPoll(queueRefreshKey);
   const content = (
     <div css={panelContentCSS}>
       {isEmptyState ? (
@@ -208,7 +211,8 @@ function ProjectEvaluatorsPageContent({
           >
             <ProjectQueueAside
               projectId={projectId}
-              refreshKey={queueRefreshKey}
+              fetchKey={fetchKey}
+              lastHour={lastHour}
               action={(clearableCount) => (
                 <ClearQueuedEvaluationsButton
                   projectId={projectId}
@@ -227,7 +231,7 @@ function ProjectEvaluatorsPageContent({
       {isEmptyState ? (
         content
       ) : (
-        <TableMetricsChartsPanelGroup view="evaluators">
+        <TableMetricsChartsPanelGroup view="evaluators" fetchKey={fetchKey}>
           {content}
         </TableMetricsChartsPanelGroup>
       )}

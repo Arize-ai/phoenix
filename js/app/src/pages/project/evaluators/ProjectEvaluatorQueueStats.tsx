@@ -38,7 +38,6 @@ import {
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
-  useQueueStatsPoll,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   formatElapsedShort,
@@ -79,12 +78,14 @@ type QueueRates = Pick<
  */
 export function ProjectQueueAside({
   projectId,
-  refreshKey,
+  fetchKey,
+  lastHour,
   action,
 }: {
   projectId: string;
-  /** Changes when the queue was changed from this page, to refetch at once. */
-  refreshKey: number;
+  /** From the page's queue stats poll. */
+  fetchKey: string;
+  lastHour: { start: string; end: string };
   /**
    * Shown under the stats, such as the button that clears the queue. Gets
    * how many of this project's queued evaluations clearing would remove, or
@@ -93,7 +94,6 @@ export function ProjectQueueAside({
   action?: (clearableCount: number | null) => ReactNode;
 }) {
   const [clearableCount, setClearableCount] = useState<number | null>(null);
-  const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
   return (
     <Group orientation="vertical">
       <TitledPanel title="Evaluation Queue" headingLevel={2}>

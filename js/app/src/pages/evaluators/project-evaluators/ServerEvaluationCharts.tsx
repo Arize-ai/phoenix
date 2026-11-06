@@ -5,9 +5,12 @@ import type { TooltipContentProps } from "recharts";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -49,6 +52,7 @@ import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationChartsQuery.graphql";
+import type { ServerEvaluationQueueSizeChartQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueSizeChartQuery.graphql";
 import type {
   ProjectSeries,
   ServerProjectSeries,
@@ -57,7 +61,9 @@ import {
   getServerProjectSeries,
   OTHER_PROJECTS_KEY,
 } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
-import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import { LAG_WARNING_SECONDS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import { getDurationTicks } from "@phoenix/pages/project/metrics/evaluatorActivity";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import {
   costFormatter,
@@ -69,19 +75,19 @@ type Activity = ServerEvaluationChartsQuery$data["evaluationActivity"];
 
 const OTHER_PROJECTS_COLOR = "var(--global-color-gray-600)";
 
-/** Waiting work reads as neutral, so completed work stands out against it. */
-const QUEUED_COLOR = "var(--global-color-gray-500)";
+/** Added work reads as neutral, so completed work stands out beside it. */
+const ADDED_COLOR = "var(--global-color-gray-500)";
 
 /**
  * The server's evaluation activity over the selected range, grouped by
- * project, with each project's evaluations in the queue now. The charts and
- * the project picker read the same request.
+ * project, with each project's evaluations in the queue now. The charts, the
+ * queue strip's cost, and the project picker read the same request.
  */
 export function useServerEvaluationActivity({
   fetchKey,
   fetchPolicy = "store-and-network",
 }: {
-  fetchKey: number;
+  fetchKey: string;
   fetchPolicy?: "store-and-network" | "store-or-network";
 }) {
   const timeRange = useClosedTimeRange();
@@ -127,7 +133,7 @@ export function useServerEvaluationActivity({
               evaluatedCount
               failedCount
               addedCount
-              queueSize
+              lagP95Seconds
             }
           }
         }
@@ -142,7 +148,7 @@ export function useServerEvaluationActivity({
     },
     { fetchKey, fetchPolicy }
   );
-  return { data, timeRange, scale };
+  return { data, timeRange, scale, utcOffsetMinutes };
 }
 
 /**
@@ -177,21 +183,23 @@ export function useServerProjectSeries(
 }
 
 /**
- * Charts of the shared queue over the selected range: how full it was by
- * project, what entered and left it, and which projects used it most.
+ * Charts of the shared queue over the selected range: each project's lag or
+ * queue size, what was added and completed, and which projects used it most.
  */
 export function ServerEvaluationCharts({
   fetchKey,
   pickedProjectIds,
   onPickedProjectIdsChange,
 }: {
-  fetchKey: number;
+  /** From the page's queue stats poll. */
+  fetchKey: string;
   /** Projects picked to show on their own; none shows the heaviest few. */
   pickedProjectIds: ReadonlyArray<string>;
   /** Called to drop picks that no longer name a project with an evaluator. */
   onPickedProjectIdsChange: (projectIds: string[]) => void;
 }) {
-  const { data, timeRange, scale } = useServerEvaluationActivity({ fetchKey });
+  const { data, timeRange, scale, utcOffsetMinutes } =
+    useServerEvaluationActivity({ fetchKey });
   const activity = data.evaluationActivity;
   const projectSeries = useServerProjectSeries(data, pickedProjectIds);
   const hasStalePicks =
@@ -215,15 +223,21 @@ export function ServerEvaluationCharts({
       flex="none"
     >
       <ChartPanelStrip chartCount={3}>
-        <ChartPanel title="Queue size by project" fillHeight>
-          <QueueSizeChart
-            activity={activity}
-            projectSeries={projectSeries}
-            xAxisProps={xAxisProps}
-          />
-        </ChartPanel>
-        <ChartPanel title="Queued vs completed" fillHeight>
-          <QueuedVsCompletedChart
+        <ByProjectPanel
+          activity={activity}
+          projectSeries={projectSeries}
+          xAxisProps={xAxisProps}
+          queueSizeVariables={{
+            fetchKey,
+            timeRange: {
+              start: timeRange.start.toISOString(),
+              end: timeRange.end.toISOString(),
+            },
+            timeBinConfig: { scale, utcOffsetMinutes },
+          }}
+        />
+        <ChartPanel title="Added vs completed" fillHeight>
+          <AddedVsCompletedChart
             activity={activity}
             projectSeries={projectSeries}
             xAxisProps={xAxisProps}
@@ -252,6 +266,12 @@ type XAxisOverrides = {
   tickFormatter: (x: number) => string;
 };
 
+type QueueSizeVariables = {
+  fetchKey: string;
+  timeRange: { start: string; end: string };
+  timeBinConfig: ServerEvaluationQueueSizeChartQuery["variables"]["timeBinConfig"];
+};
+
 function TimeTooltipContent({
   active,
   payload,
@@ -269,24 +289,112 @@ function TimeTooltipContent({
           {fullTimeFormatter(new Date(Number(label)))}
         </Text>
       ) : null}
-      {payload.map((entry) => (
-        <ChartTooltipItem
-          key={String(entry.dataKey)}
-          color={entry.color ?? "transparent"}
-          shape="circle"
-          name={String(entry.name ?? entry.dataKey)}
-          value={formatValue(Number(entry.value))}
-        />
-      ))}
+      {payload.map((entry) =>
+        entry.value == null ? null : (
+          <ChartTooltipItem
+            key={String(entry.dataKey)}
+            color={entry.color ?? "transparent"}
+            shape="circle"
+            name={String(entry.name ?? entry.dataKey)}
+            value={formatValue(Number(entry.value))}
+          />
+        )
+      )}
     </ChartTooltip>
   );
 }
 
-function QueueSizeTooltipContent(props: TooltipContentProps) {
-  return <TimeTooltipContent {...props} formatValue={formatQueueCount} />;
+function LagTooltipContent(props: TooltipContentProps) {
+  return <TimeTooltipContent {...props} formatValue={formatLag} />;
 }
 
-function QueueSizeChart({
+type ByProjectMetric = "lag" | "queueSize";
+
+function ByProjectPanel({
+  activity,
+  projectSeries,
+  xAxisProps,
+  queueSizeVariables,
+}: {
+  activity: Activity;
+  projectSeries: ServerProjectSeries;
+  xAxisProps: XAxisOverrides;
+  queueSizeVariables: QueueSizeVariables;
+}) {
+  const [metric, setMetric] = useState<ByProjectMetric>("lag");
+  return (
+    <ChartPanel
+      title="By project"
+      fillHeight
+      actions={
+        <ToggleButtonGroup
+          size="S"
+          aria-label="Chart by project"
+          selectedKeys={[metric]}
+          onSelectionChange={(keys) => {
+            const [key] = [...keys];
+            if (key === "lag" || key === "queueSize") {
+              setMetric(key);
+            }
+          }}
+        >
+          <ToggleButton id="lag">Lag p95</ToggleButton>
+          <ToggleButton id="queueSize">Queue size</ToggleButton>
+        </ToggleButtonGroup>
+      }
+    >
+      {metric === "lag" ? (
+        <LagByProjectChart
+          activity={activity}
+          projectSeries={projectSeries}
+          xAxisProps={xAxisProps}
+        />
+      ) : (
+        <QueueSizeByProjectChart
+          projectSeries={projectSeries}
+          xAxisProps={xAxisProps}
+          variables={queueSizeVariables}
+        />
+      )}
+    </ChartPanel>
+  );
+}
+
+/**
+ * One chart row per bin with a value per series. A series that folds several
+ * projects together takes the slowest one's p95, an upper bound on theirs,
+ * and stays null where nothing finished.
+ */
+function getLagRows({
+  activity,
+  projectSeries,
+}: {
+  activity: Activity;
+  projectSeries: ServerProjectSeries;
+}): Array<Record<string, number | null>> {
+  const { series, getKey, isFiltered, isShown } = projectSeries;
+  return activity.series.map((bin) => {
+    const datum: Record<string, number | null> = {
+      timestamp: new Date(bin.timestamp).getTime(),
+    };
+    for (const { key } of series) {
+      datum[key] = null;
+    }
+    for (const group of bin.groups) {
+      if (
+        group.lagP95Seconds == null ||
+        (isFiltered && !isShown(group.project.id))
+      ) {
+        continue;
+      }
+      const key = getKey(group.project.id);
+      datum[key] = Math.max(datum[key] ?? 0, group.lagP95Seconds);
+    }
+    return datum;
+  });
+}
+
+function LagByProjectChart({
   activity,
   projectSeries,
   xAxisProps,
@@ -295,8 +403,113 @@ function QueueSizeChart({
   projectSeries: ServerProjectSeries;
   xAxisProps: XAxisOverrides;
 }) {
+  const semanticColors = useSemanticChartColors();
+  const { series } = projectSeries;
+  const chartData = getLagRows({ activity, projectSeries });
+  const lags = chartData.flatMap((datum) =>
+    series.flatMap(({ key }) => (datum[key] != null ? [datum[key]] : []))
+  );
+  const ticks = getDurationTicks(Math.max(LAG_WARNING_SECONDS, ...lags));
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
+  return (
+    <ChartEmptyStateOverlay
+      isEmpty={lags.length === 0}
+      message="No completed evaluations in this time range"
+      chartType="line"
+    >
+      <ChartResponsiveContainer>
+        <LineChart data={chartData} margin={compactChartMargin}>
+          <CartesianGrid {...defaultCartesianGridProps} />
+          <XAxis {...xAxisProps} />
+          <YAxis
+            {...compactYAxisProps}
+            tickFormatter={formatLag}
+            ticks={ticks}
+            domain={[0, ticks[ticks.length - 1]]}
+          />
+          <Tooltip content={LagTooltipContent} {...defaultTooltipProps} />
+          {series.map(({ key, name, color }) => (
+            <Line
+              key={key}
+              type="stepAfter"
+              dataKey={key}
+              name={name}
+              stroke={color}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              activeDot={{ r: 4 }}
+              hide={isDataKeyHidden(key)}
+              isAnimationActive={false}
+            />
+          ))}
+          <ReferenceLine
+            y={LAG_WARNING_SECONDS}
+            stroke={semanticColors.warning}
+            strokeDasharray="4 4"
+            ifOverflow="extendDomain"
+            label={{
+              value: formatLag(LAG_WARNING_SECONDS),
+              position: "insideTopRight",
+              fill: semanticColors.warning,
+              fontSize: 12,
+            }}
+          />
+          <InteractiveLegend
+            {...compactLegendProps}
+            hiddenDataKeys={hiddenDataKeys}
+            iconType="circle"
+            iconSize={8}
+            itemSorter={null}
+            onToggleDataKey={toggleDataKey}
+          />
+        </LineChart>
+      </ChartResponsiveContainer>
+    </ChartEmptyStateOverlay>
+  );
+}
+
+/**
+ * Each project's evaluations in queue at each bin's end. Read only while
+ * shown: it counts every evaluation in queue.
+ */
+function QueueSizeByProjectChart({
+  projectSeries,
+  xAxisProps,
+  variables: { fetchKey, timeRange, timeBinConfig },
+}: {
+  projectSeries: ServerProjectSeries;
+  xAxisProps: XAxisOverrides;
+  variables: QueueSizeVariables;
+}) {
+  const data = useLazyLoadQuery<ServerEvaluationQueueSizeChartQuery>(
+    graphql`
+      query ServerEvaluationQueueSizeChartQuery(
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        evaluationActivity(
+          timeRange: $timeRange
+          timeBinConfig: $timeBinConfig
+        ) {
+          series {
+            timestamp
+            groups {
+              project {
+                id
+              }
+              queueSize
+            }
+          }
+        }
+      }
+    `,
+    { timeRange, timeBinConfig },
+    { fetchKey, fetchPolicy: "store-and-network" }
+  );
+  const bins = data.evaluationActivity.series;
   const { series, getKey } = projectSeries;
-  const chartData = activity.series.map((bin) => {
+  const chartData = bins.map((bin) => {
     const datum: Record<string, number> = {
       timestamp: new Date(bin.timestamp).getTime(),
     };
@@ -309,7 +522,7 @@ function QueueSizeChart({
     }
     return datum;
   });
-  const hasData = activity.series.some((bin) =>
+  const hasData = bins.some((bin) =>
     bin.groups.some((group) => group.queueSize > 0)
   );
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
@@ -317,7 +530,7 @@ function QueueSizeChart({
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
-      message="Nothing queued in this time range"
+      message="Nothing in queue in this time range"
       chartType="line"
     >
       <ChartResponsiveContainer>
@@ -328,11 +541,11 @@ function QueueSizeChart({
             {...compactYAxisProps}
             tickFormatter={(y) => intShortFormatter(y)}
           />
-          <Tooltip content={QueueSizeTooltipContent} {...defaultTooltipProps} />
+          <Tooltip content={TimeTooltipContent} {...defaultTooltipProps} />
           {series.map(({ key, name, color }) => (
             <Area
               key={key}
-              type="monotone"
+              type="stepAfter"
               dataKey={key}
               name={name}
               stackId="queue"
@@ -357,7 +570,7 @@ function QueueSizeChart({
   );
 }
 
-function QueuedVsCompletedChart({
+function AddedVsCompletedChart({
   activity,
   projectSeries,
   xAxisProps,
@@ -374,7 +587,7 @@ function QueuedVsCompletedChart({
       : bin.groups;
     return {
       timestamp: new Date(bin.timestamp).getTime(),
-      queued: groups.reduce((sum, group) => sum + group.addedCount, 0),
+      added: groups.reduce((sum, group) => sum + group.addedCount, 0),
       completed: groups.reduce(
         (sum, group) => sum + group.evaluatedCount + group.failedCount,
         0
@@ -382,7 +595,7 @@ function QueuedVsCompletedChart({
     };
   });
   const hasData = chartData.some(
-    (datum) => datum.queued > 0 || datum.completed > 0
+    (datum) => datum.added > 0 || datum.completed > 0
   );
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
@@ -390,10 +603,10 @@ function QueuedVsCompletedChart({
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
       message="No evaluations in this time range"
-      chartType="line"
+      chartType="bar"
     >
       <ChartResponsiveContainer>
-        <LineChart data={chartData} margin={compactChartMargin}>
+        <BarChart data={chartData} margin={compactChartMargin} maxBarSize={8}>
           <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis {...xAxisProps} />
           <YAxis
@@ -401,21 +614,17 @@ function QueuedVsCompletedChart({
             tickFormatter={(y) => intShortFormatter(y)}
           />
           <Tooltip content={TimeTooltipContent} {...defaultTooltipProps} />
-          <Line
-            type="monotone"
-            dataKey="queued"
-            name="Queued"
-            stroke={QUEUED_COLOR}
-            dot={false}
-            hide={isDataKeyHidden("queued")}
+          <Bar
+            dataKey="added"
+            name="Added"
+            fill={ADDED_COLOR}
+            hide={isDataKeyHidden("added")}
             isAnimationActive={false}
           />
-          <Line
-            type="monotone"
+          <Bar
             dataKey="completed"
             name="Completed"
-            stroke={semanticColors.success}
-            dot={false}
+            fill={semanticColors.success}
             hide={isDataKeyHidden("completed")}
             isAnimationActive={false}
           />
@@ -427,7 +636,7 @@ function QueuedVsCompletedChart({
             itemSorter={null}
             onToggleDataKey={toggleDataKey}
           />
-        </LineChart>
+        </BarChart>
       </ChartResponsiveContainer>
     </ChartEmptyStateOverlay>
   );

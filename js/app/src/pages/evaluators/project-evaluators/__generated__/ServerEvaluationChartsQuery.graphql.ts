@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<543435e6f62eeb27014cd14200194e62>>
+ * @generated SignedSource<<274e756516763fe32d5cd77bc6a030eb>>
  * @lightSyntaxTransform
  */
 
@@ -41,10 +41,10 @@ export type ServerEvaluationChartsQuery$data = {
         readonly addedCount: number;
         readonly evaluatedCount: number;
         readonly failedCount: number;
+        readonly lagP95Seconds: number | null;
         readonly project: {
           readonly id: string;
         };
-        readonly queueSize: number;
       }>;
       readonly timestamp: string;
     }>;
@@ -246,7 +246,7 @@ v8 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "queueSize",
+                "name": "lagP95Seconds",
                 "storageKey": null
               }
             ],
@@ -283,16 +283,16 @@ return {
     "selections": (v8/*:: as any*/)
   },
   "params": {
-    "cacheID": "1ccb29ad0249b150027db6af58f698f7",
+    "cacheID": "6f75acc58e88ade81fb59515df5c4a12",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationChartsQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedCount\n    projects(first: 1000) {\n      project {\n        id\n      }\n      queuedCount\n    }\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        addedCount\n        queueSize\n      }\n    }\n  }\n}\n"
+    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedCount\n    projects(first: 1000) {\n      project {\n        id\n      }\n      queuedCount\n    }\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        addedCount\n        lagP95Seconds\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2e5dbf7e018973eea276dce3a19a58ca";
+(node as any).hash = "262655a0f4ddfd8a617ed83342e7806c";
 
 export default node;

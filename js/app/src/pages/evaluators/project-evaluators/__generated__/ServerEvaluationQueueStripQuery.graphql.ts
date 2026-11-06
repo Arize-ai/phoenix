@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bbbbb8019b2d3e83cbe2bf6e628266aa>>
+ * @generated SignedSource<<a6b959e519809edb955edd69088c2ee2>>
  * @lightSyntaxTransform
  */
 
@@ -16,7 +16,6 @@ export type TimeRange = {
 };
 export type ServerEvaluationQueueStripQuery$variables = {
   lastHour: TimeRange;
-  timeRange: TimeRange;
 };
 export type ServerEvaluationQueueStripQuery$data = {
   readonly evaluationQueue: {
@@ -45,11 +44,6 @@ export type ServerEvaluationQueueStripQuery$data = {
       readonly p99Seconds: number;
     } | null;
   };
-  readonly rangeActivity: {
-    readonly cost: number | null;
-    readonly evaluatedCount: number;
-    readonly failedCount: number;
-  };
 };
 export type ServerEvaluationQueueStripQuery = {
   response: ServerEvaluationQueueStripQuery$data;
@@ -62,11 +56,6 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "lastHour"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "timeRange"
   }
 ],
 v1 = {
@@ -234,44 +223,6 @@ v2 = [
       }
     ],
     "storageKey": null
-  },
-  {
-    "alias": "rangeActivity",
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "timeRange",
-        "variableName": "timeRange"
-      }
-    ],
-    "concreteType": "EvaluationActivity",
-    "kind": "LinkedField",
-    "name": "evaluationActivity",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "evaluatedCount",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "failedCount",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "cost",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
   }
 ];
 return {
@@ -292,16 +243,16 @@ return {
     "selections": (v2/*:: as any*/)
   },
   "params": {
-    "cacheID": "d60bc467d5a2c4cacb1227dcfc634c5d",
+    "cacheID": "0dee78573aa16efe6931f1e6e2ad022e",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationQueueStripQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationQueueStripQuery(\n  $lastHour: TimeRange!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n    runningCount\n    oldestWaitingAt\n    addedPerMinute\n    completedPerMinute\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n  }\n  lastHourActivity: evaluationActivity(timeRange: $lastHour) {\n    lag {\n      p50Seconds\n      p95Seconds\n      p99Seconds\n    }\n  }\n  rangeActivity: evaluationActivity(timeRange: $timeRange) {\n    evaluatedCount\n    failedCount\n    cost\n  }\n}\n"
+    "text": "query ServerEvaluationQueueStripQuery(\n  $lastHour: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n    runningCount\n    oldestWaitingAt\n    addedPerMinute\n    completedPerMinute\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n  }\n  lastHourActivity: evaluationActivity(timeRange: $lastHour) {\n    lag {\n      p50Seconds\n      p95Seconds\n      p99Seconds\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a08b37b7f0fd0d296e5b19a019bd9c06";
+(node as any).hash = "d4a91a30f08933c39a144a3abcdc06fe";
 
 export default node;

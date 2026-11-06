@@ -5,9 +5,9 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Alert, Flex, Text, View } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
 import { Skeleton } from "@phoenix/components/core/loading";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
+import { useServerEvaluationActivity } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import { ClearAllQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
 import {
   formatQueueCount,
@@ -25,7 +25,6 @@ import {
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
-  useQueueStatsPoll,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   formatEvaluationTarget,
@@ -51,14 +50,15 @@ const stripCSS = css`
  * nowhere else.
  */
 export function ServerEvaluationQueueStrip({
-  refreshKey,
+  fetchKey,
+  lastHour,
   onQueueCleared,
 }: {
-  /** Changes when the queue was changed from this page, to refetch at once. */
-  refreshKey: number;
+  /** From the page's queue stats poll. */
+  fetchKey: string;
+  lastHour: { start: string; end: string };
   onQueueCleared: () => void;
 }) {
-  const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
   // Read by the clear button, which stays outside the stats' error boundary
   // so a failed poll can't take the only clear-all control with it.
   const [clearableCount, setClearableCount] = useState<number | null>(null);
@@ -111,13 +111,9 @@ function ServerEvaluationQueueStripContent({
   lastHour: { start: string; end: string };
   onClearableCount: (clearableCount: number) => void;
 }) {
-  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<ServerEvaluationQueueStripQuery>(
     graphql`
-      query ServerEvaluationQueueStripQuery(
-        $lastHour: TimeRange!
-        $timeRange: TimeRange!
-      ) {
+      query ServerEvaluationQueueStripQuery($lastHour: TimeRange!) {
         evaluationQueue {
           status
           queuedCount
@@ -144,14 +140,9 @@ function ServerEvaluationQueueStripContent({
             p99Seconds
           }
         }
-        rangeActivity: evaluationActivity(timeRange: $timeRange) {
-          evaluatedCount
-          failedCount
-          cost
-        }
       }
     `,
-    { lastHour, timeRange: timeRangeISOStrings },
+    { lastHour },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
@@ -261,20 +252,32 @@ function ServerEvaluationQueueStripContent({
           </HoverDetail>
         </StatItem>
         <StatItem label="Evaluation cost">
-          <HoverDetail
-            detail={
-              <Text size="S">{`${intFormatter(data.rangeActivity.evaluatedCount)} evaluated · ${intFormatter(data.rangeActivity.failedCount)} failed`}</Text>
-            }
-          >
-            <StatValue>
-              {data.rangeActivity.cost != null
-                ? costFormatter(data.rangeActivity.cost)
-                : "--"}
-            </StatValue>
-          </HoverDetail>
+          <Suspense fallback={<StatValue>--</StatValue>}>
+            <EvaluationCostValue fetchKey={fetchKey} />
+          </Suspense>
         </StatItem>
       </div>
     </>
+  );
+}
+
+/** The selected range's cost, from the charts' activity request. */
+function EvaluationCostValue({ fetchKey }: { fetchKey: string }) {
+  const { data } = useServerEvaluationActivity({
+    fetchKey,
+    fetchPolicy: "store-or-network",
+  });
+  const activity = data.evaluationActivity;
+  return (
+    <HoverDetail
+      detail={
+        <Text size="S">{`${intFormatter(activity.evaluatedCount)} evaluated · ${intFormatter(activity.failedCount)} failed`}</Text>
+      }
+    >
+      <StatValue>
+        {activity.cost != null ? costFormatter(activity.cost) : "--"}
+      </StatValue>
+    </HoverDetail>
   );
 }
 
