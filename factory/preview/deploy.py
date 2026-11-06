@@ -41,8 +41,12 @@ SEED_START_PREFIX = "preview: running"
 SEED_SUCCESS_PREFIXES = ("preview: seed finished", "preview: no seed")
 SEED_OUTCOME_PREFIXES = SEED_SUCCESS_PREFIXES + (
     "preview: seed failed",
+    "preview: seed timed out",
     "preview: the server did not become healthy",
 )
+# GitHub caps a comment at 65536 characters; the seed's output gets a fraction of that.
+MAX_SEED_OUTPUT_LINES = 60
+MAX_SEED_OUTPUT_CHARS = 8000
 COMMENT_MARKER = "<!-- factory-preview -->"
 
 
@@ -261,15 +265,20 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
     """
     org, _, package = image.removeprefix("ghcr.io/").partition("/")
     tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
-    version_ids = set(
-        run_gh(
-            "api",
-            "--paginate",
-            f"orgs/{org}/packages/container/{package}/versions?per_page=100",
-            "--jq",
-            f".[] | select(.metadata.container.tags[]? | {tag_filter}) | .id",
-        ).split()
-    )
+    try:
+        version_ids = set(
+            run_gh(
+                "api",
+                "--paginate",
+                f"orgs/{org}/packages/container/{package}/versions?per_page=100",
+                "--jq",
+                f".[] | select(.metadata.container.tags[]? | {tag_filter}) | .id",
+            ).split()
+        )
+    except subprocess.CalledProcessError as error:
+        # No package yet, when the PR never got as far as a push, or GHCR is unavailable.
+        print(f"::warning::Could not list image versions: {error.stderr}")
+        return 0
     deleted = 0
     for version_id in version_ids:
         try:
@@ -328,6 +337,19 @@ def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
         )
 
 
+def clip_seed_output(output: str) -> str:
+    """The tail of the seed's output, sized for a comment, with any fence of its own defused."""
+    lines = [line.replace("~~~", "~ ~ ~") for line in output.splitlines()]
+    if len(lines) > MAX_SEED_OUTPUT_LINES:
+        lines = [f"... {len(lines) - MAX_SEED_OUTPUT_LINES} earlier lines omitted"] + lines[
+            -MAX_SEED_OUTPUT_LINES:
+        ]
+    clipped = "\n".join(lines)
+    if len(clipped) > MAX_SEED_OUTPUT_CHARS:
+        clipped = "..." + clipped[-MAX_SEED_OUTPUT_CHARS:]
+    return clipped
+
+
 def format_deploy_comment(
     *,
     image: str,
@@ -347,7 +369,7 @@ def format_deploy_comment(
         lines += [f"The deployment ended with status `{status}`; see the [run]({run_url})."]
     lines += ["", f"Seed: {seed}. {seed_outcome.removeprefix('preview: ').capitalize()}."]
     if seed_output:
-        lines += ["", "```", seed_output, "```"]
+        lines += ["", "~~~", clip_seed_output(seed_output), "~~~"]
     lines += [
         "",
         "Run the same image locally:",

@@ -11,6 +11,7 @@ base-image output, and the workflow builds the Dockerfile in full instead.
 """
 
 import argparse
+import functools
 import json
 import re
 import subprocess
@@ -31,11 +32,17 @@ FENCE_PATTERN = re.compile(r"^```")
 MAX_BASE_CANDIDATES = 30
 
 
+def warn(message: str) -> None:
+    # stdout is the step's $GITHUB_OUTPUT, so everything but outputs goes to stderr.
+    print(f"::warning::{message}", file=sys.stderr)
+
+
 def gh_api(path: str) -> object:
     output = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True).stdout
     return json.loads(output)
 
 
+@functools.cache
 def root_tree_shas(*, ref: str) -> dict[str, str]:
     """SHA of each root-level dependency file and frontend tree at a commit, in one request."""
     tree = gh_api(f"repos/{{owner}}/{{repo}}/git/trees/{ref}")
@@ -63,10 +70,10 @@ def image_is_published(*, sha: str) -> bool:
             return True
     except urllib.error.HTTPError as error:
         if error.code != 404:
-            print(f"::warning::Docker Hub returned {error.code} for commit-{sha[:7]}")
+            warn(f"Docker Hub returned {error.code} for commit-{sha[:7]}")
         return False
     except (urllib.error.URLError, TimeoutError) as error:
-        print(f"::warning::Docker Hub request for commit-{sha[:7]} failed: {error}")
+        warn(f"Docker Hub request for commit-{sha[:7]} failed: {error}")
         return False
 
 

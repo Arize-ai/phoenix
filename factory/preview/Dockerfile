@@ -1,18 +1,17 @@
 # Preview image for one factory PR: the PR's Python source and frontend build laid over
 # a published Phoenix image, plus the seed script from the PR body and the launcher that
-# runs it once the server is up. Built by factory-preview.yml, never by hand.
+# runs it once the server is up. Built by docker-bake.hcl from factory-preview.yml, never
+# by hand.
 #
-#   BASE_IMAGE     the Phoenix image to overlay: the published image of the main commit
-#                  whose dependencies match the PR, or a full build of the PR when none does
 #   STATIC_SOURCE  `base` to keep the base image's frontend build, `frontend` to take the
-#                  one in the `frontend` build context, which the workflow builds from the
-#                  PR's own Dockerfile stage so the two never drift apart
+#                  one in the `frontend` build context
 #
-# The build context is the PR's checkout, used only for COPY, so nothing from the PR runs
-# on the runner. Other build contexts: `preview`, this directory from the base branch, for
-# the launcher; `seed`, a directory that holds seed.py; and `frontend`, an image whose
-# /phoenix/src/phoenix/server/static is the PR's frontend build (any image when unused).
-ARG BASE_IMAGE
+# The main build context is the PR's checkout, used only for COPY, so nothing from the PR
+# runs on the runner. Named contexts: `base-image`, the Phoenix image to overlay, either the
+# published image of the main commit whose dependencies match the PR or the bake target
+# that builds the PR in full; `frontend`, the PR's own frontend-builder stage (any image
+# when unused); `preview`, this directory from the base branch, for the launcher; and
+# `seed`, a directory that holds seed.py.
 ARG STATIC_SOURCE=base
 
 # The site-packages path is matched by wildcard so a Python bump in the base image does
@@ -25,9 +24,11 @@ COPY --from=frontend /phoenix/src/phoenix/server/static/ /static/
 
 FROM static-${STATIC_SOURCE} AS static
 
-FROM ${BASE_IMAGE}
-# The overlay shadows the installed package rather than overwriting it, so files the PR
-# deletes disappear too. The base image's PYTHONPATH keeps dependencies resolvable.
+FROM base-image
+# The overlay shadows the installed package rather than overwriting it. Subpackages the PR
+# changes are taken whole from the overlay, deletions included; modules directly under
+# phoenix/ are the exception, because phoenix/__init__.py extends the package path to the
+# installed copy, so a top-level module the PR deletes stays importable here.
 COPY src/phoenix /phoenix/overlay/phoenix
 COPY --from=static /static/ /phoenix/overlay/phoenix/server/static/
 COPY --from=preview launch.py /phoenix/preview/launch.py

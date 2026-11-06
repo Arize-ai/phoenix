@@ -17,6 +17,7 @@ from pathlib import Path
 
 SEED_PATH = Path("/phoenix/preview/seed.py")
 HEALTHY_TIMEOUT_SECONDS = 300
+SEED_TIMEOUT_SECONDS = 480
 
 
 def base_url() -> str:
@@ -49,7 +50,13 @@ def run_seed(url: str) -> None:
         "PHOENIX_COLLECTOR_ENDPOINT": url,
     }
     print("preview: running the seed script", flush=True)
-    completed = subprocess.run([sys.executable, str(SEED_PATH)], env=env)
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(SEED_PATH)], env=env, timeout=SEED_TIMEOUT_SECONDS
+        )
+    except subprocess.TimeoutExpired:
+        print(f"preview: seed timed out after {SEED_TIMEOUT_SECONDS} seconds", flush=True)
+        return
     status = "finished" if completed.returncode == 0 else f"failed with exit {completed.returncode}"
     print(f"preview: seed {status}", flush=True)
 
