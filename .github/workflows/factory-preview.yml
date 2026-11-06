@@ -46,9 +46,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           FACTORY_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
         run: |
           set -euo pipefail
+          # finish.py copies a contributor's body verbatim into a factory-authored PR.
+          # Its reserved branches must not gain seed execution through the bot's identity.
+          if [[ "$PR_BRANCH" == factory/pr-* ]]; then
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Previews are disabled for factory-finish copies."
+            exit 0
+          fi
           if [ -n "$FACTORY_LOGIN" ] && [ "$PR_AUTHOR" = "$FACTORY_LOGIN" ]; then
             echo "allowed=true" >> "$GITHUB_OUTPUT"
           else
