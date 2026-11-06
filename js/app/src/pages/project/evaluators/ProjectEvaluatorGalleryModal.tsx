@@ -30,12 +30,8 @@ import {
   ViewportModal,
   ViewportModalOverlay,
 } from "@phoenix/components";
-import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { AnnotationValueList } from "@phoenix/components/annotation/AnnotationValueList";
 import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
-import {
-  getOptimizationBounds,
-  getOptimizationValue,
-} from "@phoenix/components/annotation/optimizationUtils";
 import {
   PythonBlockWithCopy,
   TypeScriptBlockWithCopy,
@@ -1032,11 +1028,6 @@ function AnnotationValues({
   }>;
   optimizationDirection: EvaluatorOptimizationDirection;
 }) {
-  const optimizationBounds = getOptimizationBounds({
-    annotationType: "CATEGORICAL",
-    optimizationDirection,
-    values,
-  });
   return (
     <Flex direction="column" gap="size-75">
       <Flex
@@ -1052,33 +1043,10 @@ function AnnotationValues({
           optimizationDirection={optimizationDirection}
         />
       </Flex>
-      <List size="S" css={plainDetailsListCSS}>
-        {values.map(({ label, score }) => (
-          <ListItem key={label}>
-            <Flex
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              gap="size-100"
-            >
-              <Text size="S">{label}</Text>
-              <Text size="XS" color="text-500">
-                <AnnotationScoreText
-                  elementType="span"
-                  fontFamily="mono"
-                  size="XS"
-                  optimizationValue={getOptimizationValue({
-                    score,
-                    ...optimizationBounds,
-                  })}
-                >
-                  {score ?? "—"}
-                </AnnotationScoreText>
-              </Text>
-            </Flex>
-          </ListItem>
-        ))}
-      </List>
+      <AnnotationValueList
+        values={values}
+        optimizationDirection={optimizationDirection}
+      />
     </Flex>
   );
 }
