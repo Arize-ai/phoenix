@@ -1402,6 +1402,18 @@ class TestJsonDiffCount:
         assert json_diff_count([1, 2], {"a": 1}) == 1
         assert json_diff_count(None, 0) == 1
 
+    def test_int_and_float_with_equal_value_returns_zero(self) -> None:
+        assert json_diff_count(10, 10.0) == 0
+        assert json_diff_count({"price": 10}, {"price": 10.0}) == 0
+        assert json_diff_count([1, 2, 3], [1.0, 2.0, 3.0]) == 0
+
+    def test_int_and_float_with_different_value_returns_one(self) -> None:
+        assert json_diff_count(10, 10.5) == 1
+
+    def test_bool_and_number_are_different_types(self) -> None:
+        assert json_diff_count(True, 1) == 1
+        assert json_diff_count(False, 0.0) == 1
+
     def test_object_with_missing_key(self) -> None:
         assert json_diff_count({"a": 1}, {"a": 1, "b": 2}) == 1
         assert json_diff_count({"a": 1, "b": 2}, {"a": 1}) == 1
