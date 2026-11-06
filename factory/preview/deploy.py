@@ -108,7 +108,7 @@ def create_service(*, project_id: str, environment_id: str, name: str, image: st
 
 
 def set_variables(*, project_id: str, environment_id: str, service_id: str) -> None:
-    """Once, on creation; skipDeploys keeps this from queuing a deployment of its own."""
+    """Idempotent, so every deploy; skipDeploys keeps it from queuing a deployment of its own."""
     railway(
         "mutation($input: VariableCollectionUpsertInput!) {"
         " variableCollectionUpsert(input: $input) }",
@@ -172,16 +172,21 @@ def deploy_service(*, environment_id: str, service_id: str) -> str:
     return str(data["serviceInstanceDeployV2"])
 
 
-def active_deployment_id(*, environment_id: str, service_id: str) -> str:
-    """The newest of the service's recent deployments that Railway did not skip."""
+def active_deployment_id(*, environment_id: str, service_id: str, since: str) -> str:
+    """The newest of the service's recent deployments not skipped and not older than `since`.
+
+    The bound keeps a skipped redeploy from handing over to the previous push's finished
+    deployment while the one Railway queued in its place is not listed yet.
+    """
     data = railway(
         "query($input: DeploymentListInput!) {"
-        " deployments(input: $input, first: 5) { edges { node { id status } } } }",
+        " deployments(input: $input, first: 5) { edges { node { id status createdAt } } } }",
         input={"environmentId": environment_id, "serviceId": service_id},
     )
     for edge in data["deployments"]["edges"]:
-        if edge["node"]["status"] != "SKIPPED":
-            return str(edge["node"]["id"])
+        node = edge["node"]
+        if node["status"] != "SKIPPED" and str(node["createdAt"]) >= since:
+            return str(node["id"])
     return ""
 
 
@@ -191,20 +196,26 @@ def wait_for_deployment(
     """Follow the deployment to a final status; return (deployment id, status).
 
     A deployment Railway skips in favor of one it queued itself, as on a new service, hands
-    over to the service's newest unskipped deployment. A failed poll, including the moment
-    after the request when the deployment does not exist yet, counts as pending.
+    over to the service's newest unskipped deployment from the same moment on. A failed
+    poll, including the moment after the request when the deployment does not exist yet,
+    counts as pending.
     """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     status = "PENDING"
+    since = ""
     while time.monotonic() < deadline:
         try:
             data = railway(
-                "query($id: String!) { deployment(id: $id) { status } }", id=deployment_id
+                "query($id: String!) { deployment(id: $id) { status createdAt } }",
+                id=deployment_id,
             )
             status = str(data["deployment"]["status"])
+            since = since or str(data["deployment"]["createdAt"])
             if status == "SKIPPED":
-                active = active_deployment_id(environment_id=environment_id, service_id=service_id)
-                if active:
+                active = active_deployment_id(
+                    environment_id=environment_id, service_id=service_id, since=since
+                )
+                if active and active != deployment_id:
                     deployment_id = active
                     continue
         except RailwayError as error:
@@ -438,8 +449,8 @@ def run_deploy(args: argparse.Namespace) -> int:
         service_id = create_service(
             project_id=project_id, environment_id=environment_id, name=name, image=args.image
         )
-        set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
         print(f"created service {name} ({service_id})")
+    set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
     set_image(environment_id=environment_id, service_id=service_id, image=args.image)
     domain = ensure_domain(
         project_id=project_id, environment_id=environment_id, service_id=service_id

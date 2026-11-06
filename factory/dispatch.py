@@ -618,8 +618,10 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
-                    if lane in PREVIEW_LANES:
-                        add_preview_label(pr_number=pr["number"], token=app_token.refresh())
+                # Whether or not a human already took it out of draft; adding a label the
+                # PR has is a no-op.
+                if lane in PREVIEW_LANES:
+                    add_preview_label(pr_number=pr["number"], token=app_token.refresh())
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):

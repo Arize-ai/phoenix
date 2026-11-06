@@ -23,6 +23,7 @@ SEED_TIMEOUT_SECONDS = 480
 SEED_LINE_PREFIX = "seed| "
 
 children: list[subprocess.Popen[bytes]] = []
+stopping = False
 
 
 def base_url() -> str:
@@ -31,6 +32,8 @@ def base_url() -> str:
 
 
 def forward(signum: int, _frame: object) -> None:
+    global stopping
+    stopping = True
     for child in children:
         if child.poll() is None:
             child.send_signal(signum)
@@ -66,9 +69,9 @@ def run_seed(url: str) -> None:
     children.append(seed)
     try:
         output, _ = seed.communicate(timeout=SEED_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired as expired:
+    except subprocess.TimeoutExpired:
         seed.kill()
-        output = expired.stdout or b""
+        output, _ = seed.communicate()  # drains the pipe and reaps the process
         outcome = f"preview: seed timed out after {SEED_TIMEOUT_SECONDS} seconds"
     else:
         outcome = (
@@ -93,8 +96,9 @@ def main() -> int:
     elif server.poll() is None:
         print("preview: the server did not become healthy; skipping the seed", flush=True)
     exit_code = server.wait()
-    # A forwarded stop is a clean exit; stopping records nothing else, so check the sign.
-    return 0 if exit_code < 0 else exit_code
+    # A stop the launcher forwarded is a clean exit; any other signal death is a failure
+    # that the restart policy should see.
+    return 0 if stopping else exit_code
 
 
 if __name__ == "__main__":
