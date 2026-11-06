@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
-from gh import gh_api, preview_image, run_gh
+from gh import gh_api, image_tag_exists, preview_image, run_gh
 
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
@@ -39,6 +39,9 @@ HEADING_PATTERN = re.compile(r"^ {0,3}(#+)(\s|$)")
 FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 PYTHON_INFO_PATTERN = re.compile(r"^\s*(python3?|py)\b", re.IGNORECASE)
 MAX_TAG_PAGES = 5
+# What the preview image bakes in besides the PR: a change here must invalidate images.
+PREVIEW_DIR = Path(__file__).resolve().parent
+TOOLING_FILES = ("Dockerfile", "docker-bake.hcl", "launch.py", "seed_log.py")
 MAX_BASE_CANDIDATES = 30
 
 
@@ -210,15 +213,20 @@ def main() -> int:
         base_sha, frontend = "", False
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
 
-    seed_hash = hashlib.sha256(seed.encode()).hexdigest()[:8]
+    # The seed and the preview tooling are part of the image, so the tag names them along
+    # with the commit; a body edit that leaves the seed alone then finds its image already
+    # built, and a tooling change on the base branch invalidates every image.
+    baked = hashlib.sha256(seed.encode())
+    for filename in TOOLING_FILES:
+        baked.update((PREVIEW_DIR / filename).read_bytes())
+    image = preview_image()
+    image_tag = f"pr-{args.pr}-{head_sha[:7]}-{baked.hexdigest()[:8]}"
     for name, value in {
-        "image": preview_image(),
+        "image": image,
+        "image-tag": image_tag,
+        "image-exists": str(image_tag_exists(image, image_tag)).lower(),
         "base-image": base_image,
         "frontend": str(frontend).lower(),
-        "short-sha": head_sha[:7],
-        # The seed is part of the image, so the tag names both the commit and the seed; a
-        # body edit that leaves the seed alone then finds its image already built.
-        "image-tag": f"pr-{args.pr}-{head_sha[:7]}-{seed_hash}",
         "seed-summary": seed_summary,
     }.items():
         print(f"{name}={value}")

@@ -99,9 +99,15 @@ jobs:
             echo "base-context=target:base" >> "$GITHUB_OUTPUT"
           fi
 
+      # The tag names the commit, the seed and the preview tooling, so a body edit that
+      # changed something other than the seed finds its image already built and the Docker
+      # steps are skipped. deploy.py runs regardless and decides for itself whether the
+      # service already has this image.
       - name: Set up Docker Buildx
+        if: steps.plan.outputs.image-exists != 'true'
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       - name: Log in to GHCR
+        if: steps.plan.outputs.image-exists != 'true'
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           registry: ghcr.io
@@ -110,6 +116,7 @@ jobs:
       # The base image and the full build's parents come from Docker Hub, whose anonymous
       # pull limit shared runner IPs exhaust.
       - name: Log in to Docker Hub
+        if: steps.plan.outputs.image-exists != 'true'
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -119,24 +126,8 @@ jobs:
       # image matches its dependencies, as targets the preview takes as contexts, so neither
       # leaves the builder. Only the preview image is pushed. Every context sits under the
       # workspace because bake refuses to read outside its working directory.
-      # The tag names the commit and the seed, so a body edit that changed something other
-      # than the seed finds its image already built. Only the build is skipped: deploy.py
-      # runs regardless and decides for itself whether the service already has this image.
-      - name: Check whether this image already exists
-        id: existing
-        env:
-          IMAGE: ${{ steps.plan.outputs.image }}:${{ steps.plan.outputs.image-tag }}
-        run: |
-          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "$IMAGE is already built; skipping the build and pointing pr-$PR_NUMBER at it."
-            docker buildx imagetools create --tag "${IMAGE%%:*}:pr-$PR_NUMBER" "$IMAGE"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Build and push the preview image
-        if: steps.existing.outputs.exists != 'true'
+        if: steps.plan.outputs.image-exists != 'true'
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         env:
           HEAD_DIR: ${{ github.workspace }}/head
@@ -155,6 +146,10 @@ jobs:
           files: base/factory/preview/docker-bake.hcl
           targets: preview
           push: true
+          # The action's default would override the bake file's disabled attestation and
+          # push an index with an attestation manifest, which Railway can't use and the
+          # tag-based prune never removes.
+          provenance: false
 
       - name: Deploy to Railway
         id: deploy

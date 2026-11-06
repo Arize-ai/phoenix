@@ -12,7 +12,6 @@ so the workflow needs no CLI and the token's reach is one project.
 """
 
 import argparse
-import functools
 import json
 import os
 import subprocess
@@ -23,12 +22,15 @@ import urllib.request
 from typing import Any, Optional
 
 import seed_log
-from gh import preview_image, run_gh
+from gh import ghcr_package, packages_api_root, preview_image, run_gh
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
 SKIPPED_GRACE_SECONDS = 120
+# The service restarts a crashed container (ON_FAILURE, three tries), so CRASHED is final
+# only once it has stood this long without the status moving on.
+CRASHED_GRACE_SECONDS = 180
 # The launcher's own budget, its drain, and two minutes for the log to catch up.
 SEED_WAIT_SECONDS = seed_log.SEED_TIMEOUT_SECONDS + seed_log.RELAY_DRAIN_SECONDS + 120
 # SKIPPED is not final here: Railway superseded the deployment with one it queued itself,
@@ -202,6 +204,7 @@ def wait_for_deployment(
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     deployment_id = ""
     all_skipped_since: Optional[float] = None
+    crashed_since: Optional[float] = None
     while time.monotonic() < deadline:
         status = "PENDING"
         try:
@@ -221,6 +224,12 @@ def wait_for_deployment(
         except RailwayError as error:
             print(f"::warning::Polling deployments: {error}", flush=True)
         print(f"deployment {deployment_id or '(pending)'}: {status}", flush=True)
+        if status == "CRASHED":
+            crashed_since = crashed_since or time.monotonic()
+            if time.monotonic() - crashed_since <= CRASHED_GRACE_SECONDS:
+                status = "PENDING"  # a restart may still bring it up
+        else:
+            crashed_since = None
         if status in DEPLOYMENT_FINAL_STATUSES:
             return deployment_id, status
         time.sleep(10)
@@ -322,22 +331,6 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
 
 def delete_service(service_id: str) -> None:
     railway("mutation($id: String!) { serviceDelete(id: $id) }", id=service_id)
-
-
-def ghcr_package(image: str) -> tuple[str, str]:
-    """(owner, package name) of a ghcr.io image reference, with or without a tag."""
-    owner, _, package = image.removeprefix("ghcr.io/").partition("/")
-    return owner, package.partition(":")[0]
-
-
-@functools.cache
-def packages_api_root(owner: str) -> str:
-    """The packages API lives under orgs/ or users/ depending on who owns the repo."""
-    try:
-        owner_type = run_gh("api", f"users/{owner}", "--jq", ".type").strip()
-    except subprocess.CalledProcessError:
-        owner_type = "Organization"
-    return f"{'orgs' if owner_type == 'Organization' else 'users'}/{owner}/packages/container"
 
 
 def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
@@ -581,16 +574,17 @@ def run_deploy(args: argparse.Namespace) -> int:
         else:
             deployments = list_deployments(environment_id=environment_id, service_id=service_id)
             before = {str(d["id"]) for d in deployments}
+            live = [d for d in deployments if d["status"] != "SKIPPED"]
             # The workflow skips the build when the image exists but runs this regardless,
             # so a run whose deploy failed or never happened is retried by re-labeling. A
             # successful deployment of this very image with a good seed needs no redeploy,
             # only the comment brought up to date; a bad seed gets a fresh database.
             if (
-                deployments
-                and deployments[0]["status"] == "SUCCESS"
+                live
+                and live[0]["status"] == "SUCCESS"
                 and current_image(environment_id=environment_id, service_id=service_id) == image
             ):
-                seed_outcome, seed_output = wait_for_seed(str(deployments[0]["id"]))
+                seed_outcome, seed_output = wait_for_seed(str(live[0]["id"]))
                 if seed_outcome.startswith(seed_log.SUCCESS_LINES):
                     domain = ensure_domain(
                         project_id=project_id, environment_id=environment_id, service_id=service_id
@@ -669,9 +663,8 @@ def run_note(args: argparse.Namespace) -> int:
         body=(
             f"### Preview of {args.head_sha[:7]}\n\nThe run failed, was cancelled or timed out"
             f" before it could report; see the [run]({args.run_url}). Whatever answers at the"
-            " preview URL may be an earlier head."
+            " preview URL may be an earlier head. Re-add the label to try again."
         ),
-        create=False,
     )
     return 0
 
