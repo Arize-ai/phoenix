@@ -22,7 +22,6 @@ from typing import Any
 import seed_log
 
 SEED_PATH = Path("/phoenix/preview/seed.py")
-HEALTHY_TIMEOUT_SECONDS = 300
 
 children: list[subprocess.Popen[bytes]] = []
 stopping = False
@@ -42,10 +41,8 @@ def forward(signum: int, _frame: object) -> None:
 
 
 def wait_until_healthy(server: subprocess.Popen[bytes], url: str) -> bool:
-    deadline = time.monotonic() + HEALTHY_TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
-        if server.poll() is not None:
-            return False
+    """Probe until the server answers or exits; Railway's own health check sets the deadline."""
+    while server.poll() is None:
         try:
             with urllib.request.urlopen(f"{url}/healthz", timeout=5) as response:
                 if response.status == 200:
@@ -104,7 +101,7 @@ def main() -> int:
     url = base_url()
     if wait_until_healthy(server, url):
         run_seed(url)
-    elif server.poll() is None:
+    else:
         print(seed_log.UNHEALTHY_LINE, flush=True)
     exit_code = server.wait()
     # A stop the launcher forwarded is a clean exit; any other signal death is a failure

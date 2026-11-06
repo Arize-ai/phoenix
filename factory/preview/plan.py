@@ -14,12 +14,13 @@ import argparse
 import functools
 import json
 import re
-import subprocess
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Optional
+
+from gh import gh_api, run_gh
 
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
@@ -39,11 +40,6 @@ MAX_BASE_CANDIDATES = 30
 def warn(message: str) -> None:
     # stdout is the step's $GITHUB_OUTPUT, so everything but outputs goes to stderr.
     print(f"::warning::{message}", file=sys.stderr)
-
-
-def gh_api(path: str) -> object:
-    output = subprocess.run(["gh", "api", path], capture_output=True, text=True, check=True).stdout
-    return json.loads(output)
 
 
 @functools.cache
@@ -123,26 +119,22 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
 def extract_seed(*, body: str) -> str:
     """The first python block of the body's Preview seed section, and only that section's.
 
-    Scans lines and tracks every fence, so a `## ...` line inside any fenced block is not
-    taken for the next heading. As in CommonMark, a block closes only on a fence of the
-    same character at least as long as the one that opened it, a block still open at the
-    end of the body runs to the end, and an indented fence strips that indent from its
-    content lines.
+    Scans lines and tracks every fence throughout, so neither the heading search nor the
+    section's end is fooled by a `## ...` line inside a fenced block. As in CommonMark, a
+    block closes only on a fence of the same character at least as long as the one that
+    opened it, a block still open at the end of the body runs to the end, and an indented
+    fence strips that indent from its content lines.
     """
-    lines = body.splitlines()
-    try:
-        start = next(i for i, line in enumerate(lines) if SEED_HEADING_PATTERN.match(line))
-    except StopIteration:
-        return ""
 
     def finish(block: list[str]) -> str:
         return "\n".join(block).strip() + "\n" if any(line.strip() for line in block) else ""
 
+    in_section = False
     block: list[str] = []
     opening = ""  # the fence that opened the current block, empty outside one
     indent = 0
     in_python = False
-    for line in lines[start + 1 :]:
+    for line in body.splitlines():
         fence = FENCE_PATTERN.match(line)
         if opening:
             closes = (
@@ -156,13 +148,15 @@ def extract_seed(*, body: str) -> str:
                     return finish(block)
                 opening = ""
             elif in_python:
-                stripped = line[: len(line) - len(line.lstrip(" "))]
-                block.append(line[min(len(stripped), indent) :])
+                leading = len(line) - len(line.lstrip(" "))
+                block.append(line[min(leading, indent) :])
         elif fence is not None:
             opening = fence.group(1)
             indent = len(line) - len(line.lstrip(" "))
-            in_python = PYTHON_INFO_PATTERN.match(fence.group(2)) is not None
-        elif HEADING_PATTERN.match(line):
+            in_python = in_section and PYTHON_INFO_PATTERN.match(fence.group(2)) is not None
+        elif SEED_HEADING_PATTERN.match(line):
+            in_section = True
+        elif HEADING_PATTERN.match(line) and in_section:
             return ""
     return finish(block) if opening and in_python else ""
 
@@ -174,14 +168,7 @@ def main() -> int:
     parser.add_argument("--seed-dir", type=Path, required=True)
     args = parser.parse_args()
 
-    pr = json.loads(
-        subprocess.run(
-            ["gh", "pr", "view", str(args.pr), "--json", "baseRefName,body"],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
-    )
+    pr = json.loads(run_gh("pr", "view", str(args.pr), "--json", "baseRefName,body"))
     head_sha = str(args.head_sha)
     base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
@@ -195,9 +182,7 @@ def main() -> int:
     args.seed_dir.mkdir(parents=True, exist_ok=True)
     (args.seed_dir / "seed.py").write_text(seed)
     seed_summary = (
-        f"{seed.count(chr(10))} lines from the PR body"
-        if seed
-        else "none in the PR body, so the instance is empty"
+        f"{seed.count(chr(10))} lines from the PR body" if seed else "none in the PR body"
     )
 
     for name, value in {
