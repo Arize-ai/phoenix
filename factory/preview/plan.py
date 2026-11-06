@@ -12,40 +12,35 @@ base-image output, and the workflow builds the Dockerfile in full instead.
 
 import argparse
 import functools
-import hashlib
 import json
 import re
 import subprocess
 import sys
-import textwrap
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Optional
-from urllib.parse import quote
 
-from gh import gh_api, image_tag_exists, preview_image, run_gh, warn
+from gh import gh_api, run_gh
 
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 # The Dockerfile's frontend stage copies exactly these two trees.
 FRONTEND_TREES = ("js", "schemas")
-# Up to three leading spaces, an optional colon and optional closing hashes, as CommonMark
-# and habit allow.
-# A heading needs a space after its hashes, so `##Preview seed`, which renders as text,
-# is not one; the two patterns agree on that.
-SEED_HEADING_PATTERN = re.compile(r"^ {0,3}(#+)\s+Preview seed\s*:?\s*#*\s*$", re.IGNORECASE)
-HEADING_PATTERN = re.compile(r"^ {0,3}(#+)(\s|$)")
+SEED_HEADING_PATTERN = re.compile(r"^(#+)\s*Preview seed\s*$", re.IGNORECASE)
+HEADING_PATTERN = re.compile(r"^(#+)\s")
 # A fence may be indented, as inside a list item, use three or more backticks or tildes,
 # and name the language as python, python3 or py in any case, with anything after it.
 FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 PYTHON_INFO_PATTERN = re.compile(r"^\s*(python3?|py)\b", re.IGNORECASE)
 MAX_TAG_PAGES = 5
-# What the preview image bakes in besides the PR: a change here must invalidate images.
-PREVIEW_DIR = Path(__file__).resolve().parent
-TOOLING_FILES = ("Dockerfile", "docker-bake.hcl", "launch.py", "seed_log.py")
 MAX_BASE_CANDIDATES = 30
+
+
+def warn(message: str) -> None:
+    # stdout is the step's $GITHUB_OUTPUT, so everything but outputs goes to stderr.
+    print(f"::warning::{message}", file=sys.stderr)
 
 
 @functools.cache
@@ -103,50 +98,23 @@ class PublishedCommits:
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
     """The newest base-branch commit with a published image and the PR's dependency files.
 
-    Any base-branch commit whose dependency files match is a valid base, newer than the
-    merge base included: the overlay replaces the PR's source wholesale and the frontend is
-    compared against the chosen commit. Candidates newer than the last change to any
-    dependency file match if the branch tip does, which spares a tree lookup each; older
-    ones are compared one by one, for the case of a bump that was reverted. Empty when none
-    of the last MAX_BASE_CANDIDATES commits qualifies.
+    Empty when none of the last MAX_BASE_CANDIDATES commits qualifies.
     """
-    branch = quote(base_ref, safe="")
+    compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{base_ref}...{head_sha}")
+    assert isinstance(compare, dict)
+    merge_base_sha = str(compare["merge_base_commit"]["sha"])
+    wanted = dependency_shas(root_tree_shas(ref=head_sha))
     commits = gh_api(
-        f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page={MAX_BASE_CANDIDATES}"
+        f"repos/{{owner}}/{{repo}}/commits?sha={merge_base_sha}&per_page={MAX_BASE_CANDIDATES}"
     )
     assert isinstance(commits, list)
-    candidates = [str(commit["sha"]) for commit in commits]
-    if not candidates:
-        return ""
-    wanted = dependency_shas(root_tree_shas(ref=head_sha))
-    tip_matches = dependency_shas(root_tree_shas(ref=candidates[0])) == wanted
-    # The newest commit among the candidates that touched a dependency file, as an index
-    # into the list; everything before it has the tip's dependency files.
-    unchanged_until = len(candidates)
-    for path in DEPENDENCY_FILES:
-        changes = gh_api(f"repos/{{owner}}/{{repo}}/commits?sha={branch}&path={path}&per_page=1")
-        assert isinstance(changes, list)
-        if changes and str(changes[0]["sha"]) in candidates:
-            unchanged_until = min(unchanged_until, candidates.index(str(changes[0]["sha"])))
-    # Among the published candidates whose dependency files match, prefer one whose
-    # frontend trees match too: it spares the whole frontend build, which an older base
-    # often does for a PR that touched no frontend file while main did.
     published = PublishedCommits()
-    wanted_frontend = frontend_shas(root_tree_shas(ref=head_sha))
-    fallback = ""
-    for index, sha in enumerate(candidates):
-        if sha not in published:
-            continue
-        if index < unchanged_until:
-            matches = tip_matches
-        else:
-            matches = dependency_shas(root_tree_shas(ref=sha)) == wanted
-        if not matches:
-            continue
-        if frontend_shas(root_tree_shas(ref=sha)) == wanted_frontend:
+    for commit in commits:
+        sha = str(commit["sha"])
+        # A reverted bump makes older commits match again, so a mismatch is not the end.
+        if sha in published and dependency_shas(root_tree_shas(ref=sha)) == wanted:
             return sha
-        fallback = fallback or sha
-    return fallback
+    return ""
 
 
 def extract_seed(*, body: str) -> str:
@@ -161,11 +129,7 @@ def extract_seed(*, body: str) -> str:
     """
 
     def finish(block: list[str]) -> str:
-        # Dedent as a whole and drop only surrounding blank lines, so content that sits
-        # deeper than its fence keeps its relative indentation.
-        if not any(line.strip() for line in block):
-            return ""
-        return textwrap.dedent("\n".join(block)).strip("\n") + "\n"
+        return "\n".join(block).strip() + "\n" if any(line.strip() for line in block) else ""
 
     in_section = False
     section_level = 0
@@ -173,15 +137,9 @@ def extract_seed(*, body: str) -> str:
     opening = ""  # the fence that opened the current block, empty outside one
     indent = 0
     in_python = False
-    previous = ""
     for line in body.splitlines():
         fence = FENCE_PATTERN.match(line)
-        leading = len(line) - len(line.lstrip(" \t"))
-        if fence is not None and fence.group(1)[0] == "`" and "`" in fence.group(2):
-            fence = None  # a backtick fence's info string may not contain backticks
-        if fence is not None and not opening and leading >= 4 and not previous.strip():
-            fence = None  # four spaces after a blank line is an indented code block
-        previous = line
+        leading = len(line) - len(line.lstrip(" "))
         if opening:
             # A closing fence may sit at most three spaces deeper than the opening one;
             # anything deeper is content, as in CommonMark.
@@ -221,16 +179,6 @@ def main() -> int:
 
     pr = json.loads(run_gh("pr", "view", str(args.pr), "--json", "baseRefName,body"))
     head_sha = str(args.head_sha)
-    body = str(pr["body"] or "")
-    seed = extract_seed(body=body)
-    if not seed and "preview seed" in body.lower():
-        warn("The PR body mentions a preview seed, but no `## Preview seed` python block parsed")
-    args.seed_dir.mkdir(parents=True, exist_ok=True)
-    (args.seed_dir / "seed.py").write_text(seed)
-    seed_summary = (
-        f"{seed.count(chr(10))} lines from the PR body" if seed else "none in the PR body"
-    )
-
     try:
         base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
         # The base image's frontend is as old as its commit, so the comparison that matters
@@ -238,28 +186,23 @@ def main() -> int:
         frontend = bool(base_sha) and frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
             root_tree_shas(ref=head_sha)
         )
-    except (subprocess.CalledProcessError, ValueError, KeyError, TypeError, AssertionError) as e:
-        # The same degradation as Docker Hub trouble: a full build, not a lost preview. An
-        # unexpected shape from the API counts the same as a failed call.
-        detail = e.stderr if isinstance(e, subprocess.CalledProcessError) else repr(e)
-        warn(f"GitHub API trouble choosing a base, so the preview builds in full: {detail}")
+    except subprocess.CalledProcessError as error:
+        # The same degradation as Docker Hub trouble: a full build, not a lost preview.
+        warn(f"GitHub API trouble choosing a base, so the preview builds in full: {error.stderr}")
         base_sha, frontend = "", False
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
 
-    # The seed and the preview tooling are part of the image, so the tag names them along
-    # with the commit; a body edit that leaves the seed alone then finds its image already
-    # built, and a tooling change on the base branch invalidates every image.
-    baked = hashlib.sha256(seed.encode())
-    for filename in TOOLING_FILES:
-        baked.update((PREVIEW_DIR / filename).read_bytes())
-    image = preview_image()
-    image_tag = f"pr-{args.pr}-{head_sha[:7]}-{baked.hexdigest()[:8]}"
+    seed = extract_seed(body=str(pr["body"] or ""))
+    args.seed_dir.mkdir(parents=True, exist_ok=True)
+    (args.seed_dir / "seed.py").write_text(seed)
+    seed_summary = (
+        f"{seed.count(chr(10))} lines from the PR body" if seed else "none in the PR body"
+    )
+
     for name, value in {
-        "image": image,
-        "image-tag": image_tag,
-        "image-exists": str(image_tag_exists(image, image_tag)).lower(),
         "base-image": base_image,
         "frontend": str(frontend).lower(),
+        "short-sha": head_sha[:7],
         "seed-summary": seed_summary,
     }.items():
         print(f"{name}={value}")

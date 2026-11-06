@@ -193,9 +193,8 @@ def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
             )
         run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
         return True
-    except (subprocess.CalledProcessError, ValueError, KeyError, TypeError) as error:
-        detail = error.stderr if isinstance(error, subprocess.CalledProcessError) else repr(error)
-        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {detail}")
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
         return False
 
 
@@ -597,7 +596,6 @@ def watch_session(
     outcome_result = latest_outcome.result if latest_outcome else "not graded"
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
     pr = find_pr()
-    preview_label_attempted = preview_labeled = False
 
     # How the run ended, so every failure turns into a fix: `success` ships, `flawed` means
     # the agent produced the wrong thing (fix a prompt, rubric or eval), `blocked` means the
@@ -617,6 +615,7 @@ def watch_session(
     else:
         status_line = f"left {pr['url']} before CI finished"
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
+        preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
@@ -638,7 +637,6 @@ def watch_session(
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
                 # Whether or not a human already took it out of draft, and until it sticks.
                 if lane in PREVIEW_LANES and not preview_labeled:
-                    preview_label_attempted = True
                     preview_labeled = add_preview_label(
                         pr_number=pr["number"], token=app_token.refresh()
                     )
@@ -707,8 +705,6 @@ def watch_session(
                 run_outcome = "flawed" if failing_checks else "success"
                 break
 
-    if preview_label_attempted and not preview_labeled:
-        status_line += f"; the {PREVIEW_LABEL} label could not be added"
     report_lines = [
         f"The factory's **{lane}** session {format_session_link(session_id=session_id)} "
         f"{status_line}.",
