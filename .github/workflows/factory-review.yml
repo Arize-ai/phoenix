@@ -74,10 +74,12 @@ jobs:
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+          # Whoever asked for the review, named in the report so GitHub notifies them.
+          REQUESTED_BY: ${{ steps.start.outputs.requested_by }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STARTED_AT: ${{ steps.start.outputs.started_at }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" watch --session-id "$SESSION_ID" --started-at "$STARTED_AT" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures. This uses GITHUB_TOKEN, so it lands even when
       # the app's credentials are what failed.
