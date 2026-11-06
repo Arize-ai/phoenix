@@ -22,10 +22,12 @@ from pathlib import Path
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
-FRONTEND_PATTERN = re.compile(r"^(js|schemas)/")
-SEED_HEADING_PATTERN = re.compile(r"^##+\s*Preview seed\s*$", re.MULTILINE | re.IGNORECASE)
-HEADING_PATTERN = re.compile(r"^##+\s", re.MULTILINE)
-PYTHON_FENCE_PATTERN = re.compile(r"^```python\s*$(.*?)^```\s*$", re.MULTILINE | re.DOTALL)
+# The Dockerfile's frontend stage copies exactly these two trees.
+FRONTEND_TREES = ("js", "schemas")
+SEED_HEADING_PATTERN = re.compile(r"^##+\s*Preview seed\s*$", re.IGNORECASE)
+HEADING_PATTERN = re.compile(r"^##+\s")
+PYTHON_FENCE_PATTERN = re.compile(r"^```python\s*$")
+FENCE_PATTERN = re.compile(r"^```")
 MAX_BASE_CANDIDATES = 30
 
 
@@ -34,40 +36,38 @@ def gh_api(path: str) -> object:
     return json.loads(output)
 
 
-def changed_paths(*, base_sha: str, head_sha: str) -> list[str]:
-    """Every path that differs between two commits; the compare API pages its file list."""
-    output = subprocess.run(
-        [
-            "gh",
-            "api",
-            "--paginate",
-            f"repos/{{owner}}/{{repo}}/compare/{base_sha}...{head_sha}?per_page=100",
-            "--jq",
-            ".files[].filename",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    return output.split()
-
-
-def blob_shas(*, ref: str) -> tuple[str, ...]:
-    """The dependency files' blob SHAs at a commit, from its root tree in one request."""
+def root_tree_shas(*, ref: str) -> dict[str, str]:
+    """SHA of each root-level dependency file and frontend tree at a commit, in one request."""
     tree = gh_api(f"repos/{{owner}}/{{repo}}/git/trees/{ref}")
     assert isinstance(tree, dict)
     by_path = {entry["path"]: str(entry["sha"]) for entry in tree["tree"]}
-    return tuple(by_path.get(path, "") for path in DEPENDENCY_FILES)
+    return {path: by_path.get(path, "") for path in DEPENDENCY_FILES + FRONTEND_TREES}
+
+
+def dependency_shas(shas: dict[str, str]) -> tuple[str, ...]:
+    return tuple(shas[path] for path in DEPENDENCY_FILES)
+
+
+def frontend_shas(shas: dict[str, str]) -> tuple[str, ...]:
+    return tuple(shas[path] for path in FRONTEND_TREES)
 
 
 def image_is_published(*, sha: str) -> bool:
+    """Whether Docker Hub has the commit's tag; any trouble asking counts as not published.
+
+    The fallback for an unpublished image is a full build, so a rate limit or outage at
+    Docker Hub costs build time rather than the preview.
+    """
     try:
         with urllib.request.urlopen(f"{DOCKER_HUB_TAGS_URL}/commit-{sha[:7]}", timeout=30):
             return True
     except urllib.error.HTTPError as error:
-        if error.code == 404:
-            return False
-        raise
+        if error.code != 404:
+            print(f"::warning::Docker Hub returned {error.code} for commit-{sha[:7]}")
+        return False
+    except (urllib.error.URLError, TimeoutError) as error:
+        print(f"::warning::Docker Hub request for commit-{sha[:7]} failed: {error}")
+        return False
 
 
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
@@ -78,14 +78,14 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
     compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{base_ref}...{head_sha}")
     assert isinstance(compare, dict)
     merge_base_sha = str(compare["merge_base_commit"]["sha"])
-    wanted = blob_shas(ref=head_sha)
+    wanted = dependency_shas(root_tree_shas(ref=head_sha))
     commits = gh_api(
         f"repos/{{owner}}/{{repo}}/commits?sha={merge_base_sha}&per_page={MAX_BASE_CANDIDATES}"
     )
     assert isinstance(commits, list)
     for commit in commits:
         sha = str(commit["sha"])
-        if blob_shas(ref=sha) != wanted:
+        if dependency_shas(root_tree_shas(ref=sha)) != wanted:
             # Older commits can't match either: the PR's files came from this history.
             return ""
         if image_is_published(sha=sha):
@@ -94,14 +94,27 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
 
 
 def extract_seed(*, body: str) -> str:
-    """The python block of the body's Preview seed section, and only that section's."""
-    heading = SEED_HEADING_PATTERN.search(body)
-    if heading is None:
+    """The first python block of the body's Preview seed section, and only that section's.
+
+    Scans lines so a `## comment` inside the block is not taken for the next heading.
+    """
+    lines = body.splitlines()
+    try:
+        start = next(i for i, line in enumerate(lines) if SEED_HEADING_PATTERN.match(line))
+    except StopIteration:
         return ""
-    next_heading = HEADING_PATTERN.search(body, heading.end())
-    section = body[heading.end() : next_heading.start() if next_heading else len(body)]
-    fence = PYTHON_FENCE_PATTERN.search(section)
-    return fence.group(1).strip() + "\n" if fence else ""
+    block: list[str] = []
+    in_block = False
+    for line in lines[start + 1 :]:
+        if in_block:
+            if FENCE_PATTERN.match(line):
+                return "\n".join(block).strip() + "\n" if block else ""
+            block.append(line)
+        elif PYTHON_FENCE_PATTERN.match(line):
+            in_block = True
+        elif HEADING_PATTERN.match(line):
+            return ""
+    return ""
 
 
 def main() -> int:
@@ -122,10 +135,10 @@ def main() -> int:
     head_sha = str(args.head_sha)
     base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
-    # The base image's frontend is as old as its commit, so the diff that matters runs from
-    # that commit, not from the merge base. A full build makes the PR's own frontend.
-    frontend = bool(base_sha) and any(
-        FRONTEND_PATTERN.match(path) for path in changed_paths(base_sha=base_sha, head_sha=head_sha)
+    # The base image's frontend is as old as its commit, so the comparison that matters is
+    # with that commit, not the merge base. A full build makes the PR's own frontend.
+    frontend = bool(base_sha) and frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
+        root_tree_shas(ref=head_sha)
     )
 
     seed = extract_seed(body=str(pr["body"] or ""))

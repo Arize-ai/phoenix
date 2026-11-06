@@ -37,6 +37,8 @@ DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
 # factory-preview.yml deploys a labeled PR; docs PRs have nothing to seed.
 PREVIEW_LABEL = "factory-preview"
+PREVIEW_LABEL_COLOR = "0E8A16"
+PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
 PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
@@ -168,6 +170,22 @@ def report_on_status_comment(
             )
         except subprocess.CalledProcessError as error:
             print(f"::warning::Deleting status comment {comment_id} failed: {error}")
+
+
+def add_preview_label(*, pr_number: int, token: Optional[str]) -> None:
+    """Label the PR for factory-preview.yml, creating the label on use so no repo lacks it."""
+    run_gh(
+        "label",
+        "create",
+        PREVIEW_LABEL,
+        "--color",
+        PREVIEW_LABEL_COLOR,
+        "--description",
+        PREVIEW_LABEL_DESCRIPTION,
+        "--force",
+        token=token,
+    )
+    run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -607,14 +625,7 @@ def watch_session(
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
                     if lane in PREVIEW_LANES:
-                        run_gh(
-                            "pr",
-                            "edit",
-                            str(pr["number"]),
-                            "--add-label",
-                            PREVIEW_LABEL,
-                            token=app_token.refresh(),
-                        )
+                        add_preview_label(pr_number=pr["number"], token=app_token.refresh())
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):

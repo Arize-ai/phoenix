@@ -21,7 +21,7 @@ name: Factory Preview
 # fork PR gets neither, so both jobs skip fork PRs.
 on:
   pull_request:
-    types: [labeled, synchronize, reopened, closed, unlabeled]
+    types: [opened, labeled, synchronize, reopened, closed, unlabeled]
 
 permissions:
   contents: read
@@ -29,10 +29,12 @@ permissions:
 jobs:
   deploy:
     name: Build and deploy
+    # Open PRs only: a closed PR has already had its teardown, and nothing would run it again.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.state == 'open' &&
       ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
-       ((github.event.action == 'synchronize' || github.event.action == 'reopened') &&
+       (github.event.action != 'labeled' &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')))
     # A newer push supersedes the preview an older run is still building.
     concurrency:
@@ -84,6 +86,12 @@ jobs:
           echo "image=$image" >> "$GITHUB_OUTPUT"
           uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/seed" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve the base image
+        env:
+          PLANNED_BASE_IMAGE: ${{ steps.plan.outputs.base-image }}
+          FULL_BUILD_IMAGE: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-base-${{ steps.plan.outputs.short-sha }}
+        run: echo "BASE_IMAGE=${PLANNED_BASE_IMAGE:-$FULL_BUILD_IMAGE}" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       - name: Log in to GHCR
@@ -92,6 +100,20 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+
+      # The PR's own frontend stage, when js/ or schemas/ changed since the base image's
+      # commit. Pushed as an image so the preview build can take it as a build context.
+      - name: Build the frontend from the PR's Dockerfile stage
+        if: steps.plan.outputs.frontend == 'true'
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          context: head
+          file: head/Dockerfile
+          target: frontend-builder
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-frontend-${{ steps.plan.outputs.short-sha }}
 
       # A PR whose dependencies match no published image can't borrow one, so it pays for
       # the full build once and overlays on that instead.
@@ -104,7 +126,7 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
-          tags: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-base-${{ steps.plan.outputs.short-sha }}
+          tags: ${{ env.BASE_IMAGE }}
 
       - name: Build and push the preview image
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
@@ -117,9 +139,11 @@ jobs:
           build-contexts: |
             preview=base/factory/preview
             seed=${{ runner.temp }}/seed
+            base-image=docker-image://${{ env.BASE_IMAGE }}
+            frontend=docker-image://${{ steps.plan.outputs.frontend == 'true' && format('{0}:pr-{1}-frontend-{2}', steps.plan.outputs.image, github.event.pull_request.number, steps.plan.outputs.short-sha) || env.BASE_IMAGE }}
           build-args: |
-            BASE_IMAGE=${{ steps.plan.outputs.base-image || format('{0}:pr-{1}-base-{2}', steps.plan.outputs.image, github.event.pull_request.number, steps.plan.outputs.short-sha) }}
-            STATIC_SOURCE=${{ steps.plan.outputs.frontend == 'true' && 'build' || 'base' }}
+            BASE_IMAGE=${{ env.BASE_IMAGE }}
+            STATIC_SOURCE=${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
           tags: |
             ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}
             ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
