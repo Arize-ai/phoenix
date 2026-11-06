@@ -25,10 +25,11 @@ COPY --from=frontend /phoenix/src/phoenix/server/static/ /static/
 FROM static-${STATIC_SOURCE} AS static
 
 FROM base-image
-# The overlay shadows the installed package rather than overwriting it. Subpackages the PR
-# changes are taken whole from the overlay, deletions included; modules directly under
-# phoenix/ are the exception, because phoenix/__init__.py extends the package path to the
-# installed copy, so a top-level module the PR deletes stays importable here.
+# The overlay shadows the installed package rather than overwriting it: a module the PR
+# adds or changes is imported from here first. phoenix/__init__.py extends the package
+# path to the installed copy, so a module or subpackage the PR deletes directly under
+# phoenix/ stays importable; only a module deleted inside a subpackage the overlay still
+# provides is gone. A PR whose point is such a deletion needs a full build to show it.
 COPY src/phoenix /phoenix/overlay/phoenix
 COPY --from=static /static/ /phoenix/overlay/phoenix/server/static/
 COPY --from=preview launch.py /phoenix/preview/launch.py

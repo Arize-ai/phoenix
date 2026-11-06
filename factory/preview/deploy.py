@@ -25,14 +25,13 @@ RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
 SEED_TIMEOUT_SECONDS = 10 * 60
-# SKIPPED means Railway superseded the deployment with one it queued itself, for example
-# from the service's creation; the service's latest deployment is then the one to follow.
+# SKIPPED is not final here: Railway superseded the deployment with one it queued itself,
+# for example from the service's creation, and that one is the one to follow.
 DEPLOYMENT_FINAL_STATUSES = {
     "SUCCESS",
     "FAILED",
     "CRASHED",
     "REMOVED",
-    "SKIPPED",
     "SLEEPING",
     "NEEDS_APPROVAL",
 }
@@ -218,6 +217,8 @@ def wait_for_deployment(
                 if active and active != deployment_id:
                     deployment_id = active
                     continue
+                # Railway's replacement is not listed yet; it will be on a later poll.
+                status = "PENDING"
         except RailwayError as error:
             print(f"::warning::Polling deployment {deployment_id}: {error}", flush=True)
             status = "PENDING"
@@ -241,18 +242,50 @@ def read_deployment_logs(deployment_id: str, *, limit: int = 60) -> str:
     return "\n".join(entry["message"] for entry in data["deploymentLogs"])
 
 
+class LogTail:
+    """The deployment's log, accumulated across polls by asking only for new lines."""
+
+    def __init__(self, deployment_id: str) -> None:
+        self.deployment_id = deployment_id
+        self.lines: list[str] = []
+        self._last: Optional[tuple[str, str]] = None  # (timestamp, message) of the newest line
+
+    def refresh(self) -> None:
+        variables: dict[str, Any] = {"id": self.deployment_id, "limit": 5000}
+        if self._last is not None:
+            variables["startDate"] = self._last[0]
+        try:
+            data = railway(
+                "query($id: String!, $limit: Int!, $startDate: DateTime) {"
+                " deploymentLogs(deploymentId: $id, limit: $limit, startDate: $startDate)"
+                " { timestamp message } }",
+                **variables,
+            )
+        except RailwayError as error:
+            print(f"::warning::Reading deployment logs: {error}", flush=True)
+            return
+        entries = [(str(e["timestamp"]), str(e["message"])) for e in data["deploymentLogs"]]
+        if self._last is not None and self._last in entries:
+            # startDate is inclusive, so the previous tail comes back; keep what follows it.
+            entries = entries[entries.index(self._last) + 1 :]
+        self.lines += [message for _, message in entries]
+        if entries:
+            self._last = entries[-1]
+
+
 def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     """Return the launcher's seed outcome line and the seed's own output.
 
     Railway reports SUCCESS once /healthz answers, which launch.py reaches before the seed
     runs, so the comment waits for the launcher's outcome line rather than trusting SUCCESS.
-    The log is read whole and the latest run is what counts: after a restart an earlier
-    run's outcome is stale, and a run that has started but not finished is still pending.
+    The latest run is what counts: after a restart an earlier run's outcome is stale, and a
+    run that has started but not finished is still pending.
     """
     deadline = time.monotonic() + SEED_TIMEOUT_SECONDS
+    tail = LogTail(deployment_id)
     while time.monotonic() < deadline:
-        # A failed read comes back as a one-line message, so it never matches an outcome.
-        lines = read_deployment_logs(deployment_id, limit=5000).splitlines()
+        tail.refresh()
+        lines = tail.lines
         starts = [i for i, line in enumerate(lines) if line.startswith(SEED_START_PREFIX)]
         outcomes = [i for i, line in enumerate(lines) if line.startswith(SEED_OUTCOME_PREFIXES)]
         last_start = starts[-1] if starts else -1
@@ -326,22 +359,26 @@ def find_comment(*, pr_number: int) -> Optional[str]:
     return comment_ids[0] if comment_ids else None
 
 
-def image_is_public(*, image: str) -> bool:
-    """Whether the GHCR package is public, which Railway needs to pull it without credentials.
+def image_visibility(*, image: str) -> str:
+    """`public`, `private` or `unknown` for the GHCR package behind the image.
 
-    GHCR creates a package private on first push and only the web UI changes that, so the
-    first run of a fresh package stops here with instructions instead of a failed deploy.
+    Railway needs a public package to pull without credentials. GHCR creates a package
+    private on first push and only the web UI changes that, so the first run of a fresh
+    package stops with instructions instead of a failed deploy. A lookup that keeps failing
+    is `unknown`, which also stops the run: a wrong guess here costs the 15-minute wait and
+    a misleading comment.
     """
     org, _, package = image.removeprefix("ghcr.io/").partition("/")
     package = package.partition(":")[0]
-    try:
-        visibility = run_gh(
-            "api", f"orgs/{org}/packages/container/{package}", "--jq", ".visibility"
-        )
-    except subprocess.CalledProcessError as error:
-        print(f"::warning::Could not read the package's visibility: {error.stderr}")
-        return True
-    return visibility.strip() == "public"
+    for attempt in range(3):
+        try:
+            return run_gh(
+                "api", f"orgs/{org}/packages/container/{package}", "--jq", ".visibility"
+            ).strip()
+        except subprocess.CalledProcessError as error:
+            print(f"::warning::Reading the package's visibility: {error.stderr}")
+            time.sleep(5 * (attempt + 1))
+    return "unknown"
 
 
 def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
@@ -431,16 +468,20 @@ def format_deploy_comment(
 
 
 def run_deploy(args: argparse.Namespace) -> int:
-    if not image_is_public(image=args.image):
-        upsert_comment(
-            pr_number=args.pr,
-            body=(
-                f"The image for this preview was pushed, but its package is private, so Railway"
-                f" can't pull it. A maintainer needs to make `{args.image.partition(':')[0]}`"
-                " public once (see Bootstrap in factory/README.md), then re-add the label."
-            ),
+    visibility = image_visibility(image=args.image)
+    if visibility != "public":
+        package = args.image.partition(":")[0]
+        problem = (
+            f"its package is private, so Railway can't pull it. A maintainer needs to make"
+            f" `{package}` public once (see Bootstrap in factory/README.md), then re-add the label"
+            if visibility == "private"
+            else f"GitHub would not say whether `{package}` is public, so the deploy did not"
+            " start. Re-add the label to try again"
         )
-        print("::error::The preview image's package is private; see the PR comment.")
+        upsert_comment(
+            pr_number=args.pr, body=f"The image for this preview was pushed, but {problem}."
+        )
+        print(f"::error::The preview image's package is {visibility}; see the PR comment.")
         return 1
     project_id, environment_id = read_token_scope()
     name = f"pr-{args.pr}"
