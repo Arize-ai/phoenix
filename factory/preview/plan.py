@@ -142,19 +142,6 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
     return ""
 
 
-def comment_records(*, pr_number: int, image_tag: str) -> bool:
-    """Whether the PR's preview comment says this tag is deployed and healthy."""
-    marker = f"<!-- factory-preview tag={image_tag} status=SUCCESS -->"
-    found = run_gh(
-        "api",
-        "--paginate",
-        f"repos/{{owner}}/{{repo}}/issues/{pr_number}/comments",
-        "--jq",
-        f"[.[] | select(.body | startswith({json.dumps(marker)}))] | length",
-    )
-    return any(int(count or 0) > 0 for count in found.split())
-
-
 def extract_seed(*, body: str) -> str:
     """The first python block of the body's Preview seed section, and only that section's.
 
@@ -260,9 +247,6 @@ def main() -> int:
         "image": image,
         "image-tag": image_tag,
         "image-exists": str(image_tag_exists(image, image_tag)).lower(),
-        # deploy.py records the tag it deployed in its comment's marker; a body edit that
-        # leaves it the same has nothing to redo at all.
-        "comment-current": str(comment_records(pr_number=args.pr, image_tag=image_tag)).lower(),
         "base-image": base_image,
         "frontend": str(frontend).lower(),
         "seed-summary": seed_summary,

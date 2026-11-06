@@ -47,11 +47,22 @@ DEPLOYMENT_FINAL_STATUSES = {
 # GitHub caps a comment at 65536 characters; relayed output gets a fraction of that.
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
-# The marker carries what the comment reports, so plan.py can tell an edit that changes
-# nothing; find_comment matches the prefix alone.
-COMMENT_MARKER = "<!-- factory-preview"
+COMMENT_MARKER = "<!-- factory-preview -->"
+PREVIEW_LABEL = "factory-preview"
 SEED_NOT_FINISHED_LINE = "preview: the seed had not finished when the run stopped waiting"
 SEED_OUTCOME_GONE_LINE = "preview: the seed's outcome is no longer in the log"
+
+
+def seed_is_fine(outcome: str) -> bool:
+    """Whether a seed outcome is no cause for failure.
+
+    A seed still running when the wait ended is the log lagging, and one whose lines have
+    scrolled out of an old deployment's log is unknowable, not failed.
+    """
+    return outcome.startswith(seed_log.SUCCESS_LINES) or outcome in (
+        SEED_NOT_FINISHED_LINE,
+        SEED_OUTCOME_GONE_LINE,
+    )
 
 
 class RailwayError(Exception):
@@ -269,14 +280,17 @@ class LogTail:
                 " { timestamp message } }",
                 **variables,
             )
-        except RailwayError as error:
-            warn(f"Reading deployment logs: {error}")
+        except RailwayError as failure:
+            warn(f"Reading deployment logs: {failure}")
+            return
+        try:
+            raw = required(data, "deploymentLogs")
+        except RailwayError as failure:
+            warn(f"Reading deployment logs: {failure}")
             return
         # Trailing whitespace or a carriage return would defeat the exact match on the
         # launcher's lines.
-        entries = [
-            (str(e["timestamp"]), str(e["message"]).rstrip()) for e in data["deploymentLogs"]
-        ]
+        entries = [(str(e["timestamp"]), str(e["message"]).rstrip()) for e in raw]
         entries.sort(key=lambda entry: entry[0])  # stable, so same-timestamp order holds
         # startDate is inclusive, so lines at the last timestamp come back; skip as many of
         # them as were already taken, which also handles identical lines.
@@ -299,17 +313,18 @@ class LogTail:
 
 
 def read_build_logs(deployment_id: str) -> str:
-    """The build log, where an image that could not be pulled says why."""
+    """The tail of the build log, where an image that could not be pulled says why."""
     try:
         data = railway(
             "query($id: String!, $limit: Int!) {"
             " buildLogs(deploymentId: $id, limit: $limit) { message } }",
             id=deployment_id,
-            limit=MAX_OUTPUT_LINES,
+            limit=5000,
         )
-    except RailwayError as error:
-        return f"(build logs unavailable: {error})"
-    return "\n".join(str(entry["message"]).rstrip() for entry in data["buildLogs"])
+        entries = required(data, "buildLogs")
+    except RailwayError as failure:
+        return f"(build logs unavailable: {failure})"
+    return "\n".join(str(entry["message"]).rstrip() for entry in entries[-MAX_OUTPUT_LINES:])
 
 
 def seed_state(log: LogTail) -> tuple[str, str, str]:
@@ -430,22 +445,16 @@ def find_comment(*, pr_number: int) -> Optional[str]:
     return comment_ids[0] if comment_ids else None
 
 
-def upsert_comment(
-    *, pr_number: int, body: str, create: bool = True, image_tag: str = "", status: str = ""
-) -> None:
+def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
     """Keep one preview comment per PR, found by its marker, so pushes edit rather than pile up.
 
-    Without `create`, a PR that never had a preview comment gets none. The marker records
-    the tag and status reported, and the step learns that a report was made.
+    Without `create`, a PR that never had a preview comment gets none. Once the comment is
+    posted, the step learns through its `reported` output that a report was made.
     """
-    marker = COMMENT_MARKER
-    if image_tag:
-        marker += f" tag={image_tag} status={status}"
-    body = f"{marker} -->\n{body}"
+    body = f"{COMMENT_MARKER}\n{body}"
     comment_id = find_comment(pr_number=pr_number)
     if comment_id is None and not create:
         return
-    set_output("reported", "true")
     if comment_id is not None:
         run_gh(
             "api",
@@ -466,6 +475,7 @@ def upsert_comment(
             "--silent",
             input_text=json.dumps({"body": body}),
         )
+    set_output("reported", "true")
 
 
 def clip_for_comment(text: str) -> str:
@@ -549,10 +559,6 @@ def post_deploy_comment(
     seed_output: str,
     logs: str,
 ) -> None:
-    fine = seed_outcome.startswith(seed_log.SUCCESS_LINES) or seed_outcome in (
-        SEED_NOT_FINISHED_LINE,
-        SEED_OUTCOME_GONE_LINE,
-    )
     upsert_comment(
         pr_number=args.pr,
         body=format_deploy_comment(
@@ -566,12 +572,6 @@ def post_deploy_comment(
             run_url=args.run_url,
             logs=logs,
         ),
-        image_tag=args.image_tag,
-        status=status
-        if status == "SUCCESS" and fine
-        else f"{status}-seed-failed"
-        if status == "SUCCESS"
-        else status,
     )
 
 
@@ -605,10 +605,7 @@ def reuse_existing_deployment(
         seed_outcome, seed_output = wait_for_seed(str(live[0]["id"]))
     elif state == "unknown":
         seed_outcome = SEED_OUTCOME_GONE_LINE
-    if (
-        not seed_outcome.startswith(seed_log.SUCCESS_LINES)
-        and seed_outcome != SEED_OUTCOME_GONE_LINE
-    ):
+    if not seed_is_fine(seed_outcome):
         print(f"{image} is deployed but its seed did not succeed; redeploying")
         return False
     domain = ensure_domain(
@@ -624,6 +621,7 @@ def reuse_existing_deployment(
         logs="",
     )
     print(f"{image} is already deployed; comment refreshed")
+    settle_with_pr_state(pr_number=args.pr, service_id=service_id)
     return True
 
 
@@ -719,9 +717,25 @@ def run_deploy(args: argparse.Namespace) -> int:
         logs=logs,
     )
     print(f"status={status}\n{seed_outcome}")
-    # A seed still running when the wait ended is the log lagging, not a failure.
-    fine = seed_outcome.startswith(seed_log.SUCCESS_LINES) or seed_outcome == SEED_NOT_FINISHED_LINE
-    return 0 if status == "SUCCESS" and fine else 1
+    settle_with_pr_state(pr_number=args.pr, service_id=service_id)
+    return 0 if status == "SUCCESS" and seed_is_fine(seed_outcome) else 1
+
+
+def settle_with_pr_state(*, pr_number: int, service_id: str) -> None:
+    """Tear the preview down if the PR closed or lost its label while this run was deploying.
+
+    The teardown job cannot be relied on for that: a run queued behind a long deploy is
+    dropped when a newer event queues, so the deploy checks for itself before it ends.
+    """
+    pr = json.loads(run_gh("pr", "view", str(pr_number), "--json", "state,labels"))
+    labeled = PREVIEW_LABEL in {label["name"] for label in pr["labels"]}
+    if pr["state"] == "OPEN" and labeled:
+        return
+    print(f"the PR is {pr['state'].lower()} and {'' if labeled else 'un'}labeled; tearing down")
+    delete_service(service_id)
+    if pr["state"] != "OPEN":
+        delete_image_tags(image=preview_image(), pr_number=pr_number)
+    upsert_comment(pr_number=pr_number, body="The preview for this PR has been torn down.")
 
 
 def run_note(args: argparse.Namespace) -> int:
