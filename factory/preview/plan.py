@@ -21,6 +21,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 from gh import gh_api, run_gh
 
@@ -32,7 +33,7 @@ FRONTEND_TREES = ("js", "schemas")
 # Up to three leading spaces, an optional colon and optional closing hashes, as CommonMark
 # and habit allow.
 SEED_HEADING_PATTERN = re.compile(r"^ {0,3}(#+)\s*Preview seed\s*:?\s*#*\s*$", re.IGNORECASE)
-HEADING_PATTERN = re.compile(r"^(#+)\s")
+HEADING_PATTERN = re.compile(r"^ {0,3}(#+)(\s|$)")
 # A fence may be indented, as inside a list item, use three or more backticks or tildes,
 # and name the language as python, python3 or py in any case, with anything after it.
 FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
@@ -103,7 +104,7 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
 
     Empty when none of the last MAX_BASE_CANDIDATES commits qualifies.
     """
-    compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{base_ref}...{head_sha}")
+    compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{quote(base_ref, safe='')}...{head_sha}")
     assert isinstance(compare, dict)
     merge_base_sha = str(compare["merge_base_commit"]["sha"])
     wanted = dependency_shas(root_tree_shas(ref=head_sha))

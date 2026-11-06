@@ -122,7 +122,8 @@ jobs:
       # leaves the builder. Only the preview image is pushed. Every context sits under the
       # workspace because bake refuses to read outside its working directory.
       # The tag names the commit and the seed, so a body edit that changed something other
-      # than the seed finds its image already there and this run has nothing to do.
+      # than the seed finds its image already built. Only the build is skipped: deploy.py
+      # runs regardless and decides for itself whether the service already has this image.
       - name: Check whether this image already exists
         id: existing
         env:
@@ -130,7 +131,7 @@ jobs:
         run: |
           if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "$IMAGE is already built and was deployed by an earlier run; nothing to do."
+            echo "$IMAGE is already built; skipping the build."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -157,7 +158,6 @@ jobs:
           push: true
 
       - name: Deploy to Railway
-        if: steps.existing.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
@@ -172,7 +172,7 @@ jobs:
       # deploy.py reports its own failures; only a cancelled or timed-out job leaves the
       # previous comment standing, so this says what happened.
       - name: Note a run that did not finish
-        if: cancelled()
+        if: cancelled() && steps.plan.conclusion == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

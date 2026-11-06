@@ -4,6 +4,8 @@ Shared so the two cannot drift: the launcher imports it inside the image, deploy
 the base-branch checkout.
 """
 
+# Each container attempt begins with this, so a restart's log is told from the one before.
+LAUNCH_LINE = "preview: launcher starting"
 START_LINE = "preview: running the seed script"
 NO_SEED_LINE = "preview: no seed script; the instance starts empty"
 UNHEALTHY_LINE = "preview: the server exited before it became healthy; skipping the seed"

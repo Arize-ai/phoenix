@@ -93,6 +93,7 @@ def run_seed(url: str) -> None:
 
 
 def main() -> int:
+    print(seed_log.LAUNCH_LINE, flush=True)
     server = subprocess.Popen([sys.executable, "-m", "phoenix.server.main", "serve"])
     children.append(server)
     signal.signal(signal.SIGTERM, forward)
@@ -105,8 +106,10 @@ def main() -> int:
         print(seed_log.UNHEALTHY_LINE, flush=True)
     exit_code = server.wait()
     # A stop the launcher forwarded is a clean exit; any other signal death is a failure
-    # that the restart policy should see.
-    return 0 if stopping else exit_code
+    # that the restart policy should see, reported the way a shell would (128 + signal).
+    if stopping:
+        return 0
+    return 128 - exit_code if exit_code < 0 else exit_code
 
 
 if __name__ == "__main__":
