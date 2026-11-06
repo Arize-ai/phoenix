@@ -88,10 +88,10 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@ai-sdk/google": "^4.0.109",
-    "@ai-sdk/openai": "^4.0.106",
-    "@ai-sdk/typesafe-ai": "^3.0.31",
-    "@arizeai/openinference-instrumentation-openai": "^4.4.2",
+    "@ai-sdk/google": "^4.0.111",
+    "@ai-sdk/openai": "^4.0.108",
+    "@ai-sdk/typesafe-ai": "^3.0.33",
+    "@arizeai/openinference-instrumentation-openai": "^4.4.3",
     "@opentelemetry/sdk-trace-node": "^2.12.0",
     "@types/mustache": "^4.2.6",
     "@types/node": "^26.6.6",
@@ -99,7 +99,7 @@
     "nock": "^14.0.17",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">=22.12"
