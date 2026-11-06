@@ -28,6 +28,7 @@ from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionI
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Evaluator import (
     PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION,
+    PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION,
     CodeEvaluator,
     DatasetEvaluator,
     EvaluationTarget,
@@ -187,6 +188,9 @@ class CreateProjectLLMEvaluatorInput:
     prompt_version_id: Optional[GlobalID] = UNSET
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = strawberry.field(
+        default=True, description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
@@ -217,6 +221,10 @@ class UpdateProjectLLMEvaluatorInput:
     )
     filter_condition: str
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = strawberry.field(
+        default=UNSET,
+        description=f"{PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION} Omit to preserve it.",
+    )
     description: Optional[str] = UNSET
     prompt_version_id: Optional[GlobalID] = UNSET
     evaluation_delay_seconds: Optional[int] = strawberry.field(
@@ -252,6 +260,9 @@ class AddProjectCodeEvaluatorInput:
     )
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = strawberry.field(
+        default=True, description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
@@ -287,6 +298,9 @@ class CreateProjectCodeEvaluatorInput:
     )
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = strawberry.field(
+        default=True, description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
     evaluation_delay_seconds: Optional[int] = strawberry.field(
         default=None,
         description=(
@@ -315,6 +329,10 @@ class UpdateProjectCodeEvaluatorInput:
     filter_condition: str
     evaluator_input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = strawberry.field(
+        default=UNSET,
+        description=f"{PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION} Omit to preserve it.",
+    )
     description: Optional[str] = UNSET
     source_code: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
@@ -476,6 +494,7 @@ class EvaluatorMutationMixin:
             description=input.description,
             filter_condition=input.filter_condition,
             enabled=input.enabled,
+            tracing_enabled=input.tracing_enabled,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
             input_schema=input.input_schema,
         )
@@ -511,6 +530,7 @@ class EvaluatorMutationMixin:
             evaluation_target=input.evaluation_target.value,
             filter_condition=input.filter_condition,
             enabled=input.enabled,
+            tracing_enabled=input.tracing_enabled,
             description=input.description,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
             input_schema=input.input_schema,
@@ -543,6 +563,7 @@ class EvaluatorMutationMixin:
             else input.input_mapping,
             filter_condition=input.filter_condition,
             enabled=input.enabled,
+            tracing_enabled=input.tracing_enabled,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
         )
         context = _evaluator_service_context(info.context)
@@ -579,6 +600,7 @@ class EvaluatorMutationMixin:
             else input.input_mapping,
             filter_condition=input.filter_condition,
             enabled=input.enabled,
+            tracing_enabled=input.tracing_enabled,
             evaluation_delay_seconds=input.evaluation_delay_seconds,
             input_schema=input.input_schema,
         )
@@ -610,6 +632,7 @@ class EvaluatorMutationMixin:
             and input.evaluator_input_mapping is not UNSET
             else input.evaluator_input_mapping,
             enabled=input.enabled,
+            tracing_enabled=input.tracing_enabled,
             description=input.description,
             source_code=input.source_code,
             sandbox_config_id=input.sandbox_config_id,

@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import {
   Counter,
@@ -12,6 +12,8 @@ import {
   Icon,
   Icons,
   Heading,
+  Label,
+  Switch,
   Text,
   View,
 } from "@phoenix/components";
@@ -74,13 +76,50 @@ const ProjectEvaluatorScopeSection = ({
 };
 
 /**
+ * The "Advanced" section every project evaluator form ends with: settings
+ * that change what an evaluation stores, not what it evaluates.
+ */
+const ProjectEvaluatorAdvancedSection = ({
+  scope,
+  onScopeChange,
+}: Pick<ProjectEvaluatorScopeProps, "scope" | "onScopeChange">) => {
+  const tracingDescriptionId = useId();
+  return (
+    <View marginTop="size-200" marginBottom="size-200" flex="none">
+      <Flex direction="column" gap="size-200">
+        <EvaluatorSectionHeader
+          title="Advanced"
+          description="Choose what each evaluation stores besides its annotations."
+        />
+        <Flex direction="column" gap="size-50">
+          <Switch
+            isSelected={scope.tracingEnabled}
+            onChange={(tracingEnabled) =>
+              onScopeChange({ ...scope, tracingEnabled })
+            }
+            aria-describedby={tracingDescriptionId}
+          >
+            <Label>Tracing</Label>
+          </Switch>
+          <Text id={tracingDescriptionId} size="S" color="text-500">
+            {scope.tracingEnabled
+              ? "Each evaluation stores a trace of its inputs, outputs, latency, and token cost, so you can analyze this evaluator's cost and performance and improve it."
+              : "Evaluations store only their annotations. This saves storage, but this evaluator's cost, latency, and inputs are not recorded."}
+          </Text>
+        </Flex>
+      </Flex>
+    </View>
+  );
+};
+
+/**
  * The left definition panel for an LLM project evaluator; the matching-record
  * test bench lives in {@link ProjectEvaluatorScopePanel} and the input
  * mapping in {@link ProjectEvaluatorInputMappingDock}, pinned under this.
  *
  * The layout mirrors the dataset evaluator form: name and description, then
  * target, sampling, and the record filter, then the prompt with the annotation
- * config.
+ * config, then the advanced settings.
  */
 export const ProjectLlmEvaluatorFormSections = (
   scopeProps: ProjectEvaluatorScopeProps
@@ -90,6 +129,7 @@ export const ProjectLlmEvaluatorFormSections = (
       <EvaluatorNameAndDescriptionFields />
       <ProjectEvaluatorScopeSection {...scopeProps} />
       <LLMEvaluatorForm showInputMapping={false} />
+      <ProjectEvaluatorAdvancedSection {...scopeProps} />
     </>
   );
 };
@@ -243,6 +283,7 @@ export const ProjectCodeEvaluatorFormSections = ({
           evaluatorName={codeEvaluatorName}
         />
         <ProjectEvaluatorScopeSection {...scopeProps} />
+        <ProjectEvaluatorAdvancedSection {...scopeProps} />
       </>
     );
   }
@@ -255,6 +296,7 @@ export const ProjectCodeEvaluatorFormSections = ({
       />
       <ProjectEvaluatorScopeSection {...scopeProps} />
       {codeDefinition}
+      <ProjectEvaluatorAdvancedSection {...scopeProps} />
     </>
   );
 };
@@ -281,6 +323,7 @@ export const ProjectDecisionEvaluatorFormSections = (
           subtitle={attachedEvaluator.decisionVersion.decision.name}
         />
         <ProjectEvaluatorScopeSection {...scopeProps} />
+        <ProjectEvaluatorAdvancedSection {...scopeProps} />
       </>
     );
   }
@@ -295,6 +338,7 @@ export const ProjectDecisionEvaluatorFormSections = (
         scoringDescription="Turn each answer into the score this evaluator records, and whether higher or lower is better."
         showInputMapping={false}
       />
+      <ProjectEvaluatorAdvancedSection {...scopeProps} />
     </>
   );
 };

@@ -87,6 +87,7 @@ class CreateProjectLLMEvaluatorInput:
     description: Optional[str] = None
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = True
     evaluation_delay_seconds: Optional[int] = None
     input_schema: Any = None  # a JSON schema object, parsed by the service
 
@@ -99,6 +100,7 @@ class ProjectEvaluatorWriteValues(TypedDict, total=False):
     input_mapping: Optional[InputMapping]
     evaluation_delay_seconds: Optional[int]
     enabled: bool
+    tracing_enabled: bool
 
 
 @dataclass(kw_only=True)
@@ -112,6 +114,7 @@ class UpdateProjectLLMEvaluatorInput:
     evaluation_target: models.EvaluationTarget
     filter_condition: str
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = UNSET
     description: Optional[str] = UNSET
     evaluation_delay_seconds: Optional[int] = UNSET
     input_schema: Any = UNSET  # a JSON schema object, parsed by the service
@@ -126,6 +129,7 @@ class ProjectBindingSettings:
     input_mapping: Optional[InputMapping] = None
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = True
     evaluation_delay_seconds: Optional[int] = None
 
 
@@ -149,6 +153,7 @@ class CreateProjectCodeEvaluatorInput:
     input_mapping: Optional[InputMapping] = None
     filter_condition: str = ""
     enabled: bool = True
+    tracing_enabled: bool = True
     evaluation_delay_seconds: Optional[int] = None
     input_schema: Any = None  # a JSON schema object, parsed by the service
 
@@ -162,6 +167,7 @@ class UpdateProjectCodeEvaluatorInput:
     filter_condition: str
     evaluator_input_mapping: Optional[InputMapping] = UNSET
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = UNSET
     description: Optional[str] = UNSET
     source_code: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
@@ -269,6 +275,7 @@ async def create_project_llm_evaluator(
                 input_mapping=input.input_mapping,
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
+                tracing_enabled=input.tracing_enabled,
             )
             session.add(project_evaluator)
             await session.flush()
@@ -374,6 +381,10 @@ async def update_project_llm_evaluator(
             if input.enabled is not UNSET:
                 assert input.enabled is not None
                 binding_values["enabled"] = input.enabled
+            if input.tracing_enabled is not UNSET:
+                if input.tracing_enabled is None:
+                    raise BadRequest("tracing_enabled cannot be set to null")
+                binding_values["tracing_enabled"] = input.tracing_enabled
             project_evaluator = await write_project_evaluator(
                 session, project_evaluator.id, binding_values
             )
@@ -472,6 +483,7 @@ async def bind_project_evaluator(
             settings.evaluation_delay_seconds, settings.evaluation_target
         ),
         enabled=settings.enabled,
+        tracing_enabled=settings.tracing_enabled,
     )
     session.add(project_evaluator)
     await session.flush()
@@ -630,6 +642,7 @@ async def create_project_code_evaluator(
                 input_mapping=(input.input_mapping if input.input_mapping is not None else None),
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
+                tracing_enabled=input.tracing_enabled,
             )
             session.add(project_evaluator)
             await session.flush()
@@ -863,6 +876,10 @@ async def update_project_code_evaluator(
             if input.enabled is not UNSET:
                 assert input.enabled is not None
                 binding_values["enabled"] = input.enabled
+            if input.tracing_enabled is not UNSET:
+                if input.tracing_enabled is None:
+                    raise BadRequest("tracing_enabled cannot be set to null")
+                binding_values["tracing_enabled"] = input.tracing_enabled
             project_evaluator = await write_project_evaluator(
                 session, project_evaluator.id, binding_values
             )
@@ -1196,6 +1213,7 @@ class ProjectEvaluatorPatch:
     sampling_rate: Optional[float] = UNSET
     filter_condition: Optional[str] = UNSET
     enabled: Optional[bool] = UNSET
+    tracing_enabled: Optional[bool] = UNSET
     input_mapping: Optional[InputMapping] = UNSET
     evaluation_delay_seconds: Optional[int] = UNSET
 
@@ -1246,6 +1264,10 @@ async def apply_project_evaluator_patch(
     if patch.enabled is not UNSET:
         assert patch.enabled is not None
         values["enabled"] = patch.enabled
+    if patch.tracing_enabled is not UNSET:
+        if patch.tracing_enabled is None:
+            raise BadRequest("tracing_enabled cannot be set to null")
+        values["tracing_enabled"] = patch.tracing_enabled
     if patch.input_mapping is not UNSET:
         if (decision := await session.get(models.DecisionEvaluator, row.evaluator_id)) is not None:
             validate_decision_project_mapping(decision.selected_version, patch.input_mapping)

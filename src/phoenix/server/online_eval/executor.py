@@ -196,6 +196,7 @@ class HydratedWorkUnit:
     output_configs: Sequence[OutputConfigType]
     context: dict[str, Any]
     annotation_metadata: dict[str, Any] = field(default_factory=dict)
+    tracing_enabled: bool = True
 
 
 HydrationOutcome = HydratedWorkUnit | HydrationFailure
@@ -840,7 +841,7 @@ class OnlineEvalExecutor:
         for index, (unit, outcome) in enumerate(zip(units, outcomes, strict=True)):
             if outcome is not None:
                 continue
-            _, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
+            project_evaluator, evaluator = project_evaluator_pairs[unit.project_evaluator_id]
             evaluator_snapshot_outcome = evaluator_snapshots[
                 _evaluator_snapshot_key(evaluator, unit.project_evaluator_id)
             ]
@@ -878,6 +879,7 @@ class OnlineEvalExecutor:
                 output_configs=evaluator_snapshot_outcome.output_configs,
                 context=snapshot_context,
                 annotation_metadata=annotation_metadata,
+                tracing_enabled=project_evaluator.tracing_enabled,
             )
         final_outcomes: list[ConfigurationSnapshotOutcome] = []
         for outcome in outcomes:
@@ -1124,7 +1126,7 @@ class OnlineEvalExecutor:
                 project_evaluator_rowid=unit.project_evaluator_id,
                 project_evaluator_name=hydrated.annotation_name,
             )
-            if self._tracer_factory
+            if self._tracer_factory and hydrated.tracing_enabled
             else None
         )
         started_at = time.perf_counter()

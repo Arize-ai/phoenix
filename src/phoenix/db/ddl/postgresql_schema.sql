@@ -1618,6 +1618,7 @@ CREATE TABLE public.project_evaluators (
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    tracing_enabled BOOLEAN NOT NULL DEFAULT true,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
     CONSTRAINT uq_project_evaluators_project_id_name
         UNIQUE (project_id, name),
