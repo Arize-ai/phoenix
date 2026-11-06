@@ -26,15 +26,13 @@ Do **not** use this hook when:
 
 ## Route loaders
 
-A route loader returns at once. React Router commits a navigation only when every matched loader has returned, so a loader that awaits a fetch freezes the page the user is on until the data lands. `src/__tests__/routeLoaders.test.ts` fails on a new `async` loader.
+A route loader returns at once. React Router commits a navigation only after every matched loader has returned, so a loader that awaits a fetch freezes the page the user is on and the destination's skeleton is never seen.
 
-- Return `loadQuery` refs and read them in the page with `useOwnedPreloadedQuery`. Use `store-and-network` so a revisit renders from the store and refreshes behind it.
-- The page owns the `Suspense` boundary and its skeleton. React Router commits inside a transition, and only a boundary mounted within that transition shows its fallback; the layout's boundary would keep the old page.
-- Hand the breadcrumb's name over as a promise (`crumb` may return `string | Promise<string>`); `NavBreadcrumb` and `NavTitle` resolve it. Do not await it in the loader.
-- Decide not-found in the page, as `ProjectEvaluatorDetailsPage` does: wrap the query reader in an `ErrorBoundary` whose fallback shows not-found for any failure except `isServerUnreachableError`, and pass that predicate as `isExpectedError`. Give content with its own queries, such as tabs and the `<Outlet>`, an inner boundary. Do not classify by matching error text.
-- Pass data a nested route needs through a typed outlet-context accessor (`useProjectEvaluatorDetailsOutletContext`), not loader data.
+- Start the page's queries with `loadQuery` and return the refs; the page reads them and suspends into its own `Suspense` boundary. The boundary has to be the page's: the router navigates in a transition, which holds a boundary that is already mounted.
+- Anything else the route needs from the response, such as a breadcrumb's name, is returned as a promise for its consumer to resolve.
+- A failed lookup is handled where the query is read, by an error boundary, not by awaiting in the loader.
 
-Redirect loaders are the exception: they await because a redirect has no page to show.
+Redirect loaders are the exception: a redirect has no page to show. `src/__tests__/routeLoaders.test.ts` fails on any other `async` loader.
 
 ## Rules
 

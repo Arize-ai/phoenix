@@ -24,6 +24,8 @@ type CrumbEntry = {
 /** About the width of a typical name, so the crumbs after it do not jump. */
 const PENDING_CRUMB_WIDTH = 120;
 
+const isLoadingCrumb = ({ crumb }: CrumbEntry) => typeof crumb !== "string";
+
 export function NavBreadcrumb() {
   const matchesWithCrumb = useMatchesWithCrumb();
   const { pathname, search } = useLocation();
@@ -42,15 +44,12 @@ export function NavBreadcrumb() {
         }) ?? match.pathname,
     };
   });
-  // A trail of known names is rendered as is, so its links survive a
-  // navigation and keep focus. Only a trail with a name still loading goes
-  // through a boundary, keyed by the path so every navigation mounts a fresh
-  // one: the router commits a navigation inside a transition, and only a
-  // boundary that mounts within it shows its fallback at once. One already
-  // on screen would hold the whole navigation until the name arrived.
-  if (entries.every((entry) => typeof entry.crumb === "string")) {
+  const hasLoadingCrumb = entries.some(isLoadingCrumb);
+  if (!hasLoadingCrumb) {
     return <BreadcrumbTrail entries={entries} />;
   }
+  // Keyed so each navigation mounts a fresh boundary: the router navigates
+  // in a transition, which holds an already-mounted boundary until it loads.
   return (
     <Suspense key={pathname} fallback={<BreadcrumbTrail entries={entries} />}>
       <ResolvedBreadcrumbTrail entries={entries} />
@@ -72,22 +71,23 @@ function BreadcrumbTrail({ entries }: { entries: CrumbEntry[] }) {
   return (
     <Breadcrumbs size="L">
       {entries.map(({ key, crumb, copyableItems, to }, index) => {
+        const isCrumbLoading = typeof crumb !== "string";
         const isLastCrumb = index === numEntries - 1;
         const showCopyableItems = isLastCrumb && copyableItems.length > 0;
         return (
           <Breadcrumb key={key}>
             <Flex direction="row" gap="size-100" alignItems="center">
-              {typeof crumb === "string" ? (
-                <Link to={to} title={crumb}>
-                  {crumb}
-                </Link>
-              ) : (
+              {isCrumbLoading ? (
                 <Skeleton
                   width={PENDING_CRUMB_WIDTH}
                   height="1em"
                   role="status"
                   aria-label="loading"
                 />
+              ) : (
+                <Link to={to} title={crumb}>
+                  {crumb}
+                </Link>
               )}
               {showCopyableItems ? (
                 <CopyActionMenu items={copyableItems} />

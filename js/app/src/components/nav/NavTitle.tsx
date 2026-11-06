@@ -12,24 +12,21 @@ export function NavTitle() {
   const crumbs = matchesWithCrumb.map((match) =>
     match.handle.crumb(match.loaderData)
   );
-  // Only a title with a name still loading goes through a boundary, keyed
-  // by the path for the reason NavBreadcrumb gives: a boundary already on
-  // screen would hold the navigation until every name arrived. Until then
-  // the title is made of the crumbs already known.
-  if (crumbs.every((crumb) => typeof crumb === "string")) {
-    return <Title crumbs={crumbs} />;
+  const loadedCrumbs = crumbs.filter(isLoadedCrumb);
+  const hasLoadingCrumb = loadedCrumbs.length < crumbs.length;
+  if (!hasLoadingCrumb) {
+    return <Title crumbs={loadedCrumbs} />;
   }
+  // Keyed for the reason NavBreadcrumb gives.
   return (
-    <Suspense
-      key={pathname}
-      fallback={
-        <Title crumbs={crumbs.filter((crumb) => typeof crumb === "string")} />
-      }
-    >
+    <Suspense key={pathname} fallback={<Title crumbs={loadedCrumbs} />}>
       <ResolvedTitle crumbs={crumbs} />
     </Suspense>
   );
 }
+
+const isLoadedCrumb = (crumb: Crumb): crumb is string =>
+  typeof crumb === "string";
 
 function ResolvedTitle({ crumbs }: { crumbs: Crumb[] }) {
   const resolvedCrumbs = crumbs.map((crumb) =>
