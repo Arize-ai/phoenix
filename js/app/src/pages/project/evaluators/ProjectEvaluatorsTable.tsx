@@ -180,6 +180,9 @@ const readRow = (
             }
           }
           ... on DecisionEvaluator {
+            decisionVersionTag {
+              name
+            }
             decisionVersion {
               id
               decisionId
@@ -610,12 +613,22 @@ export function ProjectEvaluatorsTable({
       {
         id: "prompt",
         header: "prompt / decision",
-        size: 180,
+        // Room for a name and a tag at their 10rem truncation widths, so both read.
+        size: 360,
         cell: ({ row }) => {
-          const { prompt, promptVersionTag, decisionVersion } =
-            row.original.evaluator;
+          const {
+            prompt,
+            promptVersionTag,
+            decisionVersion,
+            decisionVersionTag,
+          } = row.original.evaluator;
           if (decisionVersion) {
-            return <DecisionCell decisionVersion={decisionVersion} />;
+            return (
+              <DecisionCell
+                decisionVersion={decisionVersion}
+                decisionVersionTag={decisionVersionTag?.name}
+              />
+            );
           }
           if (!prompt) {
             return <Text color="text-700">--</Text>;
