@@ -80,8 +80,15 @@ def railway(query: str, **variables: Any) -> dict[str, Any]:
     return dict(payload["data"])
 
 
+def required(data: dict[str, Any], key: str) -> Any:
+    """A field Railway must have answered with; a null is an error, not a crash elsewhere."""
+    if data.get(key) is None:
+        raise RailwayError(f"Railway returned no {key}: {json.dumps(data)[:500]}")
+    return data[key]
+
+
 def read_token_scope() -> tuple[str, str]:
-    scope = railway("query { projectToken { projectId environmentId } }")["projectToken"]
+    scope = required(railway("query { projectToken { projectId environmentId } }"), "projectToken")
     return scope["projectId"], scope["environmentId"]
 
 
@@ -90,7 +97,7 @@ def find_service(*, project_id: str, name: str) -> Optional[str]:
         "query($id: String!) { project(id: $id) { services { edges { node { id name } } } } }",
         id=project_id,
     )
-    for edge in data["project"]["services"]["edges"]:
+    for edge in required(data, "project")["services"]["edges"]:
         if edge["node"]["name"] == name:
             return str(edge["node"]["id"])
     return None
@@ -146,7 +153,7 @@ def ensure_domain(*, project_id: str, environment_id: str, service_id: str) -> s
         environmentId=environment_id,
         serviceId=service_id,
     )
-    if service_domains := data["domains"]["serviceDomains"]:
+    if service_domains := required(data, "domains")["serviceDomains"]:
         return str(service_domains[0]["domain"])
     data = railway(
         "mutation($input: ServiceDomainCreateInput!) {"
@@ -177,7 +184,7 @@ def current_image(*, environment_id: str, service_id: str) -> str:
         serviceId=service_id,
         environmentId=environment_id,
     )
-    source = data["serviceInstance"].get("source") or {}
+    source = required(data, "serviceInstance").get("source") or {}
     return str(source.get("image") or "")
 
 
@@ -188,7 +195,7 @@ def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, 
         " deployments(input: $input, first: 10) { edges { node { id status } } } }",
         input={"environmentId": environment_id, "serviceId": service_id},
     )
-    return [dict(edge["node"]) for edge in data["deployments"]["edges"]]
+    return [dict(edge["node"]) for edge in required(data, "deployments")["edges"]]
 
 
 def wait_for_deployment(
@@ -299,7 +306,7 @@ def read_build_logs(deployment_id: str) -> str:
     return "\n".join(str(entry["message"]).rstrip() for entry in data["buildLogs"])
 
 
-def wait_for_seed(deployment_id: str) -> tuple[str, str]:
+def wait_for_seed(deployment_id: str, *, timeout: float = SEED_WAIT_SECONDS) -> tuple[str, str]:
     """Return the launcher's seed outcome line and the seed's own output.
 
     Railway reports SUCCESS once /healthz answers, which launch.py reaches before the seed
@@ -307,10 +314,11 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     The latest run is what counts: after a restart an earlier run's outcome is stale, and a
     run that has started but not finished is still pending. Output lines are taken from
     anywhere after the run started, so lines the relay flushed after the outcome count too.
+    A zero timeout reads the log once, for a deployment that finished long ago.
     """
-    deadline = time.monotonic() + SEED_WAIT_SECONDS
+    deadline = time.monotonic() + timeout
     log = LogTail(deployment_id)
-    while time.monotonic() < deadline:
+    while True:
         log.refresh()
         # Only the latest container attempt counts; an earlier attempt's outcome is stale.
         launches = [i for i, line in enumerate(log.lines) if line == seed_log.LAUNCH_LINE]
@@ -325,8 +333,9 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
                 if line.startswith(seed_log.OUTPUT_PREFIX)
             ]
             return lines[outcomes[-1]], "\n".join(output)
+        if time.monotonic() >= deadline:
+            return SEED_NOT_FINISHED_LINE, ""
         time.sleep(10)
-    return SEED_NOT_FINISHED_LINE, ""
 
 
 def delete_service(service_id: str) -> None:
@@ -334,20 +343,17 @@ def delete_service(service_id: str) -> None:
 
 
 def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
-    """Delete the GHCR versions tagged for this PR (pr-N and pr-N-*); return how many.
+    """Delete the GHCR versions tagged for this PR (pr-N-*); return how many.
 
-    With `keep`, the version carrying that tag stays, and so does whichever carries the
-    moving `pr-N` tag, so a deploy prunes the images it superseded and a teardown removes
-    them all. GitHub refuses to delete a package's last tagged version, so a refusal is
-    reported and skipped rather than failing the teardown.
+    With `keep`, the version carrying that tag stays, so a deploy prunes the images it
+    superseded and a teardown removes them all. GitHub refuses to delete a package's last
+    tagged version, so a refusal is reported and skipped rather than failing the teardown.
     """
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
-    tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
-    select = f"any(.metadata.container.tags[]?; {tag_filter})"
+    select = f'any(.metadata.container.tags[]?; startswith("pr-{pr_number}-"))'
     if keep:
-        kept = f'. == {json.dumps(keep)} or . == "pr-{pr_number}"'
-        select += f" and (any(.metadata.container.tags[]?; {kept}) | not)"
+        select += f" and (any(.metadata.container.tags[]?; . == {json.dumps(keep)}) | not)"
     try:
         version_ids = set(
             run_gh(
@@ -537,6 +543,52 @@ def post_deploy_comment(
     )
 
 
+def reuse_existing_deployment(
+    *,
+    args: argparse.Namespace,
+    image: str,
+    project_id: str,
+    environment_id: str,
+    service_id: str,
+    deployments: list[dict[str, Any]],
+) -> bool:
+    """Bring the comment up to date and return True when the service already runs this
+    image from a successful deployment whose seed did not fail.
+
+    The workflow skips the build when the image exists but runs deploy.py regardless, so a
+    run whose deploy failed or never happened is retried by re-labeling; this is the case
+    where there is nothing to redo. The log is read once: the deployment is final, and an
+    old one may have scrolled the launcher's lines away, which is no reason to redeploy.
+    """
+    live = [d for d in deployments if d["status"] != "SKIPPED"]
+    if not live or live[0]["status"] != "SUCCESS":
+        return False
+    if current_image(environment_id=environment_id, service_id=service_id) != image:
+        return False
+    seed_outcome, seed_output = wait_for_seed(str(live[0]["id"]), timeout=0)
+    if seed_outcome.startswith(seed_log.OUTCOME_PREFIXES) and not seed_outcome.startswith(
+        seed_log.SUCCESS_LINES
+    ):
+        print(f"{image} is deployed but its seed did not succeed; redeploying")
+        return False
+    if seed_outcome == SEED_NOT_FINISHED_LINE:
+        seed_outcome = "preview: the seed's outcome is no longer in the log"
+    domain = ensure_domain(
+        project_id=project_id, environment_id=environment_id, service_id=service_id
+    )
+    post_deploy_comment(
+        args=args,
+        image=image,
+        url=f"https://{domain}",
+        status="SUCCESS",
+        seed_outcome=seed_outcome,
+        seed_output=seed_output,
+        logs="",
+    )
+    print(f"{image} is already deployed; comment refreshed")
+    return True
+
+
 def run_deploy(args: argparse.Namespace) -> int:
     image = f"{preview_image()}:{args.image_tag}"
     try:
@@ -574,33 +626,15 @@ def run_deploy(args: argparse.Namespace) -> int:
         else:
             deployments = list_deployments(environment_id=environment_id, service_id=service_id)
             before = {str(d["id"]) for d in deployments}
-            live = [d for d in deployments if d["status"] != "SKIPPED"]
-            # The workflow skips the build when the image exists but runs this regardless,
-            # so a run whose deploy failed or never happened is retried by re-labeling. A
-            # successful deployment of this very image with a good seed needs no redeploy,
-            # only the comment brought up to date; a bad seed gets a fresh database.
-            if (
-                live
-                and live[0]["status"] == "SUCCESS"
-                and current_image(environment_id=environment_id, service_id=service_id) == image
+            if reuse_existing_deployment(
+                args=args,
+                image=image,
+                project_id=project_id,
+                environment_id=environment_id,
+                service_id=service_id,
+                deployments=deployments,
             ):
-                seed_outcome, seed_output = wait_for_seed(str(live[0]["id"]))
-                if seed_outcome.startswith(seed_log.SUCCESS_LINES):
-                    domain = ensure_domain(
-                        project_id=project_id, environment_id=environment_id, service_id=service_id
-                    )
-                    post_deploy_comment(
-                        args=args,
-                        image=image,
-                        url=f"https://{domain}",
-                        status="SUCCESS",
-                        seed_outcome=seed_outcome,
-                        seed_output=seed_output,
-                        logs="",
-                    )
-                    print(f"{image} is already deployed and seeded; comment refreshed")
-                    return 0
-                print(f"{image} is deployed but its seed did not succeed; redeploying")
+                return 0
         set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
         set_image(environment_id=environment_id, service_id=service_id, image=image)
         domain = ensure_domain(
