@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e1fde28543821c8632e47a7cf258bb27>>
+ * @generated SignedSource<<69779559e26c845c8663c7b27d485d1b>>
  * @lightSyntaxTransform
  */
 
@@ -65,6 +65,9 @@ export type DecisionProjectEvaluatorDetails_projectEvaluator$data = {
       };
       readonly templateFormat: PromptTemplateFormat;
     };
+    readonly decisionVersionTag: {
+      readonly name: string;
+    } | null;
     readonly scoringPolicy: {
       readonly questions: ReadonlyArray<{
         readonly __typename: string;
@@ -109,14 +112,17 @@ v1 = {
   "name": "name",
   "storageKey": null
 },
-v2 = {
+v2 = [
+  (v1/*:: as any*/)
+],
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "instructions",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -260,6 +266,16 @@ return {
             {
               "alias": null,
               "args": null,
+              "concreteType": "DecisionVersionTag",
+              "kind": "LinkedField",
+              "name": "decisionVersionTag",
+              "plural": false,
+              "selections": (v2/*:: as any*/),
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
               "concreteType": "DecisionVersion",
               "kind": "LinkedField",
               "name": "decisionVersion",
@@ -286,9 +302,7 @@ return {
                   "kind": "LinkedField",
                   "name": "decision",
                   "plural": false,
-                  "selections": [
-                    (v1/*:: as any*/)
-                  ],
+                  "selections": (v2/*:: as any*/),
                   "storageKey": null
                 },
                 {
@@ -365,7 +379,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v2/*:: as any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -399,7 +413,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v2/*:: as any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -415,7 +429,7 @@ return {
                               "name": "value",
                               "storageKey": null
                             },
-                            (v3/*:: as any*/)
+                            (v4/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -427,7 +441,7 @@ return {
                       "kind": "InlineFragment",
                       "selections": [
                         (v1/*:: as any*/),
-                        (v2/*:: as any*/),
+                        (v3/*:: as any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -443,7 +457,7 @@ return {
                               "name": "label",
                               "storageKey": null
                             },
-                            (v3/*:: as any*/)
+                            (v4/*:: as any*/)
                           ],
                           "storageKey": null
                         }
@@ -470,6 +484,6 @@ return {
 };
 })();
 
-(node as any).hash = "c1c81e10af595d7a0787a1bd06f1ede1";
+(node as any).hash = "6dfb121212dc4ecbac07ff026d82e59a";
 
 export default node;

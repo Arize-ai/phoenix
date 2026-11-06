@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa49de35fd8324458644b17f4aa2acf6>>
+ * @generated SignedSource<<6029287071fc8c084fc085b89bb49856>>
  * @lightSyntaxTransform
  */
 
@@ -280,6 +280,16 @@ return {
                         {
                           "kind": "InlineFragment",
                           "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "DecisionVersionTag",
+                              "kind": "LinkedField",
+                              "name": "decisionVersionTag",
+                              "plural": false,
+                              "selections": (v5/*:: as any*/),
+                              "storageKey": null
+                            },
                             {
                               "alias": null,
                               "args": null,

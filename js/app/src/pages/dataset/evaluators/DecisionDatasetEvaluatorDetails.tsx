@@ -53,6 +53,9 @@ export function DecisionDatasetEvaluatorDetails({
                 }
               }
             }
+            decisionVersionTag {
+              name
+            }
             decisionVersion {
               id
               decisionId
@@ -106,8 +109,11 @@ export function DecisionDatasetEvaluatorDetails({
         <Heading level={2}>Decision</Heading>
         <Flex justifyContent="space-between" alignItems="center">
           <Flex alignItems="center" gap="size-100">
-            <DecisionCell decisionVersion={version} nameMaxWidth="24rem" />
-            {/* The evaluator's version tag is an internal pin, so only the version is shown. */}
+            <DecisionCell
+              decisionVersion={version}
+              decisionVersionTag={evaluator.decisionVersionTag?.name}
+              nameMaxWidth="24rem"
+            />
           </Flex>
           <Flex alignItems="center" gap="size-50">
             <GenerativeProviderIcon
