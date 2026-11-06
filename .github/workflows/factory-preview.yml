@@ -90,8 +90,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
           uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" > "$RUNNER_TEMP/plan.out"
           cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
           base_image=$(sed -n 's/^base-image=//p' "$RUNNER_TEMP/plan.out")
@@ -131,7 +129,8 @@ jobs:
         run: |
           if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "$IMAGE is already built; skipping the build."
+            echo "$IMAGE is already built; skipping the build and pointing pr-$PR_NUMBER at it."
+            docker buildx imagetools create --tag "${IMAGE%%:*}:pr-$PR_NUMBER" "$IMAGE"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
@@ -158,21 +157,25 @@ jobs:
           push: true
 
       - name: Deploy to Railway
+        id: deploy
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-          IMAGE: ${{ steps.plan.outputs.image }}:${{ steps.plan.outputs.image-tag }}
+          IMAGE_TAG: ${{ steps.plan.outputs.image-tag }}
           SEED_SUMMARY: ${{ steps.plan.outputs.seed-summary }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: >-
           uv run --script base/factory/preview/deploy.py deploy
-          --pr "$PR_NUMBER" --image "$IMAGE" --head-sha "$HEAD_SHA"
+          --pr "$PR_NUMBER" --image-tag "$IMAGE_TAG" --head-sha "$HEAD_SHA"
           --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
 
-      # deploy.py reports its own failures; only a cancelled or timed-out job leaves the
-      # previous comment standing, so this says what happened.
+      # deploy.py reports its own failures. A build failure, a cancellation or a timeout
+      # would leave the previous comment standing, so this says what happened; it needs the
+      # plan's checkout and uv, and must not overwrite a report deploy.py already made.
       - name: Note a run that did not finish
-        if: cancelled() && steps.plan.conclusion == 'success'
+        if: >-
+          (cancelled() || failure()) && steps.plan.conclusion == 'success' &&
+          steps.deploy.conclusion != 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -217,4 +220,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-        run: uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER" --image "ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
+        run: uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER"

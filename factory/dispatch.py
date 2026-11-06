@@ -193,8 +193,9 @@ def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
             )
         run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
         return True
-    except subprocess.CalledProcessError as error:
-        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
+    except (subprocess.CalledProcessError, ValueError, KeyError, TypeError) as error:
+        detail = error.stderr if isinstance(error, subprocess.CalledProcessError) else repr(error)
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {detail}")
         return False
 
 

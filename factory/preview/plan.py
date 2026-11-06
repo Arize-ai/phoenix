@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
-from gh import gh_api, run_gh
+from gh import gh_api, preview_image, run_gh
 
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
@@ -143,7 +143,9 @@ def extract_seed(*, body: str) -> str:
     in_python = False
     for line in body.splitlines():
         fence = FENCE_PATTERN.match(line)
-        leading = len(line) - len(line.lstrip(" "))
+        if fence is not None and fence.group(1)[0] == "`" and "`" in fence.group(2):
+            fence = None  # a backtick fence's info string may not contain backticks
+        leading = len(line) - len(line.lstrip(" \t"))
         if opening:
             # A closing fence may sit at most three spaces deeper than the opening one;
             # anything deeper is content, as in CommonMark.
@@ -210,6 +212,7 @@ def main() -> int:
 
     seed_hash = hashlib.sha256(seed.encode()).hexdigest()[:8]
     for name, value in {
+        "image": preview_image(),
         "base-image": base_image,
         "frontend": str(frontend).lower(),
         "short-sha": head_sha[:7],
