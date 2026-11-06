@@ -61,16 +61,49 @@ def packages_api_root(owner: str) -> str:
 
 
 def image_tag_exists(image: str, tag: str) -> bool:
-    """Whether the GHCR package behind `image` has a version carrying `tag`."""
+    """Whether the registry has a manifest for the tag, in one request to ghcr.io.
+
+    Anonymous for a public package; a private one is reached with the workflow's token,
+    which GHCR accepts as the password of a token exchange. Any trouble reads as absent,
+    so the worst case is a build that was not needed.
+    """
+    import urllib.error
+    import urllib.request
+
     owner, package = ghcr_package(image)
+    repository = f"{owner}/{package}"
     try:
-        found = run_gh(
-            "api",
-            "--paginate",
-            f"{packages_api_root(owner)}/{package}/versions?per_page=100",
-            "--jq",
-            f"[.[] | .metadata.container.tags[]? | select(. == {json.dumps(tag)})] | length",
+        token_request = urllib.request.Request(
+            f"https://ghcr.io/token?scope=repository:{repository}:pull&service=ghcr.io"
         )
-    except subprocess.CalledProcessError:
-        return False  # no package yet, or GHCR unavailable: build to be safe
-    return any(int(count or 0) > 0 for count in found.split())
+        if github_token := os.environ.get("GH_TOKEN"):
+            import base64
+
+            credentials = base64.b64encode(f"x:{github_token}".encode()).decode()
+            token_request.add_header("Authorization", f"Basic {credentials}")
+        with urllib.request.urlopen(token_request, timeout=30) as response:
+            bearer = json.load(response)["token"]
+        manifest_request = urllib.request.Request(
+            f"https://ghcr.io/v2/{repository}/manifests/{tag}",
+            method="HEAD",
+            headers={
+                "Authorization": f"Bearer {bearer}",
+                "Accept": ", ".join(
+                    (
+                        "application/vnd.oci.image.manifest.v1+json",
+                        "application/vnd.oci.image.index.v1+json",
+                        "application/vnd.docker.distribution.manifest.v2+json",
+                        "application/vnd.docker.distribution.manifest.list.v2+json",
+                    )
+                ),
+            },
+        )
+        with urllib.request.urlopen(manifest_request, timeout=30) as response:
+            return bool(200 <= response.status < 300)
+    except urllib.error.HTTPError as failure:
+        if failure.code not in (401, 403, 404):
+            warn(f"GHCR returned {failure.code} checking {repository}:{tag}")
+        return False
+    except (urllib.error.URLError, TimeoutError, ValueError, KeyError) as failure:
+        warn(f"Could not check GHCR for {repository}:{tag}: {failure}")
+        return False
