@@ -29,10 +29,6 @@ NC := \033[0m # No Color
 # Meta Targets
 #=============================================================================
 
-.PHONY: test-release-tag
-test-release-tag: ## Test release tag resolution and fail-closed behavior offline
-	python3 scripts/test_release_tag.py
-
 .PHONY: help check-tools \
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
@@ -86,7 +82,6 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
 	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
-	@echo -e "  test-release-tag       - Test the release tag gate without network access"
 	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
 	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
