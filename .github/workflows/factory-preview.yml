@@ -151,8 +151,12 @@ jobs:
           # tag-based prune never removes.
           provenance: false
 
+      # An edit that left the seed alone, on a PR whose comment already reports this very
+      # image deployed and healthy, has nothing left to do.
       - name: Deploy to Railway
         id: deploy
+        if: >-
+          !(github.event.action == 'edited' && steps.plan.outputs.comment-current == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
@@ -164,13 +168,14 @@ jobs:
           --pr "$PR_NUMBER" --image-tag "$IMAGE_TAG" --head-sha "$HEAD_SHA"
           --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
 
-      # deploy.py reports its own failures. A failed plan or build, a cancellation or a
-      # timeout would leave the previous comment standing, so this says what happened; it
-      # needs the base checkout and uv, and must not overwrite a report deploy.py made.
+      # deploy.py reports its own failures and says so in its `reported` output. A failed
+      # plan or build, a cancellation, a timeout or a crash before it could report would
+      # leave the previous comment standing, so this says what happened; it needs the base
+      # checkout and uv.
       - name: Note a run that did not finish
         if: >-
           (cancelled() || failure()) && steps.uv.conclusion == 'success' &&
-          steps.deploy.conclusion != 'failure'
+          steps.deploy.outputs.reported != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -211,8 +216,14 @@ jobs:
           resolution-strategy: "lowest"
           python-version: "3.12"
           enable-cache: false
-      - name: Delete the Railway service and the PR's image tags
+      # Removing the label is also how a retry starts, so it keeps the image tags; only a
+      # closed PR loses them.
+      - name: Delete the Railway service and, on close, the PR's image tags
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-        run: uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER"
+          EVENT_ACTION: ${{ github.event.action }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_ACTION" = unlabeled ]; then set -- --keep-images; else set --; fi
+          uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER" "$@"

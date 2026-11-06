@@ -4,9 +4,26 @@ import functools
 import json
 import os
 import subprocess
+import sys
 from typing import Any, Optional
 
 PREVIEW_PACKAGE = "phoenix-preview"
+
+
+def warn(message: str) -> None:
+    """A workflow warning, on stderr: a script's stdout may be the step's outputs file."""
+    print(f"::warning::{message}", file=sys.stderr, flush=True)
+
+
+def error(message: str) -> None:
+    print(f"::error::{message}", file=sys.stderr, flush=True)
+
+
+def set_output(name: str, value: str) -> None:
+    """A step output, when running under Actions."""
+    if path := os.environ.get("GITHUB_OUTPUT"):
+        with open(path, "a") as outputs:
+            outputs.write(f"{name}={value}\n")
 
 
 def run_gh(*args: str, input_text: Optional[str] = None) -> str:

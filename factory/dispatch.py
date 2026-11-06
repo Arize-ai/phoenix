@@ -658,6 +658,8 @@ def watch_session(
                         f"opened {pr['url']}; required CI passed, the automated review is "
                         "handled, and it is ready for review"
                     )
+                    if lane in PREVIEW_LANES and not preview_labeled:
+                        status_line += f"; the {PREVIEW_LABEL} label could not be added"
                     run_outcome = "success"
                     break
                 feedback_text = format_review_feedback(pr=pr, review_findings=review_findings)
