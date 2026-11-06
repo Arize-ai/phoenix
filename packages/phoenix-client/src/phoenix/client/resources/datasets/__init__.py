@@ -1203,7 +1203,7 @@ class Datasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
-        response.raise_for_status()
+        _raise_for_status_with_detail(response)
         return cast(v1.CreateDatasetSplitResponseBody, response.json())["data"]
 
     def update_split(
@@ -1251,8 +1251,8 @@ class Datasets:
             v1.DatasetSplit: The updated split.
 
         Raises:
-            ValueError: If the dataset identifier is invalid or no dataset has the
-                given name.
+            ValueError: If no field or example IDs are given, the dataset
+                identifier is invalid, or no dataset has the given name.
             httpx.HTTPStatusError: If the API request fails, for example 404 when
                 the dataset, split, or an example is not found, 409 when the new
                 name is already in use, or 422 when the split ID is invalid.
@@ -1277,22 +1277,23 @@ class Datasets:
                 description=None,
             )
         """
+        body = _build_update_split_body(
+            name=name,
+            description=description,
+            color=color,
+            metadata=metadata,
+            add_example_ids=add_example_ids,
+            remove_example_ids=remove_example_ids,
+        )
         self._guard.require(UPDATE_DATASET_SPLIT)
         dataset_id = self._get_dataset_id(dataset=dataset, timeout=timeout)
         response = self._client.patch(
             url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
-            json=_build_update_split_body(
-                name=name,
-                description=description,
-                color=color,
-                metadata=metadata,
-                add_example_ids=add_example_ids,
-                remove_example_ids=remove_example_ids,
-            ),
+            json=body,
             headers={"accept": "application/json"},
             timeout=timeout,
         )
-        response.raise_for_status()
+        _raise_for_status_with_detail(response)
         return cast(v1.UpdateDatasetSplitResponseBody, response.json())["data"]
 
     def delete_split(
@@ -1341,7 +1342,7 @@ class Datasets:
             url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
             timeout=timeout,
         )
-        response.raise_for_status()
+        _raise_for_status_with_detail(response)
 
     def _get_dataset_id_by_name(
         self,
@@ -2322,7 +2323,7 @@ class AsyncDatasets:
             headers={"accept": "application/json"},
             timeout=timeout,
         )
-        response.raise_for_status()
+        _raise_for_status_with_detail(response)
         return cast(v1.CreateDatasetSplitResponseBody, response.json())["data"]
 
     async def update_split(
@@ -2370,8 +2371,8 @@ class AsyncDatasets:
             v1.DatasetSplit: The updated split.
 
         Raises:
-            ValueError: If the dataset identifier is invalid or no dataset has the
-                given name.
+            ValueError: If no field or example IDs are given, the dataset
+                identifier is invalid, or no dataset has the given name.
             httpx.HTTPStatusError: If the API request fails, for example 404 when
                 the dataset, split, or an example is not found, 409 when the new
                 name is already in use, or 422 when the split ID is invalid.
@@ -2396,22 +2397,23 @@ class AsyncDatasets:
                 description=None,
             )
         """
+        body = _build_update_split_body(
+            name=name,
+            description=description,
+            color=color,
+            metadata=metadata,
+            add_example_ids=add_example_ids,
+            remove_example_ids=remove_example_ids,
+        )
         await self._guard.require(UPDATE_DATASET_SPLIT)
         dataset_id = await self._get_dataset_id(dataset=dataset, timeout=timeout)
         response = await self._client.patch(
             url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
-            json=_build_update_split_body(
-                name=name,
-                description=description,
-                color=color,
-                metadata=metadata,
-                add_example_ids=add_example_ids,
-                remove_example_ids=remove_example_ids,
-            ),
+            json=body,
             headers={"accept": "application/json"},
             timeout=timeout,
         )
-        response.raise_for_status()
+        _raise_for_status_with_detail(response)
         return cast(v1.UpdateDatasetSplitResponseBody, response.json())["data"]
 
     async def delete_split(
@@ -2460,7 +2462,7 @@ class AsyncDatasets:
             url=f"v1/datasets/{quote(dataset_id)}/splits/{quote(split_id)}",
             timeout=timeout,
         )
-        response.raise_for_status()
+        _raise_for_status_with_detail(response)
 
     async def _get_dataset_id_by_name(
         self,
@@ -2744,6 +2746,18 @@ def _build_update_split_body(
     # A plain dict rather than v1.UpdateDatasetSplitRequestBody, because an
     # explicit null description (which clears it) is not expressible in the
     # generated TypedDict.
+    if (
+        isinstance(name, NotGiven)
+        and isinstance(description, NotGiven)
+        and isinstance(color, NotGiven)
+        and isinstance(metadata, NotGiven)
+        and add_example_ids is None
+        and remove_example_ids is None
+    ):
+        raise ValueError(
+            "At least one of name, description, color, metadata, add_example_ids or "
+            "remove_example_ids must be provided."
+        )
     body: dict[str, Any] = {}
     if not isinstance(name, NotGiven):
         body["name"] = name
@@ -2758,6 +2772,27 @@ def _build_update_split_body(
     if remove_example_ids is not None:
         body["remove_example_ids"] = list(remove_example_ids)
     return body
+
+
+def _raise_for_status_with_detail(response: httpx.Response) -> None:
+    """Raise ``httpx.HTTPStatusError`` with the server's error detail in its message."""
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        # Phoenix returns HTTP errors as plain text; FastAPI validation errors are JSON.
+        detail: Any = response.text
+        try:
+            body: Any = response.json()
+        except ValueError:
+            pass
+        else:
+            if isinstance(body, dict):
+                detail = cast(dict[str, Any], body).get("detail") or detail
+        if not detail:
+            raise
+        raise httpx.HTTPStatusError(
+            f"{e}\nDetail: {detail}", request=e.request, response=e.response
+        ) from e
 
 
 def _get_csv_column_headers(path: Path) -> tuple[str, ...]:

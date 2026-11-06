@@ -2495,6 +2495,8 @@ class TestDatasetSplitWrites:
                 )
             )
         assert exc_info.value.response.status_code == 409
+        # The server's error detail is part of the exception message.
+        assert f"A dataset split named '{name}_one' already exists" in str(exc_info.value)
 
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
             await _await_or_return(
@@ -2611,8 +2613,12 @@ class TestDatasetSplitWrites:
             await _await_or_return(datasets.delete_split(dataset=missing_id, split_id=split["id"]))
         assert exc_info.value.response.status_code == 404
 
+        # An update with nothing to change is rejected before any request.
+        with pytest.raises(ValueError, match="At least one of"):
+            await _await_or_return(datasets.update_split(dataset=name, split_id=split["id"]))
+
         # The split survived every failed call.
         unchanged = await _await_or_return(
-            datasets.update_split(dataset=name, split_id=split["id"])
+            datasets.update_split(dataset=name, split_id=split["id"], description="kept")
         )
         assert unchanged["name"] == f"{name}_split"
