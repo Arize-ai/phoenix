@@ -6,11 +6,13 @@ from typing import Any, Optional, Sequence
 
 import pytest
 from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.evaluators.services import project_bindings
+from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
@@ -1241,6 +1243,54 @@ async def test_reenabling_drops_evaluations_queued_before_the_disable(
     assert (await _set_enabled(gql_client, toggled, True))["enabled"] is True
     assert await _work_statuses(db, toggled) == ["DROPPED", "DROPPED", "RUNNING"]
     assert completed == {("TRACE", "cleared"): 2}
+
+
+async def test_reenabling_clears_the_queue_in_chunks_before_the_evaluator_is_on(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = await _add_project(db)
+    result = await gql_client.execute(
+        _CREATE_LLM, {"input": _llm_input(project, name="toggled", text="{{input}}")}
+    )
+    assert result.data and not result.errors
+    toggled = result.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    toggled_rowid = int(GlobalID.from_id(toggled).node_id)
+    await _queue_work(db, toggled, ["PENDING", "PENDING", "PENDING", "PENDING", "ERROR", "RUNNING"])
+    assert (await _set_enabled(gql_client, toggled, False))["enabled"] is False
+    completed = _count_completed_work(monkeypatch)
+    monkeypatch.setattr(project_bindings, "CLEAR_CHUNK_ROWS", 2)
+    chunks: list[tuple[int, bool]] = []
+    clear = project_bindings._clear_queued_work
+
+    async def recording_clear(
+        session: AsyncSession, *args: Any, **kwargs: Any
+    ) -> dict[models.EvaluationTarget, int]:
+        cleared = await clear(session, *args, **kwargs)
+        enabled = await session.scalar(
+            select(models.ProjectEvaluator.enabled).where(
+                models.ProjectEvaluator.id == toggled_rowid
+            )
+        )
+        if cleared.get("TRACE"):
+            chunks.append((cleared["TRACE"], bool(enabled)))
+        return cleared
+
+    monkeypatch.setattr(project_bindings, "_clear_queued_work", recording_clear)
+
+    assert (await _set_enabled(gql_client, toggled, True))["enabled"] is True
+    # Every chunk committed while the evaluator was still off, so a consumer that claimed
+    # one of these units then would have dropped it.
+    assert chunks == [(2, False), (2, False), (1, False)]
+    assert await _work_statuses(db, toggled) == ["DROPPED"] * 5 + ["RUNNING"]
+    assert (
+        await EvalWorkCoordinator(db, evaluation_target="TRACE").claim(
+            claimed_by="after-enable", limit=10
+        )
+        == []
+    )
+    assert completed == {("TRACE", "cleared"): 5}
 
 
 async def _set_enabled(
