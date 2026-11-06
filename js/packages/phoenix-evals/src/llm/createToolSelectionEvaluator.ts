@@ -58,7 +58,7 @@ export type ToolSelectionEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createToolSelectionEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createToolSelectionEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  *
  * const result = await evaluator.evaluate({
  *   input: "User: What is the weather in San Francisco?",

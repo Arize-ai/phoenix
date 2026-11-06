@@ -50,7 +50,7 @@ export interface HallucinationEvaluationRecord {
  *
  * @example
  * ```ts
- * const evaluator = createHallucinationEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createHallucinationEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   input:
  *     "User: What's our refund window?\nTool (lookup_policy): Refunds: 30 days from delivery.\nAssistant: 30 days from delivery.\nUser: And for electronics?",

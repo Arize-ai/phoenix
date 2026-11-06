@@ -46,7 +46,7 @@ export interface UserFrictionEvaluationRecord {
  *
  * @example
  * ```ts
- * const evaluator = createUserFrictionEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createUserFrictionEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   conversation: "User: Show recent orders.\nAssistant: Here are last month's orders.",
  *   userMessage: "No, I asked for this week.",
