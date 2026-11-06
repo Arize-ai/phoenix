@@ -5,8 +5,9 @@ name: Factory Preview
 # The PR's Python source and, when it changed, its frontend build are laid over the published
 # image of the main commit the PR's dependencies match, together with the seed script from
 # the PR body (factory/preview/Dockerfile, built by docker-bake.hcl). The image goes to
-# GHCR under pr-<number> and pr-<number>-<short sha> tags, and deploy.py points a Railway
-# service at it. Closing or unlabeling the PR deletes the service and the PR's image tags.
+# GHCR under pr-<number> and pr-<number>-<short sha>-<seed hash> tags, and deploy.py points
+# a Railway service at it. Closing or unlabeling the PR deletes the service and the PR's
+# image tags.
 #
 # This runs with the Railway token and a write token, so nothing from the PR may run on the
 # runner. `pull_request_target` takes the workflow file from the base branch, the scripts
@@ -47,7 +48,8 @@ jobs:
       group: factory-preview-${{ github.event.pull_request.number }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # A full build on a cold runner, then the deploy and seed waits, fit with room to spare.
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
@@ -119,7 +121,22 @@ jobs:
       # image matches its dependencies, as targets the preview takes as contexts, so neither
       # leaves the builder. Only the preview image is pushed. Every context sits under the
       # workspace because bake refuses to read outside its working directory.
+      # The tag names the commit and the seed, so a body edit that changed something other
+      # than the seed finds its image already there and this run has nothing to do.
+      - name: Check whether this image already exists
+        id: existing
+        env:
+          IMAGE: ${{ steps.plan.outputs.image }}:${{ steps.plan.outputs.image-tag }}
+        run: |
+          if docker buildx imagetools inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "$IMAGE is already built and was deployed by an earlier run; nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build and push the preview image
+        if: steps.existing.outputs.exists != 'true'
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         env:
           HEAD_DIR: ${{ github.workspace }}/head
@@ -130,7 +147,7 @@ jobs:
           # extra is fetched for it.
           FRONTEND_CONTEXT: ${{ steps.plan.outputs.frontend == 'true' && 'target:frontend' || steps.plan.outputs.base-context }}
           STATIC_SOURCE: ${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
-          TAGS: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }},${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
+          TAGS: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }},${{ steps.plan.outputs.image }}:${{ steps.plan.outputs.image-tag }}
           SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
           REVISION: ${{ github.event.pull_request.head.sha }}
         with:
@@ -140,16 +157,28 @@ jobs:
           push: true
 
       - name: Deploy to Railway
+        if: steps.existing.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-          IMAGE: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
+          IMAGE: ${{ steps.plan.outputs.image }}:${{ steps.plan.outputs.image-tag }}
           SEED_SUMMARY: ${{ steps.plan.outputs.seed-summary }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: >-
           uv run --script base/factory/preview/deploy.py deploy
           --pr "$PR_NUMBER" --image "$IMAGE" --head-sha "$HEAD_SHA"
           --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
+
+      # deploy.py reports its own failures; only a cancelled or timed-out job leaves the
+      # previous comment standing, so this says what happened.
+      - name: Note a run that did not finish
+        if: cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          uv run --script base/factory/preview/deploy.py note
+          --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --run-url "$RUN_URL"
 
   teardown:
     name: Tear down

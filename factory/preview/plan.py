@@ -12,6 +12,7 @@ base-image output, and the workflow builds the Dockerfile in full instead.
 
 import argparse
 import functools
+import hashlib
 import json
 import re
 import subprocess
@@ -28,7 +29,9 @@ DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 # The Dockerfile's frontend stage copies exactly these two trees.
 FRONTEND_TREES = ("js", "schemas")
-SEED_HEADING_PATTERN = re.compile(r"^(#+)\s*Preview seed\s*$", re.IGNORECASE)
+# Up to three leading spaces, an optional colon and optional closing hashes, as CommonMark
+# and habit allow.
+SEED_HEADING_PATTERN = re.compile(r"^ {0,3}(#+)\s*Preview seed\s*:?\s*#*\s*$", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^(#+)\s")
 # A fence may be indented, as inside a list item, use three or more backticks or tildes,
 # and name the language as python, python3 or py in any case, with anything after it.
@@ -179,6 +182,16 @@ def main() -> int:
 
     pr = json.loads(run_gh("pr", "view", str(args.pr), "--json", "baseRefName,body"))
     head_sha = str(args.head_sha)
+    body = str(pr["body"] or "")
+    seed = extract_seed(body=body)
+    if not seed and "preview seed" in body.lower():
+        warn("The PR body mentions a preview seed, but no `## Preview seed` python block parsed")
+    args.seed_dir.mkdir(parents=True, exist_ok=True)
+    (args.seed_dir / "seed.py").write_text(seed)
+    seed_summary = (
+        f"{seed.count(chr(10))} lines from the PR body" if seed else "none in the PR body"
+    )
+
     try:
         base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
         # The base image's frontend is as old as its commit, so the comparison that matters
@@ -186,23 +199,22 @@ def main() -> int:
         frontend = bool(base_sha) and frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
             root_tree_shas(ref=head_sha)
         )
-    except subprocess.CalledProcessError as error:
-        # The same degradation as Docker Hub trouble: a full build, not a lost preview.
-        warn(f"GitHub API trouble choosing a base, so the preview builds in full: {error.stderr}")
+    except (subprocess.CalledProcessError, ValueError, KeyError, TypeError, AssertionError) as e:
+        # The same degradation as Docker Hub trouble: a full build, not a lost preview. An
+        # unexpected shape from the API counts the same as a failed call.
+        detail = e.stderr if isinstance(e, subprocess.CalledProcessError) else repr(e)
+        warn(f"GitHub API trouble choosing a base, so the preview builds in full: {detail}")
         base_sha, frontend = "", False
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
 
-    seed = extract_seed(body=str(pr["body"] or ""))
-    args.seed_dir.mkdir(parents=True, exist_ok=True)
-    (args.seed_dir / "seed.py").write_text(seed)
-    seed_summary = (
-        f"{seed.count(chr(10))} lines from the PR body" if seed else "none in the PR body"
-    )
-
+    seed_hash = hashlib.sha256(seed.encode()).hexdigest()[:8]
     for name, value in {
         "base-image": base_image,
         "frontend": str(frontend).lower(),
         "short-sha": head_sha[:7],
+        # The seed is part of the image, so the tag names both the commit and the seed; a
+        # body edit that leaves the seed alone then finds its image already built.
+        "image-tag": f"pr-{args.pr}-{head_sha[:7]}-{seed_hash}",
         "seed-summary": seed_summary,
     }.items():
         print(f"{name}={value}")

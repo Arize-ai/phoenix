@@ -263,6 +263,20 @@ class LogTail:
         return "\n".join(self.lines[-count:])
 
 
+def read_build_logs(deployment_id: str) -> str:
+    """The build log, where an image that could not be pulled says why."""
+    try:
+        data = railway(
+            "query($id: String!, $limit: Int!) {"
+            " buildLogs(deploymentId: $id, limit: $limit) { message } }",
+            id=deployment_id,
+            limit=MAX_OUTPUT_LINES,
+        )
+    except RailwayError as error:
+        return f"(build logs unavailable: {error})"
+    return "\n".join(str(entry["message"]).rstrip() for entry in data["buildLogs"])
+
+
 def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     """Return the launcher's seed outcome line and the seed's own output.
 
@@ -437,16 +451,12 @@ def format_deploy_comment(
     logs: str,
 ) -> str:
     lines = [f"### Preview of {head_sha[:7]}", ""]
-    server_up = status == "SUCCESS" and seed_outcome not in (
-        seed_log.UNHEALTHY_LINE,
-        SEED_NOT_FINISHED_LINE,
-    )
-    if server_up:
+    if status == "SUCCESS" and seed_outcome != seed_log.UNHEALTHY_LINE:
         lines += [f"Running at **{url}** on a fresh database."]
     elif status == "SUCCESS":
         lines += [
-            f"Railway deployed it, but the launcher's log says otherwise (below), so {url} may"
-            f" not answer; see the [run]({run_url})."
+            f"Railway deployed it, but the launcher's log says the server exited (below), so"
+            f" {url} may not answer; see the [run]({run_url})."
         ]
     elif status.startswith("TIMEOUT"):
         lines += [
@@ -487,8 +497,19 @@ def format_deploy_comment(
 
 
 def run_deploy(args: argparse.Namespace) -> int:
+    try:
+        project_id, environment_id = read_token_scope()
+        name = f"pr-{args.pr}"
+        service_id = find_service(project_id=project_id, name=name)
+    except RailwayError as error:
+        print(f"::error::Railway API: {error}", file=sys.stderr)
+        return 1
     visibility = image_visibility(image=args.image)
-    if visibility != "public":
+    if visibility == "unknown" and service_id is not None:
+        # An earlier run pulled from this package, so a lookup that fails now is GitHub's
+        # trouble, not the package's; stopping would only unadvertise a running preview.
+        print("::warning::Could not read the package's visibility; deploying anyway")
+    elif visibility != "public":
         org, package = ghcr_package(args.image)
         problem = (
             f"GitHub would not say whether `{org}/{package}` is public, so the deploy did not"
@@ -504,9 +525,6 @@ def run_deploy(args: argparse.Namespace) -> int:
         print(f"::error::The preview image's package is {visibility}; see the PR comment.")
         return 1
     try:
-        project_id, environment_id = read_token_scope()
-        name = f"pr-{args.pr}"
-        service_id = find_service(project_id=project_id, name=name)
         before: set[str] = set()
         if service_id is None:
             service_id = create_service(
@@ -550,7 +568,8 @@ def run_deploy(args: argparse.Namespace) -> int:
         if deployment_id:
             log = LogTail(deployment_id)
             log.refresh()
-            logs = log.tail(MAX_OUTPUT_LINES)
+            # No runtime log means the container never started; the build log says why.
+            logs = log.tail(MAX_OUTPUT_LINES) or read_build_logs(deployment_id)
     url = f"https://{domain}"
     upsert_comment(
         pr_number=args.pr,
@@ -567,7 +586,23 @@ def run_deploy(args: argparse.Namespace) -> int:
         ),
     )
     print(f"url={url}\nstatus={status}\n{seed_outcome}")
-    return 0 if status == "SUCCESS" and seed_outcome.startswith(seed_log.SUCCESS_LINES) else 1
+    # A seed still running when the wait ended is the log lagging, not a failure.
+    fine = seed_outcome.startswith(seed_log.SUCCESS_LINES) or seed_outcome == SEED_NOT_FINISHED_LINE
+    return 0 if status == "SUCCESS" and fine else 1
+
+
+def run_note(args: argparse.Namespace) -> int:
+    """Leave word on the PR that the run died, when the job itself was cancelled or timed out."""
+    upsert_comment(
+        pr_number=args.pr,
+        body=(
+            f"### Preview of {args.head_sha[:7]}\n\nThe run was cancelled or timed out before it"
+            f" could report; see the [run]({args.run_url}). Whatever answers at the preview URL"
+            " may be an earlier head."
+        ),
+        create=False,
+    )
+    return 0
 
 
 def run_teardown(args: argparse.Namespace) -> int:
@@ -608,6 +643,11 @@ def main() -> int:
     )
     deploy_parser.add_argument("--run-url", required=True)
     deploy_parser.set_defaults(run=run_deploy)
+    note_parser = subparsers.add_parser("note")
+    note_parser.add_argument("--pr", type=int, required=True)
+    note_parser.add_argument("--head-sha", required=True)
+    note_parser.add_argument("--run-url", required=True)
+    note_parser.set_defaults(run=run_note)
     teardown_parser = subparsers.add_parser("teardown")
     teardown_parser.add_argument("--pr", type=int, required=True)
     teardown_parser.add_argument("--image", required=True, help="GHCR image, without a tag")
