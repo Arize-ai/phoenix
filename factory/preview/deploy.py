@@ -1,18 +1,20 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""Deploy one PR's preview image to Railway, or tear it down.
+"""Deploy one PR's preview image to Railway, or sweep the previews nobody wants.
 
 `deploy` creates or updates the PR's service in the project the token is scoped to,
 deploys the image, waits for the seed's outcome in the container log, and leaves one
-comment on the PR. `teardown` deletes the service and the PR's image tags and says so on
-that comment. Railway's GraphQL API is called directly: no CLI, and a project token
-reaches nothing beyond its project.
+comment on the PR. `sweep` deletes the service and image tags of every PR that is closed
+or no longer labeled, and says so on that comment. Both read the same condition from
+GitHub, so a deploy never finishes what a sweep would undo. Railway's GraphQL API is
+called directly: no CLI, and a project token reaches nothing beyond its project.
 """
 
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -24,6 +26,9 @@ import seed_log
 from gh import run_gh
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
+PREVIEW_LABEL = "factory-preview"
+PR_SERVICE_PATTERN = re.compile(r"^pr-(\d+)$")
+PR_TAG_PATTERN = re.compile(r"^pr-(\d+)(?:-[0-9a-f]+)?$")
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
 SKIPPED_GRACE_SECONDS = 120
@@ -82,15 +87,20 @@ def read_token_scope() -> tuple[str, str]:
     return scope["projectId"], scope["environmentId"]
 
 
-def find_service(*, project_id: str, name: str) -> Optional[str]:
+def list_services(*, project_id: str) -> dict[str, str]:
+    """Service name to id."""
     data = railway(
         "query($id: String!) { project(id: $id) { services { edges { node { id name } } } } }",
         id=project_id,
     )
-    for edge in data["project"]["services"]["edges"]:
-        if edge["node"]["name"] == name:
-            return str(edge["node"]["id"])
-    return None
+    return {
+        str(edge["node"]["name"]): str(edge["node"]["id"])
+        for edge in data["project"]["services"]["edges"]
+    }
+
+
+def find_service(*, project_id: str, name: str) -> Optional[str]:
+    return list_services(project_id=project_id).get(name)
 
 
 def create_service(*, project_id: str, environment_id: str, name: str) -> str:
@@ -302,38 +312,46 @@ def packages_api_root(owner: str) -> str:
     return f"{'orgs' if owner_type == 'Organization' else 'users'}/{owner}/packages/container"
 
 
-def delete_image_tags(*, image: str, pr_number: int) -> int:
-    """GitHub refuses to delete a package's last tagged version; that refusal is only warned."""
+def list_image_versions(*, image: str) -> dict[str, list[str]]:
+    """Version id to tags, for the whole package; empty when it can't be listed."""
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
-    tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
     try:
-        version_ids = set(
-            run_gh(
-                "api",
-                "--paginate",
-                f"{root}/{package}/versions?per_page=100",
-                "--jq",
-                f".[] | select(.metadata.container.tags[]? | {tag_filter}) | .id",
-            ).split()
-        )
+        lines = run_gh(
+            "api",
+            "--paginate",
+            f"{root}/{package}/versions?per_page=100",
+            "--jq",
+            ".[] | {id: .id, tags: (.metadata.container.tags // [])}",
+        ).splitlines()
     except subprocess.CalledProcessError as error:
         print(f"::warning::Could not list image versions: {error.stderr}")
-        return 0
-    deleted = 0
-    for version_id in version_ids:
-        try:
-            run_gh(
-                "api",
-                "--method",
-                "DELETE",
-                f"{root}/{package}/versions/{version_id}",
-                "--silent",
-            )
-            deleted += 1
-        except subprocess.CalledProcessError as error:
-            print(f"::warning::Could not delete image version {version_id}: {error.stderr}")
-    return deleted
+        return {}
+    versions = (json.loads(line) for line in lines if line.strip())
+    return {str(version["id"]): [str(tag) for tag in version["tags"]] for version in versions}
+
+
+def delete_image_version(*, image: str, version_id: str) -> bool:
+    """GitHub refuses to delete a package's last tagged version; that refusal is only warned."""
+    owner, package = ghcr_package(image)
+    try:
+        run_gh(
+            "api",
+            "--method",
+            "DELETE",
+            f"{packages_api_root(owner)}/{package}/versions/{version_id}",
+            "--silent",
+        )
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not delete image version {version_id}: {error.stderr}")
+        return False
+    return True
+
+
+def preview_wanted(pr_number: int) -> bool:
+    """Open and labeled: the one condition the deploy and the sweep both read."""
+    pr = json.loads(run_gh("pr", "view", str(pr_number), "--json", "state,labels"))
+    return pr["state"] == "OPEN" and any(label["name"] == PREVIEW_LABEL for label in pr["labels"])
 
 
 def image_visibility(*, image: str) -> str:
@@ -505,6 +523,9 @@ def run_deploy(args: argparse.Namespace) -> int:
         domain = ensure_domain(
             project_id=project_id, environment_id=environment_id, service_id=service_id
         )
+        if not preview_wanted(args.pr):
+            print(f"PR #{args.pr} is closed or unlabeled, so nothing is deployed")
+            return 0
         deploy_service(environment_id=environment_id, service_id=service_id)
         deployment_id, status = wait_for_deployment(
             environment_id=environment_id, service_id=service_id, before=before
@@ -551,29 +572,60 @@ def run_deploy(args: argparse.Namespace) -> int:
     return 0 if status == "SUCCESS" and seed_outcome.startswith(seed_log.SUCCESS_LINES) else 1
 
 
-def run_teardown(args: argparse.Namespace) -> int:
-    railway_error: Optional[RailwayError] = None
-    try:
-        project_id, _ = read_token_scope()
-        service_id = find_service(project_id=project_id, name=f"pr-{args.pr}")
-        if service_id is None:
-            print("no preview service to delete")
-        else:
-            delete_service(service_id)
-            print(f"deleted service pr-{args.pr}")
-    except RailwayError as error:
-        railway_error = error
-        print(f"::error::Railway API: {error}", file=sys.stderr)
-    deleted_tags = delete_image_tags(image=args.image, pr_number=args.pr)
-    print(f"deleted {deleted_tags} image versions")
-    body = (
-        "The preview for this PR has been torn down."
-        if railway_error is None
-        else "The preview's image tags were removed, but deleting its Railway service failed;"
-        " see the workflow run."
+def preview_numbers(*, services: dict[str, str], versions: dict[str, list[str]]) -> set[int]:
+    """Every PR that still has a service or a tagged image."""
+    numbers = {int(m.group(1)) for name in services if (m := PR_SERVICE_PATTERN.match(name))}
+    for tags in versions.values():
+        numbers |= {int(m.group(1)) for tag in tags if (m := PR_TAG_PATTERN.match(tag))}
+    return numbers
+
+
+def pr_version_ids(*, versions: dict[str, list[str]], pr_number: int) -> set[str]:
+    return {
+        version_id
+        for version_id, tags in versions.items()
+        if any((m := PR_TAG_PATTERN.match(tag)) and int(m.group(1)) == pr_number for tag in tags)
+    }
+
+
+def sweep_preview(
+    *, pr_number: int, image: str, services: dict[str, str], versions: dict[str, list[str]]
+) -> None:
+    """Service first, then image versions: a Railway failure leaves the tags too, so the next
+    sweep finds the preview whole and retries."""
+    if (service_id := services.get(f"pr-{pr_number}")) is not None:
+        delete_service(service_id)
+        print(f"deleted service pr-{pr_number}")
+    deleted = sum(
+        delete_image_version(image=image, version_id=version_id)
+        for version_id in pr_version_ids(versions=versions, pr_number=pr_number)
     )
-    upsert_comment(pr_number=args.pr, body=body, create=False)
-    return 0 if railway_error is None else 1
+    print(f"deleted {deleted} image versions of PR #{pr_number}")
+    if service_id is not None or deleted:
+        upsert_comment(
+            pr_number=pr_number, body="The preview for this PR has been torn down.", create=False
+        )
+
+
+def run_sweep(args: argparse.Namespace) -> int:
+    project_id, _ = read_token_scope()
+    services = list_services(project_id=project_id)
+    versions = list_image_versions(image=args.image)
+    failures = 0
+    for pr_number in sorted(preview_numbers(services=services, versions=versions)):
+        try:
+            if preview_wanted(pr_number):
+                continue
+            sweep_preview(
+                pr_number=pr_number, image=args.image, services=services, versions=versions
+            )
+        except subprocess.CalledProcessError as error:
+            print(f"::warning::PR #{pr_number}: {error.stderr}")
+            failures += 1
+        except RailwayError as error:
+            print(f"::error::PR #{pr_number}: Railway API: {error}", file=sys.stderr)
+            failures += 1
+    return 1 if failures else 0
 
 
 def main() -> int:
@@ -588,10 +640,9 @@ def main() -> int:
     )
     deploy_parser.add_argument("--run-url", required=True)
     deploy_parser.set_defaults(run=run_deploy)
-    teardown_parser = subparsers.add_parser("teardown")
-    teardown_parser.add_argument("--pr", type=int, required=True)
-    teardown_parser.add_argument("--image", required=True, help="GHCR image, without a tag")
-    teardown_parser.set_defaults(run=run_teardown)
+    sweep_parser = subparsers.add_parser("sweep")
+    sweep_parser.add_argument("--image", required=True, help="GHCR image, without a tag")
+    sweep_parser.set_defaults(run=run_sweep)
     args = parser.parse_args()
     try:
         return int(args.run(args))

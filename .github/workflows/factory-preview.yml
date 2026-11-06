@@ -3,7 +3,8 @@ name: Factory Preview
 # Deploys a seeded preview of a PR labeled `factory-preview`: factory/preview/ builds the
 # image from the PR and the seed in its body, pushes it to GHCR, and points a Railway
 # service at it. Only same-repo PRs opened by the factory or a maintainer are eligible.
-# See "Previewing a PR" in factory/README.md.
+# See "Previewing a PR" in factory/README.md. Nothing here deletes a preview:
+# factory-preview-sweep.yml removes the ones whose PR is closed or unlabeled.
 #
 # This job holds the Railway token and a write token, so nothing from the PR may run on the
 # runner. `pull_request_target` takes this file from the base branch, the scripts and the
@@ -12,12 +13,12 @@ name: Factory Preview
 # these files but does not stop this workflow, so the boundary has to hold here. Fork PRs
 # are skipped: a fork's code has no business in a job that holds secrets.
 #
-# No caches in the deploy job: it publishes an image, and a restored cache is a way to
-# tamper with what gets published.
+# No caches: it publishes an image, and a restored cache is a way to tamper with what gets
+# published.
 on:
   # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
   pull_request_target:
-    types: [opened, edited, labeled, synchronize, reopened, closed, unlabeled]
+    types: [opened, edited, labeled, synchronize, reopened]
 
 permissions:
   contents: read
@@ -25,7 +26,6 @@ permissions:
 jobs:
   authorize:
     name: Check preview eligibility
-    # Open PRs only: a closed PR has already had its teardown, and nothing would run it again.
     # Removing some other label is not a reason to redeploy, so `unlabeled` is left out. An
     # edit counts only when it changed the body, where the seed lives.
     if: >-
@@ -74,10 +74,10 @@ jobs:
     name: Build and deploy
     needs: authorize
     if: needs.authorize.outputs.allowed == 'true'
-    # Queued, not cancelled, so a teardown in flight is never cut off halfway.
+    # Only the newest head is worth deploying; deploy.py re-reads the PR before it deploys.
     concurrency:
       group: factory-preview-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -174,42 +174,3 @@ jobs:
           uv run --script base/factory/preview/deploy.py deploy
           --pr "$PR_NUMBER" --image "$IMAGE" --head-sha "$HEAD_SHA"
           --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
-
-  teardown:
-    name: Tear down
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      ((github.event.action == 'closed' &&
-        contains(github.event.pull_request.labels.*.name, 'factory-preview')) ||
-       (github.event.action == 'unlabeled' && github.event.label.name == 'factory-preview'))
-    # Same group as the deploy, so a close during a build waits for the service and tags
-    # to exist before deleting them.
-    concurrency:
-      group: factory-preview-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      packages: write
-      pull-requests: write
-    env:
-      GH_REPO: ${{ github.repository }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-    steps:
-      # The base branch, not the PR's merge ref, which a closed or conflicting PR lacks.
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.event.pull_request.base.ref }}
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version-file: "pyproject.toml"
-          resolution-strategy: "lowest"
-          python-version: "3.12"
-          enable-cache: false
-      - name: Delete the Railway service and the PR's image tags
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-        run: uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER" --image "ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
