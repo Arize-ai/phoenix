@@ -8,7 +8,7 @@ The goal is to go from traced application executions to structured quality signa
 
 At its core, an LLM-as-a-judge evaluation combines three things:
 
-1. The judge model: the LLM that produces the judgment
+1. The judge model: the model that produces the judgment, which can be a language or a decision model.
 
 2. A prompt template or rubric: the criteria used to make that judgment
 
@@ -31,32 +31,41 @@ Follow along with the following code assets:
 
 --- 
 
-## Configure Core LLM Setup
-Evals need an LLM to act as the judge—the model that applies the rubric to your data. Configuring that judge is the first step. Phoenix Evals is provider-agnostic. You can run evaluations using any supported LLM provider without changing how your evaluators are written.
+## Configure the Judge Model
+Evals need a model to act as the judge—the model that applies the rubric to your data. Configuring that judge is the first step. The judge can be a **language model** (`LLM`), which returns a label with an explanation, or a **decision model** (`DecisionModel`), which returns a label with per-label probabilities but no explanation. Phoenix Evals is provider-agnostic. You can run evaluations using any supported model provider without changing how your evaluators are written.
 
 Across both the Python and TypeScript evals libraries, a judge model is represented as a reusable configuration object. This object describes how Phoenix connects to a model provider, including the provider name, model identifier, credentials, and any SDK-specific client configuration.
 
-Invocation behavior (temperature, token limits, or other generation controls) is configured separately on the evaluator. This separation makes it possible to reuse the same judge model across multiple evals while tuning behavior per evaluation.
+Invocation behavior (temperature, token limits, or other generation controls, where the model supports them) is configured separately on the evaluator. This separation makes it possible to reuse the same judge model across multiple evals while tuning behavior per evaluation.
 
-The example below illustrates this separation by configuring a judge model independently of any specific evaluator:
+The example below illustrates this separation by configuring a judge model independently of any specific evaluator. Each tab shows both judge types—a language model and a decision model:
 
 <Tabs>
   <Tab title="Python">
     ```python
+    from phoenix.evals import DecisionModel
     from phoenix.evals.llm import LLM
 
+    # Language-model judge: returns a label with an explanation.
     llm = LLM(
         provider="openai",
-        model="gpt-4o",
+        model="gpt-6-luna",
         client="openai",
     )
+
+    # Decision-model judge: returns a label with per-label probabilities, no explanation.
+    decision_model = DecisionModel(provider="openai", model="gpt-6-luna")
     ```
   </Tab>
     <Tab title="TypeScript">
     ```typescript
     import { openai } from "@ai-sdk/openai";
-    
-    const base_model = openai("gpt-4o-mini");
+
+    // Language-model judge: returns a label with an explanation.
+    const base_model = openai("gpt-6-luna");
+
+    // Decision-model judge: returns a label with per-label probabilities, no explanation.
+    const decisionModel = openai.decisionModel("gpt-6-luna");
     ```
     </Tab>
 </Tabs>
@@ -90,6 +99,8 @@ The example below shows a minimal setup using the built-in Correctness eval temp
   ```
   </Tab>
 </Tabs>
+The evaluator accepts either judge: pass `decision_model` (Python) or `decisionModel` (TypeScript) in place of the language model to run the same eval through a decision model. Decision-model results carry per-label probabilities instead of an explanation.
+
 Once defined, built-in evaluators can be run on tabular data or trace-derived examples and logged back to Phoenix like any other eval. Because they return structured outputs, results can be compared across runs and combined with other evaluations.
 
 ## Running Evals on Phoenix Traces

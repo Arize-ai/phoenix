@@ -69,9 +69,9 @@ Binding an `input_mapping` enables the evaluators to run on the same payload - t
 # define an input_mapping to map inputs required by faithfulness evaluator to our data
 input_mapping = {
     "input": "input.query",  # dot notation to access nested keys
-    "output": "output.responses[0]",  # brackets to access list elements
+    "output": "output.response",  # dot notation to access nested keys
     "context": lambda x: " ".join(
-        x["output"]["documents"]
+        x["input"]["documents"]
     ),  # lambda function to combine the document chunks
 }
 # the evaluator uses the input_mapping to transform the eval_input into the expected input schema
