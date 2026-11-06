@@ -868,6 +868,9 @@ async def _resolve_or_insert_dataset_version(
     )
 
 
+_MAX_LISTED_UNRESOLVED_NODE_IDS = 10
+
+
 def _raise_for_unresolved_node_ids(diff: UpdateDiff, action: DatasetAction) -> None:
     """Reject DatasetExample node IDs that matched no example in this dataset."""
     unresolved_node_ids = [
@@ -878,7 +881,10 @@ def _raise_for_unresolved_node_ids(diff: UpdateDiff, action: DatasetAction) -> N
     ]
     if not unresolved_node_ids:
         return
-    formatted_ids = ", ".join(repr(s) for s in unresolved_node_ids)
+    listed_ids = unresolved_node_ids[:_MAX_LISTED_UNRESOLVED_NODE_IDS]
+    formatted_ids = ", ".join(repr(s) for s in listed_ids)
+    if unlisted_count := len(unresolved_node_ids) - len(listed_ids):
+        formatted_ids += f" and {unlisted_count} more"
     if action is DatasetAction.CREATE:
         raise InvalidDatasetExampleIDError(
             f"The following IDs belong to examples in a different dataset: {formatted_ids}"

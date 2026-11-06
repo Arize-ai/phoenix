@@ -3251,6 +3251,29 @@ async def test_create_with_node_id_from_different_dataset_returns_422(
     assert cross_dataset_node_id in response.text
 
 
+async def test_upload_with_many_bad_node_ids_lists_only_the_first_ten(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    name = inspect.stack()[0][3]
+    bogus_ids = [str(GlobalID("DatasetExample", str(90000 + i))) for i in range(15)]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": f"Q{i}"} for i in range(len(bogus_ids))],
+            "outputs": [{"a": f"A{i}"} for i in range(len(bogus_ids))],
+            "example_ids": bogus_ids,
+        },
+    )
+    assert response.status_code == 422
+    for bogus_id in bogus_ids[:10]:
+        assert bogus_id in response.text
+    for bogus_id in bogus_ids[10:]:
+        assert bogus_id not in response.text
+    assert response.text.endswith(" and 5 more")
+
+
 async def test_append_with_multiple_bad_node_ids_lists_all_of_them(
     httpx_client: httpx.AsyncClient,
 ) -> None:
