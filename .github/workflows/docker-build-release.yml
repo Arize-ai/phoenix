@@ -29,6 +29,8 @@ jobs:
         uses: ./.github/actions/resolve-release-tag
         with:
           tag: ${{ github.ref_name }}
+          package-name: arize-phoenix
+          package-path: .
       - name: Verify the tag still matches the triggering commit
         env:
           REVISION: ${{ steps.release.outputs.revision }}
