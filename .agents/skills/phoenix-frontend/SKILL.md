@@ -16,7 +16,7 @@ Read the relevant file(s) based on the task:
 | Reference | When to read |
 |-----------|-------------|
 | `references/components.md` | Creating, composing, or refactoring components |
-| `references/relay.md` | Using Relay |
+| `references/relay.md` | Using Relay, or adding or changing a route loader |
 | `references/accessibility.md` | Any interactive element, form, overlay, or semantic markup |
 | `references/testing.md` | Writing or reviewing Vitest unit tests in `js/app/` |
 | `references/test-ids.md` | Adding or changing `data-testid` attributes for E2E tests |

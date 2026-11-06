@@ -24,6 +24,16 @@ Do **not** use this hook when:
 - the ref is shared and another component owns disposal
 - the ref is passed through context or props for multiple readers without clear single-owner semantics
 
+## Route loaders
+
+A route loader returns at once. React Router commits a navigation only after every matched loader has returned, so a loader that awaits a fetch freezes the page the user is on and the destination's skeleton is never seen.
+
+- Start the page's queries with `loadQuery` and return the refs; the page reads them and suspends into its own `Suspense` boundary. The boundary has to be the page's: the router navigates in a transition, which holds a boundary that is already mounted.
+- Anything else the route needs from the response, such as a breadcrumb's name, is returned as a promise for its consumer to resolve.
+- A failed lookup is handled where the query is read, by an error boundary, not by awaiting in the loader.
+
+Redirect loaders are the exception: a redirect has no page to show. `src/__tests__/routeLoaders.test.ts` fails on any other `async` loader.
+
 ## Rules
 
 - **Prefer declarative hooks.** Use hooks such as `usePreloadedQuery` or `useLazyLoadQuery` to fetch data that will be rendered on a page.
