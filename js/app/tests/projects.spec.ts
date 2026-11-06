@@ -593,7 +593,7 @@ test.describe.serial("Projects", () => {
     const copyName = `${evaluatorName}_copy`;
     await page.getByRole("button", { name: "Add evaluator" }).click();
     await page
-      .getByRole("menuitem", { name: "Duplicate existing LLM evaluator" })
+      .getByRole("menuitem", { name: "Copy and edit: existing LLM evaluator" })
       .click();
     await page.getByRole("menuitem", { name: evaluatorName }).click();
     const copyDialog = page.getByRole("dialog", {

@@ -37,62 +37,12 @@ export const AddProjectEvaluatorMenu = ({
   ...props
 }: ProjectEvaluatorMenuTriggerProps) => {
   return (
-    <ProjectEvaluatorMenu
-      size={size}
-      buttonClassName={buttonClassName}
-      buttonLabel={buttonLabel}
-      buttonVariant="primary"
-      buttonLeadingVisual={<Icon svg={<Icons.Plus />} />}
-      shouldShowGalleryLink={shouldShowGalleryLink}
-      {...props}
-    />
-  );
-};
-
-export const BuildProjectEvaluatorMenu = ({
-  size,
-  ...props
-}: ProjectEvaluatorMenuTriggerProps) => {
-  return (
-    <ProjectEvaluatorMenu
-      size={size}
-      buttonLabel="Build from scratch"
-      buttonVariant="default"
-      shouldShowGalleryLink={false}
-      {...props}
-    />
-  );
-};
-
-type ProjectEvaluatorMenuTriggerProps = {
-  size: ButtonProps["size"];
-  buttonClassName?: string;
-  buttonLabel?: string;
-  /** Hide the "Browse eval gallery" item, e.g. inside the gallery modal. */
-  shouldShowGalleryLink?: boolean;
-} & Omit<MenuTriggerProps, "children">;
-
-function ProjectEvaluatorMenu({
-  size,
-  buttonClassName,
-  buttonLabel,
-  buttonVariant,
-  buttonLeadingVisual,
-  shouldShowGalleryLink,
-  ...props
-}: ProjectEvaluatorMenuTriggerProps & {
-  buttonLabel: string;
-  buttonVariant: ButtonProps["variant"];
-  buttonLeadingVisual?: ButtonProps["leadingVisual"];
-  shouldShowGalleryLink: boolean;
-}) {
-  return (
     <MenuTrigger {...props}>
       <Button
         className={buttonClassName}
-        variant={buttonVariant}
+        variant="primary"
         size={size}
-        leadingVisual={buttonLeadingVisual}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
       >
         {buttonLabel}
       </Button>
@@ -108,7 +58,72 @@ function ProjectEvaluatorMenu({
       </MenuContainer>
     </MenuTrigger>
   );
-}
+};
+
+/**
+ * The empty state's menu. Building from scratch means starting a new
+ * evaluator, so it offers one blank evaluator per kind and nothing that
+ * starts from an existing evaluator.
+ */
+export const BuildProjectEvaluatorMenu = ({
+  size,
+  ...props
+}: Pick<ProjectEvaluatorMenuTriggerProps, "size"> &
+  Omit<MenuTriggerProps, "children">) => {
+  const navigate = useNavigate();
+  const creationPaths = useProjectEvaluatorCreationPaths();
+  return (
+    <MenuTrigger {...props}>
+      <Button variant="default" size={size}>
+        Build from scratch
+      </Button>
+      <MenuContainer minHeight="auto">
+        <Menu
+          aria-label="Build from scratch"
+          onAction={(action) => {
+            if (action === "createEvaluator") {
+              navigate(creationPaths.newLlm);
+            } else if (action === "createCodeEvaluator") {
+              navigate(creationPaths.newCode);
+            } else if (action === "createDecisionEvaluator") {
+              navigate(creationPaths.newDecision);
+            }
+          }}
+        >
+          <MenuItem
+            id="createEvaluator"
+            aria-label="Create new LLM evaluator"
+            leadingContent={<Icon svg={<Icons.LLMOutput />} />}
+          >
+            LLM evaluator
+          </MenuItem>
+          <MenuItem
+            id="createCodeEvaluator"
+            aria-label="Create new code evaluator"
+            leadingContent={<Icon svg={<Icons.Code />} />}
+          >
+            Code evaluator
+          </MenuItem>
+          <MenuItem
+            id="createDecisionEvaluator"
+            aria-label="Create new decision evaluator"
+            leadingContent={<Icon svg={<Icons.Split />} />}
+          >
+            Decision evaluator
+          </MenuItem>
+        </Menu>
+      </MenuContainer>
+    </MenuTrigger>
+  );
+};
+
+type ProjectEvaluatorMenuTriggerProps = {
+  size: ButtonProps["size"];
+  buttonClassName?: string;
+  buttonLabel?: string;
+  /** Hide the "Browse eval gallery" item, e.g. inside the gallery modal. */
+  shouldShowGalleryLink?: boolean;
+} & Omit<MenuTriggerProps, "children">;
 
 function ProjectEvaluatorMenuItems({
   menuLabel,
@@ -163,17 +178,23 @@ function ProjectEvaluatorMenuItems({
             </MenuItem>
           </MenuSection>
         ) : null}
+        {/* Each section names the kind, so its items name only the action.
+            "Use as is" attaches the existing evaluator itself, so edits to it
+            apply everywhere it runs. "Copy and edit" creates a new evaluator
+            from a copy, which can change without affecting the original. */}
         <MenuSection>
-          <MenuSectionTitle title="LLM evaluator" />
+          <MenuSectionTitle title="LLM" />
           <MenuItem
-            leadingContent={<Icon svg={<Icons.Plus />} />}
             id="createEvaluator"
+            aria-label="Create new LLM evaluator"
+            leadingContent={<Icon svg={<Icons.Plus />} />}
           >
-            Create new LLM evaluator
+            New
           </MenuItem>
           <EvaluatorSubmenu
-            label="Duplicate existing LLM evaluator"
-            icon={<Icons.LLMOutput />}
+            label="Copy and edit"
+            kindLabel="LLM"
+            icon={<Icons.Duplicate />}
             evaluators={llmEvaluators}
             onAction={(evaluatorId) =>
               navigate(creationPaths.copyLlm(evaluatorId))
@@ -181,15 +202,17 @@ function ProjectEvaluatorMenuItems({
           />
         </MenuSection>
         <MenuSection>
-          <MenuSectionTitle title="Code evaluator" />
+          <MenuSectionTitle title="Code" />
           <MenuItem
-            leadingContent={<Icon svg={<Icons.Plus />} />}
             id="createCodeEvaluator"
+            aria-label="Create new code evaluator"
+            leadingContent={<Icon svg={<Icons.Plus />} />}
           >
-            Create new code evaluator
+            New
           </MenuItem>
           <EvaluatorSubmenu
-            label="Use existing code evaluator"
+            label="Use as is"
+            kindLabel="code"
             icon={<Icons.Code />}
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
@@ -197,7 +220,8 @@ function ProjectEvaluatorMenuItems({
             }
           />
           <EvaluatorSubmenu
-            label="Duplicate existing code evaluator"
+            label="Copy and edit"
+            kindLabel="code"
             icon={<Icons.Duplicate />}
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
@@ -206,15 +230,17 @@ function ProjectEvaluatorMenuItems({
           />
         </MenuSection>
         <MenuSection>
-          <MenuSectionTitle title="Decision evaluator" />
+          <MenuSectionTitle title="Decision" />
           <MenuItem
-            leadingContent={<Icon svg={<Icons.Plus />} />}
             id="createDecisionEvaluator"
+            aria-label="Create new decision evaluator"
+            leadingContent={<Icon svg={<Icons.Plus />} />}
           >
-            Create new decision evaluator
+            New
           </MenuItem>
           <EvaluatorSubmenu
-            label="Use existing decision evaluator"
+            label="Use as is"
+            kindLabel="decision"
             icon={<Icons.Split />}
             evaluators={decisionEvaluators}
             onAction={(evaluatorId) =>
@@ -234,13 +260,20 @@ function ProjectEvaluatorMenuItems({
   );
 }
 
+/**
+ * A submenu of existing evaluators of one kind. It is left out when there are
+ * none, rather than shown disabled.
+ */
 function EvaluatorSubmenu({
   label,
+  kindLabel,
   icon,
   evaluators,
   onAction,
 }: {
   label: string;
+  /** Completes the accessible name, which the visible label leaves to the section title. */
+  kindLabel: string;
   icon: React.ReactElement;
   evaluators: ReadonlyArray<{
     id: string;
@@ -249,14 +282,16 @@ function EvaluatorSubmenu({
   }>;
   onAction: (id: string) => void;
 } & Omit<SubmenuTriggerProps, "children">) {
-  const hasEvaluators = evaluators.length > 0;
+  if (evaluators.length === 0) {
+    return null;
+  }
   return (
     <SubmenuTrigger>
       <MenuItem
+        aria-label={`${label}: existing ${kindLabel} evaluator`}
         leadingContent={<Icon svg={icon} />}
-        isDisabled={!hasEvaluators}
       >
-        {hasEvaluators ? label : `${label} (none available)`}
+        {label}
       </MenuItem>
       <MenuContainer
         shouldFlip
