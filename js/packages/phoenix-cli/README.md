@@ -446,6 +446,23 @@ px dataset get my-dataset --file dataset.json
 
 ---
 
+### `px dataset split create|update|delete`
+
+Create, update, or delete a split on an existing dataset. The dataset is given by name or ID and the split by its GlobalID. Example IDs accept GlobalIDs or user-provided IDs. The CLI cannot list a dataset's splits yet; see [#12090](https://github.com/Arize-ai/phoenix/issues/12090).
+
+```bash
+px dataset split create my-dataset --name train --format raw --no-progress | jq -r '.id'
+px dataset split create my-dataset --name holdout --description 'Held-out examples' \
+  --metadata '{"owner":"evals"}' --example-id <example-id> --example-id <example-id>
+px dataset split update my-dataset <split-id> --name train-v2 --metadata '{"round":2}'
+px dataset split update my-dataset <split-id> --add-example <example-id> --remove-example <example-id>
+PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true px dataset split delete my-dataset <split-id> --yes
+```
+
+`--metadata` must be a JSON object and replaces the split's metadata on update. `update` sends only the flags you pass; `--description ''` clears the description. `delete` asks for confirmation unless `--yes` is set and requires `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`. It removes the split and its example memberships from every dataset that uses it, but does not delete the examples.
+
+---
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset.
