@@ -1616,8 +1616,6 @@ CREATE TABLE public.project_evaluators (
     evaluation_delay_seconds INTEGER NOT NULL,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
-    swept_through_at TIMESTAMP WITH TIME ZONE,
-    span_rowid_floor BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
@@ -1812,6 +1810,20 @@ CREATE INDEX ix_eval_work_units_project_evaluator_live ON public.eval_work_units
     USING btree (project_evaluator_id, id, status, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
     USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying])::text[]));
+
+
+-- Table: project_evaluator_state
+-- ------------------------------
+CREATE TABLE public.project_evaluator_state (
+    project_evaluator_id BIGINT NOT NULL,
+    span_start_rowid BIGINT,
+    swept_through_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT pk_project_evaluator_state PRIMARY KEY (project_evaluator_id),
+    CONSTRAINT fk_project_evaluator_state_project_evaluator_id_project_8f39
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: project_session_annotations

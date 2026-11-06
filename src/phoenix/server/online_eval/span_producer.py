@@ -42,6 +42,10 @@ from phoenix.server.online_eval.project_evaluator_resolution import (
     load_enabled_project_evaluator_pairs,
     resolve_project_evaluators_bulk,
 )
+from phoenix.server.online_eval.project_evaluator_state import (
+    load_states,
+    lower_span_starts,
+)
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ADDED_WORK_UNITS,
     ONLINE_EVAL_INGEST_SPANS_PER_SECOND,
@@ -62,20 +66,6 @@ MAX_SPAN_IDS_PER_TICK = 10_000
 
 _INSERT_BATCH_SIZE = 1000
 _WORK_UNIT_UNIQUE_BY = ("span_rowid", "project_evaluator_id")
-_CURSOR_ID = 1
-
-
-async def current_span_rowid_floor(session: AsyncSession) -> int:
-    """The span floor for a span evaluator that starts now: the producer's position, or the
-    newest span before the producer has run."""
-    produced_through_id = await session.scalar(
-        select(models.EvalSpanCursor.produced_through_id).where(
-            models.EvalSpanCursor.id == _CURSOR_ID
-        )
-    )
-    if produced_through_id is not None:
-        return produced_through_id
-    return await session.scalar(select(func.max(models.Span.id))) or 0
 
 
 @dataclass(frozen=True)
@@ -84,11 +74,11 @@ class _ActiveProjectEvaluator:
     project_id: int
     sampling_rate: float
     span_filter: SpanFilter
-    span_rowid_floor: Optional[int] = None
+    span_start_rowid: Optional[int] = None
 
     def scan_stmt(self, low_exclusive: int, high_inclusive: int) -> Select[int]:
-        if self.span_rowid_floor is not None:
-            low_exclusive = max(low_exclusive, self.span_rowid_floor)
+        if self.span_start_rowid is not None:
+            low_exclusive = max(low_exclusive, self.span_start_rowid)
         stmt = (
             select(models.Span.id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
@@ -118,9 +108,10 @@ class SpanEvaluationProducer(DaemonTask):
     it are still to be scanned, and spans at or below it were scanned for the SPAN project
     evaluators active when the cursor passed them. It starts at the newest span, so older
     spans are reached only by the catch-up scan's lookback
-    (``catch_up_scan_lookback_span_ids``), and no scan reaches an evaluator's
-    ``span_rowid_floor``: an evaluator evaluates only spans that arrive after it is created,
-    enabled, or given a new filter or sampling rate. Trace and session evaluations are added
+    (``catch_up_scan_lookback_span_ids``), and no scan reaches an evaluator's span start
+    (``project_evaluator_state.span_start_rowid``): an evaluator evaluates only spans that
+    arrive after it is created, enabled, or given a new filter or sampling rate. Trace and
+    session evaluations are added
     by the sweeping producers instead: a trace or session is due when it goes quiet, which
     no position in an arrival log can express.
     """
@@ -226,13 +217,13 @@ class SpanEvaluationProducer(DaemonTask):
 
     async def _load_cursor(self, session: AsyncSession) -> Optional[models.EvalSpanCursor]:
         """Read the cursor, starting it at the current span high water on first use."""
-        cursor = await session.get(models.EvalSpanCursor, _CURSOR_ID)
+        cursor = await session.get(models.EvalSpanCursor, models.SPAN_CURSOR_ID)
         if cursor is not None or self._db.should_not_insert_or_update:
             return cursor
         high_water = await session.scalar(select(func.max(models.Span.id))) or 0
         await session.execute(
             insert_on_conflict(
-                {"id": _CURSOR_ID, "produced_through_id": high_water},
+                {"id": models.SPAN_CURSOR_ID, "produced_through_id": high_water},
                 table=models.EvalSpanCursor,
                 dialect=self._db.dialect,
                 unique_by=("id",),
@@ -240,10 +231,10 @@ class SpanEvaluationProducer(DaemonTask):
                 constraint_name="pk_eval_span_cursors",
             )
         )
-        return await session.get(models.EvalSpanCursor, _CURSOR_ID)
+        return await session.get(models.EvalSpanCursor, models.SPAN_CURSOR_ID)
 
     async def _clamp_cursor(self, cursor: models.EvalSpanCursor) -> Optional[models.EvalSpanCursor]:
-        """Lower the cursor, and every span floor above it, to the live span high water, or
+        """Lower the cursor, and every span start above it, to the live span high water, or
         return None if another producer moved the cursor since it was loaded. SQLite reuses
         the ids of deleted newest spans, so new spans arrive at or below the old position."""
         async with self._db() as session:
@@ -253,7 +244,7 @@ class SpanEvaluationProducer(DaemonTask):
             clamped = await session.scalar(
                 update(models.EvalSpanCursor)
                 .where(
-                    models.EvalSpanCursor.id == _CURSOR_ID,
+                    models.EvalSpanCursor.id == models.SPAN_CURSOR_ID,
                     models.EvalSpanCursor.produced_through_id == cursor.produced_through_id,
                 )
                 .values(
@@ -264,14 +255,7 @@ class SpanEvaluationProducer(DaemonTask):
                 .returning(models.EvalSpanCursor)
             )
             if clamped is not None:
-                await session.execute(
-                    update(models.ProjectEvaluator)
-                    .where(models.ProjectEvaluator.span_rowid_floor > max_span_id)
-                    .values(
-                        span_rowid_floor=max_span_id,
-                        updated_at=models.ProjectEvaluator.updated_at,
-                    )
-                )
+                await lower_span_starts(session, max_span_id)
             return clamped
 
     async def _retention_cleanup(self, now: datetime) -> None:
@@ -282,7 +266,7 @@ class SpanEvaluationProducer(DaemonTask):
             select(
                 models.EvalSpanCursor.produced_through_id - self._catch_up_scan_lookback_span_ids
             )
-            .where(models.EvalSpanCursor.id == _CURSOR_ID)
+            .where(models.EvalSpanCursor.id == models.SPAN_CURSOR_ID)
             .scalar_subquery()
         )
         async with self._db() as session:
@@ -312,6 +296,9 @@ class SpanEvaluationProducer(DaemonTask):
             project_evaluator_pairs = await load_enabled_project_evaluator_pairs(session, "SPAN")
             resolved_project_evaluators = await resolve_project_evaluators_bulk(
                 session, project_evaluator_pairs
+            )
+            states = await load_states(
+                session, [project_evaluator.id for project_evaluator, _ in project_evaluator_pairs]
             )
             for (project_evaluator, evaluator), resolved in zip(
                 project_evaluator_pairs,
@@ -346,7 +333,11 @@ class SpanEvaluationProducer(DaemonTask):
                         project_id=project_evaluator.project_id,
                         sampling_rate=project_evaluator.sampling_rate,
                         span_filter=span_filter,
-                        span_rowid_floor=project_evaluator.span_rowid_floor,
+                        span_start_rowid=(
+                            state.span_start_rowid
+                            if (state := states.get(project_evaluator.id))
+                            else None
+                        ),
                     )
                 )
         return active
@@ -365,7 +356,7 @@ class SpanEvaluationProducer(DaemonTask):
                 await session.scalar(
                     update(models.EvalSpanCursor)
                     .where(
-                        models.EvalSpanCursor.id == _CURSOR_ID,
+                        models.EvalSpanCursor.id == models.SPAN_CURSOR_ID,
                         models.EvalSpanCursor.produced_through_id == low_exclusive,
                     )
                     .values(produced_through_id=window_end)
@@ -394,7 +385,7 @@ class SpanEvaluationProducer(DaemonTask):
             observed = await session.scalar(
                 update(models.EvalSpanCursor)
                 .where(
-                    models.EvalSpanCursor.id == _CURSOR_ID,
+                    models.EvalSpanCursor.id == models.SPAN_CURSOR_ID,
                     models.EvalSpanCursor.produced_through_id == produced_through_id,
                 )
                 .values(observed_high_water_id=high_water, observed_at=observed_at)
@@ -509,7 +500,7 @@ class SpanEvaluationProducer(DaemonTask):
         """
         produced_through_id = await session.scalar(
             select(models.EvalSpanCursor.produced_through_id).where(
-                models.EvalSpanCursor.id == _CURSOR_ID
+                models.EvalSpanCursor.id == models.SPAN_CURSOR_ID
             )
         )
         return produced_through_id == position

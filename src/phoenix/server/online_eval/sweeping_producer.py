@@ -17,7 +17,6 @@ from sqlalchemy import (
     Insert,
     Integer,
     and_,
-    case,
     cast,
     column,
     func,
@@ -26,7 +25,6 @@ from sqlalchemy import (
     select,
     text,
     true,
-    update,
 )
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -53,6 +51,10 @@ from phoenix.server.online_eval.leases import ScanLease
 from phoenix.server.online_eval.project_evaluator_resolution import (
     load_enabled_project_evaluator_pairs,
     resolve_project_evaluators_bulk,
+)
+from phoenix.server.online_eval.project_evaluator_state import (
+    advance_sweep_positions,
+    load_states,
 )
 from phoenix.server.prometheus import (
     ONLINE_EVAL_ADDED_WORK_UNITS,
@@ -95,6 +97,10 @@ class _LockConflictError(Exception):
 
 def _is_lock_conflict(error: DBAPIError) -> bool:
     return getattr(error.orig, "sqlstate", None) in _LOCK_CONFLICT_SQLSTATES
+
+
+def _swept_through_at(state: Optional[models.ProjectEvaluatorState]) -> Optional[datetime]:
+    return state.swept_through_at if state else None
 
 
 @dataclass(frozen=True)
@@ -409,6 +415,9 @@ class SweepingEvaluationProducer(DaemonTask):
         )
         project_evaluator_rows: list[_SweepProjectEvaluator] = []
         resolved_rows = await resolve_project_evaluators_bulk(session, project_evaluator_pairs)
+        states = await load_states(
+            session, [project_evaluator.id for project_evaluator, _ in project_evaluator_pairs]
+        )
         for (project_evaluator, evaluator), resolved in zip(
             project_evaluator_pairs,
             resolved_rows,
@@ -428,7 +437,10 @@ class SweepingEvaluationProducer(DaemonTask):
                     project_id=project_evaluator.project_id,
                     delay_seconds=project_evaluator.evaluation_delay_seconds,
                     created_at=project_evaluator.created_at,
-                    sweep_start=(project_evaluator.swept_through_at or project_evaluator.created_at)
+                    sweep_start=(
+                        _swept_through_at(states.get(project_evaluator.id))
+                        or project_evaluator.created_at
+                    )
                     - self._visibility_lag,
                     filter_condition=project_evaluator.filter_condition,
                     sampling_rate=project_evaluator.sampling_rate,
@@ -654,33 +666,10 @@ class SweepingEvaluationProducer(DaemonTask):
         session: AsyncSession,
         sweep_positions: dict[int, datetime],
     ) -> None:
-        if not sweep_positions:
-            return
-        project_evaluator_ids = sorted(sweep_positions)
-        sweep_position = case(
-            {
-                project_evaluator_id: literal(
-                    sweep_positions[project_evaluator_id], models.UtcTimeStamp()
-                )
-                for project_evaluator_id in project_evaluator_ids
-            },
-            value=models.ProjectEvaluator.id,
-        )
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(
-                models.ProjectEvaluator.id.in_(project_evaluator_ids),
-                or_(
-                    models.ProjectEvaluator.swept_through_at.is_(None),
-                    models.ProjectEvaluator.swept_through_at < sweep_position,
-                ),
-            )
-            .values(
-                swept_through_at=sweep_position,
-                # Pinned: the column's onupdate would restamp every enabled evaluator a tick.
-                updated_at=models.ProjectEvaluator.updated_at,
-            )
-        )
+        try:
+            await advance_sweep_positions(session, sweep_positions)
+        except IntegrityError as error:
+            raise _PageRowDeletedError(str(error.orig)) from error
 
     async def _publish_eligibility_metrics(self, eligible_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.

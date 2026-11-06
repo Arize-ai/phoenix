@@ -4,7 +4,7 @@ from secrets import token_hex
 from typing import Any
 
 import httpx
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -341,10 +341,10 @@ async def test_patch_reenabling_drops_queued_work_and_skips_earlier_spans(
     assert response.status_code == 200, response.text
     async with db() as session:
         # Started before these spans, with one of them queued before the disable.
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(span_rowid_floor=spans[0].id - 1)
+        await session.merge(
+            models.ProjectEvaluatorState(
+                project_evaluator_id=project_evaluator_id, span_start_rowid=spans[0].id - 1
+            )
         )
         session.add(
             models.EvalWorkUnit(span_rowid=spans[0].id, project_evaluator_id=project_evaluator_id)

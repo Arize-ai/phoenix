@@ -4159,10 +4159,6 @@ class ProjectEvaluator(HasId):
         nullable=False,
     )
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
-    swept_through_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    # Span evaluators queue only spans above this id; set when one is created, enabled, or
-    # has its filter or sampling rate changed.
-    span_rowid_floor: Mapped[Optional[int]] = mapped_column(_Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -4175,9 +4171,26 @@ class ProjectEvaluator(HasId):
     __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
+class ProjectEvaluatorState(Base):
+    """Where the evaluation producers are for one project evaluator, apart from what users
+    configure. A span evaluator evaluates only spans above ``span_start_rowid``; a trace or
+    session evaluator has swept through ``swept_through_at``. A row is written when there is
+    a position to record, and a missing row means no span start and a sweep from the
+    evaluator's creation."""
+
+    __tablename__ = "project_evaluator_state"
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        primary_key=True,
+        autoincrement=False,
+    )
+    span_start_rowid: Mapped[Optional[int]] = mapped_column(_Integer, nullable=True)
+    swept_through_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+
+
 class EvalWorkLease(HasId):
-    """A named lease that normally keeps one replica at a time doing an online-eval
-    materializer's work, so replicas do not repeat each other's queries. It is held while
+    """A named scan lease that normally keeps one replica at a time doing an evaluation
+    producer's scan, so replicas do not repeat each other's queries. It is held while
     heartbeat_at stays fresh; once it goes stale another replica may take it. The lease is
     advisory: no write is fenced on it."""
 
@@ -4192,6 +4205,9 @@ class EvalWorkLease(HasId):
     )
 
     __table_args__ = (UniqueConstraint("name"),)
+
+
+SPAN_CURSOR_ID = 1
 
 
 class EvalSpanCursor(Base):

@@ -388,12 +388,6 @@ def upgrade() -> None:
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column(
-            "swept_through_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=True,
-        ),
-        sa.Column("span_rowid_floor", _Integer, nullable=True),
-        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
@@ -421,6 +415,18 @@ def upgrade() -> None:
         "ix_project_evaluators_trace_project_id",
         "project_evaluators",
         ["trace_project_id"],
+    )
+    op.create_table(
+        "project_evaluator_state",
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            primary_key=True,
+            autoincrement=False,
+        ),
+        sa.Column("span_start_rowid", _Integer, nullable=True),
+        sa.Column("swept_through_at", sa.TIMESTAMP(timezone=True), nullable=True),
     )
     op.create_table(
         "eval_work_units",
@@ -618,6 +624,7 @@ def downgrade() -> None:
     op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
+    op.drop_table("project_evaluator_state")
     op.drop_index("ix_project_evaluators_evaluator_id", table_name="project_evaluators")
     op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
     op.drop_table("project_evaluators")

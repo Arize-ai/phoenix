@@ -1523,8 +1523,6 @@ CREATE TABLE project_evaluators (
         ),
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
-    swept_through_at TIMESTAMP,
-    span_rowid_floor INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
@@ -1718,6 +1716,20 @@ CREATE INDEX ix_eval_work_units_project_evaluator_live ON eval_work_units
     WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED');
+
+
+-- Table: project_evaluator_state
+-- ------------------------------
+CREATE TABLE project_evaluator_state (
+    project_evaluator_id INTEGER NOT NULL,
+    span_start_rowid INTEGER,
+    swept_through_at TIMESTAMP,
+    CONSTRAINT pk_project_evaluator_state PRIMARY KEY (project_evaluator_id),
+    CONSTRAINT fk_project_evaluator_state_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: project_session_annotations

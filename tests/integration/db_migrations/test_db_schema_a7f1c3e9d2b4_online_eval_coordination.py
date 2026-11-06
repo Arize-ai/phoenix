@@ -227,8 +227,6 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             "evaluation_delay_seconds",
             "input_mapping",
             "enabled",
-            "swept_through_at",
-            "span_rowid_floor",
             "created_at",
             "updated_at",
         }
@@ -263,9 +261,36 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(
-                ["input_mapping", "swept_through_at", "span_rowid_floor"]
+            nullable_column_names=frozenset(["input_mapping"]),
+        )
+
+
+class TestProjectEvaluatorState(_OnlineEvalSchemaTest):
+    table_name = "project_evaluator_state"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
+        column_names = {"project_evaluator_id", "span_start_rowid", "swept_through_at"}
+        constraint_names = {
+            "pk_project_evaluator_state",
+            _constraint_name(
+                "fk_project_evaluator_state_project_evaluator_id_project_evaluators",
+                db_backend,
             ),
+        }
+        if db_backend == "postgresql":
+            index_names = {"pk_project_evaluator_state"}
+        elif db_backend == "sqlite":
+            index_names = {"sqlite_autoindex_project_evaluator_state_1"}
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(column_names),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(["span_start_rowid", "swept_through_at"]),
         )
 
 

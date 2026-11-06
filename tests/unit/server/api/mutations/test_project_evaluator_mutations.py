@@ -1312,13 +1312,11 @@ async def test_span_evaluator_skips_spans_that_arrived_before_it_started(
     if start not in ("create", "add"):
         # Started before these spans, as if the producer had passed them while it was off.
         async with db() as session:
-            await session.execute(
-                update(models.ProjectEvaluator)
-                .where(
-                    models.ProjectEvaluator.id
-                    == int(GlobalID.from_id(project_evaluator_id).node_id)
+            await session.merge(
+                models.ProjectEvaluatorState(
+                    project_evaluator_id=int(GlobalID.from_id(project_evaluator_id).node_id),
+                    span_start_rowid=old_spans[0].id - 1,
                 )
-                .values(span_rowid_floor=old_spans[0].id - 1)
             )
     if start == "re_enable":
         await _set_enabled(gql_client, project_evaluator_id, False)

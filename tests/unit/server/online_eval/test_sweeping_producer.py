@@ -237,8 +237,8 @@ async def test_sweep_position_reaches_a_full_page_or_the_due_time(
     async def swept_through_at() -> datetime | None:
         async with db() as session:
             return await session.scalar(
-                select(models.ProjectEvaluator.swept_through_at).where(
-                    models.ProjectEvaluator.id == project_evaluator_id
+                select(models.ProjectEvaluatorState.swept_through_at).where(
+                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
                 )
             )
 
@@ -324,9 +324,14 @@ async def test_row_deleted_mid_tick_rolls_the_tick_back(
         async with db() as session:
             return set(
                 await session.scalars(
-                    select(models.ProjectEvaluator.swept_through_at).where(
-                        models.ProjectEvaluator.id.in_(project_evaluator_ids)
+                    select(models.ProjectEvaluatorState.swept_through_at)
+                    .select_from(models.ProjectEvaluator)
+                    .outerjoin(
+                        models.ProjectEvaluatorState,
+                        models.ProjectEvaluatorState.project_evaluator_id
+                        == models.ProjectEvaluator.id,
                     )
+                    .where(models.ProjectEvaluator.id.in_(project_evaluator_ids))
                 )
             )
 
@@ -414,8 +419,8 @@ async def test_sweep_gives_way_to_a_transaction_holding_a_row_it_needs(
         )
         assert (
             await session.scalar(
-                select(models.ProjectEvaluator.swept_through_at).where(
-                    models.ProjectEvaluator.id == project_evaluator_id
+                select(models.ProjectEvaluatorState.swept_through_at).where(
+                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
                 )
             )
             is None
@@ -429,8 +434,8 @@ async def test_sweep_gives_way_to_a_transaction_holding_a_row_it_needs(
         )
         assert (
             await session.scalar(
-                select(models.ProjectEvaluator.swept_through_at).where(
-                    models.ProjectEvaluator.id == project_evaluator_id
+                select(models.ProjectEvaluatorState.swept_through_at).where(
+                    models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
                 )
             )
             is not None
@@ -898,8 +903,8 @@ async def test_edited_criterion_does_not_re_sweep_history_below_its_sweep_positi
     async with db() as session:
         original_unit_id = await session.scalar(select(models.EvalSessionWorkUnit.id))
         swept_through_at = await session.scalar(
-            select(models.ProjectEvaluator.swept_through_at).where(
-                models.ProjectEvaluator.id == project_evaluator_id
+            select(models.ProjectEvaluatorState.swept_through_at).where(
+                models.ProjectEvaluatorState.project_evaluator_id == project_evaluator_id
             )
         )
     assert original_unit_id is not None
@@ -1354,6 +1359,33 @@ async def _add_trace_liveness(
             .values(last_span_ingested_at=last_span_ingested_at)
         )
         return project.id, trace.id, last_span_ingested_at
+
+
+async def test_sweep_records_its_position_without_touching_the_evaluator_row(
+    db: DbSessionFactory,
+) -> None:
+    project_id, _, _ = await _add_trace_liveness(db, age_seconds=600)
+    _, project_evaluator_id = await _seed_criteria(db, project_id, evaluation_target="TRACE")
+    async with db() as session:
+        updated_at = await session.scalar(
+            select(models.ProjectEvaluator.updated_at).where(
+                models.ProjectEvaluator.id == project_evaluator_id
+            )
+        )
+
+    await TraceEvaluationProducer(db)._tick()
+
+    async with db() as session:
+        state = await session.get(models.ProjectEvaluatorState, project_evaluator_id)
+        assert state is not None and state.swept_through_at is not None
+        assert (
+            await session.scalar(
+                select(models.ProjectEvaluator.updated_at).where(
+                    models.ProjectEvaluator.id == project_evaluator_id
+                )
+            )
+            == updated_at
+        )
 
 
 async def test_queues_due_trace_with_activity_snapshot(

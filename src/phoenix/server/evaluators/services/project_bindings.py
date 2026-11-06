@@ -17,7 +17,6 @@ from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import queued_index_predicate
 from phoenix.db.helpers import (
-    SupportedSQLDialect,
     code_evaluator_with_latest_version,
     delete_projects_and_evaluator_trace_projects,
 )
@@ -67,8 +66,10 @@ from phoenix.server.evaluators.validation import (
     require_categorical_output_configs,
     validate_decision_input_mapping,
 )
-from phoenix.server.online_eval.clock import current_database_time
-from phoenix.server.online_eval.span_producer import current_span_rowid_floor
+from phoenix.server.online_eval.project_evaluator_state import (
+    start_at_database_time,
+    start_at_span_cursor,
+)
 from phoenix.server.online_eval.work_tables import WORK_TABLES
 from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS
 
@@ -267,10 +268,10 @@ async def create_project_llm_evaluator(
                 input_mapping=input.input_mapping,
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
-                span_rowid_floor=await span_rowid_floor_for(session, input.evaluation_target),
             )
             session.add(project_evaluator)
             await session.flush()
+            await _start_new_evaluator(session, project_evaluator)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
@@ -470,10 +471,10 @@ async def bind_project_evaluator(
             settings.evaluation_delay_seconds, settings.evaluation_target
         ),
         enabled=settings.enabled,
-        span_rowid_floor=await span_rowid_floor_for(session, settings.evaluation_target),
     )
     session.add(project_evaluator)
     await session.flush()
+    await _start_new_evaluator(session, project_evaluator)
     return project_evaluator
 
 
@@ -628,10 +629,10 @@ async def create_project_code_evaluator(
                 input_mapping=(input.input_mapping if input.input_mapping is not None else None),
                 evaluation_delay_seconds=evaluation_delay_seconds,
                 enabled=input.enabled,
-                span_rowid_floor=await span_rowid_floor_for(session, input.evaluation_target),
             )
             session.add(project_evaluator)
             await session.flush()
+            await _start_new_evaluator(session, project_evaluator)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
@@ -869,12 +870,14 @@ async def update_project_code_evaluator(
     return project_evaluator
 
 
-async def span_rowid_floor_for(
-    session: AsyncSession, evaluation_target: models.EvaluationTarget
-) -> Optional[int]:
-    """Where a new evaluator's span scans start, so it evaluates only spans that arrive after
-    it is created. Trace and session evaluators start at their creation time instead."""
-    return await current_span_rowid_floor(session) if evaluation_target == "SPAN" else None
+async def _start_new_evaluator(
+    session: AsyncSession, project_evaluator: models.ProjectEvaluator
+) -> None:
+    """Start a new span evaluator at the span cursor, so it evaluates only spans that arrive
+    after it is created. Trace and session evaluators start at their creation time instead,
+    which needs no row."""
+    if project_evaluator.evaluation_target == "SPAN":
+        await start_at_span_cursor(session, project_evaluator.id)
 
 
 async def write_project_evaluator(
@@ -882,7 +885,7 @@ async def write_project_evaluator(
 ) -> models.ProjectEvaluator:
     """Update binding columns and return the row as the database stored it.
 
-    An evaluator evaluates only what arrives after it is turned on. Enabling one drops its
+    An evaluator evaluates only what arrives after it is turned on. Enabling one clears its
     queued work and starts it at now, and a span evaluator also starts at now when its
     filter or sampling rate changes.
 
@@ -905,21 +908,18 @@ async def write_project_evaluator(
         values.get("filter_condition", filter_condition) != filter_condition
         or values.get("sampling_rate", sampling_rate) != sampling_rate
     )
-    start_values: dict[str, Any] = {}
-    if evaluation_target == "SPAN":
-        if enabling or selection_changed:
-            start_values["span_rowid_floor"] = await current_span_rowid_floor(session)
-    elif enabling:
-        start_values["swept_through_at"] = await current_database_time(
-            session, SupportedSQLDialect(session.get_bind().dialect.name)
-        )
     row: models.ProjectEvaluator | None = await session.scalar(
         update(project_evaluator)
         .where(project_evaluator.id == project_evaluator_id)
-        .values(**values, **start_values)
+        .values(**values)
         .returning(project_evaluator)
     )
     assert row is not None
+    if evaluation_target == "SPAN":
+        if enabling or selection_changed:
+            await start_at_span_cursor(session, project_evaluator_id)
+    elif enabling:
+        await start_at_database_time(session, project_evaluator_id)
     if enabling:
         cleared = await clear_queued_work(session, [project_evaluator_id])
         event.listen(

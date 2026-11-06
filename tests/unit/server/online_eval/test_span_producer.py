@@ -703,10 +703,10 @@ async def test_spans_that_reuse_deleted_span_ids_are_queued(db: DbSessionFactory
     _, project_evaluator_id = await _seed_criteria(db, project.id)
     await _seed_cursor(db, produced_through_id=spans[-1].id)
     async with db() as session:
-        await session.execute(
-            update(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.id == project_evaluator_id)
-            .values(span_rowid_floor=spans[-1].id)
+        await session.merge(
+            models.ProjectEvaluatorState(
+                project_evaluator_id=project_evaluator_id, span_start_rowid=spans[-1].id
+            )
         )
     producer = SpanEvaluationProducer(db, visibility_lag_seconds=0)
 
