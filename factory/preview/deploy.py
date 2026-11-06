@@ -27,6 +27,7 @@ from gh import run_gh
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
+SKIPPED_GRACE_SECONDS = 120
 # The launcher's own budget, its drain, and two minutes for the log to catch up.
 SEED_WAIT_SECONDS = seed_log.SEED_TIMEOUT_SECONDS + seed_log.RELAY_DRAIN_SECONDS + 120
 # SKIPPED is not final here: Railway superseded the deployment with one it queued itself,
@@ -43,6 +44,7 @@ DEPLOYMENT_FINAL_STATUSES = {
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
 COMMENT_MARKER = "<!-- factory-preview -->"
+SEED_NOT_FINISHED_LINE = "preview: the seed had not finished when the run stopped waiting"
 
 
 class RailwayError(Exception):
@@ -91,15 +93,11 @@ def find_service(*, project_id: str, name: str) -> Optional[str]:
     return None
 
 
-def create_service(*, project_id: str, environment_id: str, name: str, image: str) -> str:
+def create_service(*, project_id: str, environment_id: str, name: str) -> str:
+    """An empty service: with no source nothing deploys until the settings are in place."""
     data = railway(
         "mutation($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }",
-        input={
-            "projectId": project_id,
-            "environmentId": environment_id,
-            "name": name,
-            "source": {"image": image},
-        },
+        input={"projectId": project_id, "environmentId": environment_id, "name": name},
     )
     return str(data["serviceCreate"]["id"])
 
@@ -183,23 +181,30 @@ def wait_for_deployment(
 ) -> tuple[str, str]:
     """Follow this run's deployment to a final status; return (deployment id, status).
 
-    Creating the service, and the deploy request, each queue a deployment, and Railway
-    skips one in favor of the other, so rather than follow one id this follows the newest
-    unskipped deployment that did not exist before this run started. One that is not
-    listed yet, and a failed poll, count as pending.
+    Railway may skip a deployment in favor of one it queues itself, so rather than follow
+    one id this follows the newest unskipped deployment that did not exist before this run
+    started. One that is not listed yet, and a failed poll, count as pending; a run whose
+    every deployment stays skipped for SKIPPED_GRACE_SECONDS is over.
     """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     deployment_id = ""
+    all_skipped_since: Optional[float] = None
     while time.monotonic() < deadline:
         status = "PENDING"
         try:
             ours = [
                 d
                 for d in list_deployments(environment_id=environment_id, service_id=service_id)
-                if d["id"] not in before and d["status"] != "SKIPPED"
+                if d["id"] not in before
             ]
-            if ours:
-                deployment_id, status = str(ours[0]["id"]), str(ours[0]["status"])
+            live = [d for d in ours if d["status"] != "SKIPPED"]
+            if live:
+                deployment_id, status = str(live[0]["id"]), str(live[0]["status"])
+                all_skipped_since = None
+            elif ours:
+                all_skipped_since = all_skipped_since or time.monotonic()
+                if time.monotonic() - all_skipped_since > SKIPPED_GRACE_SECONDS:
+                    return str(ours[0]["id"]), "SKIPPED"
         except RailwayError as error:
             print(f"::warning::Polling deployments: {error}", flush=True)
         print(f"deployment {deployment_id or '(pending)'}: {status}", flush=True)
@@ -237,6 +242,7 @@ class LogTail:
         entries = [
             (str(e["timestamp"]), str(e["message"]).rstrip()) for e in data["deploymentLogs"]
         ]
+        entries.sort(key=lambda entry: entry[0])  # stable, so same-timestamp order holds
         # startDate is inclusive, so lines at the last timestamp come back; skip as many of
         # them as were already taken, which also handles identical lines.
         previous_timestamp, previous_seen = self._last_timestamp, self._seen_at_last_timestamp
@@ -282,7 +288,7 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
             ]
             return lines[outcomes[-1]], "\n".join(output)
         time.sleep(10)
-    return "preview: the seed had not finished when the run stopped waiting", ""
+    return SEED_NOT_FINISHED_LINE, ""
 
 
 def delete_service(service_id: str) -> None:
@@ -431,8 +437,17 @@ def format_deploy_comment(
     logs: str,
 ) -> str:
     lines = [f"### Preview of {head_sha[:7]}", ""]
-    if status == "SUCCESS":
+    server_up = status == "SUCCESS" and seed_outcome not in (
+        seed_log.UNHEALTHY_LINE,
+        SEED_NOT_FINISHED_LINE,
+    )
+    if server_up:
         lines += [f"Running at **{url}** on a fresh database."]
+    elif status == "SUCCESS":
+        lines += [
+            f"Railway deployed it, but the launcher's log says otherwise (below), so {url} may"
+            f" not answer; see the [run]({run_url})."
+        ]
     elif status.startswith("TIMEOUT"):
         lines += [
             f"The deployment was still going when the run stopped waiting ({status.lower()});"
@@ -495,7 +510,7 @@ def run_deploy(args: argparse.Namespace) -> int:
         before: set[str] = set()
         if service_id is None:
             service_id = create_service(
-                project_id=project_id, environment_id=environment_id, name=name, image=args.image
+                project_id=project_id, environment_id=environment_id, name=name
             )
             print(f"created service {name} ({service_id})")
         else:

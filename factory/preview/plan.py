@@ -139,23 +139,27 @@ def extract_seed(*, body: str) -> str:
     in_python = False
     for line in body.splitlines():
         fence = FENCE_PATTERN.match(line)
+        leading = len(line) - len(line.lstrip(" "))
         if opening:
+            # A closing fence may sit at most three spaces deeper than the opening one;
+            # anything deeper is content, as in CommonMark.
             closes = (
                 fence is not None
                 and fence.group(1)[0] == opening[0]
                 and len(fence.group(1)) >= len(opening)
                 and not fence.group(2).strip()
+                and leading <= indent + 3
             )
             if closes:
-                if in_python:
-                    return finish(block)
-                opening = ""
+                if in_python and (seed := finish(block)):
+                    return seed
+                # A blank python block is not the seed; a later one may be.
+                opening, in_python, block = "", False, []
             elif in_python:
-                leading = len(line) - len(line.lstrip(" "))
                 block.append(line[min(leading, indent) :])
         elif fence is not None:
             opening = fence.group(1)
-            indent = len(line) - len(line.lstrip(" "))
+            indent = leading
             in_python = in_section and PYTHON_INFO_PATTERN.match(fence.group(2)) is not None
         elif (seed_heading := SEED_HEADING_PATTERN.match(line)) is not None:
             in_section = True
