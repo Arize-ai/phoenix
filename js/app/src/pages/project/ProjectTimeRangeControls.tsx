@@ -2,10 +2,13 @@ import { startTransition } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
-import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
+import {
+  ConnectedTimeRangeControls,
+  useTimeRange,
+} from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
-import { useOnLastUpdatedAtAdvance } from "@phoenix/hooks/useOnLastUpdatedAtAdvance";
+import { useOnTimestampAdvance } from "@phoenix/hooks/useOnTimestampAdvance";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/pages/project/constants";
 import { useSelectedTraceSlots } from "@phoenix/pages/project/useSelectedTraceSlots";
@@ -42,6 +45,7 @@ export function ProjectTimeRangeControls(props: {
     setIsStreaming,
     setFetchKey,
   } = useStreamState();
+  const { refreshLiveTimeRange } = useTimeRange();
   const { tab } = useProjectRootPath();
   // Parent routes see child params, so this is set while the session drawer
   // is open; the trace and compare drawers are known from the selected traces
@@ -69,11 +73,15 @@ export function ProjectTimeRangeControls(props: {
     isLiveStreaming ? refreshIntervalMs : null
   );
 
-  // We want to refetch higher up the render tree when lastUpdatedAt changes
-  useOnLastUpdatedAtAdvance(
+  // New data landed: slide a live time range forward and refetch the tables
+  // below, keeping the current rows up while they load
+  useOnTimestampAdvance(
     lastUpdatedAt.streamingLastUpdatedAt,
     (currentLastUpdatedAt) => {
-      setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
+      startTransition(() => {
+        refreshLiveTimeRange();
+        setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
+      });
     }
   );
 

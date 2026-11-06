@@ -1,11 +1,14 @@
 import { startTransition, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
+import {
+  ConnectedTimeRangeControls,
+  useTimeRange,
+} from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
-import { useOnLastUpdatedAtAdvance } from "@phoenix/hooks/useOnLastUpdatedAtAdvance";
+import { useOnTimestampAdvance } from "@phoenix/hooks/useOnTimestampAdvance";
 import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/pages/project/constants";
 
 import type { ServerEvaluatorsTimeRangeControlsQuery } from "./__generated__/ServerEvaluatorsTimeRangeControlsQuery.graphql";
@@ -49,6 +52,7 @@ function ServerEvaluatorsTimeRangeControlsContent({
   const setIsLive = usePreferencesContext(
     (state) => state.setTraceStreamingEnabled
   );
+  const { refreshLiveTimeRange } = useTimeRange();
   const [pollCount, setPollCount] = useState(0);
   const { projectsLastUpdatedAt } =
     useLazyLoadQuery<ServerEvaluatorsTimeRangeControlsQuery>(
@@ -67,9 +71,14 @@ function ServerEvaluatorsTimeRangeControlsContent({
     },
     isLive ? EVALUATORS_LIVE_REFRESH_INTERVAL_MS : null
   );
-  // The page's data was loaded against the first timestamp seen here; only a
-  // later one means new data.
-  useOnLastUpdatedAtAdvance(projectsLastUpdatedAt, onAdvance);
+  // New data landed: slide a live time range forward and refresh the page,
+  // keeping the current data up while it loads
+  useOnTimestampAdvance(projectsLastUpdatedAt, () => {
+    startTransition(() => {
+      refreshLiveTimeRange();
+      onAdvance();
+    });
+  });
   return (
     <ConnectedTimeRangeControls isLive={isLive} onIsLiveChange={setIsLive} />
   );
