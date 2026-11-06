@@ -1,9 +1,4 @@
-"""Start Phoenix, run the PR's seed script against it once it is healthy, then stay up.
-
-The preview image's command. The seed runs with PHOENIX_BASE_URL pointing at the local
-server; its output and outcome go to the container log in the lines seed_log.py names,
-and never stop the server, so an instance whose seed failed can still be opened.
-"""
+"""Start Phoenix and seed it; seed failures leave the server running."""
 
 import os
 import signal
@@ -37,7 +32,7 @@ def forward(signum: int, _frame: object) -> None:
 
 
 def wait_until_healthy(server: subprocess.Popen[bytes], url: str) -> bool:
-    """Probe until the server answers or exits; Railway's own health check sets the deadline."""
+    """Railway's health check supplies the deadline."""
     while server.poll() is None:
         try:
             with urllib.request.urlopen(f"{url}/healthz", timeout=5) as response:
@@ -97,7 +92,6 @@ def main() -> int:
     else:
         print(seed_log.UNHEALTHY_LINE, flush=True)
     exit_code = server.wait()
-    # A stop this launcher forwarded is clean; any other death should trip the restart policy.
     return 0 if stopping else exit_code
 
 

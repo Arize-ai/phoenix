@@ -1,12 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""Decide how to build one PR's preview image, and pull the seed script out of its body.
-
-Prints GitHub Actions outputs. The base image is a published `commit-<sha>` image of the
-base branch with the PR's dependency files, so the PR's source can be laid over it; an
-empty base-image output means none matched and the workflow builds the PR in full.
-"""
+"""Print GitHub Actions build outputs and extract the PR's preview seed."""
 
 import argparse
 import functools
@@ -24,11 +19,10 @@ from gh import gh_api, run_gh
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
-# The Dockerfile's frontend stage copies exactly these two trees.
 FRONTEND_TREES = ("js", "schemas")
 SEED_HEADING_PATTERN = re.compile(r"^(#+)\s*Preview seed\s*$", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^(#+)\s")
-FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")  # indented, as inside a list item
+FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 PYTHON_INFO_PATTERN = re.compile(r"^\s*(python3?|py)\b", re.IGNORECASE)
 CLOSING_FENCE_MAX_EXTRA_INDENT = 3  # CommonMark
 MAX_TAG_PAGES = 5
@@ -36,13 +30,12 @@ MAX_BASE_CANDIDATES = 30
 
 
 def warn(message: str) -> None:
-    """On stderr: stdout is the step's $GITHUB_OUTPUT."""
+    """Keep stdout reserved for GitHub Actions outputs."""
     print(f"::warning::{message}", file=sys.stderr)
 
 
 @functools.cache
 def root_tree_shas(*, ref: str) -> dict[str, str]:
-    """One tree request answers for every dependency file and frontend tree at once."""
     tree = gh_api(f"repos/{{owner}}/{{repo}}/git/trees/{ref}")
     assert isinstance(tree, dict)
     by_path = {entry["path"]: str(entry["sha"]) for entry in tree["tree"]}
@@ -58,13 +51,6 @@ def frontend_shas(shas: dict[str, str]) -> tuple[str, ...]:
 
 
 class PublishedCommits:
-    """Which commits have a published image, from Docker Hub's newest `commit-*` tags.
-
-    Pages are fetched as lookups need them: `version-*` branches are tagged too, so a
-    release burst can push main's commits past the first page. Docker Hub trouble reads as
-    unpublished, which costs a full build rather than the preview.
-    """
-
     def __init__(self) -> None:
         self._shas: set[str] = set()
         self._next_url: Optional[str] = f"{DOCKER_HUB_TAGS_URL}?page_size=100&name=commit-"
@@ -92,7 +78,7 @@ class PublishedCommits:
 
 
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
-    """The newest base-branch commit with a published image and the PR's dependency files."""
+    """Find a published base-branch image matching the PR's dependency files."""
     compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{base_ref}...{head_sha}")
     assert isinstance(compare, dict)
     merge_base_sha = str(compare["merge_base_commit"]["sha"])
@@ -110,12 +96,7 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
 
 
 def extract_seed(*, body: str) -> str:
-    """The first python block of the body's Preview seed section, and only that section's.
-
-    Fences and headings follow CommonMark: a fence hides headings inside it, a block
-    closes only on a matching fence or the end of the body, and an indented fence strips
-    that indent from its content.
-    """
+    """Extract the first nonempty Python block in the Preview seed section."""
 
     def finish(block: list[str]) -> str:
         return "\n".join(block).strip() + "\n" if any(line.strip() for line in block) else ""
@@ -140,7 +121,6 @@ def extract_seed(*, body: str) -> str:
             if closes:
                 if in_python and (seed := finish(block)):
                     return seed
-                # A blank python block is not the seed; a later one may be.
                 opening_fence, in_python, block = "", False, []
             elif in_python:
                 block.append(line[min(leading, indent) :])
@@ -158,7 +138,6 @@ def extract_seed(*, body: str) -> str:
 
 
 def frontend_changed(*, base_sha: str, head_sha: str) -> bool:
-    """Against the base image's commit, whose frontend is the one in the image."""
     return frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
         root_tree_shas(ref=head_sha)
     )
