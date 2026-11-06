@@ -1,5 +1,6 @@
 """The one `gh` wrapper for the preview scripts, which run where `gh` is authenticated."""
 
+import functools
 import json
 import os
 import subprocess
@@ -24,3 +25,35 @@ def preview_image() -> str:
     """The GHCR image previews are pushed to, from the GH_REPO the workflow sets."""
     owner = os.environ["GH_REPO"].partition("/")[0].lower()
     return f"ghcr.io/{owner}/{PREVIEW_PACKAGE}"
+
+
+def ghcr_package(image: str) -> tuple[str, str]:
+    """(owner, package name) of a ghcr.io image reference, with or without a tag."""
+    owner, _, package = image.removeprefix("ghcr.io/").partition("/")
+    return owner, package.partition(":")[0]
+
+
+@functools.cache
+def packages_api_root(owner: str) -> str:
+    """The packages API lives under orgs/ or users/ depending on who owns the repo."""
+    try:
+        owner_type = run_gh("api", f"users/{owner}", "--jq", ".type").strip()
+    except subprocess.CalledProcessError:
+        owner_type = "Organization"
+    return f"{'orgs' if owner_type == 'Organization' else 'users'}/{owner}/packages/container"
+
+
+def image_tag_exists(image: str, tag: str) -> bool:
+    """Whether the GHCR package behind `image` has a version carrying `tag`."""
+    owner, package = ghcr_package(image)
+    try:
+        found = run_gh(
+            "api",
+            "--paginate",
+            f"{packages_api_root(owner)}/{package}/versions?per_page=100",
+            "--jq",
+            f"[.[] | .metadata.container.tags[]? | select(. == {json.dumps(tag)})] | length",
+        )
+    except subprocess.CalledProcessError:
+        return False  # no package yet, or GHCR unavailable: build to be safe
+    return any(int(count or 0) > 0 for count in found.split())
