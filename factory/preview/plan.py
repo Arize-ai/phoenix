@@ -17,6 +17,7 @@ import json
 import re
 import subprocess
 import sys
+import textwrap
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -32,7 +33,9 @@ DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 FRONTEND_TREES = ("js", "schemas")
 # Up to three leading spaces, an optional colon and optional closing hashes, as CommonMark
 # and habit allow.
-SEED_HEADING_PATTERN = re.compile(r"^ {0,3}(#+)\s*Preview seed\s*:?\s*#*\s*$", re.IGNORECASE)
+# A heading needs a space after its hashes, so `##Preview seed`, which renders as text,
+# is not one; the two patterns agree on that.
+SEED_HEADING_PATTERN = re.compile(r"^ {0,3}(#+)\s+Preview seed\s*:?\s*#*\s*$", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^ {0,3}(#+)(\s|$)")
 # A fence may be indented, as inside a list item, use three or more backticks or tildes,
 # and name the language as python, python3 or py in any case, with anything after it.
@@ -136,7 +139,11 @@ def extract_seed(*, body: str) -> str:
     """
 
     def finish(block: list[str]) -> str:
-        return "\n".join(block).strip() + "\n" if any(line.strip() for line in block) else ""
+        # Dedent as a whole and drop only surrounding blank lines, so content that sits
+        # deeper than its fence keeps its relative indentation.
+        if not any(line.strip() for line in block):
+            return ""
+        return textwrap.dedent("\n".join(block)).strip("\n") + "\n"
 
     in_section = False
     section_level = 0
