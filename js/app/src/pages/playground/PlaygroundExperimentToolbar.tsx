@@ -5,10 +5,9 @@ import {
   Flex,
   Icon,
   Icons,
-  RecordIcon,
+  StatusIndicator,
   Timer,
 } from "@phoenix/components";
-import { ProgressCircle } from "@phoenix/components/core/progress/ProgressCircle";
 import { Switch } from "@phoenix/components/core/switch";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -85,9 +84,9 @@ export function PlaygroundExperimentToolbar({
       {isRunning ? (
         <Flex alignItems="center" gap="size-100">
           {recordExperiments ? (
-            <RecordIcon isActive />
+            <StatusIndicator category="recording" label="Recording" />
           ) : (
-            <ProgressCircle isIndeterminate size="S" />
+            <StatusIndicator category="running" label="Running" />
           )}
           <Timer size="S" color="text-700" />
         </Flex>

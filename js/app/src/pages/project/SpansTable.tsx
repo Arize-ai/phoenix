@@ -588,7 +588,7 @@ export function SpansTable(props: SpansTableProps) {
       maxSize: 80,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
-        return <SpanStatusIndicator statusCode={statusCode} />;
+        return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
       },
     },
     {

@@ -13,9 +13,7 @@ import {
 } from "@phoenix/components";
 import type { ChartTypeIconType } from "@phoenix/components/chart";
 import { CHART_TYPE_LABELS, ChartTypeIcon } from "@phoenix/components/chart";
-import { Button } from "@phoenix/components/core/button/Button";
 import { SearchIcon } from "@phoenix/components/core/field";
-import { RecordIcon } from "@phoenix/components/core/icon/RecordIcon";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { INTEGRATION_ICONS } from "@phoenix/components/project/IntegrationIcons";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
@@ -32,7 +30,6 @@ const meta: Meta = {
     ChartTypeIcon,
     GenerativeProviderIcon,
     SandboxProviderIcon,
-    RecordIcon,
   },
   parameters: {
     design: {
@@ -243,28 +240,6 @@ export const SandboxProviders: Story = {
         </li>
       ))}
     </ul>
-  ),
-};
-
-export const RecordIcons: Story = {
-  tags: ["!dev"],
-  render: () => (
-    <OptionGrid
-      rows={[
-        { label: "Inactive", isActive: false },
-        { label: "Active", isActive: true },
-      ]}
-      columns={[{ label: "Icon" }, { label: "Button leading visual" }]}
-      renderCell={(row, column) =>
-        column?.label === "Icon" ? (
-          <RecordIcon isActive={row.isActive} />
-        ) : (
-          <Button leadingVisual={<RecordIcon isActive={row.isActive} />}>
-            {row.isActive ? "Recording" : "Record"}
-          </Button>
-        )
-      }
-    />
   ),
 };
 

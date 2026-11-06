@@ -14,8 +14,15 @@ const SPAN_STATUSES: Record<
 
 export function SpanStatusIndicator({
   statusCode,
+  isLabelHidden,
 }: {
   statusCode: SpanStatusCodeType;
+  isLabelHidden?: boolean;
 }) {
-  return <StatusIndicator {...SPAN_STATUSES[statusCode]} />;
+  return (
+    <StatusIndicator
+      {...SPAN_STATUSES[statusCode]}
+      isLabelHidden={isLabelHidden}
+    />
+  );
 }

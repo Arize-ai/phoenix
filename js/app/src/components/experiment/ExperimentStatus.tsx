@@ -37,16 +37,38 @@ const NO_JOB_STATUS = {
 
 export function ExperimentStatus({
   status,
+  detailsHref,
+  isLabelHidden,
 }: {
   status: string | null | undefined;
+  isLabelHidden?: boolean;
+  /**
+   * Makes the status a link to the experiment's details, still explaining
+   * itself on hover and focus.
+   */
+  detailsHref?: string;
 }) {
   const { category, label, explanation } =
     status == null
       ? NO_JOB_STATUS
       : EXPERIMENT_STATUSES[status as ExperimentStatusValue];
-  return (
-    <MarkerTrigger explanation={explanation}>
-      <StatusIndicator category={category} label={label} />
-    </MarkerTrigger>
+  const indicator = (
+    <StatusIndicator
+      category={category}
+      label={label}
+      isLabelHidden={isLabelHidden}
+    />
   );
+  if (detailsHref !== undefined) {
+    return (
+      <MarkerTrigger
+        aria-label={`${label}: view experiment details`}
+        href={detailsHref}
+        explanation={explanation}
+      >
+        {indicator}
+      </MarkerTrigger>
+    );
+  }
+  return <MarkerTrigger explanation={explanation}>{indicator}</MarkerTrigger>;
 }

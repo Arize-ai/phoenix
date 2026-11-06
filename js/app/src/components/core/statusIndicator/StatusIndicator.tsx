@@ -13,12 +13,13 @@ import {
   Record,
   Stop,
 } from "@phoenix/components/core/icon/Icons";
+import { useIsExplainedByMarkerTrigger } from "@phoenix/components/core/markerTrigger";
 
 /**
  * The categories status values in Phoenix map to. The design system owns
  * each category's glyph and color; a domain owns the words.
  */
-export const STATUS_CATEGORIES = [
+const STATUS_CATEGORIES = [
   "running",
   "recording",
   "needs-input",
@@ -191,6 +192,14 @@ const statusIndicatorCSS = css`
     text-decoration-color: currentColor;
     text-underline-offset: 3px;
   }
+  .marker-trigger[data-hovered] > &[data-label-hidden] .status-indicator__glyph,
+  .marker-trigger[data-pressed]
+    > &[data-label-hidden]
+    .status-indicator__glyph {
+    border-radius: var(--global-rounding-small);
+    background-color: var(--hover-background);
+    box-shadow: 0 0 0 2px var(--hover-background);
+  }
   .marker-trigger[data-disabled] > & {
     opacity: var(--global-opacity-disabled);
   }
@@ -270,6 +279,7 @@ export function StatusIndicator({
   isQuiet = false,
 }: StatusIndicatorProps) {
   const Glyph = GLYPHS[category];
+  const isExplainedByTrigger = useIsExplainedByMarkerTrigger();
   const fullText = detail ? `${label} · ${detail}` : label;
   if (isLabelHidden) {
     return (
@@ -281,7 +291,7 @@ export function StatusIndicator({
         data-label-hidden
         role="img"
         aria-label={fullText}
-        title={fullText}
+        title={isExplainedByTrigger ? undefined : fullText}
       >
         <span className="status-indicator__glyph">
           <Glyph />
@@ -301,7 +311,9 @@ export function StatusIndicator({
           ? ({ "--status-indicator-max-width": maxWidth } as CSSProperties)
           : undefined
       }
-      title={maxWidth !== undefined ? fullText : undefined}
+      title={
+        maxWidth !== undefined && !isExplainedByTrigger ? fullText : undefined
+      }
     >
       <span className="status-indicator__glyph" aria-hidden>
         <Glyph />

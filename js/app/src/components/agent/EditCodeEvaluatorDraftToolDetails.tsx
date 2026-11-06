@@ -9,7 +9,7 @@ import {
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
-import type { ToolInvocationPart } from "./toolPartTypes";
+import type { ToolInvocationPart, ToolStatus } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
 export function getEditCodeEvaluatorDraftToolPreview(
@@ -20,19 +20,23 @@ export function getEditCodeEvaluatorDraftToolPreview(
   return `${input.operations.length} proposed edit${input.operations.length === 1 ? "" : "s"}`;
 }
 
-export function formatEditCodeEvaluatorDraftState(
+export function getEditCodeEvaluatorDraftStatus(
   part: ToolInvocationPart
-): string {
+): ToolStatus {
   switch (part.state) {
     case "input-available":
-      return "Awaiting approval";
+      return { stateLabel: "Awaiting approval", statusCategory: "needs-input" };
     case "output-available": {
       const status = getOutputStatus(part.output);
-      if (status === "rejected") return "Rejected";
-      return isAutoAccepted(part.output) ? "Auto-approved" : "Accepted";
+      if (status === "rejected") {
+        return { stateLabel: "Rejected", statusCategory: "denied" };
+      }
+      return {
+        stateLabel: isAutoAccepted(part.output) ? "Auto-approved" : "Accepted",
+      };
     }
     default:
-      return formatToolState(part.state);
+      return { stateLabel: formatToolState(part.state) };
   }
 }
 

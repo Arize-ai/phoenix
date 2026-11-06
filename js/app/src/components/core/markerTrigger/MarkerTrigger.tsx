@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
 import type { ReactNode, Ref } from "react";
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
+import { Focusable, mergeProps, useHover } from "react-aria";
 import type { ButtonProps as AriaButtonProps } from "react-aria-components";
 import { Button as AriaButton } from "react-aria-components";
+import { Link as RouterLink } from "react-router";
 
 import {
   Tooltip,
@@ -33,6 +35,7 @@ type ActionProps = {
    */
   "aria-label": string;
   explanation?: never;
+  href?: never;
 };
 
 type ExplanationProps = {
@@ -49,10 +52,41 @@ type ExplanationProps = {
    */
   "aria-label"?: string;
   onPress?: never;
+  href?: never;
 };
 
-export type MarkerTriggerProps = MarkerTriggerBaseProps &
-  (ActionProps | ExplanationProps);
+type LinkMarkerTriggerProps = {
+  children: ReactNode;
+  /**
+   * The route the marker opens. Unlike `onPress`, it opens in a new tab and
+   * copies like any link.
+   */
+  href: string;
+  /**
+   * Required: the marker's own text rarely says where it leads.
+   */
+  "aria-label": string;
+  /**
+   * A short explanation of the marker, shown on hover and focus.
+   */
+  explanation?: ReactNode;
+  onPress?: never;
+  ref?: Ref<HTMLAnchorElement>;
+};
+
+export type MarkerTriggerProps =
+  | (MarkerTriggerBaseProps & (ActionProps | ExplanationProps))
+  | LinkMarkerTriggerProps;
+
+const ExplainedByMarkerTriggerContext = createContext(false);
+
+/**
+ * Whether the marker is the face of a `MarkerTrigger` that shows an
+ * explanation tooltip, so the marker should not add a native tooltip too.
+ */
+export function useIsExplainedByMarkerTrigger() {
+  return useContext(ExplainedByMarkerTriggerContext);
+}
 
 const markerTriggerCSS = css`
   appearance: none;
@@ -66,14 +100,16 @@ const markerTriggerCSS = css`
   background: none;
   font: inherit;
   color: inherit;
+  text-decoration: none;
   border-radius: var(--global-rounding-small);
   cursor: pointer;
   outline: none;
 
-  &[data-explanation] {
+  &[data-explanation]:not(:any-link) {
     cursor: help;
   }
-  &[data-focus-visible] {
+  &[data-focus-visible],
+  &:any-link:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
@@ -95,22 +131,86 @@ const markerTriggerCSS = css`
  * - **Explanation** (`explanation`): a tooltip on hover and focus that a
  *   press toggles. It stays a button, because assistive technology announces
  *   a tooltip only on an interactive element, and the press does something.
+ * - **Link** (`href`, `aria-label`): the marker opens a page in the app. Use
+ *   it instead of an `onPress` that navigates. It may also carry an
+ *   `explanation`.
  *
  * Use it only when the marker is the trigger's whole visible face. A marker
  * takes one action; a second belongs in a menu.
  */
 export function MarkerTrigger(props: MarkerTriggerProps) {
-  if (props.explanation !== undefined) {
-    return <ExplainingMarkerTrigger {...props} />;
+  let trigger: ReactNode;
+  if (props.href !== undefined) {
+    trigger = <LinkMarkerTrigger {...props} />;
+  } else if (props.explanation !== undefined) {
+    trigger = <ExplainingMarkerTrigger {...props} />;
+  } else {
+    const { ref, ...buttonProps } = props;
+    trigger = (
+      <AriaButton
+        {...buttonProps}
+        ref={ref}
+        className="marker-trigger"
+        css={markerTriggerCSS}
+      />
+    );
   }
-  const { ref, ...buttonProps } = props;
   return (
-    <AriaButton
-      {...buttonProps}
+    <ExplainedByMarkerTriggerContext.Provider
+      value={props.explanation !== undefined}
+    >
+      {trigger}
+    </ExplainedByMarkerTriggerContext.Provider>
+  );
+}
+
+function stopPropagation(event: { stopPropagation: () => void }) {
+  event.stopPropagation();
+}
+
+/**
+ * A router link rather than an `AriaButton`: React Aria's `Link` would
+ * navigate with a full page load, since the app has no React Aria
+ * `RouterProvider`. It stops `pointerdown` and `click` itself, which
+ * `usePress` does for the button forms, so a clickable row around it does not
+ * also activate.
+ */
+function LinkMarkerTrigger({
+  ref,
+  href,
+  explanation,
+  children,
+  "aria-label": ariaLabel,
+}: LinkMarkerTriggerProps) {
+  const { hoverProps, isHovered } = useHover({});
+  const link = (
+    <RouterLink
+      {...mergeProps(hoverProps, {
+        onClick: stopPropagation,
+        onPointerDown: stopPropagation,
+      })}
       ref={ref}
+      to={href}
+      aria-label={ariaLabel}
       className="marker-trigger"
       css={markerTriggerCSS}
-    />
+      data-hovered={isHovered || undefined}
+      data-explanation={explanation !== undefined || undefined}
+    >
+      {children}
+    </RouterLink>
+  );
+  if (explanation === undefined) {
+    return link;
+  }
+  return (
+    <TooltipTrigger delay={500}>
+      <Focusable>{link}</Focusable>
+      <Tooltip>
+        <TooltipArrow />
+        {explanation}
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
 

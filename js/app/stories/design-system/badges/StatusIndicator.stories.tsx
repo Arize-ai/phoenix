@@ -62,7 +62,8 @@ import { OptionGrid } from "../../utils/OptionGrid";
  * the glyph first.
  *
  * **Hiding the word.** `isLabelHidden` draws the glyph alone, with the
- * word as its accessible name and tooltip. Use it where the surface already
+ * word as its accessible name and native tooltip. Inside a `MarkerTrigger`
+ * with an explanation, the explanation is the only tooltip. Use it where the surface already
  * says what the status is about: a table's status column, a trace tree row
  * or an experiment's name cell, and an agent turn's tool calls. A card or
  * header that names the thing keeps the word.
@@ -81,7 +82,10 @@ import { OptionGrid } from "../../utils/OptionGrid";
  * A status is never its own hit target. One that explains itself or acts
  * goes inside a `MarkerTrigger`, which draws only a focus ring; the status
  * draws the trigger's state. An explained status takes a dotted underline,
- * and any triggered status takes a solid one while hovered or pressed.
+ * and any triggered status takes a solid one while hovered or pressed; a
+ * glyph with its word hidden takes a tinted backing instead. A status that
+ * opens a page goes in a link `MarkerTrigger` (`href`), never one whose
+ * `onPress` navigates.
  * Hover is not shown here, since these stories cannot hold it.
  */
 const meta: Meta = {
@@ -335,6 +339,19 @@ const TRIGGERS: {
       </MarkerTrigger>
     ),
   },
+  {
+    label: "Link",
+    render: (isDisabled) =>
+      isDisabled ? null : (
+        <MarkerTrigger
+          aria-label="Error: view experiment details"
+          href="/"
+          explanation="Experiment encountered an error during execution"
+        >
+          <StatusIndicator category="failed" label="Error" />
+        </MarkerTrigger>
+      ),
+  },
 ];
 
 const TRIGGER_STATES: { label: string; isDisabled: boolean }[] = [
@@ -342,7 +359,11 @@ const TRIGGER_STATES: { label: string; isDisabled: boolean }[] = [
   { label: "Disabled", isDisabled: true },
 ];
 
-/** Hover, focus or press the explanation to show it. */
+/**
+ * An explanation's open state belongs to its trigger, so it cannot be held
+ * open here: hover, focus or press an explanation to show it. A link has no
+ * disabled state.
+ */
 export const InATrigger: StoryFn = () => (
   <OptionGrid
     rows={TRIGGERS}
