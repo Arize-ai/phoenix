@@ -34,13 +34,15 @@ jobs:
     name: Build and deploy
     # Open PRs only: a closed PR has already had its teardown, and nothing would run it again.
     # Removing some other label is not a reason to redeploy, so `unlabeled` is left out. An
-    # edit counts only when it changed the body, where the seed lives.
+    # edit counts only when it changed the body, where the seed lives, or the base branch,
+    # which the base image and the scripts come from.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.state == 'open' &&
       ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
        ((contains(fromJSON('["synchronize", "reopened"]'), github.event.action) ||
-         (github.event.action == 'edited' && github.event.changes.body)) &&
+         (github.event.action == 'edited' &&
+          (github.event.changes.body || github.event.changes.base))) &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')))
     # One run at a time per PR, and only the newest waiting run is kept: a push during a
     # build queues behind it rather than cancelling it, so a teardown in flight is never
