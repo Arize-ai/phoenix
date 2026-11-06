@@ -19,10 +19,15 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import seed_log
+
 SEED_PATH = Path("/phoenix/preview/seed.py")
 HEALTHY_TIMEOUT_SECONDS = 300
 SEED_TIMEOUT_SECONDS = 480
-SEED_LINE_PREFIX = "seed| "
+# How long to wait for the relay to drain the pipe after the seed exits. The pipe closes
+# when the seed and anything it spawned let go of it; a helper that outlives the seed is
+# the one case this does not cover, and the outcome then precedes its remaining lines.
+RELAY_DRAIN_SECONDS = 30
 
 children: list[subprocess.Popen[bytes]] = []
 stopping = False
@@ -58,15 +63,15 @@ def wait_until_healthy(server: subprocess.Popen[bytes], url: str) -> bool:
 
 def relay(stream: Any) -> None:
     for raw in iter(stream.readline, b""):
-        print(f"{SEED_LINE_PREFIX}{raw.decode(errors='replace').rstrip()}", flush=True)
+        print(f"{seed_log.OUTPUT_PREFIX}{raw.decode(errors='replace').rstrip()}", flush=True)
 
 
 def run_seed(url: str) -> None:
     if not SEED_PATH.exists() or not SEED_PATH.read_text().strip():
-        print("preview: no seed script; the instance starts empty", flush=True)
+        print(seed_log.NO_SEED_LINE, flush=True)
         return
     env = {**os.environ, "PHOENIX_BASE_URL": url, "PHOENIX_COLLECTOR_ENDPOINT": url}
-    print("preview: running the seed script", flush=True)
+    print(seed_log.START_LINE, flush=True)
     seed = subprocess.Popen(
         [sys.executable, str(SEED_PATH)],
         env=env,
@@ -80,15 +85,15 @@ def run_seed(url: str) -> None:
     try:
         seed.wait(timeout=SEED_TIMEOUT_SECONDS)
         outcome = (
-            "preview: seed finished"
+            seed_log.FINISHED_LINE
             if seed.returncode == 0
-            else f"preview: seed failed with exit {seed.returncode}"
+            else f"{seed_log.FAILED_PREFIX}{seed.returncode}"
         )
     except subprocess.TimeoutExpired:
         seed.kill()
         seed.wait()
-        outcome = f"preview: seed timed out after {SEED_TIMEOUT_SECONDS} seconds"
-    relay_thread.join(timeout=10)
+        outcome = f"{seed_log.TIMED_OUT_PREFIX}{SEED_TIMEOUT_SECONDS} seconds"
+    relay_thread.join(timeout=RELAY_DRAIN_SECONDS)
     print(outcome, flush=True)
 
 
@@ -102,7 +107,7 @@ def main() -> int:
     if wait_until_healthy(server, url):
         run_seed(url)
     elif server.poll() is None:
-        print("preview: the server did not become healthy; skipping the seed", flush=True)
+        print(seed_log.UNHEALTHY_LINE, flush=True)
     exit_code = server.wait()
     # A stop the launcher forwarded is a clean exit; any other signal death is a failure
     # that the restart policy should see.

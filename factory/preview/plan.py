@@ -30,8 +30,8 @@ SEED_HEADING_PATTERN = re.compile(r"^#+\s*Preview seed\s*$", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^#+\s")
 # A fence may be indented up to three spaces, use three or more backticks or tildes, and
 # name the language as python, python3 or py in any case, with anything after it.
-FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
-PYTHON_FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})\s*(python3?|py)\b", re.IGNORECASE)
+FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+PYTHON_INFO_PATTERN = re.compile(r"^\s*(python3?|py)\b", re.IGNORECASE)
 MAX_TAG_PAGES = 5
 MAX_BASE_CANDIDATES = 30
 
@@ -115,7 +115,8 @@ def extract_seed(*, body: str) -> str:
     """The first python block of the body's Preview seed section, and only that section's.
 
     Scans lines and tracks every fence, so a `## ...` line inside any fenced block is not
-    taken for the next heading.
+    taken for the next heading. As in CommonMark, a block closes only on a fence of the
+    same character at least as long as the one that opened it.
     """
     lines = body.splitlines()
     try:
@@ -123,19 +124,26 @@ def extract_seed(*, body: str) -> str:
     except StopIteration:
         return ""
     block: list[str] = []
-    in_fence = False
+    opening = ""  # the fence that opened the current block, empty outside one
     in_python = False
     for line in lines[start + 1 :]:
-        if in_fence:
-            if FENCE_PATTERN.match(line):
+        fence = FENCE_PATTERN.match(line)
+        if opening:
+            closes = (
+                fence is not None
+                and fence.group(1)[0] == opening[0]
+                and len(fence.group(1)) >= len(opening)
+                and not fence.group(2).strip()
+            )
+            if closes:
                 if in_python:
                     return "\n".join(block).strip() + "\n" if block else ""
-                in_fence = False
+                opening = ""
             elif in_python:
                 block.append(line)
-        elif FENCE_PATTERN.match(line):
-            in_fence = True
-            in_python = bool(PYTHON_FENCE_PATTERN.match(line))
+        elif fence is not None:
+            opening = fence.group(1)
+            in_python = PYTHON_INFO_PATTERN.match(fence.group(2)) is not None
         elif HEADING_PATTERN.match(line):
             return ""
     return ""
