@@ -22,6 +22,7 @@ import urllib.request
 from typing import Any, Optional
 
 import seed_log
+from gh import run_gh
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
@@ -284,16 +285,19 @@ def delete_service(service_id: str) -> None:
     railway("mutation($id: String!) { serviceDelete(id: $id) }", id=service_id)
 
 
-def run_gh(*args: str, input_text: Optional[str] = None) -> str:
-    return subprocess.run(
-        ["gh", *args], capture_output=True, text=True, check=True, input=input_text
-    ).stdout
-
-
 def ghcr_package(image: str) -> tuple[str, str]:
-    """(org, package name) of a ghcr.io image reference, with or without a tag."""
-    org, _, package = image.removeprefix("ghcr.io/").partition("/")
-    return org, package.partition(":")[0]
+    """(owner, package name) of a ghcr.io image reference, with or without a tag."""
+    owner, _, package = image.removeprefix("ghcr.io/").partition("/")
+    return owner, package.partition(":")[0]
+
+
+def packages_api_root(owner: str) -> str:
+    """The packages API lives under orgs/ or users/ depending on who owns the repo."""
+    try:
+        owner_type = run_gh("api", f"users/{owner}", "--jq", ".type").strip()
+    except subprocess.CalledProcessError:
+        owner_type = "Organization"
+    return f"{'orgs' if owner_type == 'Organization' else 'users'}/{owner}/packages/container"
 
 
 def delete_image_tags(*, image: str, pr_number: int) -> int:
@@ -302,14 +306,15 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
     GitHub refuses to delete a package's last tagged version, so a refusal is reported and
     skipped rather than failing the teardown.
     """
-    org, package = ghcr_package(image)
+    owner, package = ghcr_package(image)
+    root = packages_api_root(owner)
     tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
     try:
         version_ids = set(
             run_gh(
                 "api",
                 "--paginate",
-                f"orgs/{org}/packages/container/{package}/versions?per_page=100",
+                f"{root}/{package}/versions?per_page=100",
                 "--jq",
                 f".[] | select(.metadata.container.tags[]? | {tag_filter}) | .id",
             ).split()
@@ -325,7 +330,7 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
                 "api",
                 "--method",
                 "DELETE",
-                f"orgs/{org}/packages/container/{package}/versions/{version_id}",
+                f"{root}/{package}/versions/{version_id}",
                 "--silent",
             )
             deleted += 1
@@ -343,12 +348,11 @@ def image_visibility(*, image: str) -> str:
     is `unknown`, which also stops the run: a wrong guess here costs the 15-minute wait and
     a misleading comment.
     """
-    org, package = ghcr_package(image)
+    owner, package = ghcr_package(image)
+    root = packages_api_root(owner)
     for attempt in range(3):
         try:
-            return run_gh(
-                "api", f"orgs/{org}/packages/container/{package}", "--jq", ".visibility"
-            ).strip()
+            return run_gh("api", f"{root}/{package}", "--jq", ".visibility").strip()
         except subprocess.CalledProcessError as error:
             print(f"::warning::Reading the package's visibility: {error.stderr}")
             time.sleep(5 * (attempt + 1))
@@ -426,8 +430,14 @@ def format_deploy_comment(
     if status == "SUCCESS":
         lines += [f"Running at **{url}** on a fresh database."]
     else:
-        lines += [f"The deployment ended with status `{status}`; see the [run]({run_url})."]
-    lines += ["", f"Seed: {seed}. {seed_outcome.removeprefix('preview: ').capitalize()}."]
+        lines += [
+            f"The deployment ended with status `{status}`; see the [run]({run_url})."
+            f" Whatever answers at {url} is the previous deployment, if there was one."
+        ]
+    seed_line = f"Seed: {seed}."
+    if seed_outcome != seed_log.NO_SEED_LINE:
+        seed_line += f" {seed_outcome.removeprefix('preview: ').capitalize()}."
+    lines += ["", seed_line]
     if seed_output:
         lines += ["", "~~~", clip_for_comment(seed_output), "~~~"]
     lines += [

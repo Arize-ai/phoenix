@@ -172,11 +172,11 @@ def report_on_status_comment(
             print(f"::warning::Deleting status comment {comment_id} failed: {error}")
 
 
-def add_preview_label(*, pr_number: int, token: Optional[str]) -> None:
+def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
     """Label the PR for factory-preview.yml, creating the label if the repo lacks it.
 
     The preview is a convenience on top of a PR that is already ready for review, so a
-    failure here is a warning, not the run's outcome.
+    failure here is a warning, not the run's outcome; returns whether the label is on.
     """
     try:
         existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
@@ -192,8 +192,10 @@ def add_preview_label(*, pr_number: int, token: Optional[str]) -> None:
                 token=token,
             )
         run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+        return True
     except subprocess.CalledProcessError as error:
         print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
+        return False
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -633,10 +635,11 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
-                # Whether or not a human already took it out of draft, and once.
+                # Whether or not a human already took it out of draft, and until it sticks.
                 if lane in PREVIEW_LANES and not preview_labeled:
-                    add_preview_label(pr_number=pr["number"], token=app_token.refresh())
-                    preview_labeled = True
+                    preview_labeled = add_preview_label(
+                        pr_number=pr["number"], token=app_token.refresh()
+                    )
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
