@@ -1,7 +1,8 @@
 name: Resolve a release tag to a commit on the release branch
 description: >-
   Resolve a release tag to its commit and fail unless that commit is reachable
-  from the release branch (main unless overridden). Release jobs publish
+  from the release branch (main unless overridden) and its manifest version
+  matches the tag. Release jobs publish
   whatever they check out, so this refuses a tag that was moved onto a commit
   that never landed on that branch. It is defense in depth, not the access control: the
   workflow that runs it comes from the ref the release was dispatched from,
@@ -13,6 +14,12 @@ description: >-
 inputs:
   tag:
     description: Tag name to resolve, without the refs/tags/ prefix.
+    required: true
+  package-name:
+    description: Package name used in the release tag prefix.
+    required: true
+  package-path:
+    description: Package key in .release-please-manifest.json (e.g. . for Phoenix).
     required: true
   branch:
     description: >-
@@ -37,6 +44,8 @@ runs:
       shell: bash
       env:
         TAG: ${{ inputs.tag }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        PACKAGE_PATH: ${{ inputs.package-path }}
         BRANCH: ${{ inputs.branch }}
         GH_TOKEN: ${{ github.token }}
       run: |
@@ -76,5 +85,17 @@ runs:
             exit 1
             ;;
         esac
+        # Read the manifest at the immutable revision, not the dispatch commit
+        # or the tag name: ancestry alone does not prove this is the named version.
+        if ! VERSION=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.release-please-manifest.json?ref=${REVISION}" \
+          -H 'Accept: application/vnd.github.raw+json' \
+          | jq -er --arg path "$PACKAGE_PATH" '.[$path] | select(type == "string" and length > 0)'); then
+          echo "::error::Could not read manifest version for ${PACKAGE_PATH} at ${REVISION}"
+          exit 1
+        fi
+        if [ -z "$PACKAGE_NAME" ] || [ "$TAG" != "${PACKAGE_NAME}-v${VERSION}" ]; then
+          echo "::error::Tag ${TAG} does not match manifest release ${PACKAGE_NAME}-v${VERSION} at ${REVISION}"
+          exit 1
+        fi
         echo "Tag ${TAG} -> ${REVISION} (on ${BRANCH})"
         echo "revision=${REVISION}" >> "$GITHUB_OUTPUT"

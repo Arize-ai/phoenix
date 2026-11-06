@@ -105,6 +105,8 @@ jobs:
         uses: ./.github/actions/resolve-release-tag
         with:
           tag: arize-phoenix-v${{ steps.version.outputs.version }}
+          package-name: arize-phoenix
+          package-path: .
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -227,6 +229,8 @@ jobs:
         uses: ./.github/actions/resolve-release-tag
         with:
           tag: ${{ steps.manifest.outputs.name }}-v${{ steps.manifest.outputs.version }}
+          package-name: ${{ steps.manifest.outputs.name }}
+          package-path: ${{ matrix.path }}
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: steps.check.outputs.needed == 'true'
         with:
@@ -333,6 +337,8 @@ jobs:
         uses: ./.github/actions/resolve-release-tag
         with:
           tag: arize-phoenix-sqlean-v${{ steps.manifest.outputs.version }}
+          package-name: arize-phoenix-sqlean
+          package-path: packages/phoenix-sqlean
       # A complete release is the tag's python_requires across this commit's
       # PLATFORMS: the runners that would build it come from this commit too.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
