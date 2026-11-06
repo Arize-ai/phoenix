@@ -22,8 +22,9 @@ name: Factory Preview
 # way to tamper with what gets published.
 on:
   # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
+  # A PR opened with the label already on it fires `labeled` too, so `opened` is not needed.
   pull_request_target:
-    types: [opened, edited, labeled, synchronize, reopened, closed, unlabeled]
+    types: [edited, labeled, synchronize, reopened, closed, unlabeled]
 
 permissions:
   contents: read
@@ -38,7 +39,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.state == 'open' &&
       ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
-       ((contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action) ||
+       ((contains(fromJSON('["synchronize", "reopened"]'), github.event.action) ||
          (github.event.action == 'edited' && github.event.changes.body)) &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')))
     # One run at a time per PR, and only the newest waiting run is kept: a push during a

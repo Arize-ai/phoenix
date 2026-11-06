@@ -8,7 +8,7 @@ the base-branch checkout.
 LAUNCH_LINE = "preview: launcher starting"
 START_LINE = "preview: running the seed script"
 NO_SEED_LINE = "preview: no seed script; the instance starts empty"
-UNHEALTHY_LINE = "preview: the server exited before it became healthy; skipping the seed"
+UNHEALTHY_LINE = "preview: the server did not become healthy; skipping the seed"
 FINISHED_LINE = "preview: seed finished"
 FAILED_PREFIX = "preview: seed failed with exit "
 TIMED_OUT_PREFIX = "preview: seed timed out after "

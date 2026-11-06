@@ -118,8 +118,9 @@ def find_service(*, project_id: str, name: str) -> Optional[str]:
         id=project_id,
     )
     for edge in required(data, "project")["services"]["edges"]:
-        if edge["node"]["name"] == name:
-            return str(edge["node"]["id"])
+        node = edge.get("node") or {}
+        if node.get("name") == name:
+            return str(node["id"])
     return None
 
 
@@ -129,7 +130,7 @@ def create_service(*, project_id: str, environment_id: str, name: str) -> str:
         "mutation($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }",
         input={"projectId": project_id, "environmentId": environment_id, "name": name},
     )
-    return str(data["serviceCreate"]["id"])
+    return str(required(data, "serviceCreate")["id"])
 
 
 def set_variables(*, project_id: str, environment_id: str, service_id: str) -> None:
@@ -184,7 +185,7 @@ def ensure_domain(*, project_id: str, environment_id: str, service_id: str) -> s
             "targetPort": PHOENIX_PORT,
         },
     )
-    return str(data["serviceDomainCreate"]["domain"])
+    return str(required(data, "serviceDomainCreate")["domain"])
 
 
 def deploy_service(*, environment_id: str, service_id: str) -> None:
@@ -203,7 +204,9 @@ def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, 
         " deployments(input: $input, first: 10) { edges { node { id status meta } } } }",
         input={"environmentId": environment_id, "serviceId": service_id},
     )
-    return [dict(edge["node"]) for edge in required(data, "deployments")["edges"]]
+    return [
+        dict(edge["node"]) for edge in required(data, "deployments")["edges"] if edge.get("node")
+    ]
 
 
 def wait_for_deployment(
@@ -505,11 +508,17 @@ def format_deploy_comment(
     head_sha: str,
     run_url: str,
     logs: str,
+    fresh: bool = True,
 ) -> str:
     lines = [f"### Preview of {head_sha[:7]}", ""]
     server_down = seed_outcome in (seed_log.UNHEALTHY_LINE, SEED_NOT_STARTED_LINE)
     if status == "SUCCESS" and not server_down:
-        lines += [f"Running at **{url}** on a fresh database."]
+        lines += [
+            f"Running at **{url}** on a fresh database."
+            if fresh
+            else f"Running at **{url}** since an earlier deploy of this same image, with"
+            " whatever has been added to it since."
+        ]
     elif status == "SUCCESS":
         lines += [
             f"Railway deployed it, but the launcher's log says the server is not up (below),"
@@ -562,6 +571,7 @@ def post_deploy_comment(
     seed_outcome: str,
     seed_output: str,
     logs: str,
+    fresh: bool = True,
 ) -> None:
     upsert_comment(
         pr_number=args.pr,
@@ -575,6 +585,7 @@ def post_deploy_comment(
             head_sha=args.head_sha,
             run_url=args.run_url,
             logs=logs,
+            fresh=fresh,
         ),
     )
 
@@ -625,6 +636,7 @@ def reuse_existing_deployment(
         seed_outcome=seed_outcome,
         seed_output=seed_output,
         logs="",
+        fresh=False,
     )
     print(f"{image} is already deployed; comment refreshed")
     settle_with_pr_state(pr_number=args.pr, service_id=service_id)
@@ -760,9 +772,17 @@ def settle_with_pr_state(*, pr_number: int, service_id: str) -> None:
     if pr["state"] == "OPEN" and labeled:
         return
     print(f"the PR is {pr['state'].lower()} and {'' if labeled else 'un'}labeled; tearing down")
-    body = tear_down(
-        pr_number=pr_number, service_id=service_id, keep_latest_image=pr["state"] == "OPEN"
-    )
+    try:
+        body = tear_down(
+            pr_number=pr_number, service_id=service_id, keep_latest_image=pr["state"] == "OPEN"
+        )
+    except RailwayError as failure:
+        # Say so rather than leave the deploy's comment advertising the instance.
+        log_error(f"Railway API: {failure}")
+        body = (
+            "The PR is no longer labeled for a preview, but deleting its Railway service"
+            " failed; see the workflow run."
+        )
     upsert_comment(pr_number=pr_number, body=body)
 
 

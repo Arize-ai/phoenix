@@ -128,18 +128,25 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
         assert isinstance(changes, list)
         if changes and str(changes[0]["sha"]) in candidates:
             unchanged_until = min(unchanged_until, candidates.index(str(changes[0]["sha"])))
+    # Among the published candidates whose dependency files match, prefer one whose
+    # frontend trees match too: it spares the whole frontend build, which an older base
+    # often does for a PR that touched no frontend file while main did.
     published = PublishedCommits()
+    wanted_frontend = frontend_shas(root_tree_shas(ref=head_sha))
+    fallback = ""
     for index, sha in enumerate(candidates):
         if sha not in published:
             continue
-        matches = (
-            tip_matches
-            if index < unchanged_until
-            else (dependency_shas(root_tree_shas(ref=sha)) == wanted)
-        )
-        if matches:
+        if index < unchanged_until:
+            matches = tip_matches
+        else:
+            matches = dependency_shas(root_tree_shas(ref=sha)) == wanted
+        if not matches:
+            continue
+        if frontend_shas(root_tree_shas(ref=sha)) == wanted_frontend:
             return sha
-    return ""
+        fallback = fallback or sha
+    return fallback
 
 
 def extract_seed(*, body: str) -> str:
