@@ -74,7 +74,7 @@ describe("MarkerTrigger", () => {
     render(
       inClickableRow(
         <MarkerTrigger explanation="Experiment is currently in progress">
-          <StatusIndicator category="active" label="Running" />
+          <StatusIndicator category="running" label="Running" />
         </MarkerTrigger>,
         onRowClick
       )

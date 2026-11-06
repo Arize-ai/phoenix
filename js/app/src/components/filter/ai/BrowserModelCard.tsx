@@ -108,11 +108,13 @@ export function BrowserModelCard() {
           <StatusIndicator category="succeeded" label="Downloaded and ready" />
         );
       case "needs-download":
-        return <StatusIndicator category="pending" label="Not downloaded" />;
+        return (
+          <StatusIndicator category="unavailable" label="Not downloaded" />
+        );
       case "downloading":
         return (
           <StatusIndicator
-            category="active"
+            category="running"
             label="Downloading"
             detail={`${Math.round(downloadProgress * 100)}%`}
           />

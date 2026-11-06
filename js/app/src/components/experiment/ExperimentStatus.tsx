@@ -8,7 +8,7 @@ const EXPERIMENT_STATUSES: Record<
   { category: StatusCategory; label: string; explanation: string }
 > = {
   RUNNING: {
-    category: "active",
+    category: "running",
     label: "Running",
     explanation: "Experiment is currently in progress",
   },
