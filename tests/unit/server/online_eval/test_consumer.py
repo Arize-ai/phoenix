@@ -44,6 +44,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import (
     ProjectEvaluatorRunCountsDataLoader,
 )
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -55,6 +56,7 @@ from phoenix.server.dml_event import (
     TraceAnnotationInsertEvent,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.evaluators.resolution import EvaluatorConfigurationError
 from phoenix.server.evaluators.runtime.code import SandboxPayloadTooLargeError
 from phoenix.server.online_eval import consumer as consumer_module
 from phoenix.server.online_eval import executor as executor_module
@@ -94,7 +96,7 @@ from phoenix.server.online_eval.executor import (
     span_eval_context,
     trace_eval_context,
 )
-from phoenix.server.online_eval.failure_policy import is_transient_error
+from phoenix.server.online_eval.failure_policy import classify, is_transient_error
 from phoenix.server.online_eval.project_evaluator_resolution import (
     resolve_project_evaluator,
     resolve_project_evaluators_bulk,
@@ -2927,6 +2929,33 @@ async def test_provider_classifier_handles_provider_specific_error_shape(
     assert unit.attempts == 0
     assert unit.error is not None
     assert "provider-specific throttle" in unit.error
+
+
+def test_missing_provider_credential_holds_instead_of_counting_an_attempt() -> None:
+    # A missing or unusable credential cannot heal on retry (#17598): the unit must hold,
+    # so spans evaluated while the key is absent are not lost once it is restored.
+    disposition = classify(
+        EvaluatorConfigurationError(
+            "An API key is required. Configure TYPESAFE_API_KEY to run decision models."
+        )
+    )
+    assert disposition.count_attempt is False
+    assert disposition.terminal is False
+    assert disposition.code == "EVALUATOR_MISCONFIGURED"
+    assert disposition.error.startswith("EVALUATOR_MISCONFIGURED: ")
+    assert "TYPESAFE_API_KEY" in disposition.error
+
+    # Wrapping a BadRequest keeps the declared disposition through the exception chain.
+    try:
+        try:
+            raise BadRequest("OpenAI package not installed. Run: pip install openai")
+        except BadRequest as inner:
+            raise EvaluatorConfigurationError(str(inner)) from inner
+    except EvaluatorConfigurationError as wrapped:
+        assert classify(wrapped).count_attempt is False
+
+    # Undeclared failures still count, so poison units stay bounded.
+    assert classify(BadRequest("something else entirely")).count_attempt is True
 
 
 def test_is_transient_error_classification() -> None:

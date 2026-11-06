@@ -18,6 +18,7 @@ from phoenix.db.types.decisions import JsonState
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.decision_clients import (
     DecisionRateLimitError,
     DecisionResponse,
@@ -314,6 +315,34 @@ async def test_a_rate_limited_judge_retries_without_spending_an_attempt(
     unit = await _get_unit(db, unit_id)
     assert unit.status != "DONE"
     assert unit.attempts == 0
+    assert await _annotations(db) == []
+
+
+async def test_a_judge_whose_credential_is_missing_holds_instead_of_spending_an_attempt(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_id, span_rowid = await _span_with_output(db)
+    judge_id = await _seed_judge(db)
+    binding_id = await _bind(db, project_id, judge_id)
+    unit_id = await _materialize(db, span_rowid, binding_id)
+    # The provider has no usable credential, which is a configuration problem no retry can
+    # fix: the unit has to hold so the span is not lost once the key is restored (#17598).
+    monkeypatch.setattr(
+        "phoenix.server.evaluators.resolution.resolve_decision_client",
+        AsyncMock(
+            side_effect=BadRequest(
+                "An API key is required. Configure TYPESAFE_API_KEY to run decision models."
+            )
+        ),
+    )
+
+    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status != "DONE"
+    assert unit.attempts == 0
+    assert unit.error is not None
+    assert "EVALUATOR_MISCONFIGURED" in unit.error
     assert await _annotations(db) == []
 
 

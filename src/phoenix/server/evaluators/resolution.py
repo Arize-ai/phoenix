@@ -1,6 +1,6 @@
 """Database resolution and factory functions for evaluator definitions."""
 
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence
 
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
@@ -44,6 +44,7 @@ from phoenix.server.evaluators.snapshots import (
     get_decision_evaluator,
 )
 from phoenix.server.evaluators.validation import validate_evaluator_prompt_and_configs
+from phoenix.server.online_eval.failure_policy import FailureDisposition
 from phoenix.server.sandbox import MissingSecretError, SecretsContext, build_sandbox_backend
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.sandbox.types import (
@@ -51,6 +52,35 @@ from phoenix.server.sandbox.types import (
     SandboxRuntimeContext,
     UnsupportedOperation,
 )
+
+
+class EvaluatorConfigurationError(BadRequest):
+    """The evaluator cannot be built from its configuration: the provider has no usable
+    credential, its base URL is missing, or the client dependency is not installed.
+
+    Still a ``BadRequest`` for API callers. Declaring the disposition here lets an
+    online-eval work unit hold instead of spending one of its attempts on a condition no
+    retry can change, so spans evaluated while the credential is missing are not lost once
+    it is restored.
+    """
+
+    online_eval_disposition = FailureDisposition(
+        count_attempt=False,
+        code="EVALUATOR_MISCONFIGURED",
+    )
+
+
+async def _resolve_playground_client(**kwargs: Any) -> Any:
+    """Resolve a provider client for an evaluator, reporting a configuration failure as one.
+
+    A missing credential or an uninstalled provider package cannot be fixed by retrying, so
+    the error keeps its disposition and an online-eval work unit holds instead of burning an
+    attempt (#17598).
+    """
+    try:
+        return await get_playground_client(**kwargs)
+    except BadRequest as error:
+        raise EvaluatorConfigurationError(str(error)) from error
 
 
 async def build_decision_evaluator(
@@ -71,14 +101,19 @@ async def build_decision_evaluator(
         validate_questions(definition.questions)
     except ValueError as error:
         raise BadRequest(str(error)) from error
-    client = await resolve_decision_client(
-        model_provider=definition.model_provider,
-        model_name=definition.model_name,
-        custom_provider_id=definition.custom_provider_id,
-        session=session,
-        decrypt=decrypt,
-        credentials=credentials,
-    )
+    try:
+        client = await resolve_decision_client(
+            model_provider=definition.model_provider,
+            model_name=definition.model_name,
+            custom_provider_id=definition.custom_provider_id,
+            session=session,
+            decrypt=decrypt,
+            credentials=credentials,
+        )
+    except BadRequest as error:
+        # An unusable credential or endpoint is a configuration problem, not a failed
+        # attempt: retrying cannot change it, so an online-eval unit should hold.
+        raise EvaluatorConfigurationError(str(error)) from error
     return DecisionEvaluator(definition, client, max_request_bytes=max_request_bytes)
 
 
@@ -109,7 +144,7 @@ async def _get_llm_evaluators(
         if prompt is None:
             raise NotFound(f"Prompt not found for LLM evaluator id {llm_evaluator_orm.id}")
 
-        llm_client = await get_playground_client(
+        llm_client = await _resolve_playground_client(
             model_provider=prompt_version.model_provider,
             model_name=prompt_version.model_name,
             session=session,
@@ -486,7 +521,7 @@ async def _build_inline_llm_evaluator(
     max_message_bytes: Optional[int],
 ) -> LLMEvaluator:
     prompt_version = definition.prompt_version
-    llm_client = await get_playground_client(
+    llm_client = await _resolve_playground_client(
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,
         session=session,
