@@ -32,17 +32,15 @@ import {
   formatAddedPerHour,
   formatCompletedPerHour,
   getQueueStatusDetail,
-  hasWaitedTooLong,
   HoverDetail,
-  isLagWarning,
   QUEUE_METER_COLOR_BY_TARGET,
+  OldestWaitStat,
   QueueStatusBadge,
   StatValue,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   formatElapsedShort,
   formatEvaluationTarget,
-  formatLag,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 
@@ -79,13 +77,11 @@ type QueueRates = Pick<
 export function ProjectQueueAside({
   projectId,
   fetchKey,
-  lastHour,
   action,
 }: {
   projectId: string;
   /** From the page's queue stats poll. */
   fetchKey: string;
-  lastHour: { start: string; end: string };
   /**
    * Shown under the stats, such as the button that clears the queue. Gets
    * how many of this project's queued evaluations clearing would remove, or
@@ -109,7 +105,6 @@ export function ProjectQueueAside({
                 <ProjectEvaluatorQueueStatsContent
                   projectId={projectId}
                   fetchKey={fetchKey}
-                  lagTimeRange={lastHour}
                   onClearableCount={setClearableCount}
                 />
               </Suspense>
@@ -125,20 +120,15 @@ export function ProjectQueueAside({
 function ProjectEvaluatorQueueStatsContent({
   projectId,
   fetchKey,
-  lagTimeRange,
   onClearableCount,
 }: {
   projectId: string;
   fetchKey: string;
-  lagTimeRange: { start: string; end: string };
   onClearableCount: (clearableCount: number | null) => void;
 }) {
   const data = useLazyLoadQuery<ProjectEvaluatorQueueStatsQuery>(
     graphql`
-      query ProjectEvaluatorQueueStatsQuery(
-        $projectId: ID!
-        $lagTimeRange: TimeRange!
-      ) {
+      query ProjectEvaluatorQueueStatsQuery($projectId: ID!) {
         evaluationQueue {
           status
           queuedCount
@@ -155,11 +145,6 @@ function ProjectEvaluatorQueueStatsContent({
         }
         project: node(id: $projectId) {
           ... on Project {
-            evaluationActivity(timeRange: $lagTimeRange) {
-              lag {
-                p95Seconds
-              }
-            }
             evaluationQueue {
               queuedCount
               runningCount
@@ -191,7 +176,7 @@ function ProjectEvaluatorQueueStatsContent({
         }
       }
     `,
-    { projectId, lagTimeRange },
+    { projectId },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
@@ -229,12 +214,7 @@ function ProjectEvaluatorQueueStatsContent({
           description="This project's evaluations completed in the last hour"
         />
       </Flex>
-      <ProjectLagStat
-        lagP95Seconds={
-          data.project?.evaluationActivity?.lag?.p95Seconds ?? null
-        }
-        projectOldestWaitingAt={projectQueue?.oldestWaitingAt ?? null}
-      />
+      <OldestWaitStat oldestWaitingAt={projectQueue?.oldestWaitingAt ?? null} />
     </>
   );
 }
@@ -257,7 +237,7 @@ function QueueStatsPlaceholder() {
           <StatValue>--</StatValue>
         </StatItem>
       </Flex>
-      <StatItem label="Lag p95, last hour">
+      <StatItem label="Oldest wait">
         <StatValue>--</StatValue>
       </StatItem>
     </>
@@ -277,7 +257,7 @@ function ServerQueueStatusStat({ queue }: { queue: EvaluationQueue }) {
               {`All projects, per hour: ${formatAddedPerHour(queue.addedPerMinute)} added · ${formatCompletedPerHour(queue.completedPerMinute)} completed`}
             </Text>
             {queue.oldestWaitingAt != null ? (
-              <Text size="S">{`All projects, longest wait: ${formatElapsedShort(queue.oldestWaitingAt)}`}</Text>
+              <Text size="S">{`All projects, oldest wait: ${formatElapsedShort(queue.oldestWaitingAt)}`}</Text>
             ) : null}
           </>
         }
@@ -438,43 +418,6 @@ function QueueRateStat({
         }
       >
         <StatValue>{rates != null ? formatRate(rates) : "--"}</StatValue>
-      </HoverDetail>
-    </StatItem>
-  );
-}
-
-/**
- * How stale this project's results are: p95 time from added to completed over
- * the last hour. The longest wait now goes in the hover, since a stuck queue
- * completes nothing and so has no lag.
- */
-function ProjectLagStat({
-  lagP95Seconds,
-  projectOldestWaitingAt,
-}: {
-  lagP95Seconds: number | null;
-  projectOldestWaitingAt: string | null;
-}) {
-  const isWaitingTooLong =
-    projectOldestWaitingAt != null && hasWaitedTooLong(projectOldestWaitingAt);
-  const isLagging = lagP95Seconds != null && isLagWarning(lagP95Seconds);
-  return (
-    <StatItem label="Lag p95, last hour">
-      <HoverDetail
-        detail={
-          <>
-            <Text size="S" color="text-700">
-              Added to completed
-            </Text>
-            <Text size="S" color={isWaitingTooLong ? "warning" : undefined}>
-              {`Longest wait: ${projectOldestWaitingAt != null ? formatElapsedShort(projectOldestWaitingAt) : "none"}`}
-            </Text>
-          </>
-        }
-      >
-        <StatValue color={isLagging || isWaitingTooLong ? "warning" : null}>
-          {lagP95Seconds != null ? formatLag(lagP95Seconds) : "--"}
-        </StatValue>
       </HoverDetail>
     </StatItem>
   );

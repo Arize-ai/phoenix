@@ -19,18 +19,13 @@ import {
   formatCompletedPerHour,
   getNetPerHour,
   getQueueStatusDetail,
-  hasWaitedTooLong,
   HoverDetail,
-  isLagWarning,
+  OldestWaitStat,
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
-import {
-  formatEvaluationTarget,
-  formatElapsedShort,
-  formatLag,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -51,12 +46,10 @@ const stripCSS = css`
  */
 export function ServerEvaluationQueueStrip({
   fetchKey,
-  lastHour,
   onQueueCleared,
 }: {
   /** From the page's queue stats poll. */
   fetchKey: string;
-  lastHour: { start: string; end: string };
   onQueueCleared: () => void;
 }) {
   // Read by the clear button, which stays outside the stats' error boundary
@@ -88,7 +81,6 @@ export function ServerEvaluationQueueStrip({
           <Suspense fallback={<StripPlaceholder />}>
             <ServerEvaluationQueueStripContent
               fetchKey={fetchKey}
-              lastHour={lastHour}
               onClearableCount={setClearableCount}
             />
           </Suspense>
@@ -104,16 +96,14 @@ export function ServerEvaluationQueueStrip({
 
 function ServerEvaluationQueueStripContent({
   fetchKey,
-  lastHour,
   onClearableCount,
 }: {
   fetchKey: string;
-  lastHour: { start: string; end: string };
   onClearableCount: (clearableCount: number) => void;
 }) {
   const data = useLazyLoadQuery<ServerEvaluationQueueStripQuery>(
     graphql`
-      query ServerEvaluationQueueStripQuery($lastHour: TimeRange!) {
+      query ServerEvaluationQueueStripQuery {
         evaluationQueue {
           status
           queuedCount
@@ -133,16 +123,9 @@ function ServerEvaluationQueueStripContent({
             queuedCount
           }
         }
-        lastHourActivity: evaluationActivity(timeRange: $lastHour) {
-          lag {
-            p50Seconds
-            p95Seconds
-            p99Seconds
-          }
-        }
       }
     `,
-    { lastHour },
+    {},
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
@@ -160,10 +143,6 @@ function ServerEvaluationQueueStripContent({
   }));
   const statusDetail = getQueueStatusDetail(queue);
   const net = getNetPerHour(queue);
-  const lag = data.lastHourActivity.lag;
-  const isWaitingTooLong =
-    queue.oldestWaitingAt != null && hasWaitedTooLong(queue.oldestWaitingAt);
-  const isLagging = lag != null && isLagWarning(lag.p95Seconds);
   const clearableCount = getClearableCount(queue);
   useEffect(() => {
     onClearableCount(clearableCount);
@@ -224,27 +203,7 @@ function ServerEvaluationQueueStripContent({
             </StatValue>
           </HoverDetail>
         </StatItem>
-        <StatItem label="Lag p95, last hour">
-          <HoverDetail
-            detail={
-              <>
-                <Text size="S" color="text-700">
-                  Added to completed
-                </Text>
-                {lag != null ? (
-                  <Text size="S">{`p50 ${formatLag(lag.p50Seconds)} · p99 ${formatLag(lag.p99Seconds)}`}</Text>
-                ) : null}
-                <Text size="S" color={isWaitingTooLong ? "warning" : undefined}>
-                  {`Longest wait: ${queue.oldestWaitingAt != null ? formatElapsedShort(queue.oldestWaitingAt) : "none"}`}
-                </Text>
-              </>
-            }
-          >
-            <StatValue color={isLagging || isWaitingTooLong ? "warning" : null}>
-              {lag != null ? formatLag(lag.p95Seconds) : "--"}
-            </StatValue>
-          </HoverDetail>
-        </StatItem>
+        <OldestWaitStat oldestWaitingAt={queue.oldestWaitingAt} />
         <StatItem label="Evaluation cost">
           <Suspense fallback={<StatValue>--</StatValue>}>
             <EvaluationCostValue fetchKey={fetchKey} />
@@ -350,10 +309,10 @@ function StripPlaceholder() {
         valueWidth="var(--global-dimension-size-1200)"
         hasMeter
       />
-      <StatSkeleton labelWidth={77} valueWidth={40} />
-      <StatSkeleton labelWidth={97} valueWidth={40} />
-      <StatSkeleton labelWidth={50} valueWidth={24} />
-      <StatSkeleton labelWidth={53} valueWidth={24} />
+      <StatSkeleton labelWidth={99} valueWidth={40} />
+      <StatSkeleton labelWidth={128} valueWidth={40} />
+      <StatSkeleton labelWidth={81} valueWidth={24} />
+      <StatSkeleton labelWidth={73} valueWidth={24} />
       <StatSkeleton labelWidth={97} valueWidth={24} />
     </div>
   );

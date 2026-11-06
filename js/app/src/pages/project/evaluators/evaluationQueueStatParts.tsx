@@ -16,6 +16,8 @@ import {
   formatQueueCount,
   MAX_QUEUE_COUNT,
 } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import { formatElapsedShort } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import { StatItem } from "@phoenix/pages/project/TableAside";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -28,37 +30,20 @@ export type EvaluationQueueStatusValue = "HEALTHY" | "DEGRADED";
 
 const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
 
-/** The last hour, as of now. */
-function getLastHourTimeRange(): { start: string; end: string } {
-  const end = new Date();
-  const start = new Date(end.getTime() - 60 * 60_000);
-  return { start: start.toISOString(), end: end.toISOString() };
-}
-
 /**
- * Polls the queue stats: a fetch key that changes on every poll or refresh,
- * and the last hour as of the latest poll. Call it above the stats' Suspense
- * boundary. Below it, a first load that suspends loses its state, so the
- * range moves on every retry and the query never settles.
+ * Polls the queue stats: a fetch key that changes on every poll or refresh.
+ * Call it once per page, so the stats and charts refresh together.
  */
 export function useQueueStatsPoll(refreshKey: number) {
-  const [poll, setPoll] = useState(() => ({
-    count: 0,
-    lastHour: getLastHourTimeRange(),
-  }));
+  const [pollCount, setPollCount] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => {
-      // Read outside the updater: React reruns a pending updater on every
-      // render attempt, and each new range would suspend the attempt again.
-      const lastHour = getLastHourTimeRange();
-      // A new range is a new query; keep the current stats up while it loads.
-      startTransition(() =>
-        setPoll(({ count }) => ({ count: count + 1, lastHour }))
-      );
+      // Keep the current stats up while the next poll loads.
+      startTransition(() => setPollCount((count) => count + 1));
     }, QUEUE_STATS_POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
-  return { fetchKey: `${refreshKey}:${poll.count}`, lastHour: poll.lastHour };
+  return { fetchKey: `${refreshKey}:${pollCount}` };
 }
 
 /** Each kind of evaluation's color in the queue meter and its legend. */
@@ -142,6 +127,26 @@ export const DEGRADED_WAIT_MS = 10 * 60_000;
 
 export function hasWaitedTooLong(since: string): boolean {
   return Date.now() - new Date(since).getTime() > DEGRADED_WAIT_MS;
+}
+
+/**
+ * How long the oldest waiting evaluation has waited, now: the wait that makes
+ * a queue Degraded, in warning color past it.
+ */
+export function OldestWaitStat({
+  oldestWaitingAt,
+}: {
+  oldestWaitingAt: string | null;
+}) {
+  const isWaitingTooLong =
+    oldestWaitingAt != null && hasWaitedTooLong(oldestWaitingAt);
+  return (
+    <StatItem label="Oldest wait">
+      <StatValue color={isWaitingTooLong ? "warning" : null}>
+        {oldestWaitingAt != null ? formatElapsedShort(oldestWaitingAt) : "--"}
+      </StatValue>
+    </StatItem>
+  );
 }
 
 /** A lag p95 above this shows as a warning. */

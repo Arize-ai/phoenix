@@ -144,7 +144,7 @@ function ProjectEvaluatorsPageContent({
     []
   );
   // One poll keeps the queue aside and the charts in step.
-  const { fetchKey, lastHour } = useQueueStatsPoll(queueRefreshKey);
+  const { fetchKey } = useQueueStatsPoll(queueRefreshKey);
   const content = (
     <div css={panelContentCSS}>
       {isEmptyState ? (
@@ -212,7 +212,6 @@ function ProjectEvaluatorsPageContent({
             <ProjectQueueAside
               projectId={projectId}
               fetchKey={fetchKey}
-              lastHour={lastHour}
               action={(clearableCount) => (
                 <ClearQueuedEvaluationsButton
                   projectId={projectId}

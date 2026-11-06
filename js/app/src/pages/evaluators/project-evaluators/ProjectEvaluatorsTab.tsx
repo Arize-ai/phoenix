@@ -61,7 +61,7 @@ function ProjectEvaluatorsTabContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = () => setRefreshKey((key) => key + 1);
   // One poll keeps the strip and the charts in step.
-  const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
+  const { fetchKey } = useQueueStatsPoll(refreshKey);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
@@ -89,7 +89,6 @@ function ProjectEvaluatorsTabContent() {
       <div css={pageCSS}>
         <ServerEvaluationQueueStrip
           fetchKey={fetchKey}
-          lastHour={lastHour}
           onQueueCleared={refresh}
         />
         <Suspense fallback={<ServerEvaluationChartsSkeleton />}>
