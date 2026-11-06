@@ -44,7 +44,10 @@ import {
   ProjectEvaluatorCompareTargetPage,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareTargetPage";
 import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
-import { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import {
+  PROJECT_EVALUATOR_CRUMB_FALLBACK,
+  projectEvaluatorDetailsLoader,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
 import {
   PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
@@ -726,7 +729,8 @@ export const appRouteObjects = createRoutesFromElements(
                 loader={projectEvaluatorDetailsLoader}
                 handle={{
                   crumb: (data: ProjectEvaluatorDetailsLoaderData) =>
-                    data?.evaluatorDisplayName || "evaluator",
+                    data?.evaluatorDisplayName ??
+                    PROJECT_EVALUATOR_CRUMB_FALLBACK,
                   agentRoute: {
                     label: "Project Evaluator Details",
                     description:

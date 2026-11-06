@@ -20,6 +20,12 @@ type ErrorBoundaryProps = {
    * Clears a caught error when changed without remounting healthy children.
    */
   resetKey?: string;
+  /**
+   * Tells an error the fallback handles as a normal state, such as a lookup
+   * of a record that no longer exists, from a bug. The fallback shows for
+   * both; only the bug is logged and reported.
+   */
+  isExpectedError?: (thrown: unknown) => boolean;
 };
 type ErrorBoundaryState = {
   hasError: boolean;
@@ -51,6 +57,9 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
+    if (this.props.isExpectedError?.(error)) {
+      return;
+    }
     // eslint-disable-next-line no-console
     console.error("ErrorBoundary caught error:", error, errorInfo);
     reportClientError({ error, componentStack: errorInfo.componentStack });

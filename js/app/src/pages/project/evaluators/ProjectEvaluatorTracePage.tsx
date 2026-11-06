@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { useNavigate, useParams, useRouteLoaderData } from "react-router";
+import { useNavigate, useOutletContext, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Dialog, Drawer, Flex } from "@phoenix/components";
@@ -13,7 +13,7 @@ import {
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
-import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import type { ProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import {
   TraceDetails,
@@ -29,10 +29,9 @@ export function ProjectEvaluatorTracePage() {
   const { traceId, projectEvaluatorId } = useParams();
   const navigate = useNavigate();
   const paths = useProjectEvaluatorPaths();
-  const loaderData = useRouteLoaderData<typeof projectEvaluatorDetailsLoader>(
-    PROJECT_EVALUATOR_DETAILS_ROUTE_ID
-  );
-  const projectId = loaderData?.traceProjectId;
+  // Rendered through the details page's outlet, so the evaluator is loaded.
+  const { traceProjectId: projectId } =
+    useOutletContext<ProjectEvaluatorDetailsOutletContext>();
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "evaluator-trace-details",
   });

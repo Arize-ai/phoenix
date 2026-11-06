@@ -43,56 +43,70 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
   }
 `;
 
-export type ProjectEvaluatorDetailsLoaderData = Awaited<
-  ReturnType<typeof projectEvaluatorDetailsLoader>
+/** The breadcrumb for an evaluator whose name is not known. */
+export const PROJECT_EVALUATOR_CRUMB_FALLBACK = "evaluator";
+
+/**
+ * The server rejects an id that names no live evaluator rather than resolving
+ * it to null, so the lookup error is the page's not-found state. Anything
+ * else that fails is still an error.
+ */
+export function isProjectEvaluatorNotFoundError(thrown: unknown): boolean {
+  return (
+    thrown instanceof Error &&
+    /Unknown (node|node type|project evaluator)/.test(thrown.message)
+  );
+}
+
+export type ProjectEvaluatorDetailsLoaderData = ReturnType<
+  typeof projectEvaluatorDetailsLoader
 >;
 
 /**
- * Loads the data required for the project evaluator details page.
+ * Starts loading the project evaluator details page.
  *
- * The id in the URL may name a deleted evaluator or nothing at all, so a
- * failed or empty lookup resolves to a null query ref — the page renders a
- * not-found state — rather than rejecting into the route error boundary.
+ * Nothing here is awaited, so the router commits the navigation at once and
+ * the page shows its skeleton while the query is in flight. The page reads
+ * the query ref; a deleted or malformed id surfaces there as a query error,
+ * which the page renders as its not-found state.
+ *
+ * The breadcrumb needs the evaluator's name, which only the response holds,
+ * so it is handed over as a promise the breadcrumb resolves on its own. It
+ * shares the query ref's request, and never rejects: an evaluator that
+ * cannot be loaded gets the generic crumb.
  */
-export async function projectEvaluatorDetailsLoader(
-  args: LoaderFunctionArgs
-): Promise<{
-  queryRef: ReturnType<
-    typeof loadQuery<projectEvaluatorDetailsLoaderQuery>
-  > | null;
-  evaluatorDisplayName: string | null;
-  /** The evaluator's own trace project, or null when the evaluator was not found. */
-  traceProjectId: string | null;
-}> {
+export function projectEvaluatorDetailsLoader(args: LoaderFunctionArgs): {
+  queryRef: ReturnType<typeof loadQuery<projectEvaluatorDetailsLoaderQuery>>;
+  evaluatorDisplayName: Promise<string>;
+} {
   const { projectEvaluatorId } = args.params;
   invariant(projectEvaluatorId, "projectEvaluatorId is required");
-
-  let data: projectEvaluatorDetailsLoaderQuery["response"] | undefined;
-  try {
-    data = await fetchQuery<projectEvaluatorDetailsLoaderQuery>(
-      RelayEnvironment,
-      projectEvaluatorDetailsLoaderGQL,
-      { projectEvaluatorId }
-    ).toPromise();
-  } catch {
-    // The server rejects ids that don't name a live evaluator, so a malformed
-    // or stale id surfaces here; fall through to the not-found state rather
-    // than the route error boundary.
-  }
-
-  const node = data?.projectEvaluator;
-  const projectEvaluator =
-    node?.__typename === "ProjectEvaluator" ? node : null;
-
-  return {
-    queryRef: projectEvaluator
-      ? loadQuery<projectEvaluatorDetailsLoaderQuery>(
-          RelayEnvironment,
-          projectEvaluatorDetailsLoaderGQL,
-          { projectEvaluatorId }
-        )
-      : null,
-    evaluatorDisplayName: projectEvaluator?.name ?? null,
-    traceProjectId: projectEvaluator?.traceProject.id ?? null,
-  };
+  const variables = { projectEvaluatorId };
+  // Rendered from the store when the evaluator was seen before, say from the
+  // evaluators table, and refreshed behind that render so an edit saved
+  // elsewhere is picked up on the next visit.
+  const queryRef = loadQuery<projectEvaluatorDetailsLoaderQuery>(
+    RelayEnvironment,
+    projectEvaluatorDetailsLoaderGQL,
+    variables,
+    { fetchPolicy: "store-and-network" }
+  );
+  const evaluatorDisplayName = fetchQuery<projectEvaluatorDetailsLoaderQuery>(
+    RelayEnvironment,
+    projectEvaluatorDetailsLoaderGQL,
+    variables,
+    { fetchPolicy: "store-or-network" }
+  )
+    .toPromise()
+    .then(
+      (data) => {
+        const node = data?.projectEvaluator;
+        return (
+          (node?.__typename === "ProjectEvaluator" ? node.name : null) ||
+          PROJECT_EVALUATOR_CRUMB_FALLBACK
+        );
+      },
+      () => PROJECT_EVALUATOR_CRUMB_FALLBACK
+    );
+  return { queryRef, evaluatorDisplayName };
 }
