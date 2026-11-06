@@ -76,6 +76,24 @@ async def test_saved_decision_evaluator_discovery_and_owned_tag(
     assert "(triage-judge)" in result.errors[0].message
 
 
+async def test_decision_evaluator_exposes_the_tag_it_runs_through(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    result = await gql_client.execute(
+        "query($id: ID!){ node(id:$id) { ... on DecisionEvaluator {"
+        " decisionVersion { id } decisionVersionTag { name decisionVersionId } } } }",
+        variables={"id": evaluator["id"]},
+    )
+    assert result.data and not result.errors, result.errors
+    node = result.data["node"]
+    tag = node["decisionVersionTag"]
+    # The evaluator owns a tag named after it, pointing at the version it runs.
+    assert tag["name"].startswith("triage-judge-evaluator-")
+    assert tag["decisionVersionId"] == node["decisionVersion"]["id"]
+    assert tag["decisionVersionId"] == decision["version"]["id"]
+
+
 async def test_dataset_binding_and_mixed_refusal_preview(
     gql_client: AsyncGraphQLClient, empty_dataset: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -121,6 +121,9 @@ export function DecisionProjectEvaluatorDetails({
                 }
               }
             }
+            decisionVersionTag {
+              name
+            }
             decisionVersion {
               id
               decisionId
@@ -189,7 +192,11 @@ export function DecisionProjectEvaluatorDetails({
       <Card
         title="Decision"
         titleExtra={
-          <DecisionCell decisionVersion={version} nameMaxWidth="24rem" />
+          <DecisionCell
+            decisionVersion={version}
+            decisionVersionTag={evaluator.decisionVersionTag?.name}
+            nameMaxWidth="24rem"
+          />
         }
         extra={
           <Flex alignItems="center" gap="size-50">

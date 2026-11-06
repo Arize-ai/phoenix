@@ -240,6 +240,9 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
             }
           }
           ... on DecisionEvaluator {
+            decisionVersionTag {
+              name
+            }
             decisionVersion {
               id
               decisionId
@@ -458,6 +461,9 @@ export const DatasetEvaluatorsTable = ({
             />
             <DecisionCell
               decisionVersion={row.original.evaluator.decisionVersion}
+              decisionVersionTag={
+                row.original.evaluator.decisionVersionTag?.name
+              }
               wrapWidth={200}
             />
           </>
