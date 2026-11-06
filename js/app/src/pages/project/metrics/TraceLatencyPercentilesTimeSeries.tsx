@@ -138,7 +138,7 @@ export function TraceLatencyPercentilesTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const colors = useSequentialChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
 
   return (
@@ -245,6 +245,7 @@ export function TraceLatencyPercentilesTimeSeries({
                 iconType="line"
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
+                onShowAll={showAll}
               />
               <Tooltip content={TooltipContent} {...defaultTooltipProps} />
             </ComposedChart>

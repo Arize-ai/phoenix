@@ -34,7 +34,7 @@ export function TopModelsByCost({
   timeRange,
 }: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
 
   const data = useLazyLoadQuery<TopModelsByCostQuery>(
@@ -166,6 +166,7 @@ export function TopModelsByCost({
             iconType="circle"
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
           />
         </BarChart>
       </ChartResponsiveContainer>

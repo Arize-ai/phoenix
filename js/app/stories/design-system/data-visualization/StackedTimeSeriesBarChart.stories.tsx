@@ -225,7 +225,7 @@ function StackedBarChart({
   });
 
   const colors = useSequentialChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
 
   return (
@@ -280,6 +280,7 @@ function StackedBarChart({
             iconType="circle"
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
             {...defaultLegendProps}
           />
         </BarChart>

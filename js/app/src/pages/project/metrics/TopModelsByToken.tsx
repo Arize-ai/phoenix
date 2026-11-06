@@ -33,7 +33,7 @@ export function TopModelsByToken({
   timeRange,
 }: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   const data = useLazyLoadQuery<TopModelsByTokenQuery>(
     graphql`
@@ -153,6 +153,7 @@ export function TopModelsByToken({
             iconType="circle"
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
           />
         </BarChart>
       </ChartResponsiveContainer>

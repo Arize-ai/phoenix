@@ -231,7 +231,7 @@ function ExperimentTokenDetailsChart({
   const hasData = chartData.some((datum) => typeof datum.total === "number");
 
   const colors = useCategoryChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   const baselineTokens = getBaselineTokenDetailsTotal({
     baselineExperiment,
@@ -289,6 +289,7 @@ function ExperimentTokenDetailsChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
             additionalLegendItems={getExperimentBaselineLegendItems({
               value: baselineTokens,
               label: referenceLabel,
