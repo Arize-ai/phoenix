@@ -1,5 +1,6 @@
 import { pickDeclaredInputMapping } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
+import { EVALUATOR_VALIDATION_MESSAGE } from "@phoenix/constants";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
@@ -14,6 +15,17 @@ export function useDeclaredInputMapping(variables: readonly string[]) {
 }
 
 /**
+ * Thrown by the builders below when a field fails validation, so the form
+ * shows the validation banner rather than the submit error alert.
+ */
+export class DecisionEvaluatorValidationError extends Error {
+  constructor() {
+    super(EVALUATOR_VALIDATION_MESSAGE);
+    this.name = "DecisionEvaluatorValidationError";
+  }
+}
+
+/**
  * Validates a decision evaluator form and builds the fields its create or
  * update mutation sends. Each builder throws the message the form shows.
  */
@@ -22,7 +34,7 @@ export function useDecisionEvaluatorSave(draft: DecisionEvaluatorDraft) {
   const getInputMapping = useDeclaredInputMapping(draft.variables);
   const buildSharedInput = async (name: string) => {
     if (!(await store.getState().validateAll())) {
-      throw new Error("Fix the highlighted fields before saving.");
+      throw new DecisionEvaluatorValidationError();
     }
     const trimmedName = name.trim();
     draft.getDefinition(trimmedName);

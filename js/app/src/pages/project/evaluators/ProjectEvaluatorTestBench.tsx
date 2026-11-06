@@ -229,6 +229,7 @@ export function ProjectEvaluatorTestBench({
       >
         <Button
           size="S"
+          variant="primary"
           leadingVisual={
             <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
           }
@@ -309,6 +310,7 @@ export function ProjectEvaluatorTestBenchFallback({
       >
         <Button
           size="S"
+          variant="primary"
           leadingVisual={<Icon svg={<Icons.Play />} />}
           isDisabled
         >

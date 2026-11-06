@@ -14,11 +14,13 @@ import {
   useDecisionEvaluatorDraft,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import {
+  DecisionEvaluatorValidationError,
   useDecisionEvaluatorSave,
   useDeclaredInputMapping,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
+import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import type { ProjectDecisionEvaluatorDialogContentCreateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentCreateMutation.graphql";
@@ -99,6 +101,20 @@ function getBindingFields(scope: ProjectEvaluatorScope) {
   };
 }
 
+type SubmitKind = "create" | "update" | "attach";
+
+const SUBMIT_LABELS: Record<SubmitKind, string> = {
+  create: "Create",
+  update: "Update",
+  attach: "Attach evaluator",
+};
+
+const ERROR_TITLES: Record<SubmitKind, string> = {
+  create: "Failed to create evaluator",
+  update: "Failed to update evaluator",
+  attach: "Failed to attach evaluator",
+};
+
 function ProjectDecisionEvaluatorLayout({
   title,
   submitLabel,
@@ -111,10 +127,11 @@ function ProjectDecisionEvaluatorLayout({
   isSubmitDisabled,
   isFilterValid,
   error,
+  showValidationError = false,
   onSubmit,
 }: {
   title: string;
-  submitLabel: "create" | "update";
+  submitLabel: SubmitKind;
   projectId: string;
   scope: ProjectEvaluatorScope;
   variables: readonly string[];
@@ -124,6 +141,7 @@ function ProjectDecisionEvaluatorLayout({
   isSubmitDisabled: boolean;
   isFilterValid: boolean;
   error?: string;
+  showValidationError?: boolean;
   onSubmit: () => void;
 }) {
   const unboundVariables = useUnboundRequiredVariables({ variables });
@@ -137,7 +155,7 @@ function ProjectDecisionEvaluatorLayout({
   return (
     <EvaluatorFormDialogContent
       title={title}
-      submitLabel={submitLabel === "create" ? "Create" : "Update"}
+      submitLabel={SUBMIT_LABELS[submitLabel]}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
       isSubmitDisabled={
@@ -145,11 +163,8 @@ function ProjectDecisionEvaluatorLayout({
       }
       submitHint={submitHint}
       error={error}
-      errorTitle={
-        submitLabel === "create"
-          ? "Failed to create evaluator"
-          : "Failed to update evaluator"
-      }
+      errorTitle={ERROR_TITLES[submitLabel]}
+      banner={showValidationError ? <EvaluatorValidationBanner /> : null}
       contentGap="var(--global-dimension-size-100)"
       renderInputVariables={(form) => (
         <EvaluatorInputVariablesProvider variables={[...variables]}>
@@ -205,6 +220,7 @@ function CreateProjectDecisionEvaluatorForm({
   const [isFilterValid, setIsFilterValid] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
+  const [showValidationError, setShowValidationError] = useState(false);
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
@@ -214,6 +230,7 @@ function CreateProjectDecisionEvaluatorForm({
 
   const onSubmit = async () => {
     setSubmitError(undefined);
+    setShowValidationError(false);
     try {
       const input = await buildCreateInput(
         store.getState().evaluator.globalName
@@ -234,7 +251,11 @@ function CreateProjectDecisionEvaluatorForm({
       });
       onSuccess();
     } catch (error) {
-      setSubmitError(getMutationErrorMessage(error));
+      if (error instanceof DecisionEvaluatorValidationError) {
+        setShowValidationError(true);
+      } else {
+        setSubmitError(getMutationErrorMessage(error));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -252,6 +273,7 @@ function CreateProjectDecisionEvaluatorForm({
       isSubmitDisabled={draft.isLoading || !draft.isVersionReady}
       isFilterValid={isFilterValid}
       error={submitError ?? draft.loadError}
+      showValidationError={showValidationError}
       onSubmit={() => void onSubmit()}
       definition={
         <ProjectDecisionEvaluatorFormSections
@@ -310,7 +332,7 @@ export function AttachProjectDecisionEvaluatorDialogContent({
   return (
     <ProjectDecisionEvaluatorLayout
       title={title}
-      submitLabel="create"
+      submitLabel="attach"
       projectId={projectId}
       scope={scope}
       variables={variables}
@@ -404,9 +426,11 @@ function EditProjectDecisionEvaluatorForm({
   const [isFilterValid, setIsFilterValid] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
+  const [showValidationError, setShowValidationError] = useState(false);
 
   const onSubmit = async () => {
     setSubmitError(undefined);
+    setShowValidationError(false);
     try {
       const input = await buildUpdateInput(
         store.getState().evaluator.globalName
@@ -423,7 +447,11 @@ function EditProjectDecisionEvaluatorForm({
       void revalidate();
       onClose();
     } catch (error) {
-      setSubmitError(getMutationErrorMessage(error));
+      if (error instanceof DecisionEvaluatorValidationError) {
+        setShowValidationError(true);
+      } else {
+        setSubmitError(getMutationErrorMessage(error));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -449,6 +477,7 @@ function EditProjectDecisionEvaluatorForm({
         isSubmitDisabled={draft.isLoading || !draft.isVersionReady}
         isFilterValid={isFilterValid}
         error={submitError ?? draft.loadError}
+        showValidationError={showValidationError}
         onSubmit={() => void onSubmit()}
         definition={
           <ProjectDecisionEvaluatorFormSections

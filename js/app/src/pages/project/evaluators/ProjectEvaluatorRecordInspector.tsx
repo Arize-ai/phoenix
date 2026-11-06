@@ -6,6 +6,7 @@ import {
   Button,
   ExternalLink,
   Flex,
+  IDBadge,
   Heading,
   Icon,
   Icons,
@@ -34,6 +35,7 @@ import {
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
 import {
   formatElapsedShort,
+  formatEvaluationRecordKind,
   type ProjectEvaluatorRecordKind,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorInputMapping } from "@phoenix/types";
@@ -135,9 +137,12 @@ export function ProjectEvaluatorRecordInspector({
               <>
                 {/* A session is named by its id; repeating it says nothing. */}
                 {row.recordId !== row.name ? (
-                  <code title={row.recordId}>
-                    {shortenRecordId(row.recordId)}
-                  </code>
+                  <IDBadge
+                    id={row.recordId}
+                    label={shortenRecordId(row.recordId)}
+                    variant="quiet"
+                    tooltipText={`Copy ${formatEvaluationRecordKind(recordKind)} ID`}
+                  />
                 ) : null}
                 {row.startTime ? (
                   <span>{formatElapsedShort(row.startTime)} ago</span>
@@ -151,13 +156,6 @@ export function ProjectEvaluatorRecordInspector({
         </Flex>
         <div className="record-inspector__actions">
           <LastTestResult entry={entry} />
-          <TestButton
-            recordKind={recordKind}
-            isRunning={resultState.kind === "running"}
-            isRetest={hasResult}
-            blocker={testBlocker}
-            onRun={onRun}
-          />
           {/* The record's href is an app path; opened in a new tab it leaves
               the router, so the root path the app is served under is added
               here. */}
@@ -166,6 +164,13 @@ export function ProjectEvaluatorRecordInspector({
               Open {recordKind}
             </ExternalLink>
           ) : null}
+          <TestButton
+            recordKind={recordKind}
+            isRunning={resultState.kind === "running"}
+            isRetest={hasResult}
+            blocker={testBlocker}
+            onRun={onRun}
+          />
         </div>
       </header>
       <div className="record-inspector__body">
@@ -442,9 +447,6 @@ const inspectorCSS = css`
     white-space: nowrap;
     color: var(--global-text-color-500);
     font-size: var(--global-font-size-xs);
-    code {
-      font-family: var(--global-font-family-code, monospace);
-    }
   }
   .record-inspector__body {
     flex: 1 1 auto;
