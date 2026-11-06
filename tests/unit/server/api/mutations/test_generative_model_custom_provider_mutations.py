@@ -1,6 +1,7 @@
 from secrets import token_bytes, token_hex
 from typing import Any
 
+import pytest
 from pydantic import SecretStr
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
@@ -11,6 +12,8 @@ from phoenix.db.types import model_provider as mp
 from phoenix.db.types.decisions import JsonState
 from phoenix.db.types.identifier import Identifier as mp_identifier
 from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
     _redact_provider_error,
 )
@@ -147,14 +150,22 @@ class TestGenerativeModelCustomProviderMutations:
       }
     """
 
-    async def test_test_credentials_is_a_mutation_not_a_query(
+    @pytest.mark.parametrize(
+        "field_name",
+        [
+            "testGenerativeModelCustomProviderCredentials",
+            "testGenerativeModelCustomProviderDecisionEndpoint",
+        ],
+    )
+    async def test_outbound_checks_are_mutations_not_queries(
         self,
         gql_client: AsyncGraphQLClient,
+        field_name: str,
     ) -> None:
-        """Security regression: testGenerativeModelCustomProviderCredentials must be a
-        mutation, not a query field. The
-        resolver makes user-controlled outbound HTTP requests, which is an SSRF vector
-        if exposed through the Query surface.
+        """Security regression: the credential and decision endpoint checks must be
+        mutations, not query fields. Their resolvers make user-controlled outbound HTTP
+        requests with the user's key, which is an SSRF vector if exposed through the
+        Query surface.
         """
         introspection = """
           query SchemaShape {
@@ -169,12 +180,28 @@ class TestGenerativeModelCustomProviderMutations:
         query_field_names = {f["name"] for f in result.data["queryType"]["fields"]}
         mutation_field_names = {f["name"] for f in result.data["mutationType"]["fields"]}
 
-        assert "testGenerativeModelCustomProviderCredentials" not in query_field_names, (
-            "testGenerativeModelCustomProviderCredentials must not be exposed as a Query "
-            "field — it triggers user-controlled outbound HTTP and would be reachable "
-            "without authentication."
+        assert field_name not in query_field_names, (
+            f"{field_name} must not be exposed as a Query field — it triggers "
+            "user-controlled outbound HTTP and would be reachable without authentication."
         )
-        assert "testGenerativeModelCustomProviderCredentials" in mutation_field_names
+        assert field_name in mutation_field_names
+
+    @pytest.mark.parametrize(
+        "resolver_name",
+        [
+            "test_generative_model_custom_provider_credentials",
+            "test_generative_model_custom_provider_decision_endpoint",
+        ],
+    )
+    def test_outbound_checks_refuse_read_only_viewers_and_non_admins(
+        self, resolver_name: str
+    ) -> None:
+        """Security regression: only a writer who may manage providers can make these
+        outbound requests: not in read-only mode, not a viewer, an admin when auth is on.
+        """
+        definition = getattr(Mutation, "__strawberry_definition__")
+        field = next(f for f in definition.fields if f.python_name == resolver_name)
+        assert {IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled} <= set(field.permission_classes)
 
     async def test_all_provider_mutations_comprehensive(
         self,
@@ -1079,9 +1106,11 @@ mutation ($input: CreateGenerativeModelCustomProviderMutationInput!) {
 """
 
 
-async def test_sdk_cannot_change_to_one_without_decisions_while_decision_versions_use_it(
+async def test_decision_client_cannot_change_while_decision_versions_use_it(
     gql_client: AsyncGraphQLClient, db: DbSessionFactory
 ) -> None:
+    """Turning off a provider's decision models, or switching its decision client, would
+    break the decisions saved on it; changing its SDK alone does not."""
     created = await gql_client.execute(
         _CREATE_OPENAI_PROVIDER,
         variables={
@@ -1089,7 +1118,10 @@ async def test_sdk_cannot_change_to_one_without_decisions_while_decision_version
                 "name": "openai-for-decisions",
                 "provider": "openai",
                 "clientConfig": {
-                    "openai": {"openaiAuthenticationMethod": {"apiKey": "sk-test"}},
+                    "openai": {
+                        "openaiAuthenticationMethod": {"apiKey": "sk-test"},
+                        "decisionModels": {"decisionSdk": "OPENAI"},
+                    },
                 },
             }
         },
@@ -1136,14 +1168,42 @@ async def test_sdk_cannot_change_to_one_without_decisions_while_decision_version
 
     blocked = await gql_client.execute(_PATCH_SDK, variables=azure_patch)
     assert blocked.errors
+    assert (
+        "referenced by saved decision versions (triage), so you cannot change or turn off "
+        "its decision models"
+    ) in blocked.errors[0].message
+    system_one_patch = {
+        "input": {
+            "id": provider_id,
+            "clientConfig": {
+                "openai": {
+                    "openaiAuthenticationMethod": {"apiKey": "sk-test"},
+                    "decisionModels": {"decisionSdk": "TYPESAFE"},
+                }
+            },
+        }
+    }
+    blocked = await gql_client.execute(_PATCH_SDK, variables=system_one_patch)
+    assert blocked.errors
     assert "referenced by saved decision versions (triage)" in blocked.errors[0].message
     async with db() as session:
-        sdk = await session.scalar(
-            select(models.GenerativeModelCustomProvider.sdk).where(
-                models.GenerativeModelCustomProvider.id == provider_rowid
-            )
-        )
-    assert sdk == "openai"
+        record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert record is not None
+        assert (record.sdk, record.decision_sdk) == ("openai", "openai")
+
+    azure_with_decisions = {
+        "input": {
+            "id": provider_id,
+            "clientConfig": {
+                "azureOpenai": {
+                    **azure_patch["input"]["clientConfig"]["azureOpenai"],
+                    "decisionModels": {"decisionSdk": "OPENAI"},
+                }
+            },
+        }
+    }
+    kept = await gql_client.execute(_PATCH_SDK, variables=azure_with_decisions)
+    assert kept.data and not kept.errors, kept.errors
 
     async with db() as session:
         await session.execute(sa_delete(models.Decision).where(models.Decision.id == version_id))
