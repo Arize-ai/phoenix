@@ -2,8 +2,10 @@
 
 This is the preview image's command. The seed script is the one the PR body carries; it
 runs with PHOENIX_BASE_URL pointing at the local server and with the Phoenix client,
-OTel SDK and OTLP exporter importable from the image. Its outcome goes to the container
-log and never stops the server, so a reviewer can still open an instance whose seed failed.
+OTel SDK and OTLP exporter importable from the image. Its output is relayed line by line
+under a `seed| ` prefix, and its outcome goes to the container log as a `preview: seed`
+line, which deploy.py reads; neither stops the server, so a reviewer can still open an
+instance whose seed failed.
 """
 
 import os
@@ -18,11 +20,20 @@ from pathlib import Path
 SEED_PATH = Path("/phoenix/preview/seed.py")
 HEALTHY_TIMEOUT_SECONDS = 300
 SEED_TIMEOUT_SECONDS = 480
+SEED_LINE_PREFIX = "seed| "
+
+children: list[subprocess.Popen[bytes]] = []
 
 
 def base_url() -> str:
     # The server reads PHOENIX_PORT and nothing else, so neither does the launcher.
     return f"http://127.0.0.1:{os.environ.get('PHOENIX_PORT') or '6006'}"
+
+
+def forward(signum: int, _frame: object) -> None:
+    for child in children:
+        if child.poll() is None:
+            child.send_signal(signum)
 
 
 def wait_until_healthy(server: subprocess.Popen[bytes], url: str) -> bool:
@@ -44,32 +55,35 @@ def run_seed(url: str) -> None:
     if not SEED_PATH.exists() or not SEED_PATH.read_text().strip():
         print("preview: no seed script; the instance starts empty", flush=True)
         return
-    env = {
-        **os.environ,
-        "PHOENIX_BASE_URL": url,
-        "PHOENIX_COLLECTOR_ENDPOINT": url,
-    }
+    env = {**os.environ, "PHOENIX_BASE_URL": url, "PHOENIX_COLLECTOR_ENDPOINT": url}
     print("preview: running the seed script", flush=True)
+    seed = subprocess.Popen(
+        [sys.executable, str(SEED_PATH)],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    children.append(seed)
     try:
-        completed = subprocess.run(
-            [sys.executable, str(SEED_PATH)], env=env, timeout=SEED_TIMEOUT_SECONDS
+        output, _ = seed.communicate(timeout=SEED_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as expired:
+        seed.kill()
+        output = expired.stdout or b""
+        outcome = f"preview: seed timed out after {SEED_TIMEOUT_SECONDS} seconds"
+    else:
+        outcome = (
+            "preview: seed finished"
+            if seed.returncode == 0
+            else f"preview: seed failed with exit {seed.returncode}"
         )
-    except subprocess.TimeoutExpired:
-        print(f"preview: seed timed out after {SEED_TIMEOUT_SECONDS} seconds", flush=True)
-        return
-    status = "finished" if completed.returncode == 0 else f"failed with exit {completed.returncode}"
-    print(f"preview: seed {status}", flush=True)
+    for line in output.decode(errors="replace").splitlines():
+        print(f"{SEED_LINE_PREFIX}{line}", flush=True)
+    print(outcome, flush=True)
 
 
 def main() -> int:
     server = subprocess.Popen([sys.executable, "-m", "phoenix.server.main", "serve"])
-    stopping = False
-
-    def forward(signum: int, _frame: object) -> None:
-        nonlocal stopping
-        stopping = True
-        server.send_signal(signum)
-
+    children.append(server)
     signal.signal(signal.SIGTERM, forward)
     signal.signal(signal.SIGINT, forward)
 
@@ -79,7 +93,8 @@ def main() -> int:
     elif server.poll() is None:
         print("preview: the server did not become healthy; skipping the seed", flush=True)
     exit_code = server.wait()
-    return 0 if stopping else exit_code
+    # A forwarded stop is a clean exit; stopping records nothing else, so check the sign.
+    return 0 if exit_code < 0 else exit_code
 
 
 if __name__ == "__main__":

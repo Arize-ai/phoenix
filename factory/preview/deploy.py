@@ -36,17 +36,19 @@ DEPLOYMENT_FINAL_STATUSES = {
     "SLEEPING",
     "NEEDS_APPROVAL",
 }
-# launch.py's outcome lines; everything but "finished" and "no seed" is a failure.
+# launch.py's log lines: the seed's own output carries SEED_LINE_PREFIX, and the outcome
+# lines close a run; everything but "finished" and "no seed" is a failure.
 SEED_START_PREFIX = "preview: running"
+SEED_LINE_PREFIX = "seed| "
 SEED_SUCCESS_PREFIXES = ("preview: seed finished", "preview: no seed")
 SEED_OUTCOME_PREFIXES = SEED_SUCCESS_PREFIXES + (
     "preview: seed failed",
     "preview: seed timed out",
     "preview: the server did not become healthy",
 )
-# GitHub caps a comment at 65536 characters; the seed's output gets a fraction of that.
-MAX_SEED_OUTPUT_LINES = 60
-MAX_SEED_OUTPUT_CHARS = 8000
+# GitHub caps a comment at 65536 characters; relayed output gets a fraction of that.
+MAX_OUTPUT_LINES = 60
+MAX_OUTPUT_CHARS = 8000
 COMMENT_MARKER = "<!-- factory-preview -->"
 
 
@@ -233,16 +235,23 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
 
     Railway reports SUCCESS once /healthz answers, which launch.py reaches before the seed
     runs, so the comment waits for the launcher's outcome line rather than trusting SUCCESS.
+    The log is read whole and the latest run is what counts: after a restart an earlier
+    run's outcome is stale, and a run that has started but not finished is still pending.
     """
     deadline = time.monotonic() + SEED_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
         # A failed read comes back as a one-line message, so it never matches an outcome.
-        lines = read_deployment_logs(deployment_id, limit=500).splitlines()
-        for index, line in enumerate(lines):
-            if line.startswith(SEED_OUTCOME_PREFIXES):
-                starts = [i for i in range(index) if lines[i].startswith(SEED_START_PREFIX)]
-                output = lines[starts[-1] + 1 : index] if starts else []
-                return line, "\n".join(output)
+        lines = read_deployment_logs(deployment_id, limit=5000).splitlines()
+        starts = [i for i, line in enumerate(lines) if line.startswith(SEED_START_PREFIX)]
+        outcomes = [i for i, line in enumerate(lines) if line.startswith(SEED_OUTCOME_PREFIXES)]
+        last_start = starts[-1] if starts else -1
+        if outcomes and outcomes[-1] > last_start:
+            output = [
+                line.removeprefix(SEED_LINE_PREFIX)
+                for line in lines[last_start + 1 : outcomes[-1]]
+                if line.startswith(SEED_LINE_PREFIX)
+            ]
+            return lines[outcomes[-1]], "\n".join(output)
         time.sleep(10)
     return "preview: the seed had not finished when the run stopped waiting", ""
 
@@ -306,6 +315,24 @@ def find_comment(*, pr_number: int) -> Optional[str]:
     return comment_ids[0] if comment_ids else None
 
 
+def image_is_public(*, image: str) -> bool:
+    """Whether the GHCR package is public, which Railway needs to pull it without credentials.
+
+    GHCR creates a package private on first push and only the web UI changes that, so the
+    first run of a fresh package stops here with instructions instead of a failed deploy.
+    """
+    org, _, package = image.removeprefix("ghcr.io/").partition("/")
+    package = package.partition(":")[0]
+    try:
+        visibility = run_gh(
+            "api", f"orgs/{org}/packages/container/{package}", "--jq", ".visibility"
+        )
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not read the package's visibility: {error.stderr}")
+        return True
+    return visibility.strip() == "public"
+
+
 def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
     """Keep one preview comment per PR, found by its marker, so pushes edit rather than pile up.
 
@@ -337,16 +364,16 @@ def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
         )
 
 
-def clip_seed_output(output: str) -> str:
-    """The tail of the seed's output, sized for a comment, with any fence of its own defused."""
-    lines = [line.replace("~~~", "~ ~ ~") for line in output.splitlines()]
-    if len(lines) > MAX_SEED_OUTPUT_LINES:
-        lines = [f"... {len(lines) - MAX_SEED_OUTPUT_LINES} earlier lines omitted"] + lines[
-            -MAX_SEED_OUTPUT_LINES:
+def clip_for_comment(text: str) -> str:
+    """The tail of some output, sized for a comment, with any fence of its own defused."""
+    lines = [line.replace("~~~", "~ ~ ~") for line in text.splitlines()]
+    if len(lines) > MAX_OUTPUT_LINES:
+        lines = [f"... {len(lines) - MAX_OUTPUT_LINES} earlier lines omitted"] + lines[
+            -MAX_OUTPUT_LINES:
         ]
     clipped = "\n".join(lines)
-    if len(clipped) > MAX_SEED_OUTPUT_CHARS:
-        clipped = "..." + clipped[-MAX_SEED_OUTPUT_CHARS:]
+    if len(clipped) > MAX_OUTPUT_CHARS:
+        clipped = "..." + clipped[-MAX_OUTPUT_CHARS:]
     return clipped
 
 
@@ -369,7 +396,7 @@ def format_deploy_comment(
         lines += [f"The deployment ended with status `{status}`; see the [run]({run_url})."]
     lines += ["", f"Seed: {seed}. {seed_outcome.removeprefix('preview: ').capitalize()}."]
     if seed_output:
-        lines += ["", "~~~", clip_seed_output(seed_output), "~~~"]
+        lines += ["", "~~~", clip_for_comment(seed_output), "~~~"]
     lines += [
         "",
         "Run the same image locally:",
@@ -383,9 +410,9 @@ def format_deploy_comment(
             "",
             "<details><summary>Deployment logs</summary>",
             "",
-            "```",
-            logs,
-            "```",
+            "~~~",
+            clip_for_comment(logs),
+            "~~~",
             "",
             "</details>",
         ]
@@ -393,6 +420,17 @@ def format_deploy_comment(
 
 
 def run_deploy(args: argparse.Namespace) -> int:
+    if not image_is_public(image=args.image):
+        upsert_comment(
+            pr_number=args.pr,
+            body=(
+                f"The image for this preview was pushed, but its package is private, so Railway"
+                f" can't pull it. A maintainer needs to make `{args.image.partition(':')[0]}`"
+                " public once (see Bootstrap in factory/README.md), then re-add the label."
+            ),
+        )
+        print("::error::The preview image's package is private; see the PR comment.")
+        return 1
     project_id, environment_id = read_token_scope()
     name = f"pr-{args.pr}"
     service_id = find_service(project_id=project_id, name=name)

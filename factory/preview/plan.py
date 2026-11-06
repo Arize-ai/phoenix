@@ -103,7 +103,8 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
 def extract_seed(*, body: str) -> str:
     """The first python block of the body's Preview seed section, and only that section's.
 
-    Scans lines so a `## comment` inside the block is not taken for the next heading.
+    Scans lines and tracks every fence, so a `## ...` line inside any fenced block is not
+    taken for the next heading.
     """
     lines = body.splitlines()
     try:
@@ -111,14 +112,19 @@ def extract_seed(*, body: str) -> str:
     except StopIteration:
         return ""
     block: list[str] = []
-    in_block = False
+    in_fence = False
+    in_python = False
     for line in lines[start + 1 :]:
-        if in_block:
+        if in_fence:
             if FENCE_PATTERN.match(line):
-                return "\n".join(block).strip() + "\n" if block else ""
-            block.append(line)
-        elif PYTHON_FENCE_PATTERN.match(line):
-            in_block = True
+                if in_python:
+                    return "\n".join(block).strip() + "\n" if block else ""
+                in_fence = False
+            elif in_python:
+                block.append(line)
+        elif FENCE_PATTERN.match(line):
+            in_fence = True
+            in_python = bool(PYTHON_FENCE_PATTERN.match(line))
         elif HEADING_PATTERN.match(line):
             return ""
     return ""

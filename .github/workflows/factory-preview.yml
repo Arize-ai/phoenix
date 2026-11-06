@@ -8,19 +8,20 @@ name: Factory Preview
 # GHCR under pr-<number> and pr-<number>-<short sha> tags, and deploy.py points a Railway
 # service at it. Closing or unlabeling the PR deletes the service and the PR's image tags.
 #
-# The scripts and the preview Dockerfile run from the base branch, checked out under base/,
-# because they run with the Railway token and a write token. The PR's checkout under head/
-# is only a Docker build context: nothing from the PR runs on the runner, only inside
-# BuildKit. Factory Guard fails a PR that edits these files but does not stop this
-# workflow from running on it.
+# This runs with the Railway token and a write token, so nothing from the PR may run on the
+# runner. `pull_request_target` takes the workflow file from the base branch, the scripts
+# and the preview Dockerfile are checked out from the base branch under base/, and the PR's
+# checkout under head/ is only a Docker build context: its code runs inside BuildKit, where
+# the PR's own Dockerfile stages are built, and nowhere else. Factory Guard fails a PR that
+# edits these files but does not stop this workflow from running on it, which is why the
+# boundary has to hold here. Fork PRs are skipped: a fork's code has no business in a job
+# that holds secrets, even inside BuildKit.
 #
 # No caches anywhere in the deploy job: it publishes an image, and a restored cache is a
 # way to tamper with what gets published.
-#
-# `pull_request` from a same-repo branch gets the repo secrets and a write token, and a
-# fork PR gets neither, so both jobs skip fork PRs.
 on:
-  pull_request:
+  # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
+  pull_request_target:
     types: [opened, labeled, synchronize, reopened, closed, unlabeled]
 
 permissions:
@@ -137,9 +138,11 @@ jobs:
       ((github.event.action == 'closed' &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')) ||
        (github.event.action == 'unlabeled' && github.event.label.name == 'factory-preview'))
+    # Same group as the deploy, but queued behind it rather than cancelling it, so a close
+    # during a build waits for the service and tags to exist before deleting them.
     concurrency:
       group: factory-preview-${{ github.event.pull_request.number }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
