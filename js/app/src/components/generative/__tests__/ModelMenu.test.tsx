@@ -218,7 +218,7 @@ describe("ModelMenu", () => {
       await act(() => user.click(tabElement));
     }
     const searchField = document.body.querySelector<HTMLInputElement>(
-      'input[aria-label="Search models"]'
+      'input[aria-label="Search models"], input[aria-label="Search decision models"]'
     );
     if (!searchField) throw new Error("no search field");
     await act(() => user.click(searchField));
@@ -345,7 +345,7 @@ describe("ModelMenu", () => {
 
       expect(
         document.body.querySelector<HTMLInputElement>(
-          'input[aria-label="Search models"]'
+          'input[aria-label="Search decision models"]'
         )?.value
       ).toBe("typesafe");
       expect(getSectionTitles()).toEqual(["TypeSafe"]);
