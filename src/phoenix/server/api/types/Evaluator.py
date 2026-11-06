@@ -69,12 +69,13 @@ from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_k
 from phoenix.server.evaluators.schemas import (
     infer_input_schema_from_decision,
 )
-from phoenix.server.online_eval.queue_health import (
+from phoenix.server.online_eval.current_queue import (
     DEGRADED_QUEUE_WAIT,
-    EVALUATION_LOAD_WINDOW,
-    QueuedWork,
-    project_evaluator_run_status,
+    MAX_QUEUE_COUNT,
+    ProjectEvaluatorQueue,
 )
+from phoenix.server.online_eval.evaluator_load import EVALUATION_LOAD_WINDOW
+from phoenix.server.online_eval.evaluator_status import project_evaluator_run_status
 
 if TYPE_CHECKING:
     from .Dataset import Dataset
@@ -128,12 +129,12 @@ class ProjectEvaluatorRunStatus(Enum):
         "NEVER_RUN",
         description="No evaluation on record has completed or is waiting to run.",
     )
-    QUEUED = strawberry.enum_value(
-        "QUEUED",
+    STARTING = strawberry.enum_value(
+        "STARTING",
         description="Evaluations are waiting to run and none has completed yet.",
     )
-    RUNNING = strawberry.enum_value(
-        "RUNNING",
+    HEALTHY = strawberry.enum_value(
+        "HEALTHY",
         description="Evaluation runs are completing and writing annotations.",
     )
     ERROR = strawberry.enum_value(
@@ -169,8 +170,8 @@ class ProjectEvaluatorRunSummary:
             "affect it. DISABLED when turned off. Otherwise ERROR when the newest completed "
             "run was given up on, DEGRADED when its oldest evaluation waiting to run, "
             "including ones awaiting a retry, has waited over "
-            f"{_DEGRADED_QUEUE_WAIT_MINUTES} minutes, RUNNING when the newest completed run "
-            "produced an annotation, QUEUED when work is waiting but none has completed, "
+            f"{_DEGRADED_QUEUE_WAIT_MINUTES} minutes, HEALTHY when the newest completed run "
+            "produced an annotation, STARTING when work is waiting but none has completed, "
             "NEVER_RUN otherwise."
         )
     )
@@ -178,7 +179,10 @@ class ProjectEvaluatorRunSummary:
         description="When this evaluator last finished an evaluation, or null if it never has."
     )
     queued_count: int = strawberry.field(
-        description="Evaluations queued or running, including ones awaiting a retry."
+        description=(
+            "Evaluations queued or running, including ones awaiting a retry. Counts stop at "
+            f"{MAX_QUEUE_COUNT:,}."
+        )
     )
     running_count: int = strawberry.field(
         description=(
@@ -186,7 +190,7 @@ class ProjectEvaluatorRunSummary:
             "evaluations that are not running."
         )
     )
-    oldest_queued_at: Optional[datetime] = strawberry.field(
+    oldest_waiting_or_retrying_at: Optional[datetime] = strawberry.field(
         description=(
             "When this evaluator's longest-waiting evaluation, including ones awaiting a "
             "retry, was queued, or null if none is waiting. Running evaluations are not waiting."
@@ -213,8 +217,8 @@ class ProjectEvaluatorRunSummary:
             "not affect the status."
         )
     )
-    async def dropped_count(self, info: Info[Context, None]) -> int:
-        return (await self._counts(info)).dropped
+    async def cleared_count(self, info: Info[Context, None]) -> int:
+        return (await self._counts(info)).cleared
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description="The most recent evaluation error, or null if none was recorded."
@@ -233,7 +237,7 @@ def _project_evaluator_run_summary(
     project_evaluator_id: int,
     enabled: bool,
     outcomes: ProjectEvaluatorLatestOutcomes,
-    queued: QueuedWork,
+    queued: ProjectEvaluatorQueue,
 ) -> ProjectEvaluatorRunSummary:
     last_evaluated_at, last_failed_at = outcomes.last_evaluated_at, outcomes.last_failed_at
     status = project_evaluator_run_status(
@@ -248,7 +252,7 @@ def _project_evaluator_run_summary(
         last_run_at=max(filter(None, (last_evaluated_at, last_failed_at)), default=None),
         queued_count=queued.queued_count,
         running_count=queued.running_count,
-        oldest_queued_at=queued.oldest_queued_at,
+        oldest_waiting_or_retrying_at=queued.oldest_waiting_or_retrying_at,
         project_evaluator_id=project_evaluator_id,
     )
 

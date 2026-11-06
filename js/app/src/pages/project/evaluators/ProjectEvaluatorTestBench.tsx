@@ -50,6 +50,7 @@ import {
   getRecordMappingDiagnostics,
   useEvaluatorMappingSourceBoundToRow,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorRecordInspector } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordInspector";
 import { ProjectEvaluatorRecordTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
 import {
@@ -62,10 +63,9 @@ import {
   type RecordedRunRow,
   summarizeRecordedRuns,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
-import {
-  formatEvaluationTargetPlural,
-  type ProjectEvaluatorRecordKind,
-  type ProjectEvaluatorTarget,
+import type {
+  ProjectEvaluatorRecordKind,
+  ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorStore } from "@phoenix/store/evaluatorStore";
 import type {

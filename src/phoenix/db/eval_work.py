@@ -9,33 +9,37 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from phoenix.db.models import EvalSessionWorkStatus
+    from phoenix.db.models import SweptTargetWorkStatus
 
 MAX_ATTEMPTS = 3
 
-LIVE_EVAL_WORK_STATUSES = ("PENDING", "RUNNING", "ERROR")
-# DROPPED: removed from the queue before it ran.
-TERMINAL_EVAL_WORK_STATUSES = ("DONE", "FAILED", "EXPIRED", "DROPPED")
-# Given up on: the terminal statuses the user is owed an error for.
-FAILED_EVAL_WORK_STATUSES = ("FAILED", "EXPIRED")
-# Evaluated or given up on: the work a consumer finished, for every evaluation target.
-COMPLETED_EVAL_WORK_STATUSES = ("DONE", *FAILED_EVAL_WORK_STATUSES)
-EVAL_WORK_STATUSES = (*LIVE_EVAL_WORK_STATUSES, *TERMINAL_EVAL_WORK_STATUSES)
+# Every target:
+# In queue: waiting (PENDING), running (RUNNING), or retrying after an error (ERROR).
+QUEUED_STATUSES = ("PENDING", "RUNNING", "ERROR")
+# Finished. DROPPED: cleared from the queue before it ran.
+TERMINAL_STATUSES = ("DONE", "FAILED", "EXPIRED", "DROPPED")
+# Given up on: the finished statuses the user is owed an error for.
+FAILED_STATUSES = ("FAILED", "EXPIRED")
+# Evaluated or given up on.
+COMPLETED_STATUSES = ("DONE", *FAILED_STATUSES)
+EVAL_WORK_STATUSES = (*QUEUED_STATUSES, *TERMINAL_STATUSES)
 
-SESSION_DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
-# Session and trace work that ended without a result is offered again once its entity has
-# newer activity. DONE and declined rows are final.
-SESSION_REOFFERED_STATUSES: tuple[EvalSessionWorkStatus, ...] = (
+# Traces and sessions (swept targets):
+SWEPT_TARGET_TERMINAL_STATUSES = (*TERMINAL_STATUSES, "CONTENT_LOST")
+# Decided against by the evaluator's filter or sampling rate.
+DECLINED_STATUSES = ("FILTERED_OUT", "SAMPLED_OUT")
+# Ended without a result, so offered again once the target has newer activity. DONE and
+# declined rows are final.
+REOFFERED_STATUSES: tuple[SweptTargetWorkStatus, ...] = (
     "FAILED",
     "EXPIRED",
     "DROPPED",
     "CONTENT_LOST",
 )
-TERMINAL_EVAL_SESSION_WORK_STATUSES = (*TERMINAL_EVAL_WORK_STATUSES, "CONTENT_LOST")
-EVAL_SESSION_WORK_STATUSES = (
-    *LIVE_EVAL_WORK_STATUSES,
-    *TERMINAL_EVAL_SESSION_WORK_STATUSES,
-    *SESSION_DECLINED_STATUSES,
+SWEPT_TARGET_WORK_STATUSES = (
+    *QUEUED_STATUSES,
+    *SWEPT_TARGET_TERMINAL_STATUSES,
+    *DECLINED_STATUSES,
 )
 
 
@@ -48,36 +52,36 @@ def eval_work_status_check() -> str:
     return _status_in(EVAL_WORK_STATUSES)
 
 
-def eval_session_work_status_check() -> str:
-    """CHECK constraint text for ``eval_session_work_units.status``."""
-    return _status_in(EVAL_SESSION_WORK_STATUSES)
+def swept_target_work_status_check() -> str:
+    """CHECK constraint text for the trace and session work tables' ``status``."""
+    return _status_in(SWEPT_TARGET_WORK_STATUSES)
 
 
-def live_eval_work_index_predicate() -> str:
-    """SQL text selecting work units that still hold their dedup key.
+def queued_index_predicate() -> str:
+    """SQL text selecting work units in queue, which hold their dedup key.
 
-    Postgres matches ``ON CONFLICT ... WHERE`` to a partial index by predicate
-    equivalence, so the sweeper's conflict target, the model's index, and the
-    migration that creates it must all spell this the same way.
+    PostgreSQL matches ``ON CONFLICT ... WHERE`` to a partial index by predicate
+    equivalence, and SQLite uses a partial index only when a query repeats its predicate,
+    so the queries, the models' indexes and the migration must all spell this the same way.
     """
-    return _status_in(LIVE_EVAL_WORK_STATUSES)
+    return _status_in(QUEUED_STATUSES)
 
 
-def terminal_eval_work_index_predicate() -> str:
-    """SQL text selecting span work that reached an outcome."""
-    return _status_in(TERMINAL_EVAL_WORK_STATUSES)
+def terminal_index_predicate() -> str:
+    """SQL text selecting finished span work."""
+    return _status_in(TERMINAL_STATUSES)
 
 
-def terminal_eval_session_work_index_predicate() -> str:
-    """SQL text selecting session work that reached an outcome."""
-    return _status_in(TERMINAL_EVAL_SESSION_WORK_STATUSES)
+def swept_target_terminal_index_predicate() -> str:
+    """SQL text selecting finished trace and session work."""
+    return _status_in(SWEPT_TARGET_TERMINAL_STATUSES)
 
 
-def failed_eval_work_index_predicate() -> str:
+def failed_index_predicate() -> str:
     """SQL text selecting work that was given up on, for every evaluation target."""
-    return _status_in(FAILED_EVAL_WORK_STATUSES)
+    return _status_in(FAILED_STATUSES)
 
 
-def done_eval_work_index_predicate() -> str:
+def done_index_predicate() -> str:
     """SQL text selecting work that was evaluated, for every evaluation target."""
     return "status = 'DONE'"

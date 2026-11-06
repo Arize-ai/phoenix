@@ -30,15 +30,18 @@ import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
  */
 const TableMetricsCharts = memo(function TableMetricsCharts({
   view,
+  fetchKey: viewFetchKey,
 }: {
   view: MetricChartTableView;
+  fetchKey?: string;
 }) {
   const projectId = useProjectContext((state) => state.projectId);
   const selectedChartKeys = useProjectContext(
     (state) => state.metricChartKeys[view]
   );
   const { setCustomTimeRange } = useTimeRange();
-  const { fetchKey } = useStreamState();
+  const { fetchKey: streamFetchKey } = useStreamState();
+  const fetchKey = viewFetchKey ?? streamFetchKey;
   const timeRange = useClosedTimeRange();
   const charts = getProjectMetricCharts(selectedChartKeys);
   return (
@@ -51,7 +54,7 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
       height="100%"
     >
       <ChartPanelStrip chartCount={charts.length}>
-        {/* Re-fetch the charts on each stream refresh so they stay live */}
+        {/* Re-fetch the charts on each refresh so they stay live */}
         <MetricFetchKeyProvider value={fetchKey}>
           {charts.map((chart) => (
             <DeferredProjectMetricPanel
@@ -80,10 +83,16 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
  */
 export function TableMetricsChartsPanelGroup({
   view,
+  fetchKey,
   isSkeleton = false,
   children,
 }: {
   view: MetricChartTableView;
+  /**
+   * Refetches the charts when it changes, in place of the stream's refresh,
+   * for a view whose data the stream doesn't follow.
+   */
+  fetchKey?: string;
   /**
    * Show a skeleton of the charts in place of the charts, for a table view
    * that is still loading.
@@ -113,7 +122,7 @@ export function TableMetricsChartsPanelGroup({
           {isSkeleton ? (
             <ChartPanelStripSkeleton />
           ) : (
-            <TableMetricsCharts view={view} />
+            <TableMetricsCharts view={view} fetchKey={fetchKey} />
           )}
         </MetricChartsPanel>
       )}

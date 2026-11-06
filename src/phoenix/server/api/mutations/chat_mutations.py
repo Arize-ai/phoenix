@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.types import Info
 
 from phoenix.config import (
+    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
 )
@@ -49,7 +50,6 @@ from phoenix.server.monty_runtime import (
     MontyWorkerCrashed,
     MontyWorkerTurnTimedOut,
 )
-from phoenix.server.online_eval.session_policy import ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
 
 logger = logging.getLogger(__name__)
 

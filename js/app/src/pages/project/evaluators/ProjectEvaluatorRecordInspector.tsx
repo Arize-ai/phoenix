@@ -24,6 +24,10 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { EvaluatorInputsView } from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
 import {
+  formatElapsedShort,
+  formatEvaluationRecordKind,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import {
   getRowTestBlocker,
   OutputErrorsNote,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
@@ -33,11 +37,7 @@ import {
   type RecordedRunResultState,
   shortenRecordId,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
-import {
-  formatElapsedShort,
-  formatEvaluationRecordKind,
-  type ProjectEvaluatorRecordKind,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorInputMapping } from "@phoenix/types";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
