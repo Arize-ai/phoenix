@@ -326,7 +326,6 @@ function AddRowButton({
   );
 }
 
-/** A heading over criteria fields, styled like a field's label. */
 function CriteriaLabel({ children }: { children: string }) {
   return (
     <Text size="XS" weight="heavy">

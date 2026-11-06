@@ -310,6 +310,7 @@ export function ProjectEvaluatorTestBenchFallback({
       >
         <Button
           size="S"
+          variant="primary"
           leadingVisual={<Icon svg={<Icons.Play />} />}
           isDisabled
         >

@@ -246,7 +246,7 @@ function QuestionFields({
         }
         data-testid={`decision-policy-${scale.name}-include-label-switch`}
       >
-        Also label with the most probable level
+        <Text>Also label with the most probable level</Text>
       </Switch>
     );
   }
