@@ -176,6 +176,11 @@ Evaluate whether the expense report is complete and well-structured. Assign one 
 from phoenix.evals import LLM, ClassificationEvaluator
 
 llm = LLM(provider="openai", model="gpt-5.5")
+# You can also run this evaluator with a decision model instead of a language model:
+#   from phoenix.evals import DecisionModel
+#   llm = DecisionModel(provider="openai", model="gpt-6-luna")
+# A decision model returns a label with per-label probabilities but no explanation,
+# so drop "result.explanation" from the metadata columns you log for the benchmark.
 receipt_evaluator = ClassificationEvaluator(
     name="receipt_accuracy",
     prompt_template=prompt_template,

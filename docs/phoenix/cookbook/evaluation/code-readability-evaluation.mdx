@@ -64,7 +64,7 @@ You are evaluating whether a piece of code is readable or not.
 Is the code readable? Respond with "readable" or "unreadable".
 """
 
-llm = LLM(provider="openai", model="gpt-4")
+llm = LLM(provider="openai", model="gpt-6-luna")
 readability_evaluator = ClassificationEvaluator(
     name="code_readability",
     prompt_template=CODE_READABILITY_PROMPT_TEMPLATE,
@@ -125,3 +125,14 @@ llm_gpt35 = LLM(provider="openai", model="gpt-3.5-turbo")
 # GPT-4 Turbo
 llm_gpt4turbo = LLM(provider="openai", model="gpt-4-turbo-preview")
 ```
+
+You can also compare against a **decision model**. Unlike a language model, a decision model picks a label directly and returns per-label probabilities (and a confidence when the provider reports one) rather than an explanation:
+
+```python
+from phoenix.evals import DecisionModel
+
+# Decision model
+decision_model = DecisionModel(provider="openai", model="gpt-6-luna")
+```
+
+Pass any of these judges to the evaluator in place of the original model, the evaluator's `llm` argument accepts both an `LLM` and a `DecisionModel`.

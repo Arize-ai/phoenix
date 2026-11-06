@@ -107,6 +107,10 @@ from phoenix.trace import suppress_tracing
 # Anthropic model used for the judges - change it here to run on a different model.
 MODEL = "claude-sonnet-4-6"
 judge = LLM(provider="anthropic", model=MODEL)
+# These evaluators also accept a decision model in place of the LLM:
+#   from phoenix.evals import DecisionModel
+#   judge = DecisionModel(provider="openai", model="gpt-6-luna")
+# A decision model returns a label with per-label probabilities but no explanation.
 
 coherence_evaluator = ClassificationEvaluator(
     name="coherence", llm=judge, prompt_template=SESSION_COHERENCE_PROMPT,

@@ -132,6 +132,10 @@ Your answer must be a single word, either "correct" or "incorrect"
 
 # Run the evaluation
 llm = LLM(provider="openai", model="gpt-4.1")
+# You can also use a decision model in place of the LLM:
+#   from phoenix.evals import DecisionModel
+#   llm = DecisionModel(provider="openai", model="gpt-6-luna")
+# A decision model returns a label with per-label probabilities but no explanation.
 correctness_evaluator = ClassificationEvaluator(
     name="math_correctness",
     prompt_template=MATH_EVAL_TEMPLATE,
@@ -288,6 +292,10 @@ Your answer must be a single word, either "correct" or "incorrect"
 
 # Run the evaluation
 llm = LLM(provider="openai", model="gpt-4.1")
+# You can also use a decision model in place of the LLM:
+#   from phoenix.evals import DecisionModel
+#   llm = DecisionModel(provider="openai", model="gpt-6-luna")
+# A decision model returns a label with per-label probabilities but no explanation.
 correctness_evaluator = ClassificationEvaluator(
     name="math_correctness",
     prompt_template=MATH_EVAL_TEMPLATE,
