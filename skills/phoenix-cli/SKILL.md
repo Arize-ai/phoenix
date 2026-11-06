@@ -447,6 +447,44 @@ arbitrary one. There is no `traces` connection: to list traces, query `spans`
 with `filterCondition: "parent_span is None"`, which keeps root spans, as the
 UI's traces table does. See [Filter expressions](#filter-expressions) below.
 
+### Experiments by sequence number
+
+Every experiment carries a `sequenceNumber`: its 1-based position within its
+dataset, in creation order. That is the number the UI shows, so it is what a
+user means by "experiment 3". `px experiment list` reports ids and names but
+not the number, so resolve it through GraphQL.
+
+`Dataset.experiments` orders newest-first, which puts the low sequence numbers
+on the oldest page. `sequenceNumbers: [Int!]` fetches exactly the ones asked
+for instead of paging to them. Datasets have no by-name root field, so address
+the dataset by its GlobalID:
+
+```bash
+px dataset get my-dataset --format raw --no-progress | jq -r '.dataset_id'
+
+px api graphql '{
+  node(id: "RGF0YXNldDox") { ... on Dataset { experiments(
+    sequenceNumbers: [1, 3]
+  ) { edges { node { id sequenceNumber name } } } } }
+}' | jq '.data.node.experiments.edges[].node'
+```
+
+`sort: ExperimentSort` orders the connection: `col` is `sequenceNumber` or
+`createdAt`, `dir` is `asc` or `desc`.
+
+```bash
+px api graphql '{
+  node(id: "RGF0YXNldDox") { ... on Dataset { experiments(
+    first: 20
+    sort: { col: sequenceNumber, dir: asc }
+  ) { edges { node { sequenceNumber name } } } } }
+}' | jq '.data.node.experiments.edges[].node'
+```
+
+A sequence number that the dataset has no experiment for is absent from the
+response rather than an error, so check the `sequenceNumber` on each returned
+node against what was asked for before reporting a result.
+
 ### Filter expressions
 
 `spans`, `sessions`, and the project aggregates take filter conditions: Python
