@@ -1,8 +1,4 @@
-import { css } from "@emotion/react";
-
-import { Flex, Link, Text, Token } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
+import { VersionedNameLink } from "./VersionedNameLink";
 
 export type DecisionCellVersion = {
   id: string;
@@ -12,49 +8,41 @@ export type DecisionCellVersion = {
 };
 
 /**
- * Decision evaluators' counterpart of PromptCell: the decision and the pinned
- * version, linking to the version's page.
+ * Decision evaluators' counterpart of PromptCell: the decision and the tag the
+ * evaluator runs through, or `latest` without one. Renders exactly as
+ * PromptCell does, so prompt and decision rows read alike.
  */
 export const DecisionCell = ({
   decisionVersion,
+  decisionVersionTag,
   wrapWidth,
-  nameMaxWidth = "10rem",
+  nameMaxWidth,
 }: {
+  /** The version the evaluator runs: its tag's, or the decision's newest. */
   decisionVersion?: DecisionCellVersion | null;
-  /** See PromptCell: constrains the width and lets the content wrap. */
+  /** The evaluator's tag name; omit when it runs the latest version. */
+  decisionVersionTag?: string | null;
+  /** See VersionedNameLink. */
   wrapWidth?: number;
+  /** See VersionedNameLink. */
   nameMaxWidth?: string;
 }) => {
   if (!decisionVersion) {
     return null;
   }
   const { decisionId, id, decision } = decisionVersion;
+  // Pinned to a tag: open the version the tag points at. Otherwise the
+  // evaluator follows the latest version, so open the decision itself.
+  const to = decisionVersionTag
+    ? `/prompts/decisions/${decisionId}/versions/${id}`
+    : `/prompts/decisions/${decisionId}`;
   return (
-    <Link
-      to={`/prompts/decisions/${decisionId}/versions/${id}`}
-      css={css`
-        text-decoration: none;
-        ${wrapWidth != null &&
-        css`
-          max-width: ${wrapWidth}px;
-        `}
-      `}
-    >
-      <Flex
-        alignItems="center"
-        wrap={wrapWidth != null ? "wrap" : undefined}
-        gap={wrapWidth != null ? "size-50" : undefined}
-      >
-        <Truncate maxWidth={wrapWidth != null ? "100%" : nameMaxWidth}>
-          {decision?.name || "Decision"}
-        </Truncate>
-        <Flex alignItems="center">
-          <Text color="text-300">{wrapWidth != null ? "@ " : " @ "}</Text>
-          <Token size="S" color="var(--global-color-gray-700)">
-            <IdTruncate id={id} />
-          </Token>
-        </Flex>
-      </Flex>
-    </Link>
+    <VersionedNameLink
+      to={to}
+      name={decision?.name || "Decision"}
+      versionTag={decisionVersionTag}
+      wrapWidth={wrapWidth}
+      nameMaxWidth={nameMaxWidth}
+    />
   );
 };
