@@ -1493,6 +1493,55 @@ class TestEvaluateDataframe:
         assert exec_details[1]["status"] == "FAILED"
         assert len(exec_details[1]["exceptions"]) > 0
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("run_async", [False, True], ids=["sync", "async"])
+    @pytest.mark.parametrize("fail_all", [True, False], ids=["all_fail", "partial_fail"])
+    async def test_rerun_clears_scores_of_failed_rows(self, run_async: bool, fail_all: bool):
+        """Re-evaluating a result DataFrame must not keep scores from the previous run."""
+        from phoenix.evals import async_evaluate_dataframe
+
+        failing_texts: set[str] = set()
+
+        @create_evaluator(name="rerun_quality", kind="code")
+        def quality(text: str) -> float:
+            if text in failing_texts:
+                raise ValueError(f"cannot evaluate {text}")
+            return float(len(text))
+
+        @create_evaluator(name="unrelated", kind="code")
+        def unrelated(text: str) -> float:
+            return float(len(text) + 10)
+
+        async def evaluate(dataframe: pd.DataFrame, evaluators: List[Evaluator]) -> pd.DataFrame:
+            options: Dict[str, Any] = dict(
+                dataframe=dataframe,
+                evaluators=evaluators,
+                exit_on_error=False,
+                max_retries=0,
+                hide_tqdm_bar=True,
+            )
+            if run_async:
+                return await async_evaluate_dataframe(**options)
+            return evaluate_dataframe(**options)
+
+        dataframe = pd.DataFrame({"text": ["first", "second"]}, index=[10, 20])
+        first = await evaluate(dataframe, [quality, unrelated])
+        assert [score["score"] for score in first["rerun_quality_score"]] == [5.0, 6.0]
+        first_snapshot = first.copy(deep=True)
+
+        failing_texts.update(dataframe["text"] if fail_all else ["first"])
+        result = await evaluate(first, [quality])
+
+        pd.testing.assert_frame_equal(first, first_snapshot)
+        pd.testing.assert_series_equal(result["unrelated_score"], first_snapshot["unrelated_score"])
+        statuses = [details["status"] for details in result["rerun_quality_execution_details"]]
+        assert statuses == (["FAILED", "FAILED"] if fail_all else ["FAILED", "COMPLETED"])
+        for text, score in zip(result["text"], result["rerun_quality_score"]):
+            if text in failing_texts:
+                assert score is None
+            else:
+                assert score["score"] == float(len(text))
+
 
 # TODO: Remove this once the deprecated 'source' argument and 'heuristic' KindType are removed.
 class TestDeprecatedSourceAndHeuristic:
