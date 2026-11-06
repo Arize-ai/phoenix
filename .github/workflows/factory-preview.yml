@@ -4,9 +4,9 @@ name: Factory Preview
 # when a bug or feature lane's PR leaves draft; a maintainer can add it to any same-repo PR.
 # The PR's Python source and, when it changed, its frontend build are laid over the published
 # image of the main commit the PR's dependencies match, together with the seed script from
-# the PR body (factory/preview/Dockerfile). The image goes to GHCR under pr-<number> and
-# pr-<number>-<short sha> tags, and deploy.py points a Railway service at it. Closing or
-# unlabeling the PR deletes the service and the PR's image tags.
+# the PR body (factory/preview/Dockerfile, built by docker-bake.hcl). The image goes to
+# GHCR under pr-<number> and pr-<number>-<short sha> tags, and deploy.py points a Railway
+# service at it. Closing or unlabeling the PR deletes the service and the PR's image tags.
 #
 # The scripts and the preview Dockerfile run from the base branch, checked out under base/,
 # because they run with the Railway token and a write token. The PR's checkout under head/
@@ -30,11 +30,12 @@ jobs:
   deploy:
     name: Build and deploy
     # Open PRs only: a closed PR has already had its teardown, and nothing would run it again.
+    # Removing some other label is not a reason to redeploy, so `unlabeled` is left out.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.state == 'open' &&
       ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
-       (github.event.action != 'labeled' &&
+       (contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action) &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')))
     # A newer push supersedes the preview an older run is still building.
     concurrency:
@@ -84,13 +85,7 @@ jobs:
           set -euo pipefail
           image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/seed" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve the base image
-        env:
-          PLANNED_BASE_IMAGE: ${{ steps.plan.outputs.base-image }}
-          FULL_BUILD_IMAGE: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-base-${{ steps.plan.outputs.short-sha }}
-        run: echo "BASE_IMAGE=${PLANNED_BASE_IMAGE:-$FULL_BUILD_IMAGE}" >> "$GITHUB_ENV"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -101,55 +96,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
-      # The PR's own frontend stage, when js/ or schemas/ changed since the base image's
-      # commit. Pushed as an image so the preview build can take it as a build context.
-      - name: Build the frontend from the PR's Dockerfile stage
-        if: steps.plan.outputs.frontend == 'true'
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
-        with:
-          context: head
-          file: head/Dockerfile
-          target: frontend-builder
-          platforms: linux/amd64
-          push: true
-          provenance: false
-          tags: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-frontend-${{ steps.plan.outputs.short-sha }}
-
-      # A PR whose dependencies match no published image can't borrow one, so it pays for
-      # the full build once and overlays on that instead.
-      - name: Build the base image when no published one matches
-        if: steps.plan.outputs.base-image == ''
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
-        with:
-          context: head
-          file: head/Dockerfile
-          platforms: linux/amd64
-          push: true
-          provenance: false
-          tags: ${{ env.BASE_IMAGE }}
-
+      # docker-bake.hcl builds the PR's frontend stage, and the whole PR when no published
+      # image matches its dependencies, as targets the preview takes as contexts, so neither
+      # leaves the builder. Only the preview image is pushed. Every context sits under the
+      # workspace because bake refuses to read outside its working directory.
       - name: Build and push the preview image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        env:
+          HEAD_DIR: ${{ github.workspace }}/head
+          PREVIEW_DIR: ${{ github.workspace }}/base/factory/preview
+          SEED_DIR: ${{ github.workspace }}/seed
+          BASE_CONTEXT: ${{ steps.plan.outputs.base-image && format('docker-image://{0}', steps.plan.outputs.base-image) || 'target:base' }}
+          FRONTEND_CONTEXT: ${{ steps.plan.outputs.frontend == 'true' && 'target:frontend' || 'docker-image://busybox:stable' }}
+          STATIC_SOURCE: ${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
+          TAGS: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }},${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
+          SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
+          REVISION: ${{ github.event.pull_request.head.sha }}
         with:
-          context: head
-          file: base/factory/preview/Dockerfile
-          platforms: linux/amd64
+          source: .
+          files: base/factory/preview/docker-bake.hcl
+          targets: preview
           push: true
-          provenance: false
-          build-contexts: |
-            preview=base/factory/preview
-            seed=${{ runner.temp }}/seed
-            base-image=docker-image://${{ env.BASE_IMAGE }}
-            frontend=docker-image://${{ steps.plan.outputs.frontend == 'true' && format('{0}:pr-{1}-frontend-{2}', steps.plan.outputs.image, github.event.pull_request.number, steps.plan.outputs.short-sha) || env.BASE_IMAGE }}
-          build-args: |
-            BASE_IMAGE=${{ env.BASE_IMAGE }}
-            STATIC_SOURCE=${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
-          tags: |
-            ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}
-            ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.event.pull_request.head.sha }}
 
       - name: Deploy to Railway
         env:
