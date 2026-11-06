@@ -1,4 +1,5 @@
-"""Materialize evaluation work after entity activity becomes old enough."""
+"""Sweeping evaluation producers: add trace and session evaluations once the trace or
+session has gone quiet for its evaluator's delay."""
 
 from __future__ import annotations
 
@@ -8,7 +9,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, ClassVar, Literal, Optional, Sequence
 
 from sqlalchemy import (
     ColumnElement,
@@ -54,11 +55,11 @@ from phoenix.server.online_eval.project_evaluator_resolution import (
     resolve_project_evaluators_bulk,
 )
 from phoenix.server.prometheus import (
-    ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG,
-    ONLINE_EVAL_MATERIALIZED_WORK_UNITS,
-    ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS,
+    ONLINE_EVAL_ADDED_WORK_UNITS,
+    ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS,
     ONLINE_EVAL_SWEEP_ATTEMPTS,
     ONLINE_EVAL_SWEEP_DURATION_SECONDS,
+    ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS,
     ONLINE_EVAL_SWEEP_FAILURES,
     ONLINE_EVAL_SWEEP_SUCCESSES,
 )
@@ -70,16 +71,16 @@ logger = logging.getLogger(__name__)
 
 SWEEP_INTERVAL_SECONDS = 10.0
 
-_MAX_ELIGIBLE_PAIRS_PER_TICK = 1000
+_MAX_EVALUATIONS_PER_TICK = 1000
 _LOCK_TIMEOUT_MILLISECONDS = 500
 _LOCK_CONFLICT_SQLSTATES = frozenset({"55P03", "40P01"})  # lock_not_available, deadlock_detected
 
-_EntityModel = type[models.ProjectSession] | type[models.Trace]
-_WorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
+_SweptTargetModel = type[models.ProjectSession] | type[models.Trace]
+_SweptWorkUnitModel = type[models.EvalSessionWorkUnit] | type[models.EvalTraceWorkUnit]
 
 
 class _PageRowDeletedError(Exception):
-    """A project evaluator or entity on the page was deleted before its work was inserted.
+    """A project evaluator or target on the page was deleted before its work was inserted.
 
     The page is read without locks, so the insert's foreign keys are what catch the
     deletion; the tick rolls back and the next tick's page no longer holds the row. On
@@ -97,66 +98,28 @@ def _is_lock_conflict(error: DBAPIError) -> bool:
 
 
 @dataclass(frozen=True)
-class _SweepTarget:
-    """The tables, columns and predicates one evaluation target sweeps over."""
+class _SweptTarget:
+    """The tables, columns and filter one swept target is read through."""
 
-    entity_model: _EntityModel
-    entity_project_id_column: str
+    evaluation_target: Literal["TRACE", "SESSION"]
+    target_model: _SweptTargetModel
+    target_project_id_column: str
     sample_key_column: str
-    work_unit_model: _WorkUnitModel
+    work_unit_model: _SweptWorkUnitModel
     work_unit_target_column: str
-    filtered_entity_rowids_subquery: Callable[
+    filtered_target_rowids_subquery: Callable[
         [str, Sequence[int], Sequence[int]], ScalarSelect[int]
     ]
-    # The due-horizon watermark advances past rows this gate excludes, so a row it excludes
-    # must not become eligible later without new activity.
-    is_evaluable: Callable[[], ColumnElement[bool]]
     lease_name: str
-
-
-_SWEEP_TARGETS: dict[models.EvaluationTarget, _SweepTarget] = {
-    "SESSION": _SweepTarget(
-        entity_model=models.ProjectSession,
-        entity_project_id_column="project_id",
-        sample_key_column="session_id",
-        work_unit_model=models.EvalSessionWorkUnit,
-        work_unit_target_column="project_session_rowid",
-        filtered_entity_rowids_subquery=lambda condition, project_rowids, candidate_rowids: (
-            get_filtered_session_rowids_subquery(
-                condition,
-                project_rowids,
-                candidate_session_rowids=candidate_rowids,
-            )
-        ),
-        is_evaluable=lambda: true(),
-        lease_name="session-sweep",
-    ),
-    "TRACE": _SweepTarget(
-        entity_model=models.Trace,
-        entity_project_id_column="project_rowid",
-        sample_key_column="trace_id",
-        work_unit_model=models.EvalTraceWorkUnit,
-        work_unit_target_column="trace_rowid",
-        filtered_entity_rowids_subquery=lambda condition, project_rowids, candidate_rowids: (
-            get_filtered_trace_rowids_subquery(
-                condition,
-                project_rowids,
-                candidate_trace_rowids=candidate_rowids,
-            )
-        ),
-        is_evaluable=lambda: true(),
-        lease_name="trace-sweep",
-    ),
-}
 
 
 @dataclass(frozen=True)
 class _SweepOutcome:
     queued_count: int
-    eligible_pair_count: Optional[int]
+    eligible_count: Optional[int]
     full_page_decided: bool
-    """The page reached the per-tick limit and wrote at least one decision, so more pairs
-    may already be due."""
+    """The page reached the per-tick limit and wrote at least one decision, so more
+    evaluations may already be due."""
 
 
 @dataclass(frozen=True)
@@ -165,7 +128,7 @@ class _SweepProjectEvaluator:
     project_id: int
     delay_seconds: int
     created_at: datetime
-    sweep_floor: datetime
+    sweep_start: datetime
     filter_condition: str
     sampling_rate: float
 
@@ -188,7 +151,7 @@ def _project_evaluator_relation(
             f"{prefix}_project_evaluator_id": project_evaluator.project_evaluator_id,
             f"{prefix}_project_id": project_evaluator.project_id,
             f"{prefix}_delay_seconds": project_evaluator.delay_seconds,
-            f"{prefix}_sweep_floor": project_evaluator.sweep_floor,
+            f"{prefix}_sweep_start": project_evaluator.sweep_start,
             f"{prefix}_sampling_rate": project_evaluator.sampling_rate,
         }
         parameters.update(row_parameters)
@@ -210,7 +173,7 @@ def _project_evaluator_relation(
         "sc.column1 AS project_evaluator_id, "
         "sc.column2 AS project_id, "
         "sc.column3 AS delay_seconds, "
-        "sc.column4 AS sweep_floor, "
+        "sc.column4 AS sweep_start, "
         "sc.column5 AS sampling_rate "
         f"FROM (VALUES {', '.join(rows)}) AS sc"
     )
@@ -220,77 +183,76 @@ def _project_evaluator_relation(
             column("project_evaluator_id", Integer),
             column("project_id", Integer),
             column("delay_seconds", Integer),
-            column("sweep_floor", models.UtcTimeStamp()),
+            column("sweep_start", models.UtcTimeStamp()),
             column("sampling_rate", Float),
         )
         .subquery("sweep_evaluators")
     )
 
 
-def _eligible_pairs_relation(
-    target: _SweepTarget,
+def _due_evaluations_relation(
+    target: _SweptTarget,
     project_evaluators: Sequence[_SweepProjectEvaluator],
     database_now: datetime,
     dialect: SupportedSQLDialect,
 ) -> Subquery:
     project_evaluator_relation = _project_evaluator_relation(project_evaluators, dialect)
-    entity_model = target.entity_model
+    target_model = target.target_model
     work = aliased(target.work_unit_model)
     if dialect is SupportedSQLDialect.SQLITE:
         due_at = (
-            cast(func.julianday(entity_model.last_span_ingested_at), Float) * 86_400
+            cast(func.julianday(target_model.last_span_ingested_at), Float) * 86_400
             + project_evaluator_relation.c.delay_seconds
         )
         current_time = cast(func.julianday(database_now), Float) * 86_400
     else:
         due_at = (
-            func.extract("epoch", entity_model.last_span_ingested_at)
+            func.extract("epoch", target_model.last_span_ingested_at)
             + project_evaluator_relation.c.delay_seconds
         )
         current_time = func.extract("epoch", literal(database_now))
     return (
         select(
-            entity_model.id.label("entity_rowid"),
-            getattr(entity_model, target.sample_key_column).label("sample_identity"),
+            target_model.id.label("target_rowid"),
+            getattr(target_model, target.sample_key_column).label("sample_identity"),
             project_evaluator_relation.c.project_evaluator_id,
             project_evaluator_relation.c.sampling_rate,
-            entity_model.last_span_ingested_at.label("evaluated_through"),
+            target_model.last_span_ingested_at.label("decided_through"),
             due_at.label("effective_due_time"),
         )
-        .select_from(entity_model)
+        .select_from(target_model)
         .join(
             project_evaluator_relation,
-            getattr(entity_model, target.entity_project_id_column)
+            getattr(target_model, target.target_project_id_column)
             == project_evaluator_relation.c.project_id,
         )
         .outerjoin(
             work,
             and_(
-                getattr(work, target.work_unit_target_column) == entity_model.id,
+                getattr(work, target.work_unit_target_column) == target_model.id,
                 work.project_evaluator_id == project_evaluator_relation.c.project_evaluator_id,
             ),
         )
         .where(
-            target.is_evaluable(),
-            entity_model.last_span_ingested_at.is_not(None),
-            entity_model.last_span_ingested_at >= project_evaluator_relation.c.sweep_floor,
+            target_model.last_span_ingested_at.is_not(None),
+            target_model.last_span_ingested_at >= project_evaluator_relation.c.sweep_start,
             due_at <= current_time,
             or_(
                 work.id.is_(None),
-                _reofferable(work, entity_model.last_span_ingested_at),
+                _reofferable(work, target_model.last_span_ingested_at),
             ),
         )
-        .subquery("eligible_pairs")
+        .subquery("due_evaluations")
     )
 
 
 def _work_write_statement(
-    target: _SweepTarget,
+    target: _SweptTarget,
     decisions: Sequence[dict[str, Any]],
     dialect: SupportedSQLDialect,
 ) -> Insert:
-    """Write scheduling decisions: insert a row for a new pair, or re-offer the pair's
-    row in place when it ended without a result before the entity's latest activity."""
+    """Write scheduling decisions: insert a row for a new evaluation, or re-offer its row in
+    place when it ended without a result before the target's latest activity."""
     work_unit_model = target.work_unit_model
     index_elements = (
         getattr(work_unit_model, target.work_unit_target_column),
@@ -302,7 +264,7 @@ def _work_write_statement(
         return statement.on_conflict_do_update(
             index_elements=index_elements,
             set_=_reoffer_values(excluded),
-            where=_reofferable(work_unit_model, excluded.evaluated_through),
+            where=_reofferable(work_unit_model, excluded.decided_through),
         ).returning(work_unit_model.status)
     if dialect is SupportedSQLDialect.SQLITE:
         sqlite_statement = insert_sqlite(work_unit_model).values(decisions)
@@ -310,7 +272,7 @@ def _work_write_statement(
         return sqlite_statement.on_conflict_do_update(
             index_elements=index_elements,
             set_=_reoffer_values(sqlite_excluded),
-            where=_reofferable(work_unit_model, sqlite_excluded.evaluated_through),
+            where=_reofferable(work_unit_model, sqlite_excluded.decided_through),
         ).returning(work_unit_model.status)
     assert_never(dialect)
 
@@ -319,7 +281,7 @@ def _reoffer_values(excluded: Any) -> dict[str, Any]:
     """The new decision, with the retry state of the previous offer cleared."""
     return {
         "status": excluded.status,
-        "evaluated_through": excluded.evaluated_through,
+        "decided_through": excluded.decided_through,
         "attempts": 0,
         "error": None,
         "claimed_at": None,
@@ -335,42 +297,43 @@ def _reofferable(work_unit: Any, activity_through: Any) -> ColumnElement[bool]:
     after it failed; spans that arrived while it was running might not trigger a retry."""
     reofferable: ColumnElement[bool] = and_(
         work_unit.status.in_(REOFFERED_STATUSES),
-        work_unit.evaluated_through < activity_through,
+        work_unit.decided_through < activity_through,
     )
     return reofferable
 
 
-class EvalSweeper(DaemonTask):
-    """Create pending work for eligible entities of one evaluation target."""
+class SweepingEvaluationProducer(DaemonTask):
+    """Adds evaluations for one swept target once a target has gone quiet; subclasses fix
+    the target."""
+
+    _target: ClassVar[_SweptTarget]
 
     def __init__(
         self,
         db: DbSessionFactory,
         *,
-        evaluation_target: models.EvaluationTarget,
         tick_interval_seconds: float = SWEEP_INTERVAL_SECONDS,
     ) -> None:
         super().__init__()
-        if (target := _SWEEP_TARGETS.get(evaluation_target)) is None:
-            raise ValueError(f"Online evaluation sweeping does not support {evaluation_target}")
+        target = self._target
+        evaluation_target = target.evaluation_target
         self._db = db
         self._evaluation_target = evaluation_target
-        self._target = target
         self._metric_labels = {"evaluation_target": evaluation_target}
-        ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG.labels(**self._metric_labels)
-        ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**self._metric_labels)
-        ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS.labels(**self._metric_labels)
+        ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS.labels(**self._metric_labels)
+        ONLINE_EVAL_ADDED_WORK_UNITS.labels(**self._metric_labels)
+        ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_ATTEMPTS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_DURATION_SECONDS.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
         self._tick_interval_seconds = tick_interval_seconds
-        self._late_commit_margin = timedelta(seconds=VISIBILITY_LAG_SECONDS)
+        self._visibility_lag = timedelta(seconds=VISIBILITY_LAG_SECONDS)
         self._publish_metrics = get_env_enable_prometheus()
         self._lease = ScanLease(
             db,
             name=target.lease_name,
-            holder=f"{evaluation_target.lower()}-sweeper-{token_hex(8)}",
+            holder=f"{evaluation_target.lower()}-producer-{token_hex(8)}",
         )
 
     async def _run(self) -> None:
@@ -405,10 +368,10 @@ class EvalSweeper(DaemonTask):
             return False
         full_page_decided = False
         if not self._db.should_not_insert_or_update:
-            full_page_decided = await self._materialize()
+            full_page_decided = await self._run_sweep()
         return await self._lease.renew() and full_page_decided
 
-    async def _materialize(self) -> bool:
+    async def _run_sweep(self) -> bool:
         started_at = time.monotonic()
         labels = self._metric_labels
         if self._publish_metrics:
@@ -436,8 +399,8 @@ class EvalSweeper(DaemonTask):
                 )
         if self._publish_metrics:
             ONLINE_EVAL_SWEEP_SUCCESSES.labels(**labels).inc()
-            ONLINE_EVAL_MATERIALIZED_WORK_UNITS.labels(**labels).inc(outcome.queued_count)
-            await self._publish_eligibility_metrics(outcome.eligible_pair_count)
+            ONLINE_EVAL_ADDED_WORK_UNITS.labels(**labels).inc(outcome.queued_count)
+            await self._publish_eligibility_metrics(outcome.eligible_count)
         return outcome.full_page_decided
 
     async def _load_evaluators(self, session: AsyncSession) -> list[_SweepProjectEvaluator]:
@@ -465,8 +428,8 @@ class EvalSweeper(DaemonTask):
                     project_id=project_evaluator.project_id,
                     delay_seconds=project_evaluator.evaluation_delay_seconds,
                     created_at=project_evaluator.created_at,
-                    sweep_floor=(project_evaluator.swept_through_at or project_evaluator.created_at)
-                    - self._late_commit_margin,
+                    sweep_start=(project_evaluator.swept_through_at or project_evaluator.created_at)
+                    - self._visibility_lag,
                     filter_condition=project_evaluator.filter_condition,
                     sampling_rate=project_evaluator.sampling_rate,
                 )
@@ -476,7 +439,7 @@ class EvalSweeper(DaemonTask):
     def _filter_compiles(self, project_evaluator: models.ProjectEvaluator) -> bool:
         """Whether this evaluator's stored filter compiles in this target's filter language."""
         try:
-            self._target.filtered_entity_rowids_subquery(
+            self._target.filtered_target_rowids_subquery(
                 project_evaluator.filter_condition,
                 [project_evaluator.project_id],
                 (),
@@ -495,16 +458,16 @@ class EvalSweeper(DaemonTask):
         session: AsyncSession,
         database_now: datetime,
     ) -> _SweepOutcome:
-        """Materialize this tick's work."""
+        """Decide this tick's due evaluations."""
         project_evaluators = await self._load_evaluators(session)
-        return await self._load_eligible_pairs(
+        return await self._decide_due_evaluations(
             session,
             database_now,
             project_evaluators,
-            limit=_MAX_ELIGIBLE_PAIRS_PER_TICK,
+            limit=_MAX_EVALUATIONS_PER_TICK,
         )
 
-    async def _load_eligible_pairs(
+    async def _decide_due_evaluations(
         self,
         session: AsyncSession,
         database_now: datetime,
@@ -515,11 +478,11 @@ class EvalSweeper(DaemonTask):
         if not project_evaluators:
             return _SweepOutcome(
                 queued_count=0,
-                eligible_pair_count=0 if self._publish_metrics else None,
+                eligible_count=0 if self._publish_metrics else None,
                 full_page_decided=False,
             )
         target = self._target
-        relation = _eligible_pairs_relation(
+        relation = _due_evaluations_relation(
             target,
             project_evaluators,
             database_now,
@@ -530,7 +493,7 @@ class EvalSweeper(DaemonTask):
                 select(relation)
                 .order_by(
                     relation.c.effective_due_time,
-                    relation.c.entity_rowid,
+                    relation.c.target_rowid,
                     relation.c.project_evaluator_id,
                 )
                 .limit(limit)
@@ -538,17 +501,17 @@ class EvalSweeper(DaemonTask):
         ).all()
         page_full = len(rows) >= limit
         if not page_full:
-            await self._advance_watermarks_to_due_horizon(
+            await self._advance_sweep_positions_to_due_time(
                 session,
                 project_evaluators,
                 database_now,
             )
         else:
-            await self._advance_watermarks_through_swept_rows(session, rows)
+            await self._advance_sweep_positions_through_page(session, rows)
         filter_verdicts = await self._read_filter_verdicts(session, project_evaluators, rows)
         decisions: list[dict[str, Any]] = []
         for row in rows:
-            passes_filter = filter_verdicts.get((row.project_evaluator_id, row.entity_rowid))
+            passes_filter = filter_verdicts.get((row.project_evaluator_id, row.target_rowid))
             if passes_filter is None:
                 continue
             if not passes_filter:
@@ -559,17 +522,17 @@ class EvalSweeper(DaemonTask):
                 status = "PENDING"
             decisions.append(
                 {
-                    target.work_unit_target_column: row.entity_rowid,
+                    target.work_unit_target_column: row.target_rowid,
                     "project_evaluator_id": row.project_evaluator_id,
-                    "evaluated_through": row.evaluated_through,
+                    "decided_through": row.decided_through,
                     "status": status,
                 }
             )
-        eligible_pair_count = sum(filter_verdicts.values()) if self._publish_metrics else None
+        eligible_count = sum(filter_verdicts.values()) if self._publish_metrics else None
         if not decisions:
             return _SweepOutcome(
                 queued_count=0,
-                eligible_pair_count=eligible_pair_count,
+                eligible_count=eligible_count,
                 full_page_decided=False,
             )
         try:
@@ -586,7 +549,7 @@ class EvalSweeper(DaemonTask):
             raise _PageRowDeletedError(str(error.orig)) from error
         return _SweepOutcome(
             queued_count=written_statuses.count("PENDING"),
-            eligible_pair_count=eligible_pair_count,
+            eligible_count=eligible_count,
             full_page_decided=page_full and bool(written_statuses),
         )
 
@@ -596,33 +559,35 @@ class EvalSweeper(DaemonTask):
         project_evaluators: Sequence[_SweepProjectEvaluator],
         rows: Sequence[Any],
     ) -> dict[tuple[int, int], bool]:
-        """Whether each page pair passes its evaluator's filter, keyed by (project evaluator,
-        entity), for pairs whose entity is still at the activity the page read.
+        """Whether each evaluation on the page passes its evaluator's filter, keyed by
+        (project evaluator, target), for evaluations whose target is still at the activity
+        the page read.
 
-        Each evaluator's statement reads its entities' activity together with the filter, so
-        a pair is decided on the content its entity had, quiet, at the page read; the consumer
-        later evaluates whatever content the entity has when it runs. A pair whose entity has
-        moved on is left out and stays undecided until a later tick sees the entity quiet, and
-        so are the pairs of an evaluator whose filter fails when it runs.
+        Each evaluator's statement reads its targets' activity together with the filter, so
+        an evaluation is decided on the content its target had, quiet, at the page read; the
+        consumer later evaluates whatever content the target has when it runs. An evaluation
+        whose target has moved on is left out and stays undecided until a later tick sees the
+        target quiet, and so are the evaluations of an evaluator whose filter fails when it
+        runs.
         """
         target = self._target
-        entity_model = target.entity_model
-        evaluated_through = {row.entity_rowid: row.evaluated_through for row in rows}
+        target_model = target.target_model
+        decided_through = {row.target_rowid: row.decided_through for row in rows}
         verdicts: dict[tuple[int, int], bool] = {}
         for project_evaluator in project_evaluators:
-            entity_rowids = tuple(
-                row.entity_rowid
+            target_rowids = tuple(
+                row.target_rowid
                 for row in rows
                 if row.project_evaluator_id == project_evaluator.project_evaluator_id
             )
-            if not entity_rowids:
+            if not target_rowids:
                 continue
             passes_filter: ColumnElement[bool] = (
-                entity_model.id.in_(
-                    target.filtered_entity_rowids_subquery(
+                target_model.id.in_(
+                    target.filtered_target_rowids_subquery(
                         project_evaluator.filter_condition,
                         [project_evaluator.project_id],
-                        entity_rowids,
+                        target_rowids,
                     )
                 )
                 if project_evaluator.filter_condition
@@ -633,10 +598,10 @@ class EvalSweeper(DaemonTask):
                     result = (
                         await session.execute(
                             select(
-                                entity_model.id,
-                                entity_model.last_span_ingested_at,
+                                target_model.id,
+                                target_model.last_span_ingested_at,
                                 passes_filter,
-                            ).where(entity_model.id.in_(entity_rowids))
+                            ).where(target_model.id.in_(target_rowids))
                         )
                     ).all()
             except (DBAPIError, OverflowError) as error:
@@ -648,19 +613,19 @@ class EvalSweeper(DaemonTask):
                     f"{error.orig if isinstance(error, DBAPIError) else error}"
                 )
                 continue
-            for entity_rowid, activity_through, passes in result:
-                if activity_through == evaluated_through[entity_rowid]:
-                    verdicts[(project_evaluator.project_evaluator_id, entity_rowid)] = passes
+            for target_rowid, activity_through, passes in result:
+                if activity_through == decided_through[target_rowid]:
+                    verdicts[(project_evaluator.project_evaluator_id, target_rowid)] = passes
         return verdicts
 
-    async def _advance_watermarks_to_due_horizon(
+    async def _advance_sweep_positions_to_due_time(
         self,
         session: AsyncSession,
         project_evaluators: Sequence[_SweepProjectEvaluator],
         database_now: datetime,
     ) -> None:
         """Record that every loaded evaluator has swept everything already due to it."""
-        await self._write_watermarks(
+        await self._write_sweep_positions(
             session,
             {
                 project_evaluator.project_evaluator_id: max(
@@ -671,31 +636,31 @@ class EvalSweeper(DaemonTask):
             },
         )
 
-    async def _advance_watermarks_through_swept_rows(
+    async def _advance_sweep_positions_through_page(
         self,
         session: AsyncSession,
         rows: Sequence[Any],
     ) -> None:
         """Record how far a truncated page reached, per evaluator."""
-        watermarks: dict[int, datetime] = {}
+        sweep_positions: dict[int, datetime] = {}
         for row in rows:
-            reached = watermarks.get(row.project_evaluator_id)
-            if reached is None or row.evaluated_through > reached:
-                watermarks[row.project_evaluator_id] = row.evaluated_through
-        await self._write_watermarks(session, watermarks)
+            reached = sweep_positions.get(row.project_evaluator_id)
+            if reached is None or row.decided_through > reached:
+                sweep_positions[row.project_evaluator_id] = row.decided_through
+        await self._write_sweep_positions(session, sweep_positions)
 
-    async def _write_watermarks(
+    async def _write_sweep_positions(
         self,
         session: AsyncSession,
-        watermarks: dict[int, datetime],
+        sweep_positions: dict[int, datetime],
     ) -> None:
-        if not watermarks:
+        if not sweep_positions:
             return
-        project_evaluator_ids = sorted(watermarks)
-        watermark = case(
+        project_evaluator_ids = sorted(sweep_positions)
+        sweep_position = case(
             {
                 project_evaluator_id: literal(
-                    watermarks[project_evaluator_id], models.UtcTimeStamp()
+                    sweep_positions[project_evaluator_id], models.UtcTimeStamp()
                 )
                 for project_evaluator_id in project_evaluator_ids
             },
@@ -707,58 +672,58 @@ class EvalSweeper(DaemonTask):
                 models.ProjectEvaluator.id.in_(project_evaluator_ids),
                 or_(
                     models.ProjectEvaluator.swept_through_at.is_(None),
-                    models.ProjectEvaluator.swept_through_at < watermark,
+                    models.ProjectEvaluator.swept_through_at < sweep_position,
                 ),
             )
             .values(
-                swept_through_at=watermark,
+                swept_through_at=sweep_position,
                 # Pinned: the column's onupdate would restamp every enabled evaluator a tick.
                 updated_at=models.ProjectEvaluator.updated_at,
             )
         )
 
-    async def _publish_eligibility_metrics(self, eligible_pair_count: Optional[int]) -> None:
+    async def _publish_eligibility_metrics(self, eligible_count: Optional[int]) -> None:
         """Publish the sweep's observation gauges from a session of its own.
 
-        Reporting is not materialization: this runs after the work has been committed,
+        Reporting is not part of the sweep: this runs after the work has been committed,
         over its own read session, so a failing aggregate costs a stale gauge rather than
         the sweep that already succeeded.
         """
-        if eligible_pair_count is not None:
-            ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG.labels(**self._metric_labels).set(eligible_pair_count)
+        if eligible_count is not None:
+            ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS.labels(**self._metric_labels).set(eligible_count)
         try:
             async with self._db.read() as session:
                 database_now = await current_database_time(session, self._db.dialect)
-                await self._publish_watermark_lag(session, database_now)
+                await self._publish_decided_through_lag(session, database_now)
         except Exception:
             logger.exception(
-                f"Failed to publish {self._evaluation_target} evaluation watermark lag"
+                f"Failed to publish {self._evaluation_target} evaluation decided-through lag"
             )
 
-    async def _publish_watermark_lag(
+    async def _publish_decided_through_lag(
         self,
         session: AsyncSession,
         database_now: datetime,
     ) -> None:
         target = self._target
-        entity_model = target.entity_model
+        target_model = target.target_model
         work_unit_model = target.work_unit_model
         if self._db.dialect is SupportedSQLDialect.SQLITE:
             lag_seconds = (
-                cast(func.julianday(entity_model.last_span_ingested_at), Float)
-                - cast(func.julianday(work_unit_model.evaluated_through), Float)
+                cast(func.julianday(target_model.last_span_ingested_at), Float)
+                - cast(func.julianday(work_unit_model.decided_through), Float)
             ) * 86_400
         else:
             lag_seconds = func.extract(
                 "epoch",
-                entity_model.last_span_ingested_at - work_unit_model.evaluated_through,
+                target_model.last_span_ingested_at - work_unit_model.decided_through,
             )
-        watermark_lag_seconds = await session.scalar(
+        decided_through_lag_seconds = await session.scalar(
             select(func.max(lag_seconds))
             .select_from(work_unit_model)
             .join(
-                entity_model,
-                getattr(work_unit_model, target.work_unit_target_column) == entity_model.id,
+                target_model,
+                getattr(work_unit_model, target.work_unit_target_column) == target_model.id,
             )
             .where(
                 # SQLite reads a partial index only when the query repeats its predicate.
@@ -766,9 +731,47 @@ class EvalSweeper(DaemonTask):
                 work_unit_model.status == "DONE",
                 work_unit_model.updated_at
                 >= database_now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),
-                entity_model.last_span_ingested_at.is_not(None),
+                target_model.last_span_ingested_at.is_not(None),
             )
         )
-        ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS.labels(**self._metric_labels).set(
-            max(float(watermark_lag_seconds or 0.0), 0.0)
+        ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS.labels(**self._metric_labels).set(
+            max(float(decided_through_lag_seconds or 0.0), 0.0)
         )
+
+
+class TraceEvaluationProducer(SweepingEvaluationProducer):
+    _target = _SweptTarget(
+        evaluation_target="TRACE",
+        target_model=models.Trace,
+        target_project_id_column="project_rowid",
+        sample_key_column="trace_id",
+        work_unit_model=models.EvalTraceWorkUnit,
+        work_unit_target_column="trace_rowid",
+        filtered_target_rowids_subquery=lambda condition, project_rowids, candidate_rowids: (
+            get_filtered_trace_rowids_subquery(
+                condition,
+                project_rowids,
+                candidate_trace_rowids=candidate_rowids,
+            )
+        ),
+        lease_name="trace-producer",
+    )
+
+
+class SessionEvaluationProducer(SweepingEvaluationProducer):
+    _target = _SweptTarget(
+        evaluation_target="SESSION",
+        target_model=models.ProjectSession,
+        target_project_id_column="project_id",
+        sample_key_column="session_id",
+        work_unit_model=models.EvalSessionWorkUnit,
+        work_unit_target_column="project_session_rowid",
+        filtered_target_rowids_subquery=lambda condition, project_rowids, candidate_rowids: (
+            get_filtered_session_rowids_subquery(
+                condition,
+                project_rowids,
+                candidate_session_rowids=candidate_rowids,
+            )
+        ),
+        lease_name="session-producer",
+    )

@@ -3175,7 +3175,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "sum(rate(phoenix_online_eval_materialized_work_units_total{evaluation_target=\"SPAN\"}[1m])) * 60",
+                    "expr": "sum(rate(phoenix_online_eval_added_work_units_total{evaluation_target=\"SPAN\"}[1m])) * 60",
                     "legendFormat": "queued",
                     "refId": "A"
                 },
@@ -3402,8 +3402,8 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "(max(phoenix_online_eval_frontier_gap_span_ids) / max(phoenix_online_eval_ingest_spans_per_second)) and on() (max(phoenix_online_eval_ingest_spans_per_second) > 0)",
-                    "legendFormat": "producer frontier lag",
+                    "expr": "(max(phoenix_online_eval_span_cursor_lag_span_ids) / max(phoenix_online_eval_ingest_spans_per_second)) and on() (max(phoenix_online_eval_ingest_spans_per_second) > 0)",
+                    "legendFormat": "span cursor lag",
                     "refId": "A"
                 },
                 {
@@ -3418,7 +3418,7 @@
             ],
             "title": "🌊 Span Producer Lag & Ingest Rate",
             "type": "timeseries",
-            "description": "Producer frontier lag (left axis): roughly how far, in seconds of ingest, the span producer trails the newest span, computed as the frontier gap in span ids divided by the ingest rate. The producer waits 60 seconds before scanning newly observed spans, so 60 to 140 seconds is normal. It jumps while the ingest rate changes quickly and shows no data while nothing is ingested. Ingest rate (right axis): growth of the highest span id between producer ticks, which is the rate spans are stored, across all projects."
+            "description": "Span cursor lag (left axis): roughly how far, in seconds of ingest, the span producer trails the newest span, computed as the distance in span ids from the cursor to the newest span divided by the ingest rate. The producer waits 60 seconds before scanning newly observed spans, so 60 to 140 seconds is normal. It jumps while the ingest rate changes quickly and shows no data while nothing is ingested. Ingest rate (right axis): growth of the highest span id between producer ticks, which is the rate spans are stored, across all projects."
         },
         {
             "collapsed": false,
@@ -3836,7 +3836,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "sum(rate(phoenix_online_eval_materialized_work_units_total{evaluation_target=\"TRACE\"}[1m])) * 60",
+                    "expr": "sum(rate(phoenix_online_eval_added_work_units_total{evaluation_target=\"TRACE\"}[1m])) * 60",
                     "legendFormat": "queued",
                     "refId": "A"
                 },
@@ -4248,14 +4248,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_eligible_pair_backlog{evaluation_target=\"TRACE\"})",
-                    "legendFormat": "eligible pairs",
+                    "expr": "max(phoenix_online_eval_sweep_eligible_evaluations{evaluation_target=\"TRACE\"})",
+                    "legendFormat": "eligible evaluations",
                     "refId": "A"
                 }
             ],
-            "title": "📥 Trace Eligible Backlog",
+            "title": "📥 Trace Sweep Eligible Evaluations",
             "type": "timeseries",
-            "description": "Trace and evaluator pairs on the latest sweep page that pass their filter. A page holds at most 1,000 pairs."
+            "description": "Trace evaluations on the latest sweep page that pass their evaluator's filter. A page holds at most 1,000."
         },
         {
             "datasource": {
@@ -4342,14 +4342,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_result_watermark_lag_seconds{evaluation_target=\"TRACE\"})",
-                    "legendFormat": "watermark lag",
+                    "expr": "max(phoenix_online_eval_decided_through_lag_seconds{evaluation_target=\"TRACE\"})",
+                    "legendFormat": "decided-through lag",
                     "refId": "A"
                 }
             ],
-            "title": "🌊 Trace Result Watermark Lag",
+            "title": "🌊 Trace Decided-Through Lag",
             "type": "timeseries",
-            "description": "Largest time by which a trace's latest span postdates the content its completed evaluation covered, over the terminal-metrics window. A large value means spans keep arriving after the evaluation delay, so the delay may be shorter than the quiet gaps in that traffic."
+            "description": "Largest time by which a trace's latest span postdates the activity its completed evaluation covered, over the terminal-metrics window. A large value means spans keep arriving after the evaluation delay, so the delay may be shorter than the quiet gaps in that traffic."
         },
         {
             "collapsed": false,
@@ -4767,7 +4767,7 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "sum(rate(phoenix_online_eval_materialized_work_units_total{evaluation_target=\"SESSION\"}[1m])) * 60",
+                    "expr": "sum(rate(phoenix_online_eval_added_work_units_total{evaluation_target=\"SESSION\"}[1m])) * 60",
                     "legendFormat": "queued",
                     "refId": "A"
                 },
@@ -5179,14 +5179,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_eligible_pair_backlog{evaluation_target=\"SESSION\"})",
-                    "legendFormat": "eligible pairs",
+                    "expr": "max(phoenix_online_eval_sweep_eligible_evaluations{evaluation_target=\"SESSION\"})",
+                    "legendFormat": "eligible evaluations",
                     "refId": "A"
                 }
             ],
-            "title": "📥 Session Eligible Backlog",
+            "title": "📥 Session Sweep Eligible Evaluations",
             "type": "timeseries",
-            "description": "Session and evaluator pairs on the latest sweep page that pass their filter. A page holds at most 1,000 pairs."
+            "description": "Session evaluations on the latest sweep page that pass their evaluator's filter. A page holds at most 1,000."
         },
         {
             "datasource": {
@@ -5273,14 +5273,14 @@
                         "type": "prometheus",
                         "uid": "PBFA97CFB590B2093"
                     },
-                    "expr": "max(phoenix_online_eval_result_watermark_lag_seconds{evaluation_target=\"SESSION\"})",
-                    "legendFormat": "watermark lag",
+                    "expr": "max(phoenix_online_eval_decided_through_lag_seconds{evaluation_target=\"SESSION\"})",
+                    "legendFormat": "decided-through lag",
                     "refId": "A"
                 }
             ],
-            "title": "🌊 Session Result Watermark Lag",
+            "title": "🌊 Session Decided-Through Lag",
             "type": "timeseries",
-            "description": "Largest time by which a session's latest span postdates the content its completed evaluation covered, over the terminal-metrics window. A large value means spans keep arriving after the evaluation delay, so the delay may be shorter than the quiet gaps in that traffic."
+            "description": "Largest time by which a session's latest span postdates the activity its completed evaluation covered, over the terminal-metrics window. A large value means spans keep arriving after the evaluation delay, so the delay may be shorter than the quiet gaps in that traffic."
         }
     ],
     "preload": false,

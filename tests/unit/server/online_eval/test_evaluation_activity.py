@@ -19,7 +19,7 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
-from .test_producer import _seed_criteria
+from .test_span_producer import _seed_criteria
 
 _NOON = datetime(2026, 10, 1, 12, tzinfo=timezone.utc)
 _HOURLY = TimeBucketSpec()
@@ -77,7 +77,7 @@ async def _seed(db: DbSessionFactory) -> _Seeded:
             return models.EvalTraceWorkUnit(
                 trace_rowid=(await _add_trace(session, first)).id,
                 project_evaluator_id=trace_evaluator_id,
-                evaluated_through=created_at,
+                decided_through=created_at,
                 status=status,
                 created_at=created_at,
                 updated_at=updated_at or created_at,
@@ -89,7 +89,7 @@ async def _seed(db: DbSessionFactory) -> _Seeded:
             return models.EvalSessionWorkUnit(
                 project_session_rowid=(await _add_project_session(session, second)).id,
                 project_evaluator_id=session_evaluator_id,
-                evaluated_through=created_at,
+                decided_through=created_at,
                 status=status,
                 created_at=created_at,
                 updated_at=updated_at,

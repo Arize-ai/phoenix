@@ -11,8 +11,11 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.evaluators.services import project_bindings
-from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import EvalSweeper
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    TraceEvaluationProducer,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
@@ -189,20 +192,20 @@ async def _queue_work(
                 "project_evaluator_id": project_evaluator.id,
                 "status": status,
             }
-            evaluated_through = datetime.now(timezone.utc)
+            decided_through = datetime.now(timezone.utc)
             if project_evaluator.evaluation_target == "SPAN":
                 session.add(models.EvalWorkUnit(span_rowid=span.id, **key))
             elif project_evaluator.evaluation_target == "TRACE":
                 session.add(
                     models.EvalTraceWorkUnit(
-                        trace_rowid=trace.id, evaluated_through=evaluated_through, **key
+                        trace_rowid=trace.id, decided_through=decided_through, **key
                     )
                 )
             else:
                 session.add(
                     models.EvalSessionWorkUnit(
                         project_session_rowid=project_session.id,
-                        evaluated_through=evaluated_through,
+                        decided_through=decided_through,
                         **key,
                     )
                 )
@@ -1334,7 +1337,9 @@ async def test_span_evaluator_skips_spans_that_arrived_before_it_started(
     async with db() as session:
         new_span = await _add_span(session, await session.get_one(models.Trace, trace.id))
 
-    producer = OnlineEvalProducer(db, frontier_lag_seconds=0, backstop_interval_seconds=0)
+    producer = SpanEvaluationProducer(
+        db, visibility_lag_seconds=0, catch_up_scan_interval_seconds=0
+    )
     await producer._tick()
     await producer._tick()
 
@@ -1392,7 +1397,10 @@ async def test_trace_and_session_evaluators_skip_activity_from_before_they_start
     await _add_quiet_trace(db, project)
 
     await _set_enabled(gql_client, project_evaluator_id, True)
-    await EvalSweeper(db, evaluation_target=evaluation_target)._tick()
+    producer_class = (
+        TraceEvaluationProducer if evaluation_target == "TRACE" else SessionEvaluationProducer
+    )
+    await producer_class(db)._tick()
 
     assert await _work_statuses(db, project_evaluator_id) == []
 

@@ -288,14 +288,14 @@ async def test_evaluation_queue(
                 models.EvalTraceWorkUnit(
                     trace_rowid=trace.id,
                     project_evaluator_id=trace_evaluator,
-                    evaluated_through=now,
+                    decided_through=now,
                     status="RUNNING",
                     created_at=now - timedelta(minutes=1),
                 ),
                 models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
                     project_evaluator_id=session_evaluator,
-                    evaluated_through=now,
+                    decided_through=now,
                     status="PENDING",
                     created_at=now - timedelta(minutes=2),
                 ),

@@ -77,7 +77,7 @@ def _create_session_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "evaluated_through",
+            "decided_through",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
         ),
@@ -168,7 +168,7 @@ def _create_trace_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "evaluated_through",
+            "decided_through",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
         ),

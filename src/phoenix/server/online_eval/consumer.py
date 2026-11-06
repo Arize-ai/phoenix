@@ -1,4 +1,4 @@
-"""Online-eval consumer daemon.
+"""The evaluation consumer: runs queued evaluations.
 
 Runs on every replica; instances compete for work through coordinator claims.
 A consumer claims only as many work units as it holds evaluator permits for, up
@@ -105,7 +105,7 @@ async def _cancel_and_await(task: asyncio.Task[Any]) -> None:
         pass
 
 
-class OnlineEvalConsumer(DaemonTask):
+class EvaluationConsumer(DaemonTask):
     """Per-replica daemon claiming and executing online-eval work units."""
 
     def __init__(

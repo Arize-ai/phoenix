@@ -10,8 +10,11 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS, ScanLease
-from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import EvalSweeper
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    SweepingEvaluationProducer,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -73,16 +76,14 @@ async def test_acquiring_a_lease_held_elsewhere_draws_no_new_id(db: DbSessionFac
         assert await session.scalar(last_id) == before
 
 
-@pytest.mark.parametrize("materializer", ["producer", "sweeper"])
-async def test_stopping_a_materializer_releases_its_lease(
+@pytest.mark.parametrize("producer", ["span", "sweeping"])
+async def test_stopping_a_producer_releases_its_lease(
     db: DbSessionFactory,
-    materializer: str,
+    producer: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    daemon: OnlineEvalProducer | EvalSweeper = (
-        OnlineEvalProducer(db)
-        if materializer == "producer"
-        else EvalSweeper(db, evaluation_target="SESSION")
+    daemon: SpanEvaluationProducer | SweepingEvaluationProducer = (
+        SpanEvaluationProducer(db) if producer == "span" else SessionEvaluationProducer(db)
     )
     acquired = asyncio.Event()
 

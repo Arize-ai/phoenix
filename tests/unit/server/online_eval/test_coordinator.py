@@ -111,13 +111,13 @@ async def _seed_session_work_units(db: DbSessionFactory, n: int) -> tuple[int, l
         ]
         session.add_all(project_evaluators)
         await session.flush()
-        evaluated_through = datetime.now(timezone.utc)
-        project_session.last_span_ingested_at = evaluated_through
+        decided_through = datetime.now(timezone.utc)
+        project_session.last_span_ingested_at = decided_through
         units = [
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session.id,
                 project_evaluator_id=project_evaluator.id,
-                evaluated_through=evaluated_through,
+                decided_through=decided_through,
             )
             for project_evaluator in project_evaluators
         ]
@@ -166,7 +166,7 @@ async def _seed_trace_work_units(
             models.EvalTraceWorkUnit(
                 trace_rowid=trace.id,
                 project_evaluator_id=project_evaluator.id,
-                evaluated_through=datetime.now(timezone.utc),
+                decided_through=datetime.now(timezone.utc),
             )
             for project_evaluator in project_evaluators
         ]

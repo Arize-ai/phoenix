@@ -26,7 +26,7 @@ from phoenix.server.api.helpers.decision_clients import (
     ScaleAnswer,
     TypeSafeDecisionClient,
 )
-from phoenix.server.online_eval.consumer import OnlineEvalConsumer
+from phoenix.server.online_eval.consumer import EvaluationConsumer
 from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
 from phoenix.server.online_eval.project_evaluator_resolution import (
     resolve_project_evaluators_bulk,
@@ -130,7 +130,7 @@ async def _fingerprint(db: DbSessionFactory, judge_id: int, binding_id: int) -> 
         return config_fingerprint(resolved)
 
 
-async def _materialize(db: DbSessionFactory, span_rowid: int, binding_id: int) -> int:
+async def _queue_span_work(db: DbSessionFactory, span_rowid: int, binding_id: int) -> int:
     async with db() as session:
         unit = models.EvalWorkUnit(span_rowid=span_rowid, project_evaluator_id=binding_id)
         session.add(unit)
@@ -163,11 +163,11 @@ async def test_a_judge_annotates_a_span_with_one_call_per_span(
     judge_id = await _seed_judge(db)
     binding_id = await _bind(db, project_id, judge_id)
     fingerprint = await _fingerprint(db, judge_id, binding_id)
-    unit_id = await _materialize(db, span_rowid, binding_id)
+    unit_id = await _queue_span_work(db, span_rowid, binding_id)
     invoke = AsyncMock(return_value=_response())
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
 
-    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+    await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
 
     assert (await _get_unit(db, unit_id)).status == "DONE"
     assert invoke.await_count == 1
@@ -213,14 +213,14 @@ async def test_a_judge_annotates_a_trace(
             models.EvalTraceWorkUnit(
                 trace_rowid=trace_rowid,
                 project_evaluator_id=binding_id,
-                evaluated_through=datetime.now(timezone.utc),
+                decided_through=datetime.now(timezone.utc),
             )
         )
     invoke = AsyncMock(return_value=_response())
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
 
     await _cycle_to_completion(
-        OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="TRACE")
+        EvaluationConsumer(db, decrypt=lambda value: value, evaluation_target="TRACE")
     )
 
     assert invoke.await_count == 1
@@ -254,14 +254,14 @@ async def test_a_judge_annotates_a_session(
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session_rowid,
                 project_evaluator_id=binding_id,
-                evaluated_through=datetime.now(timezone.utc),
+                decided_through=datetime.now(timezone.utc),
             )
         )
     invoke = AsyncMock(return_value=_response())
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
 
     await _cycle_to_completion(
-        OnlineEvalConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
+        EvaluationConsumer(db, decrypt=lambda value: value, evaluation_target="SESSION")
     )
 
     assert invoke.await_count == 1
@@ -286,10 +286,10 @@ async def test_each_binding_of_a_judge_names_itself_as_the_source(
     judge_id = await _seed_judge(db)
     binding_ids = [await _bind(db, project_id, judge_id) for _ in range(2)]
     for binding_id in binding_ids:
-        await _materialize(db, span_rowid, binding_id)
+        await _queue_span_work(db, span_rowid, binding_id)
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(return_value=_response()))
 
-    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+    await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
 
     by_name = {annotation.name: annotation for annotation in await _annotations(db)}
     for binding_id in binding_ids:
@@ -306,12 +306,12 @@ async def test_a_rate_limited_judge_retries_without_spending_an_attempt(
     project_id, span_rowid = await _span_with_output(db)
     judge_id = await _seed_judge(db)
     binding_id = await _bind(db, project_id, judge_id)
-    unit_id = await _materialize(db, span_rowid, binding_id)
+    unit_id = await _queue_span_work(db, span_rowid, binding_id)
     monkeypatch.setattr(
         TypeSafeDecisionClient, "invoke", AsyncMock(side_effect=DecisionRateLimitError("slow"))
     )
 
-    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+    await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
 
     unit = await _get_unit(db, unit_id)
     assert unit.status != "DONE"
@@ -368,9 +368,9 @@ async def test_span_annotations_expose_the_typed_decision(
     project_id, span_rowid = await _span_with_output(db)
     judge_id = await _seed_judge(db)
     binding_id = await _bind(db, project_id, judge_id)
-    await _materialize(db, span_rowid, binding_id)
+    await _queue_span_work(db, span_rowid, binding_id)
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", AsyncMock(return_value=_response()))
-    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+    await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
     annotation = next(a for a in await _annotations(db) if a.name.endswith(".quality"))
 
     result = await gql_client.execute(
@@ -402,12 +402,12 @@ async def test_an_oversized_request_gives_up_without_calling_the_model(
         project_id, span_rowid = project.id, span.id
     judge_id = await _seed_judge(db)
     binding_id = await _bind(db, project_id, judge_id)
-    unit_id = await _materialize(db, span_rowid, binding_id)
+    unit_id = await _queue_span_work(db, span_rowid, binding_id)
     monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES", "1024")
     invoke = AsyncMock(return_value=_response())
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
 
-    await _cycle_to_completion(OnlineEvalConsumer(db, decrypt=lambda value: value))
+    await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
 
     unit = await _get_unit(db, unit_id)
     assert invoke.await_count == 0

@@ -4307,7 +4307,7 @@ class EvalSessionWorkUnit(HasId):
         nullable=False,
         index=True,
     )
-    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     status: Mapped[SweptTargetWorkStatus] = mapped_column(
         CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
@@ -4384,7 +4384,7 @@ class EvalTraceWorkUnit(HasId):
         nullable=False,
         index=True,
     )
-    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     status: Mapped[SweptTargetWorkStatus] = mapped_column(
         CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",

@@ -23,17 +23,20 @@ from phoenix.server.online_eval.evaluation_activity import (
     load_evaluation_activity,
     load_evaluation_lags,
 )
-from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.queue_health import (
     load_evaluation_queue,
     load_project_evaluator_queues,
     load_queue_throughput,
 )
-from phoenix.server.online_eval.sweeper import EvalSweeper
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    TraceEvaluationProducer,
+)
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project
-from .test_producer import _seed_criteria
+from .test_span_producer import _seed_criteria
 
 
 async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
@@ -65,12 +68,11 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
 
     event.listen(connection.sync_engine, "before_cursor_execute", explain)
     try:
-        producer = OnlineEvalProducer(db)
-        await producer._reap(datetime.now(timezone.utc))
-        for sweep_target in ("SESSION", "TRACE"):
-            sweeper = EvalSweeper(db, evaluation_target=sweep_target)
+        producer = SpanEvaluationProducer(db)
+        await producer._retention_cleanup(datetime.now(timezone.utc))
+        for sweeper in (SessionEvaluationProducer(db), TraceEvaluationProducer(db)):
             async with db() as session:
-                await sweeper._publish_watermark_lag(session, datetime.now(timezone.utc))
+                await sweeper._publish_decided_through_lag(session, datetime.now(timezone.utc))
         for coordinator_target in ("SPAN", "SESSION", "TRACE"):
             coordinator = EvalWorkCoordinator(db, evaluation_target=coordinator_target)
             await coordinator.ended_work_counts()

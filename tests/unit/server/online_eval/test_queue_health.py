@@ -27,7 +27,7 @@ from phoenix.server.online_eval.queue_health import (
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
-from .test_producer import _seed_criteria
+from .test_span_producer import _seed_criteria
 
 
 async def test_span_queue_health(db: DbSessionFactory) -> None:
@@ -186,7 +186,7 @@ async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(
         return models.EvalTraceWorkUnit(
             trace_rowid=trace.id,
             project_evaluator_id=project_evaluator_id,
-            evaluated_through=now,
+            decided_through=now,
             status="PENDING",
             created_at=now - queued_ago,
         )

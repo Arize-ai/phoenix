@@ -34,7 +34,7 @@ from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
-from tests.unit.server.online_eval.test_producer import _seed_criteria
+from tests.unit.server.online_eval.test_span_producer import _seed_criteria
 
 
 async def test_evaluator_gallery_configs_contract(
@@ -596,7 +596,7 @@ async def test_evaluation_queue(
                 models.EvalTraceWorkUnit(
                     trace_rowid=trace.id,
                     project_evaluator_id=project_evaluator_ids["TRACE"],
-                    evaluated_through=now,
+                    decided_through=now,
                     status="ERROR",
                     attempts=1,
                     created_at=now - timedelta(minutes=30),
@@ -604,7 +604,7 @@ async def test_evaluation_queue(
                 models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
                     project_evaluator_id=project_evaluator_ids["SESSION"],
-                    evaluated_through=now,
+                    decided_through=now,
                     created_at=now - timedelta(minutes=1),
                 ),
             ]
@@ -810,7 +810,7 @@ async def test_evaluation_queue_projects(
                     models.EvalTraceWorkUnit(
                         trace_rowid=trace.id,
                         project_evaluator_id=project_evaluators["TRACE"].id,
-                        evaluated_through=datetime.now(timezone.utc),
+                        decided_through=datetime.now(timezone.utc),
                     )
                 )
         session.add_all(units)

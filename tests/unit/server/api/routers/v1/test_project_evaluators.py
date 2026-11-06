@@ -9,7 +9,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.online_eval.producer import OnlineEvalProducer
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_span, _add_trace
 
@@ -354,7 +354,7 @@ async def test_patch_reenabling_drops_queued_work_and_skips_earlier_spans(
         f"v1/project_evaluators/{created['id']}", json={"enabled": True}
     )
     assert response.status_code == 200, response.text
-    await OnlineEvalProducer(db, backstop_interval_seconds=0)._tick()
+    await SpanEvaluationProducer(db, catch_up_scan_interval_seconds=0)._tick()
 
     async with db() as session:
         work = {

@@ -213,11 +213,11 @@ ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
     f"(0 when none is pending). {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
+ONLINE_EVAL_SPAN_CURSOR_LAG_SPAN_IDS = Gauge(
     namespace="phoenix",
-    name="online_eval_frontier_gap_span_ids",
-    documentation="Distance in span ids between the highest span id and the online-eval "
-    "producer's produced-through watermark",
+    name="online_eval_span_cursor_lag_span_ids",
+    documentation="Distance in span ids between the highest span id and the online-eval span "
+    "producer's cursor",
 )
 ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     namespace="phoenix",
@@ -225,19 +225,18 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     documentation="Span ingest rate derived from successive online-eval cursor "
     "high-water observations",
 )
-ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
+ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS = Gauge(
     namespace="phoenix",
-    name="online_eval_eligible_pair_backlog",
-    documentation="Number of entity and evaluator pairs on the latest sweep page that pass "
-    "their evaluator's filter. A page holds at most one tick's work limit, and the value is "
-    "not updated while the queue is full",
+    name="online_eval_sweep_eligible_evaluations",
+    documentation="Number of trace or session evaluations on the latest sweep page that pass "
+    "their evaluator's filter. A page holds at most one tick's work limit",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
+ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS = Gauge(
     namespace="phoenix",
-    name="online_eval_result_watermark_lag_seconds",
+    name="online_eval_decided_through_lag_seconds",
     documentation="Largest time by which a session's or trace's latest span postdates the "
-    "content its completed evaluation covered, over work units completed in the past "
+    "activity its completed evaluation covered, over work units completed in the past "
     f"{_TERMINAL_METRICS_WINDOW}. A large value means spans keep arriving after the evaluation "
     "delay has passed, so the delay may be shorter than the quiet gaps in those sessions or "
     "traces",
@@ -267,10 +266,10 @@ ONLINE_EVAL_SWEEP_DURATION_SECONDS = Histogram(
     documentation="Online-eval sweep duration in seconds",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_MATERIALIZED_WORK_UNITS = Counter(
+ONLINE_EVAL_ADDED_WORK_UNITS = Counter(
     namespace="phoenix",
-    name="online_eval_materialized_work_units_total",
-    documentation="Total number of online-eval work units queued (written as PENDING). "
+    name="online_eval_added_work_units_total",
+    documentation="Total number of online-eval work units added to the queue (written as PENDING). "
     f"{_SUMS_ACROSS_REPLICAS}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )

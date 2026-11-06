@@ -1555,7 +1555,7 @@ CREATE TABLE eval_session_work_units (
     id INTEGER NOT NULL,
     project_session_rowid INTEGER NOT NULL,
     project_evaluator_id INTEGER NOT NULL,
-    evaluated_through TIMESTAMP NOT NULL,
+    decided_through TIMESTAMP NOT NULL,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
 CHECK (status IN (
@@ -1614,7 +1614,7 @@ CREATE TABLE eval_trace_work_units (
     id INTEGER NOT NULL,
     trace_rowid INTEGER NOT NULL,
     project_evaluator_id INTEGER NOT NULL,
-    evaluated_through TIMESTAMP NOT NULL,
+    decided_through TIMESTAMP NOT NULL,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_trace_work_units_`valid_eval_work_status`"
 CHECK (status IN (

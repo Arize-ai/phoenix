@@ -1841,7 +1841,7 @@ async def test_project_evaluator_run_summary(
                 models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
                     project_evaluator_id=project_evaluator.id,
-                    evaluated_through=now,
+                    decided_through=now,
                     status="DONE",
                     updated_at=now - timedelta(minutes=2),
                 ),
@@ -1850,7 +1850,7 @@ async def test_project_evaluator_run_summary(
                 models.EvalSessionWorkUnit(
                     project_session_rowid=emptied_session.id,
                     project_evaluator_id=project_evaluator.id,
-                    evaluated_through=now,
+                    decided_through=now,
                     status="CONTENT_LOST",
                     error="NO_ROOT_TURNS",
                     updated_at=now,
@@ -1942,14 +1942,14 @@ async def test_project_evaluator_run_summary_counts_trace_work(
                 models.EvalTraceWorkUnit(
                     trace_rowid=traces[0].id,
                     project_evaluator_id=project_evaluator.id,
-                    evaluated_through=now,
+                    decided_through=now,
                     status="DONE",
                     updated_at=now - timedelta(minutes=1),
                 ),
                 models.EvalTraceWorkUnit(
                     trace_rowid=traces[1].id,
                     project_evaluator_id=project_evaluator.id,
-                    evaluated_through=now,
+                    decided_through=now,
                     status="EXPIRED",
                     error="ROOT_SPAN_MISSING",
                     updated_at=now - timedelta(minutes=5),
@@ -2489,7 +2489,7 @@ async def test_project_evaluator_failure_summary_is_scoped_to_the_time_range(
                     project_evaluator_id=(
                         project_evaluator if is_own else other_project_evaluator
                     ).id,
-                    evaluated_through=now,
+                    decided_through=now,
                     status=status,
                     error=error,
                     updated_at=updated_at,

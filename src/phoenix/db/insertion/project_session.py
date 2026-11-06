@@ -13,7 +13,7 @@ async def advance_project_session_liveness(
     session: AsyncSession,
     project_session_rowids: Iterable[int],
 ) -> None:
-    """Advance each session's span-ingest watermark without allowing regression."""
+    """Advance each session's last span ingest time without letting it move back."""
     rowids = tuple(dict.fromkeys(project_session_rowids))
     if not rowids:
         return

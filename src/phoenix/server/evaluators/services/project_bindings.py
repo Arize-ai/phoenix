@@ -68,7 +68,7 @@ from phoenix.server.evaluators.validation import (
     validate_decision_input_mapping,
 )
 from phoenix.server.online_eval.clock import current_database_time
-from phoenix.server.online_eval.producer import current_span_rowid_floor
+from phoenix.server.online_eval.span_producer import current_span_rowid_floor
 from phoenix.server.online_eval.work_tables import WORK_TABLES
 from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS
 

@@ -335,7 +335,7 @@ class _ActivityReader:
 
     def _group(self, rows: sa.Subquery) -> sa.ColumnElement[int]:
         """The group of rows keyed by project evaluator. The project is looked up per row:
-        joined instead, SQLite materializes the rows and indexes them to drive the join from
+        joined instead, SQLite copies the rows into a temporary index to drive the join from
         the project evaluators, at several times the cost."""
         if not self.by_project:
             return rows.c.project_evaluator_id
