@@ -22,9 +22,6 @@ from typing import Any
 import seed_log
 
 SEED_PATH = Path("/phoenix/preview/seed.py")
-# Longer than Railway's health check, which decides the hosted case first; this is for a
-# local `docker run`, where nothing else would say the server never came up.
-HEALTHY_TIMEOUT_SECONDS = 15 * 60
 
 children: list[subprocess.Popen[bytes]] = []
 stopping = False
@@ -44,9 +41,8 @@ def forward(signum: int, _frame: object) -> None:
 
 
 def wait_until_healthy(server: subprocess.Popen[bytes], url: str) -> bool:
-    """Probe until the server answers, exits, or the deadline passes."""
-    deadline = time.monotonic() + HEALTHY_TIMEOUT_SECONDS
-    while server.poll() is None and time.monotonic() < deadline:
+    """Probe until the server answers or exits; Railway's own health check sets the deadline."""
+    while server.poll() is None:
         try:
             with urllib.request.urlopen(f"{url}/healthz", timeout=5) as response:
                 if response.status == 200:
@@ -97,7 +93,6 @@ def run_seed(url: str) -> None:
 
 
 def main() -> int:
-    print(seed_log.LAUNCH_LINE, flush=True)
     server = subprocess.Popen([sys.executable, "-m", "phoenix.server.main", "serve"])
     children.append(server)
     signal.signal(signal.SIGTERM, forward)
@@ -110,10 +105,8 @@ def main() -> int:
         print(seed_log.UNHEALTHY_LINE, flush=True)
     exit_code = server.wait()
     # A stop the launcher forwarded is a clean exit; any other signal death is a failure
-    # that the restart policy should see, reported the way a shell would (128 + signal).
-    if stopping:
-        return 0
-    return 128 - exit_code if exit_code < 0 else exit_code
+    # that the restart policy should see.
+    return 0 if stopping else exit_code
 
 
 if __name__ == "__main__":
