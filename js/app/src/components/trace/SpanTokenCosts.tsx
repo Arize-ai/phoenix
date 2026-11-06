@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 import type { TextProps } from "@phoenix/components";
 import { RichTooltip, TooltipArrow, TooltipTrigger } from "@phoenix/components";
@@ -33,7 +33,7 @@ type SpanTokenCostsProps = {
 export function SpanTokenCosts(props: SpanTokenCostsProps) {
   return (
     <TooltipTrigger>
-      <Pressable>
+      <Focusable>
         <TokenCosts
           size={props.size}
           color={props.color}
@@ -42,7 +42,7 @@ export function SpanTokenCosts(props: SpanTokenCostsProps) {
         >
           {props.totalCost}
         </TokenCosts>
-      </Pressable>
+      </Focusable>
       <RichTooltip placement="end">
         <TooltipArrow />
         <Suspense
