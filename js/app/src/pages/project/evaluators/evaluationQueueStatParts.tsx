@@ -37,7 +37,7 @@ function getLastHourTimeRange(): { start: string; end: string } {
  * boundary. Below it, a first load that suspends loses its state, so the
  * range moves on every retry and the query never settles.
  */
-export function useQueueStatsPoll(refreshKey: number) {
+export function useQueueStatsPoll(refreshKey: string | number) {
   const [poll, setPoll] = useState(() => ({
     count: 0,
     lastHour: getLastHourTimeRange(),

@@ -23,6 +23,7 @@ import {
 import { ServerEvaluatorsTimeRangeControls } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluatorsTimeRangeControls";
 import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
+import { useServerEvaluatorsRefreshKey } from "@phoenix/pages/evaluators/project-evaluators/useServerEvaluatorsRefreshKey";
 import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
@@ -56,11 +57,7 @@ export function ProjectEvaluatorsTab() {
 
 function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
-  // Bumped when something on this page changes the queue, or while live when
-  // new spans or evaluation results land, so the strip, the charts and the
-  // table refetch at once instead of on their next poll.
-  const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = () => setRefreshKey((key) => key + 1);
+  const { refreshKey, refresh } = useServerEvaluatorsRefreshKey();
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);

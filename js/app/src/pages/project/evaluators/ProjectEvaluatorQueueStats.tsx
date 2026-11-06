@@ -78,7 +78,7 @@ export function ProjectEvaluatorQueueAside({
 }: {
   projectId: string;
   /** Changes when the queue was changed from this page, to refetch at once. */
-  refreshKey: number;
+  refreshKey: string | number;
   /**
    * Shown under the stats, such as the button that clears the queue. Gets
    * how many of this project's queued evaluations clearing would remove, or
