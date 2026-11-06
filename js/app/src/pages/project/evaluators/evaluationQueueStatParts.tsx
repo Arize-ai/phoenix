@@ -12,7 +12,10 @@ import {
 } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { Badge } from "@phoenix/components/core/badge";
-import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import {
+  formatQueueCount,
+  MAX_QUEUE_COUNT,
+} from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -107,6 +110,31 @@ export function formatAddedPerHour(addedPerMinute: number): string {
 /** Evaluations completed per hour, from the per-minute rate. */
 export function formatCompletedPerHour(completedPerMinute: number): string {
   return intFormatter(Math.round(completedPerMinute * 60));
+}
+
+/**
+ * Added minus completed per hour, signed. Once the added rate is at the queue
+ * count limit the net is a lower bound, shown with one trailing "+".
+ */
+export function getNetPerHour({
+  addedPerMinute,
+  completedPerMinute,
+}: {
+  addedPerMinute: number;
+  completedPerMinute: number;
+}): { netPerHour: number; formatted: string } {
+  const addedPerHour = Math.round(addedPerMinute * 60);
+  const netPerHour = addedPerHour - Math.round(completedPerMinute * 60);
+  if (addedPerHour >= MAX_QUEUE_COUNT) {
+    return { netPerHour, formatted: `${intFormatter(netPerHour)}+` };
+  }
+  return {
+    netPerHour,
+    formatted:
+      netPerHour > 0
+        ? `+${intFormatter(netPerHour)}`
+        : intFormatter(netPerHour),
+  };
 }
 
 /** How long an evaluation may wait before its queue counts as Degraded. */

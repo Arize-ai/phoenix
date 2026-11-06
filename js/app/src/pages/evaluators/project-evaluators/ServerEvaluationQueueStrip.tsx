@@ -12,12 +12,12 @@ import { ClearAllQueuedEvaluationsButton } from "@phoenix/pages/project/evaluato
 import {
   formatQueueCount,
   getClearableCount,
-  MAX_QUEUE_COUNT,
 } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { EvaluationQueueMeter } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import {
   formatAddedPerHour,
   formatCompletedPerHour,
+  getNetPerHour,
   getQueueStatusDetail,
   hasWaitedTooLong,
   HoverDetail,
@@ -159,11 +159,7 @@ function ServerEvaluationQueueStripContent({
       ],
   }));
   const statusDetail = getQueueStatusDetail(queue);
-  const queuedPerHour = Math.round(queue.addedPerMinute * 60);
-  const netPerHour =
-    queuedPerHour >= MAX_QUEUE_COUNT
-      ? MAX_QUEUE_COUNT
-      : queuedPerHour - Math.round(queue.completedPerMinute * 60);
+  const net = getNetPerHour(queue);
   const lag = data.lastHourActivity.lag;
   const isWaitingTooLong =
     queue.oldestWaitingAt != null && hasWaitedTooLong(queue.oldestWaitingAt);
@@ -223,10 +219,8 @@ function ServerEvaluationQueueStripContent({
               </Text>
             }
           >
-            <StatValue color={netPerHour > 0 ? "warning" : null}>
-              {netPerHour > 0
-                ? `+${formatQueueCount(netPerHour)}`
-                : formatQueueCount(netPerHour)}
+            <StatValue color={net.netPerHour > 0 ? "warning" : null}>
+              {net.formatted}
             </StatValue>
           </HoverDetail>
         </StatItem>
