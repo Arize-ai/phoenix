@@ -5,27 +5,27 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Alert, Flex, Text, View } from "@phoenix/components";
 import { useCategoryChartColors } from "@phoenix/components/chart";
 import { Skeleton } from "@phoenix/components/core/loading";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception/ErrorBoundary";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
+import { useServerEvaluationActivity } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
 import { ClearAllQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
+import {
+  formatQueueCount,
+  getClearableCount,
+} from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { EvaluationQueueMeter } from "@phoenix/pages/project/evaluators/EvaluationQueueMeter";
 import {
-  DEGRADED_WAIT_MS,
-  formatPerHour,
-  getQueueLabel,
+  formatAddedPerHour,
+  formatCompletedPerHour,
+  getNetPerHour,
   getQueueStatusDetail,
-  hasWaitedTooLong,
   HoverDetail,
+  OldestWaitStat,
   QUEUE_METER_COLOR_BY_TARGET,
   QueueStatusBadge,
   StatValue,
-  useQueueStatsPoll,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
-import {
-  formatElapsedShort,
-  formatLag,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -45,14 +45,13 @@ const stripCSS = css`
  * nowhere else.
  */
 export function ServerEvaluationQueueStrip({
-  refreshKey,
+  fetchKey,
   onQueueCleared,
 }: {
-  /** Changes when the queue was changed from this page, to refetch at once. */
-  refreshKey: number;
+  /** From the page's queue stats poll. */
+  fetchKey: string;
   onQueueCleared: () => void;
 }) {
-  const { fetchKey, lastHour } = useQueueStatsPoll(refreshKey);
   // Read by the clear button, which stays outside the stats' error boundary
   // so a failed poll can't take the only clear-all control with it.
   const [clearableCount, setClearableCount] = useState<number | null>(null);
@@ -82,7 +81,6 @@ export function ServerEvaluationQueueStrip({
           <Suspense fallback={<StripPlaceholder />}>
             <ServerEvaluationQueueStripContent
               fetchKey={fetchKey}
-              lastHour={lastHour}
               onClearableCount={setClearableCount}
             />
           </Suspense>
@@ -98,29 +96,21 @@ export function ServerEvaluationQueueStrip({
 
 function ServerEvaluationQueueStripContent({
   fetchKey,
-  lastHour,
   onClearableCount,
 }: {
   fetchKey: string;
-  lastHour: { start: string; end: string };
   onClearableCount: (clearableCount: number) => void;
 }) {
-  const { timeRangeISOStrings } = useTimeRange();
   const data = useLazyLoadQuery<ServerEvaluationQueueStripQuery>(
     graphql`
-      query ServerEvaluationQueueStripQuery(
-        $lastHour: TimeRange!
-        $timeRange: TimeRange!
-      ) {
+      query ServerEvaluationQueueStripQuery {
         evaluationQueue {
           status
-          atCapacity
           queuedCount
-          queuedLimit
           runningCount
-          oldestQueuedAt
-          queuedPerMinute
-          evaluationsPerMinute
+          oldestWaitingAt
+          addedPerMinute
+          completedPerMinute
           targets {
             evaluationTarget
             queuedCount
@@ -133,28 +123,16 @@ function ServerEvaluationQueueStripContent({
             queuedCount
           }
         }
-        lastHourActivity: evaluationActivity(timeRange: $lastHour) {
-          lag {
-            p50Seconds
-            p95Seconds
-            p99Seconds
-          }
-        }
-        rangeActivity: evaluationActivity(timeRange: $timeRange) {
-          evaluatedCount
-          failedCount
-          cost
-        }
       }
     `,
-    { lastHour, timeRange: timeRangeISOStrings },
+    {},
     { fetchKey, fetchPolicy: "store-and-network" }
   );
   const queue = data.evaluationQueue;
   const colors = useCategoryChartColors();
   const segments = queue.targets.map((target) => ({
     id: target.evaluationTarget,
-    label: getQueueLabel(target),
+    label: formatEvaluationTarget(target.evaluationTarget),
     count: target.queuedCount,
     color:
       colors[
@@ -164,13 +142,8 @@ function ServerEvaluationQueueStripContent({
       ],
   }));
   const statusDetail = getQueueStatusDetail(queue);
-  const netPerMinute = queue.queuedPerMinute - queue.evaluationsPerMinute;
-  const netPerHour = Math.round(netPerMinute * 60);
-  const lag = data.lastHourActivity.lag;
-  const isWaitingTooLong =
-    queue.oldestQueuedAt != null && hasWaitedTooLong(queue.oldestQueuedAt);
-  const isLagging = lag != null && lag.p95Seconds * 1000 > DEGRADED_WAIT_MS;
-  const clearableCount = queue.queuedCount - queue.runningCount;
+  const net = getNetPerHour(queue);
+  const clearableCount = getClearableCount(queue);
   useEffect(() => {
     onClearableCount(clearableCount);
   }, [clearableCount, onClearableCount]);
@@ -188,92 +161,76 @@ function ServerEvaluationQueueStripContent({
         </StatItem>
         <StatItem label="In queue">
           <Flex direction="column" gap="size-50" minWidth="size-2400">
-            <Flex direction="row" gap="size-75" alignItems="baseline">
-              <HoverDetail
-                detail={
-                  queue.projects.length > 0 ? (
-                    <>
-                      <Text size="S" color="text-700">
-                        Most queued
+            <HoverDetail
+              detail={
+                queue.projects.length > 0 ? (
+                  <>
+                    <Text size="S" color="text-700">
+                      Most queued
+                    </Text>
+                    {queue.projects.map(({ project, queuedCount }) => (
+                      <Text key={project.id} size="S">
+                        {`${project.name}: ${formatQueueCount(queuedCount)}`}
                       </Text>
-                      {queue.projects.map(({ project, queuedCount }) => (
-                        <Text key={project.id} size="S">
-                          {`${project.name}: ${intFormatter(queuedCount)}`}
-                        </Text>
-                      ))}
-                    </>
-                  ) : null
-                }
-              >
-                <StatValue>{intFormatter(queue.queuedCount)}</StatValue>
-              </HoverDetail>
-              <Text size="S" color={queue.atCapacity ? "warning" : "text-700"}>
-                {`/ ${intFormatter(queue.queuedLimit)}`}
-              </Text>
-            </Flex>
-            <EvaluationQueueMeter
-              segments={segments}
-              limit={queue.queuedLimit}
-            />
+                    ))}
+                  </>
+                ) : null
+              }
+            >
+              <StatValue>{formatQueueCount(queue.queuedCount)}</StatValue>
+            </HoverDetail>
+            <EvaluationQueueMeter segments={segments} />
           </Flex>
         </StatItem>
-        <StatItem label="Queued / hr">
-          <StatValue>{formatPerHour(queue.queuedPerMinute)}</StatValue>
+        <StatItem label="Added per hour">
+          <StatValue>{formatAddedPerHour(queue.addedPerMinute)}</StatValue>
         </StatItem>
-        <StatItem label="Completed / hr">
-          <StatValue>{formatPerHour(queue.evaluationsPerMinute)}</StatValue>
+        <StatItem label="Completed per hour">
+          <StatValue>
+            {formatCompletedPerHour(queue.completedPerMinute)}
+          </StatValue>
         </StatItem>
-        <StatItem label="Net / hr">
+        <StatItem label="Net per hour">
           <HoverDetail
             detail={
               <Text size="S" color="text-700">
-                Queued minus completed, last hour
+                Added minus completed, last hour
               </Text>
             }
           >
-            <StatValue color={netPerHour > 0 ? "warning" : null}>
-              {netPerHour > 0
-                ? `+${intFormatter(netPerHour)}`
-                : intFormatter(netPerHour)}
+            <StatValue color={net.netPerHour > 0 ? "warning" : null}>
+              {net.formatted}
             </StatValue>
           </HoverDetail>
         </StatItem>
-        <StatItem label="Lag p95">
-          <HoverDetail
-            detail={
-              <>
-                <Text size="S" color="text-700">
-                  Queued to result, last hour
-                </Text>
-                {lag != null ? (
-                  <Text size="S">{`p50 ${formatLag(lag.p50Seconds)} · p99 ${formatLag(lag.p99Seconds)}`}</Text>
-                ) : null}
-                <Text size="S" color={isWaitingTooLong ? "warning" : undefined}>
-                  {`Longest wait: ${queue.oldestQueuedAt != null ? formatElapsedShort(queue.oldestQueuedAt) : "none"}`}
-                </Text>
-              </>
-            }
-          >
-            <StatValue color={isLagging || isWaitingTooLong ? "warning" : null}>
-              {lag != null ? formatLag(lag.p95Seconds) : "--"}
-            </StatValue>
-          </HoverDetail>
-        </StatItem>
+        <OldestWaitStat oldestWaitingAt={queue.oldestWaitingAt} />
         <StatItem label="Evaluation cost">
-          <HoverDetail
-            detail={
-              <Text size="S">{`${intFormatter(data.rangeActivity.evaluatedCount)} evaluated · ${intFormatter(data.rangeActivity.failedCount)} failed`}</Text>
-            }
-          >
-            <StatValue>
-              {data.rangeActivity.cost != null
-                ? costFormatter(data.rangeActivity.cost)
-                : "--"}
-            </StatValue>
-          </HoverDetail>
+          <Suspense fallback={<StatValue>--</StatValue>}>
+            <EvaluationCostValue fetchKey={fetchKey} />
+          </Suspense>
         </StatItem>
       </div>
     </>
+  );
+}
+
+/** The selected range's cost, from the charts' activity request. */
+function EvaluationCostValue({ fetchKey }: { fetchKey: string }) {
+  const { data } = useServerEvaluationActivity({
+    fetchKey,
+    fetchPolicy: "store-or-network",
+  });
+  const activity = data.evaluationActivity;
+  return (
+    <HoverDetail
+      detail={
+        <Text size="S">{`${intFormatter(activity.evaluatedCount)} evaluated · ${intFormatter(activity.failedCount)} failed`}</Text>
+      }
+    >
+      <StatValue>
+        {activity.cost != null ? costFormatter(activity.cost) : "--"}
+      </StatValue>
+    </HoverDetail>
   );
 }
 
@@ -352,10 +309,10 @@ function StripPlaceholder() {
         valueWidth="var(--global-dimension-size-1200)"
         hasMeter
       />
-      <StatSkeleton labelWidth={77} valueWidth={40} />
-      <StatSkeleton labelWidth={97} valueWidth={40} />
-      <StatSkeleton labelWidth={50} valueWidth={24} />
-      <StatSkeleton labelWidth={53} valueWidth={24} />
+      <StatSkeleton labelWidth={99} valueWidth={40} />
+      <StatSkeleton labelWidth={128} valueWidth={40} />
+      <StatSkeleton labelWidth={81} valueWidth={24} />
+      <StatSkeleton labelWidth={73} valueWidth={24} />
       <StatSkeleton labelWidth={97} valueWidth={24} />
     </div>
   );

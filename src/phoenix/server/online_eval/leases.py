@@ -1,68 +1,28 @@
-"""Advisory leases that normally keep one replica at a time doing each online-eval
-materializer's work, so replicas don't repeat each other's queries, and transaction locks
-for the steps that must not run concurrently at all.
+"""Scan leases: advisory leases that normally keep one replica at a time doing each
+evaluation producer's scan, so replicas don't repeat each other's queries.
 
-No write is fenced on a lease: a holder that stalls past the TTL keeps writing after
+No write is fenced on a scan lease: a holder that stalls past the TTL keeps writing after
 another replica takes the lease over.
 """
 
 from __future__ import annotations
 
-import hashlib
 import logging
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import timedelta
 
-from sqlalchemy import func, or_, select, type_coerce, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import or_, select, update
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
-MATERIALIZER_LEASE_TTL_SECONDS = 90.0
+SCAN_LEASE_TTL_SECONDS = 90.0
 
 
-async def current_database_time(session: AsyncSession, dialect: SupportedSQLDialect) -> datetime:
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        clock = func.statement_timestamp()
-    else:
-        clock = func.strftime("%Y-%m-%d %H:%M:%f", "now")
-    now: Optional[datetime] = await session.scalar(
-        select(type_coerce(clock, models.UtcTimeStamp()))
-    )
-    if now is None:
-        raise RuntimeError("Database did not return its current time")
-    return now
-
-
-async def lock_until_commit(
-    session: AsyncSession,
-    dialect: SupportedSQLDialect,
-    name: str,
-) -> None:
-    """Hold the lock called ``name`` until the session's transaction ends, waiting while
-    another transaction holds it.
-
-    On PostgreSQL this is a transaction-scoped advisory lock, so it holds across replicas.
-    SQLite runs on one replica, and its one write connection is checked out to a session
-    from the session's first statement until its transaction ends, so no other write runs
-    in between and there is nothing more to take.
-    """
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        await session.execute(select(func.pg_advisory_xact_lock(_advisory_lock_key(name))))
-
-
-def _advisory_lock_key(name: str) -> int:
-    """A stable 64-bit key, derived from the name so it is unlikely to match another
-    application's advisory locks on the same database."""
-    return int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
-
-
-class MaterializerLease:
+class ScanLease:
     """A named row in ``eval_work_leases``, held by ``holder`` while its heartbeat stays
     fresh by the database clock."""
 
@@ -84,7 +44,7 @@ class MaterializerLease:
                         models.EvalWorkLease.holder.is_(None),
                         models.EvalWorkLease.holder == self.holder,
                         models.EvalWorkLease.heartbeat_at
-                        < now - timedelta(seconds=MATERIALIZER_LEASE_TTL_SECONDS),
+                        < now - timedelta(seconds=SCAN_LEASE_TTL_SECONDS),
                     ),
                 )
                 .values(holder=self.holder, heartbeat_at=now)

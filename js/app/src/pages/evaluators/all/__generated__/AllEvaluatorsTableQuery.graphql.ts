@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1de16410ee9c7916d33b4b3f630ba9f6>>
+ * @generated SignedSource<<e8b782f7a3af675808ad36eda9665334>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "HEALTHY" | "NEVER_RUN" | "STARTING";
 export type AllEvaluatorsTableQuery$variables = {
   first: number;
 };
@@ -45,11 +45,11 @@ export type AllEvaluatorsTableQuery$data = {
           readonly name: string;
         };
         readonly runSummary: {
-          readonly droppedCount: number;
+          readonly clearedCount: number;
           readonly evaluatedCount: number;
           readonly failedCount: number;
           readonly lastRunAt: string | null;
-          readonly oldestQueuedAt: string | null;
+          readonly oldestWaitingOrRetryingAt: string | null;
           readonly queuedCount: number;
           readonly status: ProjectEvaluatorRunStatus;
         };
@@ -187,14 +187,14 @@ v11 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "droppedCount",
+      "name": "clearedCount",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "oldestQueuedAt",
+      "name": "oldestWaitingOrRetryingAt",
       "storageKey": null
     }
   ],
@@ -419,16 +419,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bafad62d2d202e24190f88753ac21c09",
+    "cacheID": "251bb0b3b5dc2ded324e6139918e6eca",
     "id": null,
     "metadata": {},
     "name": "AllEvaluatorsTableQuery",
     "operationKind": "query",
-    "text": "query AllEvaluatorsTableQuery(\n  $first: Int!\n) {\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          evaluatedCount\n          failedCount\n          droppedCount\n          oldestQueuedAt\n        }\n      }\n    }\n  }\n  datasetEvaluators(first: $first, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        dataset {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query AllEvaluatorsTableQuery(\n  $first: Int!\n) {\n  projectEvaluators(first: $first) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        project {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        runSummary {\n          status\n          lastRunAt\n          queuedCount\n          evaluatedCount\n          failedCount\n          clearedCount\n          oldestWaitingOrRetryingAt\n        }\n      }\n    }\n  }\n  datasetEvaluators(first: $first, sort: {col: createdAt, dir: desc}) {\n    edges {\n      node {\n        id\n        name\n        createdAt\n        updatedAt\n        dataset {\n          id\n          name\n        }\n        evaluator {\n          __typename\n          kind\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1ba7dd43dc0d7a57ac7ff25f5ff86cc3";
+(node as any).hash = "c2c7c8ea598627fdc969700351cc412e";
 
 export default node;

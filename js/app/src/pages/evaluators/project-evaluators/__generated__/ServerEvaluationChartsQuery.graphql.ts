@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<30bb57df09b96c1d0470aa8ceb92abfe>>
+ * @generated SignedSource<<274e756516763fe32d5cd77bc6a030eb>>
  * @lightSyntaxTransform
  */
 
@@ -38,13 +38,13 @@ export type ServerEvaluationChartsQuery$data = {
     }>;
     readonly series: ReadonlyArray<{
       readonly groups: ReadonlyArray<{
+        readonly addedCount: number;
         readonly evaluatedCount: number;
         readonly failedCount: number;
+        readonly lagP95Seconds: number | null;
         readonly project: {
           readonly id: string;
         };
-        readonly queueSize: number;
-        readonly queuedCount: number;
       }>;
       readonly timestamp: string;
     }>;
@@ -57,7 +57,6 @@ export type ServerEvaluationChartsQuery$data = {
       readonly queuedCount: number;
     }>;
     readonly queuedCount: number;
-    readonly queuedLimit: number;
   };
 };
 export type ServerEvaluationChartsQuery = {
@@ -132,13 +131,6 @@ v8 = [
     "name": "evaluationQueue",
     "plural": false,
     "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "queuedLimit",
-        "storageKey": null
-      },
       (v2/*:: as any*/),
       {
         "alias": null,
@@ -243,12 +235,18 @@ v8 = [
               (v4/*:: as any*/),
               (v5/*:: as any*/),
               (v6/*:: as any*/),
-              (v2/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "queueSize",
+                "name": "addedCount",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "lagP95Seconds",
                 "storageKey": null
               }
             ],
@@ -285,16 +283,16 @@ return {
     "selections": (v8/*:: as any*/)
   },
   "params": {
-    "cacheID": "e81de4cf71c05ffc490a55109a177c24",
+    "cacheID": "6f75acc58e88ade81fb59515df5c4a12",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationChartsQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedLimit\n    queuedCount\n    projects(first: 1000) {\n      project {\n        id\n      }\n      queuedCount\n    }\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        queuedCount\n        queueSize\n      }\n    }\n  }\n}\n"
+    "text": "query ServerEvaluationChartsQuery(\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  evaluationQueue {\n    queuedCount\n    projects(first: 1000) {\n      project {\n        id\n      }\n      queuedCount\n    }\n  }\n  evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n    evaluatedCount\n    failedCount\n    cost\n    groups {\n      project {\n        id\n        name\n      }\n      evaluatedCount\n      failedCount\n      cost\n    }\n    series {\n      timestamp\n      groups {\n        project {\n          id\n        }\n        evaluatedCount\n        failedCount\n        addedCount\n        lagP95Seconds\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c96fe6cc9baf227ef0482b64c2a4b234";
+(node as any).hash = "262655a0f4ddfd8a617ed83342e7806c";
 
 export default node;

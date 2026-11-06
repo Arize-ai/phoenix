@@ -13,7 +13,7 @@ async def advance_trace_liveness(
     session: AsyncSession,
     trace_rowids: Iterable[int],
 ) -> None:
-    """Advance each trace's span-ingest watermark without allowing regression."""
+    """Advance each trace's last span ingest time without letting it move back."""
     rowids = tuple(dict.fromkeys(trace_rowids))
     if not rowids:
         return

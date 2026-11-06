@@ -1524,7 +1524,6 @@ CREATE TABLE project_evaluators (
         ),
     input_mapping JSONB,
     enabled BOOLEAN DEFAULT true NOT NULL,
-    swept_through_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
@@ -1555,7 +1554,7 @@ CREATE TABLE eval_session_work_units (
     id INTEGER NOT NULL,
     project_session_rowid INTEGER NOT NULL,
     project_evaluator_id INTEGER NOT NULL,
-    evaluated_through TIMESTAMP NOT NULL,
+    decided_through TIMESTAMP NOT NULL,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_session_work_units_`valid_eval_work_status`"
 CHECK (status IN (
@@ -1591,7 +1590,7 @@ CHECK (status IN (
 );
 
 CREATE INDEX ix_eval_session_work_units_claimable ON eval_session_work_units
-    (status, id)
+    (status, id, created_at)
     WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_session_work_units_project_evaluator_done ON eval_session_work_units
     (project_evaluator_id, updated_at)
@@ -1601,6 +1600,9 @@ CREATE INDEX ix_eval_session_work_units_project_evaluator_failed ON eval_session
     WHERE status IN ('FAILED', 'EXPIRED');
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON eval_session_work_units
     (project_evaluator_id);
+CREATE INDEX ix_eval_session_work_units_project_evaluator_live ON eval_session_work_units
+    (project_evaluator_id, status, created_at)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_session_work_units_terminal ON eval_session_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
 
@@ -1611,7 +1613,7 @@ CREATE TABLE eval_trace_work_units (
     id INTEGER NOT NULL,
     trace_rowid INTEGER NOT NULL,
     project_evaluator_id INTEGER NOT NULL,
-    evaluated_through TIMESTAMP NOT NULL,
+    decided_through TIMESTAMP NOT NULL,
     status VARCHAR DEFAULT 'PENDING' NOT NULL
         CONSTRAINT "ck_eval_trace_work_units_`valid_eval_work_status`"
 CHECK (status IN (
@@ -1646,7 +1648,8 @@ CHECK (status IN (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_eval_trace_work_units_claimable ON eval_trace_work_units (status, id)
+CREATE INDEX ix_eval_trace_work_units_claimable ON eval_trace_work_units
+    (status, id, created_at)
     WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_done ON eval_trace_work_units
     (project_evaluator_id, updated_at)
@@ -1656,6 +1659,9 @@ CREATE INDEX ix_eval_trace_work_units_project_evaluator_failed ON eval_trace_wor
     WHERE status IN ('FAILED', 'EXPIRED');
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON eval_trace_work_units
     (project_evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_live ON eval_trace_work_units
+    (project_evaluator_id, status, created_at)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_trace_work_units_terminal ON eval_trace_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
 
@@ -1697,7 +1703,7 @@ CHECK (status IN (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_eval_work_units_claimable ON eval_work_units (status, id)
+CREATE INDEX ix_eval_work_units_claimable ON eval_work_units (status, id, created_at)
     WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_work_units_project_evaluator_done ON eval_work_units
     (project_evaluator_id, updated_at)
@@ -1707,8 +1713,25 @@ CREATE INDEX ix_eval_work_units_project_evaluator_failed ON eval_work_units
     WHERE status IN ('FAILED', 'EXPIRED');
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON eval_work_units
     (project_evaluator_id);
+CREATE INDEX ix_eval_work_units_project_evaluator_live ON eval_work_units
+    (project_evaluator_id, status, created_at)
+    WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED');
+
+
+-- Table: project_evaluator_state
+-- ------------------------------
+CREATE TABLE project_evaluator_state (
+    project_evaluator_id INTEGER NOT NULL,
+    span_start_rowid INTEGER,
+    swept_through_at TIMESTAMP,
+    CONSTRAINT pk_project_evaluator_state PRIMARY KEY (project_evaluator_id),
+    CONSTRAINT fk_project_evaluator_state_project_evaluator_id_project_evaluators
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES project_evaluators (id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: project_session_annotations

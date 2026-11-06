@@ -200,7 +200,7 @@ const CHART_DEFINITIONS: Record<
   },
   evaluation_lag_by_evaluator: {
     name: "Lag p95 by evaluator",
-    description: "Time from queued to result",
+    description: "Time from added to completed",
     chartType: "line",
     Component: EvaluationLagByEvaluatorTimeSeries,
   },
@@ -224,7 +224,7 @@ const CHART_DEFINITIONS: Record<
   },
   evaluation_queue_size: {
     name: "Queue size",
-    description: "Queued or running evaluations",
+    description: "Evaluations in queue",
     chartType: "line",
     Component: EvaluationQueueSizeTimeSeries,
   },

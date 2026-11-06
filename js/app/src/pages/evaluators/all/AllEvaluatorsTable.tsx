@@ -151,8 +151,8 @@ export function AllEvaluatorsTable({
                 queuedCount
                 evaluatedCount
                 failedCount
-                droppedCount
-                oldestQueuedAt
+                clearedCount
+                oldestWaitingOrRetryingAt
               }
             }
           }

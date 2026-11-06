@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c274bf332e0d9c355ca08058b47928a>>
+ * @generated SignedSource<<b3dbab643ae55d95714461bf216411bd>>
  * @lightSyntaxTransform
  */
 
@@ -8,15 +8,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ClearQueuedEvaluationsInput = {
+export type ClearProjectQueuedEvaluationsInput = {
   projectId: string;
 };
 export type ClearQueuedEvaluationsButtonMutation$variables = {
-  input: ClearQueuedEvaluationsInput;
+  input: ClearProjectQueuedEvaluationsInput;
 };
 export type ClearQueuedEvaluationsButtonMutation$data = {
-  readonly clearQueuedEvaluations: {
-    readonly droppedCount: number;
+  readonly clearProjectQueuedEvaluations: {
+    readonly clearedCount: number;
   };
 };
 export type ClearQueuedEvaluationsButtonMutation = {
@@ -42,16 +42,16 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "ClearQueuedEvaluationsPayload",
+    "concreteType": "ClearProjectQueuedEvaluationsPayload",
     "kind": "LinkedField",
-    "name": "clearQueuedEvaluations",
+    "name": "clearProjectQueuedEvaluations",
     "plural": false,
     "selections": [
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "droppedCount",
+        "name": "clearedCount",
         "storageKey": null
       }
     ],
@@ -76,16 +76,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "11a609adf8c2948b446f89fbfe512514",
+    "cacheID": "b9c33f05edf19fd5f4939985119fa102",
     "id": null,
     "metadata": {},
     "name": "ClearQueuedEvaluationsButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation ClearQueuedEvaluationsButtonMutation(\n  $input: ClearQueuedEvaluationsInput!\n) {\n  clearQueuedEvaluations(input: $input) {\n    droppedCount\n  }\n}\n"
+    "text": "mutation ClearQueuedEvaluationsButtonMutation(\n  $input: ClearProjectQueuedEvaluationsInput!\n) {\n  clearProjectQueuedEvaluations(input: $input) {\n    clearedCount\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "505d488fa440f4dcabccf0db41df5b0c";
+(node as any).hash = "dfb3476ee21d9fbd3cffac47710b119a";
 
 export default node;

@@ -33,7 +33,6 @@ const binGroup = (
   failedCount: 0,
   lagP95Seconds: null,
   cost: null,
-  queueSize: 0,
   ...overrides,
 });
 
@@ -146,10 +145,7 @@ describe("getQueueSizeRows", () => {
       getQueueSizeRows([
         {
           timestamp: "2026-10-28T10:00:00Z",
-          groups: [
-            binGroup("a", { queueSize: 3 }),
-            binGroup("b", { queueSize: 4 }),
-          ],
+          groups: [{ queueSize: 3 }, { queueSize: 4 }],
         },
       ])
     ).toEqual([

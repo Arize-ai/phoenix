@@ -20,17 +20,17 @@ from sqlalchemy.ext.compiler import compiles
 _EVAL_WORK_STATUS_CHECK = (
     "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
 )
-_EVAL_SESSION_WORK_STATUS_CHECK = (
+_SWEPT_TARGET_WORK_STATUS_CHECK = (
     "status IN ('PENDING', 'RUNNING', 'ERROR', 'DONE', 'FAILED', 'EXPIRED', 'DROPPED', "
     "'CONTENT_LOST', 'FILTERED_OUT', 'SAMPLED_OUT')"
 )
-_LIVE_EVAL_WORK_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
-_TERMINAL_EVAL_WORK_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
-_TERMINAL_EVAL_SESSION_WORK_PREDICATE = (
+_QUEUED_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
+_TERMINAL_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED')"
+_SWEPT_TARGET_TERMINAL_PREDICATE = (
     "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
 )
-_FAILED_EVAL_WORK_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
-_DONE_EVAL_WORK_PREDICATE = "status = 'DONE'"
+_FAILED_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
+_DONE_PREDICATE = "status = 'DONE'"
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -77,14 +77,14 @@ def _create_session_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "evaluated_through",
+            "decided_through",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
         ),
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(_EVAL_SESSION_WORK_STATUS_CHECK, name="valid_eval_work_status"),
+            sa.CheckConstraint(_SWEPT_TARGET_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -110,36 +110,44 @@ def _create_session_work_units_table() -> None:
     op.create_index(
         "ix_eval_session_work_units_claimable",
         "eval_session_work_units",
-        ["status", "id"],
-        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        ["status", "id", "created_at"],
+        postgresql_where=sa.text(_QUEUED_PREDICATE),
+        sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_terminal",
         "eval_session_work_units",
         ["updated_at"],
-        postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
-        sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+        postgresql_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
+        sqlite_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_project_evaluator_id",
         "eval_session_work_units",
         ["project_evaluator_id"],
     )
+    # Each evaluator's queued work by status and age, read without walking its history.
+    op.create_index(
+        "ix_eval_session_work_units_project_evaluator_live",
+        "eval_session_work_units",
+        ["project_evaluator_id", "status", "created_at"],
+        postgresql_where=sa.text(_QUEUED_PREDICATE),
+        sqlite_where=sa.text(_QUEUED_PREDICATE),
+    )
     # Each evaluator's newest success and newest failure, found without walking its history.
     op.create_index(
         "ix_eval_session_work_units_project_evaluator_done",
         "eval_session_work_units",
         ["project_evaluator_id", "updated_at"],
-        postgresql_where=sa.text(_DONE_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_DONE_EVAL_WORK_PREDICATE),
+        postgresql_where=sa.text(_DONE_PREDICATE),
+        sqlite_where=sa.text(_DONE_PREDICATE),
     )
     op.create_index(
         "ix_eval_session_work_units_project_evaluator_failed",
         "eval_session_work_units",
         ["project_evaluator_id", "updated_at"],
-        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        postgresql_where=sa.text(_FAILED_PREDICATE),
+        sqlite_where=sa.text(_FAILED_PREDICATE),
     )
 
 
@@ -160,14 +168,14 @@ def _create_trace_work_units_table() -> None:
             nullable=False,
         ),
         sa.Column(
-            "evaluated_through",
+            "decided_through",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
         ),
         sa.Column(
             "status",
             sa.String(),
-            sa.CheckConstraint(_EVAL_SESSION_WORK_STATUS_CHECK, name="valid_eval_work_status"),
+            sa.CheckConstraint(_SWEPT_TARGET_WORK_STATUS_CHECK, name="valid_eval_work_status"),
             nullable=False,
             server_default="PENDING",
         ),
@@ -193,36 +201,44 @@ def _create_trace_work_units_table() -> None:
     op.create_index(
         "ix_eval_trace_work_units_claimable",
         "eval_trace_work_units",
-        ["status", "id"],
-        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        ["status", "id", "created_at"],
+        postgresql_where=sa.text(_QUEUED_PREDICATE),
+        sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
     op.create_index(
         "ix_eval_trace_work_units_terminal",
         "eval_trace_work_units",
         ["updated_at"],
-        postgresql_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
-        sqlite_where=sa.text(_TERMINAL_EVAL_SESSION_WORK_PREDICATE),
+        postgresql_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
+        sqlite_where=sa.text(_SWEPT_TARGET_TERMINAL_PREDICATE),
     )
     op.create_index(
         "ix_eval_trace_work_units_project_evaluator_id",
         "eval_trace_work_units",
         ["project_evaluator_id"],
     )
+    # Each evaluator's queued work by status and age, read without walking its history.
+    op.create_index(
+        "ix_eval_trace_work_units_project_evaluator_live",
+        "eval_trace_work_units",
+        ["project_evaluator_id", "status", "created_at"],
+        postgresql_where=sa.text(_QUEUED_PREDICATE),
+        sqlite_where=sa.text(_QUEUED_PREDICATE),
+    )
     # Each evaluator's newest success and newest failure, found without walking its history.
     op.create_index(
         "ix_eval_trace_work_units_project_evaluator_done",
         "eval_trace_work_units",
         ["project_evaluator_id", "updated_at"],
-        postgresql_where=sa.text(_DONE_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_DONE_EVAL_WORK_PREDICATE),
+        postgresql_where=sa.text(_DONE_PREDICATE),
+        sqlite_where=sa.text(_DONE_PREDICATE),
     )
     op.create_index(
         "ix_eval_trace_work_units_project_evaluator_failed",
         "eval_trace_work_units",
         ["project_evaluator_id", "updated_at"],
-        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        postgresql_where=sa.text(_FAILED_PREDICATE),
+        sqlite_where=sa.text(_FAILED_PREDICATE),
     )
 
 
@@ -372,11 +388,6 @@ def upgrade() -> None:
         sa.Column("input_mapping", JSON_, nullable=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column(
-            "swept_through_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=True,
-        ),
-        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
@@ -404,6 +415,18 @@ def upgrade() -> None:
         "ix_project_evaluators_trace_project_id",
         "project_evaluators",
         ["trace_project_id"],
+    )
+    op.create_table(
+        "project_evaluator_state",
+        sa.Column(
+            "project_evaluator_id",
+            _Integer,
+            sa.ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+            primary_key=True,
+            autoincrement=False,
+        ),
+        sa.Column("span_start_rowid", _Integer, nullable=True),
+        sa.Column("swept_through_at", sa.TIMESTAMP(timezone=True), nullable=True),
     )
     op.create_table(
         "eval_work_units",
@@ -453,36 +476,44 @@ def upgrade() -> None:
     op.create_index(
         "ix_eval_work_units_claimable",
         "eval_work_units",
-        ["status", "id"],
-        postgresql_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_LIVE_EVAL_WORK_PREDICATE),
+        ["status", "id", "created_at"],
+        postgresql_where=sa.text(_QUEUED_PREDICATE),
+        sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
     op.create_index(
         "ix_eval_work_units_terminal",
         "eval_work_units",
         ["updated_at"],
-        postgresql_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_TERMINAL_EVAL_WORK_PREDICATE),
+        postgresql_where=sa.text(_TERMINAL_PREDICATE),
+        sqlite_where=sa.text(_TERMINAL_PREDICATE),
     )
     op.create_index(
         "ix_eval_work_units_project_evaluator_id",
         "eval_work_units",
         ["project_evaluator_id"],
     )
+    # Each evaluator's queued work by status and age, read without walking its history.
+    op.create_index(
+        "ix_eval_work_units_project_evaluator_live",
+        "eval_work_units",
+        ["project_evaluator_id", "status", "created_at"],
+        postgresql_where=sa.text(_QUEUED_PREDICATE),
+        sqlite_where=sa.text(_QUEUED_PREDICATE),
+    )
     # Each evaluator's newest success and newest failure, found without walking its history.
     op.create_index(
         "ix_eval_work_units_project_evaluator_done",
         "eval_work_units",
         ["project_evaluator_id", "updated_at"],
-        postgresql_where=sa.text(_DONE_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_DONE_EVAL_WORK_PREDICATE),
+        postgresql_where=sa.text(_DONE_PREDICATE),
+        sqlite_where=sa.text(_DONE_PREDICATE),
     )
     op.create_index(
         "ix_eval_work_units_project_evaluator_failed",
         "eval_work_units",
         ["project_evaluator_id", "updated_at"],
-        postgresql_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
-        sqlite_where=sa.text(_FAILED_EVAL_WORK_PREDICATE),
+        postgresql_where=sa.text(_FAILED_PREDICATE),
+        sqlite_where=sa.text(_FAILED_PREDICATE),
     )
     _create_session_work_units_table()
     _create_trace_work_units_table()
@@ -561,6 +592,9 @@ def downgrade() -> None:
         "ix_eval_trace_work_units_project_evaluator_done", table_name="eval_trace_work_units"
     )
     op.drop_index(
+        "ix_eval_trace_work_units_project_evaluator_live", table_name="eval_trace_work_units"
+    )
+    op.drop_index(
         "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
     )
     op.drop_index("ix_eval_trace_work_units_terminal", table_name="eval_trace_work_units")
@@ -574,6 +608,9 @@ def downgrade() -> None:
         "ix_eval_session_work_units_project_evaluator_done", table_name="eval_session_work_units"
     )
     op.drop_index(
+        "ix_eval_session_work_units_project_evaluator_live", table_name="eval_session_work_units"
+    )
+    op.drop_index(
         "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
     )
     op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
@@ -582,10 +619,12 @@ def downgrade() -> None:
 
     op.drop_index("ix_eval_work_units_project_evaluator_failed", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_project_evaluator_done", table_name="eval_work_units")
+    op.drop_index("ix_eval_work_units_project_evaluator_live", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
+    op.drop_table("project_evaluator_state")
     op.drop_index("ix_project_evaluators_evaluator_id", table_name="project_evaluators")
     op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
     op.drop_table("project_evaluators")
