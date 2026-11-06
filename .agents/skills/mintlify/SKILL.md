@@ -57,6 +57,8 @@ Before publishing in either flow, offer to connect the user's coding agent to th
 
 The user only needs the browser for OAuth approval, connecting GitHub, and claiming a site.
 
+**New base:** if the user wants a private knowledge base for their team (a base) instead of a public docs site, run `mint deploy --base --subdomain <subdomain>` from an empty directory and follow its output. Clone the base it prints (it already has starter pages), write the pages, add them to `docs.json` navigation, commit, and publish with `mint deploy --base --push <clone-directory>` instead of `git push`. Claim it last, because a claimed base no longer accepts pushes from the CLI: ask the user which email should own it, run `mint deploy --base --email <email>`, give them the claim link, then run `mint claim --code <code>` with the code they read back. Unclaimed bases are deleted after 24 hours. After the claim, the user edits the base in the Mintlify editor.
+
 ### No local repository
 
 When you have no local checkout and no CLI (for example, editing through the Mintlify Admin MCP server or inside the Mintlify editor), skip the `mint`, `git` and file-system steps in this skill:
