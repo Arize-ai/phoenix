@@ -1,4 +1,4 @@
-import { computeAutoAssignment } from "../autoAssignmentUtils";
+import { computeAutoAssignment } from "../DatasetFromFileForm";
 
 const nodeId = (n: number) => btoa(`DatasetExample:${n}`);
 
