@@ -11,10 +11,6 @@ import type { DatasetFormParams } from "./DatasetForm";
 import { DatasetForm } from "./DatasetForm";
 
 export type CreateDatasetFormProps = {
-  /**
-   * The form stays in its submitting state until a returned promise settles,
-   * so a caller can keep it busy while it navigates away.
-   */
   onDatasetCreated: (
     dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
   ) => void | Promise<void>;
