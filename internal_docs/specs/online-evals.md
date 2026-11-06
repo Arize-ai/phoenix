@@ -1,602 +1,226 @@
 # Project Evaluators
 
-Project evaluators are project-level automations that run existing evaluators against live
-`spans`, `traces`, and `sessions` after ingestion, providing continuous measurement of
-production traffic. ("Online evals" is the colloquial term.)
+This document records current thinking about online evaluation, not settled rules; where it and the code differ, the code is right.
 
-This spec builds on [server_evaluators.md](./server_evaluators.md), which defines the reusable
+Project evaluators run existing evaluators against live spans, traces, and sessions after they
+are ingested, so production traffic is scored continuously. ("Online evals" is the colloquial
+term.) They build on [server_evaluators.md](./server_evaluators.md), which defines the reusable
 evaluator definitions; this document covers how those are attached to projects and run against
 live data.
 
-## Status
-
-This document frames the problem — terminology, the hard parts, and the shape of the design — and
-in a few areas (deterministic sampling, queue semantics, error handling) proposes concrete
-mechanisms. It does not settle every decision: before implementation, the
-[open questions](#open-questions) must be narrowed into an explicit v1 slice with chosen defaults
-for target type, readiness, filtering, extraction, sampling, queue semantics, and auditability.
-
-The live path is the initial focus — an agent running, an evaluator added, metrics flowing. Spans
-are the easier case; traces and sessions add readiness, aggregation, and re-evaluation complexity
-that v1 should scope deliberately.
-
-## Goals
-
-- Automatically evaluate spans, traces, and sessions as live data arrives, so production traffic
-  is scored continuously. The intent is to make Phoenix proactive: a trace shows up and already
-  tells you whether it was good or bad.
-- Let users configure the scope of the data evaluated (filters).
-- Control evaluation volume with sampling for cost; other heuristics (cost or latency thresholds)
-  may also narrow what gets evaluated.
-- Persist results as annotations on spans, traces, and sessions.
-- Keep ingestion reliable.
-- Keep the experience automatic: no jobs or cron to configure, and evaluation happens as quickly
-  as possible — a trace arrives and moments later can be filtered on. The system behaves like a
-  queue, not a batch job.
-
-## Non-Goals (initial release)
-
-- Downstream automations — signals/webhooks, alerting, paging (e.g. PagerDuty), automatic
-  dataset curation, annotation-queue routing, workflow triggers. These are what project
-  evaluators *unlock*, but they are out of scope for this spec's initial release.
-- Shipping the entire complex-filter vocabulary in the initial release (see
-  [Filters](#filters)). Topology- and session-level filtering is a large workstream; session-filter
-  vocabulary in particular is unsettled. A useful subset can ship without solving all of it.
-
-### Deferred, but in scope
-
-Two capabilities are not the initial focus but are valuable and likely to follow. Both look
-backward at data that already exists rather than being ingestion-driven. Excluding them creates a
-usability gap: if you have traces, create an evaluator, and those traces cannot be evaluated,
-something is wrong. Design them with the live path in mind; they may not share its execution
-mechanism.
-
-- **Backfilling** existing data — e.g. "run this evaluator over last week to see whether
-  something went bad on Black Friday." Backward-looking, long-running, more like a scheduled job.
-- **Manual triggering** on a chosen artifact — immediate feedback while developing or tuning an
-  evaluator, distinct from backfill's fire-and-forget nature. Also useful internally while the
-  live path is still being built.
-
 ## Terminology
 
-- **Evaluator definition** — A reusable evaluator (LLM, code, or built-in) defined by the server
-  evaluator system.
-- **Project evaluator** — A project attachment that binds one evaluator definition to live data.
-  It specifies what to evaluate, when, and at what rate.
-- **Target** — The artifact type a project evaluator runs against: `span`, `trace`, or `session`.
-  Trace and session are meta-concepts layered on top of spans, so they are harder to define than
-  spans.
-- **Attachment point** — Where the resulting annotation is written, which is not necessarily the
-  target. A span-level judgment may be attached to the enclosing trace so it isn't buried.
+What people see, in the UI, GraphQL, and docs:
 
-## Use Cases
+- **Evaluation** — one evaluator applied to one span, trace, or session.
+- **In queue** — evaluations not yet finished: **waiting** to start, **retrying** after an error,
+  or **running**.
+- **Added** and **completed** — evaluations that entered the queue, and those that finished
+  (evaluated or failed), in a time window.
+- **Cleared** — removed from the queue before it ran: by a user clearing the queue, by enabling
+  the evaluator, or because the evaluator was disabled when its turn came.
+- **Lag** — the time from added to completed.
+- **Wait** — how long the oldest waiting evaluation has waited. It drives Degraded.
+- **Load** — an evaluator's share of all evaluation time on the server.
+- **Start point** — where an evaluator begins evaluating: on create, on enable, and, for span
+  evaluators, when the filter or sampling rate changes.
+- **Evaluator status** — Healthy, Starting, Degraded, Error, Disabled, or Never ran (see
+  [Queue health](#queue-health)).
 
-### Monitor final answers in production
+In the code, schema, and metrics:
 
-As a user running a RAG or agent application, I want to automatically judge a sample of
-final-answer LLM spans so I can spot hallucinations and quality regressions without manually
-reviewing every response.
+- **Work unit** — the row for one evaluation, in `eval_work_units` (spans),
+  `eval_trace_work_units`, or `eval_session_work_units`.
+- **Target** — the span, trace, or session being evaluated. Traces and sessions are **swept
+  targets**.
+- **Evaluation producer** — adds evaluations to the queue, one per target:
+  `SpanEvaluationProducer` scans new spans in arrival order; `TraceEvaluationProducer` and
+  `SessionEvaluationProducer` (both `SweepingEvaluationProducer`s) sweep for targets that went
+  quiet. "Scan" and "sweep" are what a producer does, not role names.
+- **Evaluation consumer** — `EvaluationConsumer`, one per target, runs queued evaluations.
+- **Span cursor** — the span producer's position in the span arrival log
+  (`eval_span_cursors.produced_through_id`). **High water** is the newest span id it has seen.
+- **Scan window** — the span ids one tick reads, from the span cursor to the window end.
+- **Catch-up scan** — the span producer's hourly re-read behind the span cursor.
+- **Visibility lag** — how long producers wait before relying on new rows, so rows from
+  transactions that commit late are seen (`VISIBILITY_LAG_SECONDS`, 60 s).
+- **Retention floor** and **retention cleanup** — finished span work below the floor and older
+  than the retention period is deleted.
+- **Span start** — `project_evaluator_state.span_start_rowid`: a span evaluator evaluates only
+  spans above it.
+- **Sweep position** — `project_evaluator_state.swept_through_at`: how far a trace or session
+  evaluator has swept. **Sweep start** is the sweep position minus the visibility lag.
+- **Decided through** — `decided_through`, the activity a sweep decision covered.
+- **Scan lease** and **claim lease** — the advisory lease a producer holds while it scans, and
+  the lease a consumer holds on a claimed work unit.
+- **Lapsed-claim recovery** — failing claimed work whose claim lease lapsed with no attempts
+  left.
 
-The judgment runs on the final-answer span, but I may want it surfaced on the whole trace so it
-isn't buried — i.e. the thing under evaluation is a span, but the annotation should land on the
-trace. This is harder with auto-instrumenters: repeated span names (e.g. an intermediary router
-span) make it difficult to uniquely qualify which span to attach to.
+## Goals and limits
 
-### Score completed agent traces
+- Evaluate spans, traces, and sessions as they arrive, so a trace shows up and moments later can
+  be filtered on by its scores. The system behaves like a queue, not a batch job.
+- Let users choose what is evaluated (filters) and how much (sampling).
+- Write results as annotations on spans, traces, and sessions.
+- Never delay or fail ingestion. If evaluation is unhealthy, Phoenix still ingests and shows
+  traces.
 
-As a user tracing multi-step agent workflows, I want to evaluate each trace after it finishes
-so I can measure task success, tool-use correctness, or user frustration at the workflow level
-rather than on individual spans.
+Not built yet, and likely to follow: backfilling data that existed before an evaluator was turned
+on, running an evaluator on demand against a chosen span or trace, evaluating when a late
+annotation (such as user feedback) arrives, and downstream automations such as alerts.
 
-The simplest form evaluates root-span I/O ("did the agent answer the question?"). A harder form
-evaluates the *trajectory* — the sequence of steps taken. Start with the non-trajectory case.
+## What a project evaluator defines
 
-### Assess long-running sessions
+A project evaluator attaches one evaluator definition (LLM, code, built-in, or decision) to a
+project. It holds what users configure, in `project_evaluators`:
 
-As a user with conversational agents, I want to evaluate a session after the user goes idle so
-I can measure coherence, resolution, and trajectory over the full conversation — not just the
-last turn.
+- the **target**: spans, traces, or sessions, fixed at creation;
+- a **filter**, written in the filter language of the target;
+- a **sampling rate**, the fraction of matching targets to evaluate;
+- an **evaluation delay** for traces and sessions: how long a target must be quiet before it is
+  evaluated (5 minutes by default, at least 10 seconds);
+- an **input mapping** from the target's data to the evaluator's inputs;
+- whether it is **enabled**.
 
-A `project_sessions` row already exists (traces grouped by `session_id`) but carries no evaluable
-content beyond a derived `first_input` / `last_output`, so evaluating the whole conversation
-requires an aggregation strategy over its traces and spans. Useful starting points:
+What the producers track about it lives apart, in `project_evaluator_state`: the span start and
+the sweep position. A row is written only once there is a position to record, and a missing row
+means no span start and a sweep from the evaluator's creation. Because the producers never write
+`project_evaluators`, its `updated_at` changes only when a user edits the evaluator.
 
-- **Conversational coherency** — treat the conversation as an ordered list of turns (the chatbot
-  use case).
-- **First-in / last-out** — compare the initial question against the final answer to judge
-  whether the session reached a conclusion (e.g. did it end on an open question or "let me know
-  if there's anything else I can help with").
-- **AI–human message pairs** — the alternating messages, ignoring tool calls.
+## How evaluation runs
 
-We should ship good standard strategies first, then let users define custom session aggregation.
-
-### Evaluate on user feedback
-
-As a user, I want to evaluate the artifacts that received negative user feedback (e.g. all the
-thumbs-down responses) so I can read the explanations and understand my product. Feedback
-arrives as an annotation, often *after* the span or trace was ingested, so the evaluator has to
-wait for that annotation to be ready before it can run — a readiness/timing problem distinct
-from filtering, and the feedback may live on the trace rather than the span being evaluated.
-
-### Control cost at scale
-
-As a user with high-volume production traffic, I want to filter to the spans or traces that
-matter and sample a fraction of them so automated evaluation stays affordable without turning
-off monitoring entirely. Beyond sampling, cost and latency are useful thresholds: as context
-windows grow, expensive traces carry higher stakes, so I may want to filter on them.
-
-### Triage failures in the UI
-
-As a user reviewing production data, I want evaluator results to appear as annotations on
-spans, traces, and sessions — the same surfaces I already use for human review — so I can
-filter, sort, and drill into flagged artifacts, including a time-series view of eval results I
-can zoom into and follow back to the failing traces.
-
-### Audit why an eval did or didn't run
-
-As a user configuring project evaluators, I want to see run history and status for each
-definition so I can tell whether an expected annotation is missing because of a filter,
-sampling, overload backpressure, a configuration error, or a transient failure — and, for
-failures, why and where. Evaluators are failure-prone, so this must be auditable.
-
-## What a Project Evaluator Defines
-
-A project evaluator is not a new evaluator type. It is a project-level attachment to an existing
-evaluator definition. Each attachment specifies:
-
-- **Project and target type** — which project it applies to, and whether to evaluate individual
-  spans, whole traces, or sessions.
-- **Attachment point** — where the annotation is written; may differ from the target (evaluate a
-  span, annotate the trace).
-- **Filter** — which artifacts are eligible (optional; may be multi-level / topology-aware — see
-  [Filters](#filters)).
-- **Extraction & input mapping** — how target data is extracted and mapped into the evaluator's
-  inputs (see [Extraction and Input Mapping](#extraction-and-input-mapping)).
-- **Sampling rate** — what fraction of *matching* (post-filter) artifacts to evaluate.
-- **Completion behavior** — for traces and sessions, how long to wait after the last activity
-  before treating the artifact as ready to evaluate.
-- **Enabled state** — whether new evaluations should be enqueued.
-
-A project evaluator also needs stable identity. Runs and annotations should be traceable back to
-the project evaluator configuration that produced them, not only to the reusable evaluator
-definition. The identity model should be rich enough to explain which evaluator, configuration,
-target, attachment point, mapping, and eligibility decision produced a result or failed to do so —
-this identity is what drives both audit and override behavior (see [Output](#output)).
-
-## Extraction and Input Mapping
-
-Mapping target data into an evaluator's inputs is two steps, not one:
-
-1. **Extraction** — pull the values the evaluator needs out of the raw span/trace/session. This
-   is more than reading attributes off a single span: the relevant data may live on a *different*
-   span than the one being evaluated (e.g. a tool call sits on one span while the evaluator
-   judges the messages after it), and extraction may need to hoist nested fields — "all the tool
-   calls under this span as a list" — up to the entity under evaluation. A little hoisting exists
-   already (`Trace.root_span`; `ProjectSession.first_input` / `last_output`), but there is no
-   generalized "turn" or aggregation abstraction, so anything deeper is new — and may eventually
-   become user-definable.
-2. **Mapping** — bind the extracted values into the evaluator's template inputs (the existing
-   dataset-style dictionary mapping).
-
-For simple span evaluators extraction is a trivial attribute mapping; the complexity appears at
-the trace and session levels, where it becomes a *hoisting* problem. Whether extraction happens
-before or after filtering is open (it interacts with how complex filters need to be). We avoid
-the "ETL" framing, but extraction + transformation generalizes the current evaluator input model
-and needs its own data model.
-
-## Queuing
-
-Project evaluators are queue-driven, not job-scheduled (see [Goals](#goals)): matching artifacts
-are evaluated asynchronously after ingestion. Queuing and filtering are co-equal hard problems — a
-mis-sized queue can blow up under high ingest, which is why the
-[overload backstop](#reliability-errors-and-auditability) exists.
-
-The product requirements: queued work is recoverable, duplicate work does not produce duplicate
-user-visible results, and skipped or failed work is explainable. Transient queue state must not be
-the only record of whether something was supposed to be evaluated. The live trigger is part of the
-latency story, not the whole correctness story — the system needs a way to recover eligible work
-missed because of restarts, overload, delayed data, or other ordinary operational failures.
-
-There are (at least) three trigger classes, and they are not all ingestion-driven: a span is
-stored (span targets); an artifact goes quiet after an idle period (trace/session targets); and a
-**late annotation arrives** — e.g. user thumbs-down feedback landing well after ingestion (the
-[feedback use case](#evaluate-on-user-feedback)). The third is event-driven, not
-ingestion-triggered, and is the main reason the queue cannot be purely ingestion-driven. v1 may
-scope it out, but the trigger model should name it rather than leave it implicit — and its
-semantics (which annotations qualify, re-trigger on update, recursion via evaluator-written
-annotations) are [open question #12](#open-q-12).
-
-Design questions include:
-
-- When evaluation becomes eligible — on span store, after a trace/session readiness signal, or on
-  a late annotation arriving.
-- How the system recovers eligible work that was missed by the live path.
-- Deduplication and re-evaluation when an artifact goes quiet and then receives new activity.
-- Priority and fairness across project evaluators and projects.
-- Backpressure when configured sampling exceeds processing capacity (see
-  [Overload backstop](#reliability-errors-and-auditability)).
-
-## Target Behavior
-
-Project evaluators run after ingestion. They must never delay or fail ingestion.
-
-A project evaluator evaluates only what arrives after it is turned on. Creating one starts it at
-now, and so does enabling one again: spans, traces, and sessions that arrived or went quiet while
-it was off are never evaluated, and enabling it drops the work it still had queued from before it
-was disabled. A span evaluator also starts again at now when its filter or sampling rate changes,
-so a widened selection does not reach back over spans already passed. Trace and session work
-already declined (filtered out or sampled out) is final, so their selection edits need nothing.
-Older artifacts belong to backfill, which is a separate feature.
-
-Spans carry the start as `project_evaluators.span_rowid_floor`, a span id no scan reaches for
-that evaluator; traces and sessions carry it as `swept_through_at`, set to the database's time on
-enable. Both are set in the one write path every binding update shares, so GraphQL, REST and the
-CLI behave alike.
+Three roles share the work, coordinated through the database so any number of replicas can run
+them. Producers add evaluations to the queue, consumers run them, and the queue measures report
+on both.
 
 ### Spans
 
-Spans are eligible as soon as they are stored. When a matching span is ingested, the project
-evaluator runs against that span's data. On a simple level spans are the tractable case — take
-the attributes (and a few extras) and push them into an LLM-as-a-judge or code-as-a-judge.
+The span producer scans the span arrival log. Each tick, once the newest span it has seen is
+older than the visibility lag, it reads the scan window (at most 10,000 span ids), applies each
+span evaluator's filter and sampling, adds a work unit per sampled span, and moves the span
+cursor to the window end. After a full window the next tick starts at once. An hourly catch-up
+scan re-reads the 100,000 span ids behind the cursor to pick up spans that became visible after
+their window was read. The scan lease keeps one replica scanning at a time, but no write depends
+on it: the unique (span, evaluator) key absorbs duplicates, and a scan commits only if the cursor
+has not moved since it was read.
 
-Example: judge every final-answer LLM span, or a sampled subset, for hallucination.
+Retention cleanup deletes finished span work older than the retention period, but never above the
+retention floor, the cursor minus the catch-up scan's lookback, so the catch-up scan cannot queue
+a span again.
 
-### Traces
+### Traces and sessions
 
-Traces do not have an explicit "done" event. **How to detect completion is still open:** root
-span end, an idle period after the last span, or both for different evaluator types. One viable
-approach is to use a quiet period (same mechanism as sessions). As with sessions, v1 evaluates each
-trace once per project evaluator, when its first quiet period elapses; spans that arrive after the
-evaluation do not schedule another one.
+Traces and sessions have no "done" event, so a swept target is ready once it has been quiet for
+the evaluator's delay, judged by its last span ingest time. Every 10 seconds, each sweeping
+producer reads a page of ready targets (at most 1,000) with activity after the evaluator's sweep
+start, and decides each one: filtered out, sampled out, or added to the queue. Each decision
+records the activity it covered as `decided_through`, and the sweep position moves forward. A
+trace evaluation sees the root span's input and output, though its filter can match on any span
+in the trace; a session evaluation sees its turns, up to 1,000.
 
-Trace evaluation has two flavors. Treating a trace as its root span makes the simple case easy:
-evaluate the root span's I/O ("did the agent answer my question?"). The harder case evaluates
-the trajectory. Start with the root-span case. A trace annotation may also be produced by an
-evaluator whose target is a span (see attachment point).
+Each target is evaluated once per project evaluator, at its first quiet period. Later activity
+does not schedule another evaluation, and a filtered-out or sampled-out decision is final. The
+exception is an evaluation that produced no result: one that failed, expired, lost its content,
+or was cleared is offered again once new spans arrive and the target goes quiet again. Spans that
+arrived while it was running might not trigger that.
 
-Example: after an agent trace finishes, score whether the user got a correct answer.
+### Consumers
 
-### Sessions
+Each replica runs one consumer per target. A consumer claims queued work units, loads the
+evaluator's current configuration, runs it, and writes the annotations and marks the unit done in
+one transaction. Every write after a claim checks that the claim still holds, so a unit taken over
+by another replica is never finished twice. A claim lease lasts 90 seconds and is renewed while
+the evaluation runs; work whose lease lapses is claimed again. An evaluation that runs past
+10 minutes is stopped. `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` bounds how many
+evaluations a replica runs at once, across targets.
 
-Sessions are open-ended and can resume. The likely readiness mechanism is an idle timeout: a
-session is treated as ready for evaluation after no new activity arrives for some configured
-duration. This is only a pragmatic proxy for "complete" — e.g. sessions idle for a day may be
-considered done, even though that is not strictly true.
+## Start point
 
-v1 evaluates each session once per project evaluator, when its first quiet period elapses. Neither
-later activity nor an edit to the project evaluator schedules another evaluation. This deliberate
-initial limitation is tracked in [#14903](https://github.com/Arize-ai/phoenix/issues/14903), which
-owns result identity, re-entry and frequency, recovery after permanent failure, and staleness
-detection for in-flight evaluation.
+A project evaluator evaluates only what arrives after it is turned on. Creating one starts it at
+now, and so does enabling it again; enabling it also clears the work it still had queued from
+before it was disabled. A span evaluator also starts again at now when its filter or sampling
+rate changes, so a widened selection does not reach back over spans already passed. Trace and
+session decisions already made are final, so their selection edits need nothing.
 
-An evaluation that produced no result is the exception: a session or trace whose evaluation
-failed, expired, found its content gone, or was cleared from the queue is retried once new spans
-arrive after that and it goes quiet again. Spans that arrived while the evaluation was running
-might not trigger a retry.
+A span evaluator's span start is the span cursor, which trails the newest span by about the
+visibility lag, so spans from a minute or two before the start can still be evaluated. A trace or
+session counts if it has activity after the start, within the 60-second visibility lag. Older data
+belongs to backfill, which is a separate feature.
 
-When re-evaluation lands, it should **override** rather than stack: if a session was judged
-"incomplete" and later completes, the newer judgment should replace the earlier one (see
-[Output](#output) for override-key requirements). Run history should still preserve prior
-evaluations for audit.
+Start points are written in the same transaction as the configuration change, through the one
+write path that GraphQL, REST, and the CLI share.
 
-Example: after a support chat ends, assess whether the agent stayed coherent and moved toward
-resolution.
+## Filters and sampling
 
-## Filters
+Span evaluators use the span filter language (`src/phoenix/trace/dsl/filter.py`), and trace and
+session evaluators use their own filter languages, applied when the target is decided. A filter
+that fails to compile, or fails when it runs, skips that evaluator for the window or page rather
+than holding back the others. Changing a filter or sampling rate affects only future targets.
 
-Filtering is a large workstream. Today, the only filter language is the span-scoped `SpanFilter`
-DSL (`src/phoenix/trace/dsl/filter.py`): a Python expression over a single span, with no
-parent/child/subtree predicates. Project evaluators need more levels:
-
-- **Target-level filters** — the target has a specific attribute or property: latency, a metadata
-  field, a status/error message. This is closest to what `SpanFilter` already does, but there are
-  gaps even here — span **cost is not currently filterable** (costs live in a separate
-  `span_costs` table), so cost-based filtering is new work.
-- **Parent / trace-level filters** — topology-aware conditions on the target's position, e.g.
-  "LLM spans whose root/parent span is the orchestrator agent," or sub-agent spans. Match when
-  the condition holds for the root span (the `parent_id IS NULL` span) of the trace. `SpanFilter`
-  exposes `parent_id` only as a scalar column, so this is not expressible today.
-- **Tree-level filters** — the target is eligible if *any* span anywhere under the trace matches
-  a condition, e.g. "evaluate this trace only if a planner sub-agent was called," or "traces
-  with three or more tool calls."
-
-These need any/all semantics and can become arbitrarily complex — effectively a
-"search for the bad traces" product in itself. They likely cannot be expressed purely in the
-database, so some evaluation happens in Python, which makes them open-endedly expensive. We do
-not need to solve all levels at launch; a subset is still useful, and we can carve out room for
-the rest.
-
-The session filter DSL shipped in [#14101](https://github.com/Arize-ai/phoenix/pull/14101), closing
-[#14041](https://github.com/Arize-ai/phoenix/issues/14041). SESSION online evaluation applies this
-filter at the session's first eligible quiet period, then applies deterministic sampling to
-matches. A filter non-match or sampling miss is recorded permanently for that evaluator
-configuration, and later activity does not reopen the decision.
-
-Changing a filter affects only future artifacts; it does not backfill or re-run past data.
-
-## Sampling
-
-Sampling controls volume after filtering. A rate of 0 evaluates nothing; 1 evaluates everything.
-Sampling is applied to the post-filter subset, not to overall traffic.
-
-### Deterministic sampling (ρ)
-
-One likely approach is deterministic sampling. Each artifact gets a stable pseudo-random value
-**ρ** (rho) in `[0, 1)` by hashing its ID (`span_id`, `trace_id`, or `session_id`, depending on
-target type). A good hash yields a uniform ρ regardless of what the raw ID looks like, so all
-three ID types work equally well — `session_id` being a user-supplied string rather than a random
-OTel ID makes no difference once hashed. Hashing makes ρ deterministic per artifact without extra
-state, so the same artifact is always in or out across retries and restarts.
-
-An artifact is sampled when it matches the filter **and** ρ < rate.
-
-Beyond volume control, the reason to share ρ is **density**: when several evaluators are meant to
-apply to the same artifacts (so their results are comparable on those artifacts rather than
-scattered across disjoint samples), a shared ρ makes them co-sample instead of each drawing an
-independent subset.
-
-Example:
-
-```
-filterA: X == '1'                          →  X == '1' && ρ < rateA   (e.g. 0.7)
-filterB: X == '1' && Y == '2'              →  X == '1' && Y == '2' && ρ < rateB   (e.g. 0.5)
-```
-
-Without sampling, filterB is clearly a subset of filterA. With shared ρ, filterB's sampled set
-remains a subset of filterA's **as long as rateB ≤ rateA** — every artifact B evaluates was
-also eligible under A's sampling gate. The same property holds when two evaluators share the
-exact filter and rate: they evaluate the identical artifacts (e.g. a cheap code evaluator at 60%
-plus an LLM-as-judge on the same 60%, so results are comparable).
-
-More generally: nested filters with nested rates (stricter filter, lower or equal rate) preserve
-density automatically; no independent coin flip per evaluator is needed.
-
-Open cases: rateB > rateA with nested filters (B could sample artifacts outside A's sample);
-evaluators that need a different ρ basis; whether grouping is inferred from filter/rate nesting
-or configured explicitly.
-
-If we support both comparable and independent samples, the deterministic value should probably be
-derived from an explicit sampling cohort/salt in addition to the artifact ID. Evaluators in the
-same cohort share density; evaluators in different cohorts get independent deterministic samples.
-This keeps the product behavior explainable instead of making correlation an accidental side
-effect of implementation.
-
-Because ρ depends only on the artifact's ID, the `ρ < rate` gate **commutes** with filtering:
-`{matches filter} ∩ {ρ < rate}` is the same set regardless of order. Sampling stays *defined* as
-post-filter (the sampled fraction is of the matching set), but the implementation is free to apply
-the cheap ρ gate first and discard most artifacts before running the open-endedly expensive
-Python tree filters from [Filters](#filters).
-
-Changing the sampling rate affects only future artifacts.
+Sampling is applied to the targets that match the filter. Each target gets a stable value ρ in
+`[0, 1)` from a hash of its id (span row id, `trace_id`, or `session_id`), and it is sampled when
+ρ is below the rate. The hash is the same for every evaluator, so samples nest: with nested
+filters and nested rates, every target a stricter, lower-rate evaluator samples is also sampled by
+the broader one, and two evaluators with the same filter and rate evaluate the same targets. A
+target is always in or out across retries and restarts.
 
 ## Output
 
-Each successful run writes annotations to the configured attachment artifact using Phoenix's
-existing annotation model (label, score, explanation). Usually the attachment artifact is the
-evaluated artifact; in the hoisting case the target may be a span while the annotation is written
-to the trace so the result is visible at the workflow level. `annotator_kind` (`LLM` / `CODE`)
-already distinguishes automated annotations from human ones at the data level, so the remaining
-gap is UI treatment and traceability back to the specific project evaluator and run — not captured
-today (there is no FK from an annotation to a project evaluator).
+Each successful evaluation writes annotations to the target with the existing annotation model
+(label, score, explanation). The annotation's `identifier` is derived from the project
+evaluator's configuration, and an evaluation keeps the first annotation written under it, so a
+project evaluator annotates a target at most once per configuration. Each evaluation also writes a
+trace of its own to the project evaluator's trace project, which is where errors and timings can
+be read and what evaluator load is measured from.
 
-When re-evaluation lands, it can map onto an existing mechanism: the annotation tables enforce
-`UniqueConstraint(name, <target>_rowid, identifier)`, so writing with a stable `identifier` gives
-upsert/override for free — a later run would replace its own prior annotation. Deriving that
-`identifier` takes care, because `<target>_rowid` is the *attachment* artifact, not the source.
-When the annotation lands on the artifact it evaluated, keying `identifier` on the project
-evaluator configuration is enough. But when a span-level judgment is hoisted onto its enclosing
-trace, `<target>_rowid` is the trace, so judgments from *different source spans* would overwrite
-each other unless the `identifier` also encodes the **source span's ID** — this is not solved by
-"target", which [Terminology](#terminology) defines as the artifact *type* (identical across those
-spans). So the override key = project evaluator configuration + attachment point + specific source
-artifact, precise enough that concurrent judgments on one trace stay distinct and a re-run
-overwrites only its own prior result. This is the same uniqueness problem as
-[open question #5](#open-q-5) (auto-instrumented duplicate span names). Prior evaluations are
-preserved for audit not by the annotation row (overwritten) but by the run record (see
-[Run Records and Audit](#run-records-and-audit)).
+## Queue health
 
-## Run Records and Audit
+The queue has no size limit. Producers add everything they find, so overload shows as a growing
+queue and a longer wait, not as dropped work. The queue is **Degraded** when its oldest waiting
+evaluation has waited over 10 minutes; retries are not counted, so one evaluator's provider outage
+does not mark the shared queue. Counts are exact up to 1,000,000 and shown as "1,000,000+" past
+that.
 
-v1 does not overwrite: online evals keep the first annotation written under an `identifier`, and
-each work unit publishes at most once, so a project evaluator writes its annotations for a target
-at most once. SESSION filter and sampling declines are durable terminal
-work-unit states, but other decisions that produce *no* annotation (including span filter/sample
-misses) still lack a complete cross-target run history. Several requirements in this spec
-presuppose a durable record that the annotation tables cannot provide:
+Each evaluator's status comes from its own evaluations only, by precedence: Disabled when turned
+off; Error when its newest completed evaluation failed; Degraded when its oldest waiting or
+retrying evaluation has waited over 10 minutes; Healthy when its newest completed evaluation
+succeeded; Starting when work is queued but none has completed; Never ran otherwise.
 
-- **Audit** ("why is this annotation missing?") needs to tell filtered-out, sampled-out, pending,
-  cleared, failed, and succeeded apart — none of which an absent annotation row can express.
-- **Override history** — prior evaluations should stay inspectable even though the visible
-  annotation was overwritten.
-- **Failure taxonomy** — the classes in [open question #10](#open-q-10) need somewhere to write a
-  decision that produced no annotation.
+## Clearing
 
-None of this fits the annotation tables (no `error` column, no status column, one row per
-`(name, target, identifier)`). It needs its own run/decision record — roughly one row per
-evaluation attempt, capturing the target, the eligibility decision, the outcome or error, and a
-link to the evaluator trace. `experiment_eval_logs` is the closest existing pattern (a per-eval-job
-row with `level` / `message` / `detail`). This store is effectively v1-blocking: without it, "why
-didn't this run" — which this spec calls a v1 priority — is unanswerable, and [open question #26](#open-q-26) (retention) presupposes it.
+A user can clear the queued evaluations of one project evaluator, one project, or every project.
+Evaluations already running are not cleared. Turning an evaluator off does not clear its queue, so
+a large clear never fails the toggle: its queued evaluations are cleared, not run, when their turn
+comes, the evaluators page clears them right after turning one off, and turning it on again
+clears any still queued. Cleared evaluations are not failures and do not affect the status.
 
-## Reliability, Errors, and Auditability
+## Failures
 
-- Evaluation runs in the background and does not block ingestion or normal query traffic.
-- The evaluator system should fail independently from the core observability path: if evaluation
-  is unhealthy, Phoenix should still ingest and display traces normally.
-- Disabling a project evaluator stops new runs immediately.
-- **Clearing the queue.** A user can clear the queued evaluations of one project evaluator, one
-  project, or every project. Turning a project evaluator off doesn't clear its queued
-  evaluations, so a large clear can never fail the toggle: they are dropped, not run, when their
-  turn comes, the evaluators page clears them right after turning one off, and turning it on
-  again drops any still queued. So work queued before a disable never runs, whatever path
-  disabled it. Cleared evaluations are recorded as dropped, not failed, so clearing never turns
-  an evaluator to Error. Evaluations already running are not cleared.
-- **Overload backstop.** If configured sampling exceeds what we can process at the current ingest
-  rate, the queue grows: the queue has no size limit. The span producer and the trace and session
-  sweepers queue everything they find, and start their next pass at once after a full page that
-  made progress, so the span cursor and the sweep watermarks keep up with ingest and overload is
-  never a delay before work is queued. The queue's status reports it: Degraded once the oldest
-  waiting evaluation has waited over 10 minutes. Each evaluator's status reflects its own
-  evaluations, so an evaluator reads Degraded only when its own oldest waiting evaluation has.
-  Clearing the queue is how a user sheds a backlog.
-  Queue counts are exact up to 1,000,000 (`MAX_QUEUE_COUNT` in `queue_health.py`). Every read
-  of queued rows stops there: per project evaluator, through a per-evaluator index of queued
-  rows, and per evaluation target and status for the queue's totals, rates and chart. Every
-  count and the queued rate is capped at that number after any summing, so a value there means
-  at least that many, and the evaluators pages show it as "1,000,000+".
-  A future overload policy (a size or lag limit that drops work) needs no migration: trace and
-  session work can be dropped as DROPPED rows behind the sweep watermarks, and span work by
-  raising an evaluator's `span_rowid_floor`. Neither needs a new status.
-- **Self-triggering loop guard.** Evaluator runs produce their own traces, which must not
-  recursively enqueue the same class of project evaluations. This largely falls out of the
-  architecture: if evaluator traces live in a dedicated project (as
-  [server_evaluators.md](./server_evaluators.md) proposes) and project evaluators are per-project,
-  evaluator traces are only a risk when a user deliberately routes them into a monitored project —
-  so the guard is a targeted check, not a pervasive concern. Note this covers only *trace*
-  recursion: if annotation arrival is a trigger, evaluator-written annotations open a separate
-  loop that project scoping does not close (see [open question #12](#open-q-12)).
-- Transient failures (provider errors, rate limits, timeouts) should be retried with backoff;
-  configuration errors should not be retried until the user fixes the setup.
-- Failed runs should not write partial annotations.
-- Runs and annotations should carry enough identity to explain which project evaluator,
-  evaluator definition/version, target, attachment point, mapping, and eligibility decision
-  produced a result or failure.
+- A failed evaluation is retried with backoff, up to 3 attempts. Provider outages and other
+  transient errors retry without using an attempt, for up to a day.
+- An evaluation that cannot run, such as one whose target no longer exists, ends without a retry.
+- A failed evaluation writes no annotation.
+- Evaluator traces live in the project evaluator's own trace project, so they do not trigger
+  project evaluators unless a user routes them into a monitored project.
 
-### Capturing errors
+## Open questions
 
-LLM-as-judge evaluators fail, retry, and sometimes give up. The live span/trace/session annotation
-tables have no place to record that. Experiment-run annotations already carry an **error** column
-(populated when an evaluator errors) — a precedent for surfacing failure on a different table, but
-online evals should not flatten retry logs into the annotation itself.
-
-- **Trace the evaluators** (preferred starting point). If evaluator runs are themselves traced
-  (the Evaluator Traces concept proposed in [server_evaluators.md](./server_evaluators.md), not
-  yet a shipped, general feature), a trace records that an error happened, and also *why* and
-  *where*. The important product requirement is
-  that evaluator failures can be connected back to the artifact they were trying to evaluate. This
-  keeps error logs out of the annotation itself, which is treated as a completion step; flattening
-  retry logs into an annotation munges two different things.
-- **Stateful annotations** (progressive enhancement). Simple annotation states — queued, pending,
-  completed, errored — would let a user see, for an artifact with several expected annotations,
-  which are pending or failed and click through, without digging through retry-noisy logs (5
-  failures that are just retries add noise). Not required for the first release; annotation state
-  can be bubbled into the data model later.
-
-A useful eventual view (per project evaluator): the artifacts that were eligible, which ran
-successfully, and which failed.
-
-**v1 priority:** evals run reliably and the user can understand recent production data within
-seconds to minutes (e.g. scan the last hour and see what failed). Rich evaluator auditing comes
-after queuing, filtering, and the core annotation loop work.
-
-## Examples
-
-### Span-level final answer judge
-
-Filter to final-answer LLM spans. Sample 25%. Run a hallucination or answer-quality evaluator.
-Results appear as span annotations (optionally hoisted onto the trace).
-
-### Trace-level task success judge
-
-Filter to traces matching a product workflow. Evaluate every matching trace after a quiet period.
-Results appear as trace annotations. Spans that arrive after the evaluation do not trigger another
-one.
-
-### Session-level coherence judge
-
-Sample 10% of sessions. Evaluate after the user goes idle. Results appear as session
-annotations. A session that resumes after its evaluation is not evaluated again.
-
-## Open Questions
-
-This is the full backlog, including operational and security concerns implied by running
-evaluators continuously against production data. The first release does **not** need to answer
-all of it, so the questions are grouped into two tiers rather than kept in the order they were
-raised.
-
-### V1-blocking
-
-These define the v1 slice; together with the run/decision record data model (see
-[Run Records and Audit](#run-records-and-audit)) they must be answered before implementation.
-Scope-defining questions come first.
-
-1. Which targets should v1 support — span only, span plus root-span trace evaluation, or a
-   limited trace/session subset?
-2. Execution topology — where does evaluation run (in-process daemon, background process,
-   separate worker), how do multiple server replicas coordinate ownership so an artifact is
-   evaluated exactly once, and how do SQLite vs. PostgreSQL deployments constrain the design?
-   The experiment runner already solves a version of this
-   ([experiment-runner-background-process.md](./experiment-runner-background-process.md):
-   heartbeat-based ownership for PostgreSQL, orphan recovery on restart, round-robin dispatch) —
-   how much of it is reusable?
-3. Queue design — enqueue timing, deduplication, priority/fairness, and how backpressure
-   interacts with ρ-based sampling decisions.
-4. How should trace readiness be detected — root-span completion, idle timeout after the last
-   span, or both? What are the default timeout values for traces and sessions?
-5. <a id="open-q-5"></a>How do we uniquely qualify a span for attachment when auto-instrumented span names repeat
-   (e.g. an intermediary router span)?
-6. Does extraction happen before or after filtering?
-7. Which extraction/hoisting primitives are built in, and does v1 allow user-defined hoisting?
-8. What session filter vocabulary should v1 expose, and should a session condition apply to
-   *any* or *all* of the session's spans?
-9. When nested filters have rateB > rateA, should B still be allowed to sample outside A's
-   sample, or should density be enforced? Should grouping be inferred from filter/rate nesting
-   or configured explicitly? And should the ρ hash algorithm be pinned as an explicit
-   compatibility guarantee — determinism across retries and restarts is only as good as the hash
-   staying fixed across Phoenix versions?
-10. <a id="open-q-10"></a>What is the failure taxonomy: retryable failure, terminal failure, configuration error,
-    sampled out, disabled evaluator, and skipped because the target changed?
-
-### Can follow v1
-
-Important but not v1-blocking; roughly ordered by how soon each will matter, with near-resolved
-questions and policy knobs at the bottom.
-
-11. How do evaluator definition changes, prompt/model changes, mapping changes, filter changes,
-    and sampling changes affect existing annotations and future override behavior?
-12. <a id="open-q-12"></a>What defines the annotation-arrival trigger — which annotation names and kinds qualify (human
-    feedback only?), and does an *updated* annotation re-trigger? And how is annotation-level
-    recursion prevented — evaluators *write* annotations, so evaluator A's output can match
-    evaluator B's annotation trigger and vice versa ([open question #25](#open-q-25) covers only trace-level recursion)?
-13. <a id="open-q-13"></a>Whose credentials and execution context are used for LLM and code evaluators, and what
-    isolation is required so evaluator execution cannot compromise ingestion or server health?
-14. What data minimization rules apply before span/trace/session fields are sent to an external
-    LLM-as-a-judge provider? And what about score integrity in the other direction — production
-    span content is untrusted input fed into the judge prompt, so adversarial content (prompt
-    injection) can skew scores; data minimization covers data leaving the building, not data
-    lying to the judge.
-15. How should late data be handled — out-of-order spans, delayed feedback annotations, and traces
-    or sessions that never become quiet?
-16. Where should evaluation errors surface — evaluator traces (with target metadata), a stateful
-    annotation, or an error field on the annotation (as experiment-run annotations already have)?
-17. `annotator_kind` already separates `LLM` / `CODE` from `HUMAN` at the data level — how should
-    that surface in the UI, and how do we additionally trace an annotation back to the specific
-    project evaluator that produced it (no such link exists today)? Relatedly, the annotation
-    `source` column is constrained to `API` / `APP` — which value do project-evaluator annotations
-    get, or do they need a third value (a schema migration if so)?
-18. Which user roles may create, edit, enable, or disable project evaluators? These
-    configurations spend money and send production data to external providers, so this is
-    distinct from [open question #13](#open-q-13) (whose credentials *execute* the evaluation).
-19. How does a user learn that an evaluator was disabled or persistently
-    failing? The audit surface covers *pull* ("why is this annotation missing?"); nothing yet
-    covers *push* — without it, a silently disabled evaluator is discovered days later via
-    missing annotations.
-20. What happens to in-flight evaluations when a project evaluator is disabled, changed, or made
-    obsolete by a newer evaluation of the same target?
-21. How should concurrency and fairness be enforced across projects and project evaluators so one
-    noisy configuration cannot starve the rest?
-22. What retry policy should LLM-as-a-judge failures use — max attempts, backoff, jitter, and
-    special handling for provider rate limits?
-23. How do run records and annotations interact with data retention — what happens when the
-    source artifact is deleted by a retention policy, and does the missed-work recovery scan
-    (see [Queuing](#queuing)) interact badly with deletion?
-24. For re-evaluated traces and sessions, should users choose between updating the latest
-    annotation and keeping every snapshot, or should v1 always show the latest? (Full versioning
-    of evaluators/annotations is likely too heavy; a lightweight one-time "correction" mechanism
-    may serve the retuning use case instead.)
-25. <a id="open-q-25"></a>How are evaluator-generated traces identified and excluded so they do not recursively trigger
-    project evaluators? (Largely resolved by the dedicated-project architecture — see
-    [Reliability](#reliability-errors-and-auditability); what remains is the deliberately
-    re-routed case.)
-26. <a id="open-q-26"></a>How long should run history — run attempts, skipped decisions, failures, and previous
-    overwritten annotations — be retained and remain queryable?
+- **Backfill and on-demand runs.** How to evaluate data from before an evaluator was turned on,
+  and how to run one evaluator against a chosen target while developing it.
+- **Re-evaluation.** Whether a trace or session that resumes after its evaluation should be
+  evaluated again, and whether the newer result should replace the earlier one. Replacing needs an
+  annotation identity that includes the source target when a result is written somewhere other
+  than the target it judged.
+- **Annotation-arrival triggers.** Which annotations should start an evaluation (for example, a
+  thumbs-down), and how to keep evaluators from triggering each other through the annotations
+  they write.
+- **Run history.** Span filter and sampling declines leave no record, so "why is this annotation
+  missing?" cannot always be answered. A durable record of every decision, and how long to keep
+  it, is still to be designed.
+- **Richer filters.** Parent- and tree-level conditions ("traces where a planner sub-agent was
+  called") and filtering on cost.
+- **Load and timeliness.** If a size or lag limit is ever added, it should drop work under the
+  existing DROPPED status so it needs no migration.
+- **Notification.** How a user learns that an evaluator was disabled or keeps failing.
+- **Data sent to providers.** What to minimize before production content goes to an external
+  judge, and how to keep adversarial content from skewing scores.
