@@ -43,6 +43,8 @@ import {
 import { Tab, TabList, TabPanel, Tabs } from "@phoenix/components/core/tabs";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
+import { getRestErrorDetail } from "@phoenix/utils/errorUtils";
+import { isGlobalIdOfType } from "@phoenix/utils/globalIdUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
 import { isPlainObject, safelyParseJSONString } from "@phoenix/utils/jsonUtils";
 
@@ -64,15 +66,67 @@ export type DatasetUploadSummary = {
   numDeletedExamples: number;
 };
 
+/** Preview rows of an uploaded file: CSV rows or parsed JSONL objects. */
+type PreviewData = string[][] | Record<string, unknown>[];
+
 type AutoAssignmentResult = ColumnAssignerValue & {
   splitKey: string | null;
   exampleIdKey: string | null;
 };
 
+function holdsDatasetExampleNodeIds({
+  column,
+  columns,
+  rows,
+}: {
+  column: string;
+  columns: string[];
+  rows: PreviewData;
+}): boolean {
+  const index = columns.indexOf(column);
+  return rows.some((row) => {
+    const value = Array.isArray(row) ? row[index] : row[column];
+    return (
+      typeof value === "string" && isGlobalIdOfType(value, "DatasetExample")
+    );
+  });
+}
+
+/**
+ * Node IDs name examples of an existing dataset, which a new dataset cannot
+ * contain, so an exported `id` column is left unselected in create mode.
+ */
+function isAutoExampleIdColumn({
+  column,
+  columns,
+  rows,
+  mode,
+}: {
+  column: string;
+  columns: string[];
+  rows: PreviewData;
+  mode: "create" | "append";
+}): boolean {
+  if (!isAutoIdColumn(column)) {
+    return false;
+  }
+  return (
+    mode === "append" || !holdsDatasetExampleNodeIds({ column, columns, rows })
+  );
+}
+
 /**
  * Auto-assign columns based on name matching heuristics.
  */
-function computeAutoAssignment(columns: string[]): AutoAssignmentResult {
+export function computeAutoAssignment({
+  columns,
+  previewRows,
+  mode,
+}: {
+  columns: string[];
+  previewRows: PreviewData;
+  mode: "create" | "append";
+}): AutoAssignmentResult {
   const result: AutoAssignmentResult = {
     input: [],
     output: [],
@@ -84,7 +138,7 @@ function computeAutoAssignment(columns: string[]): AutoAssignmentResult {
     if (isAutoSplitColumn(column)) {
       result.splitKey ??= column; // first match wins
     }
-    if (isAutoIdColumn(column)) {
+    if (isAutoExampleIdColumn({ column, columns, rows: previewRows, mode })) {
       result.exampleIdKey ??= column; // first match wins
     }
     const bucket = getAutoAssignment(column);
@@ -100,8 +154,6 @@ function computeAutoAssignment(columns: string[]): AutoAssignmentResult {
 }
 
 type DatasetFileType = "csv" | "jsonl" | null;
-
-type PreviewData = string[][] | Record<string, unknown>[];
 
 type CreateDatasetFromFileParams = {
   file: File | null;
@@ -434,7 +486,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             setCollapsibleKeys(result.collapsibleColumns);
             setCollapseKeys(result.collapsibleColumns.length > 0);
             // Auto-assign columns based on name heuristics
-            const autoAssigned = computeAutoAssignment(result.columns);
+            const autoAssigned = computeAutoAssignment({
+              columns: result.columns,
+              previewRows: result.previewRows,
+              mode,
+            });
             setValue("input_keys", autoAssigned.input, {
               shouldDirty: true,
               shouldValidate: true,
@@ -460,7 +516,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
               setCollapsibleKeys(result.collapsibleKeys);
               setCollapseKeys(result.collapsibleKeys.length > 0);
               // Auto-assign columns based on name heuristics
-              const autoAssigned = computeAutoAssignment(result.keys);
+              const autoAssigned = computeAutoAssignment({
+                columns: result.keys,
+                previewRows: result.previewRows,
+                mode,
+              });
               setValue("input_keys", autoAssigned.input, {
                 shouldDirty: true,
                 shouldValidate: true,
@@ -553,7 +613,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   }, [setValue]);
 
   const handleColumnAssignerAuto = useCallback(() => {
-    const autoAssigned = computeAutoAssignment(columns);
+    const autoAssigned = computeAutoAssignment({ columns, previewRows, mode });
     setValue("input_keys", autoAssigned.input, {
       shouldDirty: true,
       shouldValidate: true,
@@ -564,7 +624,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     setValue("example_id_key", autoAssigned.exampleIdKey, {
       shouldDirty: true,
     });
-  }, [columns, setValue]);
+  }, [columns, previewRows, mode, setValue]);
 
   const onSubmit = useCallback(
     async (
@@ -630,19 +690,21 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       }
 
       try {
-        const { data: result, response } = await authApiFetch.POST(
-          "/v1/datasets/upload",
-          {
-            params: { query: { sync: true } },
-            // FormData doesn't match the typed body shape; bodySerializer is what actually gets sent.
-            body: formData as never,
-            bodySerializer: () => formData,
-          }
-        );
+        const {
+          data: result,
+          error,
+          response,
+        } = await authApiFetch.POST("/v1/datasets/upload", {
+          params: { query: { sync: true } },
+          // FormData doesn't match the typed body shape; bodySerializer is what actually gets sent.
+          body: formData as never,
+          bodySerializer: () => formData,
+        });
         if (!response.ok || !result) {
-          const text = await response.text().catch(() => "");
           throw new Error(
-            text || response.statusText || "Failed to create dataset"
+            getRestErrorDetail(error) ||
+              response.statusText ||
+              "Failed to create dataset"
           );
         }
         const payload = result.data;
