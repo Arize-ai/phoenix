@@ -17,14 +17,14 @@ import type { ServerEvaluatorsTimeRangeControlsQuery } from "./__generated__/Ser
  * The Evaluators page's time range control strip: pan/zoom buttons around the
  * same live toggle the project page shows. While live, checks every few
  * seconds whether any project received new spans or evaluation results, and
- * calls `onAdvance` when one did. Shares the project page's live preference,
+ * calls `onNewData` when one did. Shares the project page's live preference,
  * so pausing one pauses the other.
  */
 export function ServerEvaluatorsTimeRangeControls({
-  onAdvance,
+  onNewData,
 }: {
-  /** Called, in a transition, when new data has landed. */
-  onAdvance: () => void;
+  /** Called, in a transition, when new spans or evaluation results land. */
+  onNewData: () => void;
 }) {
   const disabledControls = (
     <ConnectedTimeRangeControls
@@ -37,16 +37,16 @@ export function ServerEvaluatorsTimeRangeControls({
   return (
     <ErrorBoundary fallback={() => disabledControls}>
       <Suspense fallback={disabledControls}>
-        <ServerEvaluatorsTimeRangeControlsContent onAdvance={onAdvance} />
+        <ServerEvaluatorsTimeRangeControlsContent onNewData={onNewData} />
       </Suspense>
     </ErrorBoundary>
   );
 }
 
 function ServerEvaluatorsTimeRangeControlsContent({
-  onAdvance,
+  onNewData,
 }: {
-  onAdvance: () => void;
+  onNewData: () => void;
 }) {
   const isLive = usePreferencesContext((state) => state.traceStreamingEnabled);
   const setIsLive = usePreferencesContext(
@@ -76,7 +76,7 @@ function ServerEvaluatorsTimeRangeControlsContent({
   useOnTimestampAdvance(projectsLastUpdatedAt, () => {
     startTransition(() => {
       refreshLiveTimeRange();
-      onAdvance();
+      onNewData();
     });
   });
   return (

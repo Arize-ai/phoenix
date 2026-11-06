@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { SortingState } from "@tanstack/react-table";
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
@@ -60,7 +60,7 @@ function ProjectEvaluatorsTabContent() {
   // new spans or evaluation results land, so the strip, the charts and the
   // table refetch at once instead of on their next poll.
   const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
+  const refresh = () => setRefreshKey((key) => key + 1);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
@@ -86,7 +86,7 @@ function ProjectEvaluatorsTabContent() {
         <ConnectedTimeRangeSelector size="S" />
       </TopNavActions>
       <TopNavActions order={1}>
-        <ServerEvaluatorsTimeRangeControls onAdvance={refresh} />
+        <ServerEvaluatorsTimeRangeControls onNewData={refresh} />
       </TopNavActions>
       <div css={pageCSS}>
         <ServerEvaluationQueueStrip
