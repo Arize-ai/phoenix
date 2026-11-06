@@ -32,7 +32,7 @@ FROM base-image
 # provides is gone. A PR whose point is such a deletion needs a full build to show it.
 COPY src/phoenix /phoenix/overlay/phoenix
 COPY --from=static /static/ /phoenix/overlay/phoenix/server/static/
-COPY --from=preview launch.py /phoenix/preview/launch.py
+COPY --from=preview launch.py seed_log.py /phoenix/preview/
 COPY --from=seed seed.py /phoenix/preview/seed.py
 ENV PYTHONPATH="/phoenix/overlay:${PYTHONPATH}"
 # Phoenix turns auth on when it binds a non-loopback host, as it does here. A preview has

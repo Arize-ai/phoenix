@@ -21,6 +21,8 @@ import urllib.error
 import urllib.request
 from typing import Any, Optional
 
+import seed_log
+
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
@@ -35,16 +37,6 @@ DEPLOYMENT_FINAL_STATUSES = {
     "SLEEPING",
     "NEEDS_APPROVAL",
 }
-# launch.py's log lines: the seed's own output carries SEED_LINE_PREFIX, and the outcome
-# lines close a run; everything but "finished" and "no seed" is a failure.
-SEED_START_PREFIX = "preview: running"
-SEED_LINE_PREFIX = "seed| "
-SEED_SUCCESS_PREFIXES = ("preview: seed finished", "preview: no seed")
-SEED_OUTCOME_PREFIXES = SEED_SUCCESS_PREFIXES + (
-    "preview: seed failed",
-    "preview: seed timed out",
-    "preview: the server did not become healthy",
-)
 # GitHub caps a comment at 65536 characters; relayed output gets a fraction of that.
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
@@ -161,85 +153,56 @@ def ensure_domain(*, project_id: str, environment_id: str, service_id: str) -> s
     return str(data["serviceDomainCreate"]["domain"])
 
 
-def deploy_service(*, environment_id: str, service_id: str) -> str:
-    data = railway(
+def deploy_service(*, environment_id: str, service_id: str) -> None:
+    railway(
         "mutation($serviceId: String!, $environmentId: String!)"
         " { serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId) }",
         serviceId=service_id,
         environmentId=environment_id,
     )
-    return str(data["serviceInstanceDeployV2"])
 
 
-def active_deployment_id(*, environment_id: str, service_id: str, since: str) -> str:
-    """The newest of the service's recent deployments not skipped and not older than `since`.
-
-    The bound keeps a skipped redeploy from handing over to the previous push's finished
-    deployment while the one Railway queued in its place is not listed yet.
-    """
+def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, Any]]:
+    """The service's newest deployments, newest first."""
     data = railway(
         "query($input: DeploymentListInput!) {"
-        " deployments(input: $input, first: 5) { edges { node { id status createdAt } } } }",
+        " deployments(input: $input, first: 10) { edges { node { id status } } } }",
         input={"environmentId": environment_id, "serviceId": service_id},
     )
-    for edge in data["deployments"]["edges"]:
-        node = edge["node"]
-        if node["status"] != "SKIPPED" and str(node["createdAt"]) >= since:
-            return str(node["id"])
-    return ""
+    return [dict(edge["node"]) for edge in data["deployments"]["edges"]]
 
 
 def wait_for_deployment(
-    *, deployment_id: str, environment_id: str, service_id: str
+    *, environment_id: str, service_id: str, before: set[str]
 ) -> tuple[str, str]:
-    """Follow the deployment to a final status; return (deployment id, status).
+    """Follow this run's deployment to a final status; return (deployment id, status).
 
-    A deployment Railway skips in favor of one it queued itself, as on a new service, hands
-    over to the service's newest unskipped deployment from the same moment on. A failed
-    poll, including the moment after the request when the deployment does not exist yet,
-    counts as pending.
+    Creating the service, and the deploy request, each queue a deployment, and Railway
+    skips one in favor of the other, so rather than follow one id this follows the newest
+    unskipped deployment that did not exist before this run started. One that is not
+    listed yet, and a failed poll, count as pending.
     """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
-    status = "PENDING"
-    since = ""
+    deployment_id, status = "", "PENDING"
     while time.monotonic() < deadline:
         try:
-            data = railway(
-                "query($id: String!) { deployment(id: $id) { status createdAt } }",
-                id=deployment_id,
-            )
-            status = str(data["deployment"]["status"])
-            since = since or str(data["deployment"]["createdAt"])
-            if status == "SKIPPED":
-                active = active_deployment_id(
-                    environment_id=environment_id, service_id=service_id, since=since
-                )
-                if active and active != deployment_id:
-                    deployment_id = active
-                    continue
-                # Railway's replacement is not listed yet; it will be on a later poll.
+            ours = [
+                d
+                for d in list_deployments(environment_id=environment_id, service_id=service_id)
+                if d["id"] not in before and d["status"] != "SKIPPED"
+            ]
+            if ours:
+                deployment_id, status = str(ours[0]["id"]), str(ours[0]["status"])
+            else:
                 status = "PENDING"
         except RailwayError as error:
-            print(f"::warning::Polling deployment {deployment_id}: {error}", flush=True)
+            print(f"::warning::Polling deployments: {error}", flush=True)
             status = "PENDING"
-        print(f"deployment {deployment_id}: {status}", flush=True)
+        print(f"deployment {deployment_id or '(pending)'}: {status}", flush=True)
         if status in DEPLOYMENT_FINAL_STATUSES:
             return deployment_id, status
         time.sleep(10)
     return deployment_id, f"TIMEOUT after {status}"
-
-
-def read_deployment_logs(deployment_id: str, *, limit: int = 60) -> str:
-    try:
-        data = railway(
-            "query($id: String!, $limit: Int!) {"
-            " deploymentLogs(deploymentId: $id, limit: $limit) { message } }",
-            id=deployment_id,
-            limit=limit,
-        )
-    except RailwayError as error:
-        return f"(logs unavailable: {error})"
-    return "\n".join(entry["message"] for entry in data["deploymentLogs"])
 
 
 class LogTail:
@@ -248,12 +211,13 @@ class LogTail:
     def __init__(self, deployment_id: str) -> None:
         self.deployment_id = deployment_id
         self.lines: list[str] = []
-        self._last: Optional[tuple[str, str]] = None  # (timestamp, message) of the newest line
+        self._last_timestamp = ""
+        self._seen_at_last_timestamp = 0
 
     def refresh(self) -> None:
         variables: dict[str, Any] = {"id": self.deployment_id, "limit": 5000}
-        if self._last is not None:
-            variables["startDate"] = self._last[0]
+        if self._last_timestamp:
+            variables["startDate"] = self._last_timestamp
         try:
             data = railway(
                 "query($id: String!, $limit: Int!, $startDate: DateTime) {"
@@ -265,12 +229,24 @@ class LogTail:
             print(f"::warning::Reading deployment logs: {error}", flush=True)
             return
         entries = [(str(e["timestamp"]), str(e["message"])) for e in data["deploymentLogs"]]
-        if self._last is not None and self._last in entries:
-            # startDate is inclusive, so the previous tail comes back; keep what follows it.
-            entries = entries[entries.index(self._last) + 1 :]
-        self.lines += [message for _, message in entries]
-        if entries:
-            self._last = entries[-1]
+        # startDate is inclusive, so lines at the last timestamp come back; skip as many of
+        # them as were already taken, which also handles identical lines.
+        previous_timestamp, previous_seen = self._last_timestamp, self._seen_at_last_timestamp
+        skipped = 0
+        for timestamp, message in entries:
+            if timestamp < previous_timestamp:
+                continue
+            if timestamp == previous_timestamp and skipped < previous_seen:
+                skipped += 1
+                continue
+            if timestamp == self._last_timestamp:
+                self._seen_at_last_timestamp += 1
+            else:
+                self._last_timestamp, self._seen_at_last_timestamp = timestamp, 1
+            self.lines.append(message)
+
+    def tail(self, count: int) -> str:
+        return "\n".join(self.lines[-count:])
 
 
 def wait_for_seed(deployment_id: str) -> tuple[str, str]:
@@ -279,21 +255,22 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     Railway reports SUCCESS once /healthz answers, which launch.py reaches before the seed
     runs, so the comment waits for the launcher's outcome line rather than trusting SUCCESS.
     The latest run is what counts: after a restart an earlier run's outcome is stale, and a
-    run that has started but not finished is still pending.
+    run that has started but not finished is still pending. Output lines are taken from
+    anywhere after the run started, so lines the relay flushed after the outcome count too.
     """
     deadline = time.monotonic() + SEED_TIMEOUT_SECONDS
-    tail = LogTail(deployment_id)
+    log = LogTail(deployment_id)
     while time.monotonic() < deadline:
-        tail.refresh()
-        lines = tail.lines
-        starts = [i for i, line in enumerate(lines) if line.startswith(SEED_START_PREFIX)]
-        outcomes = [i for i, line in enumerate(lines) if line.startswith(SEED_OUTCOME_PREFIXES)]
+        log.refresh()
+        lines = log.lines
+        starts = [i for i, line in enumerate(lines) if line == seed_log.START_LINE]
+        outcomes = [i for i, line in enumerate(lines) if line.startswith(seed_log.OUTCOME_PREFIXES)]
         last_start = starts[-1] if starts else -1
         if outcomes and outcomes[-1] > last_start:
             output = [
-                line.removeprefix(SEED_LINE_PREFIX)
-                for line in lines[last_start + 1 : outcomes[-1]]
-                if line.startswith(SEED_LINE_PREFIX)
+                line.removeprefix(seed_log.OUTPUT_PREFIX)
+                for line in lines[last_start + 1 :]
+                if line.startswith(seed_log.OUTPUT_PREFIX)
             ]
             return lines[outcomes[-1]], "\n".join(output)
         time.sleep(10)
@@ -348,17 +325,6 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
     return deleted
 
 
-def find_comment(*, pr_number: int) -> Optional[str]:
-    comment_ids = run_gh(
-        "api",
-        "--paginate",
-        f"repos/{{owner}}/{{repo}}/issues/{pr_number}/comments",
-        "--jq",
-        f".[] | select(.body | startswith({json.dumps(COMMENT_MARKER)})) | .id",
-    ).split()
-    return comment_ids[0] if comment_ids else None
-
-
 def image_visibility(*, image: str) -> str:
     """`public`, `private` or `unknown` for the GHCR package behind the image.
 
@@ -379,6 +345,17 @@ def image_visibility(*, image: str) -> str:
             print(f"::warning::Reading the package's visibility: {error.stderr}")
             time.sleep(5 * (attempt + 1))
     return "unknown"
+
+
+def find_comment(*, pr_number: int) -> Optional[str]:
+    comment_ids = run_gh(
+        "api",
+        "--paginate",
+        f"repos/{{owner}}/{{repo}}/issues/{pr_number}/comments",
+        "--jq",
+        f".[] | select(.body | startswith({json.dumps(COMMENT_MARKER)})) | .id",
+    ).split()
+    return comment_ids[0] if comment_ids else None
 
 
 def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
@@ -483,30 +460,51 @@ def run_deploy(args: argparse.Namespace) -> int:
         )
         print(f"::error::The preview image's package is {visibility}; see the PR comment.")
         return 1
-    project_id, environment_id = read_token_scope()
-    name = f"pr-{args.pr}"
-    service_id = find_service(project_id=project_id, name=name)
-    if service_id is None:
-        service_id = create_service(
-            project_id=project_id, environment_id=environment_id, name=name, image=args.image
+    try:
+        project_id, environment_id = read_token_scope()
+        name = f"pr-{args.pr}"
+        service_id = find_service(project_id=project_id, name=name)
+        before: set[str] = set()
+        if service_id is None:
+            service_id = create_service(
+                project_id=project_id, environment_id=environment_id, name=name, image=args.image
+            )
+            print(f"created service {name} ({service_id})")
+        else:
+            before = {
+                str(d["id"])
+                for d in list_deployments(environment_id=environment_id, service_id=service_id)
+            }
+        set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
+        set_image(environment_id=environment_id, service_id=service_id, image=args.image)
+        domain = ensure_domain(
+            project_id=project_id, environment_id=environment_id, service_id=service_id
         )
-        print(f"created service {name} ({service_id})")
-    set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
-    set_image(environment_id=environment_id, service_id=service_id, image=args.image)
-    domain = ensure_domain(
-        project_id=project_id, environment_id=environment_id, service_id=service_id
-    )
-    deployment_id, status = wait_for_deployment(
-        deployment_id=deploy_service(environment_id=environment_id, service_id=service_id),
-        environment_id=environment_id,
-        service_id=service_id,
-    )
+        deploy_service(environment_id=environment_id, service_id=service_id)
+        deployment_id, status = wait_for_deployment(
+            environment_id=environment_id, service_id=service_id, before=before
+        )
+    except RailwayError as error:
+        # The previous push's comment would otherwise go on advertising its instance.
+        upsert_comment(
+            pr_number=args.pr,
+            body=(
+                f"### Preview of {args.head_sha[:7]}\n\nDeploying failed before Railway took"
+                f" the image; see the [run]({args.run_url}).\n\n~~~\n"
+                f"{clip_for_comment(str(error))}\n~~~"
+            ),
+        )
+        raise
     if status == "SUCCESS":
         seed_outcome, seed_output = wait_for_seed(deployment_id)
         logs = ""
     else:
         seed_outcome, seed_output = "preview: the seed did not run", ""
-        logs = read_deployment_logs(deployment_id)
+        logs = ""
+        if deployment_id:
+            log = LogTail(deployment_id)
+            log.refresh()
+            logs = log.tail(MAX_OUTPUT_LINES)
     url = f"https://{domain}"
     upsert_comment(
         pr_number=args.pr,
@@ -523,7 +521,7 @@ def run_deploy(args: argparse.Namespace) -> int:
         ),
     )
     print(f"url={url}\nstatus={status}\n{seed_outcome}")
-    return 0 if status == "SUCCESS" and seed_outcome.startswith(SEED_SUCCESS_PREFIXES) else 1
+    return 0 if status == "SUCCESS" and seed_outcome.startswith(seed_log.SUCCESS_LINES) else 1
 
 
 def run_teardown(args: argparse.Namespace) -> int:
