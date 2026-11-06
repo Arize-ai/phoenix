@@ -35,10 +35,9 @@ from phoenix.server.encryption import EncryptionService
 from phoenix.server.evaluators.runtime.builtin import ContainsEvaluator
 from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.derivation import ResolvedProjectEvaluator, config_fingerprint
-from phoenix.server.online_eval.leases import MATERIALIZER_LEASE_TTL_SECONDS
+from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.project_evaluator_resolution import (
-    resolve_project_evaluator,
     resolve_project_evaluators_bulk,
 )
 from phoenix.server.types import DbSessionFactory
@@ -335,10 +334,14 @@ async def test_builtin_implementation_version_changes_fingerprint(
         session.add(project_evaluator)
         await session.flush()
 
-        first = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        first = (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ]
         assert first is not None
         monkeypatch.setattr(ContainsEvaluator, "implementation_version", "2")
-        second = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        second = (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ]
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
@@ -415,7 +418,9 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
         session.add(project_evaluator)
         await session.flush()
 
-        before = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        before = (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ]
         assert before is not None
 
         # Repoint the provider at a different endpoint. The prompt version — and so the
@@ -424,7 +429,9 @@ async def test_llm_custom_provider_edit_changes_fingerprint(
         provider.updated_at = _now() + timedelta(minutes=1)
         await session.flush()
 
-        after = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        after = (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ]
         assert after is not None
 
     assert config_fingerprint(before) != config_fingerprint(after)
@@ -457,7 +464,9 @@ async def test_unregistered_builtin_cannot_resolve_criteria(
         session.add(project_evaluator)
         await session.flush()
 
-        assert await resolve_project_evaluator(session, project_evaluator, evaluator) is None
+        assert (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ] is None
 
 
 async def test_code_criteria_input_mapping_falls_back_to_the_evaluators(
@@ -480,7 +489,9 @@ async def test_code_criteria_input_mapping_falls_back_to_the_evaluators(
         assert evaluator is not None
         assert project_evaluator is not None
         assert project_evaluator.input_mapping is None
-        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        resolved = (
+            await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)])
+        )[0]
         assert resolved is not None
         assert resolved.input_mapping == evaluator_mapping.model_dump()
 
@@ -501,12 +512,16 @@ async def test_sandbox_runtime_changes_code_criteria_fingerprint(
         assert evaluator is not None
         assert project_evaluator is not None
         assert sandbox_config is not None
-        first = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        first = (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ]
         assert first is not None
         sandbox_config.timeout += 1
         sandbox_config.updated_at = _now() + timedelta(seconds=1)
         await session.flush()
-        second = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        second = (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ]
         assert second is not None
 
     assert config_fingerprint(first) != config_fingerprint(second)
@@ -531,7 +546,9 @@ async def test_disabled_sandbox_runtime_does_not_resolve_code_criteria(
         sandbox_config.enabled = False
         await session.flush()
 
-        assert await resolve_project_evaluator(session, project_evaluator, evaluator) is None
+        assert (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[
+            0
+        ] is None
 
 
 async def test_active_criteria_are_bulk_resolved_once(
@@ -994,7 +1011,7 @@ async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
     async with db() as session:
         await session.execute(
             update(models.EvalWorkLease).values(
-                heartbeat_at=_now() - timedelta(seconds=MATERIALIZER_LEASE_TTL_SECONDS + 1)
+                heartbeat_at=_now() - timedelta(seconds=SCAN_LEASE_TTL_SECONDS + 1)
             )
         )
     await producer._tick()

@@ -21,7 +21,7 @@ from starlette.responses import Response
 from starlette.routing import BaseRoute, Match
 from starlette.types import Scope
 
-from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
+from phoenix.server.online_eval.clock import TERMINAL_METRICS_WINDOW_SECONDS
 
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
@@ -278,9 +278,10 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     namespace="phoenix",
     name="online_eval_completed_work_units_total",
     documentation="Total number of online-eval work units that left the queue, by outcome: "
-    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), or cleared "
-    "(DROPPED, removed from the queue before it ran: the queue was cleared, or its evaluator "
-    f"was disabled when its turn came). {_SUMS_ACROSS_REPLICAS}",
+    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), cleared (DROPPED by "
+    "a queue clear or an enable), or evaluator_disabled (DROPPED because its evaluator was "
+    "disabled when its turn came). Cleared and evaluator_disabled work was removed from the "
+    f"queue before it ran. {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
 ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS = Histogram(

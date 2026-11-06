@@ -365,7 +365,7 @@ Defaults to 20000.
 """
 ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
 """
-How long terminal online-eval work units are kept before the reaper deletes them.
+How long finished online-eval span work units are kept before they are deleted.
 Defaults to 604800 (7 days).
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
@@ -380,7 +380,7 @@ Defaults to 65536.
 """
 ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
 """
-The maximum UTF-8 byte size of a rendered session code-evaluator payload.
+The maximum UTF-8 byte size of a rendered online code-evaluator payload.
 Defaults to 65536.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
@@ -3645,8 +3645,16 @@ def get_env_online_eval_max_llm_message_bytes() -> int:
     return max_bytes
 
 
+ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
+    "Narrow the slot with a path mapping, reduce the evaluator source, or raise the "
+    f"limit with {ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}."
+)
+"""What to do about a code-evaluator payload over the online-eval limit, in the same words
+for a scheduled evaluation and for a preview run under the online limits."""
+
+
 def get_env_online_eval_max_sandbox_payload_bytes() -> int:
-    """Get the session sandbox payload cap, whose minimum is 1024 UTF-8 bytes."""
+    """Get the online-eval code-evaluator payload cap, whose minimum is 1024 UTF-8 bytes."""
     max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
     if max_bytes < 1_024:
         raise ValueError(

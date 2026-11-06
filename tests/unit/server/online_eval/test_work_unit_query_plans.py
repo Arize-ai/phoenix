@@ -18,7 +18,7 @@ from phoenix.server.api.dataloaders.project_evaluator_queues import (
     ProjectEvaluatorQueuesDataLoader,
 )
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
+from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
 from phoenix.server.online_eval.evaluation_activity import (
     load_evaluation_activity,
     load_evaluation_lags,
@@ -72,7 +72,7 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
             async with db() as session:
                 await sweeper._publish_watermark_lag(session, datetime.now(timezone.utc))
         for coordinator_target in ("SPAN", "SESSION", "TRACE"):
-            coordinator = DbEvalWorkCoordinator(db, evaluation_target=coordinator_target)
+            coordinator = EvalWorkCoordinator(db, evaluation_target=coordinator_target)
             await coordinator.ended_work_counts()
             await coordinator.claim(claimed_by="query-plan", limit=1)
         queue = await load_evaluation_queue(db)

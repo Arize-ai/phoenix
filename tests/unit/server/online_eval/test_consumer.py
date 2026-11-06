@@ -73,11 +73,11 @@ from phoenix.server.online_eval.consumer import (
     OnlineEvalConsumer,
 )
 from phoenix.server.online_eval.coordinator import (
-    LEASE_TTL_SECONDS,
+    CLAIM_LEASE_TTL_SECONDS,
     ClaimedWorkUnit,
+    EvalWorkCoordinator,
     PublicationClaimLostError,
 )
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.derivation import (
     ResolvedProjectEvaluator,
     annotation_identifier,
@@ -96,7 +96,6 @@ from phoenix.server.online_eval.executor import (
 )
 from phoenix.server.online_eval.failure_policy import is_transient_error
 from phoenix.server.online_eval.project_evaluator_resolution import (
-    resolve_project_evaluator,
     resolve_project_evaluators_bulk,
 )
 from phoenix.server.online_eval.session_policy import (
@@ -262,7 +261,6 @@ def _hydrated_stub(
 
 
 def _claimed_unit(target_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUnit:
-    now = datetime.now(timezone.utc)
     return ClaimedWorkUnit(
         work_unit_id=work_unit_id,
         evaluation_target="SPAN",
@@ -270,7 +268,6 @@ def _claimed_unit(target_rowid: int, *, work_unit_id: int = 1) -> ClaimedWorkUni
         project_evaluator_id=1,
         attempts=0,
         claimed_by="consumer",
-        lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
     )
 
 
@@ -279,7 +276,6 @@ def _claimed_session_unit(
     *,
     work_unit_id: int = 1,
 ) -> ClaimedWorkUnit:
-    now = datetime.now(timezone.utc)
     return ClaimedWorkUnit(
         work_unit_id=work_unit_id,
         evaluation_target="SESSION",
@@ -287,7 +283,6 @@ def _claimed_session_unit(
         project_evaluator_id=1,
         attempts=0,
         claimed_by="consumer",
-        lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
     )
 
 
@@ -297,7 +292,6 @@ def _claimed_trace_unit(
     project_evaluator_id: int,
     work_unit_id: int = 1,
 ) -> ClaimedWorkUnit:
-    now = datetime.now(timezone.utc)
     return ClaimedWorkUnit(
         work_unit_id=work_unit_id,
         evaluation_target="TRACE",
@@ -305,7 +299,6 @@ def _claimed_trace_unit(
         project_evaluator_id=project_evaluator_id,
         attempts=0,
         claimed_by="consumer",
-        lease_expires_at=now + timedelta(seconds=LEASE_TTL_SECONDS),
     )
 
 
@@ -323,7 +316,9 @@ async def _config_fingerprint(
         )
         evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
         assert evaluator is not None
-        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        resolved = (
+            await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)])
+        )[0]
         assert resolved is not None
         return config_fingerprint(resolved)
 
@@ -336,7 +331,7 @@ async def _claim_materialized_unit(
 ) -> ClaimedWorkUnit:
     evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project_id)
     await _materialize_unit(db, span_rowid, evaluator_id, project_evaluator_id)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     return unit
 
@@ -579,7 +574,9 @@ async def _materialize_unit(
         )
         evaluator = await session.scalar(select(polymorphic).where(polymorphic.id == evaluator_id))
         assert evaluator is not None
-        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        resolved = (
+            await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)])
+        )[0]
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
         unit = models.EvalWorkUnit(
@@ -608,7 +605,9 @@ async def _materialize_session_unit(
         assert evaluator is not None
         project_session = await session.get(models.ProjectSession, project_session_rowid)
         assert project_session is not None
-        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        resolved = (
+            await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)])
+        )[0]
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
         evaluated_through = project_session.last_span_ingested_at
@@ -642,7 +641,9 @@ async def _materialize_trace_unit(
         assert evaluator is not None
         trace = await session.get(models.Trace, trace_rowid)
         assert trace is not None
-        resolved = await resolve_project_evaluator(session, project_evaluator, evaluator)
+        resolved = (
+            await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)])
+        )[0]
         assert resolved is not None
         fingerprint = config_fingerprint(resolved)
         evaluated_through = trace.last_span_ingested_at
@@ -669,7 +670,7 @@ def _executor(
     return OnlineEvalExecutor(
         db,
         evaluation_target=evaluation_target,
-        coordinator=DbEvalWorkCoordinator(db, evaluation_target=evaluation_target),
+        coordinator=EvalWorkCoordinator(db, evaluation_target=evaluation_target),
         decrypt=lambda value: value,
         **kwargs,
     )
@@ -800,7 +801,7 @@ async def test_session_publication_finishes_its_unit_before_a_crash_can_lose_it(
         evaluator_id,
         project_evaluator_id,
     )
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     async with db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
@@ -856,7 +857,8 @@ async def test_session_publication_finishes_its_unit_before_a_crash_can_lose_it(
             .where(models.EvalSessionWorkUnit.id == unit_id)
             .values(
                 attempts=MAX_ATTEMPTS - 1,
-                claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1),
+                claimed_at=datetime.now(timezone.utc)
+                - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1),
             )
         )
 
@@ -914,7 +916,8 @@ async def test_a_stale_claim_cannot_write_to_its_unit_re_offered_to_the_same_con
             .where(models.EvalSessionWorkUnit.id == unit_id)
             .values(
                 attempts=MAX_ATTEMPTS - 1,
-                claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1),
+                claimed_at=datetime.now(timezone.utc)
+                - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1),
             )
         )
     await _cycle_to_completion(consumer)
@@ -2195,7 +2198,7 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
         evaluator_id,
         project_evaluator_id,
     )
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     manager = _StubSandboxSessionManager()
     captured_runner_arguments: dict[str, Any] = {}
@@ -2239,7 +2242,7 @@ async def test_code_hydration_supplies_sandbox_runtime(
         criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
     )
     await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     sandbox_runtime = cast(Any, object())
     received_runtime: Any = None
@@ -2275,7 +2278,7 @@ async def test_span_code_hydration_supplies_configured_payload_cap(
         criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
     )
     await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     manager = _StubSandboxSessionManager()
     captured_runner_arguments: dict[str, Any] = {}
@@ -2394,7 +2397,7 @@ async def test_code_criteria_input_mapping_override_is_used_during_execution(
         ),
     )
     await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     manager = _StubSandboxSessionManager()
 
@@ -2479,10 +2482,10 @@ async def test_reclaimed_execution_writes_one_annotation_and_one_insert_event(
     evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
     unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
     _patch_playground_client(monkeypatch, _StubLLMClient())
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
 
     (first_claim,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
-    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
         await session.execute(
             update(models.EvalWorkUnit)
@@ -2799,7 +2802,7 @@ async def test_deleted_criteria_cannot_publish_annotation(db: DbSessionFactory) 
         span = await _add_span(session, trace)
     evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
     unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, project_evaluator_id)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
     hydrated = _hydrated_stub(
         results=[_evaluation_result("criterion")],
@@ -3437,7 +3440,7 @@ async def test_a_consumer_that_reclaims_its_own_unit_fences_out_the_earlier_clai
     monkeypatch.setattr(consumer, "_process_unit", _start)
     monkeypatch.setattr(consumer._executor, "hydrate", _hydrate)
     await _cycle_to_completion(consumer)
-    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
         await session.execute(
             update(models.EvalWorkUnit)

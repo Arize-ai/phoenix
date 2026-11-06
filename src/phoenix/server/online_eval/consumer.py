@@ -30,7 +30,6 @@ from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
     PublicationEvaluatorDisabledError,
 )
-from phoenix.server.online_eval.db_coordinator import DbEvalWorkCoordinator
 from phoenix.server.online_eval.executor import (
     ConfigurationSnapshotOutcome,
     HydratedWorkUnit,
@@ -131,7 +130,7 @@ class OnlineEvalConsumer(DaemonTask):
         if evaluation_target not in ("SPAN", "SESSION", "TRACE"):
             raise ValueError(f"Online evaluation consumers do not support {evaluation_target}")
         self._evaluation_target = evaluation_target
-        self._coordinator: EvalWorkCoordinator = coordinator or DbEvalWorkCoordinator(
+        self._coordinator: EvalWorkCoordinator = coordinator or EvalWorkCoordinator(
             db, evaluation_target=self._evaluation_target
         )
         self._executor = OnlineEvalExecutor(
@@ -189,7 +188,7 @@ class OnlineEvalConsumer(DaemonTask):
         )
         ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(ended.exhausted_error_count)
         ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(ended.expired_count)
-        ONLINE_EVAL_CLEARED_WORK_UNITS.labels(**labels).set(ended.dropped_count)
+        ONLINE_EVAL_CLEARED_WORK_UNITS.labels(**labels).set(ended.cleared_count)
 
     async def stop(self) -> None:
         await super().stop()
@@ -329,20 +328,34 @@ class OnlineEvalConsumer(DaemonTask):
                 error = hydrated.reason.value
                 if hydrated.detail:
                     error = f"{error}: {hydrated.detail}"
-                expired = await self._retry_transition(
-                    action="expire",
-                    unit=unit,
-                    transition=lambda: self._coordinator.expire(
-                        work_unit_id=unit.work_unit_id,
-                        claimed_by=unit.claimed_by,
-                        error=error,
-                        status=hydrated.terminal_status,
-                    ),
-                )
-                if not expired:
+                status = hydrated.terminal_status
+                if status == "DROPPED":
+                    action = "clear"
+                    ended = await self._retry_transition(
+                        action=action,
+                        unit=unit,
+                        transition=lambda: self._coordinator.clear(
+                            work_unit_id=unit.work_unit_id,
+                            claimed_by=unit.claimed_by,
+                            error=error,
+                        ),
+                    )
+                else:
+                    action = "expire"
+                    ended = await self._retry_transition(
+                        action=action,
+                        unit=unit,
+                        transition=lambda: self._coordinator.expire(
+                            work_unit_id=unit.work_unit_id,
+                            claimed_by=unit.claimed_by,
+                            error=error,
+                            status=status,
+                        ),
+                    )
+                if not ended:
                     logger.warning(
-                        f"Online-eval work unit {unit.work_unit_id} could not expire after its "
-                        "claim was lost"
+                        f"Online-eval work unit {unit.work_unit_id} could not {action} after "
+                        "its claim was lost"
                     )
                 return
             hydrated_work_unit = hydrated
@@ -363,19 +376,18 @@ class OnlineEvalConsumer(DaemonTask):
                     "claim was lost"
                 )
         except PublicationEvaluatorDisabledError:
-            dropped = await self._retry_transition(
-                action="drop",
+            cleared = await self._retry_transition(
+                action="clear",
                 unit=unit,
-                transition=lambda: self._coordinator.expire(
+                transition=lambda: self._coordinator.clear(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=unit.claimed_by,
                     error=HydrationFailureReason.PROJECT_EVALUATOR_DISABLED.value,
-                    status="DROPPED",
                 ),
             )
-            if not dropped:
+            if not cleared:
                 logger.warning(
-                    f"Online-eval work unit {unit.work_unit_id} could not be dropped after "
+                    f"Online-eval work unit {unit.work_unit_id} could not be cleared after "
                     "its claim was lost"
                 )
         except Exception as exc:

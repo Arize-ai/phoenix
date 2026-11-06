@@ -56,13 +56,13 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
-    done_eval_work_index_predicate,
-    eval_session_work_status_check,
+    done_index_predicate,
     eval_work_status_check,
-    failed_eval_work_index_predicate,
-    live_eval_work_index_predicate,
-    terminal_eval_session_work_index_predicate,
-    terminal_eval_work_index_predicate,
+    failed_index_predicate,
+    queued_index_predicate,
+    swept_target_terminal_index_predicate,
+    swept_target_work_status_check,
+    terminal_index_predicate,
 )
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
@@ -213,7 +213,7 @@ ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"
 EvalWorkStatus: TypeAlias = Literal[
     "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
 ]
-EvalSessionWorkStatus: TypeAlias = Literal[
+SweptTargetWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",
     "DONE",
@@ -4257,8 +4257,8 @@ class EvalWorkUnit(HasId):
             "ix_eval_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         # Each evaluator's queued work in queue order, read without walking its history. It
         # covers the read, which is also what makes SQLite pick it over the full
@@ -4269,29 +4269,29 @@ class EvalWorkUnit(HasId):
             "id",
             "status",
             "created_at",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         Index(
             "ix_eval_work_units_terminal",
             "updated_at",
-            postgresql_where=text(terminal_eval_work_index_predicate()),
-            sqlite_where=text(terminal_eval_work_index_predicate()),
+            postgresql_where=text(terminal_index_predicate()),
+            sqlite_where=text(terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
             "ix_eval_work_units_project_evaluator_done",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(done_eval_work_index_predicate()),
-            sqlite_where=text(done_eval_work_index_predicate()),
+            postgresql_where=text(done_index_predicate()),
+            sqlite_where=text(done_index_predicate()),
         ),
         Index(
             "ix_eval_work_units_project_evaluator_failed",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(failed_eval_work_index_predicate()),
-            sqlite_where=text(failed_eval_work_index_predicate()),
+            postgresql_where=text(failed_index_predicate()),
+            sqlite_where=text(failed_index_predicate()),
         ),
     )
 
@@ -4308,8 +4308,8 @@ class EvalSessionWorkUnit(HasId):
         index=True,
     )
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[EvalSessionWorkStatus] = mapped_column(
-        CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
+    status: Mapped[SweptTargetWorkStatus] = mapped_column(
+        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4332,8 +4332,8 @@ class EvalSessionWorkUnit(HasId):
             "ix_eval_session_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         # Each evaluator's queued work in queue order, read without walking its history. It
         # covers the read, which is also what makes SQLite pick it over the full
@@ -4344,29 +4344,29 @@ class EvalSessionWorkUnit(HasId):
             "id",
             "status",
             "created_at",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_terminal",
             "updated_at",
-            postgresql_where=text(terminal_eval_session_work_index_predicate()),
-            sqlite_where=text(terminal_eval_session_work_index_predicate()),
+            postgresql_where=text(swept_target_terminal_index_predicate()),
+            sqlite_where=text(swept_target_terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
             "ix_eval_session_work_units_project_evaluator_done",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(done_eval_work_index_predicate()),
-            sqlite_where=text(done_eval_work_index_predicate()),
+            postgresql_where=text(done_index_predicate()),
+            sqlite_where=text(done_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_project_evaluator_failed",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(failed_eval_work_index_predicate()),
-            sqlite_where=text(failed_eval_work_index_predicate()),
+            postgresql_where=text(failed_index_predicate()),
+            sqlite_where=text(failed_index_predicate()),
         ),
     )
 
@@ -4385,8 +4385,8 @@ class EvalTraceWorkUnit(HasId):
         index=True,
     )
     evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[EvalSessionWorkStatus] = mapped_column(
-        CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
+    status: Mapped[SweptTargetWorkStatus] = mapped_column(
+        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4409,8 +4409,8 @@ class EvalTraceWorkUnit(HasId):
             "ix_eval_trace_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         # Each evaluator's queued work in queue order, read without walking its history. It
         # covers the read, which is also what makes SQLite pick it over the full
@@ -4421,28 +4421,28 @@ class EvalTraceWorkUnit(HasId):
             "id",
             "status",
             "created_at",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         Index(
             "ix_eval_trace_work_units_terminal",
             "updated_at",
-            postgresql_where=text(terminal_eval_session_work_index_predicate()),
-            sqlite_where=text(terminal_eval_session_work_index_predicate()),
+            postgresql_where=text(swept_target_terminal_index_predicate()),
+            sqlite_where=text(swept_target_terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
             "ix_eval_trace_work_units_project_evaluator_done",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(done_eval_work_index_predicate()),
-            sqlite_where=text(done_eval_work_index_predicate()),
+            postgresql_where=text(done_index_predicate()),
+            sqlite_where=text(done_index_predicate()),
         ),
         Index(
             "ix_eval_trace_work_units_project_evaluator_failed",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(failed_eval_work_index_predicate()),
-            sqlite_where=text(failed_eval_work_index_predicate()),
+            postgresql_where=text(failed_index_predicate()),
+            sqlite_where=text(failed_index_predicate()),
         ),
     )

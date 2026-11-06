@@ -38,14 +38,17 @@ from typing_extensions import assert_never
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import (
-    SESSION_REOFFERED_STATUSES,
-    terminal_eval_session_work_index_predicate,
+    REOFFERED_STATUSES,
+    swept_target_terminal_index_predicate,
 )
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
+from phoenix.server.online_eval.clock import (
+    TERMINAL_METRICS_WINDOW_SECONDS,
+    VISIBILITY_LAG_SECONDS,
+    current_database_time,
+)
 from phoenix.server.online_eval.derivation import sample_key
-from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
-from phoenix.server.online_eval.producer import FRONTIER_LAG_SECONDS
+from phoenix.server.online_eval.leases import ScanLease
 from phoenix.server.online_eval.project_evaluator_resolution import (
     load_enabled_project_evaluator_pairs,
     resolve_project_evaluators_bulk,
@@ -331,7 +334,7 @@ def _reofferable(work_unit: Any, activity_through: Any) -> ColumnElement[bool]:
     """A failed, expired, or content-lost session or trace is retried when new spans arrive
     after it failed; spans that arrived while it was running might not trigger a retry."""
     reofferable: ColumnElement[bool] = and_(
-        work_unit.status.in_(SESSION_REOFFERED_STATUSES),
+        work_unit.status.in_(REOFFERED_STATUSES),
         work_unit.evaluated_through < activity_through,
     )
     return reofferable
@@ -362,9 +365,9 @@ class EvalSweeper(DaemonTask):
         ONLINE_EVAL_SWEEP_FAILURES.labels(**self._metric_labels)
         ONLINE_EVAL_SWEEP_SUCCESSES.labels(**self._metric_labels)
         self._tick_interval_seconds = tick_interval_seconds
-        self._late_commit_margin = timedelta(seconds=FRONTIER_LAG_SECONDS)
+        self._late_commit_margin = timedelta(seconds=VISIBILITY_LAG_SECONDS)
         self._publish_metrics = get_env_enable_prometheus()
-        self._lease = MaterializerLease(
+        self._lease = ScanLease(
             db,
             name=target.lease_name,
             holder=f"{evaluation_target.lower()}-sweeper-{token_hex(8)}",
@@ -549,7 +552,7 @@ class EvalSweeper(DaemonTask):
             if passes_filter is None:
                 continue
             if not passes_filter:
-                status: models.EvalSessionWorkStatus = "FILTERED_OUT"
+                status: models.SweptTargetWorkStatus = "FILTERED_OUT"
             elif sample_key(row.sample_identity) >= row.sampling_rate:
                 status = "SAMPLED_OUT"
             else:
@@ -759,7 +762,7 @@ class EvalSweeper(DaemonTask):
             )
             .where(
                 # SQLite reads a partial index only when the query repeats its predicate.
-                text(terminal_eval_session_work_index_predicate()),
+                text(swept_target_terminal_index_predicate()),
                 work_unit_model.status == "DONE",
                 work_unit_model.updated_at
                 >= database_now - timedelta(seconds=TERMINAL_METRICS_WINDOW_SECONDS),

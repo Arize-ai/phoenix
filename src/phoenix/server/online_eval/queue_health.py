@@ -17,17 +17,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Iterable, Literal, Mapping, Optional, Sequence, Union
+from typing import Any, Iterable, Literal, Mapping, Optional, Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.eval_work import (
-    COMPLETED_EVAL_WORK_STATUSES,
-    LIVE_EVAL_WORK_STATUSES,
-    TERMINAL_EVAL_SESSION_WORK_STATUSES,
-    TERMINAL_EVAL_WORK_STATUSES,
+from phoenix.db.eval_work import COMPLETED_STATUSES, QUEUED_STATUSES
+from phoenix.server.online_eval.work_tables import (
+    WORK_TABLES,
+    WorkTable,
+    WorkUnitModel,
+    status_in,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -42,34 +43,6 @@ QueueStatus = Literal["HEALTHY", "DEGRADED"]
 ProjectEvaluatorRunStatus = Literal[
     "DISABLED", "ERROR", "DEGRADED", "RUNNING", "QUEUED", "NEVER_RUN"
 ]
-
-_WorkUnitModel = Union[
-    type[models.EvalWorkUnit],
-    type[models.EvalTraceWorkUnit],
-    type[models.EvalSessionWorkUnit],
-]
-
-
-@dataclass(frozen=True)
-class _Queue:
-    work_unit_model: _WorkUnitModel
-    terminal_statuses: tuple[str, ...]
-
-
-_QUEUES: dict[models.EvaluationTarget, _Queue] = {
-    "SPAN": _Queue(
-        work_unit_model=models.EvalWorkUnit,
-        terminal_statuses=TERMINAL_EVAL_WORK_STATUSES,
-    ),
-    "TRACE": _Queue(
-        work_unit_model=models.EvalTraceWorkUnit,
-        terminal_statuses=TERMINAL_EVAL_SESSION_WORK_STATUSES,
-    ),
-    "SESSION": _Queue(
-        work_unit_model=models.EvalSessionWorkUnit,
-        terminal_statuses=TERMINAL_EVAL_SESSION_WORK_STATUSES,
-    ),
-}
 
 
 @dataclass(frozen=True)
@@ -325,9 +298,9 @@ async def _load_target_queue(
 ) -> TargetQueue:
     """One target's queued evaluations, from the oldest of each status: the head of the line,
     where the longest wait is."""
-    model = _QUEUES[evaluation_target].work_unit_model
+    model = WORK_TABLES[evaluation_target].work_unit_model
     by_status: dict[str, tuple[int, Optional[datetime]]] = {}
-    for status in LIVE_EVAL_WORK_STATUSES:
+    for status in QUEUED_STATUSES:
         head = _live_rows(model, status, model.created_at, newest=False)
         count, oldest_queued_at = (
             await session.execute(sa.select(sa.func.count(), sa.func.min(head.c.created_at)))
@@ -348,7 +321,9 @@ async def load_queue_throughput(db: DbSessionFactory, queue: EvaluationQueue) ->
     async with db.read() as session:
         target_rates = tuple(
             [
-                await _load_rates_by_project_evaluator(session, _QUEUES[evaluation_target], since)
+                await _load_rates_by_project_evaluator(
+                    session, WORK_TABLES[evaluation_target], since
+                )
                 for evaluation_target in EVALUATION_TARGETS
             ]
         )
@@ -357,7 +332,7 @@ async def load_queue_throughput(db: DbSessionFactory, queue: EvaluationQueue) ->
 
 async def _load_rates_by_project_evaluator(
     session: AsyncSession,
-    table: _Queue,
+    table: WorkTable,
     since: datetime,
 ) -> dict[int, tuple[int, int]]:
     """Per project evaluator, of one target: the evaluations queued since ``since``, and
@@ -365,7 +340,7 @@ async def _load_rates_by_project_evaluator(
     read newest first, where the window's are."""
     model = table.work_unit_model
     rates: dict[int, tuple[int, int]] = {}
-    for status in LIVE_EVAL_WORK_STATUSES:
+    for status in QUEUED_STATUSES:
         tail = _live_rows(model, status, model.project_evaluator_id, model.created_at, newest=True)
         in_window = sa.func.sum(sa.case((tail.c.created_at >= since, 1), else_=0))
         for evaluator_id, queued in await session.execute(
@@ -384,11 +359,11 @@ async def _load_rates_by_project_evaluator(
     for evaluator_id, completed, queued in await session.execute(
         sa.select(
             project_evaluator_id,
-            sa.func.sum(sa.case((model.status.in_(COMPLETED_EVAL_WORK_STATUSES), 1), else_=0)),
+            sa.func.sum(sa.case((model.status.in_(COMPLETED_STATUSES), 1), else_=0)),
             queued_in_window,
         )
         .where(
-            _status_in(model, table.terminal_statuses),
+            status_in(model, table.terminal_statuses),
             model.updated_at >= since,
         )
         .group_by(project_evaluator_id)
@@ -606,12 +581,12 @@ _EVALUATORS_PER_READ = 250
 def _evaluator_queued_stmt(
     evaluator: ProjectEvaluatorTarget,
 ) -> sa.Select[*tuple[Any, ...]]:
-    model = _QUEUES[evaluator.evaluation_target].work_unit_model
+    model = WORK_TABLES[evaluator.evaluation_target].work_unit_model
     head = (
         sa.select(model.status, model.created_at)
         .where(
             model.project_evaluator_id == evaluator.id,
-            _status_in(model, LIVE_EVAL_WORK_STATUSES),
+            status_in(model, QUEUED_STATUSES),
         )
         .order_by(model.id)
         .limit(MAX_QUEUE_COUNT)
@@ -627,7 +602,7 @@ def _evaluator_queued_stmt(
 
 
 def _live_rows(
-    model: _WorkUnitModel,
+    model: WorkUnitModel,
     status: str,
     *columns: sa.orm.InstrumentedAttribute[Any],
     newest: bool,
@@ -636,25 +611,11 @@ def _live_rows(
     newest, read through its ``ix_*_claimable`` index."""
     return (
         sa.select(*columns)
-        .where(_status_in(model, LIVE_EVAL_WORK_STATUSES), model.status == status)
+        .where(status_in(model, QUEUED_STATUSES), model.status == status)
         .order_by(model.id.desc() if newest else model.id)
         .limit(MAX_QUEUE_COUNT)
         .subquery()
     )
-
-
-def _status_in(model: _WorkUnitModel, statuses: tuple[str, ...]) -> sa.ColumnElement[bool]:
-    """Statuses render as literals so SQLite matches the work tables' partial indexes."""
-    condition: sa.ColumnElement[bool] = model.status.in_(
-        sa.bindparam(
-            "statuses",
-            list(statuses),
-            expanding=True,
-            literal_execute=True,
-            unique=True,
-        )
-    )
-    return condition
 
 
 def _capped(count: int) -> int:

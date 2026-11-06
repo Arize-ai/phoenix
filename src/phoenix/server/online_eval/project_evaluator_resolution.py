@@ -1,7 +1,7 @@
 """Resolve project evaluators into fingerprint inputs.
 
 ``derivation`` owns the pure fingerprint recipe and explicitly cedes version resolution
-and DB access to its callers; this module is that caller. The materializers resolve to
+and DB access to its callers; this module is that caller. The producers resolve to
 skip project evaluators that have no resolvable version; the consumer resolves the
 configuration it runs and derives the annotation identifier from it.
 """
@@ -53,14 +53,6 @@ async def load_enabled_project_evaluator_pairs(
         )
     ).all()
     return [(project_evaluator, evaluator) for project_evaluator, evaluator in rows]
-
-
-async def resolve_project_evaluator(
-    session: AsyncSession,
-    project_evaluator: models.ProjectEvaluator,
-    evaluator: models.Evaluator,
-) -> Optional[ResolvedProjectEvaluator]:
-    return (await resolve_project_evaluators_bulk(session, [(project_evaluator, evaluator)]))[0]
 
 
 async def resolve_project_evaluators_bulk(

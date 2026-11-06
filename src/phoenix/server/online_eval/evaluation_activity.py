@@ -28,28 +28,14 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.eval_work import (
-    COMPLETED_EVAL_WORK_STATUSES,
-    LIVE_EVAL_WORK_STATUSES,
-    TERMINAL_EVAL_SESSION_WORK_STATUSES,
-    TERMINAL_EVAL_WORK_STATUSES,
-)
+from phoenix.db.eval_work import COMPLETED_STATUSES, QUEUED_STATUSES
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import LatencyMs
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.online_eval import queue_health
+from phoenix.server.online_eval.work_tables import WORK_TABLES, status_in
 from phoenix.server.types import DbSessionFactory
 
-_WorkUnitModel: TypeAlias = Union[
-    type[models.EvalWorkUnit],
-    type[models.EvalTraceWorkUnit],
-    type[models.EvalSessionWorkUnit],
-]
-_WORK_TABLES: tuple[tuple[_WorkUnitModel, tuple[str, ...]], ...] = (
-    (models.EvalWorkUnit, TERMINAL_EVAL_WORK_STATUSES),
-    (models.EvalTraceWorkUnit, TERMINAL_EVAL_SESSION_WORK_STATUSES),
-    (models.EvalSessionWorkUnit, TERMINAL_EVAL_SESSION_WORK_STATUSES),
-)
 _ProjectEvaluatorIds: TypeAlias = Union[Sequence[int], sa.Select[Any]]
 _GroupKey: TypeAlias = int
 
@@ -377,7 +363,8 @@ def _completed(
     table rather than search ``ix_*_project_evaluator_done`` once per evaluator.
     """
     branches: list[sa.Select[*tuple[Any, ...]]] = []
-    for model, terminal_statuses in _WORK_TABLES:
+    for work_table in WORK_TABLES.values():
+        model = work_table.work_unit_model
         branches.append(
             sa.select(
                 model.project_evaluator_id.label("project_evaluator_id"),
@@ -385,8 +372,8 @@ def _completed(
                 model.updated_at.label("completed_at"),
                 (LatencyMs(model.created_at, model.updated_at) / 1000).label("lag_seconds"),
             ).where(
-                _status_in(model, terminal_statuses),
-                _status_in(model, COMPLETED_EVAL_WORK_STATUSES),
+                status_in(model, work_table.terminal_statuses),
+                status_in(model, COMPLETED_STATUSES),
                 _evaluator_in(model, project_evaluator_ids),
                 model.updated_at >= start,
                 model.updated_at < end,
@@ -410,13 +397,14 @@ def _queued(
     declined never entered the queue, and no branch reads them.
     """
     branches: list[sa.Select[*tuple[Any, ...]]] = []
-    for model, terminal_statuses in _WORK_TABLES:
+    for work_table in WORK_TABLES.values():
+        model = work_table.work_unit_model
         in_scope = (model.project_evaluator_id + sa.literal_column("0")).in_(project_evaluator_ids)
-        for status in LIVE_EVAL_WORK_STATUSES:
+        for status in QUEUED_STATUSES:
             newest = (
                 sa.select(model.project_evaluator_id, model.created_at)
                 .where(
-                    _status_in(model, LIVE_EVAL_WORK_STATUSES),
+                    status_in(model, QUEUED_STATUSES),
                     model.status == status,
                     in_scope,
                     model.created_at < end,
@@ -438,7 +426,7 @@ def _queued(
                 model.created_at.label("entered_at"),
                 model.updated_at.label("exited_at"),
             ).where(
-                _status_in(model, terminal_statuses),
+                status_in(model, work_table.terminal_statuses),
                 in_scope,
                 model.updated_at >= start,
                 model.created_at < end,
@@ -476,20 +464,6 @@ def _evaluator_in(
 ) -> sa.ColumnElement[bool]:
     condition: sa.ColumnElement[bool] = (model.project_evaluator_id + sa.literal_column("0")).in_(
         project_evaluator_ids
-    )
-    return condition
-
-
-def _status_in(model: Any, statuses: tuple[str, ...]) -> sa.ColumnElement[bool]:
-    """Statuses render as literals so SQLite matches the work tables' partial indexes."""
-    condition: sa.ColumnElement[bool] = model.status.in_(
-        sa.bindparam(
-            "statuses",
-            list(statuses),
-            expanding=True,
-            literal_execute=True,
-            unique=True,
-        )
     )
     return condition
 

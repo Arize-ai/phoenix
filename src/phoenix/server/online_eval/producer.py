@@ -34,10 +34,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import get_env_enable_prometheus, get_env_online_eval_retention_seconds
 from phoenix.db import models
-from phoenix.db.eval_work import terminal_eval_work_index_predicate
+from phoenix.db.eval_work import terminal_index_predicate
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.online_eval.clock import VISIBILITY_LAG_SECONDS, current_database_time
 from phoenix.server.online_eval.derivation import sample_key
-from phoenix.server.online_eval.leases import MaterializerLease, current_database_time
+from phoenix.server.online_eval.leases import ScanLease
 from phoenix.server.online_eval.project_evaluator_resolution import (
     load_enabled_project_evaluator_pairs,
     resolve_project_evaluators_bulk,
@@ -53,10 +54,6 @@ from phoenix.trace.dsl.filter import SpanFilter
 logger = logging.getLogger(__name__)
 
 TICK_INTERVAL_SECONDS = 10.0
-FRONTIER_LAG_SECONDS = 60.0
-"""How long a span id or ingest time is given to become visible before a scan relies on it:
-the producer scans up to an observed high water once it is this old, and the sweepers re-read
-this far behind their watermarks."""
 BACKSTOP_INTERVAL_SECONDS = 3600.0
 BACKSTOP_LOOKBACK_SPAN_IDS = 100_000
 """How far behind the cursor the backstop scans. The reaper keeps terminal work this far
@@ -132,7 +129,7 @@ class OnlineEvalProducer(DaemonTask):
         db: DbSessionFactory,
         *,
         tick_interval_seconds: float = TICK_INTERVAL_SECONDS,
-        frontier_lag_seconds: float = FRONTIER_LAG_SECONDS,
+        frontier_lag_seconds: float = VISIBILITY_LAG_SECONDS,
         backstop_interval_seconds: float = BACKSTOP_INTERVAL_SECONDS,
         backstop_lookback_span_ids: int = BACKSTOP_LOOKBACK_SPAN_IDS,
         max_span_ids_per_tick: int = MAX_SPAN_IDS_PER_TICK,
@@ -140,7 +137,7 @@ class OnlineEvalProducer(DaemonTask):
         super().__init__()
         self._db = db
         self._tick_interval_seconds = tick_interval_seconds
-        self._lease = MaterializerLease(db, name="span-producer", holder=f"producer-{token_hex(8)}")
+        self._lease = ScanLease(db, name="span-producer", holder=f"producer-{token_hex(8)}")
         self._frontier_lag_seconds = frontier_lag_seconds
         self._backstop_interval_seconds = backstop_interval_seconds
         self._backstop_lookback_span_ids = backstop_lookback_span_ids
@@ -289,7 +286,7 @@ class OnlineEvalProducer(DaemonTask):
             await session.execute(
                 delete(models.EvalWorkUnit).where(
                     # SQLite reads a partial index only when the query repeats its predicate.
-                    text(terminal_eval_work_index_predicate()),
+                    text(terminal_index_predicate()),
                     models.EvalWorkUnit.updated_at < retention_cutoff,
                     models.EvalWorkUnit.span_rowid < reap_floor,
                 )

@@ -15,14 +15,12 @@ from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
 from phoenix.server.online_eval import sweeper as sweeper_module
+from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.derivation import (
     ResolvedProjectEvaluator,
     sample_key,
 )
-from phoenix.server.online_eval.leases import (
-    MATERIALIZER_LEASE_TTL_SECONDS,
-    current_database_time,
-)
+from phoenix.server.online_eval.leases import SCAN_LEASE_TTL_SECONDS
 from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluators_bulk
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
@@ -700,7 +698,7 @@ async def _advance_liveness(
 async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_ingest(
     db: DbSessionFactory,
     evaluation_target: models.EvaluationTarget,
-    status: models.EvalSessionWorkStatus,
+    status: models.SweptTargetWorkStatus,
 ) -> None:
     """Work that ended without a result carries the activity it was scheduled for in
     ``evaluated_through``, so it is offered again only once its entity has newer activity.
@@ -766,7 +764,7 @@ async def test_work_ended_without_a_result_is_re_offered_in_place_after_new_inge
 @pytest.mark.parametrize("declined_status", ["FILTERED_OUT", "SAMPLED_OUT"])
 async def test_re_offer_that_lands_declined_is_final(
     db: DbSessionFactory,
-    declined_status: models.EvalSessionWorkStatus,
+    declined_status: models.SweptTargetWorkStatus,
 ) -> None:
     project_id, project_session_id, first_ingest_at = await _add_session_liveness(
         db,
@@ -1029,7 +1027,7 @@ async def test_live_session_lease_stands_down_and_stale_lease_is_reclaimed(
         await session.execute(
             update(models.EvalWorkLease)
             .where(models.EvalWorkLease.name == sweeper._lease.name)
-            .values(heartbeat_at=_now() - timedelta(seconds=MATERIALIZER_LEASE_TTL_SECONDS + 1))
+            .values(heartbeat_at=_now() - timedelta(seconds=SCAN_LEASE_TTL_SECONDS + 1))
         )
     await sweeper._tick()
 

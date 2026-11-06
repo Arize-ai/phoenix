@@ -28,7 +28,9 @@ from phoenix.server.api.helpers.decision_clients import (
 )
 from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
-from phoenix.server.online_eval.project_evaluator_resolution import resolve_project_evaluator
+from phoenix.server.online_eval.project_evaluator_resolution import (
+    resolve_project_evaluators_bulk,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.db.types.test_decision_evaluators import questions
 from tests.unit.graphql import AsyncGraphQLClient
@@ -123,7 +125,7 @@ async def _fingerprint(db: DbSessionFactory, judge_id: int, binding_id: int) -> 
         binding = await session.get(models.ProjectEvaluator, binding_id)
         judge = await session.scalar(select(_POLYMORPHIC).where(_POLYMORPHIC.id == judge_id))
         assert binding is not None and judge is not None
-        resolved = await resolve_project_evaluator(session, binding, judge)
+        resolved = (await resolve_project_evaluators_bulk(session, [(binding, judge)]))[0]
         assert resolved is not None
         return config_fingerprint(resolved)
 

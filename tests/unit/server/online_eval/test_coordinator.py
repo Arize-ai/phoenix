@@ -13,18 +13,16 @@ from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
-from phoenix.server.online_eval import db_coordinator as db_coordinator_module
+from phoenix.server.online_eval import coordinator as coordinator_module
+from phoenix.server.online_eval.clock import TERMINAL_METRICS_WINDOW_SECONDS
 from phoenix.server.online_eval.coordinator import (
+    CLAIM_LEASE_TTL_SECONDS,
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
-    LEASE_TTL_SECONDS,
-    TERMINAL_METRICS_WINDOW_SECONDS,
+    TRANSIENT_RETRY_MAX_AGE_SECONDS,
     EndedWorkCounts,
+    EvalWorkCoordinator,
     PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
-)
-from phoenix.server.online_eval.db_coordinator import (
-    TRANSIENT_RETRY_MAX_AGE_SECONDS,
-    DbEvalWorkCoordinator,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -214,8 +212,7 @@ async def _write_nothing(session: AsyncSession) -> None:
 
 async def test_claim_and_publish_happy_path(db: DbSessionFactory) -> None:
     unit_ids = await _seed_work_units(db, 2)
-    coordinator = DbEvalWorkCoordinator(db)
-    before = datetime.now(timezone.utc)
+    coordinator = EvalWorkCoordinator(db)
 
     claimed = await coordinator.claim(claimed_by="consumer-1", limit=10)
     assert [unit.work_unit_id for unit in claimed] == unit_ids
@@ -223,10 +220,6 @@ async def test_claim_and_publish_happy_path(db: DbSessionFactory) -> None:
         assert claimed_unit.project_evaluator_id > 0
         assert claimed_unit.attempts == 0
         assert claimed_unit.claimed_by == "consumer-1"
-        assert claimed_unit.lease_expires_at >= before + timedelta(
-            seconds=LEASE_TTL_SECONDS,
-            milliseconds=-1,
-        )
         row = await _get_unit(db, claimed_unit.work_unit_id)
         assert row.status == "RUNNING"
         assert row.claimed_by == "consumer-1"
@@ -264,11 +257,11 @@ async def test_heartbeat_keeps_lapsed_unit_unavailable_to_competing_consumer(
     db: DbSessionFactory,
 ) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    owner = DbEvalWorkCoordinator(db)
-    competitor = DbEvalWorkCoordinator(db)
+    owner = EvalWorkCoordinator(db)
+    competitor = EvalWorkCoordinator(db)
 
     await owner.claim(claimed_by="consumer-1", limit=1)
-    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
         await session.execute(
             update(models.EvalWorkUnit)
@@ -289,16 +282,15 @@ async def test_work_leases_and_retry_age_ignore_application_clock_skew(
         def now(cls, tz: object = None) -> "_SkewedDateTime":
             return cls(2100, 1, 1, tzinfo=timezone.utc)
 
-    monkeypatch.setattr(db_coordinator_module, "datetime", _SkewedDateTime)
+    monkeypatch.setattr(coordinator_module, "datetime", _SkewedDateTime)
     (unit_id,) = await _seed_work_units(db, 1)
-    owner = DbEvalWorkCoordinator(db)
-    competitor = DbEvalWorkCoordinator(db)
+    owner = EvalWorkCoordinator(db)
+    competitor = EvalWorkCoordinator(db)
 
     (claim,) = await owner.claim(claimed_by="owner", limit=1)
     row = await _get_unit(db, unit_id)
     assert row.claimed_at is not None
     assert row.claimed_at.year < 2100
-    assert claim.lease_expires_at == row.claimed_at + timedelta(seconds=LEASE_TTL_SECONDS)
 
     assert await owner.heartbeat(work_unit_id=unit_id, claimed_by="owner")
     assert await competitor.claim(claimed_by="competitor", limit=1) == []
@@ -315,7 +307,7 @@ async def test_work_leases_and_retry_age_ignore_application_clock_skew(
 
 async def test_fail_sets_cooldown_and_unit_is_reclaimable_after_it(db: DbSessionFactory) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
 
     await coordinator.claim(claimed_by="consumer-1", limit=1)
     future = datetime.now(timezone.utc) + timedelta(seconds=60)
@@ -342,7 +334,7 @@ async def test_fail_sets_cooldown_and_unit_is_reclaimable_after_it(db: DbSession
 
 async def test_failed_unit_with_exhausted_attempts_is_not_claimable(db: DbSessionFactory) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db, max_attempts=1)
+    coordinator = EvalWorkCoordinator(db, max_attempts=1)
 
     await coordinator.claim(claimed_by="consumer-1", limit=1)
     assert await coordinator.fail(work_unit_id=unit_id, claimed_by="consumer-1", error="boom")
@@ -353,7 +345,7 @@ async def test_aged_transient_failure_is_parked_as_exhausted_error(
     db: DbSessionFactory,
 ) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     await coordinator.claim(claimed_by="consumer-1", limit=1)
     async with db() as session:
         await session.execute(
@@ -385,7 +377,7 @@ async def test_fresh_transient_failure_remains_retryable_after_cooldown(
     db: DbSessionFactory,
 ) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     await coordinator.claim(claimed_by="consumer-1", limit=1)
     cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=60)
 
@@ -413,7 +405,7 @@ async def test_fresh_transient_failure_remains_retryable_after_cooldown(
 
 async def test_expire_is_terminal(db: DbSessionFactory) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
 
     await coordinator.claim(claimed_by="consumer-1", limit=1)
     assert await coordinator.expire(
@@ -436,7 +428,7 @@ async def test_release_returns_owned_unit_to_pending_without_counting_attempt(
     db: DbSessionFactory,
 ) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (claimed,) = await coordinator.claim(claimed_by="consumer-1", limit=1)
 
     assert await coordinator.release(
@@ -459,10 +451,10 @@ async def test_transitions_return_false_after_lapsed_lease_is_reclaimed(
     db: DbSessionFactory,
 ) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
 
     await coordinator.claim(claimed_by="consumer-1", limit=1)
-    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
         await session.execute(
             update(models.EvalWorkUnit)
@@ -493,8 +485,8 @@ async def test_lapsed_lease_with_exhausted_attempts_is_not_claimable(
     db: DbSessionFactory,
 ) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db, max_attempts=1)
-    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    coordinator = EvalWorkCoordinator(db, max_attempts=1)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
         await session.execute(
             update(models.EvalWorkUnit)
@@ -519,7 +511,7 @@ async def test_claim_fails_lapsed_running_work_with_no_attempts_left(
     db: DbSessionFactory,
 ) -> None:
     lapsed_id, fresh_id = await _seed_work_units(db, 2)
-    lapsed = datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+    lapsed = datetime.now(timezone.utc) - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
     async with db() as session:
         for unit_id, claimed_at in ((lapsed_id, lapsed), (fresh_id, datetime.now(timezone.utc))):
             await session.execute(
@@ -533,18 +525,18 @@ async def test_claim_fails_lapsed_running_work_with_no_attempts_left(
                 )
             )
 
-    assert await DbEvalWorkCoordinator(db).claim(claimed_by="consumer", limit=2) == []
+    assert await EvalWorkCoordinator(db).claim(claimed_by="consumer", limit=2) == []
 
-    reaped = await _get_unit(db, lapsed_id)
-    assert reaped.status == "FAILED"
-    assert reaped.attempts == MAX_ATTEMPTS
-    assert reaped.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
+    recovered = await _get_unit(db, lapsed_id)
+    assert recovered.status == "FAILED"
+    assert recovered.attempts == MAX_ATTEMPTS
+    assert recovered.error == LEASE_ATTEMPTS_EXHAUSTED_ERROR
     assert (await _get_unit(db, fresh_id)).status == "RUNNING"
 
 
 async def test_lapsed_unit_is_claimed_exactly_max_attempts_times(db: DbSessionFactory) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     execution_count = 0
 
     for execution_count in range(1, MAX_ATTEMPTS + 1):
@@ -555,7 +547,8 @@ async def test_lapsed_unit_is_claimed_exactly_max_attempts_times(db: DbSessionFa
                 update(models.EvalWorkUnit)
                 .where(models.EvalWorkUnit.id == unit_id)
                 .values(
-                    claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+                    claimed_at=datetime.now(timezone.utc)
+                    - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
                 )
             )
 
@@ -578,14 +571,14 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
         assert evaluation_target == "SPAN"
         return SimpleNamespace(observe=lambda seconds: lags.setdefault(outcome, []).append(seconds))
 
-    monkeypatch.setattr(db_coordinator_module, "get_env_enable_prometheus", lambda: True)
+    monkeypatch.setattr(coordinator_module, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(
-        db_coordinator_module,
+        coordinator_module,
         "ONLINE_EVAL_COMPLETED_WORK_UNITS",
         SimpleNamespace(labels=counter_labels),
     )
     monkeypatch.setattr(
-        db_coordinator_module,
+        coordinator_module,
         "ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS",
         SimpleNamespace(labels=lag_labels),
     )
@@ -597,33 +590,33 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
                 created_at=datetime.now(timezone.utc) - timedelta(seconds=queued_seconds_ago)
             )
         )
-    coordinator = DbEvalWorkCoordinator(db, max_attempts=1)
+    coordinator = EvalWorkCoordinator(db, max_attempts=1)
     await coordinator.claim(claimed_by="dead-consumer", limit=1)
     async with db() as session:
         await session.execute(
             update(models.EvalWorkUnit)
             .where(models.EvalWorkUnit.claimed_by == "dead-consumer")
             .values(
-                claimed_at=datetime.now(timezone.utc) - timedelta(seconds=LEASE_TTL_SECONDS + 1)
+                claimed_at=datetime.now(timezone.utc)
+                - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
             )
         )
     claimed = await coordinator.claim(claimed_by="consumer", limit=4)
-    published, failed, expired, dropped = (unit.work_unit_id for unit in claimed)
+    published, failed, expired, cleared = (unit.work_unit_id for unit in claimed)
 
     await coordinator.publish(work_unit_id=published, claimed_by="consumer", write=_write_nothing)
     await coordinator.fail(work_unit_id=failed, claimed_by="consumer", error="boom")
     await coordinator.expire(work_unit_id=expired, claimed_by="consumer", error="deadline")
-    # Retired as dropped at hydration, after its evaluator was turned off.
-    await coordinator.expire(
-        work_unit_id=dropped,
+    # Cleared at hydration, after its evaluator was turned off.
+    await coordinator.clear(
+        work_unit_id=cleared,
         claimed_by="consumer",
         error="PROJECT_EVALUATOR_DISABLED",
-        status="DROPPED",
     )
 
-    # The lapsed claim, out of attempts, fails when the next claim reaps it.
+    # The lapsed claim, out of attempts, fails when the next claim recovers it.
     assert (await _get_unit(db, unit_ids[0])).status == "FAILED"
-    assert increments == {"evaluated": 1, "failed": 2, "expired": 1, "cleared": 1}
+    assert increments == {"evaluated": 1, "failed": 2, "expired": 1, "evaluator_disabled": 1}
     # Cleared work had no result, so it has no lag.
     assert {outcome: len(seconds) for outcome, seconds in lags.items()} == {
         "evaluated": 1,
@@ -640,10 +633,10 @@ async def test_completed_work_is_counted_by_outcome_once_committed(
 async def test_ended_work_counts(
     db: DbSessionFactory,
 ) -> None:
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
 
     empty = await coordinator.ended_work_counts()
-    assert empty == EndedWorkCounts(exhausted_error_count=0, expired_count=0, dropped_count=0)
+    assert empty == EndedWorkCounts(exhausted_error_count=0, expired_count=0, cleared_count=0)
 
     unit_ids = await _seed_work_units(db, 5)
     async with db() as session:
@@ -674,14 +667,14 @@ async def test_ended_work_counts(
         )
 
     ended = await coordinator.ended_work_counts()
-    assert ended == EndedWorkCounts(exhausted_error_count=1, expired_count=1, dropped_count=1)
+    assert ended == EndedWorkCounts(exhausted_error_count=1, expired_count=1, cleared_count=1)
 
 
 async def test_ended_work_counts_exclude_work_older_than_the_metrics_window(
     db: DbSessionFactory,
 ) -> None:
     _, unit_ids = await _seed_session_work_units(db, 3)
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
     before_window = datetime.now(timezone.utc) - timedelta(
         seconds=TERMINAL_METRICS_WINDOW_SECONDS + 60
     )
@@ -709,7 +702,7 @@ async def test_ended_work_counts_exclude_work_older_than_the_metrics_window(
 
 async def test_session_claim_lifecycle(db: DbSessionFactory) -> None:
     project_session_id, unit_ids = await _seed_session_work_units(db, 5)
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    coordinator = EvalWorkCoordinator(db, evaluation_target="SESSION")
 
     (claimed,) = await coordinator.claim(claimed_by="session-consumer", limit=1)
     assert claimed.evaluation_target == "SESSION"
@@ -731,7 +724,7 @@ async def test_session_claim_lifecycle(db: DbSessionFactory) -> None:
             .where(models.EvalSessionWorkUnit.id == unit_ids[1])
             .values(
                 status="RUNNING",
-                claimed_at=now - timedelta(seconds=LEASE_TTL_SECONDS + 1),
+                claimed_at=now - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1),
                 claimed_by="dead-consumer",
                 attempts=MAX_ATTEMPTS - 1,
             )
@@ -786,7 +779,7 @@ async def test_session_claim_excludes_declined_decisions(db: DbSessionFactory) -
             .values(status="SAMPLED_OUT")
         )
 
-    claimed = await DbEvalWorkCoordinator(db, evaluation_target="SESSION").claim(
+    claimed = await EvalWorkCoordinator(db, evaluation_target="SESSION").claim(
         claimed_by="session-consumer",
         limit=3,
     )
@@ -800,7 +793,7 @@ async def test_claim_skips_rows_locked_by_a_concurrent_transaction(
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     unit_ids = await _seed_work_units(db, 2)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
 
     async with db() as session:
         locked = await session.scalar(
@@ -822,8 +815,8 @@ async def test_session_publish_holds_work_lock_against_reclaim(
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     _, (unit_id,) = await _seed_session_work_units(db, 1)
-    owner = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
-    competitor = DbEvalWorkCoordinator(db, evaluation_target="SESSION")
+    owner = EvalWorkCoordinator(db, evaluation_target="SESSION")
+    competitor = EvalWorkCoordinator(db, evaluation_target="SESSION")
     (claim,) = await owner.claim(claimed_by="owner", limit=1)
     async with db() as session:
         await session.execute(
@@ -862,7 +855,7 @@ async def test_heartbeat_that_waits_on_its_own_publish_keeps_the_claim(
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     publisher_pids: list[int] = []
     entered = asyncio.Event()
@@ -906,7 +899,7 @@ async def test_heartbeat_that_waits_on_its_own_publish_keeps_the_claim(
 
 async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory) -> None:
     (unit_id,) = await _seed_work_units(db, 1)
-    coordinator = DbEvalWorkCoordinator(db)
+    coordinator = EvalWorkCoordinator(db)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     async with db() as session:
         await session.execute(
@@ -930,7 +923,7 @@ async def test_publish_refuses_a_disabled_project_evaluator(db: DbSessionFactory
 
 async def test_trace_claim_lifecycle(db: DbSessionFactory) -> None:
     trace_rowid, _, unit_ids = await _seed_trace_work_units(db, 2)
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target="TRACE")
+    coordinator = EvalWorkCoordinator(db, evaluation_target="TRACE")
 
     (claimed,) = await coordinator.claim(claimed_by="trace-consumer", limit=1)
 
@@ -967,7 +960,7 @@ async def test_publish_refuses_a_target_deleted_under_the_fence(
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     unit_id = await _seed_one_unit(db, evaluation_target)
     target_model, _, _, _ = _TARGET_MODELS[evaluation_target]
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
+    coordinator = EvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     wrote = asyncio.Event()
 
@@ -988,7 +981,7 @@ async def test_publish_refuses_a_target_deleted_under_the_fence(
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(publication), timeout=0.1)
 
-    with pytest.raises(PublicationClaimLostError, match="no longer owned and live"):
+    with pytest.raises(PublicationClaimLostError, match="no longer owned and running"):
         await publication
     assert not wrote.is_set()
 
@@ -1004,7 +997,7 @@ async def test_target_delete_waits_for_publication(
     target_model, work_unit_model, annotation_model, target_column = _TARGET_MODELS[
         evaluation_target
     ]
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
+    coordinator = EvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     fenced = asyncio.Event()
     release = asyncio.Event()
@@ -1063,7 +1056,7 @@ async def test_publish_does_not_wait_on_ingest_or_sweeper_row_locks(
     """The sweepers lock evaluator rows; span ingest updates session and trace rows."""
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     unit_id = await _seed_one_unit(db, evaluation_target, project_session=True)
-    coordinator = DbEvalWorkCoordinator(db, evaluation_target=evaluation_target)
+    coordinator = EvalWorkCoordinator(db, evaluation_target=evaluation_target)
     (claim,) = await coordinator.claim(claimed_by="owner", limit=1)
     wrote = asyncio.Event()
 

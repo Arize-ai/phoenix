@@ -11,7 +11,6 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.evaluators.services import project_bindings
-from phoenix.server.online_eval import db_coordinator as db_coordinator_module
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.online_eval.sweeper import EvalSweeper
 from phoenix.server.types import DbSessionFactory
@@ -233,9 +232,9 @@ def _count_completed_work(monkeypatch: pytest.MonkeyPatch) -> Counter[tuple[str,
             inc=lambda count=1: increments.update({(evaluation_target, outcome): count})
         )
 
-    monkeypatch.setattr(db_coordinator_module, "get_env_enable_prometheus", lambda: True)
+    monkeypatch.setattr(project_bindings, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(
-        db_coordinator_module,
+        project_bindings,
         "ONLINE_EVAL_COMPLETED_WORK_UNITS",
         SimpleNamespace(labels=labels),
     )

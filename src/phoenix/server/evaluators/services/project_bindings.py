@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 from secrets import token_hex
-from typing import Any, Optional, TypedDict, cast
+from typing import Any, Mapping, Optional, Sequence, TypedDict, cast
 
 from pydantic import ValidationError
-from sqlalchemy import delete, event, select, update
+from sqlalchemy import delete, event, select, text, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -13,7 +13,9 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 
+from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
+from phoenix.db.eval_work import queued_index_predicate
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     code_evaluator_with_latest_version,
@@ -65,13 +67,10 @@ from phoenix.server.evaluators.validation import (
     require_categorical_output_configs,
     validate_decision_input_mapping,
 )
-from phoenix.server.online_eval.db_coordinator import (
-    count_cleared_work,
-    drop_all_queued_work,
-    drop_queued_work,
-)
-from phoenix.server.online_eval.leases import current_database_time
+from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.producer import current_span_rowid_floor
+from phoenix.server.online_eval.work_tables import WORK_TABLES
+from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS
 
 
 @dataclass(kw_only=True)
@@ -922,9 +921,9 @@ async def write_project_evaluator(
     )
     assert row is not None
     if enabling:
-        dropped = await drop_queued_work(session, [project_evaluator_id])
+        cleared = await clear_queued_work(session, [project_evaluator_id])
         event.listen(
-            session.sync_session, "after_commit", lambda _: count_cleared_work(dropped), once=True
+            session.sync_session, "after_commit", lambda _: count_cleared_work(cleared), once=True
         )
     return row
 
@@ -934,8 +933,8 @@ async def set_project_evaluator_enabled(
 ) -> models.ProjectEvaluator:
     """Enable or disable a binding without changing its other settings.
 
-    Disabling leaves its queued evaluations in place; a disabled evaluator's are dropped,
-    not run, when their turn comes, and enabling it again drops any still queued. Clear them
+    Disabling leaves its queued evaluations in place; a disabled evaluator's are cleared,
+    not run, when their turn comes, and enabling it again clears any still queued. Clear them
     now with ``clear_project_evaluator_queued_evaluations``.
     """
     try:
@@ -972,9 +971,9 @@ async def clear_project_evaluator_queued_evaluations(
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_rowid)
         if project_evaluator is None:
             raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
-        dropped = await drop_queued_work(session, [project_evaluator.id])
-    count_cleared_work(dropped)
-    return sum(dropped.values()), project_evaluator
+        cleared = await clear_queued_work(session, [project_evaluator.id])
+    count_cleared_work(cleared)
+    return sum(cleared.values()), project_evaluator
 
 
 async def clear_queued_evaluations(
@@ -999,9 +998,9 @@ async def clear_queued_evaluations(
                 )
             )
         )
-        dropped = await drop_queued_work(session, project_evaluator_ids)
-    count_cleared_work(dropped)
-    return sum(dropped.values()), project
+        cleared = await clear_queued_work(session, project_evaluator_ids)
+    count_cleared_work(cleared)
+    return sum(cleared.values()), project
 
 
 async def clear_all_queued_evaluations(context: EvaluatorServiceContext) -> int:
@@ -1010,9 +1009,61 @@ async def clear_all_queued_evaluations(context: EvaluatorServiceContext) -> int:
     Evaluations already running are left alone.
     """
     async with context.db() as session:
-        dropped = await drop_all_queued_work(session)
-    count_cleared_work(dropped)
-    return sum(dropped.values())
+        cleared = await clear_all_queued_work(session)
+    count_cleared_work(cleared)
+    return sum(cleared.values())
+
+
+async def clear_queued_work(
+    session: AsyncSession,
+    project_evaluator_ids: Sequence[int],
+) -> dict[models.EvaluationTarget, int]:
+    """Clear the project evaluators' work that has not started, returning how many units of
+    each evaluation target.
+
+    Queued work that has not started is PENDING, or ERROR awaiting a retry. RUNNING work is
+    left alone: an enabled evaluator's evaluation should finish, and publication refuses a
+    disabled one's. The status guard also skips a unit a consumer claims concurrently.
+    """
+    return await _clear_queued_work(session, project_evaluator_ids)
+
+
+async def clear_all_queued_work(session: AsyncSession) -> dict[models.EvaluationTarget, int]:
+    """Clear every project evaluator's work that has not started, returning how many units
+    of each evaluation target, as ``clear_queued_work`` does for some."""
+    return await _clear_queued_work(session, None)
+
+
+async def _clear_queued_work(
+    session: AsyncSession,
+    project_evaluator_ids: Optional[Sequence[int]],
+) -> dict[models.EvaluationTarget, int]:
+    cleared: dict[models.EvaluationTarget, int] = {}
+    for evaluation_target, work_table in WORK_TABLES.items():
+        work_unit_model = work_table.work_unit_model
+        statement = update(work_unit_model).where(
+            # SQLite reads a partial index only when the query repeats its predicate.
+            text(queued_index_predicate()),
+            work_unit_model.status.in_(("PENDING", "ERROR")),
+        )
+        if project_evaluator_ids is not None:
+            statement = statement.where(
+                work_unit_model.project_evaluator_id.in_(project_evaluator_ids)
+            )
+        result = await session.execute(statement.values(status="DROPPED"))
+        cleared[evaluation_target] = result.rowcount  # type: ignore[attr-defined]
+    return cleared
+
+
+def count_cleared_work(cleared: Mapping[models.EvaluationTarget, int]) -> None:
+    """Count work a user cleared, once the transaction that cleared it has committed."""
+    if not get_env_enable_prometheus():
+        return
+    for evaluation_target, count in cleared.items():
+        if count:
+            ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(
+                evaluation_target=evaluation_target, outcome="cleared"
+            ).inc(count)
 
 
 async def delete_project_evaluators(
