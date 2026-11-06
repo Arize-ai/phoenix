@@ -209,8 +209,8 @@ async def load_project_evaluator_queues(
     project_evaluator_ids: Sequence[int],
 ) -> dict[int, ProjectEvaluatorQueue]:
     """Each project evaluator's queued evaluations; evaluators with none are absent. Each
-    evaluator's read takes at most ``MAX_QUEUE_COUNT`` of its oldest, through its target's
-    per-evaluator queued index."""
+    evaluator's count reads at most ``MAX_QUEUE_COUNT`` of its rows, and each oldest one row,
+    through its target's ``ix_*_project_evaluator_live`` index."""
     async with db.read() as session:
         evaluators = await _load_project_evaluator_targets(
             session, models.ProjectEvaluator.id.in_(project_evaluator_ids)
@@ -225,14 +225,17 @@ async def load_project_evaluator_queues(
                 project_evaluator_id,
                 count,
                 running_count,
-                oldest_waiting_or_retrying_at,
                 oldest_waiting_at,
+                oldest_retrying_at,
             ) in await session.execute(sa.union_all(*reads) if len(reads) > 1 else reads[0]):
                 if count:
                     result[project_evaluator_id] = ProjectEvaluatorQueue(
                         queued_count=count,
                         running_count=running_count,
-                        oldest_waiting_or_retrying_at=oldest_waiting_or_retrying_at,
+                        oldest_waiting_or_retrying_at=min(
+                            (at for at in (oldest_waiting_at, oldest_retrying_at) if at),
+                            default=None,
+                        ),
                         oldest_waiting_at=oldest_waiting_at,
                     )
     return result
@@ -358,23 +361,27 @@ def _evaluator_queued_stmt(
     evaluator: ProjectEvaluatorTarget,
 ) -> sa.Select[*tuple[Any, ...]]:
     model = WORK_TABLES[evaluator.evaluation_target].work_unit_model
-    head = (
-        sa.select(model.status, model.created_at)
-        .where(
-            model.project_evaluator_id == evaluator.id,
-            status_in(model, QUEUED_STATUSES),
+    in_queue = (model.project_evaluator_id == evaluator.id, status_in(model, QUEUED_STATUSES))
+    rows = sa.select(model.status).where(*in_queue).limit(MAX_QUEUE_COUNT).subquery()
+
+    def oldest(status: str) -> sa.ScalarSelect[Any]:
+        # The status comes first so SQLite seeks by it rather than by the queued statuses,
+        # reads the index in age order and stops at one row.
+        return (
+            sa.select(model.created_at)
+            .where(model.status == status, *in_queue)
+            .order_by(model.created_at)
+            .limit(1)
+            .scalar_subquery()
         )
-        .order_by(model.id)
-        .limit(MAX_QUEUE_COUNT)
-        .subquery()
-    )
+
     return sa.select(
         sa.literal(evaluator.id, sa.Integer).label("project_evaluator_id"),
         sa.func.count(),
-        sa.func.count(sa.case((head.c.status == "RUNNING", 1))),
-        sa.func.min(sa.case((head.c.status.in_(("PENDING", "ERROR")), head.c.created_at))),
-        sa.func.min(sa.case((head.c.status == "PENDING", head.c.created_at))),
-    ).select_from(head)
+        sa.func.count(sa.case((rows.c.status == "RUNNING", 1))),
+        oldest("PENDING"),
+        oldest("ERROR"),
+    ).select_from(rows)
 
 
 def _seconds_since(then: Optional[datetime], now: datetime) -> Optional[float]:

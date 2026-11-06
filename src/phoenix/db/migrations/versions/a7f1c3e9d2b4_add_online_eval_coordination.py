@@ -126,11 +126,11 @@ def _create_session_work_units_table() -> None:
         "eval_session_work_units",
         ["project_evaluator_id"],
     )
-    # Each evaluator's queued work in queue order, read without walking its history.
+    # Each evaluator's queued work by status and age, read without walking its history.
     op.create_index(
         "ix_eval_session_work_units_project_evaluator_live",
         "eval_session_work_units",
-        ["project_evaluator_id", "id", "status", "created_at"],
+        ["project_evaluator_id", "status", "created_at"],
         postgresql_where=sa.text(_QUEUED_PREDICATE),
         sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
@@ -217,11 +217,11 @@ def _create_trace_work_units_table() -> None:
         "eval_trace_work_units",
         ["project_evaluator_id"],
     )
-    # Each evaluator's queued work in queue order, read without walking its history.
+    # Each evaluator's queued work by status and age, read without walking its history.
     op.create_index(
         "ix_eval_trace_work_units_project_evaluator_live",
         "eval_trace_work_units",
-        ["project_evaluator_id", "id", "status", "created_at"],
+        ["project_evaluator_id", "status", "created_at"],
         postgresql_where=sa.text(_QUEUED_PREDICATE),
         sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
@@ -492,11 +492,11 @@ def upgrade() -> None:
         "eval_work_units",
         ["project_evaluator_id"],
     )
-    # Each evaluator's queued work in queue order, read without walking its history.
+    # Each evaluator's queued work by status and age, read without walking its history.
     op.create_index(
         "ix_eval_work_units_project_evaluator_live",
         "eval_work_units",
-        ["project_evaluator_id", "id", "status", "created_at"],
+        ["project_evaluator_id", "status", "created_at"],
         postgresql_where=sa.text(_QUEUED_PREDICATE),
         sqlite_where=sa.text(_QUEUED_PREDICATE),
     )

@@ -4276,13 +4276,12 @@ class EvalWorkUnit(HasId):
             postgresql_where=text(queued_index_predicate()),
             sqlite_where=text(queued_index_predicate()),
         ),
-        # Each evaluator's queued work in queue order, read without walking its history. It
-        # covers the read, which is also what makes SQLite pick it over the full
+        # Each evaluator's queued work by status and age, read without walking its history.
+        # It covers the reads, which is also what makes SQLite pick it over the full
         # project_evaluator_id index.
         Index(
             "ix_eval_work_units_project_evaluator_live",
             "project_evaluator_id",
-            "id",
             "status",
             "created_at",
             postgresql_where=text(queued_index_predicate()),
@@ -4351,13 +4350,12 @@ class EvalSessionWorkUnit(HasId):
             postgresql_where=text(queued_index_predicate()),
             sqlite_where=text(queued_index_predicate()),
         ),
-        # Each evaluator's queued work in queue order, read without walking its history. It
-        # covers the read, which is also what makes SQLite pick it over the full
+        # Each evaluator's queued work by status and age, read without walking its history.
+        # It covers the reads, which is also what makes SQLite pick it over the full
         # project_evaluator_id index.
         Index(
             "ix_eval_session_work_units_project_evaluator_live",
             "project_evaluator_id",
-            "id",
             "status",
             "created_at",
             postgresql_where=text(queued_index_predicate()),
@@ -4428,13 +4426,12 @@ class EvalTraceWorkUnit(HasId):
             postgresql_where=text(queued_index_predicate()),
             sqlite_where=text(queued_index_predicate()),
         ),
-        # Each evaluator's queued work in queue order, read without walking its history. It
-        # covers the read, which is also what makes SQLite pick it over the full
+        # Each evaluator's queued work by status and age, read without walking its history.
+        # It covers the reads, which is also what makes SQLite pick it over the full
         # project_evaluator_id index.
         Index(
             "ix_eval_trace_work_units_project_evaluator_live",
             "project_evaluator_id",
-            "id",
             "status",
             "created_at",
             postgresql_where=text(queued_index_predicate()),
