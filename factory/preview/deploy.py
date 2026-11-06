@@ -166,6 +166,18 @@ def deploy_service(*, environment_id: str, service_id: str) -> None:
     )
 
 
+def current_image(*, environment_id: str, service_id: str) -> str:
+    data = railway(
+        "query($serviceId: String!, $environmentId: String!) {"
+        " serviceInstance(serviceId: $serviceId, environmentId: $environmentId)"
+        " { source { image } } }",
+        serviceId=service_id,
+        environmentId=environment_id,
+    )
+    source = data["serviceInstance"].get("source") or {}
+    return str(source.get("image") or "")
+
+
 def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, Any]]:
     """The service's newest deployments, newest first."""
     data = railway(
@@ -290,7 +302,9 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     log = LogTail(deployment_id)
     while time.monotonic() < deadline:
         log.refresh()
-        lines = log.lines
+        # Only the latest container attempt counts; an earlier attempt's outcome is stale.
+        launches = [i for i, line in enumerate(log.lines) if line == seed_log.LAUNCH_LINE]
+        lines = log.lines[launches[-1] + 1 :] if launches else log.lines
         starts = [i for i, line in enumerate(lines) if line == seed_log.START_LINE]
         outcomes = [i for i, line in enumerate(lines) if line.startswith(seed_log.OUTCOME_PREFIXES)]
         last_start = starts[-1] if starts else -1
@@ -324,15 +338,19 @@ def packages_api_root(owner: str) -> str:
     return f"{'orgs' if owner_type == 'Organization' else 'users'}/{owner}/packages/container"
 
 
-def delete_image_tags(*, image: str, pr_number: int) -> int:
-    """Delete every GHCR version tagged for this PR (pr-N and pr-N-*); return how many.
+def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
+    """Delete the GHCR versions tagged for this PR (pr-N and pr-N-*); return how many.
 
-    GitHub refuses to delete a package's last tagged version, so a refusal is reported and
-    skipped rather than failing the teardown.
+    With `keep`, the version carrying that tag stays, so a deploy prunes the images it
+    superseded and a teardown removes them all. GitHub refuses to delete a package's last
+    tagged version, so a refusal is reported and skipped rather than failing the teardown.
     """
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
     tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
+    select = f"any(.metadata.container.tags[]?; {tag_filter})"
+    if keep:
+        select += f" and (any(.metadata.container.tags[]?; . == {json.dumps(keep)}) | not)"
     try:
         version_ids = set(
             run_gh(
@@ -340,7 +358,7 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
                 "--paginate",
                 f"{root}/{package}/versions?per_page=100",
                 "--jq",
-                f".[] | select(.metadata.container.tags[]? | {tag_filter}) | .id",
+                f".[] | select({select}) | .id",
             ).split()
         )
     except subprocess.CalledProcessError as error:
@@ -532,10 +550,18 @@ def run_deploy(args: argparse.Namespace) -> int:
             )
             print(f"created service {name} ({service_id})")
         else:
-            before = {
-                str(d["id"])
-                for d in list_deployments(environment_id=environment_id, service_id=service_id)
-            }
+            deployments = list_deployments(environment_id=environment_id, service_id=service_id)
+            before = {str(d["id"]) for d in deployments}
+            # The workflow skips the build when the image exists, but runs this regardless,
+            # so a run whose deploy failed or never happened can be retried by re-labeling.
+            # Only a successful deployment of this very image means there is nothing to do.
+            if (
+                current_image(environment_id=environment_id, service_id=service_id) == args.image
+                and deployments
+                and deployments[0]["status"] == "SUCCESS"
+            ):
+                print(f"{args.image} is already deployed and healthy; nothing to do")
+                return 0
         set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
         set_image(environment_id=environment_id, service_id=service_id, image=args.image)
         domain = ensure_domain(
@@ -563,6 +589,10 @@ def run_deploy(args: argparse.Namespace) -> int:
     logs = ""
     if status == "SUCCESS":
         seed_outcome, seed_output = wait_for_seed(deployment_id)
+        pruned = delete_image_tags(
+            image=args.image, pr_number=args.pr, keep=args.image.partition(":")[2]
+        )
+        print(f"pruned {pruned} superseded image versions")
     else:
         seed_outcome, seed_output = "preview: the seed did not run", ""
         if deployment_id:
