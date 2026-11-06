@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
 
-from gh import gh_api, image_tag_exists, preview_image, run_gh
+from gh import gh_api, image_tag_exists, preview_image, run_gh, warn
 
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
@@ -46,11 +46,6 @@ MAX_TAG_PAGES = 5
 PREVIEW_DIR = Path(__file__).resolve().parent
 TOOLING_FILES = ("Dockerfile", "docker-bake.hcl", "launch.py", "seed_log.py")
 MAX_BASE_CANDIDATES = 30
-
-
-def warn(message: str) -> None:
-    # stdout is the step's $GITHUB_OUTPUT, so everything but outputs goes to stderr.
-    print(f"::warning::{message}", file=sys.stderr)
 
 
 @functools.cache
@@ -108,23 +103,56 @@ class PublishedCommits:
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
     """The newest base-branch commit with a published image and the PR's dependency files.
 
-    Empty when none of the last MAX_BASE_CANDIDATES commits qualifies.
+    Any base-branch commit whose dependency files match is a valid base, newer than the
+    merge base included: the overlay replaces the PR's source wholesale and the frontend is
+    compared against the chosen commit. Candidates newer than the last change to any
+    dependency file match if the branch tip does, which spares a tree lookup each; older
+    ones are compared one by one, for the case of a bump that was reverted. Empty when none
+    of the last MAX_BASE_CANDIDATES commits qualifies.
     """
-    compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{quote(base_ref, safe='')}...{head_sha}")
-    assert isinstance(compare, dict)
-    merge_base_sha = str(compare["merge_base_commit"]["sha"])
-    wanted = dependency_shas(root_tree_shas(ref=head_sha))
+    branch = quote(base_ref, safe="")
     commits = gh_api(
-        f"repos/{{owner}}/{{repo}}/commits?sha={merge_base_sha}&per_page={MAX_BASE_CANDIDATES}"
+        f"repos/{{owner}}/{{repo}}/commits?sha={branch}&per_page={MAX_BASE_CANDIDATES}"
     )
     assert isinstance(commits, list)
+    candidates = [str(commit["sha"]) for commit in commits]
+    if not candidates:
+        return ""
+    wanted = dependency_shas(root_tree_shas(ref=head_sha))
+    tip_matches = dependency_shas(root_tree_shas(ref=candidates[0])) == wanted
+    # The newest commit among the candidates that touched a dependency file, as an index
+    # into the list; everything before it has the tip's dependency files.
+    unchanged_until = len(candidates)
+    for path in DEPENDENCY_FILES:
+        changes = gh_api(f"repos/{{owner}}/{{repo}}/commits?sha={branch}&path={path}&per_page=1")
+        assert isinstance(changes, list)
+        if changes and str(changes[0]["sha"]) in candidates:
+            unchanged_until = min(unchanged_until, candidates.index(str(changes[0]["sha"])))
     published = PublishedCommits()
-    for commit in commits:
-        sha = str(commit["sha"])
-        # A reverted bump makes older commits match again, so a mismatch is not the end.
-        if sha in published and dependency_shas(root_tree_shas(ref=sha)) == wanted:
+    for index, sha in enumerate(candidates):
+        if sha not in published:
+            continue
+        matches = (
+            tip_matches
+            if index < unchanged_until
+            else (dependency_shas(root_tree_shas(ref=sha)) == wanted)
+        )
+        if matches:
             return sha
     return ""
+
+
+def comment_records(*, pr_number: int, image_tag: str) -> bool:
+    """Whether the PR's preview comment says this tag is deployed and healthy."""
+    marker = f"<!-- factory-preview tag={image_tag} status=SUCCESS -->"
+    found = run_gh(
+        "api",
+        "--paginate",
+        f"repos/{{owner}}/{{repo}}/issues/{pr_number}/comments",
+        "--jq",
+        f"[.[] | select(.body | startswith({json.dumps(marker)}))] | length",
+    )
+    return any(int(count or 0) > 0 for count in found.split())
 
 
 def extract_seed(*, body: str) -> str:
@@ -232,6 +260,9 @@ def main() -> int:
         "image": image,
         "image-tag": image_tag,
         "image-exists": str(image_tag_exists(image, image_tag)).lower(),
+        # deploy.py records the tag it deployed in its comment's marker; a body edit that
+        # leaves it the same has nothing to redo at all.
+        "comment-current": str(comment_records(pr_number=args.pr, image_tag=image_tag)).lower(),
         "base-image": base_image,
         "frontend": str(frontend).lower(),
         "seed-summary": seed_summary,

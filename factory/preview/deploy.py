@@ -22,7 +22,8 @@ import urllib.request
 from typing import Any, Optional
 
 import seed_log
-from gh import ghcr_package, packages_api_root, preview_image, run_gh
+from gh import error as log_error
+from gh import ghcr_package, packages_api_root, preview_image, run_gh, set_output, warn
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
@@ -46,8 +47,11 @@ DEPLOYMENT_FINAL_STATUSES = {
 # GitHub caps a comment at 65536 characters; relayed output gets a fraction of that.
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
-COMMENT_MARKER = "<!-- factory-preview -->"
+# The marker carries what the comment reports, so plan.py can tell an edit that changes
+# nothing; find_comment matches the prefix alone.
+COMMENT_MARKER = "<!-- factory-preview"
 SEED_NOT_FINISHED_LINE = "preview: the seed had not finished when the run stopped waiting"
+SEED_OUTCOME_GONE_LINE = "preview: the seed's outcome is no longer in the log"
 
 
 class RailwayError(Exception):
@@ -210,6 +214,7 @@ def wait_for_deployment(
     """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     deployment_id = ""
+    observed = "PENDING"
     all_skipped_since: Optional[float] = None
     crashed_since: Optional[float] = None
     while time.monotonic() < deadline:
@@ -229,8 +234,9 @@ def wait_for_deployment(
                 if time.monotonic() - all_skipped_since > SKIPPED_GRACE_SECONDS:
                     return str(ours[0]["id"]), "SKIPPED"
         except RailwayError as error:
-            print(f"::warning::Polling deployments: {error}", flush=True)
+            warn(f"Polling deployments: {error}")
         print(f"deployment {deployment_id or '(pending)'}: {status}", flush=True)
+        observed = status
         if status == "CRASHED":
             crashed_since = crashed_since or time.monotonic()
             if time.monotonic() - crashed_since <= CRASHED_GRACE_SECONDS:
@@ -240,7 +246,7 @@ def wait_for_deployment(
         if status in DEPLOYMENT_FINAL_STATUSES:
             return deployment_id, status
         time.sleep(10)
-    return deployment_id, f"TIMEOUT after {status}"
+    return deployment_id, f"TIMEOUT after {observed}"
 
 
 class LogTail:
@@ -264,7 +270,7 @@ class LogTail:
                 **variables,
             )
         except RailwayError as error:
-            print(f"::warning::Reading deployment logs: {error}", flush=True)
+            warn(f"Reading deployment logs: {error}")
             return
         # Trailing whitespace or a carriage return would defeat the exact match on the
         # launcher's lines.
@@ -306,33 +312,42 @@ def read_build_logs(deployment_id: str) -> str:
     return "\n".join(str(entry["message"]).rstrip() for entry in data["buildLogs"])
 
 
+def seed_state(log: LogTail) -> tuple[str, str, str]:
+    """(state, outcome line, seed output) for the latest container attempt in the log.
+
+    `done` carries the launcher's outcome line; `running` means the seed started and has
+    not finished; `unknown` means the launcher's lines are not in the log at all.
+    """
+    launches = [i for i, line in enumerate(log.lines) if line == seed_log.LAUNCH_LINE]
+    lines = log.lines[launches[-1] + 1 :] if launches else log.lines
+    starts = [i for i, line in enumerate(lines) if line == seed_log.START_LINE]
+    outcomes = [i for i, line in enumerate(lines) if line.startswith(seed_log.OUTCOME_PREFIXES)]
+    last_start = starts[-1] if starts else -1
+    if outcomes and outcomes[-1] > last_start:
+        output = [
+            line.removeprefix(seed_log.OUTPUT_PREFIX)
+            for line in lines[last_start + 1 :]
+            if line.startswith(seed_log.OUTPUT_PREFIX)
+        ]
+        return "done", lines[outcomes[-1]], "\n".join(output)
+    return ("running" if launches or starts else "unknown"), "", ""
+
+
 def wait_for_seed(deployment_id: str, *, timeout: float = SEED_WAIT_SECONDS) -> tuple[str, str]:
     """Return the launcher's seed outcome line and the seed's own output.
 
     Railway reports SUCCESS once /healthz answers, which launch.py reaches before the seed
     runs, so the comment waits for the launcher's outcome line rather than trusting SUCCESS.
-    The latest run is what counts: after a restart an earlier run's outcome is stale, and a
-    run that has started but not finished is still pending. Output lines are taken from
-    anywhere after the run started, so lines the relay flushed after the outcome count too.
-    A zero timeout reads the log once, for a deployment that finished long ago.
+    The latest container attempt is what counts: after a restart an earlier attempt's
+    outcome is stale, and one that has started but not finished is still pending.
     """
     deadline = time.monotonic() + timeout
     log = LogTail(deployment_id)
     while True:
         log.refresh()
-        # Only the latest container attempt counts; an earlier attempt's outcome is stale.
-        launches = [i for i, line in enumerate(log.lines) if line == seed_log.LAUNCH_LINE]
-        lines = log.lines[launches[-1] + 1 :] if launches else log.lines
-        starts = [i for i, line in enumerate(lines) if line == seed_log.START_LINE]
-        outcomes = [i for i, line in enumerate(lines) if line.startswith(seed_log.OUTCOME_PREFIXES)]
-        last_start = starts[-1] if starts else -1
-        if outcomes and outcomes[-1] > last_start:
-            output = [
-                line.removeprefix(seed_log.OUTPUT_PREFIX)
-                for line in lines[last_start + 1 :]
-                if line.startswith(seed_log.OUTPUT_PREFIX)
-            ]
-            return lines[outcomes[-1]], "\n".join(output)
+        state, outcome, output = seed_state(log)
+        if state == "done":
+            return outcome, output
         if time.monotonic() >= deadline:
             return SEED_NOT_FINISHED_LINE, ""
         time.sleep(10)
@@ -366,7 +381,7 @@ def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
         )
     except subprocess.CalledProcessError as error:
         # No package yet, when the PR never got as far as a push, or GHCR is unavailable.
-        print(f"::warning::Could not list image versions: {error.stderr}")
+        warn(f"Could not list image versions: {error.stderr}")
         return 0
     deleted = 0
     for version_id in version_ids:
@@ -380,7 +395,7 @@ def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
             )
             deleted += 1
         except subprocess.CalledProcessError as error:
-            print(f"::warning::Could not delete image version {version_id}: {error.stderr}")
+            warn(f"Could not delete image version {version_id}: {error.stderr}")
     return deleted
 
 
@@ -399,7 +414,7 @@ def image_visibility(*, image: str) -> str:
         try:
             return run_gh("api", f"{root}/{package}", "--jq", ".visibility").strip()
         except subprocess.CalledProcessError as error:
-            print(f"::warning::Reading the package's visibility: {error.stderr}")
+            warn(f"Reading the package's visibility: {error.stderr}")
             time.sleep(5 * (attempt + 1))
     return "unknown"
 
@@ -415,15 +430,22 @@ def find_comment(*, pr_number: int) -> Optional[str]:
     return comment_ids[0] if comment_ids else None
 
 
-def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
+def upsert_comment(
+    *, pr_number: int, body: str, create: bool = True, image_tag: str = "", status: str = ""
+) -> None:
     """Keep one preview comment per PR, found by its marker, so pushes edit rather than pile up.
 
-    Without `create`, a PR that never had a preview comment gets none.
+    Without `create`, a PR that never had a preview comment gets none. The marker records
+    the tag and status reported, and the step learns that a report was made.
     """
-    body = f"{COMMENT_MARKER}\n{body}"
+    marker = COMMENT_MARKER
+    if image_tag:
+        marker += f" tag={image_tag} status={status}"
+    body = f"{marker} -->\n{body}"
     comment_id = find_comment(pr_number=pr_number)
     if comment_id is None and not create:
         return
+    set_output("reported", "true")
     if comment_id is not None:
         run_gh(
             "api",
@@ -527,6 +549,10 @@ def post_deploy_comment(
     seed_output: str,
     logs: str,
 ) -> None:
+    fine = seed_outcome.startswith(seed_log.SUCCESS_LINES) or seed_outcome in (
+        SEED_NOT_FINISHED_LINE,
+        SEED_OUTCOME_GONE_LINE,
+    )
     upsert_comment(
         pr_number=args.pr,
         body=format_deploy_comment(
@@ -540,6 +566,12 @@ def post_deploy_comment(
             run_url=args.run_url,
             logs=logs,
         ),
+        image_tag=args.image_tag,
+        status=status
+        if status == "SUCCESS" and fine
+        else f"{status}-seed-failed"
+        if status == "SUCCESS"
+        else status,
     )
 
 
@@ -556,23 +588,29 @@ def reuse_existing_deployment(
     image from a successful deployment whose seed did not fail.
 
     The workflow skips the build when the image exists but runs deploy.py regardless, so a
-    run whose deploy failed or never happened is retried by re-labeling; this is the case
-    where there is nothing to redo. The log is read once: the deployment is final, and an
-    old one may have scrolled the launcher's lines away, which is no reason to redeploy.
+    run whose deploy did not complete is retried by re-labeling; this is the case where
+    there is nothing to redo. A seed still running gets the usual wait; one whose lines
+    have scrolled out of an old deployment's log is taken as fine, which is no reason to
+    redeploy; a failed one gets a fresh database.
     """
     live = [d for d in deployments if d["status"] != "SKIPPED"]
     if not live or live[0]["status"] != "SUCCESS":
         return False
     if current_image(environment_id=environment_id, service_id=service_id) != image:
         return False
-    seed_outcome, seed_output = wait_for_seed(str(live[0]["id"]), timeout=0)
-    if seed_outcome.startswith(seed_log.OUTCOME_PREFIXES) and not seed_outcome.startswith(
-        seed_log.SUCCESS_LINES
+    log = LogTail(str(live[0]["id"]))
+    log.refresh()
+    state, seed_outcome, seed_output = seed_state(log)
+    if state == "running":
+        seed_outcome, seed_output = wait_for_seed(str(live[0]["id"]))
+    elif state == "unknown":
+        seed_outcome = SEED_OUTCOME_GONE_LINE
+    if (
+        not seed_outcome.startswith(seed_log.SUCCESS_LINES)
+        and seed_outcome != SEED_OUTCOME_GONE_LINE
     ):
         print(f"{image} is deployed but its seed did not succeed; redeploying")
         return False
-    if seed_outcome == SEED_NOT_FINISHED_LINE:
-        seed_outcome = "preview: the seed's outcome is no longer in the log"
     domain = ensure_domain(
         project_id=project_id, environment_id=environment_id, service_id=service_id
     )
@@ -600,7 +638,7 @@ def run_deploy(args: argparse.Namespace) -> int:
             # An earlier run pulled from this package, so a lookup that fails now is
             # GitHub's trouble, not the package's; stopping would only unadvertise a
             # running preview.
-            print("::warning::Could not read the package's visibility; deploying anyway")
+            warn("Could not read the package's visibility; deploying anyway")
         elif visibility != "public":
             org, package = ghcr_package(image)
             problem = (
@@ -614,7 +652,7 @@ def run_deploy(args: argparse.Namespace) -> int:
             upsert_comment(
                 pr_number=args.pr, body=f"The image for this preview was pushed, but {problem}."
             )
-            print(f"::error::The preview image's package is {visibility}; see the PR comment.")
+            log_error(f"The preview image's package is {visibility}; see the PR comment.")
             return 1
 
         before: set[str] = set()
@@ -657,7 +695,7 @@ def run_deploy(args: argparse.Namespace) -> int:
                 ),
             )
         except subprocess.CalledProcessError as comment_error:
-            print(f"::warning::Could not update the PR comment: {comment_error.stderr}")
+            warn(f"Could not update the PR comment: {comment_error.stderr}")
         raise
     logs = ""
     if status == "SUCCESS":
@@ -704,7 +742,11 @@ def run_note(args: argparse.Namespace) -> int:
 
 
 def run_teardown(args: argparse.Namespace) -> int:
-    """Delete the service, then the PR's image tags and the comment whatever Railway did."""
+    """Delete the service, then the PR's image tags and the comment whatever Railway did.
+
+    With --keep-images the tags stay: removing the label is also the first half of the
+    advertised retry, and the re-label then finds its image built.
+    """
     railway_error: Optional[RailwayError] = None
     try:
         project_id, _ = read_token_scope()
@@ -716,14 +758,15 @@ def run_teardown(args: argparse.Namespace) -> int:
             print(f"deleted service pr-{args.pr}")
     except RailwayError as error:
         railway_error = error
-        print(f"::error::Railway API: {error}", file=sys.stderr)
-    deleted_tags = delete_image_tags(image=preview_image(), pr_number=args.pr)
-    print(f"deleted {deleted_tags} image versions")
+        log_error(f"Railway API: {error}")
+    if not args.keep_images:
+        deleted_tags = delete_image_tags(image=preview_image(), pr_number=args.pr)
+        print(f"deleted {deleted_tags} image versions")
     body = (
         "The preview for this PR has been torn down."
+        + (" Its image stays built; re-add the label to redeploy it." if args.keep_images else "")
         if railway_error is None
-        else "The preview's image tags were removed, but deleting its Railway service failed;"
-        " see the workflow run."
+        else "Deleting the preview's Railway service failed; see the workflow run."
     )
     upsert_comment(pr_number=args.pr, body=body, create=False)
     return 0 if railway_error is None else 1
@@ -748,12 +791,16 @@ def main() -> int:
     note_parser.set_defaults(run=run_note)
     teardown_parser = subparsers.add_parser("teardown")
     teardown_parser.add_argument("--pr", type=int, required=True)
+    teardown_parser.add_argument("--keep-images", action="store_true")
     teardown_parser.set_defaults(run=run_teardown)
     args = parser.parse_args()
     try:
         return int(args.run(args))
-    except RailwayError as error:
-        print(f"::error::Railway API: {error}", file=sys.stderr)
+    except RailwayError as failure:
+        log_error(f"Railway API: {failure}")
+        return 1
+    except subprocess.CalledProcessError as failure:
+        log_error(f"{' '.join(failure.cmd[:2])} failed: {failure.stderr}")
         return 1
 
 
