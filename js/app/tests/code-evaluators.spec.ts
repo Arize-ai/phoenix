@@ -97,8 +97,6 @@ async function createDatasetWithExample(page: Page, datasetName: string) {
 
   await page.getByRole("button", { name: "Create Dataset" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
-
-  await page.getByRole("link", { name: datasetName }).click();
   await page.waitForURL("**/datasets/**/examples");
 
   // The "Add Dataset Example" button opens a menu; pick the manual-entry path
