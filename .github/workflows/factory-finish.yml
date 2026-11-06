@@ -63,9 +63,11 @@ jobs:
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           FINISHED_PR: ${{ steps.start.outputs.pr }}
+          # Whoever asked for the run, named in the report so GitHub notifies them.
+          REQUESTED_BY: ${{ steps.start.outputs.requested_by }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$FINISHED_PR" watch --session-id "$SESSION_ID" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/finish.py --repo "$GH_REPO" --pr "$FINISHED_PR" watch --session-id "$SESSION_ID" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
 
       - name: Report a failed start
         if: failure() && steps.start.outcome != 'success'
