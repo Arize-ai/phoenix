@@ -110,7 +110,7 @@ def _create_session_work_units_table() -> None:
     op.create_index(
         "ix_eval_session_work_units_claimable",
         "eval_session_work_units",
-        ["status", "id"],
+        ["status", "id", "created_at"],
         postgresql_where=sa.text(_QUEUED_PREDICATE),
         sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
@@ -201,7 +201,7 @@ def _create_trace_work_units_table() -> None:
     op.create_index(
         "ix_eval_trace_work_units_claimable",
         "eval_trace_work_units",
-        ["status", "id"],
+        ["status", "id", "created_at"],
         postgresql_where=sa.text(_QUEUED_PREDICATE),
         sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
@@ -476,7 +476,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_eval_work_units_claimable",
         "eval_work_units",
-        ["status", "id"],
+        ["status", "id", "created_at"],
         postgresql_where=sa.text(_QUEUED_PREDICATE),
         sqlite_where=sa.text(_QUEUED_PREDICATE),
     )
