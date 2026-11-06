@@ -5,7 +5,7 @@ from strawberry.dataloader import DataLoader
 from phoenix.server.api.dataloaders.project_evaluator_queues import (
     ProjectEvaluatorQueuesDataLoader,
 )
-from phoenix.server.online_eval.queue_health import (
+from phoenix.server.online_eval.current_queue import (
     ProjectQueue,
     load_project_evaluator_targets,
     project_queues,

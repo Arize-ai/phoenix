@@ -7,7 +7,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
-from phoenix.server.online_eval import queue_health
+from phoenix.server.online_eval import current_queue
 from phoenix.server.online_eval.evaluation_activity import (
     ActivityBinGroup,
     ActivityGroup,
@@ -258,7 +258,7 @@ async def test_activity_bins_follow_the_time_bin_config(
     assert sum(group.failed_count for group in bin_groups) == activity.failed_count == 1
     # Queued in the range: two span evaluations at 12:20 and 12:40, one at 13:10 and one at
     # 14:30; trace evaluations at 12:05 and 14:10.
-    assert sum(group.queued_count for group in bin_groups) == 6
+    assert sum(group.added_count for group in bin_groups) == 6
     assert sum(group.cost or 0 for group in bin_groups) == _approx(1.75)
     # Queued or running at 15:00: one PENDING and one RUNNING span evaluation, one trace
     # evaluation awaiting a retry.
@@ -270,7 +270,7 @@ async def test_activity_bins_follow_the_time_bin_config(
 async def test_queue_size_stops_at_the_limit(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project = await _add_project(session)
     _, project_evaluator_id = await _seed_criteria(db, project.id)
@@ -313,7 +313,7 @@ async def _seed_pending(
 async def test_queue_size_bound_counts_only_the_projects_own_work(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project, other_project = await _add_project(session), await _add_project(session)
     await _seed_pending(db, project, [_at(12, 10)])
@@ -329,7 +329,7 @@ async def test_queue_size_bound_counts_only_the_projects_own_work(
 async def test_queue_size_bound_counts_only_work_queued_before_the_range_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project = await _add_project(session)
     await _seed_pending(db, project, [_at(12, 10), _at(14), _at(14)])
@@ -381,7 +381,7 @@ async def test_evaluation_activity_graphql(
                             timestamp
                             groups {
                                 projectEvaluator { id }
-                                queuedCount
+                                addedCount
                                 queueSize
                                 lagP95Seconds
                             }
@@ -422,10 +422,10 @@ async def test_evaluation_activity_graphql(
         datetime.fromisoformat(activity_bin["timestamp"]) for activity_bin in project["series"]
     ] == [_at(12), _at(13), _at(14)]
     assert project["series"][2]["groups"] == [
-        {"projectEvaluator": {"id": span}, "queuedCount": 1, "queueSize": 2, "lagP95Seconds": None},
+        {"projectEvaluator": {"id": span}, "addedCount": 1, "queueSize": 2, "lagP95Seconds": None},
         {
             "projectEvaluator": {"id": trace},
-            "queuedCount": 1,
+            "addedCount": 1,
             "queueSize": 1,
             "lagP95Seconds": None,
         },

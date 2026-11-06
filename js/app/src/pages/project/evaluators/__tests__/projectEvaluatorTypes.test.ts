@@ -60,17 +60,17 @@ describe("withProjectEvaluatorTarget", () => {
 });
 
 const runSummary = {
-  status: "RUNNING" as const,
+  status: "HEALTHY" as const,
   lastRunAt: "2026-08-14T12:00:00Z",
   queuedCount: 3,
   evaluatedCount: 118,
   failedCount: 2,
-  droppedCount: 0,
+  clearedCount: 0,
 };
 
 describe("getProjectEvaluatorStatus", () => {
   it.each([
-    ["RUNNING", "Running", "success"],
+    ["HEALTHY", "Running", "success"],
     ["DISABLED", "Disabled", "default"],
     ["DEGRADED", "Degraded", "warning"],
   ] as const)("labels %s as %s", (status, label, variant) => {
@@ -89,7 +89,7 @@ describe("formatProjectEvaluatorRunCounts", () => {
       formatProjectEvaluatorRunCounts({ ...runSummary, failedCount: 0 })
     ).toBe("118 evaluated · 3 queued");
     expect(
-      formatProjectEvaluatorRunCounts({ ...runSummary, droppedCount: 4 })
+      formatProjectEvaluatorRunCounts({ ...runSummary, clearedCount: 4 })
     ).toBe("118 evaluated · 2 failed · 4 cleared · 3 queued");
   });
 });

@@ -31,7 +31,7 @@ from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinS
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
-from phoenix.server.online_eval import queue_health
+from phoenix.server.online_eval import current_queue, throughput
 from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -324,9 +324,9 @@ async def test_evaluation_queue(
             evaluationQueue {
                 queuedCount
                 runningCount
-                oldestQueuedAt
-                queuedPerMinute
-                evaluationsPerMinute
+                oldestWaitingAt
+                addedPerMinute
+                completedPerMinute
                 targets { evaluationTarget queuedCount }
             }
         }""",
@@ -338,13 +338,13 @@ async def test_evaluation_queue(
 
     assert not response.errors and response.data
     queue = response.data["project"]["evaluationQueue"]
-    assert datetime.fromisoformat(queue.pop("oldestQueuedAt")) == now - timedelta(minutes=5)
+    assert datetime.fromisoformat(queue.pop("oldestWaitingAt")) == now - timedelta(minutes=5)
     assert queue == {
         "queuedCount": 5,
         "runningCount": 2,
         # Five queued evaluations and one completed were queued within the window.
-        "queuedPerMinute": pytest.approx(6 / 60),
-        "evaluationsPerMinute": pytest.approx(2 / 60),
+        "addedPerMinute": pytest.approx(6 / 60),
+        "completedPerMinute": pytest.approx(2 / 60),
         "targets": [
             {"evaluationTarget": "SPAN", "queuedCount": 3},
             {"evaluationTarget": "TRACE", "queuedCount": 1},
@@ -354,9 +354,9 @@ async def test_evaluation_queue(
     assert response.data["idle"]["evaluationQueue"] == {
         "queuedCount": 0,
         "runningCount": 0,
-        "oldestQueuedAt": None,
-        "queuedPerMinute": 0,
-        "evaluationsPerMinute": 0,
+        "oldestWaitingAt": None,
+        "addedPerMinute": 0,
+        "completedPerMinute": 0,
         "targets": [
             {"evaluationTarget": "SPAN", "queuedCount": 0},
             {"evaluationTarget": "TRACE", "queuedCount": 0},
@@ -410,30 +410,30 @@ async def test_evaluation_queue_rates_of_the_queue_and_a_project_come_from_one_r
                 ),
             ]
         )
-    load_rates = queue_health._load_rates_by_project_evaluator
+    load_rates = throughput._load_rates_by_project_evaluator
     rate_reads: list[Any] = []
 
     async def _counting_load_rates(*args: Any) -> Any:
         rate_reads.append(args)
         return await load_rates(*args)
 
-    monkeypatch.setattr(queue_health, "_load_rates_by_project_evaluator", _counting_load_rates)
+    monkeypatch.setattr(throughput, "_load_rates_by_project_evaluator", _counting_load_rates)
 
     response = await gql_client.execute(
         """query ($project: ID!) {
-            evaluationQueue { queuedPerMinute evaluationsPerMinute }
+            evaluationQueue { addedPerMinute completedPerMinute }
             project: node(id: $project) {
-                ... on Project { evaluationQueue { queuedPerMinute evaluationsPerMinute } }
+                ... on Project { evaluationQueue { addedPerMinute completedPerMinute } }
             }
         }""",
         variables={"project": str(GlobalID("Project", str(project.id)))},
     )
 
     assert not response.errors and response.data
-    assert len(rate_reads) == len(queue_health.EVALUATION_TARGETS)
+    assert len(rate_reads) == len(current_queue.EVALUATION_TARGETS)
     rates = {
-        "queuedPerMinute": pytest.approx(2 / 60),
-        "evaluationsPerMinute": pytest.approx(1 / 60),
+        "addedPerMinute": pytest.approx(2 / 60),
+        "completedPerMinute": pytest.approx(1 / 60),
     }
     assert response.data["evaluationQueue"] == rates
     assert response.data["project"]["evaluationQueue"] == rates

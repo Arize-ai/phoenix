@@ -9,7 +9,7 @@ from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.online_eval import evaluation_activity
-from phoenix.server.online_eval.queue_health import MAX_QUEUE_COUNT
+from phoenix.server.online_eval.current_queue import MAX_QUEUE_COUNT
 
 if TYPE_CHECKING:
     from .Evaluator import ProjectEvaluator
@@ -79,12 +79,6 @@ class EvaluationActivityGroup:
         return self.group.failed_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
-        description="Lag of evaluations completed in the range; null if none completed."
-    )
-    def lag(self) -> Optional[EvaluationLag]:
-        return to_gql_evaluation_lag(self.group.lag)
-
-    @strawberry.field(  # type: ignore[untyped-decorator]
         description="Cost in USD of the evaluations' traces started in the range; null if none."
     )
     def cost(self) -> Optional[float]:
@@ -117,9 +111,9 @@ class EvaluationActivityBinGroup:
     def failed_count(self) -> int:
         return self.group.failed_count
 
-    @strawberry.field(description="Evaluations queued in the bin.")  # type: ignore
-    def queued_count(self) -> int:
-        return self.group.queued_count
+    @strawberry.field(description="Evaluations added to the queue in the bin.")  # type: ignore
+    def added_count(self) -> int:
+        return self.group.added_count
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(

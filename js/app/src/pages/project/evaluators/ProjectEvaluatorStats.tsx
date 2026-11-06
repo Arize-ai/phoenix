@@ -74,7 +74,7 @@ export function ProjectEvaluatorStats({
           status
           lastRunAt
           queuedCount
-          oldestQueuedAt
+          oldestWaitingOrRetryingAt
           lastError
         }
         evaluationLoad {
@@ -183,8 +183,8 @@ function ProjectEvaluatorActivityPanel({
         <StatField label="queued">
           <Text size="S">
             {formatQueueCount(runSummary.queuedCount)}
-            {runSummary.oldestQueuedAt != null
-              ? ` · ${formatElapsedShort(runSummary.oldestQueuedAt)} waiting`
+            {runSummary.oldestWaitingOrRetryingAt != null
+              ? ` · ${formatElapsedShort(runSummary.oldestWaitingOrRetryingAt)} waiting`
               : ""}
           </Text>
         </StatField>

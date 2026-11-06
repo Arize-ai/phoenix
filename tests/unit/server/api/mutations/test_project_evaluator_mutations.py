@@ -105,16 +105,16 @@ mutation($input: SetProjectEvaluatorEnabledInput!) {{
 _CLEAR_PROJECT_EVALUATOR_QUEUED_EVALUATIONS = """
 mutation($input: ClearProjectEvaluatorQueuedEvaluationsInput!) {
   clearProjectEvaluatorQueuedEvaluations(input: $input) {
-    droppedCount
+    clearedCount
     evaluator { id enabled }
   }
 }
 """
 
 _CLEAR_QUEUED_EVALUATIONS = """
-mutation($input: ClearQueuedEvaluationsInput!) {
-  clearQueuedEvaluations(input: $input) {
-    droppedCount
+mutation($input: ClearProjectQueuedEvaluationsInput!) {
+  clearProjectQueuedEvaluations(input: $input) {
+    clearedCount
     project { id }
   }
 }
@@ -123,7 +123,7 @@ mutation($input: ClearQueuedEvaluationsInput!) {
 _CLEAR_ALL_QUEUED_EVALUATIONS = """
 mutation {
   clearAllQueuedEvaluations {
-    droppedCount
+    clearedCount
   }
 }
 """
@@ -1428,7 +1428,7 @@ async def test_clear_project_evaluator_queued_evaluations_drops_only_its_queued_
 
     assert result.data and not result.errors
     assert result.data["clearProjectEvaluatorQueuedEvaluations"] == {
-        "droppedCount": 2,
+        "clearedCount": 2,
         "evaluator": {"id": cleared, "enabled": True},
     }
     assert await _work_statuses(db, cleared) == ["DROPPED", "DROPPED", "RUNNING"]
@@ -1462,8 +1462,8 @@ async def test_clear_queued_evaluations_drops_every_target_in_the_project_only(
     )
 
     assert result.data and not result.errors
-    assert result.data["clearQueuedEvaluations"] == {
-        "droppedCount": 6,
+    assert result.data["clearProjectQueuedEvaluations"] == {
+        "clearedCount": 6,
         "project": {"id": project_global_id},
     }
     for target in ("SPAN", "TRACE", "SESSION"):
@@ -1497,7 +1497,7 @@ async def test_clear_all_queued_evaluations_drops_every_project_and_target(
     result = await gql_client.execute(_CLEAR_ALL_QUEUED_EVALUATIONS)
 
     assert result.data and not result.errors
-    assert result.data["clearAllQueuedEvaluations"] == {"droppedCount": 6}
+    assert result.data["clearAllQueuedEvaluations"] == {"clearedCount": 6}
     assert completed == {(target, "cleared"): 2 for target in ("SPAN", "SESSION", "TRACE")}
     for project_evaluator_id in project_evaluator_ids:
         statuses = await _work_statuses(db, project_evaluator_id)

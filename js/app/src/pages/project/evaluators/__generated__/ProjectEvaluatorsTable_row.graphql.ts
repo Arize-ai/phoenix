@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89b1efd8a11a6f32c201d900f5b4955a>>
+ * @generated SignedSource<<35b2bb030d0b61273931e8b82aa8a862>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,7 @@ export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CERE
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "HEALTHY" | "NEVER_RUN" | "STARTING";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "DOCKER" | "E2B" | "MODAL" | "MONTY" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorsTable_row$data = {
@@ -74,11 +74,11 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly id: string;
   readonly name: string;
   readonly runSummary: {
-    readonly droppedCount: number;
+    readonly clearedCount: number;
     readonly evaluatedCount: number;
     readonly failedCount: number;
     readonly lastRunAt: string | null;
-    readonly oldestQueuedAt: string | null;
+    readonly oldestWaitingOrRetryingAt: string | null;
     readonly queuedCount: number;
     readonly runningCount: number;
     readonly status: ProjectEvaluatorRunStatus;
@@ -97,6 +97,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "9a44c49bfc5fa715fad3956f0a59e248";
+(node as any).hash = "bf302fc1bfbbade51b993b3e3b7af42e";
 
 export default node;

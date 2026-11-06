@@ -11,19 +11,20 @@ from phoenix.server.api.dataloaders.project_evaluation_queues import (
 from phoenix.server.api.dataloaders.project_evaluator_queues import (
     ProjectEvaluatorQueuesDataLoader,
 )
-from phoenix.server.online_eval import queue_health
-from phoenix.server.online_eval.queue_health import (
+from phoenix.server.online_eval import current_queue
+from phoenix.server.online_eval.current_queue import (
     EvaluationQueue,
-    ProjectEvaluatorRunStatus,
+    ProjectEvaluatorQueue,
     ProjectQueue,
     ProjectQueuedCount,
-    QueuedWork,
-    QueueThroughput,
     load_evaluation_queue,
     load_project_evaluator_queues,
-    load_queue_throughput,
+)
+from phoenix.server.online_eval.evaluator_status import (
+    ProjectEvaluatorRunStatus,
     project_evaluator_run_status,
 )
+from phoenix.server.online_eval.throughput import QueueThroughput, load_queue_throughput
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project, _add_span, _add_trace
@@ -83,15 +84,15 @@ async def test_span_queue_health(db: DbSessionFactory) -> None:
 
     # Queued or running, retries included.
     assert spans.queued_count == 4
-    assert (spans.waiting.queued_count, spans.running_count, spans.retrying_count) == (2, 1, 1)
-    assert spans.waiting.oldest_queued_at == now - timedelta(minutes=20)
-    assert queue.waiting == spans.waiting
-    assert (queue.queued_count, queue.running_count, queue.retrying_count) == (4, 1, 1)
+    assert (spans.waiting_count, spans.running_count, spans.retrying_count) == (2, 1, 1)
+    assert spans.oldest_waiting_at == now - timedelta(minutes=20)
+    assert queue.oldest_waiting_at == spans.oldest_waiting_at
+    assert (queue.queued_count, queue.running_count) == (4, 1)
     # The head of the line has waited 20 minutes.
     assert queue.status == "DEGRADED"
-    assert throughput.target("SPAN").evaluations_per_minute == pytest.approx(3 / 60)
-    assert throughput.target("SPAN").queued_per_minute == pytest.approx(6 / 60)
-    assert throughput.queued_per_minute == pytest.approx(6 / 60)
+    assert throughput.target("SPAN").completed_per_minute == pytest.approx(3 / 60)
+    assert throughput.target("SPAN").added_per_minute == pytest.approx(6 / 60)
+    assert throughput.added_per_minute == pytest.approx(6 / 60)
 
 
 async def _seed_pending_spans(
@@ -117,7 +118,7 @@ async def _seed_pending_spans(
 async def test_queue_counts_stop_at_the_limit(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project = await _add_project(session)
     busy = await _seed_pending_spans(db, project, [timedelta(minutes=1)] * 3)
@@ -134,12 +135,12 @@ async def test_queue_counts_stop_at_the_limit(
 
     queue = await load_evaluation_queue(db)
     spans = queue.target("SPAN")
-    assert (spans.queued_count, spans.waiting.queued_count, spans.running_count) == (2, 2, 1)
+    assert (spans.queued_count, spans.waiting_count, spans.running_count) == (2, 2, 1)
     assert queue.queued_count == 2
 
     evaluators = await load_project_evaluator_queues(db, [busy, stuck])
     assert (evaluators[busy].queued_count, evaluators[stuck].queued_count) == (2, 2)
-    assert evaluators[stuck].oldest_queued_at is not None
+    assert evaluators[stuck].oldest_waiting_or_retrying_at is not None
     assert (
         project_evaluator_run_status(
             enabled=True,
@@ -159,8 +160,8 @@ async def test_queue_counts_stop_at_the_limit(
     ]
 
 
-def test_queued_rate_stops_at_the_limit(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
+def test_added_rate_stops_at_the_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
     now = datetime.now(timezone.utc)
     throughput = QueueThroughput(
         queue=EvaluationQueue(measured_at=now, targets=()),
@@ -168,9 +169,9 @@ def test_queued_rate_stops_at_the_limit(monkeypatch: pytest.MonkeyPatch) -> None
     )
     project = ProjectQueue(measured_at=now, project_evaluator_ids=frozenset({1, 2}), targets=())
 
-    assert [target.queued_per_minute for target in throughput.targets] == [2 / 60, 2 / 60, 0]
-    assert throughput.queued_per_minute == 2 / 60
-    assert throughput.project(project).queued_per_minute == 2 / 60
+    assert [target.added_per_minute for target in throughput.targets] == [2 / 60, 2 / 60, 0]
+    assert throughput.added_per_minute == 2 / 60
+    assert throughput.project(project).added_per_minute == 2 / 60
 
 
 async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(
@@ -207,19 +208,22 @@ async def test_oldest_wait_is_the_earliest_queued_not_the_lowest_id(
     ).load(project.id)
     evaluator_queues = await load_project_evaluator_queues(db, [project_evaluator_id])
 
-    oldest_queued_at = [
-        queue.target("TRACE").waiting.oldest_queued_at,
-        project_queue.oldest_queued_at,
-        evaluator_queues[project_evaluator_id].oldest_queued_at,
+    oldest = [
+        queue.target("TRACE").oldest_waiting_at,
+        project_queue.oldest_waiting_at,
+        evaluator_queues[project_evaluator_id].oldest_waiting_or_retrying_at,
     ]
-    assert oldest_queued_at == [now - timedelta(minutes=20)] * 3
-    assert all(at is not None and at.tzinfo is not None for at in oldest_queued_at)
+    assert oldest == [now - timedelta(minutes=20)] * 3
+    assert all(at is not None and at.tzinfo is not None for at in oldest)
     assert queue.status == "DEGRADED"
 
 
-_WAITING_BRIEFLY = QueuedWork(queued_count=1, oldest_queued_at=datetime.now(timezone.utc))
-_WAITING_LONG = QueuedWork(
-    queued_count=1, oldest_queued_at=datetime.now(timezone.utc) - timedelta(hours=1)
+_WAITING_BRIEFLY = ProjectEvaluatorQueue(
+    queued_count=1, oldest_waiting_or_retrying_at=datetime.now(timezone.utc)
+)
+_WAITING_LONG = ProjectEvaluatorQueue(
+    queued_count=1,
+    oldest_waiting_or_retrying_at=datetime.now(timezone.utc) - timedelta(hours=1),
 )
 
 
@@ -230,16 +234,16 @@ _WAITING_LONG = QueuedWork(
         (True, timedelta(minutes=5), timedelta(seconds=1), _WAITING_LONG, "ERROR"),
         # Its own oldest queued evaluation, a retry, has waited an hour.
         (True, timedelta(seconds=5), None, _WAITING_LONG, "DEGRADED"),
-        (True, timedelta(seconds=5), timedelta(minutes=5), _WAITING_BRIEFLY, "RUNNING"),
-        (True, None, None, _WAITING_BRIEFLY, "QUEUED"),
-        (True, None, None, QueuedWork(), "NEVER_RUN"),
+        (True, timedelta(seconds=5), timedelta(minutes=5), _WAITING_BRIEFLY, "HEALTHY"),
+        (True, None, None, _WAITING_BRIEFLY, "STARTING"),
+        (True, None, None, ProjectEvaluatorQueue(), "NEVER_RUN"),
     ],
 )
 def test_project_evaluator_run_status_precedence(
     enabled: bool,
     evaluated_ago: Optional[timedelta],
     failed_ago: Optional[timedelta],
-    queued: QueuedWork,
+    queued: ProjectEvaluatorQueue,
     expected: ProjectEvaluatorRunStatus,
 ) -> None:
     now = datetime.now(timezone.utc)

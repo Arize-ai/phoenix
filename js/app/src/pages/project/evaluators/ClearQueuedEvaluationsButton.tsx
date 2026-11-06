@@ -130,10 +130,10 @@ function ClearQueuedEvaluationsDialog({
   const [commitClearProject, isClearingProject] =
     useMutation<ClearQueuedEvaluationsButtonMutation>(graphql`
       mutation ClearQueuedEvaluationsButtonMutation(
-        $input: ClearQueuedEvaluationsInput!
+        $input: ClearProjectQueuedEvaluationsInput!
       ) {
-        clearQueuedEvaluations(input: $input) {
-          droppedCount
+        clearProjectQueuedEvaluations(input: $input) {
+          clearedCount
         }
       }
     `);
@@ -141,17 +141,17 @@ function ClearQueuedEvaluationsDialog({
     useMutation<ClearQueuedEvaluationsButtonClearAllMutation>(graphql`
       mutation ClearQueuedEvaluationsButtonClearAllMutation {
         clearAllQueuedEvaluations {
-          droppedCount
+          clearedCount
         }
       }
     `);
-  const onCleared = (droppedCount: number) => {
+  const onCleared = (clearedCount: number) => {
     notifySuccess({
       title: "Queue cleared",
       message:
-        droppedCount === 1
+        clearedCount === 1
           ? "Cleared 1 queued evaluation."
-          : `Cleared ${intFormatter(droppedCount)} queued evaluations.`,
+          : `Cleared ${intFormatter(clearedCount)} queued evaluations.`,
     });
     onOpenChange(false);
     refreshQueueStats();
@@ -178,7 +178,7 @@ function ClearQueuedEvaluationsDialog({
               onFailed(errors.map(({ message }) => message));
               return;
             }
-            onCleared(response.clearAllQueuedEvaluations.droppedCount);
+            onCleared(response.clearAllQueuedEvaluations.clearedCount);
           },
           onError: onMutationError,
         });
@@ -191,7 +191,7 @@ function ClearQueuedEvaluationsDialog({
             onFailed(errors.map(({ message }) => message));
             return;
           }
-          onCleared(response.clearQueuedEvaluations.droppedCount);
+          onCleared(response.clearProjectQueuedEvaluations.clearedCount);
         },
         onError: onMutationError,
       });

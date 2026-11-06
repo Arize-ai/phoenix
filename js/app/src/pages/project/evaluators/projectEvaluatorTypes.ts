@@ -274,8 +274,8 @@ export type ProjectEvaluatorRunSummary = {
   queuedCount: number;
   evaluatedCount: number;
   failedCount: number;
-  droppedCount: number;
-  oldestQueuedAt?: string | null;
+  clearedCount: number;
+  oldestWaitingOrRetryingAt?: string | null;
 };
 
 export type ProjectEvaluatorStatus = {
@@ -314,12 +314,12 @@ const PROJECT_EVALUATOR_STATUS_BY_RUN_STATUS: Record<
     variant: "warning",
     explanation: "Its next evaluation has waited more than 10 minutes",
   },
-  RUNNING: {
+  HEALTHY: {
     label: "Running",
     variant: "success",
     explanation: null,
   },
-  QUEUED: {
+  STARTING: {
     label: "Queued",
     variant: "info",
     explanation: null,
@@ -400,11 +400,11 @@ export function formatElapsedShort(
 export function formatProjectEvaluatorRunCounts(
   runSummary: ProjectEvaluatorRunSummary
 ): string {
-  const { evaluatedCount, failedCount, droppedCount, queuedCount } = runSummary;
+  const { evaluatedCount, failedCount, clearedCount, queuedCount } = runSummary;
   return [
     evaluatedCount > 0 && `${countFormatter.format(evaluatedCount)} evaluated`,
     failedCount > 0 && `${countFormatter.format(failedCount)} failed`,
-    droppedCount > 0 && `${countFormatter.format(droppedCount)} cleared`,
+    clearedCount > 0 && `${countFormatter.format(clearedCount)} cleared`,
     queuedCount > 0 && `${formatQueueCount(queuedCount)} queued`,
   ]
     .filter((part): part is string => part !== false)

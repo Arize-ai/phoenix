@@ -120,9 +120,9 @@ function ServerEvaluationQueueStripContent({
           status
           queuedCount
           runningCount
-          oldestQueuedAt
-          queuedPerMinute
-          evaluationsPerMinute
+          oldestWaitingAt
+          addedPerMinute
+          completedPerMinute
           targets {
             evaluationTarget
             queuedCount
@@ -166,14 +166,14 @@ function ServerEvaluationQueueStripContent({
       ],
   }));
   const statusDetail = getQueueStatusDetail(queue);
-  const queuedPerHour = Math.round(queue.queuedPerMinute * 60);
+  const queuedPerHour = Math.round(queue.addedPerMinute * 60);
   const netPerHour =
     queuedPerHour >= MAX_QUEUE_COUNT
       ? MAX_QUEUE_COUNT
-      : queuedPerHour - Math.round(queue.evaluationsPerMinute * 60);
+      : queuedPerHour - Math.round(queue.completedPerMinute * 60);
   const lag = data.lastHourActivity.lag;
   const isWaitingTooLong =
-    queue.oldestQueuedAt != null && hasWaitedTooLong(queue.oldestQueuedAt);
+    queue.oldestWaitingAt != null && hasWaitedTooLong(queue.oldestWaitingAt);
   const isLagging = lag != null && lag.p95Seconds * 1000 > DEGRADED_WAIT_MS;
   const clearableCount = getClearableCount(queue);
   useEffect(() => {
@@ -215,10 +215,10 @@ function ServerEvaluationQueueStripContent({
           </Flex>
         </StatItem>
         <StatItem label="Queued / hr">
-          <StatValue>{formatQueuedPerHour(queue.queuedPerMinute)}</StatValue>
+          <StatValue>{formatQueuedPerHour(queue.addedPerMinute)}</StatValue>
         </StatItem>
         <StatItem label="Completed / hr">
-          <StatValue>{formatPerHour(queue.evaluationsPerMinute)}</StatValue>
+          <StatValue>{formatPerHour(queue.completedPerMinute)}</StatValue>
         </StatItem>
         <StatItem label="Net / hr">
           <HoverDetail
@@ -246,7 +246,7 @@ function ServerEvaluationQueueStripContent({
                   <Text size="S">{`p50 ${formatLag(lag.p50Seconds)} · p99 ${formatLag(lag.p99Seconds)}`}</Text>
                 ) : null}
                 <Text size="S" color={isWaitingTooLong ? "warning" : undefined}>
-                  {`Longest wait: ${queue.oldestQueuedAt != null ? formatElapsedShort(queue.oldestQueuedAt) : "none"}`}
+                  {`Longest wait: ${queue.oldestWaitingAt != null ? formatElapsedShort(queue.oldestWaitingAt) : "none"}`}
                 </Text>
               </>
             }

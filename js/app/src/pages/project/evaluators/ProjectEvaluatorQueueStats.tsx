@@ -65,7 +65,7 @@ type EvaluationQueue = ProjectEvaluatorQueueStatsQuery$data["evaluationQueue"];
 /** The rates the queue reports, in total and for each evaluation target. */
 type QueueRates = Pick<
   EvaluationQueue,
-  "queuedPerMinute" | "evaluationsPerMinute"
+  "addedPerMinute" | "completedPerMinute"
 >;
 
 /**
@@ -139,10 +139,9 @@ function ProjectEvaluatorQueueStatsContent({
         evaluationQueue {
           status
           queuedCount
-          retryingCount
-          oldestQueuedAt
-          queuedPerMinute
-          evaluationsPerMinute
+          oldestWaitingAt
+          addedPerMinute
+          completedPerMinute
           runningCount
           projects(first: 5) {
             project {
@@ -154,10 +153,9 @@ function ProjectEvaluatorQueueStatsContent({
           targets {
             evaluationTarget
             queuedCount
-            retryingCount
-            oldestQueuedAt
-            queuedPerMinute
-            evaluationsPerMinute
+            oldestWaitingAt
+            addedPerMinute
+            completedPerMinute
           }
         }
         project: node(id: $projectId) {
@@ -170,9 +168,9 @@ function ProjectEvaluatorQueueStatsContent({
             evaluationQueue {
               queuedCount
               runningCount
-              oldestQueuedAt
-              queuedPerMinute
-              evaluationsPerMinute
+              oldestWaitingAt
+              addedPerMinute
+              completedPerMinute
               targets {
                 evaluationTarget
                 queuedCount
@@ -189,7 +187,7 @@ function ProjectEvaluatorQueueStatsContent({
                     lastRunAt
                     queuedCount
                     runningCount
-                    oldestQueuedAt
+                    oldestWaitingOrRetryingAt
                   }
                 }
               }
@@ -224,13 +222,13 @@ function ProjectEvaluatorQueueStatsContent({
         <QueueRateStat
           label="Queued / hr"
           project={projectQueue}
-          formatRate={(rates) => formatQueuedPerHour(rates.queuedPerMinute)}
+          formatRate={(rates) => formatQueuedPerHour(rates.addedPerMinute)}
           description="This project's evaluations queued in the last hour"
         />
         <QueueRateStat
           label="Completed / hr"
           project={projectQueue}
-          formatRate={(rates) => formatPerHour(rates.evaluationsPerMinute)}
+          formatRate={(rates) => formatPerHour(rates.completedPerMinute)}
           description="This project's evaluations evaluated or failed in the last hour"
         />
       </Flex>
@@ -238,7 +236,7 @@ function ProjectEvaluatorQueueStatsContent({
         lagP95Seconds={
           data.project?.evaluationActivity?.lag?.p95Seconds ?? null
         }
-        projectOldestQueuedAt={projectQueue?.oldestQueuedAt ?? null}
+        projectOldestQueuedAt={projectQueue?.oldestWaitingAt ?? null}
       />
     </>
   );
@@ -279,10 +277,10 @@ function QueueStatusStat({ queue }: { queue: EvaluationQueue }) {
           <>
             {detail != null ? <Text size="S">{detail}</Text> : null}
             <Text size="S">
-              {`All projects, per hour: ${formatQueuedPerHour(queue.queuedPerMinute)} queued · ${formatPerHour(queue.evaluationsPerMinute)} completed`}
+              {`All projects, per hour: ${formatQueuedPerHour(queue.addedPerMinute)} queued · ${formatPerHour(queue.completedPerMinute)} completed`}
             </Text>
-            {queue.oldestQueuedAt != null ? (
-              <Text size="S">{`All projects, longest wait: ${formatElapsedShort(queue.oldestQueuedAt)}`}</Text>
+            {queue.oldestWaitingAt != null ? (
+              <Text size="S">{`All projects, longest wait: ${formatElapsedShort(queue.oldestWaitingAt)}`}</Text>
             ) : null}
           </>
         }

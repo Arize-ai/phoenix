@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<569641853ea559a4a354359c76de90a9>>
+ * @generated SignedSource<<a59f87e3e4e790bda55384fef758157b>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "HEALTHY" | "NEVER_RUN" | "STARTING";
 export type ProjectEvaluatorEnabledSwitchRunSummaryQuery$variables = {
   id: string;
 };
@@ -16,8 +16,8 @@ export type ProjectEvaluatorEnabledSwitchRunSummaryQuery$data = {
   readonly node: {
     readonly id?: string;
     readonly runSummary?: {
-      readonly droppedCount: number;
-      readonly oldestQueuedAt: string | null;
+      readonly clearedCount: number;
+      readonly oldestWaitingOrRetryingAt: string | null;
       readonly queuedCount: number;
       readonly runningCount: number;
       readonly status: ProjectEvaluatorRunStatus;
@@ -84,14 +84,14 @@ v3 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "droppedCount",
+      "name": "clearedCount",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "oldestQueuedAt",
+      "name": "oldestWaitingOrRetryingAt",
       "storageKey": null
     }
   ],
@@ -164,16 +164,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0e8cd194fdacf25e68ad9c51540cf2e5",
+    "cacheID": "d40b7b8f896f52b9388f83eb9367e13c",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorEnabledSwitchRunSummaryQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorEnabledSwitchRunSummaryQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      runSummary {\n        status\n        queuedCount\n        runningCount\n        droppedCount\n        oldestQueuedAt\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorEnabledSwitchRunSummaryQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on ProjectEvaluator {\n      id\n      runSummary {\n        status\n        queuedCount\n        runningCount\n        clearedCount\n        oldestWaitingOrRetryingAt\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1c5b9efaa46f0f89d0c6480b30e775b0";
+(node as any).hash = "d24ed0211001153e60a9aa77a7271010";
 
 export default node;

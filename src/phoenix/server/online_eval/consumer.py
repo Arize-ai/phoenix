@@ -30,6 +30,7 @@ from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
     PublicationEvaluatorDisabledError,
 )
+from phoenix.server.online_eval.current_queue import load_evaluation_queue
 from phoenix.server.online_eval.executor import (
     ConfigurationSnapshotOutcome,
     HydratedWorkUnit,
@@ -40,7 +41,6 @@ from phoenix.server.online_eval.executor import (
     SharedHydrationFailure,
 )
 from phoenix.server.online_eval.failure_policy import FailureDisposition, classify
-from phoenix.server.online_eval.queue_health import load_evaluation_queue
 from phoenix.server.prometheus import (
     ONLINE_EVAL_CLEARED_WORK_UNITS,
     ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS,
@@ -180,11 +180,11 @@ class EvaluationConsumer(DaemonTask):
         ended = await self._coordinator.ended_work_counts()
         target = queue.target(self._evaluation_target)
         labels = {"evaluation_target": self._evaluation_target}
-        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(target.waiting.queued_count)
+        ONLINE_EVAL_PENDING_WORK_UNITS.labels(**labels).set(target.waiting_count)
         ONLINE_EVAL_RUNNING_WORK_UNITS.labels(**labels).set(target.running_count)
         ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS.labels(**labels).set(target.retrying_count)
         ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS.labels(**labels).set(
-            queue.wait_seconds(target.waiting) or 0.0
+            queue.wait_seconds(target.oldest_waiting_at) or 0.0
         )
         ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS.labels(**labels).set(ended.exhausted_error_count)
         ONLINE_EVAL_EXPIRED_WORK_UNITS.labels(**labels).set(ended.expired_count)

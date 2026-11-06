@@ -190,8 +190,8 @@ export function ProjectEvaluatorsTabTable({
                 runningCount
                 evaluatedCount
                 failedCount
-                droppedCount
-                oldestQueuedAt
+                clearedCount
+                oldestWaitingOrRetryingAt
               }
               evaluationLoad {
                 evaluationCount

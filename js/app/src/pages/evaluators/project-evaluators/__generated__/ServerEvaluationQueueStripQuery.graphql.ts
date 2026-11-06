@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<feb7233b47d98dd06ab2032bcfa73a9d>>
+ * @generated SignedSource<<bbbbb8019b2d3e83cbe2bf6e628266aa>>
  * @lightSyntaxTransform
  */
 
@@ -20,8 +20,9 @@ export type ServerEvaluationQueueStripQuery$variables = {
 };
 export type ServerEvaluationQueueStripQuery$data = {
   readonly evaluationQueue: {
-    readonly evaluationsPerMinute: number;
-    readonly oldestQueuedAt: string | null;
+    readonly addedPerMinute: number;
+    readonly completedPerMinute: number;
+    readonly oldestWaitingAt: string | null;
     readonly projects: ReadonlyArray<{
       readonly project: {
         readonly id: string;
@@ -30,7 +31,6 @@ export type ServerEvaluationQueueStripQuery$data = {
       readonly queuedCount: number;
     }>;
     readonly queuedCount: number;
-    readonly queuedPerMinute: number;
     readonly runningCount: number;
     readonly status: EvaluationQueueStatus;
     readonly targets: ReadonlyArray<{
@@ -104,21 +104,21 @@ v2 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "oldestQueuedAt",
+        "name": "oldestWaitingAt",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "queuedPerMinute",
+        "name": "addedPerMinute",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "evaluationsPerMinute",
+        "name": "completedPerMinute",
         "storageKey": null
       },
       {
@@ -292,16 +292,16 @@ return {
     "selections": (v2/*:: as any*/)
   },
   "params": {
-    "cacheID": "5b5e9b268af6500357fc7cc2e87509c7",
+    "cacheID": "d60bc467d5a2c4cacb1227dcfc634c5d",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationQueueStripQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationQueueStripQuery(\n  $lastHour: TimeRange!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n    runningCount\n    oldestQueuedAt\n    queuedPerMinute\n    evaluationsPerMinute\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n  }\n  lastHourActivity: evaluationActivity(timeRange: $lastHour) {\n    lag {\n      p50Seconds\n      p95Seconds\n      p99Seconds\n    }\n  }\n  rangeActivity: evaluationActivity(timeRange: $timeRange) {\n    evaluatedCount\n    failedCount\n    cost\n  }\n}\n"
+    "text": "query ServerEvaluationQueueStripQuery(\n  $lastHour: TimeRange!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n    runningCount\n    oldestWaitingAt\n    addedPerMinute\n    completedPerMinute\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n  }\n  lastHourActivity: evaluationActivity(timeRange: $lastHour) {\n    lag {\n      p50Seconds\n      p95Seconds\n      p99Seconds\n    }\n  }\n  rangeActivity: evaluationActivity(timeRange: $timeRange) {\n    evaluatedCount\n    failedCount\n    cost\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b819727910b2913760176074e00fa7cd";
+(node as any).hash = "a08b37b7f0fd0d296e5b19a019bd9c06";
 
 export default node;

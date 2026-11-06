@@ -28,7 +28,7 @@ from phoenix.server.api.dataloaders import (
     project_evaluator_queues as project_evaluator_queues_module,
 )
 from phoenix.server.encryption import EncryptionService
-from phoenix.server.online_eval import queue_health
+from phoenix.server.online_eval import current_queue
 from phoenix.server.redaction import Redactor
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
@@ -616,18 +616,15 @@ async def test_evaluation_queue(
                 status
                 queuedCount
                 runningCount
-                retryingCount
-                oldestQueuedAt
-                queuedPerMinute
-                evaluationsPerMinute
+                oldestWaitingAt
+                addedPerMinute
+                completedPerMinute
                 targets {
                     evaluationTarget
                     queuedCount
-                    runningCount
-                    retryingCount
-                    oldestQueuedAt
-                    queuedPerMinute
-                    evaluationsPerMinute
+                    oldestWaitingAt
+                    addedPerMinute
+                    completedPerMinute
                 }
             }
         }"""
@@ -641,27 +638,18 @@ async def test_evaluation_queue(
         "status": "HEALTHY",
         "queuedCount": 4,
         "runningCount": 1,
-        "retryingCount": 1,
-        "oldestQueuedAt": queue["oldestQueuedAt"],
-        "queuedPerMinute": pytest.approx(4 / 60),
-        "evaluationsPerMinute": 0,
+        "oldestWaitingAt": queue["oldestWaitingAt"],
+        "addedPerMinute": pytest.approx(4 / 60),
+        "completedPerMinute": 0,
     }
-    assert datetime.fromisoformat(queue["oldestQueuedAt"]) == now - timedelta(minutes=5)
+    assert datetime.fromisoformat(queue["oldestWaitingAt"]) == now - timedelta(minutes=5)
     assert [target["evaluationTarget"] for target in targets] == ["SPAN", "TRACE", "SESSION"]
-    assert [
-        (
-            target["queuedCount"],
-            target["runningCount"],
-            target["retryingCount"],
-            target["queuedPerMinute"],
-        )
-        for target in targets
-    ] == [
-        (2, 1, 0, pytest.approx(2 / 60)),
-        (1, 0, 1, pytest.approx(1 / 60)),
-        (1, 0, 0, pytest.approx(1 / 60)),
+    assert [(target["queuedCount"], target["addedPerMinute"]) for target in targets] == [
+        (2, pytest.approx(2 / 60)),
+        (1, pytest.approx(1 / 60)),
+        (1, pytest.approx(1 / 60)),
     ]
-    oldest = [target["oldestQueuedAt"] for target in targets]
+    oldest = [target["oldestWaitingAt"] for target in targets]
     assert oldest[1] is None
     assert datetime.fromisoformat(oldest[2]) == now - timedelta(minutes=1)
 
@@ -671,7 +659,7 @@ async def test_evaluation_queue_counts_stop_at_the_limit(
     gql_client: AsyncGraphQLClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(queue_health, "MAX_QUEUE_COUNT", 2)
+    monkeypatch.setattr(current_queue, "MAX_QUEUE_COUNT", 2)
     async with db() as session:
         project = await _add_project(session)
     _, project_evaluator_id = await _seed_criteria(db, project.id)
@@ -734,14 +722,14 @@ async def test_evaluation_queue_reads_each_evaluators_queue_once_per_request(
     async with db() as session:
         project = await _add_project(session)
     project_evaluator_ids = [(await _seed_criteria(db, project.id))[1] for _ in range(3)]
-    load_queues = queue_health.load_project_evaluator_queues
+    load_queues = current_queue.load_project_evaluator_queues
     requested: list[int] = []
 
     async def counting_load_queues(db: DbSessionFactory, ids: list[int]) -> Any:
         requested.extend(ids)
         return await load_queues(db, ids)
 
-    for module in (project_evaluator_queues_module, queue_health):
+    for module in (project_evaluator_queues_module, current_queue):
         monkeypatch.setattr(module, "load_project_evaluator_queues", counting_load_queues)
 
     response = await gql_client.execute(

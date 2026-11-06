@@ -788,7 +788,7 @@ type ClassificationEvaluatorConfig {
 
 type ClearAllQueuedEvaluationsPayload {
   """Queued evaluations that were cleared."""
-  droppedCount: Int!
+  clearedCount: Int!
 }
 
 input ClearProjectEvaluatorQueuedEvaluationsInput {
@@ -797,7 +797,7 @@ input ClearProjectEvaluatorQueuedEvaluationsInput {
 
 type ClearProjectEvaluatorQueuedEvaluationsPayload {
   """Queued evaluations that were cleared."""
-  droppedCount: Int!
+  clearedCount: Int!
   evaluator: ProjectEvaluator!
   query: Query!
 }
@@ -809,13 +809,13 @@ input ClearProjectInput {
   endTime: DateTime
 }
 
-input ClearQueuedEvaluationsInput {
+input ClearProjectQueuedEvaluationsInput {
   projectId: ID!
 }
 
-type ClearQueuedEvaluationsPayload {
+type ClearProjectQueuedEvaluationsPayload {
   """Queued evaluations that were cleared."""
-  droppedCount: Int!
+  clearedCount: Int!
   project: Project!
 }
 
@@ -2725,8 +2725,8 @@ type EvaluationActivityBinGroup {
   """Evaluations given up on in the bin."""
   failedCount: Int!
 
-  """Evaluations queued in the bin."""
-  queuedCount: Int!
+  """Evaluations added to the queue in the bin."""
+  addedCount: Int!
 
   """
   95th percentile lag in seconds of evaluations completed in the bin; null if none.
@@ -2758,9 +2758,6 @@ type EvaluationActivityGroup {
 
   """Evaluations given up on."""
   failedCount: Int!
-
-  """Lag of evaluations completed in the range; null if none completed."""
-  lag: EvaluationLag
 
   """
   Cost in USD of the evaluations' traces started in the range; null if none.
@@ -2795,7 +2792,7 @@ type EvaluationLag {
 }
 
 """
-The online evaluation queue. Span, trace, and session evaluations of every project on the server share it. Rates are per minute over the last 60 minutes. Counts, and the evaluations queued per 60 minutes, stop at 1,000,000.
+The online evaluation queue. Span, trace, and session evaluations of every project on the server share it. Rates are per minute over the last 60 minutes. Counts, and the evaluations added per 60 minutes, stop at 1,000,000.
 """
 type EvaluationQueue {
   status: EvaluationQueueStatus!
@@ -2809,20 +2806,15 @@ type EvaluationQueue {
   runningCount: Int!
 
   """
-  Queued evaluations awaiting a retry after an attempt that did not finish.
-  """
-  retryingCount: Int!
-
-  """
   When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
   """
-  oldestQueuedAt: DateTime
+  oldestWaitingAt: DateTime
 
-  """Evaluations queued per minute."""
-  queuedPerMinute: Float!
+  """Evaluations added to the queue per minute."""
+  addedPerMinute: Float!
 
   """Evaluations completed per minute, whether evaluated or failed."""
-  evaluationsPerMinute: Float!
+  completedPerMinute: Float!
 
   """
   The queue's evaluations of each evaluation target: span, trace, session.
@@ -2855,7 +2847,7 @@ enum EvaluationQueueStatus {
 }
 
 """
-The online evaluations of one evaluation target in the queue. Rates are per minute over the last 60 minutes. Counts, and the evaluations queued per 60 minutes, stop at 1,000,000.
+The online evaluations of one evaluation target in the queue. Rates are per minute over the last 60 minutes. Counts, and the evaluations added per 60 minutes, stop at 1,000,000.
 """
 type EvaluationQueueTarget {
   evaluationTarget: EvaluationTarget!
@@ -2864,25 +2856,15 @@ type EvaluationQueueTarget {
   queuedCount: Int!
 
   """
-  Queued evaluations running now. Clearing the queue removes the queued evaluations that are not running.
-  """
-  runningCount: Int!
-
-  """
-  Queued evaluations awaiting a retry after an attempt that did not finish.
-  """
-  retryingCount: Int!
-
-  """
   When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
   """
-  oldestQueuedAt: DateTime
+  oldestWaitingAt: DateTime
 
-  """Evaluations queued per minute."""
-  queuedPerMinute: Float!
+  """Evaluations added to the queue per minute."""
+  addedPerMinute: Float!
 
   """Evaluations completed per minute, whether evaluated or failed."""
-  evaluationsPerMinute: Float!
+  completedPerMinute: Float!
 }
 
 type EvaluationResult {
@@ -4193,22 +4175,22 @@ type Mutation {
   updateProjectCodeEvaluator(input: UpdateProjectCodeEvaluatorInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Enable or disable a project evaluator, leaving the underlying evaluator untouched. A disabled evaluator's queued evaluations are dropped, not run, when their turn comes; to remove them now, clear them with clearProjectEvaluatorQueuedEvaluations. Enabling drops any still queued, and the evaluator evaluates only what arrives after it is enabled. Works for both LLM and CODE evaluators.
+  Enable or disable a project evaluator, leaving the underlying evaluator untouched. A disabled evaluator's queued evaluations are cleared, not run, when their turn comes; to remove them now, clear them with clearProjectEvaluatorQueuedEvaluations. Enabling drops any still queued, and the evaluator evaluates only what arrives after it is enabled. Works for both LLM and CODE evaluators.
   """
   setProjectEvaluatorEnabled(input: SetProjectEvaluatorEnabledInput!): ProjectEvaluatorMutationPayload!
 
   """
-  Clear the queued evaluations of one project evaluator, without enabling or disabling it. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  Clear the queued evaluations of one project evaluator, without enabling or disabling it. Evaluations already running are not affected. Cleared evaluations do not count as failed.
   """
   clearProjectEvaluatorQueuedEvaluations(input: ClearProjectEvaluatorQueuedEvaluationsInput!): ClearProjectEvaluatorQueuedEvaluationsPayload!
 
   """
-  Clear the queued evaluations of every evaluator in a project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  Clear the queued evaluations of every evaluator in a project. Evaluations already running are not affected. Cleared evaluations do not count as failed.
   """
-  clearQueuedEvaluations(input: ClearQueuedEvaluationsInput!): ClearQueuedEvaluationsPayload!
+  clearProjectQueuedEvaluations(input: ClearProjectQueuedEvaluationsInput!): ClearProjectQueuedEvaluationsPayload!
 
   """
-  Clear the queued evaluations of every evaluator in every project. Evaluations already running are not affected. Cleared evaluations count as dropped, not failed.
+  Clear the queued evaluations of every evaluator in every project. Evaluations already running are not affected. Cleared evaluations do not count as failed.
   """
   clearAllQueuedEvaluations: ClearAllQueuedEvaluationsPayload!
   deleteProjectEvaluators(input: DeleteProjectEvaluatorsInput!): DeleteProjectEvaluatorsPayload!
@@ -4883,7 +4865,7 @@ type ProjectEdge {
 }
 
 """
-One project's part of the online evaluation queue: the span, trace, and session evaluations of its evaluators. Rates are per minute over the last 60 minutes. Counts, and the evaluations queued per 60 minutes, stop at 1,000,000.
+One project's part of the online evaluation queue: the span, trace, and session evaluations of its evaluators. Rates are per minute over the last 60 minutes. Counts, and the evaluations added per 60 minutes, stop at 1,000,000.
 """
 type ProjectEvaluationQueue {
   """Evaluations queued or running, including ones awaiting a retry."""
@@ -4897,13 +4879,13 @@ type ProjectEvaluationQueue {
   """
   When the longest-waiting evaluation not yet started was queued, or null if none is waiting. Evaluations awaiting a retry are not included.
   """
-  oldestQueuedAt: DateTime
+  oldestWaitingAt: DateTime
 
-  """Evaluations queued per minute."""
-  queuedPerMinute: Float!
+  """Evaluations added to the queue per minute."""
+  addedPerMinute: Float!
 
   """Evaluations completed per minute, whether evaluated or failed."""
-  evaluationsPerMinute: Float!
+  completedPerMinute: Float!
 
   """
   This project's evaluations of each evaluation target: span, trace, session.
@@ -5087,10 +5069,10 @@ enum ProjectEvaluatorRunStatus {
   NEVER_RUN
 
   """Evaluations are waiting to run and none has completed yet."""
-  QUEUED
+  STARTING
 
   """Evaluation runs are completing and writing annotations."""
-  RUNNING
+  HEALTHY
 
   """The most recent evaluation run failed and will not be retried."""
   ERROR
@@ -5109,7 +5091,7 @@ The state of a project evaluator's scheduled work, derived from the evaluation r
 """
 type ProjectEvaluatorRunSummary {
   """
-  From this evaluator's own evaluations only; the shared queue's status does not affect it. DISABLED when turned off. Otherwise ERROR when the newest completed run was given up on, DEGRADED when its oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes, RUNNING when the newest completed run produced an annotation, QUEUED when work is waiting but none has completed, NEVER_RUN otherwise.
+  From this evaluator's own evaluations only; the shared queue's status does not affect it. DISABLED when turned off. Otherwise ERROR when the newest completed run was given up on, DEGRADED when its oldest evaluation waiting to run, including ones awaiting a retry, has waited over 10 minutes, HEALTHY when the newest completed run produced an annotation, STARTING when work is waiting but none has completed, NEVER_RUN otherwise.
   """
   status: ProjectEvaluatorRunStatus!
 
@@ -5131,7 +5113,7 @@ type ProjectEvaluatorRunSummary {
   """
   When this evaluator's longest-waiting evaluation, including ones awaiting a retry, was queued, or null if none is waiting. Running evaluations are not waiting.
   """
-  oldestQueuedAt: DateTime
+  oldestWaitingOrRetryingAt: DateTime
 
   """Evaluations that produced an annotation."""
   evaluatedCount: Int!
@@ -5142,7 +5124,7 @@ type ProjectEvaluatorRunSummary {
   """
   Evaluations removed from the queue before they ran, because a user cleared them or the evaluator was disabled when their turn came. They are not failures and do not affect the status.
   """
-  droppedCount: Int!
+  clearedCount: Int!
 
   """The most recent evaluation error, or null if none was recorded."""
   lastError: String

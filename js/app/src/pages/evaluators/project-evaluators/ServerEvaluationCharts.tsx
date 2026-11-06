@@ -126,7 +126,7 @@ export function useServerEvaluationActivity({
               }
               evaluatedCount
               failedCount
-              queuedCount
+              addedCount
               queueSize
             }
           }
@@ -374,7 +374,7 @@ function QueuedVsCompletedChart({
       : bin.groups;
     return {
       timestamp: new Date(bin.timestamp).getTime(),
-      queued: groups.reduce((sum, group) => sum + group.queuedCount, 0),
+      queued: groups.reduce((sum, group) => sum + group.addedCount, 0),
       completed: groups.reduce(
         (sum, group) => sum + group.evaluatedCount + group.failedCount,
         0

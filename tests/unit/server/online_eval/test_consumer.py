@@ -3632,7 +3632,7 @@ async def test_disabled_criteria_drops_unit_without_failing_it(db: DbSessionFact
     assert unit.error == "PROJECT_EVALUATOR_DISABLED"
     assert await _annotations(db) == []
     counts = await ProjectEvaluatorRunCountsDataLoader(db).load((project_evaluator_id, None, None))
-    assert (counts.failed, counts.dropped) == (0, 1)
+    assert (counts.failed, counts.cleared) == (0, 1)
 
 
 async def test_evaluator_disabled_while_running_drops_its_unit_without_failing_it(
@@ -3668,7 +3668,7 @@ async def test_evaluator_disabled_while_running_drops_its_unit_without_failing_i
     assert (unit.status, unit.error) == ("DROPPED", "PROJECT_EVALUATOR_DISABLED")
     assert await _annotations(db) == []
     counts = await ProjectEvaluatorRunCountsDataLoader(db).load((project_evaluator_id, None, None))
-    assert (counts.failed, counts.dropped) == (0, 1)
+    assert (counts.failed, counts.cleared) == (0, 1)
 
 
 async def test_trace_consumer_writes_a_trace_annotation(

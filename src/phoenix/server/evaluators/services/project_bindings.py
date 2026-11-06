@@ -976,7 +976,7 @@ async def clear_project_evaluator_queued_evaluations(
     return sum(cleared.values()), project_evaluator
 
 
-async def clear_queued_evaluations(
+async def clear_project_queued_evaluations(
     context: EvaluatorServiceContext, project_id: GlobalID
 ) -> tuple[int, models.Project]:
     """Clear queued evaluations for every evaluator in one project.

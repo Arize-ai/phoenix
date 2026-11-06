@@ -32,7 +32,7 @@ from phoenix.db.eval_work import COMPLETED_STATUSES, QUEUED_STATUSES
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import LatencyMs
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
-from phoenix.server.online_eval import queue_health
+from phoenix.server.online_eval import current_queue
 from phoenix.server.online_eval.work_tables import WORK_TABLES, status_in
 from phoenix.server.types import DbSessionFactory
 
@@ -70,7 +70,7 @@ class ActivityBinGroup:
     project_evaluator_id: Optional[int]
     evaluated_count: int = 0
     failed_count: int = 0
-    queued_count: int = 0
+    added_count: int = 0
     lag_p95_seconds: Optional[float] = None
     cost: Optional[float] = None
     queue_size: int = 0
@@ -140,7 +140,7 @@ async def load_evaluation_activity(
 class _GroupBin:
     evaluated_count: int = 0
     failed_count: int = 0
-    queued_count: int = 0
+    added_count: int = 0
     lag_p95_seconds: Optional[float] = None
     cost: Optional[float] = None
 
@@ -248,7 +248,7 @@ class _ActivityReader:
                             *self._identity(key, project_ids[key]),
                             evaluated_count=group_bin.evaluated_count,
                             failed_count=group_bin.failed_count,
-                            queued_count=group_bin.queued_count,
+                            added_count=group_bin.added_count,
                             lag_p95_seconds=group_bin.lag_p95_seconds,
                             cost=group_bin.cost,
                             queue_size=queue_size,
@@ -270,8 +270,8 @@ class _ActivityReader:
         groups: dict[_GroupKey, _GroupTotals],
         bin_index: dict[datetime, int],
     ) -> None:
-        """Evaluations queued in each bin, and the queue's size at each bin's end, from one
-        read of the evaluations queued at any time in the range: those still queued, and
+        """Evaluations added in each bin, and the queue's size at each bin's end, from one
+        read of the evaluations in queue at any time in the range: those still in queue, and
         those that left the queue in or after it."""
         queued = _queued(self.scope, self.start, self.end)
         entered_at, exited_at = queued.c.entered_at, queued.c.exited_at
@@ -296,14 +296,14 @@ class _ActivityReader:
             entered_index = -1 if entered is None else bin_index[_as_datetime(entered)]
             exited_index = bin_count if exited is None else bin_index[_as_datetime(exited)]
             if entered_index >= 0:
-                groups[key].bins.setdefault(entered_index, _GroupBin()).queued_count += count
+                groups[key].bins.setdefault(entered_index, _GroupBin()).added_count += count
             changes[key][max(entered_index, 0)] += count
             changes[key][exited_index] -= count
         for key, deltas in changes.items():
             size = 0
             for i in range(bin_count):
                 size += deltas[i]
-                groups[key].queue_sizes[i] = min(size, queue_health.MAX_QUEUE_COUNT)
+                groups[key].queue_sizes[i] = min(size, current_queue.MAX_QUEUE_COUNT)
 
     async def _read_cost(
         self,
@@ -410,7 +410,7 @@ def _queued(
                     model.created_at < end,
                 )
                 .order_by(model.id.desc())
-                .limit(queue_health.MAX_QUEUE_COUNT)
+                .limit(current_queue.MAX_QUEUE_COUNT)
                 .subquery()
             )
             branches.append(

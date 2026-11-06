@@ -19,20 +19,20 @@ from phoenix.server.api.dataloaders.project_evaluator_queues import (
 )
 from phoenix.server.api.input_types.TimeBinConfig import TimeBucketSpec
 from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
+from phoenix.server.online_eval.current_queue import (
+    load_evaluation_queue,
+    load_project_evaluator_queues,
+)
 from phoenix.server.online_eval.evaluation_activity import (
     load_evaluation_activity,
     load_evaluation_lags,
-)
-from phoenix.server.online_eval.queue_health import (
-    load_evaluation_queue,
-    load_project_evaluator_queues,
-    load_queue_throughput,
 )
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
 from phoenix.server.online_eval.sweeping_producer import (
     SessionEvaluationProducer,
     TraceEvaluationProducer,
 )
+from phoenix.server.online_eval.throughput import load_queue_throughput
 from phoenix.server.types import DbSessionFactory
 
 from ..._helpers import _add_project

@@ -41,8 +41,8 @@ export function ProjectEvaluatorEnabledSwitch({
               status
               queuedCount
               runningCount
-              droppedCount
-              oldestQueuedAt
+              clearedCount
+              oldestWaitingOrRetryingAt
             }
           }
         }
@@ -61,8 +61,8 @@ export function ProjectEvaluatorEnabledSwitch({
               status
               queuedCount
               runningCount
-              droppedCount
-              oldestQueuedAt
+              clearedCount
+              oldestWaitingOrRetryingAt
             }
           }
         }
@@ -81,7 +81,7 @@ export function ProjectEvaluatorEnabledSwitch({
       runSummary.getValue("runningCount") ?? 0,
       "queuedCount"
     );
-    runSummary?.setValue(null, "oldestQueuedAt");
+    runSummary?.setValue(null, "oldestWaitingOrRetryingAt");
   };
 
   // The row showed the evaluator as cleared; read back what is still queued.
@@ -97,8 +97,8 @@ export function ProjectEvaluatorEnabledSwitch({
                 status
                 queuedCount
                 runningCount
-                droppedCount
-                oldestQueuedAt
+                clearedCount
+                oldestWaitingOrRetryingAt
               }
             }
           }

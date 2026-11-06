@@ -5,15 +5,14 @@ from strawberry.dataloader import DataLoader
 from phoenix.server.api.dataloaders.project_evaluator_queues import (
     ProjectEvaluatorQueuesDataLoader,
 )
-from phoenix.server.online_eval.queue_health import (
+from phoenix.server.online_eval.current_queue import (
     EvaluationQueue,
     ProjectQueuedCount,
-    QueueThroughput,
     load_evaluation_queue,
     load_project_evaluator_targets,
-    load_queue_throughput,
     queued_by_project,
 )
+from phoenix.server.online_eval.throughput import QueueThroughput, load_queue_throughput
 from phoenix.server.types import DbSessionFactory
 
 

@@ -1869,10 +1869,10 @@ async def test_project_evaluator_run_summary(
                         lastRunAt
                         queuedCount
                         runningCount
-                        oldestQueuedAt
+                        oldestWaitingOrRetryingAt
                         evaluatedCount
                         failedCount
-                        droppedCount
+                        clearedCount
                         lastError
                     }
                 }
@@ -1883,17 +1883,19 @@ async def test_project_evaluator_run_summary(
 
     assert not response.errors and response.data
     run_summary = response.data["node"]["runSummary"]
-    assert run_summary["status"] == "RUNNING"
+    assert run_summary["status"] == "HEALTHY"
     assert run_summary["evaluatedCount"] == 2
     # Given up on: the FAILED unit and the EXPIRED one. CONTENT_LOST falls outside
     # every bucket; DROPPED has its own.
     assert run_summary["failedCount"] == 2
-    assert run_summary["droppedCount"] == 1
+    assert run_summary["clearedCount"] == 1
     # Queued: the PENDING unit, the RUNNING one, and the ERROR with attempts remaining.
     assert run_summary["queuedCount"] == 3
     assert run_summary["runningCount"] == 1
     # The oldest waiting is the PENDING unit, not the earlier-queued RUNNING one.
-    assert datetime.fromisoformat(run_summary["oldestQueuedAt"]) == now - timedelta(minutes=3)
+    assert datetime.fromisoformat(run_summary["oldestWaitingOrRetryingAt"]) == now - timedelta(
+        minutes=3
+    )
     # The newest FAILED unit's error — not the retrying unit's, which is newer but
     # not a failure, and not a lifecycle expiry's.
     assert run_summary["lastError"] == "execution deadline exceeded"
@@ -1979,7 +1981,7 @@ async def test_project_evaluator_run_summary_counts_trace_work(
 
     assert not response.errors and response.data
     run_summary = response.data["node"]["runSummary"]
-    assert run_summary["status"] == "RUNNING"
+    assert run_summary["status"] == "HEALTHY"
     assert run_summary["evaluatedCount"] == 1
     assert run_summary["failedCount"] == 1
     assert run_summary["queuedCount"] == 0
@@ -2215,8 +2217,8 @@ async def test_project_evaluator_run_status_reflects_only_its_own_work(
     assert {alias: node["runSummary"]["status"] for alias, node in response.data.items()} == {
         "stuck": "DEGRADED",
         "neverRun": "NEVER_RUN",
-        "queued": "QUEUED",
-        "running": "RUNNING",
+        "queued": "STARTING",
+        "running": "HEALTHY",
     }
 
 
@@ -2274,7 +2276,7 @@ async def test_project_evaluator_run_summary_is_degraded_while_its_own_evaluatio
 
     assert not response.errors and response.data
     assert response.data["a"]["runSummary"]["status"] == "DEGRADED"
-    assert response.data["b"]["runSummary"]["status"] == "RUNNING"
+    assert response.data["b"]["runSummary"]["status"] == "HEALTHY"
 
 
 async def test_project_evaluator_run_summary_reads_counts_only_when_selected(
@@ -2322,7 +2324,7 @@ async def test_project_evaluator_run_summary_reads_counts_only_when_selected(
         """query ($id: ID!) {
             node(id: $id) {
                 ... on ProjectEvaluator {
-                    runSummary { status lastRunAt queuedCount runningCount oldestQueuedAt }
+                    runSummary { status lastRunAt queuedCount runningCount oldestWaitingOrRetryingAt }
                 }
             }
         }""",

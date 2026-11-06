@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d7df95731418ee9b7ab4a947685da87c>>
+ * @generated SignedSource<<9edefb394f9ff4167c7aec8f5f612bc0>>
  * @lightSyntaxTransform
  */
 
@@ -323,14 +323,14 @@ return {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "droppedCount",
+                          "name": "clearedCount",
                           "storageKey": null
                         },
                         {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "oldestQueuedAt",
+                          "name": "oldestWaitingOrRetryingAt",
                           "storageKey": null
                         }
                       ],

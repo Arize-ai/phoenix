@@ -362,25 +362,25 @@ class ClearProjectEvaluatorQueuedEvaluationsInput:
 
 @strawberry.type
 class ClearProjectEvaluatorQueuedEvaluationsPayload:
-    dropped_count: int = strawberry.field(description="Queued evaluations that were cleared.")
+    cleared_count: int = strawberry.field(description="Queued evaluations that were cleared.")
     evaluator: ProjectEvaluator
     query: Query
 
 
 @strawberry.input
-class ClearQueuedEvaluationsInput:
+class ClearProjectQueuedEvaluationsInput:
     project_id: GlobalID
 
 
 @strawberry.type
-class ClearQueuedEvaluationsPayload:
-    dropped_count: int = strawberry.field(description="Queued evaluations that were cleared.")
+class ClearProjectQueuedEvaluationsPayload:
+    cleared_count: int = strawberry.field(description="Queued evaluations that were cleared.")
     project: Project
 
 
 @strawberry.type
 class ClearAllQueuedEvaluationsPayload:
-    dropped_count: int = strawberry.field(description="Queued evaluations that were cleared.")
+    cleared_count: int = strawberry.field(description="Queued evaluations that were cleared.")
 
 
 @strawberry.input
@@ -632,7 +632,7 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Enable or disable a project evaluator, leaving the underlying evaluator "
-            "untouched. A disabled evaluator's queued evaluations are dropped, not run, when "
+            "untouched. A disabled evaluator's queued evaluations are cleared, not run, when "
             "their turn comes; to remove them now, clear them with "
             "clearProjectEvaluatorQueuedEvaluations. Enabling drops any still queued, and the "
             "evaluator evaluates only what arrives after it is enabled. Works for both LLM "
@@ -657,20 +657,20 @@ class EvaluatorMutationMixin:
         description=(
             "Clear the queued evaluations of one project evaluator, without enabling or "
             "disabling it. Evaluations already running are not affected. Cleared evaluations "
-            "count as dropped, not failed."
+            "do not count as failed."
         ),
     )  # type: ignore
     async def clear_project_evaluator_queued_evaluations(
         self, info: Info[Context, None], input: ClearProjectEvaluatorQueuedEvaluationsInput
     ) -> ClearProjectEvaluatorQueuedEvaluationsPayload:
         (
-            dropped_count,
+            cleared_count,
             project_evaluator,
         ) = await project_bindings.clear_project_evaluator_queued_evaluations(
             _evaluator_service_context(info.context), input.project_evaluator_id
         )
         return ClearProjectEvaluatorQueuedEvaluationsPayload(
-            dropped_count=dropped_count,
+            cleared_count=cleared_count,
             evaluator=ProjectEvaluator(id=project_evaluator.id, db_record=project_evaluator),
             query=Query(),
         )
@@ -679,18 +679,18 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Clear the queued evaluations of every evaluator in a project. Evaluations "
-            "already running are not affected. Cleared evaluations count as dropped, not "
-            "failed."
+            "already running are not affected. Cleared evaluations do not "
+            "count as failed."
         ),
     )  # type: ignore
-    async def clear_queued_evaluations(
-        self, info: Info[Context, None], input: ClearQueuedEvaluationsInput
-    ) -> ClearQueuedEvaluationsPayload:
-        dropped_count, project = await project_bindings.clear_queued_evaluations(
+    async def clear_project_queued_evaluations(
+        self, info: Info[Context, None], input: ClearProjectQueuedEvaluationsInput
+    ) -> ClearProjectQueuedEvaluationsPayload:
+        cleared_count, project = await project_bindings.clear_project_queued_evaluations(
             _evaluator_service_context(info.context), input.project_id
         )
-        return ClearQueuedEvaluationsPayload(
-            dropped_count=dropped_count,
+        return ClearProjectQueuedEvaluationsPayload(
+            cleared_count=cleared_count,
             project=Project(id=project.id, db_record=project),
         )
 
@@ -698,17 +698,17 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Clear the queued evaluations of every evaluator in every project. Evaluations "
-            "already running are not affected. Cleared evaluations count as dropped, not "
-            "failed."
+            "already running are not affected. Cleared evaluations do not "
+            "count as failed."
         ),
     )  # type: ignore
     async def clear_all_queued_evaluations(
         self, info: Info[Context, None]
     ) -> ClearAllQueuedEvaluationsPayload:
-        dropped_count = await project_bindings.clear_all_queued_evaluations(
+        cleared_count = await project_bindings.clear_all_queued_evaluations(
             _evaluator_service_context(info.context)
         )
-        return ClearAllQueuedEvaluationsPayload(dropped_count=dropped_count)
+        return ClearAllQueuedEvaluationsPayload(cleared_count=cleared_count)
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_project_evaluators(

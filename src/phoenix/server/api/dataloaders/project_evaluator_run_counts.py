@@ -29,7 +29,7 @@ _WORK_UNIT_MODELS: tuple[_WorkUnitModel, ...] = (
 
 _EVALUATED = "EVALUATED"
 _FAILED = "FAILED"
-_DROPPED = "DROPPED"
+_CLEARED = "CLEARED"
 
 
 @dataclass(frozen=True)
@@ -47,7 +47,7 @@ class ProjectEvaluatorRunCounts:
 
     evaluated: int = 0
     failed: int = 0
-    dropped: int = 0
+    cleared: int = 0
     last_failed_at: Optional[datetime] = None
     last_error: Optional[str] = None
 
@@ -115,7 +115,7 @@ async def _load_run_counts(
         elif outcome == _FAILED:
             counts = replace(counts, failed=count, last_failed_at=latest)
         else:
-            counts = replace(counts, dropped=count)
+            counts = replace(counts, cleared=count)
         result[key] = counts
     return result
 
@@ -170,14 +170,14 @@ def _failed(model: _WorkUnitModel) -> sa.ColumnElement[bool]:
 
 # The funnel the user sees, past the queue. CONTENT_LOST falls outside every bucket,
 # since no evaluation was ever owed for it, as do a session's FILTERED_OUT and SAMPLED_OUT
-# decisions. DROPPED is its own bucket: removed from the queue before it ran, so nothing
-# failed. Queued work is counted by the online-eval queue health instead.
+# decisions. DROPPED is its own bucket, cleared: removed from the queue before it ran, so
+# nothing failed. Work in queue is counted by current_queue instead.
 # Bucketed here rather than in SQL so the scan groups by the raw status, instead of
 # evaluating a CASE on every row it reads.
 _OUTCOME_BY_STATUS: dict[str, str] = {
     "DONE": _EVALUATED,
     **{status: _FAILED for status in FAILED_STATUSES},
-    "DROPPED": _DROPPED,
+    "DROPPED": _CLEARED,
 }
 
 

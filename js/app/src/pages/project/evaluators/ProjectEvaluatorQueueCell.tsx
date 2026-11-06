@@ -13,7 +13,7 @@ import {
 
 export type ProjectEvaluatorQueuedWork = {
   queuedCount: number;
-  oldestQueuedAt: string | null;
+  oldestWaitingOrRetryingAt: string | null;
 };
 
 /**
@@ -25,7 +25,7 @@ export function ProjectEvaluatorQueueCell({
 }: {
   queuedWork: ProjectEvaluatorQueuedWork;
 }) {
-  const { queuedCount, oldestQueuedAt } = queuedWork;
+  const { queuedCount, oldestWaitingOrRetryingAt } = queuedWork;
   if (queuedCount === 0) {
     return (
       <Text fontFamily="mono" color="text-700">
@@ -36,7 +36,7 @@ export function ProjectEvaluatorQueueCell({
   const formattedCount = formatQueueCount(queuedCount);
   const count = <Text fontFamily="mono">{formattedCount}</Text>;
   // Only running evaluations are queued, so nothing is waiting.
-  if (oldestQueuedAt == null) {
+  if (oldestWaitingOrRetryingAt == null) {
     return count;
   }
   return (
@@ -45,12 +45,12 @@ export function ProjectEvaluatorQueueCell({
         <Text fontFamily="mono">
           {formattedCount}
           <Text fontFamily="mono" color="text-700">
-            {` · ${formatElapsedShort(oldestQueuedAt)}`}
+            {` · ${formatElapsedShort(oldestWaitingOrRetryingAt)}`}
           </Text>
         </Text>
       </TriggerWrap>
       <RichTooltip placement="bottom">
-        <Text size="S">{`Oldest has waited ${formatDistanceToNowStrict(new Date(oldestQueuedAt), { roundingMethod: "floor" })}, including retries`}</Text>
+        <Text size="S">{`Oldest has waited ${formatDistanceToNowStrict(new Date(oldestWaitingOrRetryingAt), { roundingMethod: "floor" })}, including retries`}</Text>
       </RichTooltip>
     </TooltipTrigger>
   );

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e1bc362bb447c8b7518c6d661a15b60>>
+ * @generated SignedSource<<7673cef1b5e909cf2fad97e5439697e4>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluationQueueStatus = "DEGRADED" | "HEALTHY";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "HEALTHY" | "NEVER_RUN" | "STARTING";
 export type TimeRange = {
   end?: string | null;
   start?: string | null;
@@ -21,8 +21,9 @@ export type ProjectEvaluatorQueueStatsQuery$variables = {
 };
 export type ProjectEvaluatorQueueStatsQuery$data = {
   readonly evaluationQueue: {
-    readonly evaluationsPerMinute: number;
-    readonly oldestQueuedAt: string | null;
+    readonly addedPerMinute: number;
+    readonly completedPerMinute: number;
+    readonly oldestWaitingAt: string | null;
     readonly projects: ReadonlyArray<{
       readonly project: {
         readonly id: string;
@@ -31,17 +32,14 @@ export type ProjectEvaluatorQueueStatsQuery$data = {
       readonly queuedCount: number;
     }>;
     readonly queuedCount: number;
-    readonly queuedPerMinute: number;
-    readonly retryingCount: number;
     readonly runningCount: number;
     readonly status: EvaluationQueueStatus;
     readonly targets: ReadonlyArray<{
+      readonly addedPerMinute: number;
+      readonly completedPerMinute: number;
       readonly evaluationTarget: EvaluationTarget;
-      readonly evaluationsPerMinute: number;
-      readonly oldestQueuedAt: string | null;
+      readonly oldestWaitingAt: string | null;
       readonly queuedCount: number;
-      readonly queuedPerMinute: number;
-      readonly retryingCount: number;
     }>;
   };
   readonly project: {
@@ -51,10 +49,10 @@ export type ProjectEvaluatorQueueStatsQuery$data = {
       } | null;
     };
     readonly evaluationQueue?: {
-      readonly evaluationsPerMinute: number;
-      readonly oldestQueuedAt: string | null;
+      readonly addedPerMinute: number;
+      readonly completedPerMinute: number;
+      readonly oldestWaitingAt: string | null;
       readonly queuedCount: number;
-      readonly queuedPerMinute: number;
       readonly runningCount: number;
       readonly targets: ReadonlyArray<{
         readonly evaluationTarget: EvaluationTarget;
@@ -67,7 +65,7 @@ export type ProjectEvaluatorQueueStatsQuery$data = {
           readonly id: string;
           readonly runSummary: {
             readonly lastRunAt: string | null;
-            readonly oldestQueuedAt: string | null;
+            readonly oldestWaitingOrRetryingAt: string | null;
             readonly queuedCount: number;
             readonly runningCount: number;
             readonly status: ProjectEvaluatorRunStatus;
@@ -111,52 +109,45 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "retryingCount",
+  "name": "oldestWaitingAt",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "oldestQueuedAt",
+  "name": "addedPerMinute",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "queuedPerMinute",
+  "name": "completedPerMinute",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "evaluationsPerMinute",
+  "name": "runningCount",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "runningCount",
+  "name": "id",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v10 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "evaluationTarget",
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "EvaluationQueue",
@@ -170,7 +161,6 @@ v11 = {
     (v5/*:: as any*/),
     (v6/*:: as any*/),
     (v7/*:: as any*/),
-    (v8/*:: as any*/),
     {
       "alias": null,
       "args": [
@@ -193,7 +183,7 @@ v11 = {
           "name": "project",
           "plural": false,
           "selections": [
-            (v9/*:: as any*/),
+            (v8/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -216,26 +206,25 @@ v11 = {
       "name": "targets",
       "plural": true,
       "selections": [
-        (v10/*:: as any*/),
+        (v9/*:: as any*/),
         (v3/*:: as any*/),
         (v4/*:: as any*/),
         (v5/*:: as any*/),
-        (v6/*:: as any*/),
-        (v7/*:: as any*/)
+        (v6/*:: as any*/)
       ],
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v12 = [
+v11 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v13 = {
+v12 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -282,10 +271,10 @@ v13 = {
       "plural": false,
       "selections": [
         (v3/*:: as any*/),
-        (v8/*:: as any*/),
+        (v7/*:: as any*/),
+        (v4/*:: as any*/),
         (v5/*:: as any*/),
         (v6/*:: as any*/),
-        (v7/*:: as any*/),
         {
           "alias": null,
           "args": null,
@@ -294,7 +283,7 @@ v13 = {
           "name": "targets",
           "plural": true,
           "selections": [
-            (v10/*:: as any*/),
+            (v9/*:: as any*/),
             (v3/*:: as any*/)
           ],
           "storageKey": null
@@ -332,7 +321,7 @@ v13 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v9/*:: as any*/),
+                (v8/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -350,8 +339,14 @@ v13 = {
                       "storageKey": null
                     },
                     (v3/*:: as any*/),
-                    (v8/*:: as any*/),
-                    (v5/*:: as any*/)
+                    (v7/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "oldestWaitingOrRetryingAt",
+                      "storageKey": null
+                    }
                   ],
                   "storageKey": null
                 }
@@ -378,16 +373,16 @@ return {
     "metadata": null,
     "name": "ProjectEvaluatorQueueStatsQuery",
     "selections": [
-      (v11/*:: as any*/),
+      (v10/*:: as any*/),
       {
         "alias": "project",
-        "args": (v12/*:: as any*/),
+        "args": (v11/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v13/*:: as any*/)
+          (v12/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -404,10 +399,10 @@ return {
     "kind": "Operation",
     "name": "ProjectEvaluatorQueueStatsQuery",
     "selections": [
-      (v11/*:: as any*/),
+      (v10/*:: as any*/),
       {
         "alias": "project",
-        "args": (v12/*:: as any*/),
+        "args": (v11/*:: as any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -420,24 +415,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v13/*:: as any*/),
-          (v9/*:: as any*/)
+          (v12/*:: as any*/),
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "0e438ed3d3d2472beb8d42d32a910be5",
+    "cacheID": "aff224cc7f3c46aeb56676048032f636",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorQueueStatsQuery",
     "operationKind": "query",
-    "text": "query ProjectEvaluatorQueueStatsQuery(\n  $projectId: ID!\n  $lagTimeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n    retryingCount\n    oldestQueuedAt\n    queuedPerMinute\n    evaluationsPerMinute\n    runningCount\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n    targets {\n      evaluationTarget\n      queuedCount\n      retryingCount\n      oldestQueuedAt\n      queuedPerMinute\n      evaluationsPerMinute\n    }\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationActivity(timeRange: $lagTimeRange) {\n        lag {\n          p95Seconds\n        }\n      }\n      evaluationQueue {\n        queuedCount\n        runningCount\n        oldestQueuedAt\n        queuedPerMinute\n        evaluationsPerMinute\n        targets {\n          evaluationTarget\n          queuedCount\n        }\n      }\n      evaluators(first: 100) {\n        edges {\n          node {\n            id\n            runSummary {\n              status\n              lastRunAt\n              queuedCount\n              runningCount\n              oldestQueuedAt\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ProjectEvaluatorQueueStatsQuery(\n  $projectId: ID!\n  $lagTimeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    queuedCount\n    oldestWaitingAt\n    addedPerMinute\n    completedPerMinute\n    runningCount\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n    targets {\n      evaluationTarget\n      queuedCount\n      oldestWaitingAt\n      addedPerMinute\n      completedPerMinute\n    }\n  }\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationActivity(timeRange: $lagTimeRange) {\n        lag {\n          p95Seconds\n        }\n      }\n      evaluationQueue {\n        queuedCount\n        runningCount\n        oldestWaitingAt\n        addedPerMinute\n        completedPerMinute\n        targets {\n          evaluationTarget\n          queuedCount\n        }\n      }\n      evaluators(first: 100) {\n        edges {\n          node {\n            id\n            runSummary {\n              status\n              lastRunAt\n              queuedCount\n              runningCount\n              oldestWaitingOrRetryingAt\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cc42ef3afbfe509ba21b9d11a5aab9c2";
+(node as any).hash = "e4aa600e96a596d326e28cc87f0d232d";
 
 export default node;
