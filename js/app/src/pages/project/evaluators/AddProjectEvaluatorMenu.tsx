@@ -92,24 +92,21 @@ export const BuildProjectEvaluatorMenu = ({
         >
           <MenuItem
             id="createEvaluator"
-            aria-label="Create new LLM evaluator"
             leadingContent={<Icon svg={<Icons.LLMOutput />} />}
           >
-            LLM evaluator
+            New LLM evaluator
           </MenuItem>
           <MenuItem
             id="createCodeEvaluator"
-            aria-label="Create new code evaluator"
             leadingContent={<Icon svg={<Icons.Code />} />}
           >
-            Code evaluator
+            New code evaluator
           </MenuItem>
           <MenuItem
             id="createDecisionEvaluator"
-            aria-label="Create new decision evaluator"
             leadingContent={<Icon svg={<Icons.Split />} />}
           >
-            Decision evaluator
+            New decision evaluator
           </MenuItem>
         </Menu>
       </MenuContainer>
@@ -178,22 +175,22 @@ function ProjectEvaluatorMenuItems({
             </MenuItem>
           </MenuSection>
         ) : null}
-        {/* Each section names the kind, so its items name only the action.
-            "Use as is" attaches the existing evaluator itself, so edits to it
-            apply everywhere it runs. "Copy and edit" creates a new evaluator
-            from a copy, which can change without affecting the original. */}
+        {/* Each section names the kind, and each item names its full action
+            so a row reads on its own. "Add existing" shares the evaluator
+            itself, so edits to it apply everywhere it runs; "Copy existing"
+            creates a new evaluator that can change without affecting the
+            original. Each submenu restates that difference at its top. */}
         <MenuSection>
           <MenuSectionTitle title="LLM" />
           <MenuItem
             id="createEvaluator"
-            aria-label="Create new LLM evaluator"
             leadingContent={<Icon svg={<Icons.Plus />} />}
           >
-            New
+            New LLM evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Copy and edit"
-            kindLabel="LLM"
+            label="Copy existing LLM evaluator"
+            hint={COPY_HINT}
             icon={<Icons.Duplicate />}
             evaluators={llmEvaluators}
             onAction={(evaluatorId) =>
@@ -205,14 +202,13 @@ function ProjectEvaluatorMenuItems({
           <MenuSectionTitle title="Code" />
           <MenuItem
             id="createCodeEvaluator"
-            aria-label="Create new code evaluator"
             leadingContent={<Icon svg={<Icons.Plus />} />}
           >
-            New
+            New code evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Use as is"
-            kindLabel="code"
+            label="Add existing code evaluator"
+            hint={SHARE_HINT}
             icon={<Icons.Code />}
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
@@ -220,8 +216,8 @@ function ProjectEvaluatorMenuItems({
             }
           />
           <EvaluatorSubmenu
-            label="Copy and edit"
-            kindLabel="code"
+            label="Copy existing code evaluator"
+            hint={COPY_HINT}
             icon={<Icons.Duplicate />}
             evaluators={codeEvaluators}
             onAction={(evaluatorId) =>
@@ -233,14 +229,13 @@ function ProjectEvaluatorMenuItems({
           <MenuSectionTitle title="Decision" />
           <MenuItem
             id="createDecisionEvaluator"
-            aria-label="Create new decision evaluator"
             leadingContent={<Icon svg={<Icons.Plus />} />}
           >
-            New
+            New decision evaluator
           </MenuItem>
           <EvaluatorSubmenu
-            label="Use as is"
-            kindLabel="decision"
+            label="Add existing decision evaluator"
+            hint={SHARE_HINT}
             icon={<Icons.Split />}
             evaluators={decisionEvaluators}
             onAction={(evaluatorId) =>
@@ -260,20 +255,25 @@ function ProjectEvaluatorMenuItems({
   );
 }
 
+const SHARE_HINT =
+  "Adds the same evaluator. Edits to it apply everywhere it runs.";
+const COPY_HINT =
+  "Creates a new evaluator from a copy. Edits don't affect the original.";
+
 /**
  * A submenu of existing evaluators of one kind. It is left out when there are
  * none, rather than shown disabled.
  */
 function EvaluatorSubmenu({
   label,
-  kindLabel,
+  hint,
   icon,
   evaluators,
   onAction,
 }: {
   label: string;
-  /** Completes the accessible name, which the visible label leaves to the section title. */
-  kindLabel: string;
+  /** Shown above the evaluators: what picking one does to the original. */
+  hint: string;
   icon: React.ReactElement;
   evaluators: ReadonlyArray<{
     id: string;
@@ -287,19 +287,23 @@ function EvaluatorSubmenu({
   }
   return (
     <SubmenuTrigger>
-      <MenuItem
-        aria-label={`${label}: existing ${kindLabel} evaluator`}
-        leadingContent={<Icon svg={icon} />}
-      >
-        {label}
-      </MenuItem>
+      <MenuItem leadingContent={<Icon svg={icon} />}>{label}</MenuItem>
       <MenuContainer
         shouldFlip
         placement="start top"
         maxWidth={350}
         minHeight="auto"
       >
-        <Menu items={evaluators} onAction={(key) => onAction(String(key))}>
+        <View paddingX="size-150" paddingTop="size-100" paddingBottom="size-50">
+          <Text size="S" color="text-700">
+            {hint}
+          </Text>
+        </View>
+        <Menu
+          aria-label={label}
+          items={evaluators}
+          onAction={(key) => onAction(String(key))}
+        >
           {(evaluator) => (
             <MenuItem id={evaluator.id} textValue={evaluator.name}>
               <Flex direction="column" gap="size-50">

@@ -51,7 +51,7 @@ vi.mock("@phoenix/pages/project/evaluators/projectEvaluatorPaths", () => ({
 
 const getMenuItemNames = () =>
   Array.from(document.querySelectorAll('[role="menuitem"]')).map(
-    (item) => item.getAttribute("aria-label") ?? item.textContent
+    (item) => item.getAttribute("aria-label") ?? item.textContent?.trim()
   );
 
 describe("project evaluator menus", () => {
@@ -88,13 +88,13 @@ describe("project evaluator menus", () => {
   it("builds from scratch with one blank evaluator per kind", async () => {
     await render(<BuildProjectEvaluatorMenu size="S" defaultOpen />);
     expect(getMenuItemNames()).toEqual([
-      "Create new LLM evaluator",
-      "Create new code evaluator",
-      "Create new decision evaluator",
+      "New LLM evaluator",
+      "New code evaluator",
+      "New decision evaluator",
     ]);
-    const codeItem = document.querySelector(
-      '[role="menuitem"][aria-label="Create new code evaluator"]'
-    );
+    const codeItem = Array.from(
+      document.querySelectorAll('[role="menuitem"]')
+    ).find((item) => item.textContent?.trim() === "New code evaluator");
     await act(async () => (codeItem as HTMLElement).click());
     expect(navigate).toHaveBeenCalledWith("/new/code");
   });
@@ -114,10 +114,10 @@ describe("project evaluator menus", () => {
     // There is an LLM evaluator to copy, but no code or decision evaluator
     // to use or copy.
     expect(getMenuItemNames()).toEqual([
-      "Create new LLM evaluator",
-      "Copy and edit: existing LLM evaluator",
-      "Create new code evaluator",
-      "Create new decision evaluator",
+      "New LLM evaluator",
+      "Copy existing LLM evaluator",
+      "New code evaluator",
+      "New decision evaluator",
     ]);
   });
 });
