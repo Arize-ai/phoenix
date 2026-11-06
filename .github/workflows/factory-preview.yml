@@ -6,7 +6,8 @@ name: Factory Preview
 # image of the main commit the PR's dependencies match, together with the seed script from
 # the PR body (factory/preview/Dockerfile, built by docker-bake.hcl). The image goes to
 # GHCR tagged pr-<number>-<short sha>-<hash>, and deploy.py points a Railway service at
-# it. Closing or unlabeling the PR deletes the service and the PR's image tags.
+# it. Closing the PR deletes the service and the PR's image tags; removing the label
+# deletes the service and all but the newest image, so a re-label redeploys without a build.
 #
 # This runs with the Railway token and a write token, so nothing from the PR may run on the
 # runner. `pull_request_target` takes the workflow file from the base branch, the scripts
@@ -181,12 +182,13 @@ jobs:
 
   teardown:
     name: Tear down
-    # Every closed same-repo PR, labeled or not: one that lost its label earlier still has
-    # its image tags, which only the close removes. deploy.py finds nothing to delete for
-    # a PR that never had a preview.
+    # A PR that lost its label before closing keeps one image: the unlabel teardown leaves
+    # the newest for a re-label to find, and running this on every closed PR to catch it
+    # would cost more than the image.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action == 'closed' ||
+      ((github.event.action == 'closed' &&
+        contains(github.event.pull_request.labels.*.name, 'factory-preview')) ||
        (github.event.action == 'unlabeled' && github.event.label.name == 'factory-preview'))
     # Same group as the deploy, so a close during a build waits for the service and tags
     # to exist before deleting them. A teardown that a newer queued event drops is covered
@@ -215,14 +217,14 @@ jobs:
           resolution-strategy: "lowest"
           python-version: "3.12"
           enable-cache: false
-      # Removing the label is also how a retry starts, so it keeps the image tags; only a
-      # closed PR loses them.
-      - name: Delete the Railway service and, on close, the PR's image tags
+      # Removing the label is also how a retry starts, so it keeps the newest image; a
+      # closed PR loses them all.
+      - name: Delete the Railway service and the PR's image tags
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
           EVENT_ACTION: ${{ github.event.action }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_ACTION" = unlabeled ]; then set -- --keep-images; else set --; fi
+          if [ "$EVENT_ACTION" = unlabeled ]; then set -- --keep-latest-image; else set --; fi
           uv run --script factory/preview/deploy.py teardown --pr "$PR_NUMBER" "$@"

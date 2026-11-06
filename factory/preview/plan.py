@@ -166,11 +166,15 @@ def extract_seed(*, body: str) -> str:
     opening = ""  # the fence that opened the current block, empty outside one
     indent = 0
     in_python = False
+    previous = ""
     for line in body.splitlines():
         fence = FENCE_PATTERN.match(line)
+        leading = len(line) - len(line.lstrip(" \t"))
         if fence is not None and fence.group(1)[0] == "`" and "`" in fence.group(2):
             fence = None  # a backtick fence's info string may not contain backticks
-        leading = len(line) - len(line.lstrip(" \t"))
+        if fence is not None and not opening and leading >= 4 and not previous.strip():
+            fence = None  # four spaces after a blank line is an indented code block
+        previous = line
         if opening:
             # A closing fence may sit at most three spaces deeper than the opening one;
             # anything deeper is content, as in CommonMark.
