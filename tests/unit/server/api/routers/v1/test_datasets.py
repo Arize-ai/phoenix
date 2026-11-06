@@ -3207,6 +3207,50 @@ async def test_append_with_node_id_from_different_dataset_returns_422(
     assert cross_dataset_node_id in response.text
 
 
+async def test_create_with_node_id_from_different_dataset_returns_422(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    stack_name = inspect.stack()[0][3]
+    name_a = f"{stack_name}_a"
+    name_b = f"{stack_name}_b"
+
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_a,
+            "inputs": [{"q": "A"}],
+            "outputs": [{"a": "A"}],
+        },
+    )
+
+    async with db() as session:
+        example_in_a = (
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name_a)
+            )
+        ).one()
+        cross_dataset_node_id = str(GlobalID("DatasetExample", str(example_in_a.id)))
+
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_b,
+            "inputs": [{"q": "B"}],
+            "outputs": [{"a": "B"}],
+            "example_ids": [cross_dataset_node_id],
+        },
+    )
+    assert response.status_code == 422
+    assert "The following IDs belong to examples in a different dataset" in response.text
+    assert "No examples found in this dataset" not in response.text
+    assert cross_dataset_node_id in response.text
+
+
 async def test_append_with_multiple_bad_node_ids_lists_all_of_them(
     httpx_client: httpx.AsyncClient,
 ) -> None:
