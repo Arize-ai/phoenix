@@ -51,7 +51,7 @@ print(f"Queries shape: {queries_df.shape}")  # type: ignore[union-attr]
 print("=== Cell 9: Instantiating eval model ===")
 
 api_key = None  # uses OPENAI_API_KEY env var
-eval_model = LLM(provider="openai", model="gpt-4o-mini", api_key=api_key)
+eval_model = LLM(provider="openai", model="gpt-6-luna", api_key=api_key)
 print("Eval model created")
 
 # ── Cell 11: Define evaluators ──
