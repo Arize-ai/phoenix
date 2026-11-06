@@ -553,8 +553,9 @@ export function ProjectEvaluatorsTable({
       },
       {
         id: "load",
-        header: "share of evaluation time",
-        size: 180,
+        // Kept on one line: the table's layout wraps headers at spaces.
+        header: "eval\u00a0time\u00a0share",
+        size: 130,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
           <ProjectEvaluatorLoadCell

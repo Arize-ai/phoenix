@@ -190,7 +190,7 @@ function ProjectEvaluatorActivityPanel({
               : ""}
           </Text>
         </StatField>
-        <StatField label="share of evaluation time">
+        <StatField label="eval time share">
           <ProjectEvaluatorLoad
             evaluationLoad={projectEvaluator.evaluationLoad}
             size="S"

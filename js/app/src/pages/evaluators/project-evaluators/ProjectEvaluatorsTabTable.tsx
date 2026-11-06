@@ -376,10 +376,10 @@ export function ProjectEvaluatorsTabTable({
       id: "load",
       header: () => (
         <ColumnHeaderWithHelp help="This evaluator's part of the server's evaluation time over the last hour, whatever the time range.">
-          share of evaluation time
+          eval time share
         </ColumnHeaderWithHelp>
       ),
-      size: 200,
+      size: 150,
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",

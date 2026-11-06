@@ -14,7 +14,7 @@ const PROJECT_EVALUATOR_COLUMNS = [
   { id: "name", label: "name", isVisibilityToggleDisabled: true },
   { id: "status", label: "status" },
   { id: "queue", label: "in queue" },
-  { id: "load", label: "share of evaluation time" },
+  { id: "load", label: "eval time share" },
   { id: "lag", label: "lag p95" },
   { id: "failures", label: "failure rate" },
   { id: "kind", label: "kind" },
