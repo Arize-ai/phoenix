@@ -3,11 +3,11 @@ import { graphql, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
 import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
-import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/constants/timeConstants";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useOnLastUpdatedAtAdvance } from "@phoenix/hooks/useOnLastUpdatedAtAdvance";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/pages/project/constants";
 import { useSelectedTraceSlots } from "@phoenix/pages/project/useSelectedTraceSlots";
 
 import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectTimeRangeControls_data.graphql";

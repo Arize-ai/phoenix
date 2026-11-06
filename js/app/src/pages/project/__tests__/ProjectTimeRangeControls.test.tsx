@@ -5,7 +5,7 @@ import { MemoryRouter, Outlet, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TimeRangeControlsProps } from "@phoenix/components/datetime";
-import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/constants/timeConstants";
+import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/pages/project/constants";
 
 import type { ProjectTimeRangeControls_data$key } from "../__generated__/ProjectTimeRangeControls_data.graphql";
 import { ProjectTimeRangeControls } from "../ProjectTimeRangeControls";

@@ -3,10 +3,10 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
-import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/constants/timeConstants";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useOnLastUpdatedAtAdvance } from "@phoenix/hooks/useOnLastUpdatedAtAdvance";
+import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/pages/project/constants";
 
 import type { ServerEvaluatorsTimeRangeControlsQuery } from "./__generated__/ServerEvaluatorsTimeRangeControlsQuery.graphql";
 
