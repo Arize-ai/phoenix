@@ -33,11 +33,14 @@ export function BrowserModelAvailabilityStatus({
       );
     case "needs-download":
       return warningOnly ? null : (
-        <StatusIndicator category="pending" label="Downloads on first use" />
+        <StatusIndicator
+          category="unavailable"
+          label="Downloads on first use"
+        />
       );
     case "downloading":
       return warningOnly ? null : (
-        <StatusIndicator category="active" label="Downloading" />
+        <StatusIndicator category="running" label="Downloading" />
       );
     default:
       return (
