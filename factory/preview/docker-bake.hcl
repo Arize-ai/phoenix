@@ -1,15 +1,10 @@
-// Builds one PR's preview image. The PR's own Dockerfile stages the preview may need, its
-// frontend and the whole image, are bake targets passed in as `target:` contexts so they
-// never leave the builder. Paths are absolute: the workflow runs this from a directory
-// that holds both checkouts.
-
-variable "HEAD_DIR" {}      // the PR's checkout
-variable "PREVIEW_DIR" {}   // factory/preview from the base branch
-variable "SEED_DIR" {}      // holds seed.py
+variable "HEAD_DIR" {}
+variable "PREVIEW_DIR" {}
+variable "SEED_DIR" {}
 variable "BASE_CONTEXT" {}  // docker-image://<published image> or target:base
 variable "FRONTEND_CONTEXT" {} // target:frontend, or any image when STATIC_SOURCE is base
 variable "STATIC_SOURCE" { default = "base" }
-variable "TAGS" { default = "" } // comma-separated
+variable "TAGS" { default = "" }
 variable "SOURCE_URL" { default = "" }
 variable "REVISION" { default = "" }
 

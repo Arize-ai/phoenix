@@ -1,5 +1,3 @@
-"""The one `gh` wrapper for the preview scripts, which run where `gh` is authenticated."""
-
 import json
 import subprocess
 from typing import Any, Optional

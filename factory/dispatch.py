@@ -38,7 +38,7 @@ FACTORY_LABEL = "factory"
 PREVIEW_LABEL = "factory-preview"
 PREVIEW_LABEL_COLOR = "0E8A16"
 PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
-PREVIEW_LANES = {"bug", "feature"}  # a docs PR has nothing to seed
+PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -172,7 +172,6 @@ def report_on_status_comment(
 
 
 def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
-    """A failure here is a warning, not the run's outcome: the PR is already reviewable."""
     try:
         existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
         if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:
@@ -630,7 +629,6 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
-                # Whether or not a human already took it out of draft, and until it sticks.
                 if lane in PREVIEW_LANES and not preview_labeled:
                     preview_labeled = add_preview_label(
                         pr_number=pr["number"], token=app_token.refresh()

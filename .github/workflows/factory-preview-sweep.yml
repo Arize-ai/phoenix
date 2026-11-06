@@ -1,9 +1,6 @@
 name: Factory Preview Sweep
 
-# Deletes the Railway service and GHCR tags of every preview whose PR is closed or no
-# longer labeled `factory-preview`. Previews are removed only here, never by the PR's own
-# events, so a deploy in progress is never pulled out from under. See "Previewing a PR" in
-# factory/README.md.
+
 on:
   schedule:
     - cron: "0 * * * *"

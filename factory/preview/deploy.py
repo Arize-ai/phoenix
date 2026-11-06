@@ -1,15 +1,7 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""Deploy one PR's preview image to Railway, or sweep the previews nobody wants.
-
-`deploy` creates or updates the PR's service in the project the token is scoped to,
-deploys the image, waits for the seed's outcome in the container log, and leaves one
-comment on the PR. `sweep` deletes the service and image tags of every PR that is closed
-or no longer labeled, and says so on that comment. Both read the same condition from
-GitHub, so a deploy never finishes what a sweep would undo. Railway's GraphQL API is
-called directly: no CLI, and a project token reaches nothing beyond its project.
-"""
+"""Deploy PR previews to Railway or remove previews of closed and unlabeled PRs."""
 
 import argparse
 import json
@@ -45,7 +37,6 @@ DEPLOYMENT_FINAL_STATUSES = {
     "SLEEPING",
     "NEEDS_APPROVAL",
 }
-# A comment may hold 65536 characters; relayed output gets a fraction of that.
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
 COMMENT_MARKER = "<!-- factory-preview -->"
@@ -88,7 +79,6 @@ def read_token_scope() -> tuple[str, str]:
 
 
 def list_services(*, project_id: str) -> dict[str, str]:
-    """Service name to id."""
     data = railway(
         "query($id: String!) { project(id: $id) { services { edges { node { id name } } } } }",
         id=project_id,
@@ -104,7 +94,6 @@ def find_service(*, project_id: str, name: str) -> Optional[str]:
 
 
 def create_service(*, project_id: str, environment_id: str, name: str) -> str:
-    """No source yet, so nothing deploys before the settings are in place."""
     data = railway(
         "mutation($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }",
         input={"projectId": project_id, "environmentId": environment_id, "name": name},
@@ -113,7 +102,6 @@ def create_service(*, project_id: str, environment_id: str, name: str) -> str:
 
 
 def set_variables(*, project_id: str, environment_id: str, service_id: str) -> None:
-    """skipDeploys: the explicit deploy request follows, so this must not queue its own."""
     railway(
         "mutation($input: VariableCollectionUpsertInput!) {"
         " variableCollectionUpsert(input: $input) }",
@@ -177,7 +165,7 @@ def deploy_service(*, environment_id: str, service_id: str) -> None:
 
 
 def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, Any]]:
-    """The service's newest deployments, newest first."""
+    """Newest deployments first."""
     data = railway(
         "query($input: DeploymentListInput!) {"
         " deployments(input: $input, first: 10) { edges { node { id status } } } }",
@@ -189,11 +177,7 @@ def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, 
 def wait_for_deployment(
     *, environment_id: str, service_id: str, before: set[str]
 ) -> tuple[str, str]:
-    """Follow this run's deployment to a final status; return (deployment id, status).
-
-    Railway may skip a deployment in favor of one it queues itself, so this follows the
-    newest unskipped deployment that did not exist before the run rather than one id.
-    """
+    """Railway may replace a skipped deployment with one it queues itself."""
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     deployment_id = ""
     all_skipped_since: Optional[float] = None
@@ -223,8 +207,6 @@ def wait_for_deployment(
 
 
 class LogTail:
-    """The deployment's log, accumulated across polls by asking only for new lines."""
-
     def __init__(self, deployment_id: str) -> None:
         self.deployment_id = deployment_id
         self.lines: list[str] = []
@@ -245,11 +227,10 @@ class LogTail:
         except RailwayError as error:
             print(f"::warning::Reading deployment logs: {error}", flush=True)
             return
-        # The launcher's lines are matched exactly, so a trailing \r must not survive.
         entries = [
             (str(e["timestamp"]), str(e["message"]).rstrip()) for e in data["deploymentLogs"]
         ]
-        entries.sort(key=lambda entry: entry[0])  # stable, so same-timestamp order holds
+        entries.sort(key=lambda entry: entry[0])
         # startDate is inclusive: skip as many lines at that timestamp as were already taken.
         previous_timestamp, previous_seen = self._last_timestamp, self._seen_at_last_timestamp
         skipped = 0
@@ -270,12 +251,7 @@ class LogTail:
 
 
 def wait_for_seed(deployment_id: str) -> tuple[str, str]:
-    """Return the launcher's seed outcome line and the seed's own output.
-
-    Railway reports SUCCESS once /healthz answers, before the seed has run, so the outcome
-    has to come from the log. Only the latest start counts: a restart makes the earlier
-    outcome stale.
-    """
+    """Railway reports SUCCESS before seeding finishes; read the outcome from the log."""
     deadline = time.monotonic() + SEED_WAIT_SECONDS
     log = LogTail(deployment_id)
     while time.monotonic() < deadline:
@@ -313,7 +289,6 @@ def packages_api_root(owner: str) -> str:
 
 
 def list_image_versions(*, image: str) -> dict[str, list[str]]:
-    """Version id to tags, for the whole package; empty when it can't be listed."""
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
     try:
@@ -332,7 +307,7 @@ def list_image_versions(*, image: str) -> dict[str, list[str]]:
 
 
 def delete_image_version(*, image: str, version_id: str) -> bool:
-    """GitHub refuses to delete a package's last tagged version; that refusal is only warned."""
+    """GitHub refuses to delete a package's last tagged version."""
     owner, package = ghcr_package(image)
     try:
         run_gh(
@@ -349,18 +324,11 @@ def delete_image_version(*, image: str, version_id: str) -> bool:
 
 
 def preview_wanted(pr_number: int) -> bool:
-    """Open and labeled: the one condition the deploy and the sweep both read."""
     pr = json.loads(run_gh("pr", "view", str(pr_number), "--json", "state,labels"))
     return pr["state"] == "OPEN" and any(label["name"] == PREVIEW_LABEL for label in pr["labels"])
 
 
 def image_visibility(*, image: str) -> str:
-    """`public`, `private` or `unknown`.
-
-    GHCR creates a package private on its first push and only the web UI changes that, so
-    this is checked before Railway is asked to pull. A lookup that keeps failing is
-    `unknown` rather than a guess: a wrong guess costs the whole deploy wait.
-    """
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
     for attempt in range(3):
@@ -384,7 +352,6 @@ def find_comment(*, pr_number: int) -> Optional[str]:
 
 
 def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
-    """One comment per PR, found by its marker; without `create`, none is started."""
     body = f"{COMMENT_MARKER}\n{body}"
     comment_id = find_comment(pr_number=pr_number)
     if comment_id is None and not create:
@@ -412,7 +379,6 @@ def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
 
 
 def clip_for_comment(text: str) -> str:
-    """Sized for a comment, with any `~~~` fence of its own defused."""
     lines = [line.replace("~~~", "~ ~ ~") for line in text.splitlines()]
     if len(lines) > MAX_OUTPUT_LINES:
         lines = [f"... {len(lines) - MAX_OUTPUT_LINES} earlier lines omitted"] + lines[
@@ -531,7 +497,6 @@ def run_deploy(args: argparse.Namespace) -> int:
             environment_id=environment_id, service_id=service_id, before=before
         )
     except RailwayError as error:
-        # Otherwise the previous push's comment goes on advertising its instance.
         try:
             upsert_comment(
                 pr_number=args.pr,
@@ -573,7 +538,6 @@ def run_deploy(args: argparse.Namespace) -> int:
 
 
 def preview_numbers(*, services: dict[str, str], versions: dict[str, list[str]]) -> set[int]:
-    """Every PR that still has a service or a tagged image."""
     numbers = {int(m.group(1)) for name in services if (m := PR_SERVICE_PATTERN.match(name))}
     for tags in versions.values():
         numbers |= {int(m.group(1)) for tag in tags if (m := PR_TAG_PATTERN.match(tag))}
@@ -591,8 +555,7 @@ def pr_version_ids(*, versions: dict[str, list[str]], pr_number: int) -> set[str
 def sweep_preview(
     *, pr_number: int, image: str, services: dict[str, str], versions: dict[str, list[str]]
 ) -> None:
-    """Service first, then image versions: a Railway failure leaves the tags too, so the next
-    sweep finds the preview whole and retries."""
+    """Keep image tags if service deletion fails so the next sweep can retry."""
     if (service_id := services.get(f"pr-{pr_number}")) is not None:
         delete_service(service_id)
         print(f"deleted service pr-{pr_number}")
