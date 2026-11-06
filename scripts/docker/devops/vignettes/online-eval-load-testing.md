@@ -65,10 +65,10 @@ URLs, and the commands of `dev.sh`.
 Online evaluations run evaluators automatically on new spans, traces, and
 sessions. The pipeline has these parts:
 
-- A **producer** scans new spans and queues one work item for each span that
-  an enabled span evaluator selects, after its filter and sampling.
-- **Sweepers** find traces and sessions that are ready to evaluate, and queue
-  work for trace and session evaluators.
+- The **span producer** scans new spans and queues one work item for each span
+  that an enabled span evaluator selects, after its filter and sampling.
+- The **trace and session producers** sweep for traces and sessions that are
+  ready to evaluate, and queue work for trace and session evaluators.
 - A **consumer** claims queued work, loads the inputs from the database, calls
   the evaluator (for an LLM or decision evaluator, the model provider), and
   writes the result as an annotation.
@@ -89,7 +89,7 @@ user.
 | --- | --- | --- |
 | Phoenix and PostgreSQL | (always) | The system under test. Use PostgreSQL, not SQLite, unless the user wants to test SQLite. |
 | Mock LLM server | `mock-llm` | LLM and decision evaluators call a provider. A real provider costs money, applies its own rate limits, and has latency that the user cannot control. The mock answers like a real provider, and its dashboard controls latency, rate limiting, and error injection. |
-| Datagen | `datagen` | Supplies a continuous stream of realistic traces. Without new spans, the producer and the sweepers have nothing to queue. |
+| Datagen | `datagen` | Supplies a continuous stream of realistic traces. Without new spans, the producers have nothing to queue. |
 | Grafana and Prometheus | `grafana` | Records the measurements over time. |
 | Toxiproxy | `toxiproxy` | Adds network latency between Phoenix and PostgreSQL. Without it, each database round trip takes much less than a millisecond, and the test underestimates the cost of the pipeline's database work. The results then do not apply to a production deployment. |
 
@@ -191,10 +191,10 @@ enable them, and then wait for one complete pipeline cycle:
   sampling, and enable the bindings.
 - **Verify one complete pipeline cycle** at the default datagen rate (without
   raising the rate):
-  - Wait for the `60`s late-commit visibility margin
-    (`PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS`) plus the `10`s trace/session
-    quiet period (`evaluationDelaySeconds`) after the evaluated project
-    receives traces.
+  - Wait for the fixed `60`s visibility lag (producers read only rows at
+    least this old, so late commits are seen; it is not configurable) plus
+    the `10`s trace/session quiet period (`evaluationDelaySeconds`) after the
+    evaluated project receives traces.
   - Confirm that requests arrive at the mock LLM server, valid evaluation
     annotations (with `0` errors) are written for `SPAN`, `TRACE`, and
     `SESSION`, and Prometheus/Grafana online evaluation metrics show work
