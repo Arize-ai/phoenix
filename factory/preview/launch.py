@@ -3,19 +3,21 @@
 This is the preview image's command. The seed script is the one the PR body carries; it
 runs with PHOENIX_BASE_URL pointing at the local server and with the Phoenix client,
 OTel SDK and OTLP exporter importable from the image. Its output is relayed line by line
-under a `seed| ` prefix, and its outcome goes to the container log as a `preview: seed`
-line, which deploy.py reads; neither stops the server, so a reviewer can still open an
-instance whose seed failed.
+under a `seed| ` prefix as it appears, and its outcome goes to the container log as a
+`preview: seed` line, which deploy.py reads; neither stops the server, so a reviewer can
+still open an instance whose seed failed.
 """
 
 import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 SEED_PATH = Path("/phoenix/preview/seed.py")
 HEALTHY_TIMEOUT_SECONDS = 300
@@ -54,6 +56,11 @@ def wait_until_healthy(server: subprocess.Popen[bytes], url: str) -> bool:
     return False
 
 
+def relay(stream: Any) -> None:
+    for raw in iter(stream.readline, b""):
+        print(f"{SEED_LINE_PREFIX}{raw.decode(errors='replace').rstrip()}", flush=True)
+
+
 def run_seed(url: str) -> None:
     if not SEED_PATH.exists() or not SEED_PATH.read_text().strip():
         print("preview: no seed script; the instance starts empty", flush=True)
@@ -67,20 +74,21 @@ def run_seed(url: str) -> None:
         stderr=subprocess.STDOUT,
     )
     children.append(seed)
+    # Lines reach the log as the seed prints them, so a stuck seed shows where it stuck.
+    relay_thread = threading.Thread(target=relay, args=(seed.stdout,), daemon=True)
+    relay_thread.start()
     try:
-        output, _ = seed.communicate(timeout=SEED_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired:
-        seed.kill()
-        output, _ = seed.communicate()  # drains the pipe and reaps the process
-        outcome = f"preview: seed timed out after {SEED_TIMEOUT_SECONDS} seconds"
-    else:
+        seed.wait(timeout=SEED_TIMEOUT_SECONDS)
         outcome = (
             "preview: seed finished"
             if seed.returncode == 0
             else f"preview: seed failed with exit {seed.returncode}"
         )
-    for line in output.decode(errors="replace").splitlines():
-        print(f"{SEED_LINE_PREFIX}{line}", flush=True)
+    except subprocess.TimeoutExpired:
+        seed.kill()
+        seed.wait()
+        outcome = f"preview: seed timed out after {SEED_TIMEOUT_SECONDS} seconds"
+    relay_thread.join(timeout=10)
     print(outcome, flush=True)
 
 

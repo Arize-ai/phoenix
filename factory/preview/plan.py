@@ -19,6 +19,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Optional
 
 PUBLISHED_IMAGE = "arizephoenix/phoenix"
 DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}/tags"
@@ -27,10 +28,11 @@ DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 FRONTEND_TREES = ("js", "schemas")
 SEED_HEADING_PATTERN = re.compile(r"^#+\s*Preview seed\s*$", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^#+\s")
-# A fence may be indented up to three spaces, use backticks or tildes, and name the
-# language as python, python3 or py in any case.
-FENCE_PATTERN = re.compile(r"^ {0,3}(```|~~~)")
-PYTHON_FENCE_PATTERN = re.compile(r"^ {0,3}(```|~~~)\s*(python3?|py)\s*$", re.IGNORECASE)
+# A fence may be indented up to three spaces, use three or more backticks or tildes, and
+# name the language as python, python3 or py in any case, with anything after it.
+FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+PYTHON_FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})\s*(python3?|py)\b", re.IGNORECASE)
+MAX_TAG_PAGES = 5
 MAX_BASE_CANDIDATES = 30
 
 
@@ -62,19 +64,29 @@ def frontend_shas(shas: dict[str, str]) -> tuple[str, ...]:
 
 
 def published_commit_shas() -> set[str]:
-    """Short SHAs with a published commit image, from one listing of the newest tags.
+    """Short SHAs with a published commit image, from the newest pages of Docker Hub tags.
 
-    The fallback for an unpublished image is a full build, so a rate limit or outage at
-    Docker Hub costs build time rather than the preview.
+    The nightly workflow tags commits on `version-*` branches too, so a release burst can
+    push main's recent commits past the first page; a few pages cover it. The fallback for
+    an unpublished image is a full build, so a rate limit or outage at Docker Hub costs
+    build time rather than the preview.
     """
-    url = f"{DOCKER_HUB_TAGS_URL}?page_size=100&name=commit-"
-    try:
-        with urllib.request.urlopen(url, timeout=30) as response:
-            tags = json.load(response)["results"]
-    except (urllib.error.URLError, TimeoutError, KeyError, ValueError) as error:
-        warn(f"Could not list Docker Hub tags, so the preview builds in full: {error}")
-        return set()
-    return {str(tag["name"]).removeprefix("commit-") for tag in tags}
+    shas: set[str] = set()
+    url: Optional[str] = f"{DOCKER_HUB_TAGS_URL}?page_size=100&name=commit-"
+    for _ in range(MAX_TAG_PAGES):
+        if not url:
+            break
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                page = json.load(response)
+        except (urllib.error.URLError, TimeoutError, ValueError) as error:
+            warn(f"Could not list Docker Hub tags past {len(shas)} commits: {error}")
+            break
+        shas |= {str(tag["name"]).removeprefix("commit-") for tag in page.get("results", [])}
+        url = page.get("next")
+    if not shas:
+        warn("No published commit images found, so the preview builds in full")
+    return shas
 
 
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
