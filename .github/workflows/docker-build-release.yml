@@ -20,15 +20,27 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      # Any writer can push an arize-phoenix-v* tag at any commit, and this
-      # workflow publishes `latest`. Refuse a tag whose commit never landed on
-      # main, and hand the pinned SHA to every later job so they check out
-      # the verified commit rather than the movable tag.
+          ref: ${{ github.sha }}
+      # Defense in depth: the tagged commit supplies this workflow and action,
+      # so repository tag rules must enforce who can create or move releases.
+      # Verify ancestry and pass the pinned SHA to every publishing job.
       - name: Verify the tag points at a commit on main
         id: release
         uses: ./.github/actions/resolve-release-tag
         with:
           tag: ${{ github.ref_name }}
+      - name: Verify the tag still matches the triggering commit
+        env:
+          REVISION: ${{ steps.release.outputs.revision }}
+        run: |
+          set -euo pipefail
+          # HEAD peels annotated tags to a commit as well. A moved tag must not
+          # build different sources with this event's workflow and metadata.
+          EVENT_REVISION=$(git rev-parse HEAD)
+          if [ "$REVISION" != "$EVENT_REVISION" ]; then
+            echo "::error::Release tag resolved to ${REVISION}, but this run was triggered for ${EVENT_REVISION}. Refusing to publish a moved tag."
+            exit 1
+          fi
       - name: Extract version from tag
         id: extract
         run: |
