@@ -42,8 +42,8 @@ import { useViewer } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import {
+  errorRateFormatter,
   formatCost,
-  formatPercent,
   intFormatter,
 } from "@phoenix/utils/numberFormatUtils";
 
@@ -55,22 +55,20 @@ import type { ExperimentDetailsDialogQuery } from "./__generated__/ExperimentDet
 
 function ExperimentDetailsDialogSkeleton() {
   return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <Skeleton height={24} width={200} />
-          <DialogTitleExtra>
-            <DialogCloseButton slot="close" />
-          </DialogTitleExtra>
-        </DialogHeader>
-        <View padding="size-200">
-          <Flex direction="column" gap="size-200">
-            <Skeleton height={100} />
-            <Skeleton height={100} />
-          </Flex>
-        </View>
-      </DialogContent>
-    </Dialog>
+    <>
+      <DialogHeader>
+        <Skeleton height={24} width={200} />
+        <DialogTitleExtra>
+          <DialogCloseButton slot="close" />
+        </DialogTitleExtra>
+      </DialogHeader>
+      <View padding="size-200">
+        <Flex direction="column" gap="size-200">
+          <Skeleton height={100} />
+          <Skeleton height={100} />
+        </Flex>
+      </View>
+    </>
   );
 }
 
@@ -587,7 +585,7 @@ function ExperimentDetailsDialogContent({
                 </DetailRow>
                 {experiment.errorRate != null && (
                   <DetailRow label="Error Rate">
-                    {formatPercent(experiment.errorRate * 100)}
+                    {errorRateFormatter(experiment.errorRate)}
                   </DetailRow>
                 )}
                 {experiment.averageRunLatencyMs != null && (

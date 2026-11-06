@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<58b18c2ccde398348d7f6292cfc211c7>>
+ * @generated SignedSource<<d4d8443a8a7cab4bd885dcf30ff2ea69>>
  * @lightSyntaxTransform
  */
 
@@ -21,6 +21,7 @@ export type CreateSandboxConfigInput = {
 export type SandboxConfigVariantInput = {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b: E2BConfigInput;
   modal?: never;
   monty?: never;
@@ -29,6 +30,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona: DaytonaConfigInput;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -37,6 +39,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno: DenoConfigInput;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -45,6 +48,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -53,6 +57,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty?: never;
@@ -61,6 +66,7 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal: ModalConfigInput;
   monty?: never;
@@ -69,9 +75,19 @@ export type SandboxConfigVariantInput = {
 } | {
   daytona?: never;
   deno?: never;
+  docker?: never;
   e2b?: never;
   modal?: never;
   monty: MontyConfigInput;
+  vercel?: never;
+  wasm?: never;
+} | {
+  daytona?: never;
+  deno?: never;
+  docker: DockerConfigInput;
+  e2b?: never;
+  modal?: never;
+  monty?: never;
   vercel?: never;
   wasm?: never;
 };
@@ -117,6 +133,12 @@ export type ModalConfigInput = {
 };
 export type MontyConfigInput = {
   language?: Language;
+};
+export type DockerConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language: Language;
 };
 export type SandboxConfigDialogCreateSandboxConfigMutation$variables = {
   input: CreateSandboxConfigInput;

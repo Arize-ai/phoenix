@@ -1,10 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
@@ -15,8 +10,11 @@ import {
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -45,12 +43,17 @@ const annotationTooltipExtraCSS = css`
   gap: var(--global-dimension-size-50);
 `;
 
+// long unbroken values (paths, identifiers) wrap within the cell rather than
+// widening the column and pushing the evaluations and actions out of view
+const outputCellCSS = css`
+  overflow-wrap: anywhere;
+`;
+
 export function ExampleExperimentRunsTable({
   example,
 }: {
   example: ExampleExperimentRunsTableFragment$key;
 }) {
-  "use no memo";
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
@@ -135,9 +138,19 @@ export function ExampleExperimentRunsTable({
         // eslint-disable-next-line react/prop-types
         const maybeError = props.row.original?.error;
         if (maybeError !== null) {
-          return <Text color="danger">{maybeError}</Text>;
+          return (
+            <div css={outputCellCSS}>
+              <Truncate maxLines={3} title={maybeError}>
+                <Text color="danger">{maybeError}</Text>
+              </Truncate>
+            </div>
+          );
         }
-        return <TextCell {...props} />;
+        return (
+          <div css={outputCellCSS}>
+            <TextCell {...props} />
+          </div>
+        );
       },
     },
     {
@@ -214,11 +227,11 @@ export function ExampleExperimentRunsTable({
       },
     },
   ];
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;

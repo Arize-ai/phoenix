@@ -1,18 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  CellContext,
-  ColumnDef,
-  ExpandedState,
-  SortingState,
-  Table,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { ExpandedState, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 /* eslint-disable react/prop-types */
 import type { ComponentProps } from "react";
 import React, {
@@ -25,7 +13,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -69,6 +57,12 @@ import {
   getCommonPinningStyles,
 } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
+import type {
+  CellContext,
+  ColumnDef,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -117,6 +111,7 @@ import {
 import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
+import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -166,20 +161,24 @@ const TableBody = <
 }: {
   table: Table<T>;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
-  const { traceId } = useParams();
   const [searchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
+  const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected = row.original.trace.traceId === traceId;
+        // every row of a viewed trace is highlighted, whichever span is shown
+        const isSelected = selectedTraceSlots.some(
+          (slot) => slot.traceId === row.original.trace.traceId
+        );
         return (
           <tr
             key={row.id}
             onClick={() =>
               navigate(
                 getTraceDetailsPath({
+                  basePath,
                   traceId: row.original.trace.traceId,
                   searchParams,
                 })
@@ -266,6 +265,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 
 export function TracesTable(props: TracesTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef(true);
@@ -747,6 +747,7 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <Link
               to={getTraceDetailsPath({
+                basePath,
                 traceId,
                 spanNodeId: spanId,
                 searchParams,
@@ -778,7 +779,10 @@ export function TracesTable(props: TracesTableProps) {
       },
       {
         header: "input",
-        accessorKey: "input.value",
+        // keep the id accessorKey "input.value" derived, which saved column
+        // preferences refer to; a span without an input has no `input`
+        id: "input_value",
+        accessorFn: (row) => row.input?.value,
         enableSorting: false,
         cell: ({ getValue, row }) => (
           <SpanInputValueTooltipCell
@@ -789,7 +793,10 @@ export function TracesTable(props: TracesTableProps) {
       },
       {
         header: "output",
-        accessorKey: "output.value",
+        // keep the id accessorKey "output.value" derived, which saved column
+        // preferences refer to; a span without an output has no `output`
+        id: "output_value",
+        accessorFn: (row) => row.output?.value,
         enableSorting: false,
         cell: ({ getValue, row }) => (
           <SpanOutputValueTooltipCell
@@ -895,7 +902,11 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: "total cost",
         minSize: 80,
-        accessorKey: "trace.costSummary.total.cost",
+        // only root spans are fetched with their trace's cost summary
+        accessorFn: (row) =>
+          "costSummary" in row.trace
+            ? (row.trace as RootSpanTrace).costSummary.total.cost
+            : undefined,
         id: "cumulativeTokenCostTotal",
         meta: { textAlign: "right" },
         cell: ({ row, getValue }) => {
@@ -914,7 +925,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns, searchParams, selectRow]
+    [annotationColumns, basePath, searchParams, selectRow]
   );
 
   useEffect(() => {
@@ -1016,10 +1027,13 @@ export function TracesTable(props: TracesTableProps) {
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],
   });
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     onExpandedChange: setExpanded,
+    // v9 resets expansion whenever `data` changes (load-more, sort, refetch)
+    autoResetExpanded: false,
     manualSorting: true,
     getSubRows: (row) => row.children,
     state: {
@@ -1037,9 +1051,6 @@ export function TracesTable(props: TracesTableProps) {
     enableSubRowSelection: false,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().flatRows;
@@ -1055,34 +1066,19 @@ export function TracesTable(props: TracesTableProps) {
     setRowSelection({});
   }, [setRowSelection]);
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = computedColumns.length;
+  const { columnResizing } = table.state;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   return (
     <TableMetricsChartsPanelGroup view="traces">
@@ -1219,7 +1215,7 @@ export function TracesTable(props: TracesTableProps) {
               </thead>
               {isEmpty ? (
                 <ProjectTableEmpty />
-              ) : columnSizingInfo.isResizingColumn ? (
+              ) : columnResizing.isResizingColumn ? (
                 <MemoizedTableBody
                   table={
                     // We can't access the internal TableRowType in the TableBody component

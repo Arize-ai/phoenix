@@ -357,23 +357,23 @@ px span list --last-n-minutes 30 --span-kind TOOL RETRIEVER # multiple span kind
 px span list --since 2026-07-01T00:00:00Z --until 2026-07-02T00:00:00Z # time range
 ```
 
-| Option                      | Description                                                                                                                      | Default  |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `[file]`                    | Save spans as JSON to file                                                                                                       | stdout   |
-| `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                           | `100`    |
-| `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                               | —        |
-| `--since <timestamp>`       | Spans since ISO timestamp                                                                                                        | —        |
-| `--until <timestamp>`       | Spans started before ISO timestamp (exclusive)                                                                                   | —        |
-| `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `UNKNOWN`) | —        |
-| `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                   | —        |
-| `--name <names...>`         | Filter by span name(s)                                                                                                           | —        |
-| `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                            | —        |
-| `--span-id <ids...>`        | Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0.                                                           | —        |
-| `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                      | —        |
-| `--include-annotations`     | Include span annotations in the output                                                                                           | —        |
-| `--include-notes`           | Include span notes in the output                                                                                                 | —        |
-| `--format <format>`         | `pretty`, `json`, or `raw`                                                                                                       | `pretty` |
-| `--no-progress`             | Suppress progress output                                                                                                         | —        |
+| Option                      | Description                                                                                                                                  | Default  |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `[file]`                    | Save spans as JSON to file                                                                                                                   | stdout   |
+| `-n, --limit <number>`      | Maximum number of spans (newest first)                                                                                                       | `100`    |
+| `--last-n-minutes <number>` | Only spans from the last N minutes                                                                                                           | —        |
+| `--since <timestamp>`       | Spans since ISO timestamp                                                                                                                    | —        |
+| `--until <timestamp>`       | Spans started before ISO timestamp (exclusive)                                                                                               | —        |
+| `--span-kind <kinds...>`    | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, `EMBEDDING`, `AGENT`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `DECISION`, `UNKNOWN`) | —        |
+| `--status-code <codes...>`  | Filter by status code (`OK`, `ERROR`, `UNSET`)                                                                                               | —        |
+| `--name <names...>`         | Filter by span name(s)                                                                                                                       | —        |
+| `--trace-id <ids...>`       | Filter by trace ID(s)                                                                                                                        | —        |
+| `--span-id <ids...>`        | Filter by OpenTelemetry span ID(s). Requires Phoenix server >= 19.6.0.                                                                       | —        |
+| `--parent-id <id>`          | Filter by parent span ID (use `"null"` for root spans only)                                                                                  | —        |
+| `--include-annotations`     | Include span annotations in the output                                                                                                       | —        |
+| `--include-notes`           | Include span notes in the output                                                                                                             | —        |
+| `--format <format>`         | `pretty`, `json`, or `raw`                                                                                                                   | `pretty` |
+| `--no-progress`             | Suppress progress output                                                                                                                     | —        |
 
 ```bash
 # Find all ERROR spans
@@ -483,6 +483,33 @@ px prompt list --format raw --no-progress | jq '.[].name'
 
 ---
 
+### `px prompt-versions list <prompt-identifier>`
+
+List all versions of a prompt by name or ID, newest first. The table shows each
+version's ID, description, model provider, model name, and creation date. Creation
+dates use local date/time formatting and are blank when connected to an older
+server. Tags are not included.
+
+```bash
+px prompt-versions list my-evaluator
+px prompt-versions list my-evaluator --limit 10 --format json
+px prompt-versions list my-evaluator --format raw --no-progress | jq '.[].id'
+```
+
+Without `--limit`, fetches all pages. JSON and raw output contain an array of full
+version objects; `created_at` is only present when the server returns it.
+JSON and raw output preserve the original timestamp string.
+
+| Option              | Description                         | Default             |
+| ------------------- | ----------------------------------- | ------------------- |
+| `--limit <number>`  | Maximum number of versions to fetch | All versions        |
+| `--format <format>` | `pretty`, `json`, or `raw`          | `pretty`            |
+| `--endpoint <url>`  | Phoenix API endpoint                | Configured endpoint |
+| `--api-key <key>`   | Phoenix API key                     | Configured API key  |
+| `--no-progress`     | Suppress progress output            | Progress enabled    |
+
+---
+
 ### `px prompt get <prompt-identifier>`
 
 Fetch a prompt. The `text` format is ideal for piping to AI assistants.
@@ -497,6 +524,9 @@ px prompt get my-evaluator --tag production --format json | jq '.template'
 | `--tag <name>`      | Get version by tag                 | —        |
 | `--version <id>`    | Get specific version               | latest   |
 | `--format <format>` | `pretty`, `json`, `raw`, or `text` | `pretty` |
+
+Use `px prompt-versions list <prompt-identifier>` to discover version IDs for
+`--version`.
 
 ---
 

@@ -25,6 +25,9 @@
 - type ListSandboxesQuery
 - type ListSnapshotsQuery
 - type LspServerService
+- type MouseClickOption
+- type MouseDragOption
+- type MouseScrollOption
 - type MouseService
 - type OutputChannels
 - type ProcessService
@@ -71,7 +74,7 @@ The client reads configuration from environment variables:
 - DAYTONA\_JWT\_TOKEN: JWT token for authentication \(alternative to API key\)
 - DAYTONA\_ORGANIZATION\_ID: Organization ID \(required when using JWT token\)
 - DAYTONA\_API\_URL: API URL \(defaults to https://app.daytona.io/api\)
-- DAYTONA\_TARGET: Target environment
+- DAYTONA\_TARGET: Default region for sandboxes and snapshots \(a per\-call Target / RegionID overrides it\)
 
 Or provide configuration explicitly:
 
@@ -221,6 +224,8 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
 - [type KeyboardService](https://www.daytona.io/docs/en<#KeyboardService>)
   - [func NewKeyboardService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*KeyboardService](https://www.daytona.io/docs/en<#NewKeyboardService>)
   - [func \(k \*KeyboardService\) Hotkey\(ctx context.Context, keys string\) error](https://www.daytona.io/docs/en<#KeyboardService.Hotkey>)
+  - [func \(k \*KeyboardService\) KeyDown\(ctx context.Context, key string\) error](https://www.daytona.io/docs/en<#KeyboardService.KeyDown>)
+  - [func \(k \*KeyboardService\) KeyUp\(ctx context.Context, key string\) error](https://www.daytona.io/docs/en<#KeyboardService.KeyUp>)
   - [func \(k \*KeyboardService\) Press\(ctx context.Context, key string, modifiers \[\]string\) error](<#KeyboardService.Press>)
   - [func \(k \*KeyboardService\) Type\(ctx context.Context, text string, delay \*int\) error](https://www.daytona.io/docs/en<#KeyboardService.Type>)
 - [type ListSandboxesQuery](https://www.daytona.io/docs/en<#ListSandboxesQuery>)
@@ -234,13 +239,22 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(l \*LspServerService\) SandboxSymbols\(ctx context.Context, query string\) \(\[\]any, error\)](<#LspServerService.SandboxSymbols>)
   - [func \(l \*LspServerService\) Start\(ctx context.Context\) error](https://www.daytona.io/docs/en<#LspServerService.Start>)
   - [func \(l \*LspServerService\) Stop\(ctx context.Context\) error](https://www.daytona.io/docs/en<#LspServerService.Stop>)
+- [type MouseClickOption](https://www.daytona.io/docs/en<#MouseClickOption>)
+  - [func WithClickModifiers\(modifiers ...string\) MouseClickOption](https://www.daytona.io/docs/en<#WithClickModifiers>)
+  - [func WithClicks\(clicks int\) MouseClickOption](https://www.daytona.io/docs/en<#WithClicks>)
+- [type MouseDragOption](https://www.daytona.io/docs/en<#MouseDragOption>)
+  - [func WithDragModifiers\(modifiers ...string\) MouseDragOption](https://www.daytona.io/docs/en<#WithDragModifiers>)
+- [type MouseScrollOption](https://www.daytona.io/docs/en<#MouseScrollOption>)
+  - [func WithScrollModifiers\(modifiers ...string\) MouseScrollOption](https://www.daytona.io/docs/en<#WithScrollModifiers>)
 - [type MouseService](https://www.daytona.io/docs/en<#MouseService>)
   - [func NewMouseService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*MouseService](https://www.daytona.io/docs/en<#NewMouseService>)
-  - [func \(m \*MouseService\) Click\(ctx context.Context, x, y int, button \*string, double \*bool\) \(map\[string\]any, error\)](<#MouseService.Click>)
-  - [func \(m \*MouseService\) Drag\(ctx context.Context, startX, startY, endX, endY int, button \*string\) \(map\[string\]any, error\)](<#MouseService.Drag>)
+  - [func \(m \*MouseService\) Click\(ctx context.Context, x, y int, button \*string, double \*bool, opts ...MouseClickOption\) \(map\[string\]any, error\)](<#MouseService.Click>)
+  - [func \(m \*MouseService\) Down\(ctx context.Context, button \*string, x, y \*int\) \(map\[string\]any, error\)](<#MouseService.Down>)
+  - [func \(m \*MouseService\) Drag\(ctx context.Context, startX, startY, endX, endY int, button \*string, opts ...MouseDragOption\) \(map\[string\]any, error\)](<#MouseService.Drag>)
   - [func \(m \*MouseService\) GetPosition\(ctx context.Context\) \(map\[string\]any, error\)](<#MouseService.GetPosition>)
   - [func \(m \*MouseService\) Move\(ctx context.Context, x, y int\) \(map\[string\]any, error\)](<#MouseService.Move>)
-  - [func \(m \*MouseService\) Scroll\(ctx context.Context, x, y int, direction string, amount \*int\) \(bool, error\)](https://www.daytona.io/docs/en<#MouseService.Scroll>)
+  - [func \(m \*MouseService\) Scroll\(ctx context.Context, x, y int, direction string, amount \*int, opts ...MouseScrollOption\) \(bool, error\)](https://www.daytona.io/docs/en<#MouseService.Scroll>)
+  - [func \(m \*MouseService\) Up\(ctx context.Context, button \*string, x, y \*int\) \(map\[string\]any, error\)](<#MouseService.Up>)
 - [type OutputChannels](https://www.daytona.io/docs/en<#OutputChannels>)
 - [type ProcessService](https://www.daytona.io/docs/en<#ProcessService>)
   - [func NewProcessService\(toolboxClient \*toolbox.APIClient, otel \*otelState, language types.CodeLanguage\) \*ProcessService](https://www.daytona.io/docs/en<#NewProcessService>)
@@ -319,6 +333,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*Sandbox\) SetAutoArchiveInterval\(ctx context.Context, intervalMinutes \*int\) error](https://www.daytona.io/docs/en<#Sandbox.SetAutoArchiveInterval>)
   - [func \(s \*Sandbox\) SetAutoDeleteInterval\(ctx context.Context, intervalMinutes \*int\) error](https://www.daytona.io/docs/en<#Sandbox.SetAutoDeleteInterval>)
   - [func \(s \*Sandbox\) SetLabels\(ctx context.Context, labels map\[string\]string\) error](<#Sandbox.SetLabels>)
+  - [func \(s \*Sandbox\) SetPublic\(ctx context.Context, isPublic bool\) error](https://www.daytona.io/docs/en<#Sandbox.SetPublic>)
   - [func \(s \*Sandbox\) Start\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Start>)
   - [func \(s \*Sandbox\) StartWithTimeout\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.StartWithTimeout>)
   - [func \(s \*Sandbox\) Stop\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Stop>)
@@ -595,7 +610,7 @@ NewClient reads configuration from environment variables:
 - DAYTONA\_API\_KEY or DAYTONA\_JWT\_TOKEN for authentication \(one is required\)
 - DAYTONA\_ORGANIZATION\_ID \(required when using JWT token\)
 - DAYTONA\_API\_URL for custom API endpoint
-- DAYTONA\_TARGET for target environment
+- DAYTONA\_TARGET for the default region of sandboxes and snapshots
 
 For explicit configuration, use [NewClientWithConfig](https://www.daytona.io/docs/en<#NewClientWithConfig>) instead.
 
@@ -643,7 +658,7 @@ func (c *Client) Create(ctx context.Context, params any, opts ...func(*options.C
 
 Create creates a new sandbox with the specified parameters.
 
-The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image:
+The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image \(a pointer to either is also accepted\):
 
 ```
 // Create from a snapshot
@@ -745,7 +760,7 @@ for sandbox, err := range client.ListSeq(ctx, &ListSandboxesQuery{...}) {
 
 CodeInterpreterService provides Python code execution capabilities for a sandbox.
 
-CodeInterpreterService enables running Python code in isolated execution contexts with support for streaming output, persistent state, and environment variables. It uses WebSockets for real\-time output streaming. Access through \[Sandbox.CodeInterpreter\].
+CodeInterpreterService enables running Python code in isolated execution contexts with support for streaming output, persistent state, and environment variables. It uses WebSockets for real\-time output streaming. Access through [Sandbox.CodeInterpreter](https://www.daytona.io/docs/en<#Sandbox>).
 
 Example:
 
@@ -787,7 +802,7 @@ func NewCodeInterpreterService(toolboxClient *toolbox.APIClient, otel *otelState
 
 NewCodeInterpreterService creates a new CodeInterpreterService.
 
-This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access CodeInterpreterService through \[Sandbox.CodeInterpreter\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access CodeInterpreterService through [Sandbox.CodeInterpreter](https://www.daytona.io/docs/en<#Sandbox>) rather than creating it directly.
 
 <a name="CodeInterpreterService.CreateContext"></a>
 ### func \(\*CodeInterpreterService\) CreateContext
@@ -922,7 +937,7 @@ Returns [OutputChannels](https://www.daytona.io/docs/en<#OutputChannels>) for re
 
 ComputerUseService provides desktop automation operations for a sandbox.
 
-ComputerUseService enables GUI automation including mouse control, keyboard input, screenshots, display management, and screen recording. The desktop environment must be started before using these features. Access through \[Sandbox.ComputerUse\].
+ComputerUseService enables GUI automation including mouse control, keyboard input, screenshots, display management, and screen recording. The desktop environment must be started before using these features. Access through [Sandbox.ComputerUse](https://www.daytona.io/docs/en<#Sandbox>).
 
 Example:
 
@@ -963,7 +978,7 @@ func NewComputerUseService(toolboxClient *toolbox.APIClient, otel *otelState) *C
 
 NewComputerUseService creates a new ComputerUseService.
 
-This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access ComputerUseService through \[Sandbox.ComputerUse\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access ComputerUseService through [Sandbox.ComputerUse](https://www.daytona.io/docs/en<#Sandbox>) rather than creating it directly.
 
 <a name="ComputerUseService.Accessibility"></a>
 ### func \(\*ComputerUseService\) Accessibility
@@ -1609,7 +1624,7 @@ WithDownloadProgress returns an option that enables progress tracking for stream
 
 FileSystemService provides file system operations for a sandbox.
 
-FileSystemService enables file and directory management including creating, reading, writing, moving, and deleting files. It also supports file searching and permission management. Access through \[Sandbox.FileSystem\].
+FileSystemService enables file and directory management including creating, reading, writing, moving, and deleting files. It also supports file searching and permission management. Access through [Sandbox.FileSystem](https://www.daytona.io/docs/en<#Sandbox>).
 
 Example:
 
@@ -1642,7 +1657,7 @@ func NewFileSystemService(toolboxClient *toolbox.APIClient, otel *otelState) *Fi
 
 NewFileSystemService creates a new FileSystemService with the provided toolbox client.
 
-This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access FileSystemService through \[Sandbox.FileSystem\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access FileSystemService through [Sandbox.FileSystem](https://www.daytona.io/docs/en<#Sandbox>) rather than creating it directly.
 
 <a name="FileSystemService.CreateFolder"></a>
 ### func \(\*FileSystemService\) CreateFolder
@@ -2048,7 +2063,7 @@ err := sandbox.FileSystem.UploadFileStream(ctx, f, "/home/user/big.bin",
 
 GitService provides Git operations for a sandbox.
 
-GitService enables common Git workflows including cloning repositories, staging and committing changes, managing branches, and syncing with remote repositories. It is accessed through the \[Sandbox.Git\] field.
+GitService enables common Git workflows including cloning repositories, staging and committing changes, managing branches, and syncing with remote repositories. It is accessed through the [Sandbox.Git](https://www.daytona.io/docs/en<#Sandbox>) field.
 
 Example:
 
@@ -2082,7 +2097,7 @@ func NewGitService(toolboxClient *toolbox.APIClient, otel *otelState) *GitServic
 
 NewGitService creates a new GitService with the provided toolbox client.
 
-This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access GitService through \[Sandbox.Git\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access GitService through [Sandbox.Git](https://www.daytona.io/docs/en<#Sandbox>) rather than creating it directly.
 
 <a name="GitService.Add"></a>
 ### func \(\*GitService\) Add
@@ -2655,6 +2670,56 @@ err := keyboard.Hotkey(ctx, "alt+tab")
 
 Returns an error if the hotkey fails.
 
+<a name="KeyboardService.KeyDown"></a>
+### func \(\*KeyboardService\) KeyDown
+
+```go
+func (k *KeyboardService) KeyDown(ctx context.Context, key string) error
+```
+
+KeyDown presses a key and holds it down.
+
+The key stays held until a matching [KeyboardService.KeyUp](https://www.daytona.io/docs/en<#KeyboardService.KeyUp>) call releases it. This enables held\-modifier workflows, such as holding "shift" across several mouse clicks, that a single [KeyboardService.Press](https://www.daytona.io/docs/en<#KeyboardService.Press>) cannot express.
+
+Parameters:
+
+- key: The key to hold. Uses the same normalized key contract as [KeyboardService.Press](https://www.daytona.io/docs/en<#KeyboardService.Press>), so modifier names such as "ctrl", "alt", "shift", and "cmd" are valid keys here.
+
+Example:
+
+```
+// Hold Shift, click twice to extend a selection, then release Shift
+if err := keyboard.KeyDown(ctx, "shift"); err != nil {
+    return err
+}
+defer keyboard.KeyUp(ctx, "shift")
+```
+
+Returns an error if the key press fails.
+
+<a name="KeyboardService.KeyUp"></a>
+### func \(\*KeyboardService\) KeyUp
+
+```go
+func (k *KeyboardService) KeyUp(ctx context.Context, key string) error
+```
+
+KeyUp releases a previously held key.
+
+Use it to finish a hold started with [KeyboardService.KeyDown](https://www.daytona.io/docs/en<#KeyboardService.KeyDown>).
+
+Parameters:
+
+- key: The key to release. Uses the same normalized key contract as [KeyboardService.Press](https://www.daytona.io/docs/en<#KeyboardService.Press>).
+
+Example:
+
+```
+err := keyboard.KeyUp(ctx, "shift")
+```
+
+Returns an error if the key release fails.
+
 <a name="KeyboardService.Press"></a>
 ### func \(\*KeyboardService\) Press
 
@@ -3006,6 +3071,71 @@ err := lsp.Stop(ctx)
 
 Returns an error if the server fails to stop gracefully.
 
+<a name="MouseClickOption"></a>
+## type MouseClickOption
+
+MouseClickOption configures the behavior of [MouseService.Click](https://www.daytona.io/docs/en<#MouseService.Click>).
+
+```go
+type MouseClickOption func(*mouseClickConfig)
+```
+
+<a name="WithClickModifiers"></a>
+### func WithClickModifiers
+
+```go
+func WithClickModifiers(modifiers ...string) MouseClickOption
+```
+
+WithClickModifiers returns an option that sets the modifier keys held down while clicking. Canonical names are "ctrl", "alt", "shift", and "cmd".
+
+<a name="WithClicks"></a>
+### func WithClicks
+
+```go
+func WithClicks(clicks int) MouseClickOption
+```
+
+WithClicks returns an option that sets how many times the button is clicked.
+
+Valid values are 1 through 10. The value is always sent explicitly, so an out\-of\-range value such as 0 is rejected by the server rather than silently treated as "not provided".
+
+<a name="MouseDragOption"></a>
+## type MouseDragOption
+
+MouseDragOption configures the behavior of [MouseService.Drag](https://www.daytona.io/docs/en<#MouseService.Drag>).
+
+```go
+type MouseDragOption func(*mouseDragConfig)
+```
+
+<a name="WithDragModifiers"></a>
+### func WithDragModifiers
+
+```go
+func WithDragModifiers(modifiers ...string) MouseDragOption
+```
+
+WithDragModifiers returns an option that sets the modifier keys held down for the duration of the drag. Canonical names are "ctrl", "alt", "shift", and "cmd".
+
+<a name="MouseScrollOption"></a>
+## type MouseScrollOption
+
+MouseScrollOption configures the behavior of [MouseService.Scroll](https://www.daytona.io/docs/en<#MouseService.Scroll>).
+
+```go
+type MouseScrollOption func(*mouseScrollConfig)
+```
+
+<a name="WithScrollModifiers"></a>
+### func WithScrollModifiers
+
+```go
+func WithScrollModifiers(modifiers ...string) MouseScrollOption
+```
+
+WithScrollModifiers returns an option that sets the modifier keys held down while scrolling. Canonical names are "ctrl", "alt", "shift", and "cmd".
+
 <a name="MouseService"></a>
 ## type MouseService
 
@@ -3032,7 +3162,7 @@ NewMouseService creates a new MouseService.
 ### func \(\*MouseService\) Click
 
 ```go
-func (m *MouseService) Click(ctx context.Context, x, y int, button *string, double *bool) (map[string]any, error)
+func (m *MouseService) Click(ctx context.Context, x, y int, button *string, double *bool, opts ...MouseClickOption) (map[string]any, error)
 ```
 
 Click performs a mouse click at the specified coordinates.
@@ -3043,6 +3173,7 @@ Parameters:
 - y: Y coordinate to click
 - button: Mouse button \("left", "right", "middle"\), nil for left click
 - double: Whether to double\-click, nil for single click
+- opts: Optional settings such as [WithClicks](https://www.daytona.io/docs/en<#WithClicks>) and [WithClickModifiers](https://www.daytona.io/docs/en<#WithClickModifiers>)
 
 Example:
 
@@ -3057,15 +3188,55 @@ pos, err := mouse.Click(ctx, 100, 200, &button, nil)
 // Double click
 doubleClick := true
 pos, err := mouse.Click(ctx, 100, 200, nil, &doubleClick)
+
+// Triple click with Ctrl held down
+pos, err := mouse.Click(ctx, 100, 200, nil, nil,
+    WithClicks(3), WithClickModifiers("ctrl"))
 ```
 
 Returns a map with the click "x" and "y" coordinates.
+
+<a name="MouseService.Down"></a>
+### func \(\*MouseService\) Down
+
+```go
+func (m *MouseService) Down(ctx context.Context, button *string, x, y *int) (map[string]any, error)
+```
+
+Down presses a mouse button and holds it down.
+
+The button stays held until a matching [MouseService.Up](https://www.daytona.io/docs/en<#MouseService.Up>) call releases it, which makes it possible to build custom press\-move\-release gestures such as marquee selection or drawing strokes.
+
+Parameters:
+
+- button: Mouse button \("left", "right", "middle"\), nil for left button
+- x: X coordinate to press at, nil to press at the current cursor position
+- y: Y coordinate to press at, nil to press at the current cursor position
+
+Both x and y are sent exactly as provided, so an explicit 0 is transmitted as 0 rather than being dropped as an unset value.
+
+Example:
+
+```
+// Press the left button at the current cursor position
+pos, err := mouse.Down(ctx, nil, nil, nil)
+
+// Press and hold the left button at (100, 200), then release at (300, 400)
+x, y := 100, 200
+if _, err := mouse.Down(ctx, nil, &x, &y); err != nil {
+    return err
+}
+endX, endY := 300, 400
+pos, err = mouse.Up(ctx, nil, &endX, &endY)
+```
+
+Returns a map with the resulting "x" and "y" cursor coordinates.
 
 <a name="MouseService.Drag"></a>
 ### func \(\*MouseService\) Drag
 
 ```go
-func (m *MouseService) Drag(ctx context.Context, startX, startY, endX, endY int, button *string) (map[string]any, error)
+func (m *MouseService) Drag(ctx context.Context, startX, startY, endX, endY int, button *string, opts ...MouseDragOption) (map[string]any, error)
 ```
 
 Drag performs a mouse drag operation from start to end coordinates.
@@ -3075,12 +3246,16 @@ Parameters:
 - startX, startY: Starting coordinates
 - endX, endY: Ending coordinates
 - button: Mouse button to use, nil for left button
+- opts: Optional settings such as [WithDragModifiers](https://www.daytona.io/docs/en<#WithDragModifiers>)
 
 Example:
 
 ```
 // Drag from (100, 100) to (300, 300)
 pos, err := mouse.Drag(ctx, 100, 100, 300, 300, nil)
+
+// Drag with Shift held down to extend a selection
+pos, err := mouse.Drag(ctx, 100, 100, 300, 300, nil, WithDragModifiers("shift"))
 ```
 
 Returns a map with the final "x" and "y" coordinates.
@@ -3132,7 +3307,7 @@ Returns a map with the new "x" and "y" coordinates.
 ### func \(\*MouseService\) Scroll
 
 ```go
-func (m *MouseService) Scroll(ctx context.Context, x, y int, direction string, amount *int) (bool, error)
+func (m *MouseService) Scroll(ctx context.Context, x, y int, direction string, amount *int, opts ...MouseScrollOption) (bool, error)
 ```
 
 Scroll performs a mouse scroll operation at the specified coordinates.
@@ -3140,8 +3315,9 @@ Scroll performs a mouse scroll operation at the specified coordinates.
 Parameters:
 
 - x, y: Coordinates where the scroll occurs
-- direction: Scroll direction \("up", "down"\)
+- direction: Scroll direction \("up", "down", "left", "right"\)
 - amount: Scroll amount, nil for default
+- opts: Optional settings such as [WithScrollModifiers](https://www.daytona.io/docs/en<#WithScrollModifiers>)
 
 Example:
 
@@ -3152,9 +3328,40 @@ success, err := mouse.Scroll(ctx, 500, 400, "down", nil)
 // Scroll up with specific amount
 amount := 5
 success, err := mouse.Scroll(ctx, 500, 400, "up", &amount)
+
+// Horizontal scroll with Shift held down
+success, err := mouse.Scroll(ctx, 500, 400, "right", nil, WithScrollModifiers("shift"))
 ```
 
 Returns true if the scroll was successful.
+
+<a name="MouseService.Up"></a>
+### func \(\*MouseService\) Up
+
+```go
+func (m *MouseService) Up(ctx context.Context, button *string, x, y *int) (map[string]any, error)
+```
+
+Up releases a previously held mouse button.
+
+Use it to finish a gesture started with [MouseService.Down](https://www.daytona.io/docs/en<#MouseService.Down>).
+
+Parameters:
+
+- button: Mouse button \("left", "right", "middle"\), nil for left button
+- x: X coordinate to release at, nil to release at the current cursor position
+- y: Y coordinate to release at, nil to release at the current cursor position
+
+Both x and y are sent exactly as provided, so an explicit 0 is transmitted as 0 rather than being dropped as an unset value.
+
+Example:
+
+```
+// Release the left button at the current cursor position
+pos, err := mouse.Up(ctx, nil, nil, nil)
+```
+
+Returns a map with the resulting "x" and "y" cursor coordinates.
 
 <a name="OutputChannels"></a>
 ## type OutputChannels
@@ -3177,7 +3384,7 @@ type OutputChannels struct {
 
 ProcessService provides process execution operations for a sandbox.
 
-ProcessService enables command execution, session management, and PTY \(pseudo\-terminal\) operations. It supports both synchronous command execution and interactive terminal sessions. Access through \[Sandbox.Process\].
+ProcessService enables command execution, session management, and PTY \(pseudo\-terminal\) operations. It supports both synchronous command execution and interactive terminal sessions. Access through [Sandbox.Process](https://www.daytona.io/docs/en<#Sandbox>).
 
 Example:
 
@@ -3212,7 +3419,7 @@ func NewProcessService(toolboxClient *toolbox.APIClient, otel *otelState, langua
 
 NewProcessService creates a new ProcessService with the provided toolbox client.
 
-This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access ProcessService through \[Sandbox.Process\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Sandbox](https://www.daytona.io/docs/en<#Sandbox>). Users should access ProcessService through [Sandbox.Process](https://www.daytona.io/docs/en<#Sandbox>) rather than creating it directly.
 
 <a name="ProcessService.CodeRun"></a>
 ### func \(\*ProcessService\) CodeRun
@@ -3435,6 +3642,12 @@ func (p *ProcessService) ExecuteCommand(ctx context.Context, command string, opt
 ExecuteCommand executes a shell command and returns the result.
 
 The command is executed in a shell context. For complex commands, consider using proper shell escaping or wrapping in a script.
+
+The command is run by the first available of zsh, bash or sh in the sandbox, which is zsh in the default snapshots. Quote arguments that contain glob characters, for example \`pip install \-e '.\[test\]'\`, or wrap bash\-specific scripts in \`bash \-c '...'\`.
+
+The call returns when the command finishes. To start a long\-running process such as a server, run it in the background with its output redirected, e.g. \`python3 \-m http.server 8000 \> server.log 2\>&1 &\`, or use a session with runAsync set \(see [ProcessService.ExecuteSessionCommand](https://www.daytona.io/docs/en<#ProcessService.ExecuteSessionCommand>)\). A background process that keeps the command's output open \(\`cmd &\` without a redirect\) can block the call until that process exits.
+
+Tools in the sandbox may report the host's CPU count and memory \(for example \`nproc\` or runtime.NumCPU\) rather than the sandbox's own limits. Size worker pools from the sandbox's CPU and memory instead, e.g. \`pytest \-n 2\` rather than \`pytest \-n auto\`.
 
 Optional parameters can be configured using functional options:
 
@@ -4380,12 +4593,13 @@ type Sandbox struct {
     Labels         map[string]string              // Custom labels attached to the sandbox
     Public         bool                           // Whether the sandbox is publicly accessible
     Target         string                         // Target region/environment where the sandbox runs
-    Cpu            float32                        // Number of CPUs allocated to the sandbox
-    Gpu            float32                        // Number of GPUs allocated to the sandbox
+    Cpu            int32                          // Number of CPUs allocated to the sandbox
+    Gpu            int32                          // Number of GPUs allocated to the sandbox
     Spot           bool                           // Whether this is a spot GPU sandbox, which may be instantly terminated to free capacity for on-demand GPU sandboxes
     SpotEvictedAt  *string                        // When the sandbox was evicted by spot preemption
-    Memory         float32                        // Amount of memory allocated to the sandbox in GiB
-    Disk           float32                        // Amount of disk space allocated to the sandbox in GiB
+    QueueTimeout   *int                           // Minutes the sandbox was allowed to wait for runner assignment before the API destroyed it; nil when unset or null
+    Memory         int32                          // Amount of memory allocated to the sandbox in GiB
+    Disk           int32                          // Amount of disk space allocated to the sandbox in GiB
     State          apiclient.SandboxState         // Current sandbox state
     ErrorReason    *string                        // Error message if the sandbox is in an error state
     Recoverable    *bool                          // Whether the sandbox error is recoverable
@@ -4419,6 +4633,7 @@ type Sandbox struct {
     LastActivityAt  *string // When the sandbox last had activity
     ToolboxProxyUrl string  // Toolbox proxy URL for the sandbox
     AutoDestroyAt   *string // When the sandbox will be automatically destroyed (based on TTL)
+    QueueTimedOutAt *string // When the sandbox was destroyed after exceeding its queue timeout
 
     // Env contains environment variables set in the sandbox.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
@@ -4439,6 +4654,10 @@ type Sandbox struct {
     // NetworkBlockAll blocks all network access when true. Nil when not populated.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
     NetworkBlockAll *bool
+
+    // Kvm reports whether the sandbox exposes KVM (/dev/kvm) to its guest.
+    // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
+    Kvm *bool
 
     // NetworkAllowList is a comma-separated list of allowed CIDR addresses.
     // Not populated by [Client.List]; call [Sandbox.RefreshData] on each item to populate.
@@ -4779,7 +4998,7 @@ func (s *Sandbox) GetPreviewLink(ctx context.Context, port int) (*types.PreviewL
 
 GetPreviewLink returns a preview link for accessing a port on the sandbox.
 
-The returned PreviewLink contains both the URL and an authentication token. For private sandboxes, the token must be sent via the "x\-daytona\-preview\-token" request header.
+The returned PreviewLink contains both the URL and an authentication token. For a private sandbox, requests to the URL must authenticate, otherwise they are answered with 401 Unauthorized: send the token in the "X\-Daytona\-Preview\-Token" request header, or send your Daytona API key as "Authorization: Bearer \<api key\>". To get a URL that works without extra headers \(for example to open it in a browser or share it\), use [Sandbox.GetSignedPreviewLink](https://www.daytona.io/docs/en<#Sandbox.GetSignedPreviewLink>) instead. Public sandboxes need no credentials.
 
 Example:
 
@@ -4789,6 +5008,18 @@ if err != nil {
     return err
 }
 fmt.Printf("URL: %s\nToken: %s\n", preview.URL, preview.Token)
+
+// Fetch the private preview from outside the sandbox
+req, err := http.NewRequestWithContext(ctx, http.MethodGet, preview.URL, nil)
+if err != nil {
+    return err
+}
+req.Header.Set("X-Daytona-Preview-Token", preview.Token)
+resp, err := http.DefaultClient.Do(req)
+if err != nil {
+    return err
+}
+defer resp.Body.Close()
 ```
 
 <a name="Sandbox.GetSignedPreviewLink"></a>
@@ -4799,6 +5030,8 @@ func (s *Sandbox) GetSignedPreviewLink(ctx context.Context, port int, expiresInS
 ```
 
 GetSignedPreviewLink retrieves a signed preview URL for the sandbox at the specified port, valid for up to expiresInSeconds seconds.
+
+The access token is embedded in the returned URL, so it can be used without any headers, for example in a browser or by another service. The URL stops working when it expires or when it is expired with [Sandbox.ExpireSignedPreviewLink](https://www.daytona.io/docs/en<#Sandbox.ExpireSignedPreviewLink>).
 
 Example:
 
@@ -5028,6 +5261,25 @@ err := sandbox.SetLabels(ctx, map[string]string{
     "team": "backend",
     "project": "api-server",
 })
+```
+
+<a name="Sandbox.SetPublic"></a>
+### func \(\*Sandbox\) SetPublic
+
+```go
+func (s *Sandbox) SetPublic(ctx context.Context, isPublic bool) error
+```
+
+SetPublic sets whether the sandbox's preview URLs are publicly accessible.
+
+When public, preview URLs \(see [Sandbox.GetPreviewLink](https://www.daytona.io/docs/en<#Sandbox.GetPreviewLink>)\) can be opened without a preview token or API key. When private, every preview request must authenticate.
+
+Example:
+
+```
+if err := sandbox.SetPublic(ctx, true); err != nil {
+    return err
+}
 ```
 
 <a name="Sandbox.Start"></a>
@@ -5376,7 +5628,7 @@ Returns \[types.ScreenshotResponse\] with the captured image.
 
 SecretService provides organization\-scoped secret management operations.
 
-SecretService enables creating, listing, retrieving, updating, and deleting secrets. A secret stores a write\-only plaintext value that is never returned by the API. Secrets can be referenced when creating a sandbox \(see the Secrets field on \[types.SandboxBaseParams\]\); the env var injected into the sandbox holds the secret's opaque placeholder, which is resolved to the real value only for the secret's allowed hosts. Access through \[Client.Secret\].
+SecretService enables creating, listing, retrieving, updating, and deleting secrets. A secret stores a write\-only plaintext value that is never returned by the API. Secrets can be referenced when creating a sandbox \(see the Secrets field on \[types.SandboxBaseParams\]\); the env var injected into the sandbox holds the secret's opaque placeholder, which is resolved to the real value only for the secret's allowed hosts. Access through [Client.Secret](https://www.daytona.io/docs/en<#Client>).
 
 Example:
 
@@ -5410,7 +5662,7 @@ func NewSecretService(client *Client) *SecretService
 
 NewSecretService creates a new SecretService.
 
-This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access SecretService through \[Client.Secret\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access SecretService through [Client.Secret](https://www.daytona.io/docs/en<#Client>) rather than creating it directly.
 
 <a name="SecretService.Create"></a>
 ### func \(\*SecretService\) Create
@@ -5571,7 +5823,7 @@ Returns the updated \[types.Secret\] or an error if the ID is unknown \(404\).
 
 SnapshotService provides snapshot \(image template\) management operations.
 
-SnapshotService enables creating, managing, and deleting snapshots that serve as templates for sandboxes. Snapshots can be built from Docker images or custom [DockerImage](https://www.daytona.io/docs/en<#DockerImage>) definitions with build contexts. Access through \[Client.Snapshot\].
+SnapshotService enables creating, managing, and deleting snapshots that serve as templates for sandboxes. Snapshots can be built from Docker images or custom [DockerImage](https://www.daytona.io/docs/en<#DockerImage>) definitions with build contexts. Access through [Client.Snapshot](https://www.daytona.io/docs/en<#Client>).
 
 Example:
 
@@ -5615,7 +5867,7 @@ func NewSnapshotService(client *Client) *SnapshotService
 
 NewSnapshotService creates a new SnapshotService.
 
-This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access SnapshotService through \[Client.Snapshot\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access SnapshotService through [Client.Snapshot](https://www.daytona.io/docs/en<#Client>) rather than creating it directly.
 
 <a name="SnapshotService.Activate"></a>
 ### func \(\*SnapshotService\) Activate
@@ -5865,7 +6117,7 @@ WithUploadProgress returns an option that enables progress tracking for streamin
 
 VolumeService provides persistent storage volume management operations.
 
-VolumeService enables creating, managing, and deleting persistent storage volumes that can be attached to sandboxes. Volumes persist data independently of sandbox lifecycle and can be shared between sandboxes. Access through \[Client.Volume\].
+VolumeService enables creating, managing, and deleting persistent storage volumes that can be attached to sandboxes. Volumes persist data independently of sandbox lifecycle and can be shared between sandboxes. Access through [Client.Volume](https://www.daytona.io/docs/en<#Client>).
 
 Example:
 
@@ -5901,7 +6153,7 @@ func NewVolumeService(client *Client) *VolumeService
 
 NewVolumeService creates a new VolumeService.
 
-This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access VolumeService through \[Client.Volume\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access VolumeService through [Client.Volume](https://www.daytona.io/docs/en<#Client>) rather than creating it directly.
 
 <a name="VolumeService.Create"></a>
 ### func \(\*VolumeService\) Create
@@ -6044,7 +6296,7 @@ Returns the updated \[types.Volume\] when ready, or an error if the timeout expi
 
 WarmPoolService provides warm pool management operations.
 
-WarmPoolService enables listing, creating, updating, and deleting warm pools of ready\-to\-use sandboxes for a snapshot. A pool's CurrentSize versus Pool is its status: CurrentSize is the number of ready warm sandboxes, Pool is the desired number, and ErrorReason is set when the pool cannot be filled. Access through \[Client.WarmPool\].
+WarmPoolService enables listing, creating, updating, and deleting warm pools of ready\-to\-use sandboxes for a snapshot. A pool's CurrentSize versus Pool is its status: CurrentSize is the number of ready warm sandboxes, Pool is the desired number, and ErrorReason is set when the pool cannot be filled. Access through [Client.WarmPool](https://www.daytona.io/docs/en<#Client>).
 
 Example:
 
@@ -6077,7 +6329,7 @@ func NewWarmPoolService(client *Client) *WarmPoolService
 
 NewWarmPoolService creates a new WarmPoolService.
 
-This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access WarmPoolService through \[Client.WarmPool\] rather than creating it directly.
+This is typically called internally by the SDK when creating a [Client](https://www.daytona.io/docs/en<#Client>). Users should access WarmPoolService through [Client.WarmPool](https://www.daytona.io/docs/en<#Client>) rather than creating it directly.
 
 <a name="WarmPoolService.Create"></a>
 ### func \(\*WarmPoolService\) Create

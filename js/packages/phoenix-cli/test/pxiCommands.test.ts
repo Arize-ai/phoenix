@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getSlashCommandName,
+  getSlashCommandSuggestions,
   matchingCommands,
   runSlashCommand,
   SLASH_COMMANDS,
@@ -144,5 +145,26 @@ describe("matchingCommands", () => {
 
   it("returns empty array when nothing matches", () => {
     expect(matchingCommands("zzz")).toHaveLength(0);
+  });
+});
+
+describe("getSlashCommandSuggestions", () => {
+  it("suggests every command for a bare slash", () => {
+    expect(getSlashCommandSuggestions("/")).toHaveLength(SLASH_COMMANDS.length);
+  });
+
+  it("filters by the typed command name", () => {
+    expect(getSlashCommandSuggestions("/he").map((c) => c.name)).toEqual([
+      "help",
+    ]);
+  });
+
+  it("suggests nothing for non-slash input", () => {
+    expect(getSlashCommandSuggestions("hello")).toEqual([]);
+  });
+
+  it("suggests nothing once whitespace follows the command name", () => {
+    expect(getSlashCommandSuggestions("/compact ")).toEqual([]);
+    expect(getSlashCommandSuggestions("/help\n")).toEqual([]);
   });
 });

@@ -5,7 +5,7 @@ import type { AnnotationConfig } from "@phoenix/components/annotation";
  * This is the union of CategoricalAnnotationConfig, ContinuousAnnotationConfig, and FreeformAnnotationConfig.
  */
 export type DatasetEvaluatorOutputConfig = {
-  readonly __typename?: string;
+  readonly __typename: string;
   readonly name?: string;
   readonly optimizationDirection?: string;
   readonly values?: readonly {

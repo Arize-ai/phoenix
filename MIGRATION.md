@@ -1,5 +1,74 @@
 # Migrations
 
+## v20.x to v21.0.0
+
+### Bind address and authentication
+
+- **The default bind address is loopback.** `PHOENIX_HOST` defaults to `127.0.0.1` for HTTP, gRPC, and Prometheus.
+  To accept connections from other machines, set `PHOENIX_HOST=0.0.0.0` or `::`.
+- **Authentication follows the bind address.** When `PHOENIX_ENABLE_AUTH` is unset, authentication is enabled for
+  non-loopback addresses and disabled for loopback. An explicit `PHOENIX_ENABLE_AUTH` setting takes precedence.
+- **Docker requires authentication by default.** The image sets `PHOENIX_HOST=::`. Create an API key and configure
+  trace exporters and other API clients to use it. Unauthenticated requests are rejected with HTTP 401 or gRPC
+  unauthenticated errors. To keep authentication disabled, set `PHOENIX_ENABLE_AUTH=false`.
+  Helm already enables authentication explicitly; its authentication default is unchanged.
+- **Notebooks now honor authentication settings.** `launch_app` previously disabled authentication regardless of
+  `PHOENIX_ENABLE_AUTH`. It now honors that setting and otherwise follows the bind-address rule above, including
+  an explicit `host` argument. When authentication is enabled, configure `PHOENIX_API_KEY` for `register()`,
+  `px.Client()`, and other notebook clients. Databricks defaults to `0.0.0.0`, so authentication is enabled there
+  by default. Set `PHOENIX_ENABLE_AUTH=false` to restore the previous behavior.
+
+### Replace `phoenix serve --host` with `PHOENIX_HOST`
+
+The `--host` option is removed. Set the bind address through `PHOENIX_HOST` instead.
+
+**Before:**
+
+```shell
+phoenix serve --host 0.0.0.0 --port 6006
+```
+
+**After:**
+
+```shell
+PHOENIX_HOST=0.0.0.0 phoenix serve --port 6006
+```
+
+### Default-admin credentials
+
+The initial admin account is `admin@localhost`. Set `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` to an unpredictable
+password before starting Phoenix. Otherwise, the default password is `admin`, which must be changed before
+opening a session. Scripted logins with this default receive HTTP 403 and a reset token; use
+`POST /auth/password-reset` to change the password. A custom initial password does not require this reset.
+
+On an existing database, startup applies `PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD` only if the local admin
+still requires a password reset and its password is still `admin`. Customized credentials are preserved;
+this variable is not a general password-rotation mechanism. Replacing the default password revokes existing
+browser and OAuth2 sessions and invalidates pending password-reset tokens and OAuth2 authorization codes.
+API keys remain valid. Review the admin account's API keys and revoke any you do not recognize.
+
+**To invalidate old sessions immediately during this credential replacement, stop all replicas first.**
+Running replicas can continue accepting cached tokens until they stop. Configure the same initial password
+on all replacement replicas, then start v21. Verify login with the configured password before restoring
+external traffic. This stop requirement does not apply to upgrades that preserve customized admin credentials.
+
+### `PHOENIX_SECRET` and saved credentials
+
+`PHOENIX_SECRET` is now optional for authentication. Without it, anyone with a copy of the database can decrypt
+saved credentials, including provider API keys, workspace secrets, and GitHub tokens.
+Set `PHOENIX_SECRET` to protect these credentials.
+
+**Setting or changing `PHOENIX_SECRET` makes previously saved credentials unreadable.** Re-enter credentials
+you still need, or delete unused ones, in **Settings → Secrets**, custom model settings, or sandbox provider
+settings, as applicable.
+
+### Browser sign-out no longer ends OAuth2 sessions
+
+Signing out of the Phoenix UI still ends the user's sessions in every browser. It no longer ends OAuth2
+sessions used by the CLI or MCP clients. To end an OAuth2 session, run `px auth logout` or revoke the client
+from the user's authorized applications. Password changes, password resets, and role changes still end
+both browser and OAuth2 sessions.
+
 ## v19.x to v20.0.0
 
 The upgrade from v19.x to v20.0.0 needs no manual steps, but it introduces persisted agent sessions, which carry a

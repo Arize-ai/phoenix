@@ -86,3 +86,19 @@ def test_rowid_subquery_forwards_scope_and_lowering(
         lowering="probe",
         orphan_span_as_root_span=False,
     )
+
+
+def test_index_error_from_the_compiler_reads_as_an_invalid_condition(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An IndexError inside the shared compile step reaches the caller as a bad request
+    carrying the compiler's own wording, not the exception class and index detail."""
+
+    def raise_index_error(*args: object, **kwargs: object) -> None:
+        raise IndexError("list index out of range")
+
+    monkeypatch.setattr("phoenix.trace.dsl.filter._validate_semantics", raise_index_error)
+    with pytest.raises(TraceFilterConditionError) as exc_info:
+        compile_trace_filter("name == 'x'")
+    assert isinstance(exc_info.value, BadRequest)
+    assert str(exc_info.value) == "invalid filter condition"

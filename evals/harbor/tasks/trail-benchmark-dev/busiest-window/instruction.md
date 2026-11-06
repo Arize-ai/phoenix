@@ -1,0 +1,1 @@
+Group the research-assistant traces into 10-minute windows by when each trace started, with windows aligned to the clock (for example 16:00 to 16:10 UTC). Which window had the most traces start, and how many?

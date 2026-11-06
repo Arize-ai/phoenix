@@ -101,11 +101,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks</loc>
-    <lastmod>2025-12-06T04:05:56.129Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent</loc>
     <lastmod>2025-12-12T01:23:01.845Z</lastmod>
   </url>
@@ -118,16 +113,6 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook</loc>
     
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/relevance-classification-evaluation</loc>
-    <lastmod>2025-12-06T04:05:56.131Z</lastmod>
-  </url>
-
-  <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/using-ragas-to-evaluate-a-math-problem-solving-agent</loc>
-    <lastmod>2025-12-06T04:05:56.134Z</lastmod>
   </url>
 
   <url>
@@ -198,6 +183,11 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing</loc>
     
+  </url>
+
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/claude-managed-agents-guide</loc>
+    <lastmod>2026-10-07T00:00:00+00:00</lastmod>
   </url>
 
   <url>
@@ -640,8 +630,13 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/integrations/phoenix-mcp-server</loc>
-    <lastmod>2025-12-12T01:23:03.604Z</lastmod>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents</loc>
+
+  </url>
+
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing</loc>
+
   </url>
 
   <url>
@@ -1960,11 +1955,6 @@
   </url>
 
   <url>
-    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/mcp-server</loc>
-    <lastmod>2025-12-12T01:23:03.594Z</lastmod>
-  </url>
-
-  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/overview</loc>
     <lastmod>2025-12-13T01:25:06.716Z</lastmod>
   </url>
@@ -2269,8 +2259,4 @@
     
   </url>
 
-  <url>
-    <loc>https://arize.com/docs/phoenix/user-guide</loc>
-    <lastmod>2025-12-10T05:17:16.699Z</lastmod>
-  </url>
 </urlset>

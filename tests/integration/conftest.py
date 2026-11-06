@@ -26,7 +26,10 @@ from ._helpers import (
     _HTTPX_OP_IDX,
     _MEMBER,
     _TEST_NAME,
+    _admin_auth,
     _AppInfo,
+    _auth_env,
+    _DefaultAdminMarker,
     _delete_users,
     _Email,
     _GetUser,
@@ -183,7 +186,7 @@ def _users(
                 role=role_str,
             )
             json_ = v1.CreateUserRequestBody(user=user, send_welcome_email=False)
-            resp = _httpx_client(app, app.admin_secret).post(url=url, json=json_)
+            resp = _httpx_client(app, _admin_auth(app)).post(url=url, json=json_)
             resp.raise_for_status()
             gid = _GqlId(cast(v1.CreateUserResponseBody, resp.json())["data"]["id"])
             app, role, profile = yield _User(gid, role, profile, profile_picture_url=None)
@@ -207,7 +210,7 @@ def _new_user(
         profile: Optional[_Profile] = None,
     ) -> _User:
         user = _users.send((app, role, profile))
-        clean_ups.append(lambda: _delete_users(app, app.admin_secret, users=[user]))
+        clean_ups.append(lambda: _delete_users(app, _admin_auth(app), users=[user]))
         return user
 
     yield _
@@ -230,7 +233,9 @@ def _get_user(
         profile: Optional[_Profile] = None,
     ) -> _User:
         assert profile is None or isinstance(role_or_user, UserRoleInput)
-        if isinstance(role_or_user, _User):
+        if isinstance(role_or_user, _DefaultAdminMarker):
+            return app.default_admin
+        elif isinstance(role_or_user, _User):
             user = role_or_user
             return user
         elif isinstance(role_or_user, UserRoleInput):
@@ -297,9 +302,7 @@ def _env_database(
 def _env_auth() -> dict[str, str]:
     """Configure authentication and security environment variables for testing."""
     return {
-        "PHOENIX_ENABLE_AUTH": "true",
-        "PHOENIX_SECRET": token_hex(16),
-        "PHOENIX_ADMIN_SECRET": token_hex(16),
+        **_auth_env(),
         "PHOENIX_DISABLE_RATE_LIMIT": "true",
         "PHOENIX_CSRF_TRUSTED_ORIGINS": ",http://localhost,",
     }
@@ -354,14 +357,15 @@ def _smtpd(
 
 @pytest.fixture(autouse=True, scope="session")
 def _patch_opentelemetry_exporters_to_reduce_retries() -> None:
-    from opentelemetry.exporter.otlp.proto.grpc import exporter
-    from opentelemetry.exporter.otlp.proto.http import trace_exporter
+    from opentelemetry.exporter.otlp.common import http as otlp_http
+    from opentelemetry.exporter.otlp.proto.grpc import exporter as grpc_exporter
 
-    assert isinstance(exporter, ModuleType)
-    assert isinstance(trace_exporter, ModuleType)
+    assert isinstance(grpc_exporter, ModuleType)
+    assert isinstance(otlp_http, ModuleType)
 
-    name = "_MAX_RETRYS"
-    assert isinstance(getattr(exporter, name), int)
-    assert isinstance(getattr(trace_exporter, name), int)
-    setattr(exporter, name, 2)
-    setattr(trace_exporter, name, 2)
+    grpc_name = "_MAX_RETRYS"  # upstream name is misspelled
+    http_name = "_MAX_RETRIES"
+    assert isinstance(getattr(grpc_exporter, grpc_name), int)
+    assert isinstance(getattr(otlp_http, http_name), int)
+    setattr(grpc_exporter, grpc_name, 2)
+    setattr(otlp_http, http_name, 2)

@@ -28,6 +28,13 @@ import type {
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import type { PendingScriptApproval } from "@phoenix/agent/uiOperations/pendingScriptApproval";
+import {
+  addRecentAgentModel,
+  DEFAULT_MODEL_MENU_VALUE,
+  normalizeRecentAgentModels,
+} from "@phoenix/components/agent/agentModelConfig";
+import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { ASSISTANT_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { scopeStorageKeyToBasename } from "@phoenix/utils/storageUtils";
 
@@ -220,9 +227,11 @@ export function selectIsSessionOccupied(
 export const DRAFT_SESSION_ID = "pxi:draft-session";
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
-  provider: "ANTHROPIC",
-  modelName: "claude-opus-4-6",
-  invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
+  provider: DEFAULT_MODEL_MENU_VALUE.provider,
+  modelName: DEFAULT_MODEL_MENU_VALUE.modelName,
+  invocationParameters: getDefaultInvocationConfig(
+    DEFAULT_MODEL_MENU_VALUE.provider
+  ),
 };
 
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
@@ -346,6 +355,12 @@ export interface AgentProps {
   defaultTemporaryChat: boolean;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
+  /**
+   * Models the user recently picked in the PXI model picker, newest first,
+   * deduped and capped at 5 (see {@link addRecentAgentModel}). Typed names
+   * outside the catalog are kept too. Persisted.
+   */
+  recentModels: ModelMenuValue[];
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
@@ -383,6 +398,8 @@ export interface AgentState extends AgentProps {
    */
   clearSessionEphemeralState: (sessionId: string) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
+  /** Records a model pick at the front of {@link AgentProps.recentModels}. */
+  recordRecentModel: (model: ModelMenuValue) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
   setAgentsConfig: (
@@ -409,6 +426,13 @@ export interface AgentState extends AgentProps {
     key: string;
     value: string | null;
   }) => void;
+  /**
+   * Drops every client-held integration credential. Called on logout so a
+   * later user of the same browser cannot inherit (and silently send) the
+   * previous user's tokens — the persisted store is scoped per deployment,
+   * not per user.
+   */
+  clearIntegrationCredentials: () => void;
 
   // -- Elicitation (ephemeral, not persisted) --
 
@@ -672,6 +696,12 @@ function mergeAgentPersistedState(
       capabilities: persisted.capabilities,
       defaultCapabilities: currentState.capabilities,
     }),
+    // Blobs written before recent models existed lack the key; malformed
+    // entries are dropped rather than breaking the picker.
+    recentModels:
+      persisted.recentModels === undefined
+        ? currentState.recentModels
+        : normalizeRecentAgentModels({ value: persisted.recentModels }),
   };
 }
 
@@ -704,17 +734,11 @@ function removeToolCallRecordForSession<T extends { sessionId: string }>(
 }
 
 /**
- * Base local-storage key for the persisted assistant state. Used verbatim for
- * single-tenant deployments and as a prefix when scoping by root path.
- */
-const BASE_ASSISTANT_STORAGE_KEY = "arize-phoenix-assistant";
-
-/**
  * Resolves the local-storage key for the persisted assistant state, scoped to
  * the deployment's root path (see {@link scopeStorageKeyToBasename} for why).
  */
 export function resolveAssistantStorageKey(): string {
-  return scopeStorageKeyToBasename(BASE_ASSISTANT_STORAGE_KEY);
+  return scopeStorageKeyToBasename(ASSISTANT_STORAGE_BASE_KEY);
 }
 
 /**
@@ -740,6 +764,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     isDraftSessionTemporary: false,
     defaultTemporaryChat: false,
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
+    recentModels: [],
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     permissions: DEFAULT_AGENT_PERMISSIONS,
@@ -849,6 +874,18 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         type: "setDefaultModelConfig",
       });
     },
+    recordRecentModel: (model) => {
+      set(
+        (state) => ({
+          recentModels: addRecentAgentModel({
+            recentModels: state.recentModels,
+            model,
+          }),
+        }),
+        false,
+        { type: "recordRecentModel" }
+      );
+    },
     setObservability: (patch) => {
       set(
         (state) => ({
@@ -913,6 +950,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         false,
         { type: "setIntegrationCredential" }
       );
+    },
+    clearIntegrationCredentials: () => {
+      set({ integrationCredentials: {} }, false, {
+        type: "clearIntegrationCredentials",
+      });
     },
 
     // -- Elicitation (ephemeral) --
@@ -1411,6 +1453,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         fabPlacement: state.fabPlacement,
         defaultTemporaryChat: state.defaultTemporaryChat,
         defaultModelConfig: state.defaultModelConfig,
+        recentModels: state.recentModels,
         observability: state.observability,
         permissions: state.permissions,
         capabilities: state.capabilities,

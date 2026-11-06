@@ -300,7 +300,9 @@ image = Image.debian_slim("3.12").cmd(["/bin/bash"])
 
 ```python
 def dockerfile_commands(dockerfile_commands: list[str],
-                        context_dir: Path | str | None = None) -> "Image"
+                        context_dir: Path | str | None = None,
+                        *,
+                        strict_context: bool = False) -> "Image"
 ```
 
 Adds arbitrary Dockerfile-like commands to the image.
@@ -309,6 +311,10 @@ Adds arbitrary Dockerfile-like commands to the image.
 
 - `*dockerfile_commands` - The commands to add to the Dockerfile.
 - `context_dir` - Path | str | None: The path to the context directory.
+- `strict_context` - bool: When True, a COPY source that resolves outside context_dir is
+  rejected instead of read. Requires context_dir, so that the boundary is explicit
+  rather than taken from the working directory. Sources that legitimately live
+  elsewhere belong in add_local_file or add_local_dir.
 
 
 **Returns**:
@@ -326,7 +332,9 @@ image = Image.debian_slim("3.12").dockerfile_commands(["RUN echo 'Hello, world!'
 
 ```python
 @staticmethod
-def from_dockerfile(path: str | Path) -> "Image"
+def from_dockerfile(path: str | Path,
+                    *,
+                    strict_context: bool = False) -> "Image"
 ```
 
 Creates an Image from an existing Dockerfile.
@@ -334,6 +342,9 @@ Creates an Image from an existing Dockerfile.
 **Arguments**:
 
 - `path` - str | Path: The path to the Dockerfile.
+- `strict_context` - bool: When True, a COPY source that resolves outside the Dockerfile's
+  directory is rejected instead of read. Sources that legitimately live elsewhere
+  belong in add_local_file or add_local_dir.
 
 
 **Returns**:

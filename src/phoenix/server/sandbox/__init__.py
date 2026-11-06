@@ -28,6 +28,7 @@ from phoenix.db import models
 from phoenix.db.models import LanguageName, SandboxBackendType
 from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
 from phoenix.server.sandbox.deno_backend import DenoAdapter
+from phoenix.server.sandbox.docker_backend import DockerAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.modal_backend import ModalAdapter
 from phoenix.server.sandbox.monty_backend import MontyAdapter
@@ -112,6 +113,7 @@ def _build_sandbox_adapter_metadata() -> Mapping[SandboxBackendType, AdapterMeta
             DenoAdapter,
             ModalAdapter,
             MontyAdapter,
+            DockerAdapter,
         )
     }
 
@@ -389,3 +391,4 @@ _try_register_adapter(VercelAdapter)
 _try_register_adapter(DenoAdapter)
 _try_register_adapter(ModalAdapter)
 _try_register_adapter(MontyAdapter)
+_try_register_adapter(DockerAdapter)

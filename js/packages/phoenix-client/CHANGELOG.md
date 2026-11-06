@@ -1,5 +1,57 @@
 # @arizeai/phoenix-client
 
+## 7.18.1
+
+### Patch Changes
+
+- 6a60c71: fix(phoenix-client): preserve the error status of failed experiment task spans
+- 491ae7a: fix(phoenix-client): preserve system and developer instructions when converting prompts to Anthropic, omitting empty text blocks from the system array
+
+## 7.18.0
+
+### Minor Changes
+
+- ead7dd8: Add typed dataset-label resource and assignment helpers to the existing `@arizeai/phoenix-client/datasets` scope. Callers can manage reusable global labels, list them with cursor pagination, and assign or replace labels on datasets selected by name or GlobalID.
+
+## 7.17.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+## 7.16.3
+
+### Patch Changes
+
+- 86ab99c: fix(client): keep `description`, `default` and other keywords next to `anyOf` when converting prompt tool and response-format schemas with `toSDK`
+
+## 7.16.2
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+- Updated dependencies [188ce28]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-otel@2.3.0
+
+## 7.16.1
+
+### Patch Changes
+
+- 7b9f900: Move evaluator metadata to top level of experiment evaluation request body
+
+## 7.16.0
+
+### Minor Changes
+
+- f8ae2fc: Add `listProjectAnnotationConfigs`, `assignProjectAnnotationConfig`, `unassignProjectAnnotationConfig`, and `setProjectAnnotationConfigs` helpers to the `projects` subpath for managing which annotation configs a project uses.
+
+## 7.15.0
+
+### Minor Changes
+
+- 5b37f12: Add `upsertPromptVersionTag` and `deletePromptVersionTag` helpers to the `prompts` subpath for creating, moving, and deleting prompt-scoped version tags.
+
 ## 7.14.0
 
 ### Minor Changes

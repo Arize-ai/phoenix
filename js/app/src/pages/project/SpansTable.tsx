@@ -1,16 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  CellContext,
-  ColumnDef,
-  SortingState,
-  Table,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import React, {
   startTransition,
   useCallback,
@@ -21,7 +11,7 @@ import React, {
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
 
 import {
   Flex,
@@ -65,6 +55,12 @@ import {
   TABLE_DATA_CELL_CLASS,
   getCommonPinningStyles,
 } from "@phoenix/components/table/styles";
+import type {
+  CellContext,
+  ColumnDef,
+  Table,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { TraceTokenCosts } from "@phoenix/components/trace";
@@ -74,16 +70,15 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SPAN_FILTER_CONDITION_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { ModelNameTableCell } from "@phoenix/pages/project/ModelNameTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { isSpanRowSelected } from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
@@ -121,6 +116,7 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
+import { useSelectedTraceSlots } from "./useSelectedTraceSlots";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -139,7 +135,7 @@ const renderSpanTraceAnnotationFilterActions = (annotation: Annotation) => (
 
 const defaultColumnSettings = {
   minSize: 100,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   table,
@@ -152,17 +148,14 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   onLoadNext: () => void;
   isLoadingNext: boolean;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { traceId } = useParams();
-  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const basePath = useResolvedPath(".").pathname;
+  const selectedTraceSlots = useSelectedTraceSlots();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
-        const isSelected =
-          selectedSpanNodeId === row.original.id ||
-          (!selectedSpanNodeId && row.original.trace.traceId === traceId);
+        const isSelected = isSpanRowSelected(selectedTraceSlots, row.original);
         return (
           <tr
             key={row.id}
@@ -170,6 +163,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             onClick={() =>
               navigate(
                 getTraceDetailsPath({
+                  basePath,
                   traceId: row.original.trace.traceId,
                   spanNodeId: row.original.id,
                   searchParams,
@@ -217,6 +211,17 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
+const ModelNameCell = <TData extends { modelName?: string | null }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <ModelNameTableCell
+      modelName={row.original.modelName}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
+};
 const MetadataCell = <TData extends { metadata: unknown }, TValue>({
   row,
 }: CellContext<TData, TValue>) => {
@@ -231,6 +236,7 @@ const MetadataCell = <TData extends { metadata: unknown }, TValue>({
 
 export function SpansTable(props: SpansTableProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const basePath = useResolvedPath(".").pathname;
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -353,6 +359,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 metadata
                 userId
+                modelName
                 statusCode
                 statusMessage
                 startTime
@@ -616,6 +623,7 @@ export function SpansTable(props: SpansTableProps) {
         return (
           <Link
             to={getTraceDetailsPath({
+              basePath,
               traceId,
               spanNodeId: span.id,
               searchParams,
@@ -645,7 +653,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "input",
-      accessorKey: "input.value",
+      // keep the id accessorKey "input.value" derived, which saved column
+      // preferences refer to; a span without an input has no `input`
+      id: "input_value",
+      accessorFn: (row) => row.input?.value,
       cell: ({ getValue, row }) => (
         <SpanInputValueTooltipCell
           nodeId={row.original.id}
@@ -656,7 +667,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "output",
-      accessorKey: "output.value",
+      // keep the id accessorKey "output.value" derived, which saved column
+      // preferences refer to; a span without an output has no `output`
+      id: "output_value",
+      accessorFn: (row) => row.output?.value,
       cell: ({ getValue, row }) => (
         <SpanOutputValueTooltipCell
           nodeId={row.original.id}
@@ -664,6 +678,12 @@ export function SpansTable(props: SpansTableProps) {
         />
       ),
       enableSorting: false,
+    },
+    {
+      header: "model",
+      accessorKey: "modelName",
+      enableSorting: false,
+      cell: ModelNameCell,
     },
     {
       header: () => (
@@ -795,9 +815,10 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: rootSpansOnly ? "cumulative cost" : "total cost",
-      accessorKey: rootSpansOnly
-        ? "trace.costSummary.total.cost"
-        : "costSummary.total.cost",
+      accessorFn: (row) =>
+        rootSpansOnly
+          ? row.trace?.costSummary?.total?.cost
+          : row.costSummary?.total?.cost,
       id: rootSpansOnly ? "cumulativeTokenCostTotal" : "tokenCostTotal",
       meta: { textAlign: "right" },
       cell: ({ row, getValue }) => {
@@ -893,7 +914,8 @@ export function SpansTable(props: SpansTableProps) {
     columnVisibility,
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID],
   });
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
@@ -911,8 +933,6 @@ export function SpansTable(props: SpansTableProps) {
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().rows;
@@ -928,35 +948,20 @@ export function SpansTable(props: SpansTableProps) {
     setRowSelection({});
   }, [setRowSelection]);
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns().filter((column) => {
-    // Filter out columns that are eval groupings
-    return column.columns.length === 0;
-  });
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-  const colLength = computedColumns.length;
+  const { columnResizing } = table.state;
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return [colSizes];
-    // Disabled lint as per tanstack docs linked above
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   return (
     <TableMetricsChartsPanelGroup view="spans">
@@ -1109,7 +1114,7 @@ export function SpansTable(props: SpansTableProps) {
                     // spans. This is an undesirable edge case. The optimization is a stopgap solution that
                     // will be replaced to eliminate this condition.
                     <ProjectTableEmpty />
-                  ) : columnSizingInfo.isResizingColumn ? (
+                  ) : columnResizing.isResizingColumn ? (
                     <MemoizedTableBody
                       table={table}
                       hasNext={hasNext}

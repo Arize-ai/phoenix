@@ -147,6 +147,34 @@ export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
   minServerVersion: [15, 0, 0],
 };
 
+export const LIST_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
+export const ADD_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REMOVE_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REPLACE_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
 export const CREATE_DATASET_SPLIT: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -218,6 +246,34 @@ export const PATCH_PROMPT: RouteRequirement = {
   method: "PATCH",
   path: "/v1/prompts/{prompt_identifier}",
   minServerVersion: [19, 18, 0],
+};
+
+export const LIST_PROJECT_ANNOTATION_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/projects/{project_identifier}/annotation_configs",
+  minServerVersion: [17, 16, 0],
+};
+
+export const SET_PROJECT_ANNOTATION_CONFIGS: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/projects/{project_identifier}/annotation_configs",
+  minServerVersion: [17, 16, 0],
+};
+
+export const ASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const UNASSIGN_PROJECT_ANNOTATION_CONFIG: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}",
+  minServerVersion: [17, 16, 0],
 };
 
 export const AGENT_SESSION_CREATE: RouteRequirement = {
@@ -300,6 +356,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   LIST_SESSIONS_FILTER_EXPRESSION,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
+  LIST_DATASET_LABELS,
+  ADD_DATASET_LABEL,
+  REMOVE_DATASET_LABEL,
+  REPLACE_DATASET_LABELS,
   CREATE_DATASET_SPLIT,
   UPDATE_DATASET_SPLIT,
   DELETE_DATASET_SPLIT,
@@ -310,6 +370,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   UPSERT_PROMPT_VERSION_TAG,
   DELETE_PROMPT_VERSION_TAG,
   PATCH_PROMPT,
+  LIST_PROJECT_ANNOTATION_CONFIGS,
+  SET_PROJECT_ANNOTATION_CONFIGS,
+  ASSIGN_PROJECT_ANNOTATION_CONFIG,
+  UNASSIGN_PROJECT_ANNOTATION_CONFIG,
   AGENT_SESSION_CREATE,
   AGENT_SESSION_LIST,
   AGENT_SESSION_GET,

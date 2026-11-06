@@ -330,6 +330,101 @@ result = sandbox.computer_use.mouse.move(100, 200)
 print(f"Mouse moved to: {result.x}, {result.y}")
 ```
 
+#### Mouse.down
+
+```python
+@intercept_errors(message_prefix="Failed to press mouse button: ")
+@with_instrumentation()
+def down(x: int | None = None,
+         y: int | None = None,
+         button: str = "left",
+         request_timeout: float | None = None) -> MousePositionResponse
+```
+
+Presses and holds a mouse button until a matching ``up()`` call.
+
+Coordinates are optional. When both are provided the cursor moves there before the
+button is pressed; when omitted the button is pressed wherever the cursor already is.
+
+**Arguments**:
+
+- `x` _int | None_ - Optional x coordinate to move to before pressing.
+- `y` _int | None_ - Optional y coordinate to move to before pressing.
+- `button` _str_ - The mouse button to press ('left', 'right', 'middle').
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
+
+
+**Returns**:
+
+- `MousePositionResponse` - Mouse position after the button press.
+
+
+**Example**:
+
+```python
+# Press at the current cursor position
+sandbox.computer_use.mouse.down()
+
+# Move to a point and press the left button, then release it there
+sandbox.computer_use.mouse.down(100, 200)
+sandbox.computer_use.mouse.up(100, 200)
+
+# Hold modifiers around a drag by using the keyboard endpoints. Release in
+# `finally` so a failed press cannot leave Shift stuck down.
+sandbox.computer_use.keyboard.down("shift")
+try:
+    sandbox.computer_use.mouse.down(100, 200)
+    sandbox.computer_use.mouse.up(300, 400)
+finally:
+    sandbox.computer_use.keyboard.up("shift")
+```
+
+#### Mouse.up
+
+```python
+@intercept_errors(message_prefix="Failed to release mouse button: ")
+@with_instrumentation()
+def up(x: int | None = None,
+       y: int | None = None,
+       button: str = "left",
+       request_timeout: float | None = None) -> MousePositionResponse
+```
+
+Releases a mouse button that is currently held down.
+
+Coordinates are optional. When both are provided the cursor moves there before the
+button is released, which is how a press-move-release drag is composed manually.
+
+**Arguments**:
+
+- `x` _int | None_ - Optional x coordinate to move to before releasing.
+- `y` _int | None_ - Optional y coordinate to move to before releasing.
+- `button` _str_ - The mouse button to release ('left', 'right', 'middle').
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
+
+
+**Returns**:
+
+- `MousePositionResponse` - Mouse position after the button release.
+
+
+**Example**:
+
+```python
+# Release at the current cursor position
+sandbox.computer_use.mouse.up()
+
+# Release the right button at a specific point
+result = sandbox.computer_use.mouse.up(300, 400, "right")
+print(f"Released at: {result.x}, {result.y}")
+```
+
 #### Mouse.click
 
 ```python
@@ -339,7 +434,10 @@ def click(x: int,
           y: int,
           button: str = "left",
           double: bool = False,
-          request_timeout: float | None = None) -> MouseClickResponse
+          request_timeout: float | None = None,
+          *,
+          clicks: int | None = None,
+          modifiers: list[str] | None = None) -> MouseClickResponse
 ```
 
 Clicks the mouse at the specified coordinates.
@@ -354,6 +452,12 @@ Clicks the mouse at the specified coordinates.
   only. It bounds how long the SDK waits for the HTTP response and does not cancel
   the operation on the server. Positive values under 1 second are rounded up to 1
   second; 0 disables the client-side timeout and negative values are rejected.
+- `clicks` _int | None_ - Explicit number of clicks to perform, from 1 to 10. When both
+  ``clicks`` and ``double`` are given, ``clicks`` wins over ``double``, mirroring the
+  API. Omit it to keep the ``double`` behavior.
+- `modifiers` _list[str] | None_ - Modifier keys to hold for the duration of the click.
+  Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Common aliases
+  such as 'control', 'option', 'meta', and 'win' are normalized.
 
 
 **Returns**:
@@ -372,6 +476,12 @@ double_click = sandbox.computer_use.mouse.click(100, 200, "left", True)
 
 # Right click
 right_click = sandbox.computer_use.mouse.click(100, 200, "right")
+
+# Triple click
+triple_click = sandbox.computer_use.mouse.click(100, 200, clicks=3)
+
+# Ctrl+click
+ctrl_click = sandbox.computer_use.mouse.click(100, 200, modifiers=["ctrl"])
 ```
 
 #### Mouse.drag
@@ -384,7 +494,9 @@ def drag(start_x: int,
          end_x: int,
          end_y: int,
          button: str = "left",
-         request_timeout: float | None = None) -> MouseDragResponse
+         request_timeout: float | None = None,
+         *,
+         modifiers: list[str] | None = None) -> MouseDragResponse
 ```
 
 Drags the mouse from start coordinates to end coordinates.
@@ -400,6 +512,9 @@ Drags the mouse from start coordinates to end coordinates.
   only. It bounds how long the SDK waits for the HTTP response and does not cancel
   the operation on the server. Positive values under 1 second are rounded up to 1
   second; 0 disables the client-side timeout and negative values are rejected.
+- `modifiers` _list[str] | None_ - Modifier keys to hold for the duration of the drag.
+  Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Common aliases
+  such as 'control', 'option', 'meta', and 'win' are normalized.
 
 
 **Returns**:
@@ -412,6 +527,9 @@ Drags the mouse from start coordinates to end coordinates.
 ```python
 result = sandbox.computer_use.mouse.drag(50, 50, 150, 150)
 print(f"Drag ended at {result.x}, {result.y}")
+
+# Shift-constrained drag
+constrained = sandbox.computer_use.mouse.drag(50, 50, 150, 150, modifiers=["shift"])
 ```
 
 #### Mouse.scroll
@@ -423,7 +541,9 @@ def scroll(x: int,
            y: int,
            direction: str,
            amount: int = 1,
-           request_timeout: float | None = None) -> bool
+           request_timeout: float | None = None,
+           *,
+           modifiers: list[str] | None = None) -> bool
 ```
 
 Scrolls the mouse wheel at the specified coordinates.
@@ -432,12 +552,15 @@ Scrolls the mouse wheel at the specified coordinates.
 
 - `x` _int_ - The x coordinate to scroll at.
 - `y` _int_ - The y coordinate to scroll at.
-- `direction` _str_ - The direction to scroll ('up' or 'down').
+- `direction` _str_ - The direction to scroll ('up', 'down', 'left', or 'right').
 - `amount` _int_ - The amount to scroll.
 - `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
   only. It bounds how long the SDK waits for the HTTP response and does not cancel
   the operation on the server. Positive values under 1 second are rounded up to 1
   second; 0 disables the client-side timeout and negative values are rejected.
+- `modifiers` _list[str] | None_ - Modifier keys to hold for the duration of the scroll.
+  Canonical modifier names are 'ctrl', 'alt', 'shift', and 'cmd'. Common aliases
+  such as 'control', 'option', 'meta', and 'win' are normalized.
 
 
 **Returns**:
@@ -453,6 +576,12 @@ scroll_up = sandbox.computer_use.mouse.scroll(100, 200, "up", 3)
 
 # Scroll down
 scroll_down = sandbox.computer_use.mouse.scroll(100, 200, "down", 5)
+
+# Scroll horizontally
+scroll_left = sandbox.computer_use.mouse.scroll(100, 200, "left", 2)
+
+# Ctrl+scroll to zoom
+zoom_in = sandbox.computer_use.mouse.scroll(100, 200, "up", 1, modifiers=["ctrl"])
 ```
 
 ## Keyboard
@@ -609,6 +738,82 @@ except Exception as e:
 # Alt+Tab
 try:
     sandbox.computer_use.keyboard.hotkey("alt+tab")
+    print(f"Operation success")
+except Exception as e:
+    print(f"Operation failed: {e}")
+```
+
+#### Keyboard.down
+
+```python
+@intercept_errors(message_prefix="Failed to press key down: ")
+@with_instrumentation()
+def down(key: str, request_timeout: float | None = None) -> None
+```
+
+Presses a key and holds it down until a matching ``up()`` call.
+
+This is the building block for held modifiers: press the modifier with ``down()``,
+perform the mouse or keyboard work, then release it with ``up()``.
+
+**Arguments**:
+
+- `key` _str_ - The key or modifier to hold. Uses the same normalized key contract
+  as ``press()``, so 'ctrl', 'shift', 'alt', 'cmd', letters, digits, and named
+  keys are all accepted and case-insensitive.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
+
+
+**Raises**:
+
+- `DaytonaError` - If the key down operation fails.
+
+
+**Example**:
+
+```python
+# Hold Shift across several clicks, then release it
+try:
+    sandbox.computer_use.keyboard.down("shift")
+    sandbox.computer_use.mouse.click(100, 200)
+    sandbox.computer_use.mouse.click(100, 300)
+finally:
+    sandbox.computer_use.keyboard.up("shift")
+```
+
+#### Keyboard.up
+
+```python
+@intercept_errors(message_prefix="Failed to release key: ")
+@with_instrumentation()
+def up(key: str, request_timeout: float | None = None) -> None
+```
+
+Releases a key that is currently held down.
+
+**Arguments**:
+
+- `key` _str_ - The key or modifier to release. Uses the same normalized key contract
+  as ``press()``.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
+
+
+**Raises**:
+
+- `DaytonaError` - If the key up operation fails.
+
+
+**Example**:
+
+```python
+try:
+    sandbox.computer_use.keyboard.up("shift")
     print(f"Operation success")
 except Exception as e:
     print(f"Operation failed: {e}")

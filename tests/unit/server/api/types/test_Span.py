@@ -199,6 +199,7 @@ async def test_span_fields(
         }
         metadata
         userId
+        modelName
         numDocuments
         numChildSpans
         descendants(maxDepth: 3) {
@@ -304,6 +305,7 @@ async def test_span_fields(
         else:
             assert not span["metadata"]
         assert span["userId"] == db_span.user_id
+        assert span["modelName"] == db_span.attributes.get("llm", {}).get("model_name")
         assert span["numDocuments"] == db_span.num_documents
         if num_child_spans := db_num_child_spans.get(span_rowid):
             assert span["numChildSpans"] == num_child_spans
@@ -392,6 +394,10 @@ async def _span_data(
                             "completion": randint(1, 1000),
                         }
                     }
+                    if random() < 0.5:
+                        attributes["llm"]["model_name"] = choice(
+                            ["gpt-4o", "claude-sonnet-4-5", "gemini-2.5-pro"]
+                        )
                 if random() < 0.5:
                     attributes["input"] = {
                         "value": json.dumps(fake.pydict(allowed_types=(str, int, float, bool))),
@@ -723,6 +729,31 @@ async def test_span_annotation_summaries(
         )
 
 
+async def test_span_annotation_summaries_are_ordered_by_name(
+    gql_client: AsyncGraphQLClient,
+    spans_with_annotations: None,
+) -> None:
+    """Summaries have no id, so clients cache them by position (see the resolver)."""
+    response = await gql_client.execute(
+        """
+        query ($spanId: ID!) {
+          span: node(id: $spanId) {
+            ... on Span {
+              spanAnnotationSummaries {
+                name
+              }
+            }
+          }
+        }
+        """,
+        variables={"spanId": str(GlobalID(Span.__name__, str(1)))},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [summary["name"] for summary in response.data["span"]["spanAnnotationSummaries"]]
+    assert names == ["Hallucination", "Relevance"]
+
+
 @pytest.fixture
 async def spans_with_annotations(
     db: DbSessionFactory,
@@ -900,8 +931,9 @@ async def spans_with_annotations(
             ),
         ]
 
-        # Add all annotations to the session
-        session.add_all(hallucination_annotations + relevance_annotations)
+        # Add all annotations to the session. Relevance goes in first so the
+        # summaries' order cannot fall out of insertion order by accident.
+        session.add_all(relevance_annotations + hallucination_annotations)
 
 
 @pytest.fixture

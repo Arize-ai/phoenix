@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from math import log
-from typing import Sequence, cast
+from typing import Mapping, Sequence, cast
 
 import numpy as np
 from openinference.semconv.resource import ResourceAttributes
@@ -16,6 +16,7 @@ from opentelemetry.proto.trace.v1.trace_pb2 import Span
 
 from phoenix.experimental.datagen.composer import SessionComposer
 from phoenix.experimental.datagen.loader import Corpus
+from phoenix.experimental.datagen.schema import Archetype
 
 _SESSION_ID = "session.id"
 _PROMPT_TOKENS = "llm.token_count.prompt"
@@ -28,6 +29,19 @@ _SLOW_TAIL_PROBABILITY = 0.05
 _SLOW_TAIL_MEDIAN = 4.0
 _SLOW_TAIL_SIGMA = 0.75
 
+# Keyed by the (archetype, domain) cells of the published corpus.
+_APPLICATION_PROJECT_NAMES: Mapping[tuple[Archetype, str], str] = {
+    ("plain_chat", "customer_support"): "support-chatbot",
+    ("tool_agent", "customer_support"): "support-agent",
+    ("guardrailed", "customer_support"): "support-guardrailed-bot",
+    ("tool_agent", "coding_agent"): "coding-agent",
+    ("graph_multi_agent", "coding_agent"): "coding-multi-agent",
+    ("tool_agent", "data_analyst"): "analyst-agent",
+    ("structured_extraction", "data_analyst"): "analyst-extractor",
+    ("rag", "deep_research"): "research-rag",
+    ("graph_multi_agent", "deep_research"): "research-multi-agent",
+}
+
 
 class Replayer:
     """Continuously produce varied traces while preserving recorded structure."""
@@ -39,10 +53,22 @@ class Replayer:
         project_name: str | None = None,
         _random: np.random.Generator | None = None,
     ) -> None:
+        """Replay ``corpus``, sending each application to its own project.
+
+        ``project_name`` sends every application to that one project instead.
+        """
         self._random = _random or np.random.default_rng()
-        self._project_name = project_name or "phoenix-datagen"
+        self._project_name = project_name
         self._composer = SessionComposer(corpus, random=self._random)
         self._queue: deque[ExportTraceServiceRequest] = deque()
+        self.project_names = tuple(
+            sorted(
+                {
+                    self._destination_project(fragment.archetype, fragment.domain)
+                    for fragment in corpus.fragments
+                }
+            )
+        )
 
     def emit(self, *, now_ns: int | None = None) -> ExportTraceServiceRequest:
         """Emit the next scheduled trace with fresh identity and numeric values."""
@@ -69,12 +95,14 @@ class Replayer:
     def _begin_composed_session(self, *, now_ns: int) -> None:
         session = self._composer.compose(now_ns=now_ns)
         domain = session.fragments[0].domain
+        project_name = self._destination_project(session.archetype, domain)
         session_id = f"{domain}-{self._fresh_id(16).hex()}"
         emissions = [
             self._rewrite(
                 trace.request,
                 now_ns=trace.virtual_start_ns,
                 session_id=session_id,
+                project_name=project_name,
             )
             for trace in session.traces
         ]
@@ -93,10 +121,11 @@ class Replayer:
         *,
         now_ns: int,
         session_id: str,
+        project_name: str,
     ) -> ExportTraceServiceRequest:
         request = ExportTraceServiceRequest()
         request.CopyFrom(template)
-        _set_project_name(request, self._project_name)
+        _set_project_name(request, project_name)
         spans = tuple(_iter_spans(request))
         first_start = min(span.start_time_unix_nano for span in spans)
         time_offset = now_ns - first_start
@@ -136,6 +165,14 @@ class Replayer:
         _extend_parent_end_times(spans)
         _clamp_event_times(spans)
         return request
+
+    def _destination_project(self, archetype: Archetype, domain: str) -> str:
+        if self._project_name:
+            return self._project_name
+        return _APPLICATION_PROJECT_NAMES.get(
+            (archetype, domain),
+            f"{domain}-{archetype}".replace("_", "-"),
+        )
 
     def _fresh_id(self, size: int) -> bytes:
         identifier = bytes(self._random.bytes(size))

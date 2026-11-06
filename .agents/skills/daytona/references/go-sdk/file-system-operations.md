@@ -167,12 +167,13 @@ Download multiple files by providing the paths to the files to download.
 
 ```go
 // Download multiple files by calling DownloadFile for each
+localFile2 := "local_file2.txt"
 filesToDownload := []struct {
 	remotePath string
 	localPath  *string
 }{
-	{"data/file1.txt", nil},                           // Download to memory
-	{"data/file2.txt", ptrString("local_file2.txt")},  // Download to local file
+	{"data/file1.txt", nil},         // Download to memory
+	{"data/file2.txt", &localFile2}, // Download to local file
 }
 
 for _, f := range filesToDownload {

@@ -1,3 +1,4 @@
+import { PROMPTS_TABLE_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 import { createTablePreferencesContext } from "@phoenix/contexts/createTablePreferencesContext";
 
 export const {
@@ -5,5 +6,5 @@ export const {
   useTablePreferences: usePromptsTableContext,
 } = createTablePreferencesContext({
   name: "promptsTableStore",
-  storageKey: "arize-phoenix-prompts-table",
+  storageKey: PROMPTS_TABLE_STORAGE_KEY,
 });

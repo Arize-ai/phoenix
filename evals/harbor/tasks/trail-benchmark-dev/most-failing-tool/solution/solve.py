@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """The tool with the most ERROR spans."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 from collections import Counter
 
-from evals.harbor.verifiers.phoenix_api import project_spans, write_answer
+from harbor_verifiers.phoenix_api import project_spans, write_answer
 
 failures = Counter(
     span["name"]

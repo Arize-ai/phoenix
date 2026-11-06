@@ -30,6 +30,14 @@ export const SESSION_VIEW_PARAM = "sessionView";
 export const SELECTED_TRACE_ID_PARAM = "selectedTraceId";
 
 /**
+ * The repeated search param that lists the OpenTelemetry trace IDs shown side
+ * by side in the compare traces view, in display order (left to right), e.g.
+ * `?traceId=a&traceId=b`. Each compared trace's selected span is carried by
+ * the matching position of the repeated {@link SELECTED_SPAN_NODE_ID_PARAM}.
+ */
+export const COMPARE_TRACE_ID_PARAM = "traceId";
+
+/**
  * Search params scoped to a specific selection within trace/session detail
  * views. These are dropped when navigating away from a selection while
  * recreatable params (such as the time range) are preserved.
@@ -37,6 +45,7 @@ export const SELECTED_TRACE_ID_PARAM = "selectedTraceId";
 export const SELECTION_SCOPED_SEARCH_PARAMS = [
   SELECTED_TRACE_ID_PARAM,
   SELECTED_SPAN_NODE_ID_PARAM,
+  COMPARE_TRACE_ID_PARAM,
 ] as const;
 
 /**

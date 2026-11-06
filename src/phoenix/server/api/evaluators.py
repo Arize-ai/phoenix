@@ -10,13 +10,20 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
 import openinference.instrumentation as oi
-from jsonpath_ng import parse as parse_jsonpath
+from jsonpath_ng.parser import JsonPathParser
 from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
 )
 from opentelemetry.context import Context
-from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from opentelemetry.trace import (
+    NoOpTracer,
+    Status,
+    StatusCode,
+    Tracer,
+    format_trace_id,
+    get_current_span,
+)
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,6 +74,7 @@ from phoenix.server.sandbox import (  # noqa: E402
     SecretsContext,
     build_sandbox_backend,
 )
+from phoenix.server.sandbox.cancellation import run_cancel_once
 from phoenix.server.sandbox.result_protocol import (
     PHOENIX_RESULT_BEGIN,
     PHOENIX_RESULT_END,
@@ -1005,12 +1013,19 @@ def apply_input_mapping(
     input_mapping: InputMapping,
     context: dict[str, Any],
 ) -> dict[str, Any]:
+    declared_keys = input_schema.get("properties") or {}
+    accepts_any_key = not declared_keys or input_schema.get("additionalProperties") is True
+    ignored_keys: list[str] = []
     result: dict[str, Any] = {}
     # apply path mappings
     if input_mapping.path_mapping:
         for key, path_expr in input_mapping.path_mapping.items():
+            if not accepts_any_key and key not in declared_keys:
+                ignored_keys.append(key)
+                continue
             try:
-                jsonpath = parse_jsonpath(path_expr)
+                parser = JsonPathParser()
+                jsonpath = parser.parse(path_expr)
             except Exception as e:
                 raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
             matches = jsonpath.find(context)
@@ -1027,11 +1042,17 @@ def apply_input_mapping(
     # literal mappings take priority over path mappings
     if input_mapping.literal_mapping:
         for key, value in input_mapping.literal_mapping.items():
+            if not accepts_any_key and key not in declared_keys:
+                ignored_keys.append(key)
+                continue
             result[key] = value
+
+    if ignored_keys:
+        get_current_span().set_attribute("input_mapping.ignored_keys", sorted(set(ignored_keys)))
 
     # for any key in the input schema that is still not in result,
     # set result[input_schema_key] to context[input_schema_key]
-    for key in input_schema.get("properties", {}).keys():
+    for key in declared_keys:
         if key not in result and key in context:
             result[key] = context[key]
 
@@ -2773,11 +2794,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute_with_inputs(
-                                code,
-                                session_key=session_key,
-                                inputs={"_inputs": mapped_inputs},
-                                timeout=self._timeout,
+                            run_cancel_once(
+                                self._sandbox_backend.execute_with_inputs(
+                                    code,
+                                    session_key=session_key,
+                                    inputs={"_inputs": mapped_inputs},
+                                    timeout=self._timeout,
+                                )
                             ),
                             timeout=self._timeout,
                         )
@@ -2802,7 +2825,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                                     return await session.execute(code, timeout=self._timeout)
 
                         execution = await asyncio.wait_for(
-                            _managed_execute(), timeout=self._timeout
+                            run_cancel_once(_managed_execute()), timeout=self._timeout
                         )
                 except SessionLimitExceeded as exc:
                     err = SessionLimitExceeded.MESSAGE

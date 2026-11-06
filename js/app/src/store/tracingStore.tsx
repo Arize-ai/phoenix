@@ -3,6 +3,7 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { TRACING_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import type { ProjectTab } from "@phoenix/pages/project/constants";
 import { TRACE_ANNOTATIONS_COLUMN_ID } from "@phoenix/pages/project/tableUtils";
 
@@ -67,7 +68,7 @@ const makeTracingStoreKey = ({
 }: {
   projectId: string;
   tableId: ProjectTab;
-}) => `arize-phoenix-tracing-${projectId}-${tableId}`;
+}) => `${TRACING_TABLE_STORAGE_KEY_PREFIX}${projectId}-${tableId}`;
 
 const defaultColumnVisibility = (tableId: ProjectTab): VisibilityState => ({
   metadata: false,

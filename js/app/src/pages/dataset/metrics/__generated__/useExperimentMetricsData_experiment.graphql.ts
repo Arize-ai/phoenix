@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<29606fb8df445d913b609885ed4000fd>>
+ * @generated SignedSource<<5f153ba0ca875fe2d863acbb7e82aade>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,13 @@ export type useExperimentMetricsData_experiment$data = {
     readonly meanScore: number | null;
   }>;
   readonly averageRunLatencyMs: number | null;
+  readonly costDetailSummaryEntries: ReadonlyArray<{
+    readonly isPrompt: boolean;
+    readonly tokenType: string;
+    readonly value: {
+      readonly tokens: number | null;
+    };
+  }>;
   readonly costSummary: {
     readonly completion: {
       readonly cost: number | null;
@@ -46,6 +53,6 @@ const node: ReaderInlineDataFragment = {
   "name": "useExperimentMetricsData_experiment"
 };
 
-(node as any).hash = "142fd431e6dc33362e831daef378b6a5";
+(node as any).hash = "543772266013a78d6713af5de58bd26b";
 
 export default node;

@@ -3,6 +3,7 @@ import React, { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PxiApp, ThinkingIndicator } from "../src/pxi/App";
+import { SLASH_COMMANDS } from "../src/pxi/commands";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
 import type {
   ModelSelection,
@@ -1034,9 +1035,7 @@ describe("PXI app", () => {
       <PxiApp options={createOptions()} client={client} />
     );
 
-    await act(async () => {
-      stdin.write("/cl");
-    });
+    await writeInput({ stdin, input: "/cl" });
 
     const frame = stripAnsi(lastFrame() ?? "");
     expect(frame).toContain("/clear");
@@ -1044,16 +1043,108 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("completes the suggested slash command with Tab", async () => {
+  it("lists every command for a bare slash", async () => {
     const client: PxiChatClient = { sendMessage: async () => null };
     const { lastFrame, stdin, unmount } = render(
       <PxiApp options={createOptions()} client={client} />
     );
 
-    await writeInput({ stdin, input: "/cl" });
+    await writeInput({ stdin, input: "/" });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("› /help");
+    for (const command of SLASH_COMMANDS) {
+      expect(frame).toContain(`/${command.name}`);
+    }
+    unmount();
+  });
+
+  it("completes the highlighted slash command with Tab without running it", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/c" });
+    await writeInput({ stdin, input: DOWN_ARROW });
     await writeInput({ stdin, input: "\t" });
 
-    expect(stripAnsi(lastFrame() ?? "")).toContain("❯ /clear█");
+    expect(stripAnsi(lastFrame() ?? "")).toContain("❯ /compact█");
+    unmount();
+  });
+
+  it("runs the matching slash command with Enter", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/he" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Available commands:");
+    unmount();
+  });
+
+  it("moves the highlighted slash command with the arrow keys", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/c" });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /clear");
+
+    await writeInput({ stdin, input: DOWN_ARROW });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /compact");
+
+    await writeInput({ stdin, input: UP_ARROW });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /clear");
+    unmount();
+  });
+
+  it("wraps the highlighted slash command at either end of the list", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/c" });
+    await writeInput({ stdin, input: UP_ARROW });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /compact");
+
+    await writeInput({ stdin, input: DOWN_ARROW });
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /clear");
+    unmount();
+  });
+
+  it("runs the highlighted slash command after navigating", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/c" });
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain(
+      "There is no persisted conversation to compact."
+    );
+    unmount();
+  });
+
+  it("resets the highlighted slash command when the filter changes", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "/" });
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "c" });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain("› /clear");
     unmount();
   });
 
@@ -1063,9 +1154,7 @@ describe("PXI app", () => {
       <PxiApp options={createOptions()} client={client} />
     );
 
-    await act(async () => {
-      stdin.write("/clear ");
-    });
+    await writeInput({ stdin, input: "/clear " });
 
     const frame = stripAnsi(lastFrame() ?? "");
     expect(frame).toContain("↵ send");

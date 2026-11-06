@@ -75,13 +75,13 @@ Alternatively, install directly without Homebrew:
 For Apple Silicon (`arm64`):
 
   ```bash
-  sudo curl -fL https://github.com/daytonaio/daytona/releases/latest/download/daytona-darwin-arm64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
+  sudo curl -fL https://github.com/daytona/clients/releases/latest/download/daytona-darwin-arm64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
   ```
 
 For Intel (`amd64`):
 
   ```bash
-  sudo curl -fL https://github.com/daytonaio/daytona/releases/latest/download/daytona-darwin-amd64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
+  sudo curl -fL https://github.com/daytona/clients/releases/latest/download/daytona-darwin-amd64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
   ```
 
 **Linux:**
@@ -91,13 +91,13 @@ Choose the command for your Linux architecture. Both commands download the lates
 For `amd64` (`x86_64`):
 
   ```bash
-  sudo curl -fL https://github.com/daytonaio/daytona/releases/latest/download/daytona-linux-amd64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
+  sudo curl -fL https://github.com/daytona/clients/releases/latest/download/daytona-linux-amd64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
   ```
 
 For `arm64` (`aarch64`):
 
   ```bash
-  sudo curl -fL https://github.com/daytonaio/daytona/releases/latest/download/daytona-linux-arm64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
+  sudo curl -fL https://github.com/daytona/clients/releases/latest/download/daytona-linux-arm64 -o /usr/local/bin/daytona && sudo chmod +x /usr/local/bin/daytona
   ```
 
 **Windows:**
@@ -171,12 +171,14 @@ __Flags__
 | `--dockerfile` | `-f` | Path to Dockerfile for Sandbox snapshot |
 | `--env` | `-e` | Environment variables (format: KEY=VALUE) |
 | `--gpu` |  | GPU units allocated to the sandbox |
+| `--kvm` |  | Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization. |
 | `--label` | `-l` | Labels (format: KEY=VALUE) |
 | `--memory` |  | Memory allocated to the sandbox in MB |
 | `--name` |  | Name of the sandbox |
 | `--network-allow-list` |  | Comma-separated list of allowed CIDR network addresses for the sandbox |
 | `--network-block-all` |  | Whether to block all network access for the sandbox |
 | `--public` |  | Make sandbox publicly accessible |
+| `--queue-timeout` |  | Minutes to wait for runner assignment before the sandbox creation is cancelled (omit to use the organization default) |
 | `--snapshot` |  | Snapshot to use for the sandbox |
 | `--target` |  | Target region (eu, us) |
 | `--ttl` |  | Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived |

@@ -4,6 +4,7 @@ import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
 } from "@phoenix/constants/searchParams";
+import { getTraceSelectionSlots } from "@phoenix/utils/traceSelectionUtils";
 
 import type { AgentContext } from "./agentContextTypes";
 
@@ -50,20 +51,34 @@ export function deriveRouteContexts(
   const promptNodeId = params["promptId"];
   const promptVersionNodeId = params["versionId"];
   const routeSpanNodeId = params["spanId"];
-  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
-  const activeOtelTraceId = otelTraceId ?? selectedTraceId;
+  // The viewed trace(s): one on the trace and session views, several on the
+  // compare view, each with its own selected span.
+  const traceSlots = getTraceSelectionSlots({
+    routeTraceId: otelTraceId ?? selectedTraceId,
+    searchParams,
+  });
+  // A span may also be selected with no trace in view (e.g. the playground)
+  const spanNodeIds = traceSlots.flatMap(
+    (slot) => slot.selectedSpanNodeId ?? []
+  );
+  if (spanNodeIds.length === 0) {
+    const loneSpanNodeId =
+      searchParams.get(SELECTED_SPAN_NODE_ID_PARAM) || routeSpanNodeId;
+    if (loneSpanNodeId) {
+      spanNodeIds.push(loneSpanNodeId);
+    }
+  }
 
   if (projectNodeId) {
     contexts.push({ type: "project", projectNodeId });
-  }
-
-  if (projectNodeId && activeOtelTraceId) {
-    contexts.push({
-      type: "trace",
-      projectNodeId,
-      otelTraceId: activeOtelTraceId,
-    });
+    for (const slot of traceSlots) {
+      contexts.push({
+        type: "trace",
+        projectNodeId,
+        otelTraceId: slot.traceId,
+      });
+    }
   }
 
   if (projectNodeId && sessionNodeId) {
@@ -82,17 +97,11 @@ export function deriveRouteContexts(
     });
   }
 
-  if (selectedSpanNodeId) {
+  for (const spanNodeId of spanNodeIds) {
     contexts.push(
       projectNodeId
-        ? { type: "span", projectNodeId, spanNodeId: selectedSpanNodeId }
-        : { type: "span", spanNodeId: selectedSpanNodeId }
-    );
-  } else if (routeSpanNodeId) {
-    contexts.push(
-      projectNodeId
-        ? { type: "span", projectNodeId, spanNodeId: routeSpanNodeId }
-        : { type: "span", spanNodeId: routeSpanNodeId }
+        ? { type: "span", projectNodeId, spanNodeId }
+        : { type: "span", spanNodeId }
     );
   }
 

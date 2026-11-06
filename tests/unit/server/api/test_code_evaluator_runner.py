@@ -380,6 +380,22 @@ class TestEvaluateSuccessPath:
         assert "'output': {'answer': 'a'}" in code_arg
         assert "'reference': {'answer': 'a'}" in code_arg
 
+    async def test_kwargs_evaluate_receives_mapped_inputs(self) -> None:
+        runner, backend = _make_runner()
+
+        await runner.evaluate(
+            context={"output": {"answer": "a"}},
+            input_mapping=InputMapping(
+                literal_mapping={}, path_mapping={"answer": "$.output.answer"}
+            ),
+            name="test",
+            output_configs=[_categorical_config()],
+        )
+
+        call_args = backend.execute.call_args
+        code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
+        assert "'answer': 'a'" in code_arg
+
     async def test_typescript_evaluate_auto_passes_context_keys_matching_signature(self) -> None:
         runner, backend = _make_runner(
             source_code=("function evaluate({ output, reference }: EvaluatorParams) { return 1; }"),
@@ -459,10 +475,10 @@ class TestEvaluateErrorPaths:
         backend.execute.assert_not_called()
 
     async def test_input_mapping_failure_returns_error_result(self) -> None:
-        runner, _ = _make_runner()
+        runner, _ = _make_runner(source_code='def evaluate(output): return "pass"')
         bad_mapping = InputMapping(
             literal_mapping={},
-            path_mapping={"x": "$.nonexistent.path"},
+            path_mapping={"output": "$.nonexistent.path"},
         )
         results = await runner.evaluate(
             context={"other": "data"},
@@ -875,6 +891,25 @@ class TestEvaluateTracing:
         assert evaluator_span.status.status_code == StatusCode.ERROR
         assert any(event.name == "exception" for event in evaluator_span.events)
         assert results[0]["trace_id"] is not None
+
+    async def test_ignored_mapping_keys_are_recorded_on_input_mapping_span(self) -> None:
+        runner, _ = _make_runner(source_code='def evaluate(output): return "pass"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={"output": "answer"},
+            input_mapping=InputMapping(
+                literal_mapping={"stale_literal": "x"},
+                path_mapping={"output": "$.output", "stale_path": "$.missing"},
+            ),
+            name="my-eval",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        input_mapping_attrs = dict(spans_by_name["Input Mapping"].attributes or {})
+        assert input_mapping_attrs["input_mapping.ignored_keys"] == ("stale_literal", "stale_path")
 
 
 class TestSandboxSecretMasker:
