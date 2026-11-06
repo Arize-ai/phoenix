@@ -16,3 +16,4 @@ export * from "./api";
 export * from "./docs";
 export * from "./self";
 export * from "./setup";
+export * from "./projectAnnotationConfig";

@@ -13,6 +13,7 @@ import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
 import type { CommonOptions, DeleteOptions } from "./options";
+import { createProjectAnnotationConfigCommand } from "./projectAnnotationConfig";
 
 /**
  * Options for `px project list`.
@@ -350,6 +351,7 @@ export function createProjectCommand(): Command {
   const command = new Command("project");
   command.description("Manage Phoenix projects");
   command.addCommand(configureProjectListCommand(new Command("list")));
+  command.addCommand(createProjectAnnotationConfigCommand());
   command.addCommand(createProjectGetCommand());
   command.addCommand(createProjectDeleteCommand());
   return command;

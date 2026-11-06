@@ -180,6 +180,21 @@ describe("Phoenix CLI", () => {
     );
   });
 
+  it("should register the annotation-config subcommand group for project", () => {
+    const program = createProgram();
+    const projectCommand = program.commands.find(
+      (command) => command.name() === "project"
+    );
+    const annotationConfigCommand = projectCommand?.commands.find(
+      (command) => command.name() === "annotation-config"
+    );
+
+    expect(annotationConfigCommand).toBeDefined();
+    expect(
+      annotationConfigCommand?.commands.map((command) => command.name())
+    ).toEqual(expect.arrayContaining(["list", "assign", "unassign", "set"]));
+  });
+
   it("should register delete subcommand for trace", () => {
     const program = createProgram();
     const traceCommand = program.commands.find(
