@@ -15,3 +15,9 @@ OUTPUT_PREFIX = "seed| "
 
 SUCCESS_LINES = (FINISHED_LINE, NO_SEED_LINE)
 OUTCOME_PREFIXES = SUCCESS_LINES + (FAILED_PREFIX, TIMED_OUT_PREFIX, UNHEALTHY_LINE)
+
+# The seed's run budget inside the container, and how long the launcher then waits for the
+# relay to drain the pipe. deploy.py derives how long it waits for the outcome from these,
+# so the two cannot fall out of step.
+SEED_TIMEOUT_SECONDS = 480
+RELAY_DRAIN_SECONDS = 30

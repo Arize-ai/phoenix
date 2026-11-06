@@ -599,6 +599,7 @@ def watch_session(
     else:
         status_line = f"left {pr['url']} before CI finished"
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
+        preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
@@ -618,10 +619,10 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
-                # Whether or not a human already took it out of draft; adding a label the
-                # PR has is a no-op.
-                if lane in PREVIEW_LANES:
+                # Whether or not a human already took it out of draft, and once.
+                if lane in PREVIEW_LANES and not preview_labeled:
                     add_preview_label(pr_number=pr["number"], token=app_token.refresh())
+                    preview_labeled = True
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):

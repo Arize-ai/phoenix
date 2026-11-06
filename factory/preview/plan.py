@@ -63,30 +63,39 @@ def frontend_shas(shas: dict[str, str]) -> tuple[str, ...]:
     return tuple(shas[path] for path in FRONTEND_TREES)
 
 
-def published_commit_shas() -> set[str]:
-    """Short SHAs with a published commit image, from the newest pages of Docker Hub tags.
+class PublishedCommits:
+    """Which commits have a published image, read lazily from Docker Hub's newest tags.
 
     The nightly workflow tags commits on `version-*` branches too, so a release burst can
-    push main's recent commits past the first page; a few pages cover it. The fallback for
-    an unpublished image is a full build, so a rate limit or outage at Docker Hub costs
-    build time rather than the preview.
+    push main's recent commits past the first page; pages are fetched only as a lookup
+    needs them. The fallback for an unpublished image is a full build, so a rate limit or
+    outage at Docker Hub costs build time rather than the preview.
     """
-    shas: set[str] = set()
-    url: Optional[str] = f"{DOCKER_HUB_TAGS_URL}?page_size=100&name=commit-"
-    for _ in range(MAX_TAG_PAGES):
-        if not url:
-            break
+
+    def __init__(self) -> None:
+        self._shas: set[str] = set()
+        self._next_url: Optional[str] = f"{DOCKER_HUB_TAGS_URL}?page_size=100&name=commit-"
+        self._pages_fetched = 0
+
+    def __contains__(self, sha: str) -> bool:
+        while sha[:7] not in self._shas and self._fetch_page():
+            pass
+        return sha[:7] in self._shas
+
+    def _fetch_page(self) -> bool:
+        if not self._next_url or self._pages_fetched >= MAX_TAG_PAGES:
+            return False
         try:
-            with urllib.request.urlopen(url, timeout=30) as response:
+            with urllib.request.urlopen(self._next_url, timeout=30) as response:
                 page = json.load(response)
         except (urllib.error.URLError, TimeoutError, ValueError) as error:
-            warn(f"Could not list Docker Hub tags past {len(shas)} commits: {error}")
-            break
-        shas |= {str(tag["name"]).removeprefix("commit-") for tag in page.get("results", [])}
-        url = page.get("next")
-    if not shas:
-        warn("No published commit images found, so the preview builds in full")
-    return shas
+            warn(f"Could not list Docker Hub tags past {len(self._shas)} commits: {error}")
+            self._next_url = None
+            return False
+        self._pages_fetched += 1
+        self._shas |= {str(tag["name"]).removeprefix("commit-") for tag in page.get("results", [])}
+        self._next_url = page.get("next")
+        return True
 
 
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
@@ -102,11 +111,11 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
         f"repos/{{owner}}/{{repo}}/commits?sha={merge_base_sha}&per_page={MAX_BASE_CANDIDATES}"
     )
     assert isinstance(commits, list)
-    published = published_commit_shas()
+    published = PublishedCommits()
     for commit in commits:
         sha = str(commit["sha"])
         # A reverted bump makes older commits match again, so a mismatch is not the end.
-        if sha[:7] in published and dependency_shas(root_tree_shas(ref=sha)) == wanted:
+        if sha in published and dependency_shas(root_tree_shas(ref=sha)) == wanted:
             return sha
     return ""
 
@@ -116,15 +125,22 @@ def extract_seed(*, body: str) -> str:
 
     Scans lines and tracks every fence, so a `## ...` line inside any fenced block is not
     taken for the next heading. As in CommonMark, a block closes only on a fence of the
-    same character at least as long as the one that opened it.
+    same character at least as long as the one that opened it, a block still open at the
+    end of the body runs to the end, and an indented fence strips that indent from its
+    content lines.
     """
     lines = body.splitlines()
     try:
         start = next(i for i, line in enumerate(lines) if SEED_HEADING_PATTERN.match(line))
     except StopIteration:
         return ""
+
+    def finish(block: list[str]) -> str:
+        return "\n".join(block).strip() + "\n" if any(line.strip() for line in block) else ""
+
     block: list[str] = []
     opening = ""  # the fence that opened the current block, empty outside one
+    indent = 0
     in_python = False
     for line in lines[start + 1 :]:
         fence = FENCE_PATTERN.match(line)
@@ -137,16 +153,18 @@ def extract_seed(*, body: str) -> str:
             )
             if closes:
                 if in_python:
-                    return "\n".join(block).strip() + "\n" if block else ""
+                    return finish(block)
                 opening = ""
             elif in_python:
-                block.append(line)
+                stripped = line[: len(line) - len(line.lstrip(" "))]
+                block.append(line[min(len(stripped), indent) :])
         elif fence is not None:
             opening = fence.group(1)
+            indent = len(line) - len(line.lstrip(" "))
             in_python = PYTHON_INFO_PATTERN.match(fence.group(2)) is not None
         elif HEADING_PATTERN.match(line):
             return ""
-    return ""
+    return finish(block) if opening and in_python else ""
 
 
 def main() -> int:
