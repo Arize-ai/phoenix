@@ -25,10 +25,12 @@ DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 # The Dockerfile's frontend stage copies exactly these two trees.
 FRONTEND_TREES = ("js", "schemas")
-SEED_HEADING_PATTERN = re.compile(r"^##+\s*Preview seed\s*$", re.IGNORECASE)
-HEADING_PATTERN = re.compile(r"^##+\s")
-PYTHON_FENCE_PATTERN = re.compile(r"^```python\s*$")
-FENCE_PATTERN = re.compile(r"^```")
+SEED_HEADING_PATTERN = re.compile(r"^#+\s*Preview seed\s*$", re.IGNORECASE)
+HEADING_PATTERN = re.compile(r"^#+\s")
+# A fence may be indented up to three spaces, use backticks or tildes, and name the
+# language as python, python3 or py in any case.
+FENCE_PATTERN = re.compile(r"^ {0,3}(```|~~~)")
+PYTHON_FENCE_PATTERN = re.compile(r"^ {0,3}(```|~~~)\s*(python3?|py)\s*$", re.IGNORECASE)
 MAX_BASE_CANDIDATES = 30
 
 
@@ -59,22 +61,20 @@ def frontend_shas(shas: dict[str, str]) -> tuple[str, ...]:
     return tuple(shas[path] for path in FRONTEND_TREES)
 
 
-def image_is_published(*, sha: str) -> bool:
-    """Whether Docker Hub has the commit's tag; any trouble asking counts as not published.
+def published_commit_shas() -> set[str]:
+    """Short SHAs with a published commit image, from one listing of the newest tags.
 
     The fallback for an unpublished image is a full build, so a rate limit or outage at
     Docker Hub costs build time rather than the preview.
     """
+    url = f"{DOCKER_HUB_TAGS_URL}?page_size=100&name=commit-"
     try:
-        with urllib.request.urlopen(f"{DOCKER_HUB_TAGS_URL}/commit-{sha[:7]}", timeout=30):
-            return True
-    except urllib.error.HTTPError as error:
-        if error.code != 404:
-            warn(f"Docker Hub returned {error.code} for commit-{sha[:7]}")
-        return False
-    except (urllib.error.URLError, TimeoutError) as error:
-        warn(f"Docker Hub request for commit-{sha[:7]} failed: {error}")
-        return False
+        with urllib.request.urlopen(url, timeout=30) as response:
+            tags = json.load(response)["results"]
+    except (urllib.error.URLError, TimeoutError, KeyError, ValueError) as error:
+        warn(f"Could not list Docker Hub tags, so the preview builds in full: {error}")
+        return set()
+    return {str(tag["name"]).removeprefix("commit-") for tag in tags}
 
 
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
@@ -90,12 +90,11 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
         f"repos/{{owner}}/{{repo}}/commits?sha={merge_base_sha}&per_page={MAX_BASE_CANDIDATES}"
     )
     assert isinstance(commits, list)
+    published = published_commit_shas()
     for commit in commits:
         sha = str(commit["sha"])
-        if dependency_shas(root_tree_shas(ref=sha)) != wanted:
-            # Older commits can't match either: the PR's files came from this history.
-            return ""
-        if image_is_published(sha=sha):
+        # A reverted bump makes older commits match again, so a mismatch is not the end.
+        if sha[:7] in published and dependency_shas(root_tree_shas(ref=sha)) == wanted:
             return sha
     return ""
 

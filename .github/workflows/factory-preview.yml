@@ -96,6 +96,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      # The base image and the full build's parents come from Docker Hub, whose anonymous
+      # pull limit shared runner IPs exhaust.
+      - name: Log in to Docker Hub
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       # docker-bake.hcl builds the PR's frontend stage, and the whole PR when no published
       # image matches its dependencies, as targets the preview takes as contexts, so neither
