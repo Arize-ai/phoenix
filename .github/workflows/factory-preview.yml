@@ -88,7 +88,14 @@ jobs:
           set -euo pipefail
           image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix-preview"
           echo "image=$image" >> "$GITHUB_OUTPUT"
-          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" >> "$GITHUB_OUTPUT"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$GITHUB_WORKSPACE/seed" > "$RUNNER_TEMP/plan.out"
+          cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
+          base_image=$(sed -n 's/^base-image=//p' "$RUNNER_TEMP/plan.out")
+          if [ -n "$base_image" ]; then
+            echo "base-context=docker-image://$base_image" >> "$GITHUB_OUTPUT"
+          else
+            echo "base-context=target:base" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
@@ -116,8 +123,10 @@ jobs:
           HEAD_DIR: ${{ github.workspace }}/head
           PREVIEW_DIR: ${{ github.workspace }}/base/factory/preview
           SEED_DIR: ${{ github.workspace }}/seed
-          BASE_CONTEXT: ${{ steps.plan.outputs.base-image && format('docker-image://{0}', steps.plan.outputs.base-image) || 'target:base' }}
-          FRONTEND_CONTEXT: ${{ steps.plan.outputs.frontend == 'true' && 'target:frontend' || 'docker-image://busybox:stable' }}
+          BASE_CONTEXT: ${{ steps.plan.outputs.base-context }}
+          # The base stands in for the unused frontend context: already pulled, so nothing
+          # extra is fetched for it.
+          FRONTEND_CONTEXT: ${{ steps.plan.outputs.frontend == 'true' && 'target:frontend' || steps.plan.outputs.base-context }}
           STATIC_SOURCE: ${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
           TAGS: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }},${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
           SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
