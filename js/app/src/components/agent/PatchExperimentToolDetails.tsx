@@ -29,16 +29,6 @@ export function getPatchExperimentToolPreview(
   return "Propose experiment edit";
 }
 
-export function getPatchExperimentStatusVariant(
-  part: ToolInvocationPart
-): "danger" | "warning" | "success" | undefined {
-  if (part.state === "output-error") return "danger";
-  if (part.state === "output-available") {
-    return getOutputStatus(part.output) === "rejected" ? "warning" : "success";
-  }
-  return undefined;
-}
-
 export function formatPatchExperimentState(part: ToolInvocationPart): string {
   switch (part.state) {
     case "input-available":

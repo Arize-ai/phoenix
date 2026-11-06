@@ -37,16 +37,37 @@ const NO_JOB_STATUS = {
 
 export function ExperimentStatus({
   status,
+  onViewDetails,
+  isLabelHidden,
 }: {
   status: string | null | undefined;
+  isLabelHidden?: boolean;
+  /**
+   * Makes the status open the experiment's details instead of explaining
+   * itself.
+   */
+  onViewDetails?: () => void;
 }) {
   const { category, label, explanation } =
     status == null
       ? NO_JOB_STATUS
       : EXPERIMENT_STATUSES[status as ExperimentStatusValue];
-  return (
-    <MarkerTrigger explanation={explanation}>
-      <StatusIndicator category={category} label={label} />
-    </MarkerTrigger>
+  const indicator = (
+    <StatusIndicator
+      category={category}
+      label={label}
+      isLabelHidden={isLabelHidden}
+    />
   );
+  if (onViewDetails) {
+    return (
+      <MarkerTrigger
+        aria-label={`${label}: view experiment details`}
+        onPress={onViewDetails}
+      >
+        {indicator}
+      </MarkerTrigger>
+    );
+  }
+  return <MarkerTrigger explanation={explanation}>{indicator}</MarkerTrigger>;
 }

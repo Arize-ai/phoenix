@@ -280,7 +280,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                   <span css={spanNameCSS}>{name}</span>
                   {statusCode === "ERROR" ? (
                     <span css={spanStatusCSS}>
-                      <SpanStatusIndicator statusCode="ERROR" />
+                      <SpanStatusIndicator statusCode="ERROR" isLabelHidden />
                     </span>
                   ) : null}
                 </Flex>

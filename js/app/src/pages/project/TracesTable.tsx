@@ -677,7 +677,7 @@ export function TracesTable(props: TracesTableProps) {
             return null;
           }
           const statusCode = getValue() as SpanStatusCode;
-          return <SpanStatusIndicator statusCode={statusCode} />;
+          return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
         },
       },
       {

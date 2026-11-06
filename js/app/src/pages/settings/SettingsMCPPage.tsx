@@ -14,8 +14,8 @@ import {
   Flex,
   Heading,
   Icon,
-  Icons,
   Label,
+  StatusIndicator,
   Text,
   View,
 } from "@phoenix/components";
@@ -36,10 +36,6 @@ import {
 import { BASE_URL } from "@phoenix/config";
 import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 
-const statusItemCSS = css`
-  white-space: nowrap;
-`;
-
 /**
  * A compact enabled/disabled indicator shown in the card header so the state
  * of the deployment is legible before reading any setup instructions.
@@ -52,18 +48,10 @@ function StatusItem({
   label: string;
 }) {
   return (
-    <Flex direction="row" alignItems="center" gap="size-50" css={statusItemCSS}>
-      <Icon
-        svg={
-          isEnabled ? <Icons.CheckmarkCircleFilled /> : <Icons.MinusCircle />
-        }
-        color={isEnabled ? "success" : "gray-500"}
-        aria-hidden
-      />
-      <Text size="S" color="text-700">
-        {`${label}: ${isEnabled ? "enabled" : "disabled"}`}
-      </Text>
-    </Flex>
+    <StatusIndicator
+      category={isEnabled ? "succeeded" : "disabled"}
+      label={`${label}: ${isEnabled ? "enabled" : "disabled"}`}
+    />
   );
 }
 

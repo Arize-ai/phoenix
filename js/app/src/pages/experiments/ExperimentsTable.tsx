@@ -34,12 +34,6 @@ import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
 import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
-import { ProgressCircle } from "@phoenix/components/core/progress";
-import {
-  RichTooltipActions,
-  RichTooltipDescription,
-  RichTooltipTitle,
-} from "@phoenix/components/core/tooltip";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   BaselineExperimentBadge,
@@ -543,7 +537,7 @@ export function ExperimentsTable({
             >
               <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
-            <ExperimentJobStatusIcon
+            <ExperimentJobStatusMarker
               status={jobStatus}
               experimentId={experimentId}
               datasetId={data.id}
@@ -1092,7 +1086,7 @@ export function ExperimentsTable({
   );
 }
 
-function ExperimentJobStatusIcon({
+function ExperimentJobStatusMarker({
   status,
   experimentId,
   datasetId,
@@ -1101,39 +1095,19 @@ function ExperimentJobStatusIcon({
   experimentId: string;
   datasetId: string;
 }) {
-  if (status === "RUNNING") {
-    return (
-      <TooltipTrigger>
-        <TriggerWrap>
-          <ProgressCircle isIndeterminate size="S" aria-label="running" />
-        </TriggerWrap>
-        <RichTooltip>
-          <RichTooltipTitle>Experiment In Progress</RichTooltipTitle>
-          <RichTooltipDescription>
-            This experiment is currently running. The results may be incomplete
-          </RichTooltipDescription>
-        </RichTooltip>
-      </TooltipTrigger>
-    );
+  const navigate = useNavigate();
+  if (status === "RUNNING" || status === "STOPPED") {
+    return <ExperimentStatus status={status} isLabelHidden />;
   }
   if (status === "ERROR") {
     return (
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Icon svg={<Icons.CloseCircle />} color="danger" aria-label="error" />
-        </TriggerWrap>
-        <RichTooltip>
-          <RichTooltipTitle>Experiment Error</RichTooltipTitle>
-          <RichTooltipDescription>
-            This experiment encountered an error during execution.
-          </RichTooltipDescription>
-          <RichTooltipActions>
-            <Link to={`/datasets/${datasetId}/experiments/${experimentId}`}>
-              View details
-            </Link>
-          </RichTooltipActions>
-        </RichTooltip>
-      </TooltipTrigger>
+      <ExperimentStatus
+        status={status}
+        isLabelHidden
+        onViewDetails={() =>
+          navigate(`/datasets/${datasetId}/experiments/${experimentId}`)
+        }
+      />
     );
   }
   return null;
