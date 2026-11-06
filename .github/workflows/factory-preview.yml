@@ -151,12 +151,8 @@ jobs:
           # tag-based prune never removes.
           provenance: false
 
-      # An edit that left the seed alone, on a PR whose comment already reports this very
-      # image deployed and healthy, has nothing left to do.
       - name: Deploy to Railway
         id: deploy
-        if: >-
-          !(github.event.action == 'edited' && steps.plan.outputs.comment-current == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
@@ -185,13 +181,16 @@ jobs:
 
   teardown:
     name: Tear down
+    # Every closed same-repo PR, labeled or not: one that lost its label earlier still has
+    # its image tags, which only the close removes. deploy.py finds nothing to delete for
+    # a PR that never had a preview.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      ((github.event.action == 'closed' &&
-        contains(github.event.pull_request.labels.*.name, 'factory-preview')) ||
+      (github.event.action == 'closed' ||
        (github.event.action == 'unlabeled' && github.event.label.name == 'factory-preview'))
     # Same group as the deploy, so a close during a build waits for the service and tags
-    # to exist before deleting them.
+    # to exist before deleting them. A teardown that a newer queued event drops is covered
+    # by deploy.py, which checks the PR's state and label before it ends.
     concurrency:
       group: factory-preview-${{ github.event.pull_request.number }}
       cancel-in-progress: false

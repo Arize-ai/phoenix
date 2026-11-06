@@ -634,6 +634,8 @@ def watch_session(
                         f"opened {pr['url']}; required CI passed, but the automated review "
                         "did not run. It is ready for review"
                     )
+                    if lane in PREVIEW_LANES and not preview_labeled:
+                        status_line += f"; the {PREVIEW_LABEL} label could not be added"
                     run_outcome = "success"
                     break
                 review_findings = read_review_findings(
