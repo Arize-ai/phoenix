@@ -1,5 +1,12 @@
 import { css } from "@emotion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
@@ -111,9 +118,13 @@ type CreateDatasetFromFileParams = {
 type CreateModeProps = {
   mode: "create";
   onCancel: () => void;
+  /**
+   * The form stays in its submitting state until a returned promise settles,
+   * so a caller can keep it busy while it navigates away.
+   */
   onDatasetCreated: (
     dataset: { id: string; name: string } & DatasetUploadSummary
-  ) => void;
+  ) => void | Promise<void>;
 };
 
 type AppendModeProps = {
@@ -643,7 +654,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         if (props.mode === "append") {
           props.onExamplesAdded(summary);
         } else if (mode === "create") {
-          props.onDatasetCreated({
+          await props.onDatasetCreated({
             name: data.name,
             id: payload.dataset_id,
             ...summary,
@@ -656,7 +667,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
             : "Failed to create dataset";
         setErrorMessage(error instanceof Error ? error.message : fallback);
       } finally {
-        setPendingAction(null);
+        startTransition(() => setPendingAction(null));
       }
     },
     [fileType, collapseKeys, keysToCollapse, mode, props]

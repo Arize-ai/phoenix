@@ -69,8 +69,7 @@ export function CreateDatasetButton() {
         title: "Dataset created",
         message,
       });
-      setIsOpen(false);
-      navigate(`/datasets/${newDataset.id}/examples`);
+      return navigate(`/datasets/${newDataset.id}/examples`);
     },
     [navigate, notifySuccess]
   );
@@ -81,8 +80,7 @@ export function CreateDatasetButton() {
         title: "Dataset created",
         message: `${newDataset.name} has been successfully created.`,
       });
-      setIsOpen(false);
-      navigate(`/datasets/${newDataset.id}/examples`);
+      return navigate(`/datasets/${newDataset.id}/examples`);
     },
     [navigate, notifySuccess]
   );

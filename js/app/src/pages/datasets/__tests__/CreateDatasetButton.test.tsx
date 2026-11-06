@@ -39,13 +39,19 @@ afterEach(() => {
   container.remove();
 });
 
-function renderCreateDatasetButton() {
+function renderCreateDatasetButton({
+  examplesLoader,
+}: { examplesLoader?: () => Promise<null> } = {}) {
   const environment = createMockEnvironment();
   const queue = createToastQueue();
   const router = createMemoryRouter(
     [
       { path: "/datasets", element: <CreateDatasetButton /> },
-      { path: "/datasets/:datasetId/examples", element: null },
+      {
+        path: "/datasets/:datasetId/examples",
+        element: null,
+        loader: examplesLoader,
+      },
     ],
     { initialEntries: ["/datasets"] }
   );
@@ -103,18 +109,51 @@ async function submitDatasetFromScratch(): Promise<void> {
   );
 }
 
+function resolveCreateDataset(
+  environment: ReturnType<typeof createMockEnvironment>
+) {
+  return act(async () => {
+    environment.mock.resolveMostRecentOperation((operation) =>
+      MockPayloadGenerator.generate(operation, {
+        Dataset: () => ({ id: DATASET_NODE_ID, name: DATASET_NAME }),
+      })
+    );
+  });
+}
+
 describe("CreateDatasetButton", () => {
+  it("keeps the dialog open until the new dataset page has loaded", async () => {
+    let finishLoading: () => void = () => {};
+    const examplesLoader = () =>
+      new Promise<null>((resolve) => {
+        finishLoading = () => resolve(null);
+      });
+    const { environment, router } = renderCreateDatasetButton({
+      examplesLoader,
+    });
+    await submitDatasetFromScratch();
+    await resolveCreateDataset(environment);
+
+    expect(router.state.location.pathname).toBe("/datasets");
+    expect(router.state.navigation.state).toBe("loading");
+    const submitButton = getByText<HTMLButtonElement>({
+      selector: "button",
+      text: "Creating...",
+    });
+    expect(submitButton.disabled).toBe(true);
+    expect(document.querySelector("[data-testid='dialog']")).not.toBeNull();
+
+    await act(async () => finishLoading());
+
+    expect(router.state.location.pathname).toBe(
+      `/datasets/${DATASET_NODE_ID}/examples`
+    );
+  });
+
   it("opens the new dataset once it is created", async () => {
     const { environment, queue, router } = renderCreateDatasetButton();
     await submitDatasetFromScratch();
-
-    await act(async () => {
-      environment.mock.resolveMostRecentOperation((operation) =>
-        MockPayloadGenerator.generate(operation, {
-          Dataset: () => ({ id: DATASET_NODE_ID, name: DATASET_NAME }),
-        })
-      );
-    });
+    await resolveCreateDataset(environment);
 
     expect(router.state.location.pathname).toBe(
       `/datasets/${DATASET_NODE_ID}/examples`
