@@ -289,14 +289,12 @@ export const ProjectDecisionEvaluatorFormSections = (
     <>
       <EvaluatorNameAndDescriptionFields isNameRequired />
       <ProjectEvaluatorScopeSection {...scopeProps} />
-      <Flex direction="column" gap="size-200">
-        <DecisionEvaluatorForm
-          draft={draft}
-          isDisabled={isDisabled}
-          scoringDescription="Turn each answer into the score this evaluator records."
-          showInputMapping={false}
-        />
-      </Flex>
+      <DecisionEvaluatorForm
+        draft={draft}
+        isDisabled={isDisabled}
+        scoringDescription="Turn each answer into the score this evaluator records, and whether higher or lower is better."
+        showInputMapping={false}
+      />
     </>
   );
 };

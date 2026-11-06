@@ -59,6 +59,12 @@ interface IDBadgeProps {
    */
   id: string;
   /**
+   * The text shown in place of the full ID, such as a shortened one. The
+   * full ID is still what gets copied.
+   * @default id
+   */
+  label?: string;
+  /**
    * The size of the badge.
    * @default 'S'
    */
@@ -86,6 +92,7 @@ interface IDBadgeProps {
  */
 export const IDBadge = ({
   id,
+  label = id,
   size = "S",
   tooltipText = "Copy ID",
   variant = "badge",
@@ -116,26 +123,16 @@ export const IDBadge = ({
       >
         {variant === "badge" ? (
           <Badge size={size}>
-            <Icon className="id-badge__id-icon" svgKey="ID" />
-            <Text
-              className="id-badge__id"
-              fontFamily="mono"
-              size="S"
-              color="text-700"
-            >
-              {id}
+            <Icon svgKey="ID" />
+            <Text fontFamily="mono" size="S" color="text-700">
+              {label}
             </Text>
             {copyIcon}
           </Badge>
         ) : (
           <>
-            <Text
-              className="id-badge__id"
-              fontFamily="mono"
-              size="S"
-              color="text-500"
-            >
-              {id}
+            <Text fontFamily="mono" size="S" color="text-500">
+              {label}
             </Text>
             {copyIcon}
           </>
