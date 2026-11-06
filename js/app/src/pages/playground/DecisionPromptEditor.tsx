@@ -24,6 +24,7 @@ import {
 } from "@phoenix/store/playground/selectors";
 import type {
   DecisionQuestionDraft,
+  DecisionQuestionType,
   DecisionPromptDraft,
   DecisionStateDraft,
 } from "@phoenix/store/playground/types";
@@ -33,6 +34,7 @@ import { DecisionStateEditor } from "./DecisionStateEditor";
 import {
   createDecisionDraft,
   createDecisionQuestion,
+  DECISION_QUESTION_TYPES,
   decisionFieldId,
   maskUntouchedErrors,
   MAX_DECISION_QUESTIONS,
@@ -40,6 +42,13 @@ import {
   validateDecisionDraft,
 } from "./decisionUtils";
 import type { PlaygroundInstanceProps } from "./types";
+
+const ADD_QUESTION_TYPES = (["predicate", "choice", "scale"] as const).map(
+  (id) => ({
+    id,
+    label: DECISION_QUESTION_TYPES.find((type) => type.id === id)?.label ?? id,
+  })
+);
 
 function isStateMode(value: unknown): value is DecisionStateDraft["mode"] {
   return value === "text" || value === "json";
@@ -105,9 +114,15 @@ function DecisionStateModeRadioGroup({
 export function DecisionPromptEditor({
   playgroundInstanceId: instanceId,
   availablePaths,
+  showAllErrors = false,
 }: PlaygroundInstanceProps & {
   /** Dataset paths the state template can autocomplete, as a prompt message does. */
   availablePaths?: string[];
+  /**
+   * Show every error, including those of fields the user has not visited,
+   * as a form does once a submit fails.
+   */
+  showAllErrors?: boolean;
 }) {
   const isRunning = usePlaygroundContext(
     (state) => selectPlaygroundInstance(instanceId)(state)?.activeRunId != null
@@ -139,10 +154,10 @@ export function DecisionPromptEditor({
     setTouchedFields((previous) =>
       previous.has(fieldId) ? previous : new Set(previous).add(fieldId)
     );
-  const errors = maskUntouchedErrors({
-    errors: validateDecisionDraft({ draft: request, templateFormat }),
-    touched: touchedFields,
-  });
+  const allErrors = validateDecisionDraft({ draft: request, templateFormat });
+  const errors = showAllErrors
+    ? allErrors
+    : maskUntouchedErrors({ errors: allErrors, touched: touchedFields });
   const canAddQuestion = request.questions.length < MAX_DECISION_QUESTIONS;
 
   const update = (patch: Partial<DecisionPromptDraft>) =>
@@ -164,7 +179,7 @@ export function DecisionPromptEditor({
       ),
     });
 
-  const addQuestion = () => {
+  const addQuestion = (type: DecisionQuestionType) => {
     let suffix = request.questions.length + 1;
     while (
       request.questions.some(
@@ -177,7 +192,7 @@ export function DecisionPromptEditor({
       questions: [
         ...request.questions,
         createDecisionQuestion({
-          type: "predicate",
+          type,
           name: `question_${suffix}`,
         }),
       ],
@@ -268,16 +283,19 @@ export function DecisionPromptEditor({
         gap="size-100"
         minHeight={FOOTER_MIN_HEIGHT}
       >
-        <Button
-          ref={addQuestionButtonRef}
-          size="S"
-          aria-label="add question"
-          leadingVisual={<Icon svg={<Icons.Plus />} />}
-          isDisabled={isRunning || !canAddQuestion}
-          onPress={addQuestion}
-        >
-          Question
-        </Button>
+        {ADD_QUESTION_TYPES.map(({ id, label }, typeIndex) => (
+          <Button
+            key={id}
+            ref={typeIndex === 0 ? addQuestionButtonRef : undefined}
+            size="S"
+            aria-label={`Add ${label} question`}
+            leadingVisual={<Icon svg={<Icons.Plus />} />}
+            isDisabled={isRunning || !canAddQuestion}
+            onPress={() => addQuestion(id)}
+          >
+            {label}
+          </Button>
+        ))}
       </Flex>
     </Flex>
   );

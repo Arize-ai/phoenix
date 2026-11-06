@@ -65,7 +65,7 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
   return (
     <ViewportModalOverlay {...props}>
       <ViewportModal size="fullscreen">
-        <Dialog>
+        <Dialog aria-label="Create LLM evaluator">
           {({ close }) => (
             <Suspense fallback={<Loading />}>
               {datasetId && (

@@ -207,6 +207,8 @@ export function ModelMenu({
     getModelType(value, defaultModelType)
   );
   const modelType = fixedModelType ?? selectedModelType;
+  const searchLabel =
+    modelType === "DECISION" ? "Search decision models" : "Search models";
   const awsBedrockModelPrefix = usePreferencesContext(
     (state) => state.awsBedrockModelPrefix
   );
@@ -286,7 +288,7 @@ export function ModelMenu({
         <Autocomplete>
           <MenuHeader>
             <SearchField
-              aria-label="Search models"
+              aria-label={searchLabel}
               variant="quiet"
               size="L"
               autoFocus
@@ -294,7 +296,7 @@ export function ModelMenu({
               onChange={setSearchValue}
             >
               <SearchIcon />
-              <Input placeholder="Search models..." />
+              <Input placeholder={`${searchLabel}...`} />
             </SearchField>
           </MenuHeader>
           {supportsDecisionModels && !fixedModelType ? (

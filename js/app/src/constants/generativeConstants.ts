@@ -30,6 +30,14 @@ export const DEFAULT_MODEL_PROVIDER: ModelProvider = "OPENAI";
  * The default model name
  */
 export const DEFAULT_MODEL_NAME = "gpt-5.6-luna";
+/**
+ * The default decision model provider
+ */
+export const DEFAULT_DECISION_MODEL_PROVIDER: ModelProvider = "TYPESAFE";
+/**
+ * The default decision model name
+ */
+export const DEFAULT_DECISION_MODEL_NAME = "jev-latest";
 
 export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 
