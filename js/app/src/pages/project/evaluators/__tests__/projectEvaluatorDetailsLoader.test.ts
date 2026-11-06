@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
 import {
-  isProjectEvaluatorNotFoundError,
   PROJECT_EVALUATOR_CRUMB_FALLBACK,
   projectEvaluatorDetailsLoader,
 } from "../projectEvaluatorDetailsLoader";
@@ -77,29 +76,5 @@ describe("projectEvaluatorDetailsLoader", () => {
     await expect(loaderData.evaluatorDisplayName).resolves.toBe(
       PROJECT_EVALUATOR_CRUMB_FALLBACK
     );
-  });
-});
-
-describe("isProjectEvaluatorNotFoundError", () => {
-  it("recognizes the server's rejection of an id that names no evaluator", () => {
-    expect(
-      isProjectEvaluatorNotFoundError(
-        new Error(
-          'Error fetching GraphQL query: [{"message":"Unknown project evaluator: 7"}]'
-        )
-      )
-    ).toBe(true);
-    expect(
-      isProjectEvaluatorNotFoundError(
-        new Error('[{"message":"Unknown node: not-an-id"}]')
-      )
-    ).toBe(true);
-  });
-
-  it("leaves other failures to the error fallback", () => {
-    expect(isProjectEvaluatorNotFoundError(new Error("Failed to fetch"))).toBe(
-      false
-    );
-    expect(isProjectEvaluatorNotFoundError("Unknown node")).toBe(false);
   });
 });

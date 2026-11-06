@@ -42,7 +42,11 @@ import {
   evaluatorSplitContainerCSS,
   evaluatorSplitLayoutCSS,
 } from "@phoenix/components/evaluators/EvaluatorDetailsSection";
-import { ErrorBoundary } from "@phoenix/components/exception";
+import {
+  classifyServerConnectionError,
+  ErrorBoundary,
+  ServerConnectionErrorContent,
+} from "@phoenix/components/exception";
 import { BugReportErrorBoundaryFallback } from "@phoenix/components/exception/BugReportErrorBoundaryFallback";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
 import { TopNavActions } from "@phoenix/components/nav";
@@ -56,10 +60,7 @@ import { CodeProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/C
 import { DecisionProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/DecisionProjectEvaluatorDetails";
 import { LLMProjectEvaluatorDetails } from "@phoenix/pages/project/evaluators/LLMProjectEvaluatorDetails";
 import type { projectEvaluatorDetailsLoader } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
-import {
-  isProjectEvaluatorNotFoundError,
-  projectEvaluatorDetailsLoaderGQL,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { projectEvaluatorDetailsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorMetrics } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMetrics";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
@@ -67,6 +68,7 @@ import { ProjectEvaluatorScopeDetails } from "@phoenix/pages/project/evaluators/
 import { ProjectEvaluatorStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStats";
 import { ProjectEvaluatorTraces } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTraces";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
+import { isServerUnreachableError } from "@phoenix/pages/redirects/notFound";
 
 /**
  * Centers the overview and establishes the width queried by its responsive
@@ -131,11 +133,13 @@ export function ProjectEvaluatorDetailsPage() {
       {/* The loader does not wait for the evaluator, so the id in the URL
           is first checked here: one that names a deleted evaluator, or
           nothing at all, fails the query, and that failure is the not-found
-          state. The boundary resets when the id changes. */}
+          state. Only the lookup reaches this boundary; the content keeps
+          its tabs' and drawers' failures to itself. The boundary resets
+          when the id changes. */}
       <ErrorBoundary
         resetKey={projectEvaluatorId}
-        fallback={ProjectEvaluatorDetailsErrorFallback}
-        isExpectedError={isProjectEvaluatorNotFoundError}
+        fallback={ProjectEvaluatorLookupErrorFallback}
+        isExpectedError={isLookupRejection}
       >
         <TopNavActions>
           <ConnectedTimeRangeSelector size="S" />
@@ -148,11 +152,24 @@ export function ProjectEvaluatorDetailsPage() {
   );
 }
 
-function ProjectEvaluatorDetailsErrorFallback(
+/**
+ * A lookup the server answered with an error is a rejection of the id, which
+ * is the not-found state, as the other lookup loaders treat it. Only a
+ * failure to reach the server says nothing about the evaluator.
+ */
+function isLookupRejection(thrown: unknown): boolean {
+  return !isServerUnreachableError(thrown);
+}
+
+function ProjectEvaluatorLookupErrorFallback(
   props: ErrorBoundaryFallbackProps
 ) {
-  if (isProjectEvaluatorNotFoundError(props.thrown)) {
+  if (isLookupRejection(props.thrown)) {
     return <ProjectEvaluatorNotFound />;
+  }
+  const connectionErrorKind = classifyServerConnectionError(props.thrown);
+  if (connectionErrorKind != null) {
+    return <ServerConnectionErrorContent kind={connectionErrorKind} />;
   }
   return <BugReportErrorBoundaryFallback {...props} />;
 }
@@ -227,8 +244,9 @@ function ProjectEvaluatorDetailsPageContent({
   const timeRange = useClosedTimeRange();
   const { setCustomTimeRange } = useTimeRange();
   const projectEvaluator = data.projectEvaluator;
-  // The server resolves a live id to this type and rejects every other, so
-  // this is only the type narrowing; the rejection is handled above.
+  // An id of another node type, say a project's, resolves to that type
+  // rather than failing: treat it as not found. Ids the server rejects are
+  // caught by the boundary above.
   if (projectEvaluator?.__typename !== "ProjectEvaluator") {
     return <ProjectEvaluatorNotFound />;
   }
@@ -283,96 +301,102 @@ function ProjectEvaluatorDetailsPageContent({
           </Flex>
         }
       />
-      <Tabs defaultSelectedKey={traceId ? "traces" : "configuration"}>
-        <TabList>
-          {/* The key stays `configuration` -- it is the tab's identity, not its
+      {/* The tabs and the drawers over them load on their own; their
+          failures stay here rather than reading as the evaluator missing. */}
+      <ErrorBoundary>
+        <Tabs defaultSelectedKey={traceId ? "traces" : "configuration"}>
+          <TabList>
+            {/* The key stays `configuration` -- it is the tab's identity, not its
               label, and a Traces deep link selects by it. */}
-          <Tab id="configuration">Overview</Tab>
-          {codeEvaluatorId != null && (
-            <Tab id="versions">
-              Versions <Counter variant="quiet">{versionCount}</Counter>
-            </Tab>
-          )}
-          <Tab id="traces">Traces</Tab>
-          <Tab id="metrics">Metrics</Tab>
-        </TabList>
-        <LazyTabPanel id="configuration">
-          <View width="100%" overflow="auto" height="100%">
-            <View padding="size-200">
-              <div css={overviewContainerCSS}>
-                <ProjectEvaluatorStats
-                  projectEvaluatorRef={projectEvaluator}
-                  timeRange={timeRange}
-                  onTimeRangeSelected={setCustomTimeRange}
-                />
-                <div css={evaluatorSplitLayoutCSS}>
-                  <div css={overviewColumnCSS}>
-                    {isLLMEvaluator && (
-                      <LLMProjectEvaluatorDetails
+            <Tab id="configuration">Overview</Tab>
+            {codeEvaluatorId != null && (
+              <Tab id="versions">
+                Versions <Counter variant="quiet">{versionCount}</Counter>
+              </Tab>
+            )}
+            <Tab id="traces">Traces</Tab>
+            <Tab id="metrics">Metrics</Tab>
+          </TabList>
+          <LazyTabPanel id="configuration">
+            <View width="100%" overflow="auto" height="100%">
+              <View padding="size-200">
+                <div css={overviewContainerCSS}>
+                  <ProjectEvaluatorStats
+                    projectEvaluatorRef={projectEvaluator}
+                    timeRange={timeRange}
+                    onTimeRangeSelected={setCustomTimeRange}
+                  />
+                  <div css={evaluatorSplitLayoutCSS}>
+                    <div css={overviewColumnCSS}>
+                      {isLLMEvaluator && (
+                        <LLMProjectEvaluatorDetails
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                      {isCodeEvaluator && (
+                        <CodeProjectEvaluatorDetails
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                      {isDecisionEvaluator && (
+                        <DecisionProjectEvaluatorDetails
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                    </div>
+                    <aside css={overviewColumnCSS}>
+                      <ProjectEvaluatorScopeDetails
                         projectEvaluatorRef={projectEvaluator}
                       />
-                    )}
-                    {isCodeEvaluator && (
-                      <CodeProjectEvaluatorDetails
+                      <AnnotationConfigurationCard
                         projectEvaluatorRef={projectEvaluator}
                       />
-                    )}
-                    {isDecisionEvaluator && (
-                      <DecisionProjectEvaluatorDetails
-                        projectEvaluatorRef={projectEvaluator}
-                      />
-                    )}
+                      {isCodeEvaluator && (
+                        <CodeProjectEvaluatorConfigCards
+                          projectEvaluatorRef={projectEvaluator}
+                        />
+                      )}
+                    </aside>
                   </div>
-                  <aside css={overviewColumnCSS}>
-                    <ProjectEvaluatorScopeDetails
-                      projectEvaluatorRef={projectEvaluator}
-                    />
-                    <AnnotationConfigurationCard
-                      projectEvaluatorRef={projectEvaluator}
-                    />
-                    {isCodeEvaluator && (
-                      <CodeProjectEvaluatorConfigCards
-                        projectEvaluatorRef={projectEvaluator}
-                      />
-                    )}
-                  </aside>
                 </div>
-              </div>
+              </View>
             </View>
-          </View>
-        </LazyTabPanel>
-        {codeEvaluatorId != null && (
-          <LazyTabPanel id="versions">
-            <Suspense fallback={<CodeDatasetEvaluatorVersionsSkeleton />}>
-              <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
+          </LazyTabPanel>
+          {codeEvaluatorId != null && (
+            <LazyTabPanel id="versions">
+              <Suspense fallback={<CodeDatasetEvaluatorVersionsSkeleton />}>
+                <CodeEvaluatorVersions codeEvaluatorId={codeEvaluatorId} />
+              </Suspense>
+            </LazyTabPanel>
+          )}
+          <LazyTabPanel id="traces">
+            <Suspense
+              fallback={
+                <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+              }
+            >
+              <ProjectEvaluatorTraces
+                projectId={projectEvaluator.traceProject.id}
+                projectEvaluatorId={projectEvaluator.id}
+                hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
+              />
             </Suspense>
           </LazyTabPanel>
-        )}
-        <LazyTabPanel id="traces">
-          <Suspense
-            fallback={<TableSkeleton hasToolbar isSelectable rowCount="fill" />}
-          >
-            <ProjectEvaluatorTraces
-              projectId={projectEvaluator.traceProject.id}
-              projectEvaluatorId={projectEvaluator.id}
-              hasEverRun={projectEvaluator.runSummary.status !== "NEVER_RUN"}
-            />
-          </Suspense>
-        </LazyTabPanel>
-        <LazyTabPanel id="metrics">
-          <Suspense fallback={<Loading />}>
-            <ProjectEvaluatorMetrics
-              projectEvaluator={projectEvaluator}
-              timeRange={timeRange}
-              onTimeRangeSelected={setCustomTimeRange}
-            />
-          </Suspense>
-        </LazyTabPanel>
-      </Tabs>
-      {/* The edit slideover and trace drawer routes render over the page. */}
-      <Suspense>
-        <Outlet context={outletContext} />
-      </Suspense>
+          <LazyTabPanel id="metrics">
+            <Suspense fallback={<Loading />}>
+              <ProjectEvaluatorMetrics
+                projectEvaluator={projectEvaluator}
+                timeRange={timeRange}
+                onTimeRangeSelected={setCustomTimeRange}
+              />
+            </Suspense>
+          </LazyTabPanel>
+        </Tabs>
+        {/* The edit slideover and trace drawer routes render over the page. */}
+        <Suspense>
+          <Outlet context={outletContext} />
+        </Suspense>
+      </ErrorBoundary>
     </main>
   );
 }

@@ -42,11 +42,15 @@ export function NavBreadcrumb() {
         }) ?? match.pathname,
     };
   });
-  // Keyed by the path so every navigation mounts a fresh boundary. The router
-  // commits a navigation inside a transition, and only a boundary that mounts
-  // within it shows its fallback at once: one already on screen would hold
-  // the whole navigation until the name arrived. Until it does, the crumb is
-  // a placeholder and the rest of the trail is already in place.
+  // A trail of known names is rendered as is, so its links survive a
+  // navigation and keep focus. Only a trail with a name still loading goes
+  // through a boundary, keyed by the path so every navigation mounts a fresh
+  // one: the router commits a navigation inside a transition, and only a
+  // boundary that mounts within it shows its fallback at once. One already
+  // on screen would hold the whole navigation until the name arrived.
+  if (entries.every((entry) => typeof entry.crumb === "string")) {
+    return <BreadcrumbTrail entries={entries} />;
+  }
   return (
     <Suspense key={pathname} fallback={<BreadcrumbTrail entries={entries} />}>
       <ResolvedBreadcrumbTrail entries={entries} />
@@ -62,6 +66,7 @@ function ResolvedBreadcrumbTrail({ entries }: { entries: CrumbEntry[] }) {
   return <BreadcrumbTrail entries={resolvedEntries} />;
 }
 
+/** The trail; a crumb whose name is still loading is a placeholder. */
 function BreadcrumbTrail({ entries }: { entries: CrumbEntry[] }) {
   const numEntries = entries.length;
   return (

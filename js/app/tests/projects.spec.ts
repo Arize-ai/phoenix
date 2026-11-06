@@ -12,11 +12,15 @@ import {
  * Playwright's "networkidle" load state belongs to a document navigation, so
  * after an in-app history move it is already satisfied; this watches the
  * requests themselves. Call it before the action whose requests it should see.
+ *
+ * Only requests seen starting are counted: a request already in flight when
+ * this attaches, such as a page's background refresh, finishes on its own
+ * time and must not drive the count below zero, which would never settle.
  */
 function waitForGraphQLToSettle(page: Page): Promise<void> {
   const isGraphQL = (request: Request) => request.url().includes("/graphql");
   return new Promise((resolve, reject) => {
-    let inFlight = 0;
+    const inFlight = new Set<Request>();
     let quiet: NodeJS.Timeout | undefined;
     const deadline = setTimeout(() => {
       stop();
@@ -31,7 +35,7 @@ function waitForGraphQLToSettle(page: Page): Promise<void> {
     };
     const armQuiet = () => {
       clearTimeout(quiet);
-      if (inFlight === 0) {
+      if (inFlight.size === 0) {
         quiet = setTimeout(() => {
           stop();
           resolve();
@@ -40,13 +44,12 @@ function waitForGraphQLToSettle(page: Page): Promise<void> {
     };
     const onRequest = (request: Request) => {
       if (isGraphQL(request)) {
-        inFlight += 1;
+        inFlight.add(request);
         clearTimeout(quiet);
       }
     };
     const onSettled = (request: Request) => {
-      if (isGraphQL(request)) {
-        inFlight -= 1;
+      if (inFlight.delete(request)) {
         armQuiet();
       }
     };

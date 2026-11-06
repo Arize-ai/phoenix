@@ -61,6 +61,11 @@ async function renderTrail({
             handle: { crumb: (data: { name: Promise<string> }) => data.name },
             element: <output>page</output>,
           },
+          {
+            path: "settings",
+            handle: { crumb: () => "Settings" },
+            element: <output>settings</output>,
+          },
         ],
       },
     ],
@@ -79,6 +84,25 @@ const pendingCrumbs = () => container.querySelectorAll("[role='status']");
 const documentTitle = () => document.querySelector("title")?.textContent;
 
 describe("NavBreadcrumb and NavTitle", () => {
+  it("keeps a trail of known names mounted across a navigation", async () => {
+    const router = await renderTrail({
+      initialPath: "/",
+      nameFor: () => Promise.resolve("unused"),
+    });
+    const projectsLink = container.querySelector("a");
+    expect(projectsLink?.textContent).toBe("Projects");
+
+    // A crumb link activated from the keyboard must not lose focus to the
+    // body because the trail was rebuilt around it.
+    await act(async () => {
+      await router.navigate("/settings");
+    });
+
+    expect(linkTexts()).toEqual(["Projects", "Settings"]);
+    expect(container.querySelector("a")).toBe(projectsLink);
+    expect(documentTitle()).toBe("Settings - Projects");
+  });
+
   it("shows the loaded crumbs around a placeholder until a deferred name resolves", async () => {
     const deferred = deferName();
     await renderTrail({

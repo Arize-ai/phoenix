@@ -46,18 +46,6 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
 /** The breadcrumb for an evaluator whose name is not known. */
 export const PROJECT_EVALUATOR_CRUMB_FALLBACK = "evaluator";
 
-/**
- * The server rejects an id that names no live evaluator rather than resolving
- * it to null, so the lookup error is the page's not-found state. Anything
- * else that fails is still an error.
- */
-export function isProjectEvaluatorNotFoundError(thrown: unknown): boolean {
-  return (
-    thrown instanceof Error &&
-    /Unknown (node|node type|project evaluator)/.test(thrown.message)
-  );
-}
-
 export type ProjectEvaluatorDetailsLoaderData = ReturnType<
   typeof projectEvaluatorDetailsLoader
 >;
@@ -67,8 +55,8 @@ export type ProjectEvaluatorDetailsLoaderData = ReturnType<
  *
  * Nothing here is awaited, so the router commits the navigation at once and
  * the page shows its skeleton while the query is in flight. The page reads
- * the query ref; a deleted or malformed id surfaces there as a query error,
- * which the page renders as its not-found state.
+ * the query ref; the server rejects a deleted or malformed id, and the page
+ * renders that rejection as its not-found state.
  *
  * The breadcrumb needs the evaluator's name, which only the response holds,
  * so it is handed over as a promise the breadcrumb resolves on its own. It

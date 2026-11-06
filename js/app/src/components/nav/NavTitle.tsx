@@ -12,9 +12,13 @@ export function NavTitle() {
   const crumbs = matchesWithCrumb.map((match) =>
     match.handle.crumb(match.loaderData)
   );
-  // Keyed by the path for the reason NavBreadcrumb gives: a boundary already
-  // on screen would hold the navigation until every name arrived. Until then
+  // Only a title with a name still loading goes through a boundary, keyed
+  // by the path for the reason NavBreadcrumb gives: a boundary already on
+  // screen would hold the navigation until every name arrived. Until then
   // the title is made of the crumbs already known.
+  if (crumbs.every((crumb) => typeof crumb === "string")) {
+    return <Title crumbs={crumbs} />;
+  }
   return (
     <Suspense
       key={pathname}
