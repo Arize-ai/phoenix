@@ -35,11 +35,10 @@ VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
-# factory-preview.yml deploys a labeled PR; docs PRs have nothing to seed.
 PREVIEW_LABEL = "factory-preview"
 PREVIEW_LABEL_COLOR = "0E8A16"
 PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
-PREVIEW_LANES = {"bug", "feature"}
+PREVIEW_LANES = {"bug", "feature"}  # a docs PR has nothing to seed
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -159,11 +158,7 @@ def report_on_status_comment(
 
 
 def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
-    """Label the PR for factory-preview.yml, creating the label if the repo lacks it.
-
-    The preview is a convenience on top of a PR that is already ready for review, so a
-    failure here is a warning, not the run's outcome; returns whether the label is on.
-    """
+    """A failure here is a warning, not the run's outcome: the PR is already reviewable."""
     try:
         existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
         if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:

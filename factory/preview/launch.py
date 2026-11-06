@@ -1,11 +1,8 @@
 """Start Phoenix, run the PR's seed script against it once it is healthy, then stay up.
 
-This is the preview image's command. The seed script is the one the PR body carries; it
-runs with PHOENIX_BASE_URL pointing at the local server and with the Phoenix client,
-OTel SDK and OTLP exporter importable from the image. Its output is relayed line by line
-under a `seed| ` prefix as it appears, and its outcome goes to the container log as a
-`preview: seed` line, which deploy.py reads; neither stops the server, so a reviewer can
-still open an instance whose seed failed.
+The preview image's command. The seed runs with PHOENIX_BASE_URL pointing at the local
+server; its output and outcome go to the container log in the lines seed_log.py names,
+and never stop the server, so an instance whose seed failed can still be opened.
 """
 
 import os
@@ -28,7 +25,6 @@ stopping = False
 
 
 def base_url() -> str:
-    # The server reads PHOENIX_PORT and nothing else, so neither does the launcher.
     return f"http://127.0.0.1:{os.environ.get('PHOENIX_PORT') or '6006'}"
 
 
@@ -71,7 +67,6 @@ def run_seed(url: str) -> None:
         stderr=subprocess.STDOUT,
     )
     children.append(seed)
-    # Lines reach the log as the seed prints them, so a stuck seed shows where it stuck.
     relay_thread = threading.Thread(target=relay, args=(seed.stdout,), daemon=True)
     relay_thread.start()
     try:
@@ -85,9 +80,7 @@ def run_seed(url: str) -> None:
         seed.kill()
         seed.wait()
         outcome = f"{seed_log.TIMED_OUT_PREFIX}{seed_log.SEED_TIMEOUT_SECONDS} seconds"
-    # The pipe closes when the seed and anything it spawned let go of it; a helper that
-    # outlives the seed is the one case this does not cover, and the outcome then precedes
-    # its remaining lines.
+    # Bounded: a helper the seed spawned can hold the pipe open after the seed is gone.
     relay_thread.join(timeout=seed_log.RELAY_DRAIN_SECONDS)
     print(outcome, flush=True)
 
@@ -104,8 +97,7 @@ def main() -> int:
     else:
         print(seed_log.UNHEALTHY_LINE, flush=True)
     exit_code = server.wait()
-    # A stop the launcher forwarded is a clean exit; any other signal death is a failure
-    # that the restart policy should see.
+    # A stop this launcher forwarded is clean; any other death should trip the restart policy.
     return 0 if stopping else exit_code
 
 

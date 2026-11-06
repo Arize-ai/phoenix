@@ -3,12 +3,11 @@
 # ///
 """Deploy one PR's preview image to Railway, or tear it down.
 
-`deploy` creates or updates the service named for the PR in the project the token is
-scoped to, points it at the image, waits for the deployment and then for the seed's
-outcome in the container log, and leaves one comment on the PR with the URL, the seed's
-output and how to run the image locally. `teardown` deletes the service and the PR's image
-tags from GHCR, and says so on the same comment. The Railway public API is used directly,
-so the workflow needs no CLI and the token's reach is one project.
+`deploy` creates or updates the PR's service in the project the token is scoped to,
+deploys the image, waits for the seed's outcome in the container log, and leaves one
+comment on the PR. `teardown` deletes the service and the PR's image tags and says so on
+that comment. Railway's GraphQL API is called directly: no CLI, and a project token
+reaches nothing beyond its project.
 """
 
 import argparse
@@ -28,10 +27,11 @@ RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
 SKIPPED_GRACE_SECONDS = 120
-# The launcher's own budget, its drain, and two minutes for the log to catch up.
-SEED_WAIT_SECONDS = seed_log.SEED_TIMEOUT_SECONDS + seed_log.RELAY_DRAIN_SECONDS + 120
-# SKIPPED is not final here: Railway superseded the deployment with one it queued itself,
-# for example from the service's creation, and that one is the one to follow.
+LOG_LAG_ALLOWANCE_SECONDS = 120
+SEED_WAIT_SECONDS = (
+    seed_log.SEED_TIMEOUT_SECONDS + seed_log.RELAY_DRAIN_SECONDS + LOG_LAG_ALLOWANCE_SECONDS
+)
+# SKIPPED is not final: Railway replaced the deployment with one it queued itself.
 DEPLOYMENT_FINAL_STATUSES = {
     "SUCCESS",
     "FAILED",
@@ -40,7 +40,7 @@ DEPLOYMENT_FINAL_STATUSES = {
     "SLEEPING",
     "NEEDS_APPROVAL",
 }
-# GitHub caps a comment at 65536 characters; relayed output gets a fraction of that.
+# A comment may hold 65536 characters; relayed output gets a fraction of that.
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
 COMMENT_MARKER = "<!-- factory-preview -->"
@@ -94,7 +94,7 @@ def find_service(*, project_id: str, name: str) -> Optional[str]:
 
 
 def create_service(*, project_id: str, environment_id: str, name: str) -> str:
-    """An empty service: with no source nothing deploys until the settings are in place."""
+    """No source yet, so nothing deploys before the settings are in place."""
     data = railway(
         "mutation($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }",
         input={"projectId": project_id, "environmentId": environment_id, "name": name},
@@ -103,7 +103,7 @@ def create_service(*, project_id: str, environment_id: str, name: str) -> str:
 
 
 def set_variables(*, project_id: str, environment_id: str, service_id: str) -> None:
-    """Idempotent, so every deploy; skipDeploys keeps it from queuing a deployment of its own."""
+    """skipDeploys: the explicit deploy request follows, so this must not queue its own."""
     railway(
         "mutation($input: VariableCollectionUpsertInput!) {"
         " variableCollectionUpsert(input: $input) }",
@@ -181,10 +181,8 @@ def wait_for_deployment(
 ) -> tuple[str, str]:
     """Follow this run's deployment to a final status; return (deployment id, status).
 
-    Railway may skip a deployment in favor of one it queues itself, so rather than follow
-    one id this follows the newest unskipped deployment that did not exist before this run
-    started. One that is not listed yet, and a failed poll, count as pending; a run whose
-    every deployment stays skipped for SKIPPED_GRACE_SECONDS is over.
+    Railway may skip a deployment in favor of one it queues itself, so this follows the
+    newest unskipped deployment that did not exist before the run rather than one id.
     """
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     deployment_id = ""
@@ -237,14 +235,12 @@ class LogTail:
         except RailwayError as error:
             print(f"::warning::Reading deployment logs: {error}", flush=True)
             return
-        # Trailing whitespace or a carriage return would defeat the exact match on the
-        # launcher's lines.
+        # The launcher's lines are matched exactly, so a trailing \r must not survive.
         entries = [
             (str(e["timestamp"]), str(e["message"]).rstrip()) for e in data["deploymentLogs"]
         ]
         entries.sort(key=lambda entry: entry[0])  # stable, so same-timestamp order holds
-        # startDate is inclusive, so lines at the last timestamp come back; skip as many of
-        # them as were already taken, which also handles identical lines.
+        # startDate is inclusive: skip as many lines at that timestamp as were already taken.
         previous_timestamp, previous_seen = self._last_timestamp, self._seen_at_last_timestamp
         skipped = 0
         for timestamp, message in entries:
@@ -266,11 +262,9 @@ class LogTail:
 def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     """Return the launcher's seed outcome line and the seed's own output.
 
-    Railway reports SUCCESS once /healthz answers, which launch.py reaches before the seed
-    runs, so the comment waits for the launcher's outcome line rather than trusting SUCCESS.
-    The latest run is what counts: after a restart an earlier run's outcome is stale, and a
-    run that has started but not finished is still pending. Output lines are taken from
-    anywhere after the run started, so lines the relay flushed after the outcome count too.
+    Railway reports SUCCESS once /healthz answers, before the seed has run, so the outcome
+    has to come from the log. Only the latest start counts: a restart makes the earlier
+    outcome stale.
     """
     deadline = time.monotonic() + SEED_WAIT_SECONDS
     log = LogTail(deployment_id)
@@ -296,13 +290,11 @@ def delete_service(service_id: str) -> None:
 
 
 def ghcr_package(image: str) -> tuple[str, str]:
-    """(owner, package name) of a ghcr.io image reference, with or without a tag."""
     owner, _, package = image.removeprefix("ghcr.io/").partition("/")
     return owner, package.partition(":")[0]
 
 
 def packages_api_root(owner: str) -> str:
-    """The packages API lives under orgs/ or users/ depending on who owns the repo."""
     try:
         owner_type = run_gh("api", f"users/{owner}", "--jq", ".type").strip()
     except subprocess.CalledProcessError:
@@ -311,11 +303,7 @@ def packages_api_root(owner: str) -> str:
 
 
 def delete_image_tags(*, image: str, pr_number: int) -> int:
-    """Delete every GHCR version tagged for this PR (pr-N and pr-N-*); return how many.
-
-    GitHub refuses to delete a package's last tagged version, so a refusal is reported and
-    skipped rather than failing the teardown.
-    """
+    """GitHub refuses to delete a package's last tagged version; that refusal is only warned."""
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
     tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
@@ -330,7 +318,6 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
             ).split()
         )
     except subprocess.CalledProcessError as error:
-        # No package yet, when the PR never got as far as a push, or GHCR is unavailable.
         print(f"::warning::Could not list image versions: {error.stderr}")
         return 0
     deleted = 0
@@ -350,13 +337,11 @@ def delete_image_tags(*, image: str, pr_number: int) -> int:
 
 
 def image_visibility(*, image: str) -> str:
-    """`public`, `private` or `unknown` for the GHCR package behind the image.
+    """`public`, `private` or `unknown`.
 
-    Railway needs a public package to pull without credentials. GHCR creates a package
-    private on first push and only the web UI changes that, so the first run of a fresh
-    package stops with instructions instead of a failed deploy. A lookup that keeps failing
-    is `unknown`, which also stops the run: a wrong guess here costs the 15-minute wait and
-    a misleading comment.
+    GHCR creates a package private on its first push and only the web UI changes that, so
+    this is checked before Railway is asked to pull. A lookup that keeps failing is
+    `unknown` rather than a guess: a wrong guess costs the whole deploy wait.
     """
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
@@ -381,10 +366,7 @@ def find_comment(*, pr_number: int) -> Optional[str]:
 
 
 def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
-    """Keep one preview comment per PR, found by its marker, so pushes edit rather than pile up.
-
-    Without `create`, a PR that never had a preview comment gets none.
-    """
+    """One comment per PR, found by its marker; without `create`, none is started."""
     body = f"{COMMENT_MARKER}\n{body}"
     comment_id = find_comment(pr_number=pr_number)
     if comment_id is None and not create:
@@ -412,7 +394,7 @@ def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
 
 
 def clip_for_comment(text: str) -> str:
-    """The tail of some output, sized for a comment, with any fence of its own defused."""
+    """Sized for a comment, with any `~~~` fence of its own defused."""
     lines = [line.replace("~~~", "~ ~ ~") for line in text.splitlines()]
     if len(lines) > MAX_OUTPUT_LINES:
         lines = [f"... {len(lines) - MAX_OUTPUT_LINES} earlier lines omitted"] + lines[
@@ -528,8 +510,7 @@ def run_deploy(args: argparse.Namespace) -> int:
             environment_id=environment_id, service_id=service_id, before=before
         )
     except RailwayError as error:
-        # The previous push's comment would otherwise go on advertising its instance. A
-        # failure to say so must not hide the Railway error itself.
+        # Otherwise the previous push's comment goes on advertising its instance.
         try:
             upsert_comment(
                 pr_number=args.pr,
@@ -571,7 +552,6 @@ def run_deploy(args: argparse.Namespace) -> int:
 
 
 def run_teardown(args: argparse.Namespace) -> int:
-    """Delete the service, then the PR's image tags and the comment whatever Railway did."""
     railway_error: Optional[RailwayError] = None
     try:
         project_id, _ = read_token_scope()
