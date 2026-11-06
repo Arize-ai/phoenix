@@ -44,6 +44,7 @@ from phoenix.server.evaluators.services.project_bindings import (
     apply_project_evaluator_patch,
     bind_project_evaluator,
     check_project_binding,
+    clear_queue_before_enabling,
     project_binding_name_taken,
     validate_decision_project_mapping,
 )
@@ -631,11 +632,11 @@ async def update_project_decision_evaluator(
     )
     if input.enabled is None:
         raise BadRequest("enabled cannot be set to null")
+    project_evaluator_id = _id(input.project_evaluator_id, "ProjectEvaluator")
+    await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
         async with context.db() as session:
-            binding = await session.get(
-                models.ProjectEvaluator, _id(input.project_evaluator_id, "ProjectEvaluator")
-            )
+            binding = await session.get(models.ProjectEvaluator, project_evaluator_id)
             if binding is None:
                 raise NotFound("Project evaluator not found")
             evaluator = await session.get(

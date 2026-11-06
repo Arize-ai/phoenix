@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43a18cade6ad079d7315f78279ff1372>>
+ * @generated SignedSource<<018a9b28dcafc64b809e01cf18ae9489>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "HEALTHY" | "NEVER_RUN" | "STARTING";
 export type ClearProjectEvaluatorQueuedEvaluationsInput = {
   projectEvaluatorId: string;
 };
@@ -20,8 +20,8 @@ export type ProjectEvaluatorEnabledSwitchClearMutation$data = {
     readonly evaluator: {
       readonly id: string;
       readonly runSummary: {
-        readonly droppedCount: number;
-        readonly oldestQueuedAt: string | null;
+        readonly clearedCount: number;
+        readonly oldestWaitingOrRetryingAt: string | null;
         readonly queuedCount: number;
         readonly runningCount: number;
         readonly status: ProjectEvaluatorRunStatus;
@@ -105,14 +105,14 @@ v1 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "droppedCount",
+                "name": "clearedCount",
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "oldestQueuedAt",
+                "name": "oldestWaitingOrRetryingAt",
                 "storageKey": null
               }
             ],
@@ -143,16 +143,16 @@ return {
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "acc49312e413475fa0c7444dd0559ced",
+    "cacheID": "13b59f0a33eb32e4d24873185b5d87bc",
     "id": null,
     "metadata": {},
     "name": "ProjectEvaluatorEnabledSwitchClearMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectEvaluatorEnabledSwitchClearMutation(\n  $input: ClearProjectEvaluatorQueuedEvaluationsInput!\n) {\n  clearProjectEvaluatorQueuedEvaluations(input: $input) {\n    evaluator {\n      id\n      runSummary {\n        status\n        queuedCount\n        runningCount\n        droppedCount\n        oldestQueuedAt\n      }\n    }\n  }\n}\n"
+    "text": "mutation ProjectEvaluatorEnabledSwitchClearMutation(\n  $input: ClearProjectEvaluatorQueuedEvaluationsInput!\n) {\n  clearProjectEvaluatorQueuedEvaluations(input: $input) {\n    evaluator {\n      id\n      runSummary {\n        status\n        queuedCount\n        runningCount\n        clearedCount\n        oldestWaitingOrRetryingAt\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c8278a378c71cf9440fb72fee89b8507";
+(node as any).hash = "1600c231b5f02c3619a1cb548f0f7ac2";
 
 export default node;

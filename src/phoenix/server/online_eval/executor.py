@@ -36,6 +36,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias
 
 from phoenix.config import (
+    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
     get_env_enable_prometheus,
     get_env_online_eval_max_llm_message_bytes,
     get_env_online_eval_max_sandbox_payload_bytes,
@@ -86,7 +87,6 @@ from phoenix.server.online_eval.bound_variables import (
 from phoenix.server.online_eval.coordinator import (
     ClaimedWorkUnit,
     EvalWorkCoordinator,
-    RetiredWorkStatus,
 )
 from phoenix.server.online_eval.derivation import (
     annotation_identifier,
@@ -96,9 +96,6 @@ from phoenix.server.online_eval.failure_policy import FailureDisposition, is_tra
 from phoenix.server.online_eval.project_evaluator_resolution import (
     PolymorphicEvaluator,
     resolve_project_evaluators_bulk,
-)
-from phoenix.server.online_eval.session_policy import (
-    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
 )
 from phoenix.server.online_eval.tracing import (
     marked_evaluator_tracer,
@@ -173,10 +170,10 @@ class HydrationFailure:
     detail: str = ""
 
     @property
-    def terminal_status(self) -> RetiredWorkStatus:
-        """The status the unit is retired with. Two reasons get their own: the subject had
-        no content left to evaluate by the time it was hydrated, or the evaluator was
-        disabled, which drops its queued work rather than failing it."""
+    def terminal_status(self) -> Literal["EXPIRED", "CONTENT_LOST", "DROPPED"]:
+        """The status the unit ends with. Two reasons get their own: the target had no
+        content left to evaluate by the time it was hydrated, or the evaluator was
+        disabled, which clears its queued work rather than failing it."""
         if self.reason in _CONTENT_LOST_REASONS:
             return "CONTENT_LOST"
         if self.reason is HydrationFailureReason.PROJECT_EVALUATOR_DISABLED:

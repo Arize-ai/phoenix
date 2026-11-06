@@ -288,7 +288,7 @@ class TestTraceRetentionRuleMaxCount:
             work_unit = models.EvalSessionWorkUnit(
                 project_session_rowid=project_session.id,
                 project_evaluator_id=criteria.id,
-                evaluated_through=now,
+                decided_through=now,
                 status="RUNNING",
                 claimed_at=now,
                 claimed_by="consumer",
