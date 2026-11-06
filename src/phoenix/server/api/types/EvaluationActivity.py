@@ -1,15 +1,15 @@
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, Sequence
 
 import strawberry
 from strawberry.types import Info
+from strawberry.types.nodes import SelectedField, Selection
 
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.online_eval import evaluation_activity
-from phoenix.server.online_eval.current_queue import MAX_QUEUE_COUNT
 
 if TYPE_CHECKING:
     from .Evaluator import ProjectEvaluator
@@ -131,8 +131,8 @@ class EvaluationActivityBinGroup:
 
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
-            "Evaluations queued or running at the end of the bin. Counts stop at "
-            f"{MAX_QUEUE_COUNT:,}."
+            "Evaluations in queue at the end of the bin. Read only when selected, from every "
+            "evaluation in queue."
         )
     )
     def queue_size(self) -> int:
@@ -216,5 +216,26 @@ async def resolve_evaluation_activity(
         start=time_range.start,
         end=end,
         time_bins=TimeBucketSpec.from_config(time_bin_config),
+        read_added=_selects_bin_field(info, "addedCount"),
+        read_queue_size=_selects_bin_field(info, "queueSize"),
     )
     return EvaluationActivity(activity=activity)
+
+
+def _selects_bin_field(info: Info[Context, None], name: str) -> bool:
+    return any(
+        _selects(field.selections, ("series", "groups", name)) for field in info.selected_fields
+    )
+
+
+def _selects(selections: Sequence[Selection], path: Sequence[str]) -> bool:
+    """Whether ``selections`` reach the field at ``path``, through any fragments."""
+    for selection in selections:
+        if not isinstance(selection, SelectedField):
+            if _selects(selection.selections, path):
+                return True
+        elif selection.name == path[0] and (
+            len(path) == 1 or _selects(selection.selections, path[1:])
+        ):
+            return True
+    return False

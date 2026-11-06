@@ -2739,7 +2739,7 @@ type EvaluationActivityBinGroup {
   cost: Float
 
   """
-  Evaluations queued or running at the end of the bin. Counts stop at 1,000,000.
+  Evaluations in queue at the end of the bin. Read only when selected, from every evaluation in queue.
   """
   queueSize: Int!
 }

@@ -99,6 +99,8 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
                 start=now - timedelta(hours=1),
                 end=now,
                 time_bins=TimeBucketSpec(),
+                read_added=True,
+                read_queue_size=True,
             )
         activity_plans = plans[first_activity_plan:]
     finally:
@@ -150,5 +152,5 @@ async def test_per_tick_work_unit_queries_use_partial_indexes_on_sqlite(
     assert activity_indexes == {
         f"ix_{table}_{index}"
         for table in ("eval_work_units", "eval_session_work_units", "eval_trace_work_units")
-        for index in ("terminal", "claimable")
+        for index in ("terminal", "project_evaluator_live")
     }
