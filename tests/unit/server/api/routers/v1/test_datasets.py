@@ -3434,7 +3434,7 @@ async def test_append_with_node_id_from_different_dataset_returns_422(
 
 
 async def test_create_with_node_id_from_different_dataset_returns_422(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
 ) -> None:
     stack_name = inspect.stack()[0][3]
@@ -3478,7 +3478,7 @@ async def test_create_with_node_id_from_different_dataset_returns_422(
 
 
 async def test_upload_with_many_bad_node_ids_lists_only_the_first_ten(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     name = inspect.stack()[0][3]
     bogus_ids = [str(GlobalID("DatasetExample", str(90000 + i))) for i in range(15)]
