@@ -35,6 +35,30 @@ const NO_JOB_STATUS = {
   explanation: "No background job associated with this experiment",
 } satisfies (typeof EXPERIMENT_STATUSES)[ExperimentStatusValue];
 
+function isExperimentStatusValue(
+  status: string
+): status is ExperimentStatusValue {
+  return Object.hasOwn(EXPERIMENT_STATUSES, status);
+}
+
+/**
+ * A server newer than this client can report a status it does not know yet,
+ * so an unrecognized value is shown by its raw name instead of throwing.
+ */
+function getExperimentStatusPresentation(status: string | null | undefined) {
+  if (status == null) {
+    return NO_JOB_STATUS;
+  }
+  if (isExperimentStatusValue(status)) {
+    return EXPERIMENT_STATUSES[status];
+  }
+  return {
+    category: "unset",
+    label: status,
+    explanation: "This version of Phoenix does not recognize this status",
+  } satisfies (typeof EXPERIMENT_STATUSES)[ExperimentStatusValue];
+}
+
 export function ExperimentStatus({
   status,
   onViewDetails,
@@ -49,9 +73,7 @@ export function ExperimentStatus({
   onViewDetails?: () => void;
 }) {
   const { category, label, explanation } =
-    status == null
-      ? NO_JOB_STATUS
-      : EXPERIMENT_STATUSES[status as ExperimentStatusValue];
+    getExperimentStatusPresentation(status);
   const indicator = (
     <StatusIndicator
       category={category}
