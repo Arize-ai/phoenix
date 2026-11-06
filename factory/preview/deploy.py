@@ -12,6 +12,7 @@ so the workflow needs no CLI and the token's reach is one project.
 """
 
 import argparse
+import functools
 import json
 import os
 import subprocess
@@ -22,7 +23,7 @@ import urllib.request
 from typing import Any, Optional
 
 import seed_log
-from gh import run_gh
+from gh import preview_image, run_gh
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PHOENIX_PORT = 6006
@@ -329,6 +330,7 @@ def ghcr_package(image: str) -> tuple[str, str]:
     return owner, package.partition(":")[0]
 
 
+@functools.cache
 def packages_api_root(owner: str) -> str:
     """The packages API lives under orgs/ or users/ depending on who owns the repo."""
     try:
@@ -341,16 +343,18 @@ def packages_api_root(owner: str) -> str:
 def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
     """Delete the GHCR versions tagged for this PR (pr-N and pr-N-*); return how many.
 
-    With `keep`, the version carrying that tag stays, so a deploy prunes the images it
-    superseded and a teardown removes them all. GitHub refuses to delete a package's last
-    tagged version, so a refusal is reported and skipped rather than failing the teardown.
+    With `keep`, the version carrying that tag stays, and so does whichever carries the
+    moving `pr-N` tag, so a deploy prunes the images it superseded and a teardown removes
+    them all. GitHub refuses to delete a package's last tagged version, so a refusal is
+    reported and skipped rather than failing the teardown.
     """
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
     tag_filter = f'. == "pr-{pr_number}" or startswith("pr-{pr_number}-")'
     select = f"any(.metadata.container.tags[]?; {tag_filter})"
     if keep:
-        select += f" and (any(.metadata.container.tags[]?; . == {json.dumps(keep)}) | not)"
+        kept = f'. == {json.dumps(keep)} or . == "pr-{pr_number}"'
+        select += f" and (any(.metadata.container.tags[]?; {kept}) | not)"
     try:
         version_ids = set(
             run_gh(
@@ -514,35 +518,60 @@ def format_deploy_comment(
     return "\n".join(lines)
 
 
+def post_deploy_comment(
+    *,
+    args: argparse.Namespace,
+    image: str,
+    url: str,
+    status: str,
+    seed_outcome: str,
+    seed_output: str,
+    logs: str,
+) -> None:
+    upsert_comment(
+        pr_number=args.pr,
+        body=format_deploy_comment(
+            image=image,
+            url=url,
+            status=status,
+            seed=args.seed,
+            seed_outcome=seed_outcome,
+            seed_output=seed_output,
+            head_sha=args.head_sha,
+            run_url=args.run_url,
+            logs=logs,
+        ),
+    )
+
+
 def run_deploy(args: argparse.Namespace) -> int:
+    image = f"{preview_image()}:{args.image_tag}"
     try:
         project_id, environment_id = read_token_scope()
         name = f"pr-{args.pr}"
         service_id = find_service(project_id=project_id, name=name)
-    except RailwayError as error:
-        print(f"::error::Railway API: {error}", file=sys.stderr)
-        return 1
-    visibility = image_visibility(image=args.image)
-    if visibility == "unknown" and service_id is not None:
-        # An earlier run pulled from this package, so a lookup that fails now is GitHub's
-        # trouble, not the package's; stopping would only unadvertise a running preview.
-        print("::warning::Could not read the package's visibility; deploying anyway")
-    elif visibility != "public":
-        org, package = ghcr_package(args.image)
-        problem = (
-            f"GitHub would not say whether `{org}/{package}` is public, so the deploy did not"
-            " start. Re-add the label to try again"
-            if visibility == "unknown"
-            else f"its package is {visibility}, so Railway can't pull it. A maintainer needs to"
-            f" make `{org}/{package}` public once (see Bootstrap in factory/README.md), then"
-            " re-add the label"
-        )
-        upsert_comment(
-            pr_number=args.pr, body=f"The image for this preview was pushed, but {problem}."
-        )
-        print(f"::error::The preview image's package is {visibility}; see the PR comment.")
-        return 1
-    try:
+        visibility = image_visibility(image=image)
+        if visibility == "unknown" and service_id is not None:
+            # An earlier run pulled from this package, so a lookup that fails now is
+            # GitHub's trouble, not the package's; stopping would only unadvertise a
+            # running preview.
+            print("::warning::Could not read the package's visibility; deploying anyway")
+        elif visibility != "public":
+            org, package = ghcr_package(image)
+            problem = (
+                f"GitHub would not say whether `{org}/{package}` is public, so the deploy did"
+                " not start. Re-add the label to try again"
+                if visibility == "unknown"
+                else f"its package is {visibility}, so Railway can't pull it. A maintainer needs"
+                f" to make `{org}/{package}` public once (see Bootstrap in factory/README.md),"
+                " then re-add the label"
+            )
+            upsert_comment(
+                pr_number=args.pr, body=f"The image for this preview was pushed, but {problem}."
+            )
+            print(f"::error::The preview image's package is {visibility}; see the PR comment.")
+            return 1
+
         before: set[str] = set()
         if service_id is None:
             service_id = create_service(
@@ -552,18 +581,34 @@ def run_deploy(args: argparse.Namespace) -> int:
         else:
             deployments = list_deployments(environment_id=environment_id, service_id=service_id)
             before = {str(d["id"]) for d in deployments}
-            # The workflow skips the build when the image exists, but runs this regardless,
-            # so a run whose deploy failed or never happened can be retried by re-labeling.
-            # Only a successful deployment of this very image means there is nothing to do.
+            # The workflow skips the build when the image exists but runs this regardless,
+            # so a run whose deploy failed or never happened is retried by re-labeling. A
+            # successful deployment of this very image with a good seed needs no redeploy,
+            # only the comment brought up to date; a bad seed gets a fresh database.
             if (
-                current_image(environment_id=environment_id, service_id=service_id) == args.image
-                and deployments
+                deployments
                 and deployments[0]["status"] == "SUCCESS"
+                and current_image(environment_id=environment_id, service_id=service_id) == image
             ):
-                print(f"{args.image} is already deployed and healthy; nothing to do")
-                return 0
+                seed_outcome, seed_output = wait_for_seed(str(deployments[0]["id"]))
+                if seed_outcome.startswith(seed_log.SUCCESS_LINES):
+                    domain = ensure_domain(
+                        project_id=project_id, environment_id=environment_id, service_id=service_id
+                    )
+                    post_deploy_comment(
+                        args=args,
+                        image=image,
+                        url=f"https://{domain}",
+                        status="SUCCESS",
+                        seed_outcome=seed_outcome,
+                        seed_output=seed_output,
+                        logs="",
+                    )
+                    print(f"{image} is already deployed and seeded; comment refreshed")
+                    return 0
+                print(f"{image} is deployed but its seed did not succeed; redeploying")
         set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
-        set_image(environment_id=environment_id, service_id=service_id, image=args.image)
+        set_image(environment_id=environment_id, service_id=service_id, image=image)
         domain = ensure_domain(
             project_id=project_id, environment_id=environment_id, service_id=service_id
         )
@@ -589,9 +634,7 @@ def run_deploy(args: argparse.Namespace) -> int:
     logs = ""
     if status == "SUCCESS":
         seed_outcome, seed_output = wait_for_seed(deployment_id)
-        pruned = delete_image_tags(
-            image=args.image, pr_number=args.pr, keep=args.image.partition(":")[2]
-        )
+        pruned = delete_image_tags(image=image, pr_number=args.pr, keep=args.image_tag)
         print(f"pruned {pruned} superseded image versions")
     else:
         seed_outcome, seed_output = "preview: the seed did not run", ""
@@ -600,35 +643,33 @@ def run_deploy(args: argparse.Namespace) -> int:
             log.refresh()
             # No runtime log means the container never started; the build log says why.
             logs = log.tail(MAX_OUTPUT_LINES) or read_build_logs(deployment_id)
-    url = f"https://{domain}"
-    upsert_comment(
-        pr_number=args.pr,
-        body=format_deploy_comment(
-            image=args.image,
-            url=url,
-            status=status,
-            seed=args.seed,
-            seed_outcome=seed_outcome,
-            seed_output=seed_output,
-            head_sha=args.head_sha,
-            run_url=args.run_url,
-            logs=logs,
-        ),
+    post_deploy_comment(
+        args=args,
+        image=image,
+        url=f"https://{domain}",
+        status=status,
+        seed_outcome=seed_outcome,
+        seed_output=seed_output,
+        logs=logs,
     )
-    print(f"url={url}\nstatus={status}\n{seed_outcome}")
+    print(f"status={status}\n{seed_outcome}")
     # A seed still running when the wait ended is the log lagging, not a failure.
     fine = seed_outcome.startswith(seed_log.SUCCESS_LINES) or seed_outcome == SEED_NOT_FINISHED_LINE
     return 0 if status == "SUCCESS" and fine else 1
 
 
 def run_note(args: argparse.Namespace) -> int:
-    """Leave word on the PR that the run died, when the job itself was cancelled or timed out."""
+    """Leave word on the PR that the run died before deploy.py could report.
+
+    For a build failure, a cancellation or a timeout; deploy.py's own failures already
+    leave their own comment.
+    """
     upsert_comment(
         pr_number=args.pr,
         body=(
-            f"### Preview of {args.head_sha[:7]}\n\nThe run was cancelled or timed out before it"
-            f" could report; see the [run]({args.run_url}). Whatever answers at the preview URL"
-            " may be an earlier head."
+            f"### Preview of {args.head_sha[:7]}\n\nThe run failed, was cancelled or timed out"
+            f" before it could report; see the [run]({args.run_url}). Whatever answers at the"
+            " preview URL may be an earlier head."
         ),
         create=False,
     )
@@ -649,7 +690,7 @@ def run_teardown(args: argparse.Namespace) -> int:
     except RailwayError as error:
         railway_error = error
         print(f"::error::Railway API: {error}", file=sys.stderr)
-    deleted_tags = delete_image_tags(image=args.image, pr_number=args.pr)
+    deleted_tags = delete_image_tags(image=preview_image(), pr_number=args.pr)
     print(f"deleted {deleted_tags} image versions")
     body = (
         "The preview for this PR has been torn down."
@@ -666,7 +707,7 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     deploy_parser = subparsers.add_parser("deploy")
     deploy_parser.add_argument("--pr", type=int, required=True)
-    deploy_parser.add_argument("--image", required=True, help="fully qualified image reference")
+    deploy_parser.add_argument("--image-tag", required=True, help="tag on the preview image")
     deploy_parser.add_argument("--head-sha", required=True)
     deploy_parser.add_argument(
         "--seed", required=True, help="one line on the seed, for the comment"
@@ -680,7 +721,6 @@ def main() -> int:
     note_parser.set_defaults(run=run_note)
     teardown_parser = subparsers.add_parser("teardown")
     teardown_parser.add_argument("--pr", type=int, required=True)
-    teardown_parser.add_argument("--image", required=True, help="GHCR image, without a tag")
     teardown_parser.set_defaults(run=run_teardown)
     args = parser.parse_args()
     try:
