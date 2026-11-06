@@ -6,8 +6,9 @@
 `deploy` creates or updates the service named for the PR in the project the token is
 scoped to, points it at the image, waits for the deployment and then for the seed's
 outcome in the container log, and leaves one comment on the PR with the URL, the seed's
-output and how to run the image locally. `teardown` deletes the service and the PR's image
-tags from GHCR, and says so on the same comment. The Railway public API is used directly,
+output and how to run the image locally. `teardown` deletes the service and, except for the
+newest when the PR merely lost its label, the PR's image tags from GHCR, and says so on the
+same comment. The Railway public API is used directly,
 so the workflow needs no CLI and the token's reach is one project.
 """
 
@@ -51,6 +52,10 @@ COMMENT_MARKER = "<!-- factory-preview -->"
 PREVIEW_LABEL = "factory-preview"
 SEED_NOT_FINISHED_LINE = "preview: the seed had not finished when the run stopped waiting"
 SEED_OUTCOME_GONE_LINE = "preview: the seed's outcome is no longer in the log"
+# The launcher never reported the seed starting: the server did not come up for it, or
+# the launcher's lines never reached the log.
+SEED_NOT_STARTED_LINE = "preview: the seed had not started when the run stopped waiting"
+LOG_UNREADABLE_LINE = "preview: the container log could not be read, so the seed is unverified"
 
 
 def seed_is_fine(outcome: str) -> bool:
@@ -191,23 +196,11 @@ def deploy_service(*, environment_id: str, service_id: str) -> None:
     )
 
 
-def current_image(*, environment_id: str, service_id: str) -> str:
-    data = railway(
-        "query($serviceId: String!, $environmentId: String!) {"
-        " serviceInstance(serviceId: $serviceId, environmentId: $environmentId)"
-        " { source { image } } }",
-        serviceId=service_id,
-        environmentId=environment_id,
-    )
-    source = required(data, "serviceInstance").get("source") or {}
-    return str(source.get("image") or "")
-
-
 def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, Any]]:
     """The service's newest deployments, newest first."""
     data = railway(
         "query($input: DeploymentListInput!) {"
-        " deployments(input: $input, first: 10) { edges { node { id status } } } }",
+        " deployments(input: $input, first: 10) { edges { node { id status meta } } } }",
         input={"environmentId": environment_id, "serviceId": service_id},
     )
     return [dict(edge["node"]) for edge in required(data, "deployments")["edges"]]
@@ -266,6 +259,7 @@ class LogTail:
     def __init__(self, deployment_id: str) -> None:
         self.deployment_id = deployment_id
         self.lines: list[str] = []
+        self.reads = 0  # successful fetches, so an unreadable log is told from a quiet one
         self._last_timestamp = ""
         self._seen_at_last_timestamp = 0
 
@@ -290,6 +284,7 @@ class LogTail:
             return
         # Trailing whitespace or a carriage return would defeat the exact match on the
         # launcher's lines.
+        self.reads += 1
         entries = [(str(e["timestamp"]), str(e["message"]).rstrip()) for e in raw]
         entries.sort(key=lambda entry: entry[0])  # stable, so same-timestamp order holds
         # startDate is inclusive, so lines at the last timestamp come back; skip as many of
@@ -331,7 +326,8 @@ def seed_state(log: LogTail) -> tuple[str, str, str]:
     """(state, outcome line, seed output) for the latest container attempt in the log.
 
     `done` carries the launcher's outcome line; `running` means the seed started and has
-    not finished; `unknown` means the launcher's lines are not in the log at all.
+    not finished; `starting` means the launcher is up but the server has not answered yet;
+    `unknown` means the launcher's lines are not in the log at all.
     """
     launches = [i for i, line in enumerate(log.lines) if line == seed_log.LAUNCH_LINE]
     lines = log.lines[launches[-1] + 1 :] if launches else log.lines
@@ -345,7 +341,9 @@ def seed_state(log: LogTail) -> tuple[str, str, str]:
             if line.startswith(seed_log.OUTPUT_PREFIX)
         ]
         return "done", lines[outcomes[-1]], "\n".join(output)
-    return ("running" if launches or starts else "unknown"), "", ""
+    if starts:
+        return "running", "", ""
+    return ("starting" if launches else "unknown"), "", ""
 
 
 def wait_for_seed(deployment_id: str, *, timeout: float = SEED_WAIT_SECONDS) -> tuple[str, str]:
@@ -364,7 +362,9 @@ def wait_for_seed(deployment_id: str, *, timeout: float = SEED_WAIT_SECONDS) -> 
         if state == "done":
             return outcome, output
         if time.monotonic() >= deadline:
-            return SEED_NOT_FINISHED_LINE, ""
+            if not log.reads:
+                return LOG_UNREADABLE_LINE, ""
+            return SEED_NOT_FINISHED_LINE if state == "running" else SEED_NOT_STARTED_LINE, ""
         time.sleep(10)
 
 
@@ -372,12 +372,15 @@ def delete_service(service_id: str) -> None:
     railway("mutation($id: String!) { serviceDelete(id: $id) }", id=service_id)
 
 
-def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
+def delete_image_tags(
+    *, image: str, pr_number: int, keep: str = "", keep_latest: bool = False
+) -> int:
     """Delete the GHCR versions tagged for this PR (pr-N-*); return how many.
 
     With `keep`, the version carrying that tag stays, so a deploy prunes the images it
-    superseded and a teardown removes them all. GitHub refuses to delete a package's last
-    tagged version, so a refusal is reported and skipped rather than failing the teardown.
+    superseded; with `keep_latest`, the newest version stays, so an unlabeled PR keeps one
+    image for a re-label to find. GitHub refuses to delete a package's last tagged version,
+    so a refusal is reported and skipped rather than failing the teardown.
     """
     owner, package = ghcr_package(image)
     root = packages_api_root(owner)
@@ -385,15 +388,15 @@ def delete_image_tags(*, image: str, pr_number: int, keep: str = "") -> int:
     if keep:
         select += f" and (any(.metadata.container.tags[]?; . == {json.dumps(keep)}) | not)"
     try:
-        version_ids = set(
-            run_gh(
-                "api",
-                "--paginate",
-                f"{root}/{package}/versions?per_page=100",
-                "--jq",
-                f".[] | select({select}) | .id",
-            ).split()
-        )
+        listed = run_gh(
+            "api",
+            "--paginate",
+            f"{root}/{package}/versions?per_page=100",
+            "--jq",
+            f".[] | select({select}) | [.id, .created_at] | @tsv",
+        ).splitlines()
+        versions = sorted((line.split("\t") for line in listed if line.strip()), key=lambda v: v[1])
+        version_ids = {v[0] for v in (versions[:-1] if keep_latest else versions)}
     except subprocess.CalledProcessError as error:
         # No package yet, when the PR never got as far as a push, or GHCR is unavailable.
         warn(f"Could not list image versions: {error.stderr}")
@@ -504,12 +507,13 @@ def format_deploy_comment(
     logs: str,
 ) -> str:
     lines = [f"### Preview of {head_sha[:7]}", ""]
-    if status == "SUCCESS" and seed_outcome != seed_log.UNHEALTHY_LINE:
+    server_down = seed_outcome in (seed_log.UNHEALTHY_LINE, SEED_NOT_STARTED_LINE)
+    if status == "SUCCESS" and not server_down:
         lines += [f"Running at **{url}** on a fresh database."]
     elif status == "SUCCESS":
         lines += [
-            f"Railway deployed it, but the launcher's log says the server exited (below), so"
-            f" {url} may not answer; see the [run]({run_url})."
+            f"Railway deployed it, but the launcher's log says the server is not up (below),"
+            f" so {url} may not answer; see the [run]({run_url})."
         ]
     elif status.startswith("TIMEOUT"):
         lines += [
@@ -596,7 +600,9 @@ def reuse_existing_deployment(
     live = [d for d in deployments if d["status"] != "SKIPPED"]
     if not live or live[0]["status"] != "SUCCESS":
         return False
-    if current_image(environment_id=environment_id, service_id=service_id) != image:
+    # The deployment's own record of what it runs, not the service's staged source, which
+    # a run that set the image and then failed to deploy would have left pointing here.
+    if (live[0].get("meta") or {}).get("image") != image:
         return False
     log = LogTail(str(live[0]["id"]))
     log.refresh()
@@ -721,6 +727,28 @@ def run_deploy(args: argparse.Namespace) -> int:
     return 0 if status == "SUCCESS" and seed_is_fine(seed_outcome) else 1
 
 
+def tear_down(*, pr_number: int, service_id: Optional[str], keep_latest_image: bool) -> str:
+    """Delete the service and the PR's image tags; return the sentence for the comment.
+
+    With `keep_latest_image` the newest image stays, so a re-label, which is how a failed
+    run is retried, finds it built and skips the Docker steps.
+    """
+    if service_id is None:
+        print("no preview service to delete")
+    else:
+        delete_service(service_id)
+        print(f"deleted service pr-{pr_number}")
+    deleted = delete_image_tags(
+        image=preview_image(), pr_number=pr_number, keep_latest=keep_latest_image
+    )
+    print(f"deleted {deleted} image versions")
+    return "The preview for this PR has been torn down." + (
+        " Its latest image stays built; re-add the label to redeploy it."
+        if keep_latest_image
+        else ""
+    )
+
+
 def settle_with_pr_state(*, pr_number: int, service_id: str) -> None:
     """Tear the preview down if the PR closed or lost its label while this run was deploying.
 
@@ -732,10 +760,10 @@ def settle_with_pr_state(*, pr_number: int, service_id: str) -> None:
     if pr["state"] == "OPEN" and labeled:
         return
     print(f"the PR is {pr['state'].lower()} and {'' if labeled else 'un'}labeled; tearing down")
-    delete_service(service_id)
-    if pr["state"] != "OPEN":
-        delete_image_tags(image=preview_image(), pr_number=pr_number)
-    upsert_comment(pr_number=pr_number, body="The preview for this PR has been torn down.")
+    body = tear_down(
+        pr_number=pr_number, service_id=service_id, keep_latest_image=pr["state"] == "OPEN"
+    )
+    upsert_comment(pr_number=pr_number, body=body)
 
 
 def run_note(args: argparse.Namespace) -> int:
@@ -756,32 +784,22 @@ def run_note(args: argparse.Namespace) -> int:
 
 
 def run_teardown(args: argparse.Namespace) -> int:
-    """Delete the service, then the PR's image tags and the comment whatever Railway did.
-
-    With --keep-images the tags stay: removing the label is also the first half of the
-    advertised retry, and the re-label then finds its image built.
-    """
+    """Delete the service, then the PR's image tags and the comment whatever Railway did."""
     railway_error: Optional[RailwayError] = None
     try:
         project_id, _ = read_token_scope()
         service_id = find_service(project_id=project_id, name=f"pr-{args.pr}")
-        if service_id is None:
-            print("no preview service to delete")
-        else:
-            delete_service(service_id)
-            print(f"deleted service pr-{args.pr}")
-    except RailwayError as error:
-        railway_error = error
-        log_error(f"Railway API: {error}")
-    if not args.keep_images:
-        deleted_tags = delete_image_tags(image=preview_image(), pr_number=args.pr)
-        print(f"deleted {deleted_tags} image versions")
-    body = (
-        "The preview for this PR has been torn down."
-        + (" Its image stays built; re-add the label to redeploy it." if args.keep_images else "")
-        if railway_error is None
-        else "Deleting the preview's Railway service failed; see the workflow run."
-    )
+    except RailwayError as failure:
+        railway_error, service_id = failure, None
+        log_error(f"Railway API: {failure}")
+    try:
+        body = tear_down(
+            pr_number=args.pr, service_id=service_id, keep_latest_image=args.keep_latest_image
+        )
+    except RailwayError as failure:
+        railway_error = failure
+        log_error(f"Railway API: {failure}")
+        body = "Deleting the preview's Railway service failed; see the workflow run."
     upsert_comment(pr_number=args.pr, body=body, create=False)
     return 0 if railway_error is None else 1
 
@@ -805,7 +823,7 @@ def main() -> int:
     note_parser.set_defaults(run=run_note)
     teardown_parser = subparsers.add_parser("teardown")
     teardown_parser.add_argument("--pr", type=int, required=True)
-    teardown_parser.add_argument("--keep-images", action="store_true")
+    teardown_parser.add_argument("--keep-latest-image", action="store_true")
     teardown_parser.set_defaults(run=run_teardown)
     args = parser.parse_args()
     try:
