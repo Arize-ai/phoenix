@@ -14,7 +14,6 @@ export type EvaluatorActivityBinGroup = {
   readonly failedCount: number;
   readonly lagP95Seconds: number | null;
   readonly cost: number | null;
-  readonly queueSize: number;
 };
 
 export type EvaluatorActivityBin = {
@@ -140,9 +139,12 @@ export function getEvaluatorTimeSeriesRows({
   });
 }
 
-/** The project's queued evaluations at the end of each bin. */
+/** The project's evaluations in queue at the end of each bin. */
 export function getQueueSizeRows(
-  bins: ReadonlyArray<EvaluatorActivityBin>
+  bins: ReadonlyArray<{
+    readonly timestamp: string;
+    readonly groups: ReadonlyArray<{ readonly queueSize: number }>;
+  }>
 ): { timestamp: number; queueSize: number }[] {
   return bins.map(({ timestamp, groups }) => ({
     timestamp: new Date(timestamp).getTime(),

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<436e3242192a699c730446f3abf715e2>>
+ * @generated SignedSource<<c50572ce5e6824748890903045d27a88>>
  * @lightSyntaxTransform
  */
 
@@ -10,19 +10,12 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluationQueueStatus = "DEGRADED" | "HEALTHY";
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type TimeRange = {
-  end?: string | null;
-  start?: string | null;
-};
-export type ServerEvaluationQueueStripQuery$variables = {
-  lastHour: TimeRange;
-  timeRange: TimeRange;
-};
+export type ServerEvaluationQueueStripQuery$variables = Record<PropertyKey, never>;
 export type ServerEvaluationQueueStripQuery$data = {
   readonly evaluationQueue: {
-    readonly atCapacity: boolean;
-    readonly evaluationsPerMinute: number;
-    readonly oldestQueuedAt: string | null;
+    readonly addedPerMinute: number;
+    readonly completedPerMinute: number;
+    readonly oldestWaitingAt: string | null;
     readonly projects: ReadonlyArray<{
       readonly project: {
         readonly id: string;
@@ -31,26 +24,12 @@ export type ServerEvaluationQueueStripQuery$data = {
       readonly queuedCount: number;
     }>;
     readonly queuedCount: number;
-    readonly queuedLimit: number;
-    readonly queuedPerMinute: number;
     readonly runningCount: number;
     readonly status: EvaluationQueueStatus;
     readonly targets: ReadonlyArray<{
       readonly evaluationTarget: EvaluationTarget;
       readonly queuedCount: number;
     }>;
-  };
-  readonly lastHourActivity: {
-    readonly lag: {
-      readonly p50Seconds: number;
-      readonly p95Seconds: number;
-      readonly p99Seconds: number;
-    } | null;
-  };
-  readonly rangeActivity: {
-    readonly cost: number | null;
-    readonly evaluatedCount: number;
-    readonly failedCount: number;
   };
 };
 export type ServerEvaluationQueueStripQuery = {
@@ -59,26 +38,14 @@ export type ServerEvaluationQueueStripQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "lastHour"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "timeRange"
-  }
-],
-v1 = {
+var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "queuedCount",
   "storageKey": null
 },
-v2 = [
+v1 = [
   {
     "alias": null,
     "args": null,
@@ -94,21 +61,7 @@ v2 = [
         "name": "status",
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "atCapacity",
-        "storageKey": null
-      },
-      (v1/*:: as any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "queuedLimit",
-        "storageKey": null
-      },
+      (v0/*:: as any*/),
       {
         "alias": null,
         "args": null,
@@ -120,21 +73,21 @@ v2 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "oldestQueuedAt",
+        "name": "oldestWaitingAt",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "queuedPerMinute",
+        "name": "addedPerMinute",
         "storageKey": null
       },
       {
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "evaluationsPerMinute",
+        "name": "completedPerMinute",
         "storageKey": null
       },
       {
@@ -152,7 +105,7 @@ v2 = [
             "name": "evaluationTarget",
             "storageKey": null
           },
-          (v1/*:: as any*/)
+          (v0/*:: as any*/)
         ],
         "storageKey": null
       },
@@ -195,96 +148,9 @@ v2 = [
             ],
             "storageKey": null
           },
-          (v1/*:: as any*/)
+          (v0/*:: as any*/)
         ],
         "storageKey": "projects(first:5)"
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": "lastHourActivity",
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "timeRange",
-        "variableName": "lastHour"
-      }
-    ],
-    "concreteType": "EvaluationActivity",
-    "kind": "LinkedField",
-    "name": "evaluationActivity",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "EvaluationLag",
-        "kind": "LinkedField",
-        "name": "lag",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "p50Seconds",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "p95Seconds",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "p99Seconds",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": "rangeActivity",
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "timeRange",
-        "variableName": "timeRange"
-      }
-    ],
-    "concreteType": "EvaluationActivity",
-    "kind": "LinkedField",
-    "name": "evaluationActivity",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "evaluatedCount",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "failedCount",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "cost",
-        "storageKey": null
       }
     ],
     "storageKey": null
@@ -292,32 +158,32 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
     "name": "ServerEvaluationQueueStripQuery",
-    "selections": (v2/*:: as any*/),
+    "selections": (v1/*:: as any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*:: as any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
     "name": "ServerEvaluationQueueStripQuery",
-    "selections": (v2/*:: as any*/)
+    "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "8efff75f481d5ea990ffeafd8a505d3e",
+    "cacheID": "d7e4875d1d922e3bbcfaf391716e3769",
     "id": null,
     "metadata": {},
     "name": "ServerEvaluationQueueStripQuery",
     "operationKind": "query",
-    "text": "query ServerEvaluationQueueStripQuery(\n  $lastHour: TimeRange!\n  $timeRange: TimeRange!\n) {\n  evaluationQueue {\n    status\n    atCapacity\n    queuedCount\n    queuedLimit\n    runningCount\n    oldestQueuedAt\n    queuedPerMinute\n    evaluationsPerMinute\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n  }\n  lastHourActivity: evaluationActivity(timeRange: $lastHour) {\n    lag {\n      p50Seconds\n      p95Seconds\n      p99Seconds\n    }\n  }\n  rangeActivity: evaluationActivity(timeRange: $timeRange) {\n    evaluatedCount\n    failedCount\n    cost\n  }\n}\n"
+    "text": "query ServerEvaluationQueueStripQuery {\n  evaluationQueue {\n    status\n    queuedCount\n    runningCount\n    oldestWaitingAt\n    addedPerMinute\n    completedPerMinute\n    targets {\n      evaluationTarget\n      queuedCount\n    }\n    projects(first: 5) {\n      project {\n        id\n        name\n      }\n      queuedCount\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8e77445255749472bf52f8783d2ef7bb";
+(node as any).hash = "c736c59a8f685ff0acbc09cf884d2c01";
 
 export default node;

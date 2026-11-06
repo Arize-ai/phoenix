@@ -1,9 +1,7 @@
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation";
 import type { ConfusionMatrixDatum } from "@phoenix/components/chart";
-import {
-  formatEvaluationTargetPlural,
-  type ProjectEvaluatorTarget,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types/evaluators";
 import { formatInt } from "@phoenix/utils/numberFormatUtils";
 

@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 from secrets import token_hex
-from typing import Any, Optional, TypedDict, cast
+from typing import Any, Mapping, Optional, Sequence, TypedDict, cast
 
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -13,7 +13,9 @@ from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 
+from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
+from phoenix.db.eval_work import queued_index_predicate
 from phoenix.db.helpers import (
     code_evaluator_with_latest_version,
     delete_projects_and_evaluator_trace_projects,
@@ -64,11 +66,13 @@ from phoenix.server.evaluators.validation import (
     require_categorical_output_configs,
     validate_decision_input_mapping,
 )
-from phoenix.server.online_eval.db_coordinator import (
-    count_cleared_work,
-    drop_all_queued_work,
-    drop_queued_work,
+from phoenix.server.online_eval.project_evaluator_state import (
+    start_at_database_time,
+    start_at_span_cursor,
 )
+from phoenix.server.online_eval.work_tables import WORK_TABLES, WorkUnitModel
+from phoenix.server.prometheus import ONLINE_EVAL_COMPLETED_WORK_UNITS
+from phoenix.server.types import DbSessionFactory
 
 
 @dataclass(kw_only=True)
@@ -268,6 +272,7 @@ async def create_project_llm_evaluator(
             )
             session.add(project_evaluator)
             await session.flush()
+            await _start_new_evaluator(session, project_evaluator)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
@@ -305,6 +310,7 @@ async def update_project_llm_evaluator(
     if input.prompt_source.content is not None:
         input.prompt_source.content.user_id = user_id
 
+    await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
         async with context.db() as session:
             # Edits lock the evaluator row first, so a concurrent delete of its binding or
@@ -373,7 +379,6 @@ async def update_project_llm_evaluator(
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
-
     return project_evaluator
 
 
@@ -470,6 +475,7 @@ async def bind_project_evaluator(
     )
     session.add(project_evaluator)
     await session.flush()
+    await _start_new_evaluator(session, project_evaluator)
     return project_evaluator
 
 
@@ -627,6 +633,7 @@ async def create_project_code_evaluator(
             )
             session.add(project_evaluator)
             await session.flush()
+            await _start_new_evaluator(session, project_evaluator)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
 
@@ -730,6 +737,7 @@ async def update_project_code_evaluator(
                 sandbox_runtime=context.sandbox_runtime,
             )
 
+    await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:
         async with context.db() as session:
             pair = (
@@ -860,8 +868,17 @@ async def update_project_code_evaluator(
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise Conflict(f"A project evaluator named '{input.name}' already exists for this project")
-
     return project_evaluator
+
+
+async def _start_new_evaluator(
+    session: AsyncSession, project_evaluator: models.ProjectEvaluator
+) -> None:
+    """Start a new span evaluator at the span cursor, so it evaluates only spans that arrive
+    after it is created. Trace and session evaluators start at their creation time instead,
+    which needs no row."""
+    if project_evaluator.evaluation_target == "SPAN":
+        await start_at_span_cursor(session, project_evaluator.id)
 
 
 async def write_project_evaluator(
@@ -869,17 +886,80 @@ async def write_project_evaluator(
 ) -> models.ProjectEvaluator:
     """Update binding columns and return the row as the database stored it.
 
+    An evaluator evaluates only what arrives after it is turned on. Enabling one starts it at
+    now, and a span evaluator also starts at now when its filter or sampling rate changes.
+    A caller that may enable an evaluator first clears its queue with
+    ``clear_queue_before_enabling``, outside this transaction.
+
     The row is handed to resolvers after the session closes, so server-generated values
     such as updated_at must come back with the write instead of being loaded lazily.
     """
+    project_evaluator = models.ProjectEvaluator
+    enabled, filter_condition, sampling_rate, evaluation_target = (
+        await session.execute(
+            select(
+                project_evaluator.enabled,
+                project_evaluator.filter_condition,
+                project_evaluator.sampling_rate,
+                project_evaluator.evaluation_target,
+            ).where(project_evaluator.id == project_evaluator_id)
+        )
+    ).one()
+    enabling = not enabled and values.get("enabled", enabled)
+    selection_changed = (
+        values.get("filter_condition", filter_condition) != filter_condition
+        or values.get("sampling_rate", sampling_rate) != sampling_rate
+    )
     row: models.ProjectEvaluator | None = await session.scalar(
-        update(models.ProjectEvaluator)
-        .where(models.ProjectEvaluator.id == project_evaluator_id)
+        update(project_evaluator)
+        .where(project_evaluator.id == project_evaluator_id)
         .values(**values)
-        .returning(models.ProjectEvaluator)
+        .returning(project_evaluator)
     )
     assert row is not None
+    if evaluation_target == "SPAN":
+        if enabling or selection_changed:
+            await start_at_span_cursor(session, project_evaluator_id)
+    elif enabling:
+        await start_at_database_time(session, project_evaluator_id)
     return row
+
+
+CLEAR_CHUNK_ROWS = 10_000
+
+
+async def clear_queue_before_enabling(
+    db: DbSessionFactory, project_evaluator_id: int, enabled: Optional[bool]
+) -> None:
+    """Before a write that enables a disabled evaluator, clear its queued work while it is
+    still disabled, so nothing queued before the disable runs once it is on.
+
+    Producers queue nothing for a disabled evaluator and the consumer drops its work, so its
+    queue only shrinks until the enable commits. Each chunk of ``CLEAR_CHUNK_ROWS`` is its
+    own transaction, so a long queue never holds the write lock for long.
+    """
+    if enabled is not True:
+        return
+    async with db() as session:
+        currently_enabled = await session.scalar(
+            select(models.ProjectEvaluator.enabled).where(
+                models.ProjectEvaluator.id == project_evaluator_id
+            )
+        )
+    if currently_enabled is not False:
+        return
+    for work_table in WORK_TABLES.values():
+        while True:
+            async with db() as session:
+                cleared = await _clear_queued_work(
+                    session,
+                    [project_evaluator_id],
+                    work_unit_models=(work_table.work_unit_model,),
+                    limit=CLEAR_CHUNK_ROWS,
+                )
+            count_cleared_work(cleared)
+            if sum(cleared.values()) < CLEAR_CHUNK_ROWS:
+                break
 
 
 async def set_project_evaluator_enabled(
@@ -887,8 +967,9 @@ async def set_project_evaluator_enabled(
 ) -> models.ProjectEvaluator:
     """Enable or disable a binding without changing its other settings.
 
-    Its queued evaluations stay queued; a disabled evaluator's are dropped, not run, when
-    their turn comes. Clear them now with ``clear_project_evaluator_queued_evaluations``.
+    Disabling leaves its queued evaluations in place; a disabled evaluator's are cleared,
+    not run, when their turn comes, and enabling it again clears any still queued. Clear them
+    now with ``clear_project_evaluator_queued_evaluations``.
     """
     try:
         project_evaluator_id = from_global_id_with_expected_type(
@@ -896,6 +977,7 @@ async def set_project_evaluator_enabled(
         )
     except ValueError as error:
         raise BadRequest(str(error))
+    await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     async with context.db() as session:
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_id)
         if project_evaluator is None:
@@ -924,12 +1006,12 @@ async def clear_project_evaluator_queued_evaluations(
         project_evaluator = await session.get(models.ProjectEvaluator, project_evaluator_rowid)
         if project_evaluator is None:
             raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
-        dropped = await drop_queued_work(session, [project_evaluator.id])
-    count_cleared_work(dropped)
-    return sum(dropped.values()), project_evaluator
+        cleared = await clear_queued_work(session, [project_evaluator.id])
+    count_cleared_work(cleared)
+    return sum(cleared.values()), project_evaluator
 
 
-async def clear_queued_evaluations(
+async def clear_project_queued_evaluations(
     context: EvaluatorServiceContext, project_id: GlobalID
 ) -> tuple[int, models.Project]:
     """Clear queued evaluations for every evaluator in one project.
@@ -951,9 +1033,9 @@ async def clear_queued_evaluations(
                 )
             )
         )
-        dropped = await drop_queued_work(session, project_evaluator_ids)
-    count_cleared_work(dropped)
-    return sum(dropped.values()), project
+        cleared = await clear_queued_work(session, project_evaluator_ids)
+    count_cleared_work(cleared)
+    return sum(cleared.values()), project
 
 
 async def clear_all_queued_evaluations(context: EvaluatorServiceContext) -> int:
@@ -962,9 +1044,73 @@ async def clear_all_queued_evaluations(context: EvaluatorServiceContext) -> int:
     Evaluations already running are left alone.
     """
     async with context.db() as session:
-        dropped = await drop_all_queued_work(session)
-    count_cleared_work(dropped)
-    return sum(dropped.values())
+        cleared = await clear_all_queued_work(session)
+    count_cleared_work(cleared)
+    return sum(cleared.values())
+
+
+async def clear_queued_work(
+    session: AsyncSession,
+    project_evaluator_ids: Sequence[int],
+) -> dict[models.EvaluationTarget, int]:
+    """Clear the project evaluators' work that has not started, returning how many units of
+    each evaluation target.
+
+    Queued work that has not started is PENDING, or ERROR awaiting a retry. RUNNING work is
+    left alone: an enabled evaluator's evaluation should finish, and publication refuses a
+    disabled one's. The status guard also skips a unit a consumer claims concurrently.
+    """
+    return await _clear_queued_work(session, project_evaluator_ids)
+
+
+async def clear_all_queued_work(session: AsyncSession) -> dict[models.EvaluationTarget, int]:
+    """Clear every project evaluator's work that has not started, returning how many units
+    of each evaluation target, as ``clear_queued_work`` does for some."""
+    return await _clear_queued_work(session, None)
+
+
+async def _clear_queued_work(
+    session: AsyncSession,
+    project_evaluator_ids: Optional[Sequence[int]],
+    *,
+    work_unit_models: Optional[Sequence[WorkUnitModel]] = None,
+    limit: Optional[int] = None,
+) -> dict[models.EvaluationTarget, int]:
+    """Clear the work of ``work_unit_models`` (every target's by default), at most ``limit``
+    rows of each."""
+    cleared: dict[models.EvaluationTarget, int] = {}
+    for evaluation_target, work_table in WORK_TABLES.items():
+        work_unit_model = work_table.work_unit_model
+        if work_unit_models is not None and work_unit_model not in work_unit_models:
+            continue
+        clearable: list[Any] = [
+            # SQLite reads a partial index only when the query repeats its predicate.
+            text(queued_index_predicate()),
+            work_unit_model.status.in_(("PENDING", "ERROR")),
+        ]
+        if project_evaluator_ids is not None:
+            clearable.append(work_unit_model.project_evaluator_id.in_(project_evaluator_ids))
+        statement = update(work_unit_model).where(*clearable)
+        if limit is not None:
+            statement = statement.where(
+                work_unit_model.id.in_(
+                    select(work_unit_model.id).where(*clearable).limit(limit).scalar_subquery()
+                )
+            )
+        result = await session.execute(statement.values(status="DROPPED"))
+        cleared[evaluation_target] = result.rowcount  # type: ignore[attr-defined]
+    return cleared
+
+
+def count_cleared_work(cleared: Mapping[models.EvaluationTarget, int]) -> None:
+    """Count work a user cleared, once the transaction that cleared it has committed."""
+    if not get_env_enable_prometheus():
+        return
+    for evaluation_target, count in cleared.items():
+        if count:
+            ONLINE_EVAL_COMPLETED_WORK_UNITS.labels(
+                evaluation_target=evaluation_target, outcome="cleared"
+            ).inc(count)
 
 
 async def delete_project_evaluators(
@@ -1064,6 +1210,7 @@ async def patch_project_evaluator(
         row_id = from_global_id_with_expected_type(project_evaluator_id, "ProjectEvaluator")
     except ValueError as error:
         raise BadRequest(f"Invalid project evaluator id: {project_evaluator_id}") from error
+    await clear_queue_before_enabling(context.db, row_id, patch.enabled)
     try:
         async with context.db() as session:
             row = await session.get(models.ProjectEvaluator, row_id)

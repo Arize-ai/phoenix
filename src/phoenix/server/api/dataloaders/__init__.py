@@ -340,6 +340,7 @@ def build_data_loaders(
     db: DbSessionFactory,
     cache_for_dataloaders: CacheForDataLoaders | None = None,
 ) -> DataLoaders:
+    project_evaluator_queues = ProjectEvaluatorQueuesDataLoader(db)
     return DataLoaders(
         agent_session_fields=TableFieldsDataLoader(db, models.AgentSession),
         agent_session_first_inputs=AgentSessionMessageTextDataLoader(db, "first_input"),
@@ -400,7 +401,7 @@ def build_data_loaders(
         document_evaluations=DocumentEvaluationsDataLoader(db),
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
         evaluation_queue=EvaluationQueueDataLoader(db),
-        evaluation_queue_projects=EvaluationQueueProjectsDataLoader(db),
+        evaluation_queue_projects=EvaluationQueueProjectsDataLoader(db, project_evaluator_queues),
         evaluation_queue_throughput=EvaluationQueueThroughputDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
         experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
@@ -451,11 +452,11 @@ def build_data_loaders(
         num_child_spans=NumChildSpansDataLoader(db),
         num_spans_per_trace=NumSpansPerTraceDataLoader(db),
         project_fields=TableFieldsDataLoader(db, models.Project),
-        project_evaluation_queue=ProjectEvaluationQueueDataLoader(db),
+        project_evaluation_queue=ProjectEvaluationQueueDataLoader(db, project_evaluator_queues),
         project_evaluator_by_id=ProjectEvaluatorByIdDataLoader(db),
         project_evaluator_evaluation_loads=ProjectEvaluatorEvaluationLoadsDataLoader(db),
         project_evaluator_latest_outcomes=ProjectEvaluatorLatestOutcomesDataLoader(db),
-        project_evaluator_queues=ProjectEvaluatorQueuesDataLoader(db),
+        project_evaluator_queues=project_evaluator_queues,
         project_evaluator_lags=ProjectEvaluatorLagsDataLoader(db),
         project_evaluator_run_counts=ProjectEvaluatorRunCountsDataLoader(db),
         projects_by_evaluator=ProjectsByEvaluatorDataLoader(db),

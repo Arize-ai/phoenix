@@ -26,19 +26,19 @@ import type {
   ProjectEvaluatorStats_projectEvaluator$key,
 } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorStats_projectEvaluator.graphql";
 import type { ProjectEvaluatorStatsDailyRatesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorStatsDailyRatesQuery.graphql";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import {
+  formatElapsedShort,
+  formatRelativeOrNever,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorLoad } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import { EvaluatorResultAnnotationMetricPanel } from "@phoenix/pages/project/evaluators/projectEvaluatorMetricPanels";
 import {
   StatField,
   StatFieldList,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorStatFields";
-import {
-  formatElapsedShort,
-  formatLastRun,
-  getAnnotationLevel,
-  getProjectEvaluatorStatus,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { getProjectEvaluatorStatus } from "@phoenix/pages/project/evaluators/projectEvaluatorStatus";
+import { getAnnotationLevel } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /** Matches the height of the metric chart strips above the tables. */
 const stripCSS = css`
@@ -74,7 +74,7 @@ export function ProjectEvaluatorStats({
           status
           lastRunAt
           queuedCount
-          oldestQueuedAt
+          oldestWaitingOrRetryingAt
           lastError
         }
         evaluationLoad {
@@ -164,14 +164,16 @@ function ProjectEvaluatorActivityPanel({
             <Badge variant={status.variant}>{status.label}</Badge>
           )}
         </StatField>
-        <StatField label="last run">
+        <StatField label="last evaluated">
           {runSummary.lastRunAt == null ? (
-            <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>
+            <Text size="S">{formatRelativeOrNever(runSummary.lastRunAt)}</Text>
           ) : (
             // Relative time, with the absolute timestamp on hover.
             <TooltipTrigger delay={64}>
               <TriggerWrap>
-                <Text size="S">{formatLastRun(runSummary.lastRunAt)}</Text>
+                <Text size="S">
+                  {formatRelativeOrNever(runSummary.lastRunAt)}
+                </Text>
               </TriggerWrap>
               <Tooltip>
                 <TooltipArrow />
@@ -180,15 +182,15 @@ function ProjectEvaluatorActivityPanel({
             </TooltipTrigger>
           )}
         </StatField>
-        <StatField label="queued">
+        <StatField label="in queue">
           <Text size="S">
-            {intFormatter(runSummary.queuedCount)}
-            {runSummary.oldestQueuedAt != null
-              ? ` · ${formatElapsedShort(runSummary.oldestQueuedAt)} waiting`
+            {formatQueueCount(runSummary.queuedCount)}
+            {runSummary.oldestWaitingOrRetryingAt != null
+              ? ` · ${formatElapsedShort(runSummary.oldestWaitingOrRetryingAt)} waiting`
               : ""}
           </Text>
         </StatField>
-        <StatField label="load">
+        <StatField label="eval time share">
           <ProjectEvaluatorLoad
             evaluationLoad={projectEvaluator.evaluationLoad}
             size="S"

@@ -46,8 +46,8 @@ import {
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { DEGRADED_WAIT_MS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
-import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { LAG_WARNING_SECONDS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   PROJECT_METRICS_CHART_SYNC_ID,
@@ -62,6 +62,7 @@ import {
 } from "@phoenix/utils/numberFormatUtils";
 
 import type { EvaluatorActivityChartsQuery } from "./__generated__/EvaluatorActivityChartsQuery.graphql";
+import type { EvaluatorQueueSizeChartQuery } from "./__generated__/EvaluatorQueueSizeChartQuery.graphql";
 import type {
   EvaluatorSeries,
   EvaluatorSeriesMetric,
@@ -73,8 +74,6 @@ import {
   getEvaluatorTimeSeriesRows,
   getQueueSizeRows,
 } from "./evaluatorActivity";
-
-const DEGRADED_LAG_SECONDS = DEGRADED_WAIT_MS / 1000;
 
 /**
  * At most two rows of evaluators, scrolling past that, so a project with many
@@ -132,7 +131,6 @@ function useEvaluatorActivity({
                   failedCount
                   lagP95Seconds
                   cost
-                  queueSize
                 }
               }
             }
@@ -244,7 +242,7 @@ function EvaluatorTimeSeriesChart({
   const lagTicks = isLag
     ? getDurationTicks(
         Math.max(
-          DEGRADED_LAG_SECONDS,
+          LAG_WARNING_SECONDS,
           ...chartData.flatMap((row) =>
             series.map(({ dataKey }) => row[dataKey] ?? 0)
           )
@@ -313,7 +311,7 @@ function EvaluatorTimeSeriesChart({
                 ) : (
                   <Line
                     key={evaluatorSeries.dataKey}
-                    type="monotone"
+                    type={isLag ? "stepAfter" : "monotone"}
                     dataKey={evaluatorSeries.dataKey}
                     name={evaluatorSeries.name}
                     stroke={getColor(evaluatorSeries)}
@@ -326,12 +324,12 @@ function EvaluatorTimeSeriesChart({
               )}
               {isLag && (
                 <ReferenceLine
-                  y={DEGRADED_LAG_SECONDS}
+                  y={LAG_WARNING_SECONDS}
                   stroke={semanticColors.warning}
                   strokeDasharray="4 4"
                   ifOverflow="extendDomain"
                   label={{
-                    value: formatLag(DEGRADED_LAG_SECONDS),
+                    value: formatLag(LAG_WARNING_SECONDS),
                     position: "insideTopRight",
                     fill: semanticColors.warning,
                     fontSize: 12,
@@ -501,13 +499,54 @@ export function CostByEvaluator({
   );
 }
 
+/**
+ * The project's evaluations in queue at each bin's end. Its own request, made
+ * only while the chart is shown: it counts every evaluation in queue.
+ */
 export function EvaluationQueueSizeTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
 }: ProjectMetricViewProps) {
-  const { scale, bins } = useEvaluatorActivity({ projectId, timeRange });
-  const chartData = getQueueSizeRows(bins);
+  const scale = useTimeBinScale({ timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+  const data = useLazyLoadQuery<EvaluatorQueueSizeChartQuery>(
+    graphql`
+      query EvaluatorQueueSizeChartQuery(
+        $projectId: ID!
+        $timeRange: TimeRange!
+        $timeBinConfig: TimeBinConfig!
+      ) {
+        project: node(id: $projectId) {
+          ... on Project {
+            evaluationActivity(
+              timeRange: $timeRange
+              timeBinConfig: $timeBinConfig
+            ) {
+              series {
+                timestamp
+                groups {
+                  queueSize
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      projectId,
+      timeRange: {
+        start: timeRange.start?.toISOString(),
+        end: timeRange.end?.toISOString(),
+      },
+      timeBinConfig: { scale, utcOffsetMinutes },
+    },
+    useMetricQueryFetchOptions()
+  );
+  const chartData = getQueueSizeRows(
+    data.project.evaluationActivity?.series ?? []
+  );
   const hasData = chartData.some(({ queueSize }) => queueSize > 0);
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const colors = useSequentialChartColors();
@@ -519,7 +558,7 @@ export function EvaluationQueueSizeTimeSeries({
       {({ chartProps }) => (
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
-          message="No queued evaluations in this time range"
+          message="Nothing in queue in this time range"
           chartType="line"
         >
           <ChartResponsiveContainer>
@@ -546,9 +585,9 @@ export function EvaluationQueueSizeTimeSeries({
                 {...defaultTooltipProps}
               />
               <Area
-                type="linear"
+                type="stepAfter"
                 dataKey="queueSize"
-                name="Queued evaluations"
+                name="In queue"
                 stroke={colors.blue500}
                 fill={colors.blue500}
                 fillOpacity={0.2}

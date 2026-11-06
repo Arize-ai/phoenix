@@ -6,14 +6,13 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
-import { formatElapsedShort } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import { formatElapsedShort } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 
 export type ProjectEvaluatorQueuedWork = {
   queuedCount: number;
-  oldestQueuedAt: string | null;
+  oldestWaitingOrRetryingAt: string | null;
 };
-
-const countFormatter = new Intl.NumberFormat();
 
 /**
  * The evaluators table's queued cell: how many of the evaluator's evaluations
@@ -24,7 +23,7 @@ export function ProjectEvaluatorQueueCell({
 }: {
   queuedWork: ProjectEvaluatorQueuedWork;
 }) {
-  const { queuedCount, oldestQueuedAt } = queuedWork;
+  const { queuedCount, oldestWaitingOrRetryingAt } = queuedWork;
   if (queuedCount === 0) {
     return (
       <Text fontFamily="mono" color="text-700">
@@ -32,25 +31,24 @@ export function ProjectEvaluatorQueueCell({
       </Text>
     );
   }
-  const count = (
-    <Text fontFamily="mono">{countFormatter.format(queuedCount)}</Text>
-  );
+  const formattedCount = formatQueueCount(queuedCount);
+  const count = <Text fontFamily="mono">{formattedCount}</Text>;
   // Only running evaluations are queued, so nothing is waiting.
-  if (oldestQueuedAt == null) {
+  if (oldestWaitingOrRetryingAt == null) {
     return count;
   }
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>
         <Text fontFamily="mono">
-          {countFormatter.format(queuedCount)}
+          {formattedCount}
           <Text fontFamily="mono" color="text-700">
-            {` · ${formatElapsedShort(oldestQueuedAt)}`}
+            {` · ${formatElapsedShort(oldestWaitingOrRetryingAt)}`}
           </Text>
         </Text>
       </TriggerWrap>
       <RichTooltip placement="bottom">
-        <Text size="S">{`Oldest has waited ${formatDistanceToNowStrict(new Date(oldestQueuedAt), { roundingMethod: "floor" })}, including retries`}</Text>
+        <Text size="S">{`Oldest has waited ${formatDistanceToNowStrict(new Date(oldestWaitingOrRetryingAt), { roundingMethod: "floor" })}, including retries`}</Text>
       </RichTooltip>
     </TooltipTrigger>
   );

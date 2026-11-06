@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fc42afa3e5175d3adb927451830fcfc1>>
+ * @generated SignedSource<<f88601ebbc70a0656ec85e4fd40b6226>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluationTarget = "SESSION" | "SPAN" | "TRACE";
-export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "NEVER_RUN" | "QUEUED" | "RUNNING";
+export type ProjectEvaluatorRunStatus = "DEGRADED" | "DISABLED" | "ERROR" | "HEALTHY" | "NEVER_RUN" | "STARTING";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;
@@ -26,7 +26,7 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly runSummary: {
     readonly lastError: string | null;
     readonly lastRunAt: string | null;
-    readonly oldestQueuedAt: string | null;
+    readonly oldestWaitingOrRetryingAt: string | null;
     readonly queuedCount: number;
     readonly status: ProjectEvaluatorRunStatus;
   };
@@ -112,7 +112,7 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "oldestQueuedAt",
+          "name": "oldestWaitingOrRetryingAt",
           "storageKey": null
         },
         {
@@ -168,6 +168,6 @@ return {
 };
 })();
 
-(node as any).hash = "08348b2a11c6bde2a1b015f4daa25285";
+(node as any).hash = "02a2cbae677ddfd35d6b49cfbbfbea20";
 
 export default node;

@@ -8,9 +8,9 @@ import type { ProjectEvaluatorEnabledSwitchClearMutation } from "@phoenix/pages/
 import type { ProjectEvaluatorEnabledSwitchMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchMutation.graphql";
 import type { ProjectEvaluatorEnabledSwitchRunSummaryQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorEnabledSwitchRunSummaryQuery.graphql";
 import { ClearQueueConfirmDialog } from "@phoenix/pages/project/evaluators/ClearQueueConfirmDialog";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 export function ProjectEvaluatorEnabledSwitch({
   projectEvaluatorId,
@@ -41,8 +41,8 @@ export function ProjectEvaluatorEnabledSwitch({
               status
               queuedCount
               runningCount
-              droppedCount
-              oldestQueuedAt
+              clearedCount
+              oldestWaitingOrRetryingAt
             }
           }
         }
@@ -61,8 +61,8 @@ export function ProjectEvaluatorEnabledSwitch({
               status
               queuedCount
               runningCount
-              droppedCount
-              oldestQueuedAt
+              clearedCount
+              oldestWaitingOrRetryingAt
             }
           }
         }
@@ -81,7 +81,7 @@ export function ProjectEvaluatorEnabledSwitch({
       runSummary.getValue("runningCount") ?? 0,
       "queuedCount"
     );
-    runSummary?.setValue(null, "oldestQueuedAt");
+    runSummary?.setValue(null, "oldestWaitingOrRetryingAt");
   };
 
   // The row showed the evaluator as cleared; read back what is still queued.
@@ -97,8 +97,8 @@ export function ProjectEvaluatorEnabledSwitch({
                 status
                 queuedCount
                 runningCount
-                droppedCount
-                oldestQueuedAt
+                clearedCount
+                oldestWaitingOrRetryingAt
               }
             }
           }
@@ -219,7 +219,7 @@ export function ProjectEvaluatorEnabledSwitch({
         <Text>
           {clearableCount === 1
             ? `Disabling “${name}” clears its 1 queued evaluation.`
-            : `Disabling “${name}” clears its ${intFormatter(clearableCount)} queued evaluations.`}
+            : `Disabling “${name}” clears its ${formatQueueCount(clearableCount)} queued evaluations.`}
         </Text>
       </ClearQueueConfirmDialog>
     </>

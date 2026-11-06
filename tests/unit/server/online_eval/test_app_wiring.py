@@ -11,8 +11,6 @@ import pytest
 from sqlalchemy import select, update
 
 from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE,
-    ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
     ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
     ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
@@ -20,9 +18,16 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
-from phoenix.server.online_eval.consumer import OnlineEvalConsumer
-from phoenix.server.online_eval.producer import OnlineEvalProducer
-from phoenix.server.online_eval.sweeper import EvalSweeper
+from phoenix.server.online_eval.consumer import (
+    CLAIM_BATCH_SIZE,
+    MAX_DB_CONCURRENCY,
+    EvaluationConsumer,
+)
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    TraceEvaluationProducer,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
     TestBulkInserter,
@@ -50,22 +55,22 @@ async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
     per target, both sweepers, and the producer.
     """
     app = _create_app(db)
-    assert isinstance(app.state.online_eval_producer, OnlineEvalProducer)
-    assert isinstance(app.state.online_eval_consumer, OnlineEvalConsumer)
-    assert isinstance(app.state.online_eval_session_consumer, OnlineEvalConsumer)
-    assert isinstance(app.state.online_eval_trace_consumer, OnlineEvalConsumer)
-    assert isinstance(app.state.online_eval_session_sweeper, EvalSweeper)
-    assert isinstance(app.state.online_eval_trace_sweeper, EvalSweeper)
+    assert isinstance(app.state.online_eval_span_producer, SpanEvaluationProducer)
+    assert isinstance(app.state.online_eval_consumer, EvaluationConsumer)
+    assert isinstance(app.state.online_eval_session_consumer, EvaluationConsumer)
+    assert isinstance(app.state.online_eval_trace_consumer, EvaluationConsumer)
+    assert isinstance(app.state.online_eval_session_producer, SessionEvaluationProducer)
+    assert isinstance(app.state.online_eval_trace_producer, TraceEvaluationProducer)
 
 
 async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory) -> None:
     app = _create_app(db, read_only=True)
-    assert app.state.online_eval_producer is None
+    assert app.state.online_eval_span_producer is None
     assert app.state.online_eval_consumer is None
     assert app.state.online_eval_session_consumer is None
     assert app.state.online_eval_trace_consumer is None
-    assert app.state.online_eval_session_sweeper is None
-    assert app.state.online_eval_trace_sweeper is None
+    assert app.state.online_eval_session_producer is None
+    assert app.state.online_eval_trace_producer is None
 
 
 @pytest.mark.parametrize(
@@ -108,40 +113,38 @@ async def test_app_validates_session_byte_limits_at_startup(
 async def test_app_runs_seeded_criteria_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_CLAIM_BATCH_SIZE, "3")
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, "4")
-    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_DB_CONCURRENCY, "5")
     _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(patch_dml_event_handler())
         await stack.enter_async_context(patch_grpc_server())
         app = _create_app(db)
-        producer = app.state.online_eval_producer
+        producer = app.state.online_eval_span_producer
         consumer = app.state.online_eval_consumer
         session_consumer = app.state.online_eval_session_consumer
         trace_consumer = app.state.online_eval_trace_consumer
-        session_sweeper = app.state.online_eval_session_sweeper
-        trace_sweeper = app.state.online_eval_trace_sweeper
-        assert isinstance(producer, OnlineEvalProducer)
-        assert isinstance(consumer, OnlineEvalConsumer)
-        assert isinstance(session_consumer, OnlineEvalConsumer)
-        assert isinstance(trace_consumer, OnlineEvalConsumer)
+        session_producer = app.state.online_eval_session_producer
+        trace_producer = app.state.online_eval_trace_producer
+        assert isinstance(producer, SpanEvaluationProducer)
+        assert isinstance(consumer, EvaluationConsumer)
+        assert isinstance(session_consumer, EvaluationConsumer)
+        assert isinstance(trace_consumer, EvaluationConsumer)
         consumers = (consumer, session_consumer, trace_consumer)
         assert len({id(target_consumer) for target_consumer in consumers}) == 3
         assert session_consumer._evaluation_target == "SESSION"
         assert trace_consumer._evaluation_target == "TRACE"
         assert consumer._db_semaphore is not None
         assert consumer._evaluator_semaphore._value == 4
-        assert consumer._db_semaphore._value == 5
+        assert consumer._db_semaphore._value == MAX_DB_CONCURRENCY
         for target_consumer in consumers:
-            assert target_consumer._claim_batch_size == 3
+            assert target_consumer._claim_batch_size == CLAIM_BATCH_SIZE
             assert target_consumer._evaluator_semaphore is consumer._evaluator_semaphore
             assert target_consumer._db_semaphore is consumer._db_semaphore
             assert target_consumer._executor._db_semaphore is consumer._db_semaphore
-        assert isinstance(session_sweeper, EvalSweeper)
-        assert isinstance(trace_sweeper, EvalSweeper)
-        assert trace_sweeper._lease.name != session_sweeper._lease.name
+        assert isinstance(session_producer, SessionEvaluationProducer)
+        assert isinstance(trace_producer, TraceEvaluationProducer)
+        assert trace_producer._lease.name != session_producer._lease.name
 
         async with db() as session:
             project = await _add_project(session)

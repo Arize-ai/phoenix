@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d81a327e00c3dc5ae8589eae1e5c8633>>
+ * @generated SignedSource<<9805632d479bd724aecab60a07be26d1>>
  * @lightSyntaxTransform
  */
 
@@ -11,7 +11,7 @@ import { ConcreteRequest } from 'relay-runtime';
 export type ClearQueuedEvaluationsButtonClearAllMutation$variables = Record<PropertyKey, never>;
 export type ClearQueuedEvaluationsButtonClearAllMutation$data = {
   readonly clearAllQueuedEvaluations: {
-    readonly droppedCount: number;
+    readonly clearedCount: number;
   };
 };
 export type ClearQueuedEvaluationsButtonClearAllMutation = {
@@ -33,7 +33,7 @@ var v0 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "droppedCount",
+        "name": "clearedCount",
         "storageKey": null
       }
     ],
@@ -58,16 +58,16 @@ return {
     "selections": (v0/*:: as any*/)
   },
   "params": {
-    "cacheID": "cf8fa4bacf7cf61fc20a3a6d98b8b1a4",
+    "cacheID": "7a53f6a763e0be3b5f5aaa2672bab3e9",
     "id": null,
     "metadata": {},
     "name": "ClearQueuedEvaluationsButtonClearAllMutation",
     "operationKind": "mutation",
-    "text": "mutation ClearQueuedEvaluationsButtonClearAllMutation {\n  clearAllQueuedEvaluations {\n    droppedCount\n  }\n}\n"
+    "text": "mutation ClearQueuedEvaluationsButtonClearAllMutation {\n  clearAllQueuedEvaluations {\n    clearedCount\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f45f4fec90c7b3a11ea2ac82cb0e7129";
+(node as any).hash = "dfe0d8f200818ad9e935f89adb4314c3";
 
 export default node;

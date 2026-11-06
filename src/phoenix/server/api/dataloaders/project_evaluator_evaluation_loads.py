@@ -2,7 +2,7 @@ from typing import Iterable
 
 from strawberry.dataloader import DataLoader
 
-from phoenix.server.online_eval.queue_health import EvaluationLoad, load_evaluation_loads
+from phoenix.server.online_eval.evaluator_load import EvaluationLoad, load_evaluation_loads
 from phoenix.server.types import DbSessionFactory
 
 

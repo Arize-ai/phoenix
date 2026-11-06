@@ -80,7 +80,7 @@ import {
   type DistributionSide,
   type DistributionChartRow,
 } from "./projectEvaluatorDistributionUtils";
-import { formatEvaluationTargetPlural } from "./projectEvaluatorTypes";
+import { formatEvaluationTargetPlural } from "./projectEvaluatorFormat";
 
 const panelCSS = css`
   min-width: 0;
