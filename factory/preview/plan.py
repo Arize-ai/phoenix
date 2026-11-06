@@ -14,6 +14,7 @@ import argparse
 import functools
 import json
 import re
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -27,11 +28,11 @@ DOCKER_HUB_TAGS_URL = f"https://hub.docker.com/v2/repositories/{PUBLISHED_IMAGE}
 DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 # The Dockerfile's frontend stage copies exactly these two trees.
 FRONTEND_TREES = ("js", "schemas")
-SEED_HEADING_PATTERN = re.compile(r"^#+\s*Preview seed\s*$", re.IGNORECASE)
-HEADING_PATTERN = re.compile(r"^#+\s")
-# A fence may be indented up to three spaces, use three or more backticks or tildes, and
-# name the language as python, python3 or py in any case, with anything after it.
-FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+SEED_HEADING_PATTERN = re.compile(r"^(#+)\s*Preview seed\s*$", re.IGNORECASE)
+HEADING_PATTERN = re.compile(r"^(#+)\s")
+# A fence may be indented, as inside a list item, use three or more backticks or tildes,
+# and name the language as python, python3 or py in any case, with anything after it.
+FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 PYTHON_INFO_PATTERN = re.compile(r"^\s*(python3?|py)\b", re.IGNORECASE)
 MAX_TAG_PAGES = 5
 MAX_BASE_CANDIDATES = 30
@@ -120,16 +121,18 @@ def extract_seed(*, body: str) -> str:
     """The first python block of the body's Preview seed section, and only that section's.
 
     Scans lines and tracks every fence throughout, so neither the heading search nor the
-    section's end is fooled by a `## ...` line inside a fenced block. As in CommonMark, a
-    block closes only on a fence of the same character at least as long as the one that
-    opened it, a block still open at the end of the body runs to the end, and an indented
-    fence strips that indent from its content lines.
+    section's end is fooled by a `## ...` line inside a fenced block. The section ends at
+    the next heading of the same or a higher level, as in a document outline. As in
+    CommonMark, a block closes only on a fence of the same character at least as long as
+    the one that opened it, a block still open at the end of the body runs to the end, and
+    an indented fence strips that indent from its content lines.
     """
 
     def finish(block: list[str]) -> str:
         return "\n".join(block).strip() + "\n" if any(line.strip() for line in block) else ""
 
     in_section = False
+    section_level = 0
     block: list[str] = []
     opening = ""  # the fence that opened the current block, empty outside one
     indent = 0
@@ -154,10 +157,12 @@ def extract_seed(*, body: str) -> str:
             opening = fence.group(1)
             indent = len(line) - len(line.lstrip(" "))
             in_python = in_section and PYTHON_INFO_PATTERN.match(fence.group(2)) is not None
-        elif SEED_HEADING_PATTERN.match(line):
+        elif (seed_heading := SEED_HEADING_PATTERN.match(line)) is not None:
             in_section = True
-        elif HEADING_PATTERN.match(line) and in_section:
-            return ""
+            section_level = len(seed_heading.group(1))
+        elif (heading := HEADING_PATTERN.match(line)) is not None and in_section:
+            if len(heading.group(1)) <= section_level:
+                return ""
     return finish(block) if opening and in_python else ""
 
 
@@ -170,13 +175,18 @@ def main() -> int:
 
     pr = json.loads(run_gh("pr", "view", str(args.pr), "--json", "baseRefName,body"))
     head_sha = str(args.head_sha)
-    base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
+    try:
+        base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
+        # The base image's frontend is as old as its commit, so the comparison that matters
+        # is with that commit, not the merge base. A full build makes the PR's own frontend.
+        frontend = bool(base_sha) and frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
+            root_tree_shas(ref=head_sha)
+        )
+    except subprocess.CalledProcessError as error:
+        # The same degradation as Docker Hub trouble: a full build, not a lost preview.
+        warn(f"GitHub API trouble choosing a base, so the preview builds in full: {error.stderr}")
+        base_sha, frontend = "", False
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""
-    # The base image's frontend is as old as its commit, so the comparison that matters is
-    # with that commit, not the merge base. A full build makes the PR's own frontend.
-    frontend = bool(base_sha) and frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
-        root_tree_shas(ref=head_sha)
-    )
 
     seed = extract_seed(body=str(pr["body"] or ""))
     args.seed_dir.mkdir(parents=True, exist_ok=True)

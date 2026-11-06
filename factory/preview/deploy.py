@@ -232,7 +232,11 @@ class LogTail:
         except RailwayError as error:
             print(f"::warning::Reading deployment logs: {error}", flush=True)
             return
-        entries = [(str(e["timestamp"]), str(e["message"])) for e in data["deploymentLogs"]]
+        # Trailing whitespace or a carriage return would defeat the exact match on the
+        # launcher's lines.
+        entries = [
+            (str(e["timestamp"]), str(e["message"]).rstrip()) for e in data["deploymentLogs"]
+        ]
         # startDate is inclusive, so lines at the last timestamp come back; skip as many of
         # them as were already taken, which also handles identical lines.
         previous_timestamp, previous_seen = self._last_timestamp, self._seen_at_last_timestamp
@@ -429,6 +433,11 @@ def format_deploy_comment(
     lines = [f"### Preview of {head_sha[:7]}", ""]
     if status == "SUCCESS":
         lines += [f"Running at **{url}** on a fresh database."]
+    elif status.startswith("TIMEOUT"):
+        lines += [
+            f"The deployment was still going when the run stopped waiting ({status.lower()});"
+            f" see the [run]({run_url}). It may yet come up at {url}, seeded on its own."
+        ]
     else:
         lines += [
             f"The deployment ended with status `{status}`; see the [run]({run_url})."
@@ -504,15 +513,19 @@ def run_deploy(args: argparse.Namespace) -> int:
             environment_id=environment_id, service_id=service_id, before=before
         )
     except RailwayError as error:
-        # The previous push's comment would otherwise go on advertising its instance.
-        upsert_comment(
-            pr_number=args.pr,
-            body=(
-                f"### Preview of {args.head_sha[:7]}\n\nDeploying failed before Railway took"
-                f" the image; see the [run]({args.run_url}).\n\n~~~\n"
-                f"{clip_for_comment(str(error))}\n~~~"
-            ),
-        )
+        # The previous push's comment would otherwise go on advertising its instance. A
+        # failure to say so must not hide the Railway error itself.
+        try:
+            upsert_comment(
+                pr_number=args.pr,
+                body=(
+                    f"### Preview of {args.head_sha[:7]}\n\nDeploying failed before Railway"
+                    f" took the image; see the [run]({args.run_url}).\n\n~~~\n"
+                    f"{clip_for_comment(str(error))}\n~~~"
+                ),
+            )
+        except subprocess.CalledProcessError as comment_error:
+            print(f"::warning::Could not update the PR comment: {comment_error.stderr}")
         raise
     logs = ""
     if status == "SUCCESS":

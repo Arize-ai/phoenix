@@ -14,9 +14,12 @@ variable "TAGS" { default = "" } // comma-separated
 variable "SOURCE_URL" { default = "" }
 variable "REVISION" { default = "" }
 
+// The published commit images are the root variant, so the full build is too: a preview
+// should not change user and HOME with an unrelated dependency bump.
 target "base" {
   context    = HEAD_DIR
   dockerfile = "Dockerfile"
+  args       = { BASE_IMAGE = "gcr.io/distroless/python3-debian13" }
   platforms  = ["linux/amd64"]
 }
 
