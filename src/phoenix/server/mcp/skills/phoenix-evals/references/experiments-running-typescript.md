@@ -62,7 +62,7 @@ import { runExperiment } from "@arizeai/phoenix-client/experiments";
 import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
 import { generateText } from "ai";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-6-luna");
 
 const task: ExperimentTask = async (example) => {
   const { text } = await generateText({
