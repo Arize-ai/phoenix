@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import {
+  Card,
+  CardCollapsedPreview,
   Counter,
   Disclosure,
   DisclosureGroup,
@@ -76,8 +78,10 @@ const ProjectEvaluatorScopeSection = ({
 };
 
 /**
- * The "Advanced" section every project evaluator form ends with: settings
- * that change what an evaluation stores, not what it evaluates.
+ * The "Advanced" card every project evaluator form ends with: settings that
+ * change what an evaluation stores, not what it evaluates. It starts
+ * collapsed, and its header says whether tracing is on, so a closed card
+ * never hides that an evaluator has stopped storing traces.
  */
 const ProjectEvaluatorAdvancedSection = ({
   scope,
@@ -86,28 +90,36 @@ const ProjectEvaluatorAdvancedSection = ({
   const tracingDescriptionId = useId();
   return (
     <View marginTop="size-200" marginBottom="size-200" flex="none">
-      <Flex direction="column" gap="size-200">
-        <EvaluatorSectionHeader
-          title="Advanced"
-          description="Choose what each evaluation stores besides its annotations."
-        />
-        <Flex direction="column" gap="size-50">
-          <Switch
-            isSelected={scope.tracingEnabled}
-            onChange={(tracingEnabled) =>
-              onScopeChange({ ...scope, tracingEnabled })
-            }
-            aria-describedby={tracingDescriptionId}
-          >
-            <Label>Tracing</Label>
-          </Switch>
-          <Text id={tracingDescriptionId} size="S" color="text-500">
-            {scope.tracingEnabled
-              ? "Each evaluation stores a trace of its inputs, outputs, latency, and token cost, so you can analyze this evaluator's cost and performance and improve it."
-              : "Evaluations store only their annotations. This saves storage, but this evaluator's cost, latency, and inputs are not recorded."}
-          </Text>
-        </Flex>
-      </Flex>
+      <Card
+        title="Advanced"
+        collapsible
+        defaultOpen={false}
+        headerContent={
+          <CardCollapsedPreview>
+            {scope.tracingEnabled ? "Tracing on" : "Tracing off"}
+          </CardCollapsedPreview>
+        }
+        testId="project-evaluator-advanced-card"
+      >
+        <View padding="size-200">
+          <Flex direction="column" gap="size-50">
+            <Switch
+              isSelected={scope.tracingEnabled}
+              onChange={(tracingEnabled) =>
+                onScopeChange({ ...scope, tracingEnabled })
+              }
+              aria-describedby={tracingDescriptionId}
+            >
+              <Label>Tracing</Label>
+            </Switch>
+            <Text id={tracingDescriptionId} size="S" color="text-500">
+              {scope.tracingEnabled
+                ? "Each evaluation stores a trace of its inputs, outputs, latency, and token cost, so you can analyze this evaluator's cost and performance and improve it."
+                : "Evaluations store only their annotations. This saves storage, but this evaluator's cost, latency, and inputs are not recorded."}
+            </Text>
+          </Flex>
+        </View>
+      </Card>
     </View>
   );
 };
