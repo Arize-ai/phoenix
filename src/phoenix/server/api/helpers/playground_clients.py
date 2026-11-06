@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -180,6 +181,11 @@ class PlaygroundClient(ABC, Generic[ClientT]):
     @property
     @abstractmethod
     def llm_system(self) -> str: ...
+
+    @property
+    def supports_forced_tool_choice(self) -> bool:
+        """True if the model accepts a tool choice that requires a tool call; false otherwise."""
+        return True
 
     @classmethod
     @abstractmethod
@@ -1494,6 +1500,14 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     def llm_system(self) -> str:
         return "aws"
 
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        is_anthropic_model = "anthropic." in self.model_name.lower()
+        return not is_anthropic_model or anthropic_model_supports_forced_tool_choice(
+            self.model_name
+        )
+
     # AWS Bedrock throttling error codes
     _THROTTLE_ERROR_CODES = frozenset(
         [
@@ -2164,6 +2178,48 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-opus-4-0",
 ]
 
+# Anthropic models that accept a `tool_choice` of type `any` or `tool`. Newer models
+# such as `claude-opus-5-5` accept only `auto` and `none`, so a model missing from
+# this list is treated as rejecting a required tool call.
+ANTHROPIC_MODELS_WITH_FORCED_TOOL_CHOICE = [
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+    "claude-haiku-5-5",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-0",
+    "claude-opus-4-0",
+    "claude-sonnet-4",
+    "claude-opus-4",
+]
+
+# A name must be followed by the end of the ID, a snapshot date, or a Bedrock version,
+# so `claude-opus-5` doesn't match `claude-opus-5-5`.
+_ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE = re.compile(
+    r"(?:^|[./])(?:"
+    + "|".join(map(re.escape, ANTHROPIC_MODELS_WITH_FORCED_TOOL_CHOICE))
+    + r")(?:$|[@:]|-\d{8}|-v\d)",
+    re.IGNORECASE,
+)
+
+
+def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
+    """Checks whether an Anthropic model accepts a `tool_choice` of `any` or `tool`.
+
+    Args:
+        model_name: A model name or ID, in any case. It can be an Anthropic name such
+            as `claude-opus-5@20260801`, a Bedrock ID such as
+            `us-gov.anthropic.claude-opus-5-v1:0`, or an inference-profile ARN.
+            An unknown name counts as unsupported.
+    """
+    return _ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE.search(model_name) is not None
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
@@ -2177,6 +2233,11 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.ANTHROPIC.value
+
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        return anthropic_model_supports_forced_tool_choice(self.model_name)
 
     def __init__(
         self,
