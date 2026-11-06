@@ -1,24 +1,18 @@
 name: Factory Preview
 
-# Deploys a seeded preview of a PR labeled `factory-preview`. dispatch.py adds the label
-# when a bug or feature lane's PR leaves draft; a maintainer can add it to any same-repo PR.
-# The PR's Python source and, when it changed, its frontend build are laid over the published
-# image of the main commit the PR's dependencies match, together with the seed script from
-# the PR body (factory/preview/Dockerfile, built by docker-bake.hcl). The image goes to
-# GHCR under pr-<number> and pr-<number>-<short sha> tags, and deploy.py points a Railway
-# service at it. Closing or unlabeling the PR deletes the service and the PR's image tags.
+# Deploys a seeded preview of a PR labeled `factory-preview`: factory/preview/ builds the
+# image from the PR and the seed in its body, pushes it to GHCR, and points a Railway
+# service at it. See "Previewing a PR" in factory/README.md.
 #
-# This runs with the Railway token and a write token, so nothing from the PR may run on the
-# runner. `pull_request_target` takes the workflow file from the base branch, the scripts
-# and the preview Dockerfile are checked out from the base branch under base/, and the PR's
-# checkout under head/ is only a Docker build context: its code runs inside BuildKit, where
-# the PR's own Dockerfile stages are built, and nowhere else. Factory Guard fails a PR that
-# edits these files but does not stop this workflow from running on it, which is why the
-# boundary has to hold here. Fork PRs are skipped: a fork's code has no business in a job
-# that holds secrets, even inside BuildKit.
+# This job holds the Railway token and a write token, so nothing from the PR may run on the
+# runner. `pull_request_target` takes this file from the base branch, the scripts and the
+# preview Dockerfile are checked out from the base branch under base/, and the PR's
+# checkout under head/ is only a Docker build context. Factory Guard fails a PR that edits
+# these files but does not stop this workflow, so the boundary has to hold here. Fork PRs
+# are skipped: a fork's code has no business in a job that holds secrets.
 #
-# No caches anywhere in the deploy job: it publishes an image, and a restored cache is a
-# way to tamper with what gets published.
+# No caches in the deploy job: it publishes an image, and a restored cache is a way to
+# tamper with what gets published.
 on:
   # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
   pull_request_target:
@@ -40,9 +34,7 @@ jobs:
        ((contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action) ||
          (github.event.action == 'edited' && github.event.changes.body)) &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')))
-    # One run at a time per PR, and only the newest waiting run is kept: a push during a
-    # build queues behind it rather than cancelling it, so a teardown in flight is never
-    # cut off halfway and a build that finishes is never left half pushed.
+    # Queued, not cancelled, so a teardown in flight is never cut off halfway.
     concurrency:
       group: factory-preview-${{ github.event.pull_request.number }}
       cancel-in-progress: false
@@ -77,11 +69,8 @@ jobs:
           python-version: "3.12"
           enable-cache: false
 
-      # plan.py picks the published main image whose dependencies match the PR, or none
-      # for a full build, says whether the frontend changed since that image was built, and
-      # writes the seed script from the PR body to the seed directory (empty when none).
       # The head SHA comes from the event, not a fresh lookup, so a push that lands during
-      # this run can't get its SHA on an image built from the previous head.
+      # this run cannot put its SHA on an image built from the previous head.
       - name: Decide what to build
         id: plan
         env:
@@ -107,18 +96,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
-      # The base image and the full build's parents come from Docker Hub, whose anonymous
-      # pull limit shared runner IPs exhaust.
+      # Shared runner IPs exhaust Docker Hub's anonymous pull limit.
       - name: Log in to Docker Hub
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      # docker-bake.hcl builds the PR's frontend stage, and the whole PR when no published
-      # image matches its dependencies, as targets the preview takes as contexts, so neither
-      # leaves the builder. Only the preview image is pushed. Every context sits under the
-      # workspace because bake refuses to read outside its working directory.
+      # Every context sits under the workspace: bake refuses to read outside it.
       - name: Build and push the preview image
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         env:
@@ -126,8 +111,7 @@ jobs:
           PREVIEW_DIR: ${{ github.workspace }}/base/factory/preview
           SEED_DIR: ${{ github.workspace }}/seed
           BASE_CONTEXT: ${{ steps.plan.outputs.base-context }}
-          # The base stands in for the unused frontend context: already pulled, so nothing
-          # extra is fetched for it.
+          # The base stands in for the unused frontend context; it is already pulled.
           FRONTEND_CONTEXT: ${{ steps.plan.outputs.frontend == 'true' && 'target:frontend' || steps.plan.outputs.base-context }}
           STATIC_SOURCE: ${{ steps.plan.outputs.frontend == 'true' && 'frontend' || 'base' }}
           TAGS: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }},${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}

@@ -3,11 +3,9 @@
 # ///
 """Decide how to build one PR's preview image, and pull the seed script out of its body.
 
-Prints GitHub Actions outputs. The base image is the newest commit on the PR's base branch
-that has a published `arizephoenix/phoenix:commit-<sha>` image and the same `pyproject.toml`,
-`uv.lock` and `Dockerfile` as the PR, so the PR's source can be laid over an environment that
-already has its dependencies. A PR whose dependencies match no published commit gets an empty
-base-image output, and the workflow builds the Dockerfile in full instead.
+Prints GitHub Actions outputs. The base image is a published `commit-<sha>` image of the
+base branch with the PR's dependency files, so the PR's source can be laid over it; an
+empty base-image output means none matched and the workflow builds the PR in full.
 """
 
 import argparse
@@ -30,22 +28,21 @@ DEPENDENCY_FILES = ("pyproject.toml", "uv.lock", "Dockerfile")
 FRONTEND_TREES = ("js", "schemas")
 SEED_HEADING_PATTERN = re.compile(r"^(#+)\s*Preview seed\s*$", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^(#+)\s")
-# A fence may be indented, as inside a list item, use three or more backticks or tildes,
-# and name the language as python, python3 or py in any case, with anything after it.
-FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
+FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")  # indented, as inside a list item
 PYTHON_INFO_PATTERN = re.compile(r"^\s*(python3?|py)\b", re.IGNORECASE)
+CLOSING_FENCE_MAX_EXTRA_INDENT = 3  # CommonMark
 MAX_TAG_PAGES = 5
 MAX_BASE_CANDIDATES = 30
 
 
 def warn(message: str) -> None:
-    # stdout is the step's $GITHUB_OUTPUT, so everything but outputs goes to stderr.
+    """On stderr: stdout is the step's $GITHUB_OUTPUT."""
     print(f"::warning::{message}", file=sys.stderr)
 
 
 @functools.cache
 def root_tree_shas(*, ref: str) -> dict[str, str]:
-    """SHA of each root-level dependency file and frontend tree at a commit, in one request."""
+    """One tree request answers for every dependency file and frontend tree at once."""
     tree = gh_api(f"repos/{{owner}}/{{repo}}/git/trees/{ref}")
     assert isinstance(tree, dict)
     by_path = {entry["path"]: str(entry["sha"]) for entry in tree["tree"]}
@@ -61,12 +58,11 @@ def frontend_shas(shas: dict[str, str]) -> tuple[str, ...]:
 
 
 class PublishedCommits:
-    """Which commits have a published image, read lazily from Docker Hub's newest tags.
+    """Which commits have a published image, from Docker Hub's newest `commit-*` tags.
 
-    The nightly workflow tags commits on `version-*` branches too, so a release burst can
-    push main's recent commits past the first page; pages are fetched only as a lookup
-    needs them. The fallback for an unpublished image is a full build, so a rate limit or
-    outage at Docker Hub costs build time rather than the preview.
+    Pages are fetched as lookups need them: `version-*` branches are tagged too, so a
+    release burst can push main's commits past the first page. Docker Hub trouble reads as
+    unpublished, which costs a full build rather than the preview.
     """
 
     def __init__(self) -> None:
@@ -96,10 +92,7 @@ class PublishedCommits:
 
 
 def find_base_commit(*, head_sha: str, base_ref: str) -> str:
-    """The newest base-branch commit with a published image and the PR's dependency files.
-
-    Empty when none of the last MAX_BASE_CANDIDATES commits qualifies.
-    """
+    """The newest base-branch commit with a published image and the PR's dependency files."""
     compare = gh_api(f"repos/{{owner}}/{{repo}}/compare/{base_ref}...{head_sha}")
     assert isinstance(compare, dict)
     merge_base_sha = str(compare["merge_base_commit"]["sha"])
@@ -111,7 +104,6 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
     published = PublishedCommits()
     for commit in commits:
         sha = str(commit["sha"])
-        # A reverted bump makes older commits match again, so a mismatch is not the end.
         if sha in published and dependency_shas(root_tree_shas(ref=sha)) == wanted:
             return sha
     return ""
@@ -120,12 +112,9 @@ def find_base_commit(*, head_sha: str, base_ref: str) -> str:
 def extract_seed(*, body: str) -> str:
     """The first python block of the body's Preview seed section, and only that section's.
 
-    Scans lines and tracks every fence throughout, so neither the heading search nor the
-    section's end is fooled by a `## ...` line inside a fenced block. The section ends at
-    the next heading of the same or a higher level, as in a document outline. As in
-    CommonMark, a block closes only on a fence of the same character at least as long as
-    the one that opened it, a block still open at the end of the body runs to the end, and
-    an indented fence strips that indent from its content lines.
+    Fences and headings follow CommonMark: a fence hides headings inside it, a block
+    closes only on a matching fence or the end of the body, and an indented fence strips
+    that indent from its content.
     """
 
     def finish(block: list[str]) -> str:
@@ -134,31 +123,29 @@ def extract_seed(*, body: str) -> str:
     in_section = False
     section_level = 0
     block: list[str] = []
-    opening = ""  # the fence that opened the current block, empty outside one
+    opening_fence = ""
     indent = 0
     in_python = False
     for line in body.splitlines():
         fence = FENCE_PATTERN.match(line)
         leading = len(line) - len(line.lstrip(" "))
-        if opening:
-            # A closing fence may sit at most three spaces deeper than the opening one;
-            # anything deeper is content, as in CommonMark.
+        if opening_fence:
             closes = (
                 fence is not None
-                and fence.group(1)[0] == opening[0]
-                and len(fence.group(1)) >= len(opening)
+                and fence.group(1)[0] == opening_fence[0]
+                and len(fence.group(1)) >= len(opening_fence)
                 and not fence.group(2).strip()
-                and leading <= indent + 3
+                and leading <= indent + CLOSING_FENCE_MAX_EXTRA_INDENT
             )
             if closes:
                 if in_python and (seed := finish(block)):
                     return seed
                 # A blank python block is not the seed; a later one may be.
-                opening, in_python, block = "", False, []
+                opening_fence, in_python, block = "", False, []
             elif in_python:
                 block.append(line[min(leading, indent) :])
         elif fence is not None:
-            opening = fence.group(1)
+            opening_fence = fence.group(1)
             indent = leading
             in_python = in_section and PYTHON_INFO_PATTERN.match(fence.group(2)) is not None
         elif (seed_heading := SEED_HEADING_PATTERN.match(line)) is not None:
@@ -167,7 +154,14 @@ def extract_seed(*, body: str) -> str:
         elif (heading := HEADING_PATTERN.match(line)) is not None and in_section:
             if len(heading.group(1)) <= section_level:
                 return ""
-    return finish(block) if opening and in_python else ""
+    return finish(block) if opening_fence and in_python else ""
+
+
+def frontend_changed(*, base_sha: str, head_sha: str) -> bool:
+    """Against the base image's commit, whose frontend is the one in the image."""
+    return frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
+        root_tree_shas(ref=head_sha)
+    )
 
 
 def main() -> int:
@@ -181,13 +175,8 @@ def main() -> int:
     head_sha = str(args.head_sha)
     try:
         base_sha = find_base_commit(head_sha=head_sha, base_ref=str(pr["baseRefName"]))
-        # The base image's frontend is as old as its commit, so the comparison that matters
-        # is with that commit, not the merge base. A full build makes the PR's own frontend.
-        frontend = bool(base_sha) and frontend_shas(root_tree_shas(ref=base_sha)) != frontend_shas(
-            root_tree_shas(ref=head_sha)
-        )
+        frontend = bool(base_sha) and frontend_changed(base_sha=base_sha, head_sha=head_sha)
     except subprocess.CalledProcessError as error:
-        # The same degradation as Docker Hub trouble: a full build, not a lost preview.
         warn(f"GitHub API trouble choosing a base, so the preview builds in full: {error.stderr}")
         base_sha, frontend = "", False
     base_image = f"{PUBLISHED_IMAGE}:commit-{base_sha[:7]}" if base_sha else ""

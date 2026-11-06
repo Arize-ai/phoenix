@@ -1,8 +1,7 @@
-// Builds one PR's preview image. The PR's own Dockerfile stages that the preview needs,
-// its frontend and, when no published image matches its dependencies, the whole image,
-// are bake targets passed to the preview as `target:` contexts, so they stay on the
-// builder instead of round-tripping through a registry. Every path is absolute because
-// the workflow runs this from a directory that holds both checkouts.
+// Builds one PR's preview image. The PR's own Dockerfile stages the preview may need, its
+// frontend and the whole image, are bake targets passed in as `target:` contexts so they
+// never leave the builder. Paths are absolute: the workflow runs this from a directory
+// that holds both checkouts.
 
 variable "HEAD_DIR" {}      // the PR's checkout
 variable "PREVIEW_DIR" {}   // factory/preview from the base branch
@@ -14,8 +13,8 @@ variable "TAGS" { default = "" } // comma-separated
 variable "SOURCE_URL" { default = "" }
 variable "REVISION" { default = "" }
 
-// The published commit images are the root variant, so the full build is too: a preview
-// should not change user and HOME with an unrelated dependency bump.
+// The root variant, like the published commit images, so user and HOME never depend on
+// whether a dependency bump forced a full build.
 target "base" {
   context    = HEAD_DIR
   dockerfile = "Dockerfile"
