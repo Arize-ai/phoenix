@@ -5,6 +5,7 @@ import { MemoryRouter, Outlet, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TimeRangeControlsProps } from "@phoenix/components/datetime";
+import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/constants/timeConstants";
 
 import type { ProjectTimeRangeControls_data$key } from "../__generated__/ProjectTimeRangeControls_data.graphql";
 import { ProjectTimeRangeControls } from "../ProjectTimeRangeControls";
@@ -95,6 +96,7 @@ function renderProjectRoute(path: string) {
             <Route path="sessions" element={null}>
               <Route path=":sessionId" element={null} />
             </Route>
+            <Route path="evaluators" element={null} />
             <Route path="config" element={null} />
           </Route>
         </Routes>
@@ -146,6 +148,26 @@ describe("ProjectTimeRangeControls", () => {
       isLive: "false",
       hasToggle: "true",
       isToggleDisabled: "true",
+    });
+  });
+
+  it("streams on the evaluators tab at a slower interval", () => {
+    renderProjectRoute("/projects/p/evaluators");
+    act(() => {
+      vi.advanceTimersByTime(EVALUATORS_LIVE_REFRESH_INTERVAL_MS - 1);
+    });
+
+    expect(relayMocks.refetch).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
+    expect(getControls()).toMatchObject({
+      isLive: "true",
+      hasToggle: "true",
+      isToggleDisabled: "false",
     });
   });
 

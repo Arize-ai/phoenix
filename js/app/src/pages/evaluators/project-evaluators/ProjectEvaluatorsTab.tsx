@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { SortingState } from "@tanstack/react-table";
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
@@ -20,6 +20,7 @@ import {
   ServerEvaluationQueueStrip,
   ServerEvaluationQueueStripSkeleton,
 } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationQueueStrip";
+import { ServerEvaluatorsTimeRangeControls } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluatorsTimeRangeControls";
 import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
 import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
@@ -55,10 +56,11 @@ export function ProjectEvaluatorsTab() {
 
 function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
-  // Bumped when something on this page changes the queue, so the strip and
-  // the table refetch at once instead of on their next poll.
+  // Bumped when something on this page changes the queue, or while live when
+  // new spans or evaluation results land, so the strip, the charts and the
+  // table refetch at once instead of on their next poll.
   const [refreshKey, setRefreshKey] = useState(0);
-  const refresh = () => setRefreshKey((key) => key + 1);
+  const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
@@ -82,6 +84,9 @@ function ProjectEvaluatorsTabContent() {
     <QueueStatsRefreshContext.Provider value={refresh}>
       <TopNavActions>
         <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <TopNavActions order={1}>
+        <ServerEvaluatorsTimeRangeControls onAdvance={refresh} />
       </TopNavActions>
       <div css={pageCSS}>
         <ServerEvaluationQueueStrip

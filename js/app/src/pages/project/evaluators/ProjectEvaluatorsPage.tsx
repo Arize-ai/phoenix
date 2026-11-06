@@ -9,6 +9,7 @@ import { useTimeRange } from "@phoenix/components/datetime";
 import { TableSkeleton } from "@phoenix/components/table";
 import { EVALUATOR_FILTER_PARAM } from "@phoenix/constants/searchParams";
 import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
@@ -142,6 +143,15 @@ function ProjectEvaluatorsPageContent({
     () => setQueueRefreshKey((key) => key + 1),
     []
   );
+  // While the page streams, new results move the queue too, so refresh the
+  // aside alongside the table rather than waiting for its own poll.
+  const { fetchKey: streamFetchKey } = useStreamState();
+  const [loadedStreamFetchKey, setLoadedStreamFetchKey] =
+    useState(streamFetchKey);
+  if (loadedStreamFetchKey !== streamFetchKey) {
+    setLoadedStreamFetchKey(streamFetchKey);
+    setQueueRefreshKey((key) => key + 1);
+  }
   const content = (
     <div css={panelContentCSS}>
       {isEmptyState ? (

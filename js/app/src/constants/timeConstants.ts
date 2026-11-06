@@ -9,6 +9,12 @@ export const ONE_WEEK_MS = 7 * ONE_DAY_MS;
 export const ONE_MONTH_MS = 30 * ONE_DAY_MS;
 
 /**
+ * How often the evaluator pages check for new data while live. Slower than
+ * the span tables' poll: each refresh re-runs the evaluators' aggregates.
+ */
+export const EVALUATORS_LIVE_REFRESH_INTERVAL_MS = 10 * ONE_SECOND_MS;
+
+/**
  * Second based constants
  */
 export const ONE_YEAR_SEC = 60 * 60 * 24 * 365;
