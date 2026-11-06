@@ -4,6 +4,8 @@
 
 Loading states MUST use skeleton loaders so the page does not shift between loading and loaded states.
 
+A navigation MUST show the destination's skeleton as soon as it is clicked. A route loader that awaits data holds the previous page until the data lands, so the skeleton is never seen; see the route loader rules in the `phoenix-frontend` skill's Relay reference.
+
 A skeleton MUST be made of skeleton components only. It MUST NOT draw borders, dividers, separators, backgrounds, card frames, titles or other text; padding and gaps that only place the skeletons are allowed. See the `Skeleton` Docs page in Storybook (`Page Skeleton Composition`).
 
 ## Scroll behavior

@@ -310,6 +310,10 @@ Use the observed roles and names to choose Playwright selectors:
 
 The test name carries the intent. Don't narrate steps (`// open the dialog`) or justify a locator (`// scoped to the card because the page has two`) — the reader sees the call. Keep a comment only where the next reader would otherwise change the test wrongly, such as a wait that looks redundant but guards a race.
 
+## Waiting for GraphQL
+
+Pages refresh their data in the background right after a navigation commits, so a row can be visible while its list is still loading. Before acting on data that a refresh could replace, use `waitForGraphQLToSettle` in `tests/projects.spec.ts`: create it before the action whose requests it should see, then await it. It counts only requests it saw start, because a refresh already in flight when it attaches finishes on its own time. Do not use `waitForLoadState("networkidle")` for this: it belongs to a document load, and an in-app navigation has already satisfied it.
+
 ## Common Gotchas
 
 1. **Dialog not closing**: Wait for a deterministic post-action signal (e.g., dialog hidden + success row visible)
