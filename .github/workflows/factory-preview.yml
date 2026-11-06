@@ -2,7 +2,8 @@ name: Factory Preview
 
 # Deploys a seeded preview of a PR labeled `factory-preview`: factory/preview/ builds the
 # image from the PR and the seed in its body, pushes it to GHCR, and points a Railway
-# service at it. See "Previewing a PR" in factory/README.md.
+# service at it. Only same-repo PRs opened by the factory or a maintainer are eligible.
+# See "Previewing a PR" in factory/README.md.
 #
 # This job holds the Railway token and a write token, so nothing from the PR may run on the
 # runner. `pull_request_target` takes this file from the base branch, the scripts and the
@@ -22,8 +23,8 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Build and deploy
+  authorize:
+    name: Check preview eligibility
     # Open PRs only: a closed PR has already had its teardown, and nothing would run it again.
     # Removing some other label is not a reason to redeploy, so `unlabeled` is left out. An
     # edit counts only when it changed the body, where the seed lives.
@@ -34,6 +35,45 @@ jobs:
        ((contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action) ||
          (github.event.action == 'edited' && github.event.changes.body)) &&
         contains(github.event.pull_request.labels.*.name, 'factory-preview')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      allowed: ${{ steps.author.outputs.allowed }}
+    steps:
+      - name: Check the PR opener's repository access
+        id: author
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          FACTORY_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+        run: |
+          set -euo pipefail
+          # finish.py copies a contributor's body verbatim into a factory-authored PR.
+          # Its reserved branches must not gain seed execution through the bot's identity.
+          if [[ "$PR_BRANCH" == factory/pr-* ]]; then
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Previews are disabled for factory-finish copies."
+            exit 0
+          fi
+          if [ -n "$FACTORY_LOGIN" ] && [ "$PR_AUTHOR" = "$FACTORY_LOGIN" ]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            permission=$(gh api "repos/$GH_REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission')
+            case "$permission" in
+              admin|write|maintain) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+              *)
+                echo "allowed=false" >> "$GITHUB_OUTPUT"
+                echo "::notice::Previews require a PR opened by the factory or a maintainer."
+                ;;
+            esac
+          fi
+
+  deploy:
+    name: Build and deploy
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
     # Queued, not cancelled, so a teardown in flight is never cut off halfway.
     concurrency:
       group: factory-preview-${{ github.event.pull_request.number }}
