@@ -3630,7 +3630,7 @@ export interface components {
             enabled?: boolean;
             /**
              * Tracing Enabled
-             * @description Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written.
+             * @description Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
              * @default true
              */
             tracing_enabled?: boolean;
@@ -5910,7 +5910,7 @@ export interface components {
             enabled?: boolean;
             /**
              * Tracing Enabled
-             * @description Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written.
+             * @description Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
              */
             tracing_enabled?: boolean;
             /** @description Omit to preserve. Null clears the binding's mapping, so the evaluator's applies. */
@@ -6186,7 +6186,7 @@ export interface components {
             enabled: boolean;
             /**
              * Tracing Enabled
-             * @description Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project. Off saves storage; annotations are still written.
+             * @description Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
              */
             tracing_enabled: boolean;
             /** @description The binding's own input mapping; null means the evaluator's mapping applies (LLM evaluators have none). */
