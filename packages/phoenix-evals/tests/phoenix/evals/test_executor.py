@@ -793,3 +793,77 @@ async def test_async_executor_timeouts_count_toward_max_retries():
     assert details[0].status == ExecutionStatus.FAILED
     assert len(details[0].exceptions) == 3
     assert all(isinstance(exc, TimeoutError) for exc in details[0].exceptions)
+
+
+@pytest.mark.parametrize("concurrency", [1, 3])
+async def test_async_executor_cancel_settles_generation_tasks(concurrency: int) -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+    generation_tasks: list["asyncio.Task[object] | None"] = []
+    cleaned_up: list[int] = []
+
+    async def generate(payload: int) -> int:
+        generation_tasks.append(asyncio.current_task())
+        started.set()
+        try:
+            await release.wait()
+        finally:
+            await asyncio.sleep(0)  # asynchronous cleanup must be allowed to finish
+            cleaned_up.append(payload)
+        return payload
+
+    executor = AsyncExecutor(
+        generate,
+        concurrency=concurrency,
+        max_retries=0,
+        enable_dynamic_concurrency=False,
+    )
+    execution = asyncio.create_task(executor.execute(list(range(concurrency))))
+    await started.wait()
+    await asyncio.sleep(0)
+
+    execution.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await execution
+
+    try:
+        assert generation_tasks
+        assert all(task is not None and task.done() for task in generation_tasks)
+        assert len(cleaned_up) == len(generation_tasks)
+    finally:
+        release.set()
+        await asyncio.sleep(0)
+
+
+@pytest.mark.skipif(
+    platform.system() == "Windows" or threading.current_thread() is not threading.main_thread(),
+    reason="signal handlers can only be installed from the main thread",
+)
+async def test_async_executor_cancel_restores_termination_signal_handler() -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def generate(payload: int) -> int:
+        started.set()
+        await release.wait()
+        return payload
+
+    previous_handler = signal.getsignal(signal.SIGINT)
+    executor = AsyncExecutor(
+        generate,
+        concurrency=1,
+        max_retries=0,
+        termination_signal=signal.SIGINT,
+        enable_dynamic_concurrency=False,
+    )
+    execution = asyncio.create_task(executor.execute([1]))
+    try:
+        await started.wait()
+        execution.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await execution
+        assert signal.getsignal(signal.SIGINT) is previous_handler
+    finally:
+        release.set()
+        signal.signal(signal.SIGINT, previous_handler)
+        await asyncio.sleep(0)
