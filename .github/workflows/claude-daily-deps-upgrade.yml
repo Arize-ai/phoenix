@@ -67,9 +67,13 @@ jobs:
       - name: Bump exact Python pins
         # `uv lock --upgrade` won't cross `==` pins; `uv pip compile` inherits
         # `exclude-newer` from `[tool.uv]` and skips yanked/pre-releases.
+        # Resolving with deps against pyproject's graphql-core cap keeps
+        # strawberry on the newest release that still fits it.
         run: |
-          pins=$(printf 'strawberry-graphql\npydantic-monty\n' \
-            | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.11)
+          caps=$(grep -oE '"graphql-core[<>=!~][^"]*"' pyproject.toml | tr -d '"')
+          pins=$(printf 'strawberry-graphql\npydantic-monty\n%s\n' "$caps" \
+            | uv pip compile - --no-header --no-annotate --python-version 3.11 \
+            | grep -E '^(strawberry-graphql|pydantic-monty)==')
           echo "$pins"
           while IFS='=' read -r name _ version; do
             [ -n "$name" ] || continue
