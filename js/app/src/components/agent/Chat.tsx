@@ -985,6 +985,26 @@ export function ChatView({
               </Alert>
             </div>
           ) : null}
+          {sessionNotice === "previousTurnCancelled" && sessionId ? (
+            <div
+              className="chat__session-notice"
+              role="status"
+              aria-live="polite"
+            >
+              <Alert
+                variant="info"
+                title="Previous turn was cancelled"
+                dismissable
+                onDismissClick={() => {
+                  setSessionNotice(sessionId, null);
+                }}
+              >
+                The previous turn was stopped but is still finishing on the
+                server. Your request could not be completed. Please try again.
+              </Alert>
+            </div>
+          ) : null}
+
           {/* The empty state shows the credential form in place of the hero;
               once a conversation has started, show it above the input. */}
           {!showsEmptyState && credentialForm ? (
