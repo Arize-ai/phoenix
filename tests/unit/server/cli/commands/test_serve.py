@@ -92,6 +92,7 @@ def _boot_message(**changes: Any) -> BootMessage:
             agent_assistant_enabled=True,
             docs_mcp_url="https://docs.example/mcp",
             prometheus_enabled=False,
+            otlp_log_export_enabled=False,
             smtp_hostname="",
             telemetry_enabled=True,
         ),

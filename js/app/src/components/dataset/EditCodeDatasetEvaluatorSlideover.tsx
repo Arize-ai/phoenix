@@ -404,7 +404,6 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         variables: {
           input: {
             id: evaluatorId,
-            name: normalizedName,
             description: normalizedDescription,
             outputConfigs: buildOutputConfigsInput(outputConfigs),
             inputMapping: normalizedInputMapping,

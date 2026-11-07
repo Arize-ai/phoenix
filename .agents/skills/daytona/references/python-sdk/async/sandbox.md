@@ -41,6 +41,8 @@ Represents a Daytona Sandbox.
 - `spot` _bool_ - Whether this is a spot GPU Sandbox. Spot Sandboxes may be instantly terminated
   to free capacity for on-demand GPU Sandboxes.
 - `spot_evicted_at` _str | None_ - When the Sandbox was evicted by spot preemption.
+- `queue_timed_out_at` _str | None_ - When the Sandbox was destroyed because it waited too long
+  for a runner.
 - `gpu_type` _GpuType | None_ - The GPU type assigned to the Sandbox.
 - `memory` _int_ - Amount of memory allocated to the Sandbox in GiB.
 - `disk` _int_ - Amount of disk space allocated to the Sandbox in GiB.
@@ -66,7 +68,11 @@ Represents a Daytona Sandbox.
 - `last_activity_at` _str | None_ - When the Sandbox last had activity.
 - `auto_destroy_at` _str | None_ - When the Sandbox will be automatically destroyed (only set when a TTL
   is configured).
+- `queue_timeout` _int | None_ - Minutes to wait for runner assignment before Sandbox creation is
+  cancelled.
 - `network_block_all` _bool | None_ - Whether to block all network access for the Sandbox
+  (not returned by list results; call `refresh_data()` on each item to populate).
+- `kvm` _bool | None_ - Whether the sandbox exposes KVM (/dev/kvm) to its guest
   (not returned by list results; call `refresh_data()` on each item to populate).
 - `network_allow_list` _str | None_ - Comma-separated list of allowed CIDR network addresses for
   the Sandbox (not returned by list results; call `refresh_data()` on each item to populate).
@@ -98,6 +104,14 @@ pyright: ignore[reportRedeclaration]
 
 ```python
 network_block_all = None
+```
+
+pyright: ignore[reportRedeclaration]
+
+##### kvm: `bool | None`
+
+```python
+kvm = None
 ```
 
 pyright: ignore[reportRedeclaration]
@@ -587,6 +601,37 @@ sandbox.set_autostop_interval(60)
 sandbox.set_autostop_interval(0)
 ```
 
+#### AsyncSandbox.set\_public
+
+```python
+@intercept_errors(message_prefix="Failed to set public status: ")
+@with_instrumentation()
+async def set_public(public: bool,
+                     request_timeout: float | None = None) -> None
+```
+
+Sets whether the Sandbox's preview URLs are publicly accessible.
+
+When public, preview URLs (see `get_preview_link`) can be opened without a preview
+token or API key. When private, every preview request must authenticate.
+
+**Arguments**:
+
+- `public` _bool_ - `True` to make preview URLs public, `False` to make them private.
+- `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
+  only. It bounds how long the SDK waits for the HTTP response and does not cancel
+  the operation on the server. Positive values under 1 second are rounded up to 1
+  second; 0 disables the client-side timeout and negative values are rejected.
+
+
+**Example**:
+
+```python
+await sandbox.set_public(True)
+preview = await sandbox.get_preview_link(3000)
+# preview.url can now be opened without credentials
+```
+
 #### AsyncSandbox.set\_auto\_pause\_interval
 
 ```python
@@ -840,6 +885,12 @@ Retrieves the preview link for the sandbox at the specified port. If the port is
 it will be opened automatically. For private sandboxes, a token is included to grant access
 to the URL.
 
+For a private sandbox, requests to `url` must authenticate, otherwise they are answered
+with `401 Unauthorized`. Send the returned `token` in the `X-Daytona-Preview-Token` header,
+or send your Daytona API key as `Authorization: Bearer <api key>`. To get a URL that works
+without extra headers (for example to open it in a browser or share it), use
+`create_signed_preview_url` instead. Public sandboxes need no credentials.
+
 **Arguments**:
 
 - `port` _int_ - The port to open the preview link on.
@@ -858,9 +909,18 @@ to the URL.
 **Example**:
 
 ```python
-preview_link = sandbox.get_preview_link(3000)
+import httpx
+
+preview_link = await sandbox.get_preview_link(3000)
 print(f"Preview URL: {preview_link.url}")
 print(f"Token: {preview_link.token}")
+
+# Fetch the private preview from outside the sandbox
+async with httpx.AsyncClient() as client:
+    response = await client.get(
+        preview_link.url,
+        headers={"X-Daytona-Preview-Token": preview_link.token},
+    )
 ```
 
 #### AsyncSandbox.create\_signed\_preview\_url
@@ -875,11 +935,17 @@ async def create_signed_preview_url(
 
 Creates a signed preview URL for the sandbox at the specified port.
 
+The access token is embedded in the returned URL, so it can be used without any
+headers, for example in a browser or by another service. The URL stops working when it
+expires (after 60 seconds unless `expires_in_seconds` is set) or when it is expired with
+`expire_signed_preview_url`.
+
 **Arguments**:
 
 - `port` _int_ - The port to open the preview link on.
 - `expires_in_seconds` _int | None_ - The number of seconds the signed preview
-  url will be valid for. Defaults to 60 seconds.
+  url will be valid for. Defaults to 60 seconds; set a longer value for links
+  that need to stay usable, e.g. `3600` for one hour.
 - `request_timeout` _float | None_ - Optional client-side request timeout in seconds. Client-side
   only. It bounds how long the SDK waits for the HTTP response and does not cancel
   the operation on the server. Positive values under 1 second are rounded up to 1
@@ -889,6 +955,14 @@ Creates a signed preview URL for the sandbox at the specified port.
 **Returns**:
 
 - `SignedPortPreviewUrl` - The response object for the signed preview url.
+
+
+**Example**:
+
+```python
+signed = await sandbox.create_signed_preview_url(3000, expires_in_seconds=3600)
+print(f"Preview URL (valid for one hour): {signed.url}")
+```
 
 #### AsyncSandbox.expire\_signed\_preview\_url
 

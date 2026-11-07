@@ -10,6 +10,7 @@ import type {
 export const settingsModelsLoaderGql = graphql`
   query settingsModelsLoaderQuery {
     ...ModelsTable_generativeModels
+    ...useModelCostManifestDescription_query
   }
 `;
 

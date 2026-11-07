@@ -9,7 +9,7 @@ ARG PYTHON_VERSION=3.13
 # pin used by the production Dockerfile and the no-vite devops Dockerfile.
 FROM denoland/deno:bin-2.1.4 AS deno-binary
 
-FROM python:${PYTHON_VERSION}-slim-bullseye
+FROM python:${PYTHON_VERSION}-slim-trixie
 WORKDIR /phoenix
 
 # Install system dependencies + uv in one layer (rarely changes)
@@ -47,7 +47,7 @@ actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
 (actual == expected) or sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}')"
 
 # Bundled local sandbox runtimes — Deno binary copied from the scratch
-# stage above. /usr/local/bin is already on PATH for python:slim-bullseye,
+# stage above. /usr/local/bin is already on PATH for python:slim-trixie,
 # so shutil.which("deno") in deno_backend.py resolves the bundled binary.
 COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
 ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
@@ -77,6 +77,8 @@ WORKDIR /phoenix
 # Environment setup
 ENV PYTHONPATH="/phoenix/env"
 ENV PYTHONUNBUFFERED=1
+# Bind all IPv4 and IPv6 interfaces (dual-stack) for HTTP, gRPC, and Prometheus.
+ENV PHOENIX_HOST=::
 
 # Expose ports
 EXPOSE 6006 4317 9090

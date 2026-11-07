@@ -112,6 +112,18 @@ def network_block_all()
 - `Boolean, nil` - Whether to block all network access for the sandbox.
 Not returned by list results; call #refresh on each item to populate.
 
+#### kvm()
+
+```ruby
+def kvm()
+
+```
+
+**Returns**:
+
+- `Boolean, nil` - Whether the sandbox exposes KVM (/dev/kvm) to its guest.
+Not returned by list results; call #refresh on each item to populate.
+
 #### network_allow_list()
 
 ```ruby
@@ -215,6 +227,17 @@ def spot_evicted_at()
 **Returns**:
 
 - `String, nil` - When the sandbox was evicted by spot preemption
+
+#### queue_timed_out_at()
+
+```ruby
+def queue_timed_out_at()
+
+```
+
+**Returns**:
+
+- `String, nil` - When the sandbox timed out waiting in the queue for a runner
 
 #### gpu_type()
 
@@ -386,6 +409,17 @@ def auto_destroy_at()
 **Returns**:
 
 - `String, nil` - When the sandbox will be automatically destroyed (nil if no TTL is set)
+
+#### queue_timeout()
+
+```ruby
+def queue_timeout()
+
+```
+
+**Returns**:
+
+- `Integer, nil` - Minutes the sandbox may wait for runner assignment before the API auto-destroys it
 
 #### created_at()
 
@@ -658,6 +692,36 @@ sandbox.update_secrets({ 'API_KEY' => 'my-vault-secret' })
 
 ```
 
+#### public=()
+
+```ruby
+def public=(is_public)
+
+```
+
+Sets whether the Sandbox's preview URLs are publicly accessible.
+When public, preview URLs (see #preview_url) can be opened without a preview token or API key.
+When private, every preview request must authenticate.
+
+**Parameters**:
+
+- `is_public` _Boolean_ -
+
+**Returns**:
+
+- `Boolean`
+
+**Raises**:
+
+- `Daytona:Sdk:Error` -
+
+**Examples:**
+
+```ruby
+sandbox.public = true
+
+```
+
 #### auto_stop_interval=()
 
 ```ruby
@@ -919,6 +983,12 @@ Retrieves the preview link for the sandbox at the specified port. If the port is
 it will be opened automatically. For private sandboxes, a token is included to grant access
 to the URL.
 
+For a private sandbox, requests to the URL must authenticate, otherwise they are answered
+with 401 Unauthorized. Send the returned token in the X-Daytona-Preview-Token header, or
+send your Daytona API key as "Authorization: Bearer \<api key>". To get a URL that works
+without extra headers (for example to open it in a browser or share it), use
+`create_signed_preview_url` instead. Public sandboxes need no credentials.
+
 **Parameters**:
 
 - `port` _Integer_ -
@@ -926,6 +996,17 @@ to the URL.
 **Returns**:
 
 - `DaytonaApiClient:PortPreviewUrl`
+
+**Examples:**
+
+```ruby
+preview = sandbox.preview_url(3000)
+uri = URI(preview.url)
+request = Net::HTTP::Get.new(uri)
+request['X-Daytona-Preview-Token'] = preview.token
+response = Net::HTTP.start(uri.host, uri.port, use_ssl: true) { |http| http.request(request) }
+
+```
 
 #### download_url()
 
@@ -1033,11 +1114,16 @@ def create_signed_preview_url(port, expires_in_seconds = nil)
 
 Creates a signed preview URL for the sandbox at the specified port.
 
+The access token is embedded in the returned URL, so it can be used without any headers,
+for example in a browser or by another service. The URL stops working when it expires or
+when it is expired with `expire_signed_preview_url`.
+
 **Parameters**:
 
 - `port` _Integer_ - The port to open the preview link on
 - `expires_in_seconds` _Integer, nil_ - The number of seconds the signed preview URL
-will be valid for. Defaults to 60 seconds.
+will be valid for. Defaults to 60 seconds; set a longer value for links that need to
+stay usable, e.g. 3600 for one hour.
 
 **Returns**:
 

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
 import openinference.instrumentation as oi
-from jsonpath_ng import parse as parse_jsonpath
+from jsonpath_ng.parser import JsonPathParser
 from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -47,6 +47,10 @@ from phoenix.db.types.prompts import (
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
+    PromptToolFunction,
     PromptTools,
     RoleConversion,
     TextContentPart,
@@ -74,6 +78,7 @@ from phoenix.server.sandbox import (  # noqa: E402
     SecretsContext,
     build_sandbox_backend,
 )
+from phoenix.server.sandbox.cancellation import run_cancel_once
 from phoenix.server.sandbox.result_protocol import (
     PHOENIX_RESULT_BEGIN,
     PHOENIX_RESULT_END,
@@ -211,6 +216,32 @@ class BaseEvaluator(ABC):
                    and retrieving any recorded spans after evaluation.
         """
         ...
+
+
+def _request_tool_call_in_prompt(
+    tools: PromptTools,
+    messages: list[PlaygroundMessage],
+) -> tuple[PromptTools, list[PlaygroundMessage]]:
+    """Replaces a forced tool choice with `zero_or_more` and a system message naming the tools."""
+    tool_choice = tools.tool_choice
+    if isinstance(tool_choice, PromptToolChoiceSpecificFunctionTool):
+        tool_names = [tool_choice.function_name]
+    elif isinstance(tool_choice, PromptToolChoiceOneOrMore):
+        tool_names = [
+            tool.function.name for tool in tools.tools if isinstance(tool, PromptToolFunction)
+        ]
+    else:
+        return tools, messages
+    quoted_names = ", ".join(f"`{tool_name}`" for tool_name in tool_names)
+    instruction = (
+        f"Respond by calling the {quoted_names} tool."
+        if len(tool_names) == 1
+        else f"Respond by calling each of these tools: {quoted_names}."
+    )
+    return (
+        tools.model_copy(update={"tool_choice": PromptToolChoiceZeroOrMore(type="zero_or_more")}),
+        [*messages, create_playground_message(ChatCompletionMessageRole.SYSTEM, instruction)],
+    )
 
 
 class LLMEvaluator(BaseEvaluator):
@@ -404,11 +435,15 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     prompt_span.set_status(Status(StatusCode.OK))
 
+                tools = self._tools
+                if not self._llm_client.supports_forced_tool_choice:
+                    tools, messages = _request_tool_call_in_prompt(tools, messages)
+
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
                 async for chunk in self._llm_client.chat_completion_create(
                     messages=messages,
-                    tools=self._tools,
+                    tools=tools,
                     tracer=tracer_,
                     invocation_parameters=self._invocation_parameters,
                     stream_model_output=False,
@@ -1023,7 +1058,8 @@ def apply_input_mapping(
                 ignored_keys.append(key)
                 continue
             try:
-                jsonpath = parse_jsonpath(path_expr)
+                parser = JsonPathParser()
+                jsonpath = parser.parse(path_expr)
             except Exception as e:
                 raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
             matches = jsonpath.find(context)
@@ -2792,11 +2828,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute_with_inputs(
-                                code,
-                                session_key=session_key,
-                                inputs={"_inputs": mapped_inputs},
-                                timeout=self._timeout,
+                            run_cancel_once(
+                                self._sandbox_backend.execute_with_inputs(
+                                    code,
+                                    session_key=session_key,
+                                    inputs={"_inputs": mapped_inputs},
+                                    timeout=self._timeout,
+                                )
                             ),
                             timeout=self._timeout,
                         )
@@ -2821,7 +2859,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                                     return await session.execute(code, timeout=self._timeout)
 
                         execution = await asyncio.wait_for(
-                            _managed_execute(), timeout=self._timeout
+                            run_cancel_once(_managed_execute()), timeout=self._timeout
                         )
                 except SessionLimitExceeded as exc:
                     err = SessionLimitExceeded.MESSAGE

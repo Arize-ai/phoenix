@@ -16,7 +16,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import StatusCode
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
@@ -51,7 +51,7 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def tracer(tracer_provider: TracerProvider) -> Tracer:
+def tracer(tracer_provider: TracerProvider) -> OITracer:
     return OITracer(tracer_provider.get_tracer("test"), config=TraceConfig())
 
 
@@ -100,7 +100,7 @@ def make_ctx() -> Callable[..., RunContext[None]]:
 async def test_wrap_tool_execute_emits_tool_span(
     add_tool_def: ToolDefinition,
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -163,7 +163,7 @@ async def test_wrap_tool_execute_emits_tool_span(
 async def test_wrap_tool_execute_records_exception_when_handler_raises(
     explode_tool_def: ToolDefinition,
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -225,7 +225,7 @@ async def test_wrap_tool_execute_records_exception_when_handler_raises(
 
 async def test_after_model_request_emits_native_tool_span_for_call_and_return(
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -289,7 +289,7 @@ async def test_after_model_request_emits_native_tool_span_for_call_and_return(
 
 async def test_after_model_request_emits_native_tool_span_without_return_part(
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -340,7 +340,7 @@ async def test_after_model_request_emits_native_tool_span_without_return_part(
 
 async def test_after_model_request_records_error_for_failed_native_tool_return(
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](
@@ -411,7 +411,7 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
 async def test_wrap_tool_execute_marks_span_error_when_classifier_reports_error(
     add_tool_def: ToolDefinition,
     in_memory_span_exporter: InMemorySpanExporter,
-    tracer: Tracer,
+    tracer: OITracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
     wrapper = OpenInferenceCapabilityWrapper[None](

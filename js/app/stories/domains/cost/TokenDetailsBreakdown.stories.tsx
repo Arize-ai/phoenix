@@ -325,7 +325,7 @@ export const ContentTypes: Story = {
  * The skeleton every token and cost tooltip opens on while its breakdown
  * loads, above the breakdown it turns into. Each tooltip passes the skeleton
  * only the totals it already has, so the heading, the measure labels and the
- * totals are real, and the split, the bars and the table rows pulse in their
+ * totals are real, and the split, the bars and the table rows load in their
  * places on the loaded layout's grid. The header, bars, rule and table
  * columns hold still when the details land; the skeleton's three table rows
  * are a guess at how many token types the usage has, and are all that can

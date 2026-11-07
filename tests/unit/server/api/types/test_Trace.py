@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from secrets import token_hex
 from typing import Any, NamedTuple, Optional
 
-import httpx
+import httpx2
 import pytest
 from strawberry.relay import GlobalID
 
@@ -29,7 +29,7 @@ class TestTrace:
     async def _node(
         field: str,
         trace: models.Trace,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> Any:
         return await _node(
             field,
@@ -59,7 +59,7 @@ class TestTrace:
     async def test_session(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         traces = _data.traces
         project_session = _data.project_sessions[0]
@@ -73,7 +73,7 @@ class TestTrace:
     async def test_root_span(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         traces = _data.traces
         span = _data.spans[0]
@@ -87,7 +87,7 @@ class TestTrace:
     async def test_user_id(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         async with db() as session:
             project = await _add_project(session)
@@ -269,7 +269,7 @@ async def test_trace_spans_require_first(
     assert len(response.errors) == 1
     assert (
         response.errors[0].message
-        == "Field 'spans' argument 'first' of type 'Int!' is required, but it was not provided."
+        == "Argument 'Trace.spans(first:)' of type 'Int!' is required, but it was not provided."
     )
 
 

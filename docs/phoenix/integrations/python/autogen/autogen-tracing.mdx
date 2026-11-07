@@ -35,6 +35,26 @@ pip install openinference-instrumentation-openai openinference-instrumentation-a
 
 ## Run Autogen
 
+```python expandable
+import os
+
+from autogen import AssistantAgent, UserProxyAgent
+
+assistant = AssistantAgent(
+    name="assistant",
+    llm_config={"model": "gpt-4o-mini", "api_key": os.environ["OPENAI_API_KEY"]},
+    system_message="You are a helpful assistant.",
+)
+user = UserProxyAgent(
+    name="user",
+    human_input_mode="NEVER",
+    code_execution_config=False,
+    max_consecutive_auto_reply=0,
+)
+result = user.initiate_chat(assistant, message="Say hello in one sentence.", max_turns=1)
+print(result.summary or "AutoGen conversation complete")
+```
+
 From here you can use Autogen as normal, and Phoenix will automatically trace any model calls made.
 
 ## Observe

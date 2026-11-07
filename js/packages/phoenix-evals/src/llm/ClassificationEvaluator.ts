@@ -9,7 +9,7 @@ import type {
   WithPromptTemplate,
 } from "../types";
 import type { ObjectMapping } from "../types/data";
-import type { EvaluationModel } from "../utils/isEvaluationModel";
+import type { DecisionModel } from "../utils/isDecisionModel";
 import { remapObject } from "../utils/objectMappingUtils";
 import { createClassifierFn } from "./createClassifierFn";
 import { LLMEvaluator } from "./LLMEvaluator";
@@ -30,7 +30,7 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
   /**
    * The model to use for classification
    */
-  readonly model: LanguageModel | EvaluationModel;
+  readonly model: LanguageModel | DecisionModel;
   /**
    * The choices to classify the example into
    */

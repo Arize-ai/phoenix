@@ -64,10 +64,8 @@ export function PromptComboBox({
         if (typeof key !== "string" && key != null) {
           return;
         }
-        if (key === promptId) {
-          onChange(null);
-          return;
-        }
+        // The current key comes back when the input should be reset to the
+        // selected prompt's name (e.g. on Escape), so it never deselects
         onChange(key);
       }}
       {...comboBoxProps}

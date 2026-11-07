@@ -138,7 +138,13 @@ Commit changes by providing the path to the repository, the message, author, and
 ```ruby
 # Stage and commit changes
 sandbox.git.add('workspace/repo', ['README.md'])
-sandbox.git.commit('workspace/repo', 'Update documentation', 'John Doe', 'john@example.com', true)
+sandbox.git.commit(
+  path: 'workspace/repo',
+  message: 'Update documentation',
+  author: 'John Doe',
+  email: 'john@example.com',
+  allow_empty: true
+)
 ```
 
 ## Remote operations
@@ -151,7 +157,7 @@ Push changes to a remote repository by providing the path to the repository and 
 
 ```ruby
 # Push without authentication (for public repos or SSH)
-sandbox.git.push('workspace/repo')
+sandbox.git.push(path: 'workspace/repo')
 
 # Push with authentication
 sandbox.git.push(
@@ -167,7 +173,7 @@ Pull changes from a remote repository by providing the path to the repository an
 
 ```ruby
 # Pull without authentication
-sandbox.git.pull('workspace/repo')
+sandbox.git.pull(path: 'workspace/repo')
 
 # Pull with authentication
 sandbox.git.pull(

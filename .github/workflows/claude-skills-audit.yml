@@ -17,6 +17,8 @@ concurrency:
 
 jobs:
   skills-audit:
+    outputs:
+      pr: ${{ steps.publish.outputs.pr }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -24,6 +26,11 @@ jobs:
       # passed to the action below (so no write-scoped App token is minted via
       # OIDC), and publishing is done by later steps with a PAT.
       contents: read
+      # id-token: write lets the action exchange the GitHub OIDC token for a
+      # Claude API token (workload identity federation). It is job-wide, so
+      # every step can request OIDC tokens; passing github_token to the action
+      # is what stops it from minting a write-scoped Claude App token.
+      id-token: write
     env:
       AUDIT_WINDOW: ${{ inputs.window || '7 days ago' }}
 
@@ -71,7 +78,10 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: fdrl_01FaSPpJwwwTkYQNr3nndkCN
+          anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
+          anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
+          anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
 
           # Hand the action the read-only workflow token instead of letting it
           # mint a write-scoped Claude App token via OIDC. Claude never writes
@@ -91,9 +101,9 @@ jobs:
             Python clients, TypeScript clients, CLI, and REST/GraphQL APIs that should be
             reflected in the three external-facing skills:
 
-              - .agents/skills/phoenix-tracing/
-              - .agents/skills/phoenix-cli/
-              - .agents/skills/phoenix-evals/
+              - skills/phoenix-tracing/
+              - skills/phoenix-cli/
+              - skills/phoenix-evals/
 
             Follow the skill's guidance strictly — fetch origin/main first, breadth-first
             triage, ground every edit in real code, and only patch files inside those three
@@ -113,15 +123,18 @@ jobs:
             and have its first line be exactly: NO_CHANGES
           claude_args: '--allowedTools Skill,Read,Glob,Grep,Edit,Write,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)"'
 
+      - name: Rebuild skill copies
+        run: make skills
+
       - name: Check for changes
         id: changes
         run: |
-          if ! git diff --quiet -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals; then
+          if ! git diff --quiet -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git diff --stat -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
-          elif [[ -n "$(git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals)" ]]; then
+            git diff --stat -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
+          elif [[ -n "$(git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills)" ]]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+            git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
           else
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "No skill changes — exiting cleanly."
@@ -142,11 +155,12 @@ jobs:
           # take precedence over gh's credential helper, so reset the remote to
           # a clean URL to push with the PAT configured above.
           git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          git add .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          git add skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
           git commit -m "docs(skills): weekly audit — $AUDIT_DATE"
           git push origin "$AUDIT_BRANCH"
 
       - name: Open pull request
+        id: publish
         if: steps.changes.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
@@ -169,3 +183,24 @@ jobs:
             --label "documentation"
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "$AUDIT_BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $AUDIT_BRANCH"
+          echo "pr=$AUDIT_BRANCH" >> "$GITHUB_OUTPUT"
+
+  approve:
+    needs: skills-audit
+    if: needs.skills-audit.outputs.pr != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout trusted approval action
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Approve pull request
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ needs.skills-audit.outputs.pr }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}

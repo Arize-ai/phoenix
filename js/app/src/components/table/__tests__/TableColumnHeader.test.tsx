@@ -1,14 +1,11 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { TableColumnHeader } from "../TableColumnHeader";
+import type { ColumnDef } from "../tableFeatures";
+import { appTableFeatures } from "../tableFeatures";
 
 type Row = { key: string };
 
@@ -17,15 +14,14 @@ const columns: ColumnDef<Row>[] = [
   { id: "value", header: "Value", accessorKey: "key", enableResizing: false },
 ];
 
+const data: Row[] = [{ key: "llm.model_name" }];
+
 function HeaderRow() {
-  "use no memo";
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<Row>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
-    data: [{ key: "llm.model_name" }],
+    data,
     columnResizeMode: "onChange",
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
   return (
     <table>
@@ -82,8 +78,8 @@ describe("TableColumnHeader", () => {
     const header = queryHeader();
     expect(header.style.width).toBe("320px");
 
-    // fails without "use no memo" on TableColumnHeader: TanStack mutates the
-    // same header object, so a memoized header reports the starting width
+    // the header object is the same before and after the drag, so a header
+    // that doesn't subscribe to the table's sizing reports the starting width
     act(() => {
       query("div.resizer").dispatchEvent(
         new MouseEvent("mousedown", { bubbles: true, clientX: 320 })
@@ -102,6 +98,22 @@ describe("TableColumnHeader", () => {
       );
     });
     expect(header.style.width).toBe("420px");
+  });
+
+  it("reports the sort it is toggled to", () => {
+    act(() => {
+      root.render(<HeaderRow />);
+    });
+    const header = queryHeader();
+    expect(header.getAttribute("aria-sort")).toBe("none");
+
+    act(() => {
+      query("div.sort").dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
+      );
+    });
+    expect(header.getAttribute("aria-sort")).toBe("ascending");
+    expect(container.querySelector(".sort-icon")).not.toBeNull();
   });
 
   it("gives a column that cannot be resized no resizer", () => {

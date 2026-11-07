@@ -49,6 +49,22 @@ export const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
   },
 ] satisfies CompletionTokenTypeOption[];
 
+const KNOWN_TOKEN_TYPES = new Set<string>(
+  [...DEFAULT_TOKEN_PROMPT_OPTIONS, ...DEFAULT_TOKEN_COMPLETION_OPTIONS].map(
+    (option) => option.tokenType
+  )
+);
+
+/**
+ * Trims a token type and snaps known token types to their lowercase form, as
+ * the server does, so that `Input` prices the `input` tokens spans report.
+ */
+export function normalizeTokenType(tokenType: string): string {
+  const trimmed = tokenType.trim();
+  const lowered = trimmed.toLowerCase();
+  return KNOWN_TOKEN_TYPES.has(lowered) ? lowered : trimmed;
+}
+
 export function ModelTokenTypeComboBox<
   Options extends TokenTypeOption[] = TokenTypeOption[],
 >({
@@ -68,7 +84,10 @@ export function ModelTokenTypeComboBox<
   invalid: boolean;
   isRequired?: boolean;
 }) {
-  const selectedOption = options.find((option) => option.tokenType === value);
+  const normalizedValue = normalizeTokenType(value ?? "");
+  const selectedOption = options.find(
+    (option) => option.tokenType === normalizedValue
+  );
   return (
     <ComboBox
       aria-label="Token type"
@@ -81,8 +100,7 @@ export function ModelTokenTypeComboBox<
           onChange(option.tokenType);
         }
       }}
-      onInputChange={(_value) => {
-        const value = _value.toLowerCase();
+      onInputChange={(value) => {
         if (value) {
           onChange(value);
         } else {

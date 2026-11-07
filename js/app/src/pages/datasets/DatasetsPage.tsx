@@ -1,10 +1,14 @@
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { DebouncedSearch, Flex, Loading, View } from "@phoenix/components";
+import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { DatasetLabelFilterButton } from "@phoenix/components/dataset/DatasetLabelFilterButton";
-import { ColumnSelector, orderColumns } from "@phoenix/components/table";
+import {
+  ColumnSelector,
+  orderColumns,
+  TableSkeleton,
+} from "@phoenix/components/table";
 import {
   DatasetsTableProvider,
   useDatasetsTableContext,
@@ -36,7 +40,7 @@ const REFRESH_ON = ["datasets", "datasetLabels"] as const;
 
 export function DatasetsPage() {
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<TableSkeleton hasToolbar rowCount="fill" />}>
       <DatasetsTableProvider>
         <DatasetsPageContent />
       </DatasetsTableProvider>
@@ -70,7 +74,6 @@ function DatasetsColumnSelector() {
 }
 
 export function DatasetsPageContent() {
-  const [localFetchKey, setLocalFetchKey] = useState(0);
   const agentFetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
@@ -80,14 +83,10 @@ export function DatasetsPageContent() {
     `,
     {},
     {
-      fetchKey: localFetchKey + agentFetchKey,
+      fetchKey: agentFetchKey,
       fetchPolicy: "store-and-network",
     }
   );
-
-  const onDatasetCreated = useCallback(() => {
-    setLocalFetchKey((prev) => prev + 1);
-  }, []);
 
   const [filter, setFilter] = useState<string>("");
   // The label filter is persisted to the URL so it can be shared and survive
@@ -121,7 +120,7 @@ export function DatasetsPageContent() {
               onSelectionChange={setSelectedLabelIds}
             />
             <CanModify>
-              <CreateDatasetButton onDatasetCreated={onDatasetCreated} />
+              <CreateDatasetButton />
             </CanModify>
           </Flex>
         </Flex>

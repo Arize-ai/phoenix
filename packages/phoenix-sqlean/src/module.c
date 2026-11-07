@@ -48,6 +48,13 @@ PyObject *pysqlite_DataError = NULL;
 PyObject *pysqlite_NotSupportedError = NULL;
 
 PyObject* _pysqlite_converters = NULL;
+
+PyObject* pysqlite_str___adapt__ = NULL;
+PyObject* pysqlite_str___conform__ = NULL;
+PyObject* pysqlite_str_cursor = NULL;
+PyObject* pysqlite_str_finalize = NULL;
+PyObject* pysqlite_str_upper = NULL;
+PyObject* pysqlite_str_value = NULL;
 int _pysqlite_enable_callback_tracebacks = 0;
 int pysqlite_BaseTypeAdapted = 0;
 
@@ -192,14 +199,13 @@ static PyObject* module_register_converter(PyObject* self, PyObject* args)
     PyObject* name = NULL;
     PyObject* callable;
     PyObject* retval = NULL;
-    _Py_IDENTIFIER(upper);
 
     if (!PyArg_ParseTuple(args, "UO", &orig_name, &callable)) {
         return NULL;
     }
 
     /* convert the name to upper case */
-    name = _PyObject_CallMethodId(orig_name, &PyId_upper, NULL);
+    name = PyObject_CallMethodNoArgs(orig_name, pysqlite_str_upper);
     if (!name) {
         goto error;
     }
@@ -565,6 +571,15 @@ PyMODINIT_FUNC PyInit__sqlite3(void)
     }
     PyDict_SetItemString(dict, "sqlite_version", tmp_obj);
     Py_DECREF(tmp_obj);
+
+    if (!(pysqlite_str___adapt__ = PyUnicode_InternFromString("__adapt__")) ||
+        !(pysqlite_str___conform__ = PyUnicode_InternFromString("__conform__")) ||
+        !(pysqlite_str_cursor = PyUnicode_InternFromString("cursor")) ||
+        !(pysqlite_str_finalize = PyUnicode_InternFromString("finalize")) ||
+        !(pysqlite_str_upper = PyUnicode_InternFromString("upper")) ||
+        !(pysqlite_str_value = PyUnicode_InternFromString("value"))) {
+        goto error;
+    }
 
     /* initialize microprotocols layer */
     pysqlite_microprotocols_init(dict);

@@ -101,16 +101,19 @@ export function getOptimizationBounds(
 }
 
 /**
- * Determines if a score represents a "positive" optimization result.
+ * Maps a score onto a signed optimization value from `-1` (worst) through
+ * `0` (neutral) to `1` (best).
  *
- * Uses `threshold` as the pivot when provided; falls back to `(lowerBound + upperBound) / 2`
- * when both bounds are defined. Returns null when no pivot can be determined.
- * For MAXIMIZE direction: returns true if score is above the pivot.
- * For MINIMIZE direction: returns true if score is below the pivot.
+ * The pivot is `threshold`, else the midpoint of the bounds; a score at the
+ * pivot is neutral. Each side of the pivot is scaled to its own range, so an
+ * off-center threshold still reaches both ends, and scores outside the bounds
+ * are clamped. A side with no bound has no range to scale, so any score on
+ * that side is `1` or `-1`.
  *
- * Returns null if the optimization status cannot be determined (missing pivot, score, or direction).
+ * Returns null when the score or direction is missing or no pivot can be
+ * determined.
  */
-export function getPositiveOptimization({
+export function getOptimizationValue({
   score,
   lowerBound,
   upperBound,
@@ -122,49 +125,62 @@ export function getPositiveOptimization({
   upperBound: number | undefined;
   threshold?: number | undefined;
   optimizationDirection: OptimizationDirectionResult;
-}): boolean | null {
+}): number | null {
   if (score == null || optimizationDirection == null) {
     return null;
   }
 
   const pivot =
-    threshold != null
-      ? threshold
-      : lowerBound != null && upperBound != null
-        ? (lowerBound + upperBound) / 2
-        : undefined;
+    threshold ??
+    (lowerBound != null && upperBound != null
+      ? (lowerBound + upperBound) / 2
+      : undefined);
 
   if (pivot == null) {
     return null;
   }
 
-  return optimizationDirection === "MAXIMIZE" ? score > pivot : score < pivot;
+  const signedDistance =
+    optimizationDirection === "MAXIMIZE" ? score - pivot : pivot - score;
+  const bestBound =
+    optimizationDirection === "MAXIMIZE" ? upperBound : lowerBound;
+  const worstBound =
+    optimizationDirection === "MAXIMIZE" ? lowerBound : upperBound;
+  const sideBound = signedDistance >= 0 ? bestBound : worstBound;
+  const sideRange = sideBound == null ? 0 : Math.abs(sideBound - pivot);
+
+  if (sideRange === 0) {
+    return Math.sign(signedDistance);
+  }
+
+  return Math.max(-1, Math.min(1, signedDistance / sideRange));
 }
 
 /**
- * Determines if a score represents a "positive" optimization result based on an annotation config.
+ * Maps a score onto the optimization value of an annotation config.
  *
- * This is a convenience function that combines `getOptimizationBounds` and `getPositiveOptimization`.
+ * This is a convenience function that combines `getOptimizationBounds` and
+ * `getOptimizationValue`.
  *
  * @example
  * ```ts
- * const positiveOptimization = getPositiveOptimizationFromConfig({
+ * const optimizationValue = getOptimizationValueFromConfig({
  *   config: annotationConfig,
  *   score: annotation.score,
  * });
  * ```
  */
-export function getPositiveOptimizationFromConfig({
+export function getOptimizationValueFromConfig({
   config,
   score,
 }: {
   config: AnnotationOptimizationConfig | undefined;
   score: number | null | undefined;
-}): boolean | null {
+}): number | null {
   const { lowerBound, upperBound, threshold, optimizationDirection } =
     getOptimizationBounds(config);
 
-  return getPositiveOptimization({
+  return getOptimizationValue({
     score,
     lowerBound,
     upperBound,
