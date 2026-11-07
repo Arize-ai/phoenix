@@ -1499,12 +1499,15 @@ class Dataset(HasId):
     def _example_count(cls) -> ColumnElement[int]:
         return (
             select(
-                func.sum(
-                    case(
-                        (DatasetExampleRevision.revision_kind == "CREATE", 1),
-                        (DatasetExampleRevision.revision_kind == "DELETE", -1),
-                        else_=0,
-                    )
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                            (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                            else_=0,
+                        )
+                    ),
+                    0,
                 )
             )
             .select_from(DatasetExampleRevision)
@@ -1520,12 +1523,15 @@ class Dataset(HasId):
         if not hasattr(self, "_example_count_value"):
             self._example_count_value = await session.scalar(
                 select(
-                    func.sum(
-                        case(
-                            (DatasetExampleRevision.revision_kind == "CREATE", 1),
-                            (DatasetExampleRevision.revision_kind == "DELETE", -1),
-                            else_=0,
-                        )
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (DatasetExampleRevision.revision_kind == "CREATE", 1),
+                                (DatasetExampleRevision.revision_kind == "DELETE", -1),
+                                else_=0,
+                            )
+                        ),
+                        0,
                     )
                 )
                 .select_from(DatasetExampleRevision)
