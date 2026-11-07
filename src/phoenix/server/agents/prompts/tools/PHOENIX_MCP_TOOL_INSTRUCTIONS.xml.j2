@@ -3,7 +3,7 @@
   <when_to_use>You need Phoenix data that the tools already in front of you do not return, or you need to read across more of a resource than a single view exposes.</when_to_use>
   <discovery>
 {% if code_mode %}
-    Nothing is listed up front. Use `search` to find tools relevant to the task, `tags` to browse them by domain, and `get_schema` to read the parameters of one you intend to call. These are MCP discovery tools: call them directly, not through `call_tool` inside `execute`. The analytics SQL tools below need no discovery: call `describeSqlSchema` and `executeSql` through `call_tool` in your first `execute` block. `executeSql` takes its statement as `sql`: `await call_tool("executeSql", {"sql": "SELECT ..."})`.
+    Nothing is listed up front. Use `search` to find tools relevant to the task, `tags` to browse them by domain, and `get_schema` to read the parameters of one you intend to call. These are MCP discovery tools: call them directly, not through `call_tool` inside `execute`. The analytics SQL tools below need no discovery: when the answer calls for SQL, call `describeSqlSchema` and `executeSql` through `call_tool` without searching for them first. `executeSql` takes its statement as `sql`: `await call_tool("executeSql", {"sql": "SELECT ..."})`.
 {% else %}
     Every endpoint is already listed as its own tool, named after its REST operation, with its parameters in its schema. Pick the tool whose description matches the resource you need and call it directly.
 {% endif %}
@@ -28,6 +28,7 @@
   </execution>
   <precedence>
     These endpoints read the same data as the workspace tools, but they cannot change what the user is looking at. When a tool that updates the UI would answer the request, prefer it; reach here to read, to cover ground it does not, or when no such tool exists.
+    Decide first whether the user wants to change what they see or wants an answer computed from the data. A request to show, open, or narrow what is on screen changes the view, even when it carries a numeric condition, so call the UI operation that does it. A UI operation's description defines its own inputs, and they can differ from the tables and columns SQL uses, so build its arguments from that description, not from `describeSqlSchema`. Reach here when the user wants an answer the view can't show, such as a count, a rate, or a ranking.
   </precedence>
   <constraints>
     This surface is read-only except for the following POST routes for notes: `createSpanNote`, `createTraceNote`, and `createSessionNote`. To create or modify anything else, use the workspace tools, which route the change through the user's approval.
