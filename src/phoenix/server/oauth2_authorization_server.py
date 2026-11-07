@@ -260,35 +260,24 @@ def _extract_forwarded_scheme(request: Request) -> str | None:
     return None
 
 
-def _extract_forwarded_host(request: Request) -> str | None:
-    """Extract public host from X-Forwarded-Host or RFC 7239 Forwarded headers."""
-    if x_forwarded_host := request.headers.get("x-forwarded-host"):
-        host = x_forwarded_host.split(",")[0].strip()
-        if host:
-            return host
-    if forwarded := request.headers.get("forwarded"):
-        for element in forwarded.split(";"):
-            for part in element.split(","):
-                key, _, value = part.strip().partition("=")
-                if key.lower() == "host":
-                    host = value.strip('"')
-                    if host:
-                        return host
-    return None
-
-
 def public_origin(request: Request) -> str:
-    """Return the public base URL clients use as the issuer and resource identifier."""
+    """Return the public base URL clients use as the issuer and resource identifier.
+
+    Only the scheme is taken from the proxy headers. The host stays whatever the
+    ASGI server resolved, because this origin also decides the audience a token
+    is issued for: honoring a client-supplied host would let a caller pick the
+    audience and slip past the confinement between the ``/mcp`` and ``/v1``
+    resources. A deployment whose internal host differs from its public one
+    should set ``PHOENIX_ROOT_URL``.
+    """
     if os.getenv(ENV_PHOENIX_ROOT_URL):
         return canonical_resource_identifier(str(get_env_root_url()))
     base_url = str(request.base_url)
-    forwarded_scheme = _extract_forwarded_scheme(request)
-    forwarded_host = _extract_forwarded_host(request)
-    if forwarded_scheme or forwarded_host:
+    if forwarded_scheme := _extract_forwarded_scheme(request):
         parsed = urlsplit(base_url)
-        scheme = forwarded_scheme or parsed.scheme
-        netloc = forwarded_host or parsed.netloc
-        base_url = urlunsplit((scheme, netloc, parsed.path, parsed.query, parsed.fragment))
+        base_url = urlunsplit(
+            (forwarded_scheme, parsed.netloc, parsed.path, parsed.query, parsed.fragment)
+        )
     return canonical_resource_identifier(base_url)
 
 
