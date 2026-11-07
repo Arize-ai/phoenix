@@ -506,6 +506,7 @@ async def add_dataset_examples(
     action: DatasetAction = DatasetAction.CREATE,
     user_id: Optional[int] = None,
     splits_provided: bool = True,
+    version_description: Optional[str] = None,
 ) -> DatasetExampleAdditionEvent:
     dataset_id: Optional[DatasetId] = await session.scalar(
         select(models.Dataset.id).where(models.Dataset.name == name)
@@ -532,7 +533,7 @@ async def add_dataset_examples(
         user_id=user_id,
         splits_provided=splits_provided,
         action=action,
-        description=description,
+        version_description=version_description,
     )
     patched_example_ids = changes.content_patched_example_ids | changes.split_changed_example_ids
     return DatasetExampleAdditionEvent(
@@ -845,7 +846,7 @@ async def _resolve_or_insert_dataset_version(
     dataset_id: DatasetId,
     has_changes: bool,
     user_id: Optional[int],
-    description: Optional[str] = None,
+    version_description: Optional[str] = None,
 ) -> DatasetVersionId:
     """Insert a new dataset version when content changed, otherwise reuse the
     most recent version (or insert a fresh one if none exists yet)."""
@@ -853,7 +854,7 @@ async def _resolve_or_insert_dataset_version(
         return await insert_dataset_version(
             session=session,
             dataset_id=dataset_id,
-            description=description,
+            description=version_description,
             user_id=user_id,
         )
     latest_version_id = await session.scalar(
@@ -867,7 +868,7 @@ async def _resolve_or_insert_dataset_version(
     return await insert_dataset_version(
         session=session,
         dataset_id=dataset_id,
-        description=description,
+        description=version_description,
         user_id=user_id,
     )
 
@@ -1020,7 +1021,7 @@ async def _update_dataset_examples(
     action: DatasetAction,
     user_id: Optional[int] = None,
     splits_provided: bool = True,
-    description: Optional[str] = None,
+    version_description: Optional[str] = None,
 ) -> DatasetExampleChanges:
     previous = await _get_external_ids_and_content_hashes_for_most_recent_version(
         session, dataset_id
@@ -1036,7 +1037,7 @@ async def _update_dataset_examples(
         dataset_id=dataset_id,
         has_changes=diff.has_changes,
         user_id=user_id,
-        description=description,
+        version_description=version_description,
     )
     created_examples: list[ExampleWithExternalID] = []
     if diff.has_changes:

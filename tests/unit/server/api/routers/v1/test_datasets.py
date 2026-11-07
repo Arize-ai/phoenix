@@ -610,6 +610,121 @@ async def test_post_dataset_upload_json_create_then_append(
     assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
 
 
+async def _list_version_descriptions(
+    httpx_client: httpx2.AsyncClient, dataset_id: str
+) -> list[Optional[str]]:
+    response = await httpx_client.get(f"v1/datasets/{dataset_id}/versions")
+    assert response.status_code == 200
+    return [version["description"] for version in reversed(response.json()["data"])]
+
+
+@pytest.mark.parametrize(
+    "append_fields,expected_version_description",
+    [
+        pytest.param({"description": "added b"}, "added b", id="description"),
+        pytest.param({"description": "  added b  "}, "added b", id="padded-description"),
+        pytest.param({"description": "   "}, None, id="blank-description"),
+        pytest.param({}, None, id="no-description"),
+    ],
+)
+async def test_post_dataset_upload_json_stores_version_description_only_on_append(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    append_fields: dict[str, Any],
+    expected_version_description: Optional[str],
+) -> None:
+    name = inspect.stack()[0][3] + str(append_fields)
+    create_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "update",
+            "name": name,
+            "description": "dataset description",
+            "inputs": [{"a": 1}],
+        },
+    )
+    assert create_response.status_code == 200
+    dataset_id = create_response.json()["data"]["dataset_id"]
+    append_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={"action": "append", "name": name, "inputs": [{"b": 2}], **append_fields},
+    )
+    assert append_response.status_code == 200
+    update_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "update",
+            "name": name,
+            "description": "dataset description",
+            "inputs": [{"a": 1}, {"b": 2}, {"c": 3}],
+        },
+    )
+    assert update_response.status_code == 200
+    assert await _list_version_descriptions(httpx_client, dataset_id) == [
+        None,
+        expected_version_description,
+        None,
+    ]
+
+
+@pytest.mark.parametrize(
+    "append_fields,expected_version_description",
+    [
+        pytest.param({"description": "added b"}, "added b", id="description"),
+        pytest.param({"description": ""}, None, id="empty-description"),
+        pytest.param({}, None, id="no-description"),
+    ],
+)
+async def test_post_dataset_upload_csv_stores_version_description_only_on_append(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    append_fields: dict[str, Any],
+    expected_version_description: Optional[str],
+) -> None:
+    name = inspect.stack()[0][3] + str(append_fields)
+    create_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": ("examples.csv", b"a\n1\n", "text/csv")},
+        data={"action": "create", "name": name, "input_keys[]": ["a"], "output_keys[]": []},
+    )
+    assert create_response.status_code == 200
+    dataset_id = create_response.json()["data"]["dataset_id"]
+    append_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": ("examples.csv", b"a\n2\n", "text/csv")},
+        data={
+            "action": "append",
+            "name": name,
+            "input_keys[]": ["a"],
+            "output_keys[]": [],
+            **append_fields,
+        },
+    )
+    assert append_response.status_code == 200
+    assert await _list_version_descriptions(httpx_client, dataset_id) == [
+        None,
+        expected_version_description,
+    ]
+
+
+async def test_post_dataset_upload_json_append_rejects_non_string_description(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    create_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={"action": "create", "name": name, "inputs": [{"a": 1}]},
+    )
+    assert create_response.status_code == 200
+    append_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={"action": "append", "name": name, "inputs": [{"b": 2}], "description": 5},
+    )
+    assert append_response.status_code == 422
+    assert "description must be a string" in append_response.text
+
+
 async def test_post_dataset_upload_json_reupload_reports_no_changes(
     httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,

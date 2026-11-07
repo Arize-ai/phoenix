@@ -8915,6 +8915,7 @@ export interface operations {
                     /** @enum {string} */
                     action?: "create" | "append" | "update";
                     name: string;
+                    /** @description The description of a dataset the upload creates. With action=append, also the description of the dataset version the append creates; ignored when the append changes no examples, since no version is created. */
                     description?: string;
                     inputs: Record<string, unknown>[];
                     outputs?: Record<string, unknown>[];
@@ -8930,6 +8931,7 @@ export interface operations {
                     /** @enum {string} */
                     action?: "create" | "append" | "update";
                     name: string;
+                    /** @description The description of a dataset the upload creates. With action=append, also the description of the dataset version the append creates; ignored when the append changes no examples, since no version is created. */
                     description?: string;
                     "input_keys[]": string[];
                     "output_keys[]": string[];

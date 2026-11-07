@@ -375,7 +375,15 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "enum": ["create", "append", "update"],
                             },
                             "name": {"type": "string"},
-                            "description": {"type": "string"},
+                            "description": {
+                                "type": "string",
+                                "description": (
+                                    "The description of a dataset the upload creates. With "
+                                    "action=append, also the description of the dataset version "
+                                    "the append creates; ignored when the append changes no "
+                                    "examples, since no version is created."
+                                ),
+                            },
                             "inputs": {"type": "array", "items": {"type": "object"}},
                             "outputs": {"type": "array", "items": {"type": "object"}},
                             "metadata": {"type": "array", "items": {"type": "object"}},
@@ -426,7 +434,15 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                                 "enum": ["create", "append", "update"],
                             },
                             "name": {"type": "string"},
-                            "description": {"type": "string"},
+                            "description": {
+                                "type": "string",
+                                "description": (
+                                    "The description of a dataset the upload creates. With "
+                                    "action=append, also the description of the dataset version "
+                                    "the append creates; ignored when the append changes no "
+                                    "examples, since no version is created."
+                                ),
+                            },
                             "input_keys[]": {
                                 "type": "array",
                                 "items": {"type": "string"},
@@ -500,9 +516,14 @@ async def upload_dataset(
     splits_provided = True
     if request_content_type.startswith("application/json"):
         try:
-            examples, action, name, description, splits_provided = await run_in_threadpool(
-                _process_json, await request.json()
-            )
+            (
+                examples,
+                action,
+                name,
+                description,
+                version_description,
+                splits_provided,
+            ) = await run_in_threadpool(_process_json, await request.json())
         except ValueError as e:
             raise HTTPException(
                 detail=str(e),
@@ -515,6 +536,7 @@ async def upload_dataset(
                     action,
                     name,
                     description,
+                    version_description,
                     input_keys,
                     output_keys,
                     metadata_keys,
@@ -618,6 +640,7 @@ async def upload_dataset(
             description=description,
             user_id=user_id,
             splits_provided=splits_provided,
+            version_description=version_description,
         ),
     )
     if sync:
@@ -675,6 +698,7 @@ class FileContentEncoding(Enum):
 
 Name: TypeAlias = str
 Description: TypeAlias = Optional[str]
+VersionDescription: TypeAlias = Optional[str]
 InputKeys: TypeAlias = frozenset[str]
 OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
@@ -842,9 +866,22 @@ def _build_flatten_plans(
     )
 
 
+def _parse_version_description(
+    description: Any,
+    action: DatasetAction,
+) -> VersionDescription:
+    """With action=append, the upload's description also describes the dataset version
+    the append creates."""
+    if action is not DatasetAction.APPEND or description is None:
+        return None
+    if not isinstance(description, str):
+        raise ValueError("description must be a string")
+    return description.strip() or None
+
+
 def _process_json(
     data: Mapping[str, Any],
-) -> tuple[Examples, DatasetAction, Name, Description, SplitsProvided]:
+) -> tuple[Examples, DatasetAction, Name, Description, VersionDescription, SplitsProvided]:
     name = data.get("name")
     if not name:
         raise ValueError("Dataset name is required")
@@ -958,7 +995,8 @@ def _process_json(
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
-    return iter(examples), action, name, description, splits is not None
+    version_description = _parse_version_description(data.get("description"), action)
+    return iter(examples), action, name, description, version_description, splits is not None
 
 
 async def _process_csv(
@@ -1260,6 +1298,7 @@ async def _parse_form_data(
     DatasetAction,
     Name,
     Description,
+    VersionDescription,
     InputKeys,
     OutputKeys,
     MetadataKeys,
@@ -1278,6 +1317,7 @@ async def _parse_form_data(
     if not isinstance(file, UploadFile):
         raise ValueError("Malformed file in form data.")
     description = cast(Optional[str], form.get("description")) or file.filename
+    version_description = _parse_version_description(form.get("description"), action)
     input_keys = frozenset(filter(bool, cast(list[str], form.getlist("input_keys[]"))))
     output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
@@ -1295,6 +1335,7 @@ async def _parse_form_data(
         action,
         name,
         description,
+        version_description,
         input_keys,
         output_keys,
         metadata_keys,

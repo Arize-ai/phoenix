@@ -2671,7 +2671,8 @@
                     "type": "string"
                   },
                   "description": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The description of a dataset the upload creates. With action=append, also the description of the dataset version the append creates; ignored when the append changes no examples, since no version is created."
                   },
                   "inputs": {
                     "type": "array",
@@ -2764,7 +2765,8 @@
                     "type": "string"
                   },
                   "description": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The description of a dataset the upload creates. With action=append, also the description of the dataset version the append creates; ignored when the append changes no examples, since no version is created."
                   },
                   "input_keys[]": {
                     "type": "array",
