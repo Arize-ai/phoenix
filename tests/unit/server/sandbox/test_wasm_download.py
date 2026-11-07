@@ -397,7 +397,11 @@ class TestPrefetchWasmBinaryIfNeeded:
                 await prefetch_wasm_binary_if_needed()
 
         assert not wasm_dir.exists()
-        assert not caplog.records
+        # caplog captures every logger, so unrelated records (e.g. SQLAlchemy reporting
+        # a connection another test on this worker leaked) must not count.
+        assert not [
+            record for record in caplog.records if record.name == "phoenix.server.sandbox._download"
+        ]
 
     async def test_prefetch_downloads_when_missing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
