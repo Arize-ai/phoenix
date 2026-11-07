@@ -123,6 +123,7 @@
 - [How to Evals](https://arize.com/docs/phoenix/evaluation/how-to-evals): Set up and run evaluations end-to-end
 - [Custom LLM Evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators): Build evaluators with custom prompts and scoring logic
 - [Configuring the LLM](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm): Set up LLM providers for evaluations
+- [Decision Models](https://arize.com/docs/phoenix/evaluation/how-to-evals/decision-models): Run classification evaluators on a decision model for a label and a probability per label
 - [Prompt Formats](https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats): Customize evaluator prompt structures
 - [Code Evaluators (SDK)](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators): Deterministic evaluation with Python or TypeScript
 - [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): Return scores, labels, multiple outputs, or explanations from a code evaluator
