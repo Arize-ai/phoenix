@@ -3,6 +3,7 @@ max_turns: 6
 timeout_seconds: 180
 allowed_tools: [Skill]
 runs: 3
+tags: [phoenix-cli]
 ---
 My LangGraph agent never finishes. It bounces between the planner node and the tool node forever until I hit the recursion limit. The tool results come back fine, the model even produces a final answer with no tool calls, but the graph still routes back to tools. Here's the routing code. What am I doing wrong?
 

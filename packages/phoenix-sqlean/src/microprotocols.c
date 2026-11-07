@@ -70,6 +70,27 @@ pysqlite_microprotocols_add(PyTypeObject *type, PyObject *proto, PyObject *cast)
     return rc;
 }
 
+/* Look up name on obj exactly once. Returns 1 with a new reference in
+   *result, 0 with *result NULL if the attribute is missing, or -1 with an
+   exception set if the lookup itself failed. */
+static int
+get_optional_attr(PyObject *obj, PyObject *name, PyObject **result)
+{
+#if PY_VERSION_HEX >= 0x030D0000
+    return PyObject_GetOptionalAttr(obj, name, result);
+#else
+    *result = PyObject_GetAttr(obj, name);
+    if (*result) {
+        return 1;
+    }
+    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        PyErr_Clear();
+        return 0;
+    }
+    return -1;
+#endif
+}
+
 /* pysqlite_microprotocols_adapt - adapt an object to the built-in protocol */
 
 PyObject *
@@ -99,9 +120,12 @@ pysqlite_microprotocols_adapt(PyObject *obj, PyObject *proto, PyObject *alt)
     }
 
     /* try to have the protocol adapt this object*/
-    if (PyObject_HasAttrString(proto, "__adapt__")) {
-        _Py_IDENTIFIER(__adapt__);
-        adapted = _PyObject_CallMethodId(proto, &PyId___adapt__, "O", obj);
+    if (get_optional_attr(proto, pysqlite_str___adapt__, &adapter) < 0) {
+        return NULL;
+    }
+    if (adapter) {
+        adapted = PyObject_CallOneArg(adapter, obj);
+        Py_DECREF(adapter);
 
         if (adapted == Py_None) {
             Py_DECREF(adapted);
@@ -115,9 +139,12 @@ pysqlite_microprotocols_adapt(PyObject *obj, PyObject *proto, PyObject *alt)
     }
 
     /* and finally try to have the object adapt itself */
-    if (PyObject_HasAttrString(obj, "__conform__")) {
-        _Py_IDENTIFIER(__conform__);
-        PyObject *adapted = _PyObject_CallMethodId(obj, &PyId___conform__,"O", proto);
+    if (get_optional_attr(obj, pysqlite_str___conform__, &adapter) < 0) {
+        return NULL;
+    }
+    if (adapter) {
+        adapted = PyObject_CallOneArg(adapter, proto);
+        Py_DECREF(adapter);
 
         if (adapted == Py_None) {
             Py_DECREF(adapted);

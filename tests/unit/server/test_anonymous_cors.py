@@ -11,7 +11,7 @@ from __future__ import annotations
 import contextlib
 from typing import AsyncIterator
 
-import httpx
+import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
 from pydantic import SecretStr
@@ -40,9 +40,9 @@ async def app_with_auth(db: DbSessionFactory) -> AsyncIterator[ASGIApp]:
 
 
 @pytest.fixture
-def client(app_with_auth: ASGIApp) -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app_with_auth),
+def client(app_with_auth: ASGIApp) -> httpx2.AsyncClient:
+    return httpx2.AsyncClient(
+        transport=httpx2.ASGITransport(app=app_with_auth),
         base_url="http://test",
     )
 
@@ -57,7 +57,7 @@ class TestAnonymousSurfacesAnswerAnyOrigin:
         ],
     )
     async def test_discovery_documents_allow_any_origin(
-        self, path: str, client: httpx.AsyncClient
+        self, path: str, client: httpx2.AsyncClient
     ) -> None:
         resp = await client.get(path, headers={"Origin": _ORIGIN})
         assert resp.status_code == 200
@@ -66,7 +66,7 @@ class TestAnonymousSurfacesAnswerAnyOrigin:
 
     @pytest.mark.parametrize("path", ["/oauth2/token", "/oauth2/register", "/oauth2/revoke"])
     async def test_preflight_allows_post_with_requested_headers(
-        self, path: str, client: httpx.AsyncClient
+        self, path: str, client: httpx2.AsyncClient
     ) -> None:
         resp = await client.options(
             path,
@@ -83,7 +83,7 @@ class TestAnonymousSurfacesAnswerAnyOrigin:
         assert resp.headers["access-control-allow-headers"] == "content-type, authorization"
         assert "access-control-allow-credentials" not in resp.headers
 
-    async def test_error_responses_carry_the_header_too(self, client: httpx.AsyncClient) -> None:
+    async def test_error_responses_carry_the_header_too(self, client: httpx2.AsyncClient) -> None:
         """The browser can only read the OAuth error JSON if the failure
         response is itself CORS-approved."""
         resp = await client.post(
@@ -94,7 +94,7 @@ class TestAnonymousSurfacesAnswerAnyOrigin:
         assert resp.status_code == 400
         assert resp.headers["access-control-allow-origin"] == "*"
 
-    async def test_no_origin_means_no_cors_headers(self, client: httpx.AsyncClient) -> None:
+    async def test_no_origin_means_no_cors_headers(self, client: httpx2.AsyncClient) -> None:
         resp = await client.get("/.well-known/oauth-authorization-server")
         assert resp.status_code == 200
         assert "access-control-allow-origin" not in resp.headers
@@ -103,7 +103,7 @@ class TestAnonymousSurfacesAnswerAnyOrigin:
 class TestCookieHonoringSurfacesStayOriginRestricted:
     @pytest.mark.parametrize("path", ["/oauth2/authorize", "/oauth2/authorize/decision"])
     async def test_no_wildcard_on_cookie_endpoints(
-        self, path: str, client: httpx.AsyncClient
+        self, path: str, client: httpx2.AsyncClient
     ) -> None:
         resp = await client.request(
             "GET" if path == "/oauth2/authorize" else "POST",
@@ -141,14 +141,14 @@ class TestCsrfOriginValidatorBypassesAnonymousSurfaces:
             yield manager.app
 
     @pytest.fixture
-    def csrf_client(self, app_with_csrf: ASGIApp) -> httpx.AsyncClient:
-        return httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app_with_csrf),
+    def csrf_client(self, app_with_csrf: ASGIApp) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app_with_csrf),
             base_url="http://test",
         )
 
     async def test_token_endpoint_reaches_the_handler_from_an_untrusted_origin(
-        self, csrf_client: httpx.AsyncClient
+        self, csrf_client: httpx2.AsyncClient
     ) -> None:
         preflight = await csrf_client.options(
             "/oauth2/token",
@@ -169,7 +169,7 @@ class TestCsrfOriginValidatorBypassesAnonymousSurfaces:
         assert resp.headers["access-control-allow-origin"] == "*"
 
     async def test_mcp_challenge_reaches_the_browser_from_an_untrusted_origin(
-        self, csrf_client: httpx.AsyncClient
+        self, csrf_client: httpx2.AsyncClient
     ) -> None:
         resp = await csrf_client.post(
             "/mcp/",
@@ -186,7 +186,7 @@ class TestCsrfOriginValidatorBypassesAnonymousSurfaces:
         assert resp.headers["access-control-allow-origin"] == "*"
 
     async def test_cookie_honoring_endpoint_stays_origin_restricted(
-        self, csrf_client: httpx.AsyncClient
+        self, csrf_client: httpx2.AsyncClient
     ) -> None:
         resp = await csrf_client.get("/oauth2/authorize", headers={"Origin": _ORIGIN})
         assert resp.status_code == 401

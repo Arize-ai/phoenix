@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ae76ce8c41dfe19b9aac2097135cd03>>
+ * @generated SignedSource<<275e9da8af028511b056afce687f3ea2>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,7 @@ export type projectLoaderQuery$variables = {
 };
 export type projectLoaderQuery$data = {
   readonly project: {
+    readonly hasTraces?: boolean;
     readonly id: string;
     readonly name?: string;
   };
@@ -52,6 +53,13 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hasTraces",
       "storageKey": null
     }
   ],
@@ -111,16 +119,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "146b6f58a3f2f95565821ff5d976155d",
+    "cacheID": "618164439b7b3848043f2a6452e204b8",
     "id": null,
     "metadata": {},
     "name": "projectLoaderQuery",
     "operationKind": "query",
-    "text": "query projectLoaderQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n}\n"
+    "text": "query projectLoaderQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n      hasTraces\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3e1dc1a02098a23c327567a7fcf393fd";
+(node as any).hash = "24c436a8b54c67f1e3bf00d1e87ad535";
 
 export default node;

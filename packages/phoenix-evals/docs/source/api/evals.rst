@@ -15,7 +15,7 @@ LLM
 
 Prompt Template
 ~~~~~~~~~~~~~~~
-.. autoclass:: phoenix.evals.templating.Template
+.. autoclass:: phoenix.evals.llm.PromptTemplate
    :members:
    :show-inheritance:
 

@@ -1,8 +1,14 @@
 from collections.abc import Iterator
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
+from graphql import (
+    ExecutionResult as GraphQLExecutionResult,
+)
+from graphql import (
+    ExperimentalIncrementalExecutionResults,
+    InitialIncrementalExecutionResult,
+)
 from graphql.error import GraphQLError
-from graphql.execution.execute import ExecutionResult as GraphQLExecutionResult
 from strawberry.extensions.base_extension import SchemaExtension
 from strawberry.types.execution import ExecutionResult as StrawberryExecutionResult
 
@@ -77,6 +83,11 @@ def _find_custom_error(
     return None
 
 
+def is_expected_error(error: BaseException) -> bool:
+    """Whether the error chain carries a user-facing error rather than a server fault."""
+    return _find_custom_error(error) is not None
+
+
 class PhoenixErrorMasker(SchemaExtension):
     """Replace error messages with the inner safe public error's message
     (a CustomGraphQLError or one of the filter-condition errors) if present;
@@ -117,7 +128,12 @@ class PhoenixErrorMasker(SchemaExtension):
             original_error=None,
         )
 
-    def _process_result(self, result: Any) -> None:
+    def _process_result(
+        self,
+        result: Union[
+            GraphQLExecutionResult, StrawberryExecutionResult, InitialIncrementalExecutionResult
+        ],
+    ) -> None:
         if not result.errors:
             return
         result.errors = [self._rewrite(e) for e in result.errors]
@@ -125,10 +141,10 @@ class PhoenixErrorMasker(SchemaExtension):
     def on_operation(self) -> Iterator[None]:
         yield
         result = self.execution_context.result
-        if isinstance(result, (GraphQLExecutionResult, StrawberryExecutionResult)):
-            self._process_result(result)
-        elif result:
+        if isinstance(result, ExperimentalIncrementalExecutionResults):
             self._process_result(result.initial_result)
+        elif result is not None:
+            self._process_result(result)
 
 
 def get_mask_errors_extension() -> type[SchemaExtension]:

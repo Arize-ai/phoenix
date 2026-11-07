@@ -1,10 +1,12 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import type * as TanStack from "@tanstack/react-table";
 import {
+  createPaginatedRowModel,
+  createSortedRowModel,
   flexRender,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
+  rowPaginationFeature,
+  rowSortingFeature,
+  tableFeatures,
+  useTable,
 } from "@tanstack/react-table";
 
 import { Button, Icon, Icons } from "@phoenix/components";
@@ -12,8 +14,17 @@ import { Button, Icon, Icons } from "@phoenix/components";
 import { paginationCSS, tableCSS } from "./styles";
 import { TableEmpty } from "./TableEmpty";
 
+// Unlike the app's other tables this one pages its rows, so it has its own
+// feature set rather than `appTableFeatures`.
+const paginatedTableFeatures = tableFeatures({
+  rowPaginationFeature,
+  rowSortingFeature,
+  paginatedRowModel: createPaginatedRowModel(),
+  sortedRowModel: createSortedRowModel(),
+});
+
 type TableProps<DataRow extends object> = {
-  columns: ColumnDef<DataRow>[];
+  columns: TanStack.ColumnDef<typeof paginatedTableFeatures, DataRow>[];
   data: DataRow[];
 };
 
@@ -21,14 +32,10 @@ export function Table<DataRow extends object>({
   columns,
   data,
 }: TableProps<DataRow>) {
-  "use no memo";
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<DataRow>({
+  const table = useTable({
+    features: paginatedTableFeatures,
     columns,
     data,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;
@@ -38,7 +45,7 @@ export function Table<DataRow extends object>({
       {rows.map((row) => {
         return (
           <tr key={row.id}>
-            {row.getVisibleCells().map((cell) => {
+            {row.getAllCells().map((cell) => {
               return (
                 <td key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

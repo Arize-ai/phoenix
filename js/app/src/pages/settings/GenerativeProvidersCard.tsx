@@ -1,11 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useCallback, useContext, useMemo } from "react";
 import { OverlayTriggerStateContext } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
@@ -39,6 +33,8 @@ import {
   ProviderServerCredentialsPanel,
 } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -53,7 +49,6 @@ export function GenerativeProvidersCard({
 }: {
   query: GenerativeProvidersCard_data$key;
 }) {
-  "use no memo";
   const data = useFragment<GenerativeProvidersCard_data$key>(
     graphql`
       fragment GenerativeProvidersCard_data on Query {
@@ -145,12 +140,10 @@ export function GenerativeProvidersCard({
     ] satisfies ColumnDef<DataRow>[];
   }, []);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<(typeof tableData)[number]>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;

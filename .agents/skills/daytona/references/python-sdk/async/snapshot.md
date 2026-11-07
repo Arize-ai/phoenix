@@ -226,7 +226,7 @@ Parameters for creating a new snapshot.
   it will be used to create a new image in Daytona.
 - `resources` _Resources | None_ - Resources of the snapshot.
 - `entrypoint` _list[str] | None_ - Entrypoint of the snapshot.
-- `region_id` _str | None_ - ID of the region where the snapshot will be available.
-  Defaults to organization default region if not specified.
+- `region_id` _str | None_ - ID of the region where the snapshot will be available. If omitted, the
+  client-level target is used when configured; otherwise the organization's default region is used.
 - `sandbox_class` _SandboxClass | None_ - Target sandbox class. Determines which runners
   can host sandboxes created from this snapshot.

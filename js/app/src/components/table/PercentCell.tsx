@@ -1,7 +1,7 @@
-import type { CellContext } from "@tanstack/react-table";
-
 import { isNumberOrNull } from "@phoenix/typeUtils";
 import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import type { CellContext } from "./tableFeatures";
 
 /**
  * A table cell that nicely formats the value of a percent.

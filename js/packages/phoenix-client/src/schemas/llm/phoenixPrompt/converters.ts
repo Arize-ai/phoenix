@@ -131,6 +131,9 @@ export const phoenixResponseFormatToOpenAI =
         name: phoenix.json_schema.name,
         description: phoenix.json_schema.description,
         schema: jsonSchemaZodSchema.parse(phoenix.json_schema.schema),
+        ...(phoenix.json_schema.strict !== undefined && {
+          strict: phoenix.json_schema.strict,
+        }),
       },
     })
   );

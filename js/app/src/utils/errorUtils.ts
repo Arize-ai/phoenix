@@ -1,3 +1,5 @@
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
+
 /**
  * Type-guard for the `AbortError` browsers raise when the user dismisses a
  * picker or an in-flight request is aborted. Structural rather than an
@@ -29,7 +31,7 @@ const isErrorWithMessage = (error: unknown): error is { message: string } => {
  * Matches the string after the first occurrence of "message": " and before the next occurrence of " with double quotes.
  * @example
  * ```
- * "Error fetching GraphQL query 'MutationName' with variables '{'input':{'var1': 'test'}': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
+ * "Error fetching GraphQL query 'MutationName': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
  * ```*
  */
 const mutationErrorRegex = /["]message["]:\s*["]([^""]+)["]/g;
@@ -38,7 +40,7 @@ const mutationErrorRegex = /["]message["]:\s*["]([^""]+)["]/g;
  * A relay mutation error contains a message property which is a large string with various information.
  * @example
  * ```
- * "Error fetching GraphQL query 'MutationName' with variables '{'input':{'var1': 'test'}': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
+ * "Error fetching GraphQL query 'MutationName': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
  * ```
  * This function extracts the actual error messages from the message block.
  * @param error
@@ -129,4 +131,34 @@ export const getErrorMessagesFromRelaySubscriptionError = (
     return error.map((error) => error.message);
   }
   return null;
+};
+
+/**
+ * Extracts the server's message from the `error` body openapi-fetch returns
+ * for a failed REST request. Phoenix serves HTTPExceptions as plain text;
+ * FastAPI otherwise sends `{ detail: string }` for an HTTPException and
+ * `{ detail: [{ msg, ... }] }` for a request validation error.
+ */
+export const getRestErrorDetail = (error: unknown): string => {
+  if (typeof error === "string") {
+    const text = error.trim();
+    const isHtmlPage = text.startsWith("<");
+    return isHtmlPage ? "" : text;
+  }
+  if (!isPlainObject(error)) {
+    return "";
+  }
+  const { detail } = error;
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        isPlainObject(item) && typeof item.msg === "string" ? item.msg : null
+      )
+      .filter((msg): msg is string => msg !== null)
+      .join("; ");
+  }
+  return "";
 };

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from strawberry.relay import GlobalID
 
@@ -17,7 +17,7 @@ class TestCustomModelProviders:
     @pytest.mark.parametrize("num_custom_providers", [0, 3])
     async def test_get_custom_model_providers(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
         num_custom_providers: int,
     ) -> None:
@@ -58,7 +58,7 @@ class TestCustomModelProviders:
 
     async def test_get_custom_model_providers_never_returns_config(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -112,7 +112,7 @@ class TestCustomModelProviders:
 
     async def test_get_custom_model_providers_paginates(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """
@@ -170,7 +170,7 @@ class TestCustomModelProviders:
     )
     async def test_get_custom_model_providers_with_invalid_cursor(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         cursor: str,
     ) -> None:
         """

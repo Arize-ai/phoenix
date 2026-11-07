@@ -22,6 +22,8 @@ Resources are shared across all running sandboxes. The number of sandboxes you c
 - **Memory**: the total RAM available
 - **Storage**: the total disk space available
 
+[GPU sandboxes](../python-sdk/sandboxes.md#gpu-sandboxes) use a separate GPU quota under the [earth region](../python-sdk/regions.md#earth-region). Their vCPU, memory, and disk do not count against the tier compute pool.
+
 ## Sandbox limits
 
 Sandbox limits provides an overview of resource limits per sandbox.
@@ -67,7 +69,7 @@ Daytona includes rate limit information in API response headers. Header names in
 
 ### Rate limit errors
 
-Daytona [Python](../python-sdk/README.md), [TypeScript](../typescript-sdk/README.md), [Ruby](../ruby-sdk/README.md) and [Go](../go-sdk/README.md) SDKs raise or throw a `DaytonaRateLimitError` exception (Python) or error (TypeScript, Ruby and Go) when you exceed a rate limit.
+Daytona SDKs raise or return a rate limit error when you exceed a rate limit: `DaytonaRateLimitError` in [Python](../python-sdk/README.md) and [TypeScript](../typescript-sdk/README.md), `Daytona::Sdk::RateLimitError` in [Ruby](../ruby-sdk/README.md), and an error matching `errors.ErrRateLimit` in [Go](../go-sdk/README.md).
 
 The rate limit error response is a JSON object with the following properties:
 
@@ -83,11 +85,13 @@ The rate limit error response is a JSON object with the following properties:
 }
 ```
 
-All errors include [**`headers`**](#rate-limit-headers) and status code properties, allowing access to rate limit headers directly from the error object. Headers support case-insensitive access:
+All errors include [**`headers`**](#rate-limit-headers) and status code properties, allowing access to rate limit headers directly from the error object. Header lookup is case-insensitive in TypeScript and Go. In Python, `headers` is a plain dictionary, so normalize the keys before lookup:
 
 **TypeScript:**
 
 ```typescript
+import { DaytonaRateLimitError } from '@daytona/sdk'
+
 try {
   await daytona.create()
 } catch (error) {
@@ -101,11 +105,13 @@ try {
 **Python:**
 
 ```python
+from daytona import DaytonaRateLimitError
+
 try:
-  daytona.create(snapshot="my-snapshot")
+  daytona.create()
 except DaytonaRateLimitError as e:
-  print(e.headers['x-ratelimit-remaining-sandbox-create'])
-  print(e.headers['X-RateLimit-Remaining-Sandbox-Create'])  # also works
+  headers = {key.lower(): value for key, value in e.headers.items()}
+  print(headers.get('x-ratelimit-remaining-sandbox-create'))
 ```
 
 **Ruby:**
@@ -113,7 +119,7 @@ except DaytonaRateLimitError as e:
 ```ruby
 begin
   daytona.create
-rescue Daytona::Sdk::Error => e
+rescue Daytona::Sdk::RateLimitError => e
   puts "Error: #{e.message}"
 end
 ```
@@ -121,12 +127,18 @@ end
 **Go:**
 
 ```go
-sandbox, err := daytona.Create(ctx, nil)
-if err != nil {
-  var rateLimitErr *errors.DaytonaRateLimitError
-  if errors.As(err, &rateLimitErr) {
-    fmt.Println(rateLimitErr.Headers.Get("x-ratelimit-remaining-sandbox-create"))
-    fmt.Println(rateLimitErr.Headers.Get("X-RateLimit-Remaining-Sandbox-Create")) // also works
+import (
+  "errors"
+
+  daytonaerrors "github.com/daytona/clients/sdk-go/pkg/errors"
+)
+
+_, err := client.Create(ctx, nil)
+if errors.Is(err, daytonaerrors.ErrRateLimit) {
+  var daytonaErr *daytonaerrors.DaytonaError
+  if errors.As(err, &daytonaErr) {
+    fmt.Println(daytonaErr.Headers.Get("x-ratelimit-remaining-sandbox-create"))
+    fmt.Println(daytonaErr.Headers.Get("X-RateLimit-Remaining-Sandbox-Create")) // also works
   }
 }
 ```
@@ -144,6 +156,8 @@ Limits are applied to your organization's default region. To unlock higher limit
 | Custom   | Custom                               | Contact [support@daytona.io](mailto:support@daytona.io) |
 > **Note: Tier-based network restrictions**
 > [Network limits](../python-sdk/network-limits.md) are automatically applied based on your organization's billing tier.
+> **Note: GPU quota**
+> Tier resources do not include GPU sandboxes. On-demand [GPU sandboxes](../python-sdk/sandboxes.md#gpu-sandboxes) count only against the GPU quota under the [earth region](../python-sdk/regions.md#earth-region), so upgrading to Tier 3 is not required to run them. [Spot GPU sandboxes](../python-sdk/sandboxes.md#spot-gpu-sandboxes) require Tier 2 or higher.
 
 ## Limits
 
