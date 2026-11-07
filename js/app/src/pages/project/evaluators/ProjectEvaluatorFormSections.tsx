@@ -4,7 +4,6 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import {
   Card,
-  CardCollapsedPreview,
   Counter,
   Disclosure,
   DisclosureGroup,
@@ -80,10 +79,11 @@ const ProjectEvaluatorScopeSection = ({
 /**
  * The "Advanced" card every project evaluator form ends with: settings that
  * change what an evaluation stores, not what it evaluates. It starts
- * collapsed, and its header says whether tracing is on, so a closed card
- * never hides that an evaluator has stopped storing traces.
+ * collapsed, and its header says whether tracing is on, to sight and to
+ * screen readers, so a closed card never hides that an evaluator has stopped
+ * storing traces.
  */
-const ProjectEvaluatorAdvancedSection = ({
+export const ProjectEvaluatorAdvancedSection = ({
   scope,
   onScopeChange,
 }: Pick<ProjectEvaluatorScopeProps, "scope" | "onScopeChange">) => {
@@ -94,10 +94,12 @@ const ProjectEvaluatorAdvancedSection = ({
         title="Advanced"
         collapsible
         defaultOpen={false}
+        // Plain text rather than a collapsed preview, which is hidden from
+        // assistive tech: the state is short, and part of the toggle's name.
         headerContent={
-          <CardCollapsedPreview>
+          <Text size="S" color="text-700">
             {scope.tracingEnabled ? "Tracing on" : "Tracing off"}
-          </CardCollapsedPreview>
+          </Text>
         }
         testId="project-evaluator-advanced-card"
       >

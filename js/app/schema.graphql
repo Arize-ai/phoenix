@@ -102,7 +102,7 @@ input AddProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
   """
   tracingEnabled: Boolean! = true
 
@@ -1235,7 +1235,7 @@ input CreateProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
   """
   tracingEnabled: Boolean! = true
 
@@ -1267,7 +1267,7 @@ input CreateProjectDecisionEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
   """
   tracingEnabled: Boolean! = true
 
@@ -1298,7 +1298,7 @@ input CreateProjectLLMEvaluatorInput {
   enabled: Boolean! = true
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
   """
   tracingEnabled: Boolean! = true
 
@@ -5091,7 +5091,7 @@ type ProjectEvaluator implements Node {
   enabled: Boolean!
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
   """
   tracingEnabled: Boolean!
   createdAt: DateTime!
@@ -7470,7 +7470,7 @@ input UpdateProjectCodeEvaluatorInput {
   enabled: Boolean
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
   """
   tracingEnabled: Boolean
   description: String
@@ -7510,7 +7510,7 @@ input UpdateProjectDecisionEvaluatorInput {
   enabled: Boolean
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
   """
   tracingEnabled: Boolean
 
@@ -7534,7 +7534,7 @@ input UpdateProjectLLMEvaluatorInput {
   enabled: Boolean
 
   """
-  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace, which saves storage at the cost of that visibility. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
   """
   tracingEnabled: Boolean
   description: String

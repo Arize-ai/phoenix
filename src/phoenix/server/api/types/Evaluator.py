@@ -100,9 +100,9 @@ PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
 PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION = (
     "Whether each evaluation writes a trace to the project evaluator's trace project. A trace "
     "records the evaluator's inputs, outputs, latency, and token cost. With tracing off, "
-    "evaluations still write their annotations but no trace, which saves storage at the cost "
-    "of that visibility. Changing it applies to evaluations that start afterwards and does "
-    "not re-evaluate anything."
+    "evaluations still write their annotations but no trace: that saves storage, but the "
+    "evaluator's cost and evaluation time are no longer measured. Changing it applies to "
+    "evaluations that start afterwards and does not re-evaluate anything."
 )
 
 

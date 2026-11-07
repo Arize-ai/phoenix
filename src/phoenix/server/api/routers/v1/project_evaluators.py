@@ -33,17 +33,12 @@ from phoenix.server.api.routers.v1.utils import (
     ResponseBody,
     get_project_by_identifier,
 )
+from phoenix.server.api.types.Evaluator import PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.evaluators.services import project_bindings
 from phoenix.server.evaluators.services.management import EVALUATOR_TYPENAME_BY_KIND
 
 router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
-
-
-_TRACING_ENABLED_DESCRIPTION = (
-    "Whether each evaluation writes a trace (inputs, outputs, latency, and token cost) to the "
-    "binding's trace project. Off saves storage; annotations are still written."
-)
 
 
 class CreateProjectEvaluatorRequest(EvaluatorRequest):
@@ -58,7 +53,9 @@ class CreateProjectEvaluatorRequest(EvaluatorRequest):
     sampling_rate: float = Field(ge=0, le=1, allow_inf_nan=False)
     filter_condition: str = ""
     enabled: bool = True
-    tracing_enabled: bool = Field(default=True, description=_TRACING_ENABLED_DESCRIPTION)
+    tracing_enabled: bool = Field(
+        default=True, description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
     input_mapping: Optional[InputMapping] = Field(
         default=None,
         description=(
@@ -85,7 +82,9 @@ class PatchProjectEvaluatorRequest(EvaluatorRequest):
     sampling_rate: float = Field(default=UNDEFINED, ge=0, le=1, allow_inf_nan=False)
     filter_condition: str = Field(default=UNDEFINED)
     enabled: bool = Field(default=UNDEFINED)
-    tracing_enabled: bool = Field(default=UNDEFINED, description=_TRACING_ENABLED_DESCRIPTION)
+    tracing_enabled: bool = Field(
+        default=UNDEFINED, description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
     input_mapping: Optional[InputMapping] = Field(
         default=UNDEFINED,
         description=(
@@ -122,7 +121,7 @@ class ProjectEvaluator(V1RoutesBaseModel):
         description="Written in the filter language of the target: span, trace, or session."
     )
     enabled: bool
-    tracing_enabled: bool = Field(description=_TRACING_ENABLED_DESCRIPTION)
+    tracing_enabled: bool = Field(description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION)
     input_mapping: Optional[InputMapping] = Field(
         description=(
             "The binding's own input mapping; null means the evaluator's mapping applies "
