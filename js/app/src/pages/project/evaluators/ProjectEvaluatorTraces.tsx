@@ -175,7 +175,7 @@ function ProjectEvaluatorTracesEmpty({
         <EmptyState
           graphic={<EmptyStateGraphic variant="trace" />}
           title="Tracing is off"
-          description="This evaluator stores only the annotations its evaluations write. To record a trace of each evaluation, edit the evaluator and turn on tracing under Advanced."
+          description="This evaluator stores only the annotations its evaluations write. Traces recorded while tracing was on appear here when they match the time range and filters. To record a trace of each evaluation, edit the evaluator and turn on tracing under Advanced."
         />
       </TableEmptyWrap>
     );
@@ -196,7 +196,7 @@ function ProjectEvaluatorTracesEmpty({
       <EmptyState
         graphic={<EmptyStateGraphic variant="trace" />}
         title="No traces to show"
-        description="No traces from this evaluator match the selected time range and filters. Evaluations that ran before evaluator tracing was added did not produce one."
+        description="No traces from this evaluator match the selected time range and filters. Evaluations that ran while tracing was off, or before evaluator tracing was added, did not produce one."
       />
     </TableEmptyWrap>
   );

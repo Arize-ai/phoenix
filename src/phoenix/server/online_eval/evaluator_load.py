@@ -23,21 +23,28 @@ class EvaluationLoad:
 
     Every project evaluator on the server shares one evaluator concurrency limit, whatever
     its project or evaluation target, so the share is of all their evaluation time.
+
+    An evaluator with tracing off writes no traces, so its load is unknown: it has no mean
+    or share, and its evaluation time is missing from the server total.
+    ``excludes_untraced_evaluators`` says when that total leaves out an enabled evaluator
+    for that reason, so a share can be read as a share of traced evaluation time.
     """
 
     evaluation_count: int
     evaluation_seconds: float
     server_evaluation_seconds: float
+    tracing_enabled: bool = True
+    excludes_untraced_evaluators: bool = False
 
     @property
     def mean_evaluation_seconds(self) -> Optional[float]:
-        if not self.evaluation_count:
+        if not self.tracing_enabled or not self.evaluation_count:
             return None
         return self.evaluation_seconds / self.evaluation_count
 
     @property
     def share_of_evaluation_time(self) -> Optional[float]:
-        if not self.server_evaluation_seconds:
+        if not self.tracing_enabled or not self.server_evaluation_seconds:
             return None
         return self.evaluation_seconds / self.server_evaluation_seconds
 
@@ -51,7 +58,28 @@ async def load_evaluation_loads(
     time bounds the read to the window."""
     now = datetime.now(timezone.utc)
     trace = models.Trace
+    project_evaluator = models.ProjectEvaluator
     async with db.read() as session:
+        untraced_ids = set(
+            (
+                await session.scalars(
+                    sa.select(project_evaluator.id).where(
+                        project_evaluator.id.in_(project_evaluator_ids),
+                        project_evaluator.tracing_enabled.is_(False),
+                    )
+                )
+            ).all()
+        )
+        excludes_untraced_evaluators = bool(
+            await session.scalar(
+                sa.select(
+                    sa.exists().where(
+                        project_evaluator.enabled.is_(True),
+                        project_evaluator.tracing_enabled.is_(False),
+                    )
+                )
+            )
+        )
         rows = (
             await session.execute(
                 sa.select(
@@ -76,6 +104,8 @@ async def load_evaluation_loads(
         project_evaluator_id: EvaluationLoad(
             *evaluations.get(project_evaluator_id, (0, 0.0)),
             server_evaluation_seconds=server_evaluation_seconds,
+            tracing_enabled=project_evaluator_id not in untraced_ids,
+            excludes_untraced_evaluators=excludes_untraced_evaluators,
         )
         for project_evaluator_id in project_evaluator_ids
     }

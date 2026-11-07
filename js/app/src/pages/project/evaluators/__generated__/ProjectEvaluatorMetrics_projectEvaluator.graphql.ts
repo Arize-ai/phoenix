@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<febc6ecb4bdcdaf67c0edc11d39cf48b>>
+ * @generated SignedSource<<86bdb05f8861c4b2ba56d1e7083529d8>>
  * @lightSyntaxTransform
  */
 
@@ -18,6 +18,7 @@ export type ProjectEvaluatorMetrics_projectEvaluator$data = {
   readonly traceProject: {
     readonly id: string;
   };
+  readonly tracingEnabled: boolean;
   readonly " $fragmentSpreads": FragmentRefs<"useProjectEvaluatorResultAnnotationsFragment">;
   readonly " $fragmentType": "ProjectEvaluatorMetrics_projectEvaluator";
 };
@@ -52,6 +53,13 @@ return {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "tracingEnabled",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "Project",
       "kind": "LinkedField",
       "name": "project",
@@ -80,6 +88,6 @@ return {
 };
 })();
 
-(node as any).hash = "6c676fb8824e8764dc4282337038c6fa";
+(node as any).hash = "62ca0524e332fdbd188bb019b28cafa0";
 
 export default node;

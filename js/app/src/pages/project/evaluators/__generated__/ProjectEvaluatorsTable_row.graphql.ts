@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7ee2f6a39055b4ddd007543c37bfdd38>>
+ * @generated SignedSource<<de0d21fb506d829a48faba485399a6f5>>
  * @lightSyntaxTransform
  */
 
@@ -22,6 +22,8 @@ export type ProjectEvaluatorsTable_row$data = {
   readonly enabled: boolean;
   readonly evaluationLoad: {
     readonly evaluationCount: number;
+    readonly excludesUntracedEvaluators: boolean;
+    readonly isMeasured: boolean;
     readonly meanEvaluationSeconds: number | null;
     readonly shareOfEvaluationTime: number | null;
   };
@@ -87,6 +89,7 @@ export type ProjectEvaluatorsTable_row$data = {
     readonly status: ProjectEvaluatorRunStatus;
   };
   readonly samplingRate: number;
+  readonly tracingEnabled: boolean;
   readonly updatedAt: string;
   readonly " $fragmentType": "ProjectEvaluatorsTable_row";
 };
@@ -100,6 +103,6 @@ const node: ReaderInlineDataFragment = {
   "name": "ProjectEvaluatorsTable_row"
 };
 
-(node as any).hash = "bb0c50da8898cd6a4321a3652ef5cd61";
+(node as any).hash = "780756973d3519d262005bf23da2880d";
 
 export default node;
