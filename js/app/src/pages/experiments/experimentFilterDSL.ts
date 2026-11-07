@@ -5,8 +5,8 @@ import type { DSLFilterSnippet } from "@phoenix/components/filter";
 import { getDslStringLiteral } from "@phoenix/utils/filterConditionUtils";
 
 /**
- * The experiment filter vocabulary, matching `EXPERIMENT_FILTER_DESCRIPTIONS`
- * on the server.
+ * The experiment filter vocabulary, matching the names `ExperimentFilter`
+ * binds on the server.
  */
 export const experimentFilterCompletions: Completion[] = [
   {

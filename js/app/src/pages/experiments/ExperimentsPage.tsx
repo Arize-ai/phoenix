@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import { Outlet, useParams, useSearchParams } from "react-router";
@@ -24,6 +24,7 @@ import { EXPERIMENT_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchPara
 import { readFilterConditionParam } from "@phoenix/pages/project/filterConditionParam";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
+import { getSettledExperimentFilterCondition } from "./experimentFilterValidation";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
 import {
   ExperimentsMetricsCharts,
@@ -36,11 +37,59 @@ export function ExperimentsPage() {
   invariant(datasetId, "datasetId is required to view experiments");
   const [searchParams] = useSearchParams();
   // Read the URL's filter condition only on mount and hand it to the table,
-  // which owns it from then on. Refetching this query on later changes would
-  // suspend the whole page.
-  const [initialFilterCondition] = useState(() =>
+  // which owns it from then on. Refetching the page query on later changes
+  // would suspend the whole page.
+  const [urlFilterCondition] = useState(() =>
     readFilterConditionParam(searchParams, EXPERIMENT_FILTER_CONDITION_PARAM)
   );
+  // The condition the page query fetches with, or null until the server has
+  // checked the URL's condition.
+  const [settledFilterCondition, setSettledFilterCondition] = useState<
+    string | null
+  >(() => (urlFilterCondition ? null : ""));
+  useEffect(() => {
+    let isCancelled = false;
+    if (settledFilterCondition === null) {
+      void getSettledExperimentFilterCondition({
+        condition: urlFilterCondition,
+        datasetId,
+      }).then((condition) => {
+        if (!isCancelled) {
+          setSettledFilterCondition(condition);
+        }
+      });
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [settledFilterCondition, urlFilterCondition, datasetId]);
+
+  if (settledFilterCondition === null) {
+    return <ExperimentsPageSkeleton />;
+  }
+  return (
+    <ExperimentsPageContent
+      datasetId={datasetId}
+      urlFilterCondition={urlFilterCondition}
+      settledFilterCondition={settledFilterCondition}
+    />
+  );
+}
+
+function ExperimentsPageContent({
+  datasetId,
+  urlFilterCondition,
+  settledFilterCondition,
+}: {
+  datasetId: string;
+  /**
+   * The URL's condition, shown in the filter field even when the server
+   * rejected it, so the field reports why.
+   */
+  urlFilterCondition: string;
+  /** The condition the page query fetches with. */
+  settledFilterCondition: string;
+}) {
   // We use a lazyLoadQuery here due to the fact that there is an issue with Relay connections
   // @see https://github.com/facebook/relay/issues/4875#issuecomment-3138533719
   const data = useLazyLoadQuery<ExperimentsPageQuery>(
@@ -61,7 +110,7 @@ export function ExperimentsPage() {
     `,
     {
       datasetId,
-      experimentFilterCondition: initialFilterCondition || null,
+      experimentFilterCondition: settledFilterCondition || null,
     },
     { fetchPolicy: "store-and-network" }
   );
@@ -76,7 +125,8 @@ export function ExperimentsPage() {
         <ErrorBoundary fallback={ErrorBoundaryFallback}>
           <ExperimentsTable
             dataset={data.dataset}
-            initialFilterCondition={initialFilterCondition}
+            initialFilterCondition={urlFilterCondition}
+            appliedFilterCondition={settledFilterCondition}
           />
         </ErrorBoundary>
       </ExperimentsMetricChartsPanelGroup>

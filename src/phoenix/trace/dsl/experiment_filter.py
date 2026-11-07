@@ -15,7 +15,7 @@ from sqlalchemy.sql.expression import Select
 from phoenix.db import models
 from phoenix.trace.dsl.filter import NameMap, _compile_condition, _eval_globals, _FilterBindings
 
-__all__ = ["ExperimentFilter", "EXPERIMENT_BINDINGS", "EXPERIMENT_FILTER_DESCRIPTIONS"]
+__all__ = ["ExperimentFilter", "EXPERIMENT_BINDINGS"]
 
 _EXPERIMENT_STRING_NAMES: NameMap = MappingProxyType(
     {
@@ -63,34 +63,6 @@ EXPERIMENT_BINDINGS = _FilterBindings(
     ),
     case_insensitive_containment=True,
     strict_semantics=True,
-)
-
-EXPERIMENT_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
-    {
-        "name": "The experiment's name. `in` ignores case; `==` is exact.",
-        "description": (
-            "The experiment's description. `in` ignores case; `==` is exact; missing when the "
-            "experiment has no description."
-        ),
-        "project_name": (
-            "The name of the project that holds the experiment's traces. `in` ignores case; "
-            "`==` is exact."
-        ),
-        "repetitions": "How many times the experiment runs each example.",
-        "created_at": (
-            "When the experiment was created. Compare against an ISO 8601 string with an "
-            "explicit offset, e.g. `2026-07-01T00:00:00Z`."
-        ),
-        "updated_at": (
-            "When the experiment was last updated. Compare against an ISO 8601 string with an "
-            "explicit offset, e.g. `2026-07-01T00:00:00Z`."
-        ),
-        'metadata["key"]': (
-            "A value in the experiment's metadata. Each subscript is one key, so "
-            '`metadata["a"]["b"]` reads `b` nested under `a`. A comparison with a number or a '
-            "boolean reads the value as one."
-        ),
-    }
 )
 
 

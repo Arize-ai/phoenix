@@ -1,5 +1,3 @@
-import { useCallback, useMemo } from "react";
-
 import {
   DSLFilterConditionField,
   type DSLFilterValidConditionArgs,
@@ -32,12 +30,8 @@ export function ExperimentFilterConditionField({
   onChange: (condition: string) => void;
   onValidCondition: (args: ExperimentFilterValidConditionArgs) => void;
 }) {
-  // Stable identity: the field's validation effect keys on `validateCondition`
-  const validateCondition = useCallback(
-    (condition: string) =>
-      validateExperimentFilterCondition(condition, datasetId),
-    [datasetId]
-  );
+  const validateCondition = (condition: string) =>
+    validateExperimentFilterCondition({ condition, datasetId });
 
   const {
     completionSource: recentSearchesCompletionSource,
@@ -46,25 +40,19 @@ export function ExperimentFilterConditionField({
     historyKey: `experiment-filter-${datasetId}`,
   });
 
-  const completionSources = useMemo(
-    () => [recentSearchesCompletionSource],
-    [recentSearchesCompletionSource]
-  );
+  const completionSources = [recentSearchesCompletionSource];
 
-  const handleValidCondition = useCallback(
-    ({
-      condition,
-      isInitialSettlement,
-    }: ExperimentFilterValidConditionArgs) => {
-      if (!isInitialSettlement) {
-        // A mount value arrives from the URL; recording it would turn "no
-        // filter chosen" into a history entry.
-        recordValidCondition(condition);
-      }
-      onValidCondition({ condition, isInitialSettlement });
-    },
-    [recordValidCondition, onValidCondition]
-  );
+  const handleValidCondition = ({
+    condition,
+    isInitialSettlement,
+  }: ExperimentFilterValidConditionArgs) => {
+    if (!isInitialSettlement) {
+      // A mount value arrives from the URL; recording it would turn "no
+      // filter chosen" into a history entry.
+      recordValidCondition(condition);
+    }
+    onValidCondition({ condition, isInitialSettlement });
+  };
 
   return (
     <DSLFilterConditionField

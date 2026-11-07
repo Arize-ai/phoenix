@@ -6,6 +6,7 @@ import {
   memo,
   startTransition,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -97,7 +98,10 @@ import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
-import { withFilterConditionParam } from "@phoenix/pages/project/filterConditionParam";
+import {
+  readFilterConditionParam,
+  withFilterConditionParam,
+} from "@phoenix/pages/project/filterConditionParam";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 import {
@@ -126,6 +130,11 @@ import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting"
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
 import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
+import {
+  type ExperimentsTableFilters,
+  getExperimentsRefetchVariables,
+  shouldRestoreFilterConditionParam,
+} from "./experimentsTableFilters";
 
 const PAGE_SIZE = 100;
 
@@ -262,18 +271,23 @@ export const MemoizedTableBody = memo(
 export function ExperimentsTable({
   dataset,
   initialFilterCondition,
+  appliedFilterCondition: initialAppliedFilterCondition,
 }: {
   dataset: ExperimentsTableFragment$key;
+  /**
+   * The filter field's text on mount, which the server may have rejected.
+   */
+  initialFilterCondition: string;
   /**
    * The filter condition the page query fetched the dataset's experiments
    * with. The table owns the condition from then on, so the rows always match
    * the condition it last applied.
    */
-  initialFilterCondition: string;
+  appliedFilterCondition: string;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { search } = useLocation();
   // The field's text, which may not be valid yet.
   const [draftFilterCondition, setDraftFilterCondition] = useState(
@@ -281,9 +295,16 @@ export function ExperimentsTable({
   );
   // The last condition that passed validation, which the rows match.
   const [filterCondition, setFilterCondition] = useState(
-    initialFilterCondition
+    initialAppliedFilterCondition
   );
   const [searchText, setSearchText] = useState("");
+  // The filters most recently asked for. State commits only when a refetch's
+  // transition finishes, so a refetch issued while another is in flight reads
+  // its other filter from here rather than from stale state.
+  const requestedFiltersRef = useRef<ExperimentsTableFilters>({
+    searchText: "",
+    filterCondition: initialAppliedFilterCondition,
+  });
   const isFiltered = Boolean(searchText) || Boolean(filterCondition);
   const {
     isExpanded: areRowsExpanded,
@@ -470,41 +491,37 @@ export function ExperimentsTable({
   );
 
   /**
-   * Refetches the experiments with both the search text and the filter
-   * condition. Relay fills any variable a refetch omits from the page query,
-   * not from the previous refetch, so every refetch must pass both.
+   * Refetches the experiments with the filters most recently asked for,
+   * after applying `changes` to them.
    */
   const refetchExperiments = ({
     fetchPolicy,
-    nextSearchText = searchText,
-    nextFilterCondition = filterCondition,
+    changes,
   }: {
     fetchPolicy: "network-only" | "store-and-network";
-    nextSearchText?: string;
-    nextFilterCondition?: string;
+    changes?: Partial<ExperimentsTableFilters>;
   }) => {
+    const filters = { ...requestedFiltersRef.current, ...changes };
+    requestedFiltersRef.current = filters;
     startTransition(() => {
-      refetch(
-        {
-          filterCondition: nextSearchText || null,
-          experimentFilterCondition: nextFilterCondition || null,
-        },
-        { fetchPolicy }
-      );
+      refetch(getExperimentsRefetchVariables(filters), { fetchPolicy });
     });
   };
 
   const onSearchTextChange = (nextSearchText: string) => {
     setSearchText(nextSearchText);
-    refetchExperiments({ fetchPolicy: "network-only", nextSearchText });
+    refetchExperiments({
+      fetchPolicy: "network-only",
+      changes: { searchText: nextSearchText },
+    });
   };
 
   const onValidFilterCondition = ({
     condition,
-    isInitialSettlement,
   }: ExperimentFilterValidConditionArgs) => {
-    // The page query already fetched the rows for the URL's own condition.
-    if (isInitialSettlement || condition === filterCondition) {
+    // The page query already fetched the rows for the condition it settled on.
+    // A URL condition it fell back from still applies once the field accepts it.
+    if (condition === requestedFiltersRef.current.filterCondition) {
       return;
     }
     setFilterCondition(condition);
@@ -519,9 +536,33 @@ export function ExperimentsTable({
     );
     refetchExperiments({
       fetchPolicy: "network-only",
-      nextFilterCondition: condition,
+      changes: { filterCondition: condition },
     });
   };
+
+  const urlFilterCondition = readFilterConditionParam(
+    searchParams,
+    EXPERIMENT_FILTER_CONDITION_PARAM
+  );
+  useEffect(() => {
+    const appliedCondition = requestedFiltersRef.current.filterCondition;
+    if (
+      shouldRestoreFilterConditionParam({
+        urlCondition: urlFilterCondition,
+        appliedCondition,
+      })
+    ) {
+      setSearchParams(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            EXPERIMENT_FILTER_CONDITION_PARAM,
+            appliedCondition
+          ),
+        { replace: true }
+      );
+    }
+  }, [urlFilterCondition, setSearchParams]);
 
   const hasRunningExperiments = useMemo(
     () => tableData.some((row) => row.job?.status === "RUNNING"),

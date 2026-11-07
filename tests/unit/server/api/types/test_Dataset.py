@@ -1325,6 +1325,7 @@ class TestDatasetExperimentsFilterCondition:
                     name=name,
                     repetitions=1,
                     metadata_=metadata,
+                    project_name="gpt-project" if name.startswith("gpt-") else None,
                 )
                 for name, metadata in metadata_by_name.items()
             )
@@ -1421,9 +1422,35 @@ class TestDatasetExperimentsFilterCondition:
                 id="or-with-case-insensitive-name",
             ),
             pytest.param(
+                'metadata["harbor_agent"]["model_params"]["temperature"] in [0.7, 2]',
+                {"gpt-hot", "string-numbers"},
+                id="number-membership",
+            ),
+            pytest.param(
+                'metadata["harbor_agent"]["model_params"]["temperature"] not in [0.7, 2] '
+                'and metadata["model"] != "other"',
+                {"gpt-cold", "claude"},
+                id="number-non-membership",
+            ),
+            pytest.param(
                 "repetitions > 1",
                 set(),
                 id="intrinsic-number",
+            ),
+            pytest.param(
+                'project_name == "gpt-project"',
+                {"gpt-hot", "gpt-cold"},
+                id="intrinsic-string",
+            ),
+            pytest.param(
+                'created_at < "2020-01-01T00:00:00Z"',
+                set(),
+                id="datetime-before",
+            ),
+            pytest.param(
+                'updated_at > "2020-01-01T00:00:00+00:00" and "gpt" in name',
+                {"gpt-hot", "gpt-cold"},
+                id="datetime-after",
             ),
             pytest.param(
                 "description is None",
@@ -1480,6 +1507,22 @@ class TestDatasetExperimentsFilterCondition:
                 id="annotations",
             ),
             pytest.param("model == 'gpt-5'", "invalid name `model`", id="unknown-name"),
+            pytest.param(
+                'repetitions == "a"',
+                "cannot compare `repetitions` (a number) with `'a'` (text)",
+                id="number-against-string",
+            ),
+            pytest.param(
+                "name == 1",
+                "cannot compare `name` (text) with `1` (a number)",
+                id="string-against-number",
+            ),
+            pytest.param(
+                'created_at > "2020-01-01T00:00:00"',
+                "datetime literal '2020-01-01T00:00:00' has no timezone, "
+                "add an offset (e.g. 'Z' for UTC)",
+                id="naive-datetime",
+            ),
         ],
     )
     async def test_rejects_invalid_condition(
