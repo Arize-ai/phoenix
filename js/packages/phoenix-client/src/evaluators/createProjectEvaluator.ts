@@ -47,6 +47,13 @@ export type CreateProjectEvaluatorParams = ClientFn & {
    */
   enabled?: boolean;
   /**
+   * Whether each evaluation writes a trace (inputs, outputs, latency, and
+   * token cost) to the binding's trace project. Defaults to on on the server.
+   * Off saves storage; annotations are still written, but the binding's cost
+   * and evaluation time are not measured.
+   */
+  tracingEnabled?: boolean;
+  /**
    * How record fields map onto evaluator arguments. Omit it to use the shared
    * definition's mapping. LLM evaluators have none, so only variables rooted
    * at input, output, or metadata bind (for example `{{metadata.turns}}`);
@@ -74,6 +81,7 @@ export type CreateProjectEvaluatorParams = ClientFn & {
  * @param params.evaluatorId - The evaluator definition GlobalID.
  * @param params.filterCondition - Optional filter expression in the language of the evaluation target.
  * @param params.enabled - Optional; defaults to enabled.
+ * @param params.tracingEnabled - Optional; defaults to on. Off writes annotations but no traces.
  * @param params.inputMapping - Optional input mapping.
  * @param params.evaluationDelaySeconds - Optional quiet-period delay in seconds for `TRACE` and `SESSION` targets: at least 10, default 300.
  * @param params.client - An optional Phoenix client instance.
@@ -106,6 +114,7 @@ export async function createProjectEvaluator({
   evaluatorId,
   filterCondition,
   enabled,
+  tracingEnabled,
   inputMapping,
   evaluationDelaySeconds,
 }: CreateProjectEvaluatorParams): Promise<ProjectEvaluator> {
@@ -130,6 +139,9 @@ export async function createProjectEvaluator({
           filter_condition: filterCondition,
         }),
         ...(enabled !== undefined && { enabled }),
+        ...(tracingEnabled !== undefined && {
+          tracing_enabled: tracingEnabled,
+        }),
         ...(inputMapping !== undefined && { input_mapping: inputMapping }),
         ...(evaluationDelaySeconds !== undefined && {
           evaluation_delay_seconds: evaluationDelaySeconds,
