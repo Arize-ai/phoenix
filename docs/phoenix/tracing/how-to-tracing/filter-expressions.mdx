@@ -1,13 +1,14 @@
 ---
 title: "Filter Expressions"
-description: Filter spans, traces, and sessions with Python-style filter expressions, in the UI and over the API.
+description: Filter spans, traces, sessions, and experiments with Python-style filter expressions, in the UI and over the API.
 ---
 
 A filter is a **Python boolean expression** that Phoenix compiles to a database query. Type
 one into a filter bar to narrow a table, or pass one to the API to scope a result set.
 
-Phoenix has three filter languages — one each for **spans**, **traces**, and **sessions**. They
-share the same core syntax; trace and session filters add aggregates and comprehensions.
+Phoenix has filter languages for **spans**, **traces**, **sessions**, and a dataset's
+**experiments**. They share the same core syntax; trace and session filters add aggregates and
+comprehensions.
 
 <Note>
 Session filters require Phoenix **19.18.0+**.
@@ -15,19 +16,19 @@ Session filters require Phoenix **19.18.0+**.
 
 ## Where filters work
 
-| Surface | Span filters | Trace filters | Session filters |
-| :--- | :--- | :--- | :--- |
-| UI filter bar | Yes — spans table (via GraphQL) | Yes — traces table (via GraphQL) | Yes — sessions table (via GraphQL) |
-| GraphQL | `filterCondition` argument | `traceFilterCondition` argument | `sessionFilterCondition` argument |
-| Python / TypeScript clients | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` (Python only) | `filter` argument on `traces.get_traces(...)` / `getTraces(...)` | `filter` argument on `sessions.list(...)` / `listSessions(...)` |
-| REST list / search endpoints | Discrete query params only — no filter expression | `filter` query param on `GET /v1/projects/{project_identifier}/traces` | `filter` query param on `GET /v1/projects/{project_identifier}/sessions` |
+| Surface | Span filters | Trace filters | Session filters | Experiment filters |
+| :--- | :--- | :--- | :--- | :--- |
+| UI filter bar | Yes — spans table (via GraphQL) | Yes — traces table (via GraphQL) | Yes — sessions table (via GraphQL) | Yes — a dataset's Experiments tab (via GraphQL) |
+| GraphQL | `filterCondition` argument | `traceFilterCondition` argument | `sessionFilterCondition` argument | `experimentFilterCondition` argument on `Dataset.experiments` |
+| Python / TypeScript clients | Yes — `SpanQuery().where(...)`, sent to `POST /v1/spans` (Python only) | `filter` argument on `traces.get_traces(...)` / `getTraces(...)` | `filter` argument on `sessions.list(...)` / `listSessions(...)` | No |
+| REST list / search endpoints | Discrete query params only — no filter expression | `filter` query param on `GET /v1/projects/{project_identifier}/traces` | `filter` query param on `GET /v1/projects/{project_identifier}/sessions` | No |
 
 Span filter expressions on the REST list endpoints are tracked in
 [#15099](https://github.com/Arize-ai/phoenix/issues/15099).
 
 <Info>
 The **Experiment Compare** view has its own filter language for filtering experiment runs,
-separate from the span, trace, and session filter languages.
+separate from the span, trace, session, and experiment filter languages.
 </Info>
 
 ## Span filters
@@ -210,6 +211,24 @@ Session-specific notes:
 - The available aggregate, collection, and element-field names are project-specific — see
   [Finding field names](#finding-field-names).
 
+## Experiment filters
+
+An experiment filter narrows the experiments on a dataset's **Experiments** tab. Type one into the
+filter bar, or pass it to the `experimentFilterCondition` argument of `Dataset.experiments` in
+GraphQL.
+
+It reads the experiment's `name`, `description`, `project_name`, `repetitions`, `created_at`, and
+`updated_at`, and any key in its metadata. Each subscript of `metadata` reads one key, so
+`metadata["a"]["b.c"]` reads the key `b.c` nested under `a`:
+
+```python
+metadata["model"] == "gpt-5"
+metadata["harbor_agent"]["model_params"]["temperature"] > 0.5
+"sweep" in name and created_at > "2026-10-01T00:00:00Z"
+```
+
+Experiment filters don't support aggregates, annotations, or `attributes[...]`.
+
 ## Finding field names
 
 Field names are project-specific: attribute keys and annotation names come from your data. To
@@ -219,11 +238,11 @@ discover what's available:
   grouped by kind (fields, aggregates, collections, attributes, annotations).
 - For traces and sessions, query the **`traceFilterVocabulary`** and
   **`sessionFilterVocabulary`** GraphQL fields to enumerate valid names programmatically. Span
-  filters have no equivalent endpoint; use the filter-bar typeahead.
+  and experiment filters have no equivalent endpoint; use the filter-bar typeahead.
 
 ## Syntax rules
 
-These rules apply to span, trace, and session filters unless a note says otherwise.
+These rules apply to span, trace, session, and experiment filters unless a note says otherwise.
 
 - **Operators.** Compare with `==` `!=` `<` `<=` `>` `>=` (chained comparisons like
   `0.5 < latency_ms < 1000` are supported); combine conditions with `and` / `or` / `not`; test membership

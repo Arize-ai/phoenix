@@ -16,6 +16,9 @@ export const TRACE_FILTER_CONDITION_PARAM = "traceFilterCondition";
 /** The applied session filter condition on the sessions tab; absent means none. */
 export const SESSION_FILTER_CONDITION_PARAM = "sessionFilterCondition";
 
+/** The applied experiment filter condition on a dataset's experiments tab; absent means none. */
+export const EXPERIMENT_FILTER_CONDITION_PARAM = "experimentFilterCondition";
+
 /**
  * The search param that contains the selected session details sub-view.
  * This is used to preserve the active session tab across reloads and links.

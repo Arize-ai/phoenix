@@ -105,7 +105,7 @@
 ### Advanced Tracing
 
 - [Cost Tracking](https://arize.com/docs/phoenix/tracing/how-to-tracing/cost-tracking): Monitor LLM token usage and cost trends
-- [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions): Filter spans and sessions with Python-style expressions — operators, attribute and annotation access, session aggregates
+- [Filter Expressions](https://arize.com/docs/phoenix/tracing/how-to-tracing/filter-expressions): Filter spans, traces, sessions, and experiments with Python-style expressions — operators, attribute and annotation access, trace and session aggregates
 - [Advanced Configuration](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced): Configure batching, gRPC transport, custom instrumentation, and performance tuning
 - [Masking Span Attributes](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/masking-span-attributes): Hide sensitive data in traces via environment variables
 - [Modifying Spans](https://arize.com/docs/phoenix/tracing/how-to-tracing/advanced/modifying-spans): Use SpanProcessors to filter or enrich spans
