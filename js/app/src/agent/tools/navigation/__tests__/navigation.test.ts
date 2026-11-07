@@ -165,6 +165,31 @@ describe("navigation.goTo client action", () => {
     });
   });
 
+  it("stages the navigation instead of reporting already_there while the router is busy", async () => {
+    const fakeRouter = createFakeRouterSource("/playground");
+    const { store, handler } = setup({
+      currentPath: "/playground",
+      navigateChangesPath: false,
+      routerSource: fakeRouter.source,
+    });
+
+    // The router already names the target path, but a previous navigation is
+    // still in flight: reporting already_there here would resolve the call in
+    // 0ms while the user is in fact mid-transition.
+    fakeRouter.startNavigation();
+
+    void handler(
+      { path: "/playground", reason: "to edit the prompt" },
+      CALL_CONTEXT
+    );
+    await Promise.resolve();
+
+    expect(getPending(store)).toMatchObject({
+      path: "/playground",
+      label: "Playground",
+    });
+  });
+
   it("handles sequential round-trip goTo navigations correctly even if component location lags", async () => {
     const fakeRouter = createFakeRouterSource("/playground");
     const { store, handler } = setup({
