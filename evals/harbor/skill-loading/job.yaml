@@ -1,0 +1,57 @@
+# Check which skills Claude Code and Codex load for each request in tasks/.
+# See README.md in this folder to build the image and run the job.
+#
+# Each agent stops at its first action that isn't a skill load. Claude Code runs
+# image/stop_after_skill_load.py as a PreToolUse hook, and the Codex wrapper in the image
+# does the same check on Codex's event stream. The verifier records every skill loaded.
+datasets:
+  - path: evals/harbor/skill-loading/tasks/phoenix-cli
+  - path: evals/harbor/skill-loading/tasks/phoenix-evals
+  - path: evals/harbor/skill-loading/tasks/phoenix-tracing
+agents:
+  # Harbor resolves a built-in agent name, such as `codex`, before `import_path`, so each
+  # condition needs a name of its own. `version` matches the image, so Harbor fails instead
+  # of installing another version.
+  #
+  # A key that isn't scoped to a workspace needs the workspace in a header. Set
+  # ANTHROPIC_CUSTOM_HEADERS="anthropic-workspace-id: WORKSPACE_ID" on the host.
+  - name: claude-code-loading
+    import_path: evals.harbor.agents.coding_agents:PreinstalledClaudeCode
+    model_name: anthropic/claude-sonnet-5-5
+    extra_allowed_hosts: [api.anthropic.com]
+    kwargs:
+      version: "2.1.287"
+      max_turns: 3
+      disallowed_tools: "WebSearch,WebFetch"
+      config:
+        hooks:
+          PreToolUse:
+            - matcher: "*"
+              hooks:
+                - type: command
+                  command: python /opt/skill-loading/stop_after_skill_load.py
+    env:
+      ANTHROPIC_CUSTOM_HEADERS: ${ANTHROPIC_CUSTOM_HEADERS:-}
+    skills: &skills
+      - skills/phoenix-cli
+      - skills/phoenix-error-analysis
+      - skills/phoenix-evals
+      - skills/phoenix-harbor
+      - skills/phoenix-tracing
+  - name: codex-loading
+    import_path: evals.harbor.agents.coding_agents:PreinstalledCodex
+    model_name: openai/gpt-5.6
+    extra_allowed_hosts: [api.openai.com]
+    kwargs:
+      version: "0.154.0"
+      reasoning_effort: medium
+      web_search: disabled
+    env:
+      SKILL_LOADING_STOP: "1"
+    skills: *skills
+environment:
+  type: docker
+n_attempts: 3
+n_concurrent_trials: 6
+retry:
+  max_retries: 1

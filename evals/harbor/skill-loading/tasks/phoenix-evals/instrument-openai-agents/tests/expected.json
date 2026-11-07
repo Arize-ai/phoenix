@@ -1,0 +1,9 @@
+{
+  "skill": "phoenix-evals",
+  "skills_expected": [
+    "phoenix-tracing"
+  ],
+  "skills_unexpected": [
+    "phoenix-evals"
+  ]
+}
