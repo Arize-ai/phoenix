@@ -475,6 +475,51 @@ async def test_add_dataset_examples_returns_update_counts(
     assert append_event.num_deleted_examples == 0
 
 
+async def test_add_dataset_examples_stores_version_description_on_new_version_only(
+    db: DbSessionFactory,
+) -> None:
+    examples = _hash_examples([ExampleContent(input={"x": 1}, output={"y": 1}, external_id="a")])
+    async with db() as session:
+        first_event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="version-description",
+            description="dataset description",
+            action=DatasetAction.CREATE,
+        )
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples(
+                [ExampleContent(input={"x": 2}, output={"y": 2}, external_id="b")]
+            ),
+            name="version-description",
+            action=DatasetAction.APPEND,
+            version_description="added b",
+        )
+    async with db() as session:
+        unchanged_event = await add_dataset_examples(
+            session=session,
+            examples=examples,
+            name="version-description",
+            action=DatasetAction.APPEND,
+            version_description="nothing new",
+        )
+    assert unchanged_event.num_created_examples == 0
+    async with db() as session:
+        versions = (
+            await session.scalars(
+                select(models.DatasetVersion)
+                .where(models.DatasetVersion.dataset_id == first_event.dataset_id)
+                .order_by(models.DatasetVersion.id)
+            )
+        ).all()
+    assert [(version.id, version.description) for version in versions] == [
+        (first_event.dataset_version_id, None),
+        (append_event.dataset_version_id, "added b"),
+    ]
+
+
 async def test_add_dataset_examples_splits_only_change_counts_as_patch(
     db: DbSessionFactory,
 ) -> None:
