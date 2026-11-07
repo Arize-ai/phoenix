@@ -328,7 +328,11 @@ def test_public_origin_honors_x_forwarded_proto(monkeypatch: pytest.MonkeyPatch)
     assert public_origin(request) == "https://phoenix-devs.up.railway.app/mcp"
 
 
-def test_public_origin_honors_x_forwarded_host(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_public_origin_ignores_forwarded_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The origin feeds token issuance, so a header the client can set must not
+    # decide it: honoring X-Forwarded-Host would let a caller mint or present a
+    # token for an origin it picked, defeating the audience confinement between
+    # /mcp and /v1. Only the scheme is taken from the proxy headers.
     monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
     request = Request(
         {
@@ -336,17 +340,17 @@ def test_public_origin_honors_x_forwarded_host(monkeypatch: pytest.MonkeyPatch) 
             "method": "GET",
             "path": "/",
             "headers": [
-                (b"host", b"internal-service:6006"),
-                (b"x-forwarded-host", b"public.example.com"),
+                (b"host", b"phoenix.example.com"),
+                (b"x-forwarded-host", b"attacker.example.com"),
                 (b"x-forwarded-proto", b"https, http"),
             ],
-            "server": ("internal-service", 6006),
+            "server": ("phoenix.example.com", 443),
             "scheme": "http",
             "client": ("10.0.0.1", 12345),
         }
     )
 
-    assert public_origin(request) == "https://public.example.com"
+    assert public_origin(request) == "https://phoenix.example.com"
 
 
 def test_public_origin_honors_rfc7239_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -357,16 +361,16 @@ def test_public_origin_honors_rfc7239_forwarded(monkeypatch: pytest.MonkeyPatch)
             "method": "GET",
             "path": "/",
             "headers": [
-                (b"host", b"internal:6006"),
-                (b"forwarded", b"proto=https;host=public.example.com"),
+                (b"host", b"phoenix.example.com"),
+                (b"forwarded", b"proto=https;host=attacker.example.com"),
             ],
-            "server": ("internal", 6006),
+            "server": ("phoenix.example.com", 443),
             "scheme": "http",
             "client": ("10.0.0.1", 12345),
         }
     )
 
-    assert public_origin(request) == "https://public.example.com"
+    assert public_origin(request) == "https://phoenix.example.com"
 
 
 def test_public_origin_ignores_unsupported_forwarded_schemes(
