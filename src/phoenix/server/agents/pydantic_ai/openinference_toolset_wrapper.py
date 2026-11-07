@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from opentelemetry.trace import Tracer
+from openinference.instrumentation import OITracer
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
@@ -25,7 +25,7 @@ class OpenInferenceToolsetWrapper(WrapperToolset[AgentDepsT], ToolSpanMixin):
         self,
         wrapped: AbstractToolset[AgentDepsT],
         *,
-        tracer: Tracer,
+        tracer: OITracer,
     ) -> None:
         super().__init__(wrapped)
         self.tracer = tracer

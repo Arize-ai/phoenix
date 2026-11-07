@@ -5,6 +5,9 @@ import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/exp
 import { ExperimentRunAnnotations } from "@phoenix/components/experiment/ExperimentCompareDetails";
 import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
 
+import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
+import { OptionGrid } from "../../utils/OptionGrid";
+
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
 >["edges"][number]["run"];
@@ -12,6 +15,10 @@ type ExperimentRun = NonNullable<
 type AnnotationSummaries = NonNullable<
   ExperimentCompareDetailsQuery$data["dataset"]["experimentAnnotationSummaries"]
 >;
+
+type RunAnnotation = NonNullable<
+  ExperimentRun["annotations"]
+>["edges"][number]["annotation"];
 
 type StoryArgs = {
   experimentRun: ExperimentRun;
@@ -42,9 +49,9 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       {
         annotation: {
           id: "ann-1",
-          name: "qa_correctness",
-          label: "correct",
-          score: 0.95,
+          name: "answer_relevance",
+          label: null,
+          score: 0.92,
           metadata: null,
           trace: {
             traceId: "eval-trace-111",
@@ -55,9 +62,9 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       {
         annotation: {
           id: "ann-2",
-          name: "has_results",
+          name: "column_coverage",
           label: null,
-          score: 1.0,
+          score: 0.5,
           metadata: null,
           trace: {
             traceId: "eval-trace-222",
@@ -68,9 +75,9 @@ const mockExperimentRunWithAnnotations: ExperimentRun = {
       {
         annotation: {
           id: "ann-3",
-          name: "sql_syntax_valid",
-          label: "valid",
-          score: 1.0,
+          name: "verbosity",
+          label: null,
+          score: 0.81,
           metadata: null,
           trace: {
             traceId: "eval-trace-333",
@@ -124,7 +131,7 @@ const mockAnnotationSummaries: AnnotationSummaries = [
 
 const meta: Meta<StoryArgs> = {
   title: "Domains/Experiments/Run Annotations",
-  tags: ["legacy", "unreviewed"],
+  tags: ["updated", "incomplete", "unreviewed"],
   component: ExperimentRunAnnotations,
   parameters: {
     layout: "centered",
@@ -159,7 +166,11 @@ This component is used within ExperimentItem to display evaluation results and m
 export default meta;
 type Story = StoryFn<StoryArgs>;
 
-const Template: Story = (args) => {
+function RunAnnotationsFrame({
+  experimentRun,
+  annotationSummaries = mockAnnotationSummaries,
+  width = "600px",
+}: StoryArgs) {
   const mockExperimentsById = {
     "exp-1": {
       id: "exp-1",
@@ -173,17 +184,14 @@ const Template: Story = (args) => {
       {
         experimentId: "exp-1",
         repetitionNumber: 1,
-        experimentRun: args.experimentRun,
+        experimentRun,
       },
     ],
   };
 
-  const annotationSummaries =
-    args.annotationSummaries || mockAnnotationSummaries;
-
   return (
     <View
-      width={args.width ?? "600px"}
+      width={width}
       borderColor="default"
       borderWidth="thin"
       borderRadius="medium"
@@ -197,23 +205,170 @@ const Template: Story = (args) => {
           mockExperimentRepetitionsByExperimentId
         }
         annotationSummaries={annotationSummaries}
-        annotationConfigs={[]}
+        annotationConfigs={experimentAnnotationConfigs}
         includeRepetitions={false}
         openTraceDialog={() => {}}
         referenceOutput=""
       >
-        <ExperimentRunAnnotations experimentRun={args.experimentRun} />
+        <ExperimentRunAnnotations experimentRun={experimentRun} />
       </ExperimentCompareDetailsProvider>
     </View>
   );
-};
+}
+
+const Template: Story = (args) => <RunAnnotationsFrame {...args} />;
 
 export const Default = {
   render: Template,
 
   args: {
     experimentRun: mockExperimentRunWithAnnotations,
+    annotationSummaries: [
+      { annotationName: "answer_relevance", minScore: 0.0, maxScore: 1.0 },
+      { annotationName: "column_coverage", minScore: 0.0, maxScore: 1.0 },
+      { annotationName: "verbosity", minScore: 0.0, maxScore: 1.0 },
+    ],
   },
+};
+
+const SCORE_CASES: readonly {
+  label: string;
+  name: string;
+  score: number;
+  annotationLabel: string | null;
+}[] = [
+  {
+    label: "Maximize, near the best bound",
+    name: "qa_correctness",
+    score: 0.9,
+    annotationLabel: null,
+  },
+  {
+    label: "Maximize, above the pivot",
+    name: "qa_correctness",
+    score: 0.62,
+    annotationLabel: null,
+  },
+  {
+    label: "Maximize, at the pivot",
+    name: "qa_correctness",
+    score: 0.5,
+    annotationLabel: null,
+  },
+  {
+    label: "Maximize, below the pivot",
+    name: "qa_correctness",
+    score: 0.31,
+    annotationLabel: null,
+  },
+  {
+    label: "Maximize, past the upper bound",
+    name: "qa_correctness",
+    score: 1.3,
+    annotationLabel: null,
+  },
+  {
+    label: "Minimize, low",
+    name: "toxicity",
+    score: 0.08,
+    annotationLabel: null,
+  },
+  {
+    label: "Minimize, high",
+    name: "toxicity",
+    score: 0.74,
+    annotationLabel: null,
+  },
+  {
+    label: "Threshold only, above",
+    name: "row_overlap",
+    score: 0.84,
+    annotationLabel: null,
+  },
+  {
+    label: "Threshold only, below",
+    name: "row_overlap",
+    score: 0.72,
+    annotationLabel: null,
+  },
+  {
+    label: "Categorical, best value",
+    name: "sql_syntax_valid",
+    score: 1,
+    annotationLabel: "valid",
+  },
+  {
+    label: "Categorical, worst value",
+    name: "sql_syntax_valid",
+    score: 0,
+    annotationLabel: "invalid",
+  },
+  {
+    label: "No direction",
+    name: "query_complexity",
+    score: 1,
+    annotationLabel: "complex",
+  },
+  {
+    label: "No config",
+    name: "bleu",
+    score: 0.42,
+    annotationLabel: null,
+  },
+];
+
+function scoreCaseRun({
+  name,
+  score,
+  annotationLabel,
+}: (typeof SCORE_CASES)[number]): ExperimentRun {
+  const annotation: RunAnnotation = {
+    id: `ann-${name}-${score}`,
+    name,
+    label: annotationLabel,
+    score,
+    metadata: null,
+    trace: {
+      traceId: `eval-trace-${name}-${score}`,
+      projectId: "project-456",
+    },
+  };
+  return {
+    ...mockExperimentRunWithAnnotations,
+    annotations: { edges: [{ annotation }] },
+  };
+}
+
+/**
+ * Each evaluator's score is colored by its output config. `qa_correctness`
+ * is continuous and maximized over 0 to 1, so its color grades from the
+ * pivot at 0.5 and clamps past the bound. `toxicity` is minimized over 0 to
+ * 1. `row_overlap` is freeform with a threshold of 0.8 and no bounds, so
+ * either side of the threshold takes the full color. `sql_syntax_valid` is
+ * categorical, scored `valid` 1 and `invalid` 0. `query_complexity` sets no
+ * direction, and `bleu` has no dataset evaluator, so neither is colored.
+ */
+export const ScoreColors = {
+  name: "Score Colors",
+  parameters: { themeLayout: "column" },
+  render: () => (
+    <OptionGrid
+      rows={SCORE_CASES}
+      renderCell={(scoreCase) => (
+        <RunAnnotationsFrame
+          width="440px"
+          experimentRun={scoreCaseRun(scoreCase)}
+          annotationSummaries={[
+            {
+              annotationName: scoreCase.name,
+              minScore: 0,
+              maxScore: Math.max(1, scoreCase.score),
+            },
+          ]}
+        />
+      )}
+    />
+  ),
 };
 
 export const NoAnnotations = {

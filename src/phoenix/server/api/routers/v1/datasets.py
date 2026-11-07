@@ -980,13 +980,29 @@ async def _process_csv(
         content = await run_in_threadpool(zlib.decompress, content)
     elif content_encoding is not FileContentEncoding.NONE:
         assert_never(content_encoding)
-    reader = await run_in_threadpool(lambda c: csv.DictReader(io.StringIO(c.decode())), content)
+    reader = await run_in_threadpool(
+        lambda c: csv.DictReader(io.StringIO(c.decode("utf-8-sig"))), content
+    )
     if reader.fieldnames is None:
         raise ValueError("Missing CSV column header")
     (header, freq), *_ = Counter(reader.fieldnames).most_common(1)
     if freq > 1:
         raise ValueError(f"Duplicated column header in CSV file: {header}")
     column_headers = frozenset(reader.fieldnames)
+
+    def match_header(key: str) -> str:
+        # utf-8-sig drops the BOM from the first header, but a client that read the header
+        # without it (phoenix-client inferring keys) sends that key with the BOM attached.
+        return key if key in column_headers else key.removeprefix("\ufeff")
+
+    input_keys = frozenset(map(match_header, input_keys))
+    output_keys = frozenset(map(match_header, output_keys))
+    metadata_keys = frozenset(map(match_header, metadata_keys))
+    split_keys = frozenset(map(match_header, split_keys))
+    flatten_keys = frozenset(map(match_header, flatten_keys))
+    span_id_key = span_id_key and match_header(span_id_key)
+    example_id_key = example_id_key and match_header(example_id_key)
+    split_key = split_key and match_header(split_key)
     _check_keys_exist(
         column_headers,
         input_keys,
@@ -1124,7 +1140,10 @@ async def _process_jsonl(
         assert_never(encoding)
 
     def parse_and_process(c: bytes) -> list[ExampleContent]:
-        rows = [json.loads(line) for line in c.decode().splitlines()]
+        # Split on "\n" only: str.splitlines() also splits on U+2028, U+0085 and other
+        # characters that JSON allows unescaped inside strings.
+        lines = (line.strip() for line in c.decode("utf-8-sig").split("\n"))
+        rows = [json.loads(line) for line in lines if line]
 
         input_plan, output_plan, metadata_plan = _build_flatten_plans(
             input_keys=input_keys,

@@ -236,7 +236,6 @@ export function AuthorizedApplicationsCard({
   viewer: AuthorizedApplicationsCardFragment$key;
   userName?: string;
 }) {
-  "use no memo";
   const [data, refetch] = useRefetchableFragment<
     AuthorizedApplicationsCardQuery,
     AuthorizedApplicationsCardFragment$key

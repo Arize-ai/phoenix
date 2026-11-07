@@ -85,8 +85,7 @@ def register(
 
     Args:
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used. The
-            export protocol will be inferred from the endpoint.
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used.
         project_name (str, optional): The name of the project to which spans will be associated. If
             not provided, the `PHOENIX_PROJECT_NAME` environment variable will be used.
         batch (bool): If True, spans will be processed using a BatchSpanprocessor. If False, spans
@@ -96,7 +95,9 @@ def register(
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` environment variable will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
         verbose (bool): If True, configuration details will be printed to stdout.
         auto_instrument (bool): If True, automatically instruments all installed OpenInference
             libraries.
@@ -205,14 +206,13 @@ class TracerProvider(_TracerProvider):
     the OpenTelemetry documentation at https://opentelemetry.io/docs/specs/otel/trace/sdk/.
 
     Args:
-        endpoint (str, optional): The collector endpoint to which spans will be exported. If
-            specified, a default SpanProcessor will be created and added to this TracerProvider.
-            If not provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be
-            used to infer which collector endpoint to use, defaults to the gRPC endpoint. When
-            specifying the endpoint, the transport method (HTTP or gRPC) will be inferred from the
-            URL.
+        endpoint (str, optional): The collector endpoint to which the default SpanProcessor
+            exports spans. If not provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable
+            will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
         verbose (bool): If True, configuration details will be printed to stdout.
 
     Examples:
@@ -260,20 +260,10 @@ class TracerProvider(_TracerProvider):
             )
         super().__init__(*bound_args.args, **bound_args.kwargs)
 
-        validated_protocol = OTLPTransportProtocol(protocol)
-        use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-        parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
         self._default_processor: Optional[SpanProcessor] = None
-
-        if (
-            _maybe_http_endpoint(parsed_url)
-            or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-        ):
-            http_exporter: SpanExporter = HTTPSpanExporter(endpoint=endpoint)
-            self._set_default_processor(SimpleSpanProcessor(span_exporter=http_exporter))
-        elif _maybe_grpc_endpoint(parsed_url) or validated_protocol == OTLPTransportProtocol.GRPC:
-            grpc_exporter: SpanExporter = GRPCSpanExporter(endpoint=endpoint)
-            self._set_default_processor(SimpleSpanProcessor(span_exporter=grpc_exporter))
+        self._set_default_processor(
+            SimpleSpanProcessor(span_exporter=_default_exporter(endpoint, protocol))
+        )
         if verbose:
             print(self._tracing_details())
 
@@ -390,14 +380,14 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
-            infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
-            the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used.
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
             environment variable will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
 
     Examples:
         Basic usage with automatic endpoint inference::
@@ -433,21 +423,7 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     ):
         if span_exporter is None:
-            validated_protocol = OTLPTransportProtocol(protocol)
-            use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
-            if (
-                _maybe_http_endpoint(parsed_url)
-                or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            ):
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
-            elif (
-                _maybe_grpc_endpoint(parsed_url) or validated_protocol == OTLPTransportProtocol.GRPC
-            ):
-                span_exporter = GRPCSpanExporter(endpoint=endpoint, headers=headers)
-            else:
-                warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
+            span_exporter = _default_exporter(endpoint, protocol, headers)
         super().__init__(span_exporter)
 
 
@@ -470,14 +446,14 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         span_exporter (SpanExporter, optional): The `SpanExporter` to which ended spans will be
             passed.
         endpoint (str, optional): The collector endpoint to which spans will be exported. If not
-            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used to
-            infer which collector endpoint to use, defaults to the gRPC endpoint. When specifying
-            the endpoint, the transport method (HTTP or gRPC) will be inferred from the URL.
+            provided, the `PHOENIX_COLLECTOR_ENDPOINT` environment variable will be used.
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
             environment variable will be used.
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
-            "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
+            "http/protobuf" or "grpc". If not provided, the protocol is inferred from the endpoint:
+            an endpoint with a path, or a Phoenix Cloud endpoint, uses "http/protobuf"; a bare
+            origin such as "http://localhost:6006" uses "grpc".
         max_queue_size (int, optional): The maximum queue size.
         schedule_delay_millis (float, optional): The delay between two consecutive exports in
             milliseconds.
@@ -520,21 +496,7 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     ):
         if span_exporter is None:
-            validated_protocol = OTLPTransportProtocol(protocol)
-            use_http = validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
-            if (
-                _maybe_http_endpoint(parsed_url)
-                or validated_protocol == OTLPTransportProtocol.HTTP_PROTOBUF
-            ):
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
-            elif (
-                _maybe_grpc_endpoint(parsed_url) or validated_protocol == OTLPTransportProtocol.GRPC
-            ):
-                span_exporter = GRPCSpanExporter(endpoint=endpoint, headers=headers)
-            else:
-                warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
-                span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
+            span_exporter = _default_exporter(endpoint, protocol, headers)
         super().__init__(span_exporter)
 
 
@@ -704,18 +666,6 @@ class GRPCSpanExporter(_GRPCSpanExporter):
         super().__init__(*bound_args.args, **bound_args.kwargs)
 
 
-def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
-    if parsed_endpoint.path == "/v1/traces":
-        return True
-    return False
-
-
-def _maybe_grpc_endpoint(parsed_endpoint: ParseResult) -> bool:
-    if not parsed_endpoint.path and parsed_endpoint.port == get_env_grpc_port():
-        return True
-    return False
-
-
 def _exporter_transport(exporter: SpanExporter) -> str:
     if isinstance(exporter, _HTTPSpanExporter):
         return "HTTP + protobuf"
@@ -820,6 +770,33 @@ def _normalized_endpoint(
             return urlparse(f"//{endpoint}"), endpoint
         parsed = urlparse(endpoint)
     return parsed, parsed.geturl()
+
+
+def _infer_protocol(
+    endpoint: Optional[str], protocol: OTLPTransportProtocol
+) -> OTLPTransportProtocol:
+    # OTLP/gRPC has no room for a URL path, so a path means HTTP; a bare origin keeps gRPC.
+    if protocol != OTLPTransportProtocol.INFER:
+        return protocol
+    if endpoint is None:
+        endpoint = get_env_collector_endpoint() or "http://localhost:6006"
+    parsed = urlparse(endpoint if _has_scheme(endpoint) else f"//{endpoint}")
+    if parsed.hostname in _KNOWN_PROVIDERS or parsed.path.strip("/"):
+        return OTLPTransportProtocol.HTTP_PROTOBUF
+    return OTLPTransportProtocol.GRPC
+
+
+def _default_exporter(
+    endpoint: Optional[str],
+    protocol: Optional[Literal["http/protobuf", "grpc"]],
+    headers: Optional[Dict[str, str]] = None,
+) -> SpanExporter:
+    inferred = _infer_protocol(endpoint, OTLPTransportProtocol(protocol))
+    use_http = inferred == OTLPTransportProtocol.HTTP_PROTOBUF
+    _, url = _normalized_endpoint(endpoint, use_http=use_http)
+    if use_http:
+        return HTTPSpanExporter(endpoint=url, headers=headers)
+    return GRPCSpanExporter(endpoint=url, headers=headers)
 
 
 def _get_class_signature(fn: Type[Any]) -> inspect.Signature:

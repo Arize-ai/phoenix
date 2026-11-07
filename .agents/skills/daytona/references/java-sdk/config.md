@@ -35,7 +35,9 @@ Returns the Daytona API base URL.
 public String getTarget()
 ```
 
-Returns the default target location for newly created Sandboxes.
+Returns the default region for Sandboxes and Snapshots. A per-call target
+(`io.daytona.sdk.model.CreateSandboxParams#setTarget(String)`) or snapshot `regionId`
+overrides it.
 
 **Returns**:
 
@@ -110,7 +112,9 @@ Sets the Daytona API base URL.
 public Builder target(String target)
 ```
 
-Sets the default target region for new Sandboxes.
+Sets the default region for Sandboxes and Snapshots. A per-call target
+(`io.daytona.sdk.model.CreateSandboxParams#setTarget(String)`) or snapshot `regionId`
+overrides it.
 
 **Parameters**:
 

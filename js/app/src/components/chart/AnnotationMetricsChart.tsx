@@ -44,6 +44,8 @@ import {
   defaultTooltipProps,
 } from "./defaults";
 import { InteractiveLegend, useInteractiveLegend } from "./InteractiveLegend";
+import type { RoundedLinearAxis } from "./roundedLinearAxis";
+import { getRoundedLinearAxis } from "./roundedLinearAxis";
 import type { TimeSeriesChartType } from "./types";
 
 const MEAN_SCORE_DATA_KEY = "meanScore";
@@ -71,11 +73,11 @@ function AnnotationMetricsTooltip({
   active,
   payload,
   renderHeader,
-  getMeanScoreOptimization,
+  getMeanScoreOptimizationValue,
   chartType,
 }: TooltipContentProps & {
   renderHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
-  getMeanScoreOptimization?: (meanScore: number) => boolean | null;
+  getMeanScoreOptimizationValue?: (meanScore: number) => number | null;
   chartType: TimeSeriesChartType;
 }) {
   if (!active || !payload || payload.length === 0) {
@@ -103,9 +105,11 @@ function AnnotationMetricsTooltip({
             }
             name={String(entry.name)}
             value={
-              isMeanScore && getMeanScoreOptimization ? (
+              isMeanScore && getMeanScoreOptimizationValue ? (
                 <AnnotationScoreText
-                  positiveOptimization={getMeanScoreOptimization(numericValue)}
+                  optimizationValue={getMeanScoreOptimizationValue(
+                    numericValue
+                  )}
                 >
                   {formattedValue}
                 </AnnotationScoreText>
@@ -127,7 +131,7 @@ type AnnotationMetricsChartProps = {
   yAxisProps: YAxisProps;
   syncId: string;
   renderTooltipHeader: (point: AnnotationMetricsChartPoint) => ReactNode;
-  getMeanScoreOptimization?: (meanScore: number) => boolean | null;
+  getMeanScoreOptimizationValue?: (meanScore: number) => number | null;
   chartProps?: ComponentProps<typeof ComposedChart>;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
   emptyStateMessage?: string;
@@ -162,10 +166,10 @@ function getAnnotationChartState({
   const scoreValues = [...data, reference].flatMap((point) =>
     point?.meanScore == null ? [] : [point.meanScore]
   );
-  const domain =
+  const yAxis: Partial<RoundedLinearAxis> =
     !isScoreView || scoreValues.every((score) => score >= 0 && score <= 1)
-      ? ([0, 1] as [number, number])
-      : undefined;
+      ? { domain: [0, 1] }
+      : (getRoundedLinearAxis({ values: scoreValues }) ?? {});
   const isReferencePrepended =
     !isScoreView &&
     reference != null &&
@@ -181,7 +185,7 @@ function getAnnotationChartState({
       }));
   return {
     chartData,
-    domain,
+    yAxis,
     hasOtherValues: chartData.some(
       (point) => "otherFraction" in point && point.otherFraction != null
     ),
@@ -197,7 +201,7 @@ function AnnotationMetricsChartContent({
   yAxisProps,
   syncId,
   renderTooltipHeader,
-  getMeanScoreOptimization,
+  getMeanScoreOptimizationValue,
   chartProps,
   additionalLegendItems,
   renderReference,
@@ -212,7 +216,7 @@ function AnnotationMetricsChartContent({
   const visibleLabels = series.labels;
   const {
     chartData,
-    domain,
+    yAxis,
     hasOtherValues,
     isReferencePrepended,
     isScoreView,
@@ -239,7 +243,8 @@ function AnnotationMetricsChartContent({
           <XAxis {...xAxisProps} />
           <YAxis
             {...yAxisProps}
-            domain={domain}
+            domain={yAxis.domain}
+            ticks={yAxis.ticks}
             tickFormatter={
               isScoreView ? floatFormatter : formatAnnotationFraction
             }
@@ -254,7 +259,7 @@ function AnnotationMetricsChartContent({
               <AnnotationMetricsTooltip
                 {...props}
                 renderHeader={renderTooltipHeader}
-                getMeanScoreOptimization={getMeanScoreOptimization}
+                getMeanScoreOptimizationValue={getMeanScoreOptimizationValue}
                 chartType={chartType}
               />
             )}

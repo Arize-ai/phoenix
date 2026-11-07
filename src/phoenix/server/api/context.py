@@ -17,8 +17,8 @@ from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
+    from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
     from phoenix.server.daemons.experiment_runner import ExperimentRunner
-    from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
     from phoenix.server.daemons.system_settings import SystemSettings
     from phoenix.server.dml_event import DmlEvent
     from phoenix.server.email.types import EmailSender

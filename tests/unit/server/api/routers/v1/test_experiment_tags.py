@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-import httpx
+import httpx2
 import pytest
 from fastapi import FastAPI
 from sqlalchemy import select
@@ -70,7 +70,7 @@ async def _experiments(db: DbSessionFactory) -> _Experiments:
 class TestSetExperimentTag:
     async def test_assign_list_and_remove(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         experiment_id = _experiments.experiment
@@ -111,7 +111,7 @@ class TestSetExperimentTag:
 
     async def test_assign_moves_the_tag_within_the_dataset(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
         db: DbSessionFactory,
     ) -> None:
@@ -140,7 +140,7 @@ class TestSetExperimentTag:
 
     async def test_tags_are_isolated_per_dataset(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         assigned_tags = []
@@ -159,7 +159,7 @@ class TestSetExperimentTag:
 
     async def test_baseline_is_rejected_for_ephemeral_experiments(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         experiment_id = _experiments.ephemeral
@@ -177,7 +177,7 @@ class TestSetExperimentTag:
 
     async def test_invalid_inputs(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         experiment_id = _experiments.experiment
@@ -201,7 +201,7 @@ class TestSetExperimentTag:
 class TestDeleteExperimentTag:
     async def test_tag_id_is_scoped_to_the_experiment_dataset(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         owner_tag = (
@@ -229,7 +229,7 @@ class TestDeleteExperimentTag:
 
     async def test_removal_is_idempotent_and_never_steals_the_tag(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         owner, non_owner = _experiments.experiment, _experiments.sibling
@@ -255,7 +255,7 @@ class TestDeleteExperimentTag:
 
     async def test_unknown_experiment_is_404(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
     ) -> None:
         resp = await httpx_client.delete(f"v1/experiments/{_experiment_gid(999_999)}/tags/baseline")
@@ -265,7 +265,7 @@ class TestDeleteExperimentTag:
 class TestExperimentTagUserAttribution:
     async def test_unauthenticated_writes_record_no_user(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         _experiments: _Experiments,
         db: DbSessionFactory,
     ) -> None:
@@ -318,8 +318,8 @@ class TestExperimentTagUserAttribution:
         # routes, so seeding the scope and flipping the flag exercises the authenticated
         # branch without standing up the full auth stack.
         app.state.authentication_enabled = True
-        client = httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=_authenticated_app),
+        client = httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=_authenticated_app),
             base_url="http://test",
         )
         try:

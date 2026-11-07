@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { Divider, Text, TextSkeleton } from "@phoenix/components";
 import type {
@@ -477,6 +478,37 @@ export function TokenDetailsBreakdownSkeleton({
       <BreakdownBarsSkeleton dimensions={dimensions} />
       <Divider css={breakdownDividerCSS} />
       <BreakdownTableSkeleton dimensions={dimensions} rows={rows} />
+    </div>
+  );
+}
+
+export interface TokenDetailsBreakdownErrorProps extends TokenDetailsBreakdownProps {
+  /** What failed, shown in place of the breakdown. */
+  error: ReactNode;
+}
+
+/**
+ * The breakdown when its split failed to load: the heading, drawn from the
+ * totals as the skeleton's is, so the reader can tell what failed, then
+ * `error` in place of the rest.
+ */
+export function TokenDetailsBreakdownError({
+  tokens,
+  costs,
+  totalLabel,
+  error,
+}: TokenDetailsBreakdownErrorProps) {
+  const measures = getMeasures({ tokens, costs });
+  return (
+    <div className="token-details-breakdown" css={tokenDetailsBreakdownCSS}>
+      {measures.length > 0 ? (
+        <header className="token-details-breakdown__header">
+          <Text size="S" weight="heavy">
+            {getHeading(measures, totalLabel)}
+          </Text>
+        </header>
+      ) : null}
+      <div>{error}</div>
     </div>
   );
 }

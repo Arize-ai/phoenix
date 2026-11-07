@@ -11,7 +11,7 @@ The role-based access control (RBAC) in Phoenix is based on the following user r
 A user's role controls their access via the UI as well as through the APIs.
 
 <Info>
-  For SSO (SAML), multi-level RBAC (account → organizations → spaces), and JIT user provisioning, see [Arize AX](https://arize.com/docs/ax/security-and-settings/sso-and-rbac).
+  For SSO (SAML), multi-level RBAC (account → organizations → spaces), and JIT user provisioning, see [Arize AX](https://arize.com/docs/ax/security-and-settings/sso-and-rbac?utm_source=phoenix-docs&utm_medium=web&utm_campaign=px-to-ax&utm_content=access-control-rbac).
 </Info>
 
 ## User Management
@@ -80,6 +80,10 @@ Sandbox configurations can store provider API keys and environment variables, so
 | Update Sandbox Configuration | ✅ Yes | No | No |
 | Delete Sandbox Configuration | ✅ Yes | No | No |
 | Enable/Disable Sandbox Provider | ✅ Yes | No | No |
+
+<Note>
+  Viewers can read sandbox configurations through the API, but the **Settings → Sandboxes** page is only shown to Admins and Members. See [Sandboxes](/docs/phoenix/settings/sandboxes) for what each role sees in the UI.
+</Note>
 
 <Warning>
   Environment variables added to a sandbox configuration are mounted into the sandbox at runtime and are readable by any code that runs there. Because **Members can test evaluators**, and testing a code evaluator executes arbitrary code inside the sandbox, any user who can test evaluators can read these environment variables — even though only admins can create or edit the sandbox configuration itself.

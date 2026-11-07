@@ -23,6 +23,22 @@ describe("formatPromptMessages", () => {
   });
 
   describe("MUSTACHE format", () => {
+    it("should preserve dollar signs in variable values", () => {
+      const messages: PromptChatMessage[] = [
+        {
+          role: "user",
+          content: "Question: {{question}}",
+        },
+      ];
+
+      const formatted = formatPromptMessages("MUSTACHE", messages, {
+        question: "What does echo $$ print in Bash?",
+      });
+      expect(formatted?.[0]?.content).toEqual(
+        "Question: What does echo $$ print in Bash?"
+      );
+    });
+
     it("should replace single variable", () => {
       const messages: PromptChatMessage[] = [
         {
@@ -141,6 +157,23 @@ describe("formatPromptMessages", () => {
   });
 
   describe("F_STRING format", () => {
+    it("should preserve replacement patterns in variable values", () => {
+      const messages: PromptChatMessage[] = [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Question: {question}" }],
+        },
+      ];
+
+      const formatted = formatPromptMessages("F_STRING", messages, {
+        question: "What does '$&' mean in String.replace?",
+      });
+      expect(formatted?.[0]?.content?.[0]).toEqual({
+        type: "text",
+        text: "Question: What does '$&' mean in String.replace?",
+      });
+    });
+
     it("should replace single variable", () => {
       const messages: PromptChatMessage[] = [
         {

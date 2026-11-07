@@ -105,7 +105,7 @@ There are two ways to configure the collector endpoint:
 
 ### Using Environment Variables
 
-If you're setting the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, `register()` will automatically try to send spans to your Phoenix server using gRPC.
+`register()` reads the `PHOENIX_COLLECTOR_ENDPOINT` environment variable and picks the transport from its shape. A URL with no path, like the one below, uses gRPC to the same host on port `4317` (`PHOENIX_GRPC_PORT`). A URL with a path, or a Phoenix Cloud URL, uses HTTP. If the gRPC port is not reachable, for example behind a reverse proxy or an ingress, pass `protocol="http/protobuf"`.
 
 ```bash
 export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.com:6006
@@ -241,7 +241,7 @@ The package recognizes these Phoenix-specific environment variables for automati
 - `PHOENIX_COLLECTOR_ENDPOINT`: Collector endpoint URL (e.g., `https://your-phoenix.com:6006`)
 - `PHOENIX_PROJECT_NAME`: Project name for spans (e.g., `my-llm-app`)
 - `PHOENIX_API_KEY`: User or system key
-- `PHOENIX_GRPC_PORT`: gRPC port override (defaults to 4317)
+- `PHOENIX_GRPC_PORT`: gRPC port, used when `PHOENIX_COLLECTOR_ENDPOINT` has no path (defaults to 4317)
 - `PHOENIX_CLIENT_HEADERS`: Additional headers for requests (e.g., `Authorization=Bearer token,custom-header=value`)
 
 ### Environment Variable Examples

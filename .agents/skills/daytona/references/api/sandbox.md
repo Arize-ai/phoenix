@@ -5,7 +5,6 @@
 
 - GET `/sandbox`
 - POST `/sandbox`
-- GET `/sandbox/paginated`
 - GET `/sandbox/for-runner`
 - GET `/sandbox/{sandboxIdOrName}`}
 - DELETE `/sandbox/{sandboxIdOrName}`}
@@ -63,7 +62,7 @@ Advanced filtering and ordering. Eventually consistent.
 |------|-----|------|----------|-------------|
 | `X-Daytona-Organization-ID` | header | string | No | Use with JWT to specify the organization ID |
 | `cursor` | query | string | No | Pagination cursor from a previous response |
-| `limit` | query | number | No | Number of results per page |
+| `limit` | query | integer | No | Number of results per page |
 | `id` | query | string | No | Filter by ID prefix (case-insensitive) |
 | `name` | query | string | No | Filter by name prefix (case-insensitive) |
 | `labels` | query | string | No | JSON encoded labels to filter by |
@@ -79,6 +78,8 @@ Advanced filtering and ordering. Eventually consistent.
 | `maxMemoryGiB` | query | number | No | Maximum memory in GiB |
 | `minDiskGiB` | query | number | No | Minimum disk space in GiB |
 | `maxDiskGiB` | query | number | No | Maximum disk space in GiB |
+| `minGpu` | query | number | No | Minimum GPU |
+| `maxGpu` | query | number | No | Maximum GPU |
 | `isPublic` | query | boolean | No | Filter by public status |
 | `isRecoverable` | query | boolean | No | Filter by recoverable status |
 | `createdAtAfter` | query | string (date-time) | No | Include items created after this timestamp |
@@ -121,6 +122,7 @@ Schema: **CreateSandbox**
 | `labels` | object | No | Labels for the sandbox |
 | `public` | boolean | No | Whether the sandbox http preview is publicly accessible |
 | `networkBlockAll` | boolean | No | Whether to block all network access for the sandbox |
+| `kvm` | boolean | No | Expose KVM (/dev/kvm) inside the sandbox via nested virtualization. linux-vm snapshots only. Requires the sandbox_kvm feature for the organization. |
 | `networkAllowList` | string | No | Comma-separated list of allowed CIDR network addresses for the sandbox |
 | `domainAllowList` | string | No | Comma-separated list of allowed domains for the sandbox |
 | `outboundProxyUrl` | string | No | Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox. |
@@ -137,6 +139,7 @@ Schema: **CreateSandbox**
 | `autoArchiveInterval` | integer | No | Auto-archive interval in minutes (0 means the maximum interval will be used) |
 | `autoDeleteInterval` | integer | No | Auto-delete interval in minutes (negative value means disabled, 0 means delete immediately upon stopping) |
 | `ttlMinutes` | integer | No | Maximum time to live in minutes, counted as wall-clock time since creation regardless of sandbox state (0 means disabled). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. Subject to the maximum sandbox lifespan configured for the organization region and sandbox class, in which case it also defaults to that maximum and cannot be disabled. |
+| `queueTimeout` | integer | No | Minutes to wait for runner assignment before cancelling sandbox creation. Applies only while the sandbox is unassigned in pending_build or pulling_snapshot. Only honored when default queue timeout is enabled for the organization. Omit to use the organization default; null/omit with no organization default leaves the wait unlimited. Must be a positive integer. |
 | `volumes` | array of [SandboxVolume](#schema-sandboxvolume) | No | Array of volumes to attach to the sandbox |
 | `buildInfo` | object | No | Build information for the sandbox |
 | `linkedSandbox` | string | No | ID or name of an existing sandbox to link the new sandbox to. The new sandbox will be scheduled on the same runner as the linked sandbox so a local network can be established between them. Linked sandboxes must be ephemeral (autoDeleteInterval=0) and cannot themselves be linked to another sandbox. GPU sandboxes cannot participate in links in either direction: a GPU sandbox cannot specify linkedSandbox, and cannot be the link target of another sandbox. |
@@ -147,43 +150,6 @@ Schema: **CreateSandbox**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | The sandbox has been successfully created. | Sandbox |
-
----
-
-## GET `/sandbox/paginated` {#daytona/tag/sandbox/GET/sandbox/paginated}
-
-**[DEPRECATED] List all sandboxes paginated**
-
-### Parameters
-
-| Name | In | Type | Required | Description |
-|------|-----|------|----------|-------------|
-| `X-Daytona-Organization-ID` | header | string | No | Use with JWT to specify the organization ID |
-| `page` | query | number | No | Page number of the results |
-| `limit` | query | number | No | Number of results per page |
-| `id` | query | string | No | Filter by partial ID match |
-| `name` | query | string | No | Filter by partial name match |
-| `labels` | query | string | No | JSON encoded labels to filter by |
-| `includeErroredDeleted` | query | boolean | No | Include results with errored state and deleted desired state |
-| `states` | query | array | No | List of states to filter by |
-| `snapshots` | query | array | No | List of snapshot names to filter by |
-| `regions` | query | array | No | List of regions to filter by |
-| `minCpu` | query | number | No | Minimum CPU |
-| `maxCpu` | query | number | No | Maximum CPU |
-| `minMemoryGiB` | query | number | No | Minimum memory in GiB |
-| `maxMemoryGiB` | query | number | No | Maximum memory in GiB |
-| `minDiskGiB` | query | number | No | Minimum disk space in GiB |
-| `maxDiskGiB` | query | number | No | Maximum disk space in GiB |
-| `lastEventAfter` | query | string (date-time) | No | Include items with last event after this timestamp |
-| `lastEventBefore` | query | string (date-time) | No | Include items with last event before this timestamp |
-| `sort` | query | string | No | Field to sort by |
-| `order` | query | string | No | Direction to sort by |
-
-### Responses
-
-| Status | Description | Schema |
-|--------|-------------|--------|
-| 200 | Paginated list of all sandboxes | PaginatedSandboxes_deprecated |
 
 ---
 
@@ -211,7 +177,7 @@ Schema: **CreateSandbox**
 
 **Get sandbox details**
 
-Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read.
+Sandboxes destroyed by spot preemption remain retrievable for 24 hours so `spotEvictedAt` can be read. Sandboxes destroyed by queue timeout remain retrievable for 24 hours so `queueTimedOutAt` can be read.
 
 ### Parameters
 
@@ -1063,8 +1029,8 @@ Retrieve OTEL logs for a sandbox within a time range
 | `sandboxId` | path | string | Yes | ID of the sandbox |
 | `from` | query | string (date-time) | Yes | Start of time range (ISO 8601) |
 | `to` | query | string (date-time) | Yes | End of time range (ISO 8601) |
-| `page` | query | number | No | Page number (1-indexed) |
-| `limit` | query | number | No | Number of items per page |
+| `page` | query | integer | No | Page number (1-indexed) |
+| `limit` | query | integer | No | Number of items per page |
 | `severities` | query | array | No | Filter by severity levels (DEBUG, INFO, WARN, ERROR) |
 | `search` | query | string | No | Search in log body |
 
@@ -1090,8 +1056,8 @@ Retrieve OTEL traces for a sandbox within a time range
 | `sandboxId` | path | string | Yes | ID of the sandbox |
 | `from` | query | string (date-time) | Yes | Start of time range (ISO 8601) |
 | `to` | query | string (date-time) | Yes | End of time range (ISO 8601) |
-| `page` | query | number | No | Page number (1-indexed) |
-| `limit` | query | number | No | Number of items per page |
+| `page` | query | integer | No | Page number (1-indexed) |
+| `limit` | query | integer | No | Number of items per page |
 
 ### Responses
 
