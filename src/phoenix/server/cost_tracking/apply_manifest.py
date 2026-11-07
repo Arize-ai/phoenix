@@ -286,6 +286,8 @@ async def _get_built_in_models(session: AsyncSession) -> dict[str, models.Genera
                 select(models.GenerativeModel)
                 .where(models.GenerativeModel.deleted_at.is_(None))
                 .where(models.GenerativeModel.is_built_in.is_(True))
+                # The manifest only has LLM models, and names are only unique within a type.
+                .where(models.GenerativeModel.type == "LLM")
                 .options(joinedload(models.GenerativeModel.token_prices))
             )
         ).unique()
