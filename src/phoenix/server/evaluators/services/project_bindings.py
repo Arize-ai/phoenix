@@ -300,6 +300,8 @@ async def update_project_llm_evaluator(
     validate_project_evaluator_sampling_rate(input.sampling_rate)
     if input.enabled is None:
         raise BadRequest("enabled cannot be set to null")
+    if input.tracing_enabled is None:
+        raise BadRequest("tracing_enabled cannot be set to null")
     if input.evaluation_delay_seconds is not UNSET:
         materialize_project_evaluator_evaluation_delay(
             input.evaluation_delay_seconds, input.evaluation_target
@@ -382,8 +384,7 @@ async def update_project_llm_evaluator(
                 assert input.enabled is not None
                 binding_values["enabled"] = input.enabled
             if input.tracing_enabled is not UNSET:
-                if input.tracing_enabled is None:
-                    raise BadRequest("tracing_enabled cannot be set to null")
+                assert input.tracing_enabled is not None
                 binding_values["tracing_enabled"] = input.tracing_enabled
             project_evaluator = await write_project_evaluator(
                 session, project_evaluator.id, binding_values
@@ -670,6 +671,8 @@ async def update_project_code_evaluator(
         raise BadRequest("evaluator_input_mapping cannot be set to null")
     if input.enabled is None:
         raise BadRequest("enabled cannot be set to null")
+    if input.tracing_enabled is None:
+        raise BadRequest("tracing_enabled cannot be set to null")
     if input.evaluation_delay_seconds is not UNSET:
         materialize_project_evaluator_evaluation_delay(
             input.evaluation_delay_seconds, input.evaluation_target
@@ -877,8 +880,7 @@ async def update_project_code_evaluator(
                 assert input.enabled is not None
                 binding_values["enabled"] = input.enabled
             if input.tracing_enabled is not UNSET:
-                if input.tracing_enabled is None:
-                    raise BadRequest("tracing_enabled cannot be set to null")
+                assert input.tracing_enabled is not None
                 binding_values["tracing_enabled"] = input.tracing_enabled
             project_evaluator = await write_project_evaluator(
                 session, project_evaluator.id, binding_values
@@ -1265,8 +1267,7 @@ async def apply_project_evaluator_patch(
         assert patch.enabled is not None
         values["enabled"] = patch.enabled
     if patch.tracing_enabled is not UNSET:
-        if patch.tracing_enabled is None:
-            raise BadRequest("tracing_enabled cannot be set to null")
+        assert patch.tracing_enabled is not None
         values["tracing_enabled"] = patch.tracing_enabled
     if patch.input_mapping is not UNSET:
         if (decision := await session.get(models.DecisionEvaluator, row.evaluator_id)) is not None:

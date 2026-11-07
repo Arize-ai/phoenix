@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex } from "@phoenix/components";
+import { Alert, Flex } from "@phoenix/components";
 import {
   type ProjectEvaluatorResultAnnotation,
   useProjectEvaluatorResultAnnotations,
@@ -57,6 +57,7 @@ export function ProjectEvaluatorMetrics({
     graphql`
       fragment ProjectEvaluatorMetrics_projectEvaluator on ProjectEvaluator {
         evaluationTarget
+        tracingEnabled
         project {
           id
         }
@@ -77,6 +78,7 @@ export function ProjectEvaluatorMetrics({
       <ProjectEvaluatorMetricPanels
         evaluatedProjectId={data.project.id}
         traceProjectId={data.traceProject.id}
+        isTracingEnabled={data.tracingEnabled}
         annotationLevel={getAnnotationLevel(data.evaluationTarget)}
         resultAnnotations={resultAnnotations}
         timeRange={timeRange}
@@ -90,6 +92,7 @@ const ProjectEvaluatorMetricPanels = memo(
   function ProjectEvaluatorMetricPanels({
     evaluatedProjectId,
     traceProjectId,
+    isTracingEnabled,
     annotationLevel,
     resultAnnotations,
     timeRange,
@@ -99,6 +102,8 @@ const ProjectEvaluatorMetricPanels = memo(
     evaluatedProjectId: string;
     /** The evaluator's own trace project, minted when the evaluator is created. */
     traceProjectId: string;
+    /** The evaluation, latency, and cost charts read traces, which stop while it is off. */
+    isTracingEnabled: boolean;
     annotationLevel: AnnotationMetricLevel;
     /** The annotations the evaluator writes, named the way its runs persist them. */
     resultAnnotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
@@ -132,6 +137,13 @@ const ProjectEvaluatorMetricPanels = memo(
             />
           ))}
         </Flex>
+        {isTracingEnabled ? null : (
+          <Alert variant="info" title="Tracing is off">
+            The evaluation, latency, and cost charts below are read from this
+            evaluator&apos;s traces, so they show only evaluations that ran
+            while tracing was on. The results charts above are unaffected.
+          </Alert>
+        )}
         <Flex direction="row" gap="size-200">
           <DeferredProjectMetricPanel
             chart={getProjectMetricChart("traces")}

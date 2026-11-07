@@ -633,6 +633,8 @@ async def update_project_decision_evaluator(
     )
     if input.enabled is None:
         raise BadRequest("enabled cannot be set to null")
+    if input.tracing_enabled is None:
+        raise BadRequest("tracing_enabled cannot be set to null")
     project_evaluator_id = _id(input.project_evaluator_id, "ProjectEvaluator")
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
     try:

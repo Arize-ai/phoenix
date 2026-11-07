@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f88601ebbc70a0656ec85e4fd40b6226>>
+ * @generated SignedSource<<44d7dd5c72742fd6122e617cdaced9a7>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,8 @@ export type ProjectEvaluatorStats_projectEvaluator$data = {
   readonly createdAt: string;
   readonly evaluationLoad: {
     readonly evaluationCount: number;
+    readonly excludesUntracedEvaluators: boolean;
+    readonly isMeasured: boolean;
     readonly meanEvaluationSeconds: number | null;
     readonly shareOfEvaluationTime: number | null;
   };
@@ -153,6 +155,20 @@ return {
           "kind": "ScalarField",
           "name": "shareOfEvaluationTime",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "isMeasured",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "excludesUntracedEvaluators",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -168,6 +184,6 @@ return {
 };
 })();
 
-(node as any).hash = "02a2cbae677ddfd35d6b49cfbbfbea20";
+(node as any).hash = "89b03f9f11991ede36fc7aad7ecdefae";
 
 export default node;
