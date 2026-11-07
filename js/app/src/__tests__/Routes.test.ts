@@ -75,8 +75,10 @@ describe("revalidateUnlessOnlySearchChanges", () => {
   });
 
   it("defers path changes to React Router", () => {
+    // The search strings differ too, so only the pathname check defers this.
     const args = makeArgs({
-      currentPath: "/datasets/dataset-1/experiments",
+      currentPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
       nextPath: "/datasets/dataset-1/examples",
     });
 

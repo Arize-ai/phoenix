@@ -69,7 +69,7 @@ export const experimentFilterSnippets: DSLFilterSnippet[] = [
   },
 ];
 
-export type ExperimentMetadataFilterValue = string | number | boolean;
+type ExperimentMetadataFilterValue = string | number | boolean;
 
 /**
  * A metadata match entered in the Metadata form, which the table turns into
