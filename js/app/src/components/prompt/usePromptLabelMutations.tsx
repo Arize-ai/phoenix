@@ -46,6 +46,7 @@ export const usePromptLabelMutations = () => {
             ) {
             id
             name
+            description
             color
             usageCount
           }

@@ -19,6 +19,7 @@ export const ModelProviders: Record<ModelProvider, string> = {
   TOGETHER: "Together",
   ZAI: "Z.ai",
   META: "Meta",
+  TYPESAFE: "TypeSafe",
 };
 
 /**
@@ -29,6 +30,14 @@ export const DEFAULT_MODEL_PROVIDER: ModelProvider = "OPENAI";
  * The default model name
  */
 export const DEFAULT_MODEL_NAME = "gpt-5.6-luna";
+/**
+ * The default decision model provider
+ */
+export const DEFAULT_DECISION_MODEL_PROVIDER: ModelProvider = "TYPESAFE";
+/**
+ * The default decision model name
+ */
+export const DEFAULT_DECISION_MODEL_NAME = "jev-latest";
 
 export const DEFAULT_CHAT_ROLE: ChatMessageRole = "user";
 
@@ -76,6 +85,7 @@ export const ProviderToCredentialsConfigMap: Record<
   TOGETHER: [{ envVarName: "TOGETHER_API_KEY", isRequired: true }],
   ZAI: [{ envVarName: "ZAI_API_KEY", isRequired: true }],
   META: [{ envVarName: "META_API_KEY", isRequired: true }],
+  TYPESAFE: [{ envVarName: "TYPESAFE_API_KEY", isRequired: true }],
   AWS: [
     { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
     { envVarName: "AWS_SECRET_ACCESS_KEY", isRequired: true },
@@ -95,7 +105,8 @@ export type GenerativeModelSDK =
   | "AZURE_OPENAI"
   | "ANTHROPIC"
   | "AWS_BEDROCK"
-  | "GOOGLE_GENAI";
+  | "GOOGLE_GENAI"
+  | "TYPESAFE";
 
 /**
  * Azure authentication method types.
@@ -133,6 +144,7 @@ export const SDK_TO_PROVIDER_MAP: Readonly<
   ANTHROPIC: "ANTHROPIC",
   AWS_BEDROCK: "AWS",
   GOOGLE_GENAI: "GOOGLE",
+  TYPESAFE: "TYPESAFE",
 } as const;
 
 /**
@@ -158,6 +170,7 @@ export const STRING_TO_PROVIDER_MAP: Readonly<Record<string, ModelProvider>> = {
   together: "TOGETHER",
   zai: "ZAI",
   meta: "META",
+  typesafe: "TYPESAFE",
 } as const;
 
 /**
@@ -170,6 +183,7 @@ export const SDK_LABELS: Readonly<Record<GenerativeModelSDK, string>> = {
   ANTHROPIC: "Anthropic",
   AWS_BEDROCK: "AWS Bedrock",
   GOOGLE_GENAI: "Google GenAI",
+  TYPESAFE: "TypeSafe",
 } as const;
 
 /**
@@ -195,6 +209,7 @@ export const SDK_DEFAULT_PROVIDER: Readonly<
   ANTHROPIC: "anthropic",
   AWS_BEDROCK: "aws",
   GOOGLE_GENAI: "google",
+  TYPESAFE: "typesafe",
 } as const;
 
 /**

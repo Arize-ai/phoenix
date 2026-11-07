@@ -19,9 +19,11 @@ from phoenix.db.insertion.helpers import (
     get_sqlstate,
     should_calculate_span_cost,
 )
+from phoenix.db.insertion.project_session import advance_project_session_liveness
 from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.db.insertion.span_annotation import SpanAnnotationQueueInserter
+from phoenix.db.insertion.trace import advance_trace_liveness
 from phoenix.db.insertion.trace_annotation import TraceAnnotationQueueInserter
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.cost_tracking.span_cost_calculator import (
@@ -47,6 +49,12 @@ logger = logging.getLogger(__name__)
 def _is_retryable_span_error(error: Exception) -> bool:
     # Only these server codes confirm a rollback suitable for replay.
     return isinstance(error, DBAPIError) and get_sqlstate(error) in ("40P01", "40001")
+
+
+def _must_replay_span_batch(error: Exception) -> bool:
+    return _is_retryable_span_error(error) or (
+        isinstance(error, DBAPIError) and error.connection_invalidated
+    )
 
 
 def _span_error_locations(error: BaseException) -> str:
@@ -99,9 +107,7 @@ async def _save_span_costs(
         session.add_all(costs)
         await session.flush()
     except Exception as error:
-        if _is_retryable_span_error(error) or (
-            isinstance(error, DBAPIError) and error.connection_invalidated
-        ):
+        if _must_replay_span_batch(error):
             raise
         # As with spans, never continue on a connection whose rollback failed.
         await savepoint.rollback()
@@ -294,6 +300,8 @@ class BulkInserter:
         failed_spans = 0
         commit_may_have_started = False
         phase = "connect"
+        project_session_rowids: set[int] = set()
+        trace_rowids: set[int] = set()
         try:
             start = perf_counter()
             async with self._db() as session:
@@ -310,9 +318,7 @@ class BulkInserter:
                         phase = "insert_span"
                         result = await insert_span(session, span, project_name)
                     except Exception as error:
-                        if _is_retryable_span_error(error) or (
-                            isinstance(error, DBAPIError) and error.connection_invalidated
-                        ):
+                        if _must_replay_span_batch(error):
                             raise
                         # Cleanup failures escape to the outer transaction handler. Never
                         # continue on a connection whose savepoint rollback failed.
@@ -337,7 +343,30 @@ class BulkInserter:
                     if result is None:
                         continue
                     project_ids.add(result.project_rowid)
+                    trace_rowids.add(result.trace_rowid)
+                    if result.project_session_rowid is not None:
+                        project_session_rowids.add(result.project_session_rowid)
                     inserted_spans.append(_InsertedSpan(span, result, cost))
+                phase = "begin_savepoint"
+                savepoint = await session.begin_nested()
+                try:
+                    phase = "advance_liveness"
+                    await advance_project_session_liveness(session, project_session_rowids)
+                    await advance_trace_liveness(session, trace_rowids)
+                except Exception as error:
+                    # A stale stamp lets the sweeper treat a session or trace that is still
+                    # receiving spans as quiet, so replay the batch rather than commit without it.
+                    if _must_replay_span_batch(error):
+                        raise
+                    phase = "rollback_savepoint"
+                    await savepoint.rollback()
+                    if not session.is_active:
+                        raise
+                    BULK_LOADER_EXCEPTIONS.inc()
+                    logger.exception(str(error))
+                else:
+                    phase = "release_savepoint"
+                    await savepoint.commit()
                 # Costs commit with their spans, so a replayed batch replays its costs.
                 phase = "insert_costs"
                 await self._insert_span_costs(session, inserted_spans)

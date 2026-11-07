@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
-import { FieldError, Input, Label } from "@phoenix/components";
+import { FieldError, Input, Label, Text } from "@phoenix/components";
 import {
   TextField,
   type TextFieldProps,
@@ -12,6 +12,7 @@ import {
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
+import type { EvaluatorKind } from "@phoenix/types";
 import {
   IDENTIFIER_ERROR_MESSAGES,
   transformIdentifierInput,
@@ -22,6 +23,13 @@ import {
  * The field name used by react-hook-form and as the error key in the validation registry.
  */
 const FIELD_NAME = "name" as const;
+
+const NAME_PLACEHOLDERS: Record<EvaluatorKind, string> = {
+  LLM: "e.g. llm_eval",
+  CODE: "e.g. code_eval",
+  BUILTIN: "e.g. correctness",
+  DECISION: "e.g. decision_eval",
+};
 
 /**
  * Whether to use the user-facing name (for dataset evaluators) vs the global name.
@@ -81,20 +89,42 @@ const useEvaluatorNameInputForm = () => {
 };
 
 export const EvaluatorNameInput = ({
-  placeholder = "e.g. code_eval",
+  placeholder,
+  description,
+  onValueChange,
   ...props
-}: Partial<TextFieldProps> & { placeholder?: string }) => {
+}: Partial<TextFieldProps> & {
+  placeholder?: string;
+  description?: string;
+  onValueChange?: () => void;
+}) => {
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
-  const { control, trigger } = form;
+  const evaluatorKind = useEvaluatorStore((state) => state.evaluator.kind);
+  const { control, trigger, getValues } = form;
+  const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
+  // An untouched empty name is not an error until the user edits and leaves it
+  // or tries to save; the placeholder says what belongs there, and the rest of
+  // the form (including test runs) works without a name.
+  const hasChangedRef = useRef(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Register with the evaluator store so the parent can trigger
   // validation on submit. Also forces deferred (blur-only) errors to display.
   const triggerValidation = useCallback(async () => {
     hasBlurredRef.current = true;
-    return trigger(FIELD_NAME);
-  }, [trigger]);
+    setHasSubmitted(true);
+    const isValid = await trigger(FIELD_NAME);
+    const isFilled = getValues(FIELD_NAME).trim().length > 0;
+    if (!isValid || !isFilled) {
+      // The field sits at the top of a panel the author has likely scrolled
+      // past; bring the error to them rather than leaving it off-screen.
+      inputRef.current?.scrollIntoView?.({ block: "center" });
+      inputRef.current?.focus();
+    }
+    return isValid && isFilled;
+  }, [trigger, getValues]);
   useEffect(() => {
     const unregister = store
       .getState()
@@ -102,9 +132,14 @@ export const EvaluatorNameInput = ({
     return unregister;
   }, [store, triggerValidation]);
 
-  // Validates the name field.
-  // Display of blur-specific errors is handled separately in render.
+  // Validates the name field. Emptiness is left to render/submit (see
+  // `hasSubmitted`), so a cleared field still syncs its empty value to the
+  // store rather than leaving the previous name behind. Display of
+  // blur-specific errors is handled separately in render.
   const validate = (value: string): ValidateResult => {
+    if (value.trim().length === 0) {
+      return true;
+    }
     return validateIdentifier(value);
   };
 
@@ -117,11 +152,21 @@ export const EvaluatorNameInput = ({
         // Only show blur-specific errors after the field has been blurred
         const shouldShowError =
           error?.message &&
+          (hasChangedRef.current || hasSubmitted) &&
           (hasBlurredRef.current ||
+            hasSubmitted ||
             error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
-        const displayedError = shouldShowError ? error.message : undefined;
+        const emptyError =
+          (hasSubmitted || (hasChangedRef.current && hasBlurredRef.current)) &&
+          field.value.trim().length === 0
+            ? IDENTIFIER_ERROR_MESSAGES.empty
+            : undefined;
+        const displayedError =
+          emptyError ?? (shouldShowError ? error.message : undefined);
 
         const handleChange = (value: string) => {
+          onValueChange?.();
+          hasChangedRef.current = true;
           field.onChange(
             transformInputValue({ value, transform: transformIdentifierInput })
           );
@@ -136,7 +181,7 @@ export const EvaluatorNameInput = ({
           hasBlurredRef.current = true;
           field.onBlur();
           // Re-trigger validation to include blur-only rules
-          trigger("name");
+          void trigger("name");
         };
 
         return (
@@ -151,7 +196,11 @@ export const EvaluatorNameInput = ({
             {...props}
           >
             <Label>Name</Label>
-            <Input placeholder={placeholder} />
+            <Input
+              ref={inputRef}
+              placeholder={placeholder ?? NAME_PLACEHOLDERS[evaluatorKind]}
+            />
+            {description ? <Text slot="description">{description}</Text> : null}
             <FieldError>{displayedError}</FieldError>
           </TextField>
         );

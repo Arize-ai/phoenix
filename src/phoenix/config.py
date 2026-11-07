@@ -10,6 +10,7 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
+from math import isfinite
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -362,6 +363,26 @@ throughput.
 
 Defaults to 20000.
 """
+ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
+"""
+How long finished online-eval span work units are kept before they are deleted.
+Defaults to 604800 (7 days).
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
+"""
+Maximum online-eval work units a replica evaluates at once, across all consumers.
+Defaults to 50.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
+"""
+The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
+Defaults to 65536.
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
+"""
+The maximum UTF-8 byte size of a rendered online code-evaluator payload.
+Defaults to 65536.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -427,7 +448,7 @@ ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 Comma-separated list of provider names to show in the UI.
 Provider names should match GenerativeProviderKey enum names:
 OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
-AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META.
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META, TYPESAFE.
 Case-insensitive. When unset, all providers are shown.
 Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
@@ -3582,6 +3603,66 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
+
+
+def get_env_online_eval_retention_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_RETENTION_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
+
+
+def _online_eval_positive_int(name: str, default: int) -> int:
+    value = _int_val(name, default)
+    if value < 1:
+        raise ValueError(
+            f"Invalid value for environment variable {name}: "
+            f"{value}. Value must be a positive integer."
+        )
+    return value
+
+
+def get_env_online_eval_max_evaluator_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, 50)
+
+
+def get_env_online_eval_max_llm_message_bytes() -> int:
+    """Get the rendered online-eval LLM message cap."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
+        )
+    return max_bytes
+
+
+ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
+    "Narrow the slot with a path mapping, reduce the evaluator source, or raise the "
+    f"limit with {ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}."
+)
+"""What to do about a code-evaluator payload over the online-eval limit, in the same words
+for a scheduled evaluation and for a preview run under the online limits."""
+
+
+def get_env_online_eval_max_sandbox_payload_bytes() -> int:
+    """Get the online-eval code-evaluator payload cap, whose minimum is 1024 UTF-8 bytes."""
+    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
+    if max_bytes < 1_024:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}: "
+            f"{max_bytes}. Value must be an integer of at least 1024."
+        )
+    return max_bytes
 
 
 def get_env_root_url() -> URL:

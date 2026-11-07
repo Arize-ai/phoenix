@@ -19,7 +19,7 @@ import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 export const DEFAULT_OPTIMIZATION_DIRECTION: EvaluatorOptimizationDirection =
   "MAXIMIZE";
 
-export const optimizationDirectionOptions: {
+const optimizationDirectionOptions: {
   value: EvaluatorOptimizationDirection;
   label: string;
 }[] = [
@@ -37,6 +37,58 @@ const getOptimizationDirectionLabel = (
   );
 };
 
+type OptimizationDirectionSelectProps = {
+  value: EvaluatorOptimizationDirection;
+  onChange: (value: EvaluatorOptimizationDirection) => void;
+  isDisabled?: boolean;
+  /** Helper text rendered beneath the field via the `description` slot. */
+  description?: string;
+  "aria-label"?: string;
+  "data-testid"?: string;
+};
+
+/**
+ * The optimization direction select every evaluator annotation editor draws:
+ * a labelled `Select` of the three directions that fills its row.
+ */
+export function OptimizationDirectionSelect({
+  value,
+  onChange,
+  isDisabled,
+  description,
+  "aria-label": ariaLabel = "Optimization direction",
+  "data-testid": testId = "optimization-direction-picker",
+}: OptimizationDirectionSelectProps) {
+  return (
+    <Select
+      data-testid={testId}
+      value={value}
+      onChange={(key) => onChange(key as EvaluatorOptimizationDirection)}
+      isDisabled={isDisabled}
+      aria-label={ariaLabel}
+      css={css`
+        width: 100%;
+      `}
+    >
+      <Label>Optimization direction</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {optimizationDirectionOptions.map((option) => (
+            <SelectItem key={option.value} id={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+      {description ? <Text slot="description">{description}</Text> : null}
+    </Select>
+  );
+}
+
 export type OptimizationDirectionFieldProps = {
   isReadOnly?: boolean;
   isDisabled?: boolean;
@@ -45,6 +97,7 @@ export type OptimizationDirectionFieldProps = {
    * shown beneath the field when editable.
    */
   description?: string;
+  onChange?: () => void;
 };
 
 /**
@@ -57,6 +110,7 @@ export const OptimizationDirectionField = ({
   isReadOnly,
   isDisabled,
   description,
+  onChange,
 }: OptimizationDirectionFieldProps) => {
   const { optimizationDirection, setOutputConfigOptimizationDirectionAtIndex } =
     useEvaluatorStore(
@@ -78,36 +132,14 @@ export const OptimizationDirectionField = ({
   }
 
   return (
-    <Select
+    <OptimizationDirectionSelect
       value={optimizationDirection}
-      onChange={(e) =>
-        setOutputConfigOptimizationDirectionAtIndex(
-          0,
-          e as EvaluatorOptimizationDirection
-        )
-      }
+      onChange={(direction) => {
+        onChange?.();
+        setOutputConfigOptimizationDirectionAtIndex(0, direction);
+      }}
       isDisabled={isDisabled}
-      aria-label="Optimization direction"
-      data-testid="optimization-direction-picker"
-      css={css`
-        width: 100%;
-      `}
-    >
-      <Label>Optimization direction</Label>
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover>
-        <ListBox>
-          {optimizationDirectionOptions.map((option) => (
-            <SelectItem key={option.value} id={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </ListBox>
-      </Popover>
-      {description ? <Text slot="description">{description}</Text> : null}
-    </Select>
+      description={description}
+    />
   );
 };

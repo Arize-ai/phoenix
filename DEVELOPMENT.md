@@ -2,6 +2,11 @@
 
 - [Developer's Guide](#developers-guide)
   - [Quickstart](#quickstart)
+  - [Synthetic Trace Traffic](#synthetic-trace-traffic)
+    - [With `pnpm dev`](#with-pnpm-dev)
+    - [Running it directly](#running-it-directly)
+    - [Options](#options)
+    - [The corpus](#the-corpus)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
@@ -65,9 +70,105 @@ Open [http://localhost:6006](http://localhost:6006). If authentication is enable
 > PHOENIX_SQL_DATABASE_URL=sqlite:///:memory: pnpm dev
 > ```
 
-To send traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
+`pnpm dev` also starts a `datagen` process that continuously replays recorded OpenInference traces (one project per recorded application by default), so the dev server always has live traffic. See [Synthetic Trace Traffic](#synthetic-trace-traffic) to configure or disable it.
+
+To send your own traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
 
 If a step fails, consult the detailed setup instructions below.
+
+## Synthetic Trace Traffic
+
+`phoenix datagen` is an internal development tool that seeds development datasets, then replays a published corpus of recorded OpenInference traces into a Phoenix collector at a steady rate, forever, until you stop it. Use it whenever you need realistic, continuously arriving data — for example when working on online evals, live-updating tables, or time-series charts.
+
+> **⚠️ Internal tool:** `datagen` is hidden from `phoenix --help` and is not a supported feature. Its flags, default project name, and corpus format may change in any release without a MIGRATION.md entry.
+
+### With `pnpm dev`
+
+`pnpm dev` runs datagen as the `datagen` task in `dekit` (see `js/app/dekit.yaml`), via:
+
+```bash
+pnpm dev:datagen   # from js/app
+```
+
+It sources `js/app/.env` and sends traces to `http://localhost:${PHOENIX_PORT:-6006}`. It starts at the same time as the server; exports that fail while the server is still booting are logged as `OTLP export failed` warnings and that trace is skipped, so a few warnings at startup are expected; traffic flows once the server is up.
+
+- **Stop or restart it** from the `dekit` console: select the `datagen` task and press `x` to stop, `s` to start, or `r` to restart.
+- **Authentication:** if `PHOENIX_ENABLE_AUTH` is on, create a system API key in the Phoenix UI and add `PHOENIX_API_KEY=<key>` to `js/app/.env`. Without it every export fails with `401 Unauthorized`.
+
+### Running it directly
+
+From the repo root, against any Phoenix instance:
+
+```bash
+# defaults: http://localhost:6006, one project per application, 12 traces/minute
+uv run phoenix datagen
+
+# fully configured
+uv run phoenix datagen \
+  --endpoint http://localhost:6007 \
+  --project my-project \
+  --rate 60 \
+  --api-key $PHOENIX_API_KEY
+```
+
+Stop it with `Ctrl+C`.
+
+### Changing the rate while it runs
+
+Pass `--control-port` to serve a control page, for example
+`uv run phoenix datagen --control-port 8080`, then open http://127.0.0.1:8080/.
+The page sets the rate and burstiness, pauses and resumes replay, sends a burst
+of traces immediately, and shows delivered and failed exports. A new rate takes
+effect immediately. Settings are not saved, so a restart uses the command-line
+values again.
+
+The same controls are available as JSON, for example
+`curl -X PATCH localhost:8080/api/state -d '{"rate": 120}'`. `GET /api/state`
+returns the settings and counts, and `POST /api/send?n=10` sends ten traces now.
+`GET /metrics` exposes the counts and settings in the Prometheus text format.
+The control server has no authentication. It listens on `127.0.0.1` unless you
+pass `--control-host`.
+
+### Options
+
+Command-line flags take precedence over environment variables.
+
+| Flag | Environment variable | Default | Description |
+| --- | --- | --- | --- |
+| `--endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | `http://localhost:6006` | Phoenix collector base URL. Traces are sent over OTLP/HTTP to `<endpoint>/v1/traces`. |
+| `--project` | — | per application | Send every application to this one project instead of one project per recorded application. |
+| `--rate` | — | `12` | Mean traces per minute. Must be greater than zero. |
+| `--burstiness` | — | `0.5` | Variability of the time between traces. `0` is perfectly uniform; higher values make traffic burstier. |
+| `--api-key` | `PHOENIX_API_KEY` | none | API key, required when authentication is enabled. |
+| `--corpus` | — | published corpus | Path to a local corpus archive to replay instead of the published one. |
+| `--no-datasets` | — | false | Skip dataset and decision seeding and only replay traces. |
+| `--control-port` | — | off | Serve a page and JSON API for changing the rate while replaying. |
+| `--control-host` | — | `127.0.0.1` | Interface the control server listens on. |
+| — | `PHOENIX_CLIENT_HEADERS` | none | Extra request headers as `key=value,key2=value2` (URL-encoded). |
+
+In `pnpm dev`, `--endpoint` is always passed explicitly (built from `PHOENIX_PORT`), so `PHOENIX_COLLECTOR_ENDPOINT` in `.env` has no effect there.
+
+### Development datasets
+
+Before replaying traces, datagen seeds development fixtures (unless `--no-datasets` is passed): the `px-datagen-typed-decisions` dataset (400 examples across four workflow splits), its workflow decisions and accuracy dataset evaluator, custom provider stubs, and disabled online evaluators on `support-chatbot`. No model inference is performed during seeding, and user-tuned model selections and evaluator settings are preserved across restarts. See `src/phoenix/experimental/datagen/` for the seeded definitions.
+
+To seed datasets and evaluators without starting trace replay:
+
+```bash
+uv run phoenix datagen seed                              # default: typed-decisions
+uv run phoenix datagen seed --source all                 # typed-decisions, jevbench-hard, boolq
+uv run phoenix datagen seed --file examples.jsonl --name my-dataset
+```
+
+Use `--format parquet` with `--file` for local Parquet files. Downloads are cached under `${XDG_CACHE_HOME:-~/.cache}/phoenix/datagen/datasets/`.
+
+### The corpus
+
+The first run downloads the published corpus and caches it locally (content-addressed, so it is only re-downloaded when the corpus changes). To pre-fetch it, for example before going offline, run:
+
+```bash
+uv run phoenix datagen pull   # prints the cached archive path
+```
 
 ## Setting Up Your macOS Development Environment
 
@@ -397,7 +498,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
  pnpm dev
 ```
 
-This launches both the Python server and the frontend UI simultaneously using [dekit](https://dekit.run) (see `js/app/dekit.yaml`). The server will start with debugpy listening on port 5678.
+This launches the Python server, the frontend UI, and the [synthetic trace generator](#synthetic-trace-traffic) simultaneously using [dekit](https://dekit.run) (see `js/app/dekit.yaml`). The server will start with debugpy listening on port 5678.
 
 > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
 >

@@ -1,7 +1,11 @@
 import { resolvePlaygroundDatasetId } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
-import type { PlaygroundStore } from "@phoenix/store/playground";
+import {
+  getPlaygroundMode,
+  type PlaygroundStore,
+} from "@phoenix/store/playground";
 
+import { describeMode } from "../playgroundTask/selectTask";
 import { parseSetTemplateVariablesPathInput } from "./parsers";
 
 export function createSetTemplateVariablesPathClientAction({
@@ -43,18 +47,20 @@ export function createSetTemplateVariablesPathClientAction({
     }
 
     const templateVariablesPath = parsed.path || null;
-    playgroundStore
-      .getState()
-      .setTemplateVariablesPath({ templateVariablesPath, datasetId });
+    const { instances, setTemplateVariablesPath } = playgroundStore.getState();
+    // Each mode keeps its own path; this sets the page's mode.
+    const mode = getPlaygroundMode(instances);
+    setTemplateVariablesPath({ templateVariablesPath, datasetId, mode });
 
     return {
       ok: true,
       output: {
         status: "updated",
+        mode,
         templateVariablesPath,
         message: templateVariablesPath
-          ? `Set template variables path to "${templateVariablesPath}".`
-          : "Set template variables path to the example root.",
+          ? `Set the ${describeMode(mode)}' template variables path to "${templateVariablesPath}".`
+          : `Set the ${describeMode(mode)}' template variables path to the example root.`,
       },
     };
   };

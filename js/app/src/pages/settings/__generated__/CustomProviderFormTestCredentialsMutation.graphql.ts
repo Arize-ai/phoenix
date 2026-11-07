@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<46a0a98928e05ca00500b5ccffacbb05>>
+ * @generated SignedSource<<aa33fed93a39606110f03d0d72a18567>>
  * @lightSyntaxTransform
  */
 
@@ -15,30 +15,42 @@ export type GenerativeModelCustomerProviderConfigInput = {
   azureOpenai?: never;
   googleGenai?: never;
   openai: OpenAICustomProviderConfigInput;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai: AzureOpenAICustomProviderConfigInput;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic: AnthropicCustomProviderConfigInput;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock: AWSBedrockCustomProviderConfigInput;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai: GoogleGenAICustomProviderConfigInput;
   openai?: never;
+  typesafe?: never;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+  typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
@@ -126,6 +138,17 @@ export type GoogleGenAIClientKwargsInput = {
 export type GoogleGenAIHttpOptionsInput = {
   baseUrl?: string | null;
   headers?: any | null;
+};
+export type TypeSafeCustomProviderConfigInput = {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
+  typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
+};
+export type TypeSafeAuthenticationMethodInput = {
+  apiKey: string;
+};
+export type TypeSafeClientKwargsInput = {
+  baseUrl?: string | null;
+  defaultHeaders?: any | null;
 };
 export type CustomProviderFormTestCredentialsMutation$variables = {
   input: GenerativeModelCustomerProviderConfigInput;

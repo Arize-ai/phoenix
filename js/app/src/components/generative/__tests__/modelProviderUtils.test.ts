@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyBedrockModelPrefix,
+  getChatModelProviders,
   hasRequiredLocalCredentials,
   isProviderProvisioned,
   isProviderReady,
@@ -395,5 +396,19 @@ describe("stripBedrockRegionPrefix", () => {
     ["usa.anthropic.x", "usa.anthropic.x"],
   ])("%s is %s", (modelName, expected) => {
     expect(stripBedrockRegionPrefix(modelName)).toBe(expected);
+  });
+});
+
+describe("getChatModelProviders", () => {
+  it("leaves out providers that serve decision models only", () => {
+    const providers = [
+      { key: "OPENAI", modelTypes: ["LLM", "DECISION"] },
+      { key: "TYPESAFE", modelTypes: ["DECISION"] },
+      { key: "ANTHROPIC", modelTypes: ["LLM"] },
+    ];
+    expect(getChatModelProviders(providers).map(({ key }) => key)).toEqual([
+      "OPENAI",
+      "ANTHROPIC",
+    ]);
   });
 });

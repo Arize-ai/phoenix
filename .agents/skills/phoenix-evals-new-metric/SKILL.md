@@ -87,7 +87,7 @@ This generates code in three places:
 - `src/phoenix/__generated__/classification_evaluator_configs/` (Python, server copy)
 - `js/packages/phoenix-evals/src/__generated__/default_templates/` (TypeScript)
 
-It also copies `prompts/formatters/server.yaml` into `src/phoenix/server/api/helpers/substitutions/`. The server reads that copy for promoted evaluators.
+It also copies `prompts/formatters/server.yaml` into `src/phoenix/server/evaluators/substitutions/`. The server reads that copy for promoted evaluators.
 
 Verify the generated files look correct before moving on.
 

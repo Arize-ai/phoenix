@@ -1,19 +1,36 @@
-import { useMatches } from "react-router";
+import { type To, useMatches } from "react-router";
 
 import type { CopyActionMenuItem } from "@phoenix/components";
 
-export type CrumbFn = (data: unknown) => string;
+/**
+ * A breadcrumb's text. A route whose loader does not wait for the name, so
+ * the page can show its skeleton at once, hands over the name as a promise
+ * and the breadcrumb resolves it on its own.
+ */
+export type Crumb = string | Promise<string>;
+export type CrumbFn = (data: unknown) => Crumb;
 /**
  * @deprecated Use CopyActionMenuItem from @phoenix/components instead
  */
 export type CopyItem = CopyActionMenuItem;
 export type CopyFn = (data: unknown) => CopyActionMenuItem[];
+/**
+ * Resolves a custom destination for the preceding breadcrumb.
+ * @param params - Breadcrumb navigation context.
+ * @param params.parentPathname - The matched pathname of the preceding crumb.
+ * @param params.search - The current URL search string.
+ */
+export type ParentCrumbToFn = (params: {
+  parentPathname: string;
+  search: string;
+}) => To;
 type Matches = ReturnType<typeof useMatches>;
 type Match = Matches[number];
 type RouteMatchWithCrumb = Match & {
   handle: {
     crumb: CrumbFn;
     copy?: CopyFn;
+    parentCrumbTo?: ParentCrumbToFn;
   };
 };
 

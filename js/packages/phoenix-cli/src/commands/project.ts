@@ -13,6 +13,7 @@ import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import { formatProjectsOutput, type OutputFormat } from "./formatProjects";
 import type { CommonOptions, DeleteOptions } from "./options";
+import { createProjectEvaluatorCommand } from "./projectEvaluator";
 
 /**
  * Options for `px project list`.
@@ -352,5 +353,6 @@ export function createProjectCommand(): Command {
   command.addCommand(configureProjectListCommand(new Command("list")));
   command.addCommand(createProjectGetCommand());
   command.addCommand(createProjectDeleteCommand());
+  command.addCommand(createProjectEvaluatorCommand());
   return command;
 }

@@ -39,6 +39,8 @@ export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
               id
               traceId
             }
+            statusCode
+            statusMessage
             attributes
           }
         }

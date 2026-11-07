@@ -90,6 +90,12 @@ describe("PXI options", () => {
     }
   });
 
+  it("explains why a decision-only provider cannot run PXI", () => {
+    expect(() => resolveModelSelection({ provider: "typesafe" })).toThrow(
+      "Invalid value for --provider: typesafe. TypeSafe offers decision models only and cannot run PXI, which needs a chat model. Expected one of:"
+    );
+  });
+
   it("requires --model for custom providers", () => {
     expect(() =>
       resolveModelSelection({ customProviderId: "provider-1" })

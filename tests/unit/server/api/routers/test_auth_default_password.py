@@ -19,6 +19,7 @@ from phoenix.session.session import ThreadSession
 from tests.unit.conftest import (
     patch_dml_event_handler,
     patch_grpc_server,
+    patch_online_eval_daemons,
 )
 
 _NEW_PASSWORD = "admin123"
@@ -63,6 +64,7 @@ async def _auth_client(tmp_path: Path) -> AsyncIterator[httpx2.AsyncClient]:
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_grpc_server())
         await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_online_eval_daemons())
         await stack.enter_async_context(LifespanManager(session.app))
         async with httpx2.AsyncClient(
             transport=httpx2.ASGITransport(app=session.app),

@@ -30,6 +30,8 @@ import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 import type { PromptMenuQuery } from "@phoenix/pages/playground/__generated__/PromptMenuQuery.graphql";
+import { PromptOrDecisionMenu } from "@phoenix/pages/playground/PromptOrDecisionMenu";
+import { sourceMenuContainerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
 import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 
 export type PromptVersion = {
@@ -177,12 +179,13 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
 
   if (selectedPrompt) {
     return (
-      <div css={promptMenuContainerCSS}>
+      <div css={sourceMenuContainerCSS}>
         <CompositeField>
           <PromptSelector
             prompts={prompts}
             selectedPrompt={selectedPrompt}
             onSelectPrompt={handleSelectPrompt}
+            hasVersionSelector
           />
           <PromptVersionSelector
             prompt={selectedPrompt}
@@ -197,39 +200,16 @@ export const PromptMenu = ({ value, onChange }: PromptMenuProps) => {
   }
 
   return (
-    <div css={promptMenuContainerCSS}>
+    <div css={sourceMenuContainerCSS}>
       <PromptSelector
         prompts={prompts}
         selectedPrompt={selectedPrompt}
         onSelectPrompt={handleSelectPrompt}
+        hasVersionSelector={false}
       />
     </div>
   );
 };
-
-const promptMenuContainerCSS = css`
-  min-width: 0;
-  flex: 0 1 auto;
-  overflow: hidden;
-  display: flex;
-`;
-
-/**
- * Width strategy for PromptSelector:
- *
- * The button width is controlled by these factors:
- * - min-width: Ensures the button is always usably wide
- * - max-width (placeholder): Prevents "Select prompt" from stretching too wide
- * - max-width (selected): Uncapped, allows button to use available space
- * - text max-width: Truncates long prompt names with ellipsis
- *
- * The button uses flex: 1 1 auto so it grows/shrinks within these bounds.
- */
-const promptSelectorWidthCSS = css`
-  --button-min-width: var(--global-dimension-size-1800);
-  --button-max-width-placeholder: var(--global-dimension-size-2400);
-  --text-max-width: 30ch;
-`;
 
 /**
  * Left dropdown: Searchable prompt selector.
@@ -239,86 +219,24 @@ export function PromptSelector({
   prompts,
   selectedPrompt,
   onSelectPrompt,
+  hasVersionSelector,
 }: {
   prompts: PromptData[];
   selectedPrompt: PromptData | null;
   onSelectPrompt: (promptId: string) => void;
+  hasVersionSelector: boolean;
 }) {
-  const { contains } = useFilter({ sensitivity: "base" });
-
-  const promptItems = useMemo(() => {
-    return prompts.map((p) => ({
-      id: p.id,
-      name: p.name,
-    }));
-  }, [prompts]);
-
-  const hasPrompts = prompts.length > 0;
-
-  const emptyText = hasPrompts ? "Select a prompt" : "No saved prompts";
   return (
-    <MenuTrigger>
-      <Button
-        size="S"
-        className="left-child"
-        isDisabled={!hasPrompts}
-        data-has-selection={selectedPrompt ? true : undefined}
-        css={css(
-          promptSelectorWidthCSS,
-          css`
-            justify-content: space-between;
-            flex: 1 1 auto;
-            min-width: var(--button-min-width);
-            max-width: var(--button-max-width-placeholder);
-            overflow: hidden;
-            &[data-has-selection] {
-              max-width: none;
-            }
-          `
-        )}
-      >
-        <Truncate maxWidth="var(--text-max-width)" title={selectedPrompt?.name}>
-          {selectedPrompt?.name ?? (
-            <Text color="text-500" fontStyle="italic">
-              {emptyText}
-            </Text>
-          )}
-        </Truncate>
-        <SelectChevronUpDownIcon />
-      </Button>
-      <MenuContainer placement="bottom start" minHeight={0}>
-        <Autocomplete filter={contains}>
-          <MenuHeader>
-            <SearchField aria-label="Search prompts" variant="quiet" autoFocus>
-              <SearchIcon />
-              <Input placeholder="Search prompts" />
-            </SearchField>
-          </MenuHeader>
-          <Menu
-            selectionMode="single"
-            selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
-            items={promptItems}
-            renderEmptyState={() => (
-              <CompactEmptyState
-                icon={<Icon svg={<Icons.Edit />} />}
-                description="No prompts"
-              />
-            )}
-            onAction={(key) => {
-              onSelectPrompt(String(key));
-            }}
-          >
-            {({ id, name }) => (
-              <MenuItem id={id} textValue={name}>
-                <Truncate maxLines={2} title={name}>
-                  {name}
-                </Truncate>
-              </MenuItem>
-            )}
-          </Menu>
-        </Autocomplete>
-      </MenuContainer>
-    </MenuTrigger>
+    <PromptOrDecisionMenu
+      items={prompts}
+      selectedItem={selectedPrompt}
+      onSelect={onSelectPrompt}
+      hasVersionSelector={hasVersionSelector}
+      placeholder="Select a prompt"
+      noItemsText="No saved prompts"
+      searchLabel="Search prompts"
+      noMatchesText="No prompts"
+    />
   );
 }
 

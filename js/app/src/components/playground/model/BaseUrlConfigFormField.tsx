@@ -1,7 +1,7 @@
 import debounce from "lodash/debounce";
 import { useMemo } from "react";
 
-import { Input, Label, TextField } from "@phoenix/components";
+import { Input, Label, Text, TextField } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 export type BaseUrlConfigFormFieldProps = {
@@ -9,6 +9,10 @@ export type BaseUrlConfigFormFieldProps = {
    * The playground instance ID to configure
    */
   playgroundInstanceId: number;
+  /**
+   * Helper text shown under the field.
+   */
+  description?: string;
 };
 
 /**
@@ -17,6 +21,7 @@ export type BaseUrlConfigFormFieldProps = {
  */
 export function BaseUrlConfigFormField({
   playgroundInstanceId,
+  description,
 }: BaseUrlConfigFormFieldProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
@@ -48,6 +53,7 @@ export function BaseUrlConfigFormField({
     >
       <Label>Base URL</Label>
       <Input placeholder="e.x. https://my-llm.com/v1" />
+      {description ? <Text slot="description">{description}</Text> : null}
     </TextField>
   );
 }

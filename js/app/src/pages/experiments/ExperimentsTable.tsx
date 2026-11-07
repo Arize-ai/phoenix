@@ -276,6 +276,9 @@ export function ExperimentsTable({
             edges {
               node {
                 name
+                evaluator {
+                  kind
+                }
                 outputConfigs {
                   __typename
                   ... on CategoricalAnnotationConfig {
@@ -357,6 +360,15 @@ export function ExperimentsTable({
                 }
                 job {
                   status
+                  taskConfig {
+                    __typename
+                    ... on DecisionTaskConfig {
+                      id
+                    }
+                    ... on PromptTaskConfig {
+                      id
+                    }
+                  }
                 }
               }
             }
@@ -817,6 +829,10 @@ export function ExperimentsTable({
       cell: ({ row }) => {
         const project = row.original.project;
         const metadata = row.original.metadata;
+        const taskConfig = row.original.job?.taskConfig;
+        const canOpenInPlayground =
+          taskConfig?.__typename === "PromptTaskConfig" ||
+          taskConfig?.__typename === "DecisionTaskConfig";
         return (
           <StopPropagation>
             <Flex direction="row" gap="size-100">
@@ -840,6 +856,7 @@ export function ExperimentsTable({
                 isBaseline={row.original.isBaseline}
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
+                canOpenInPlayground={canOpenInPlayground}
                 size="S"
                 canEditExperiment
                 experimentName={row.original.name}

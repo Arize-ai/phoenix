@@ -18,6 +18,10 @@ import {
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import {
+  DEFAULT_MAX_CONCURRENCY,
+  isDecisionInstance,
+} from "@phoenix/store/playground";
 import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
 import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 
@@ -25,6 +29,9 @@ import {
   NUM_MAX_PLAYGROUND_REPETITIONS,
   NUM_MIN_PLAYGROUND_REPETITIONS,
 } from "./constants";
+
+/** The store validates concurrency to this range (see `maxConcurrency`). */
+const MAX_PLAYGROUND_CONCURRENCY = 100;
 
 export function PlaygroundConfigButton() {
   const streaming = usePlaygroundContext((state) => state.streaming);
@@ -42,6 +49,25 @@ export function PlaygroundConfigButton() {
   );
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
+  );
+
+  // Concurrency is kept per dataset, since it describes how a dataset run
+  // fans out; it has no effect on a single manual run.
+  const datasetId = usePlaygroundContext((state) => state.datasetId);
+
+  const maxConcurrency = usePlaygroundContext((state) =>
+    datasetId != null
+      ? (state.stateByDatasetId[datasetId]?.maxConcurrency ??
+        DEFAULT_MAX_CONCURRENCY)
+      : DEFAULT_MAX_CONCURRENCY
+  );
+
+  const setMaxConcurrency = usePlaygroundContext(
+    (state) => state.setMaxConcurrency
+  );
+
+  const hasDecisionInstance = usePlaygroundContext((state) =>
+    state.instances.some(isDecisionInstance)
   );
   return (
     <DialogTrigger>
@@ -78,22 +104,40 @@ export function PlaygroundConfigButton() {
                   Increase the number of repetitions to run each experiment task
                   multiple times.
                 </Text>
+                <Slider
+                  label="Concurrency"
+                  minValue={1}
+                  maxValue={MAX_PLAYGROUND_CONCURRENCY}
+                  value={maxConcurrency}
+                  isDisabled={datasetId == null || isRunning}
+                  onChange={(value) => {
+                    if (datasetId != null)
+                      setMaxConcurrency({ maxConcurrency: value, datasetId });
+                  }}
+                >
+                  <SliderNumberField />
+                </Slider>
+                <Text color="text-700" size="XS">
+                  How many examples a dataset run evaluates at once. Select a
+                  dataset to change it.
+                </Text>
                 <Flex direction="row" justifyContent="start">
                   <Switch
                     labelPlacement="start"
-                    isSelected={streaming}
+                    isSelected={streaming && !hasDecisionInstance}
                     onChange={() => {
                       setStreaming(!streaming);
                       setPlaygroundStreamingEnabled(!streaming);
                     }}
-                    isDisabled={isRunning}
+                    isDisabled={isRunning || hasDecisionInstance}
                   >
                     <Text size="M">Streaming</Text>
                   </Switch>
                 </Flex>
                 <Text color="text-700" size="XS">
-                  Enable streaming to view experiment task output as it is
-                  generated in real time.
+                  {hasDecisionInstance
+                    ? "Decision models return a complete typed response and do not stream."
+                    : "Enable streaming to view experiment task output as it is generated in real time."}
                 </Text>
                 <ComboBox
                   aria-label="AWS Bedrock Model Prefix"

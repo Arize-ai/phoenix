@@ -3,9 +3,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 import strawberry
-from sqlalchemy import Text, and_, func, or_, select
+from sqlalchemy import ColumnElement, Text, and_, func, or_, select
 from sqlalchemy import cast as sqlalchemy_cast
-from sqlalchemy.orm import with_polymorphic
 from sqlalchemy.sql.functions import count
 from sqlalchemy.sql.sqltypes import String
 from strawberry import UNSET
@@ -619,41 +618,61 @@ class Dataset(Node):
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-
-        PolymorphicEvaluator = with_polymorphic(
-            models.Evaluator, [models.LLMEvaluator, models.CodeEvaluator]
+        return await dataset_evaluator_connection(
+            info,
+            dataset_id=self.id,
+            sort=sort if isinstance(sort, DatasetEvaluatorSort) else None,
+            filter=filter if isinstance(filter, DatasetEvaluatorFilter) else None,
+            args=args,
         )
-        stmt = (
-            select(models.DatasetEvaluators)
-            .outerjoin(
-                PolymorphicEvaluator,
-                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
-            )
-            .where(models.DatasetEvaluators.dataset_id == self.id)
-        )
-        if filter:
-            column = getattr(models.DatasetEvaluators, filter.col.value)
-            if filter.col.value == "name":
-                column = sqlalchemy_cast(column, String)
-            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
-        if sort:
-            if sort.col.value == "kind":
-                sort_col = PolymorphicEvaluator.kind
-            else:
-                sort_col = getattr(models.DatasetEvaluators, sort.col.value)
-            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
-        else:
-            stmt = stmt.order_by(models.DatasetEvaluators.name.asc())
-
-        async with info.context.db.read() as session:
-            result = await session.scalars(stmt)
-            data: list[DatasetEvaluator] = [DatasetEvaluator(id=record.id) for record in result]
-        # TODO: we need to handle sorting for builtin evaluators as their "kind"
-        # (and other evaluator fields) are not part of the polymorphic table
-        # re-sort the final results by kind, this is necessary because builtin evaluators are not
-        #  part of the polymorphic table
-        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:
         return info.context.last_updated_at.get(models.Dataset, self.id)
+
+
+async def dataset_evaluator_connection(
+    info: Info[Context, None],
+    *,
+    dataset_id: Optional[int],
+    sort: Optional[DatasetEvaluatorSort],
+    filter: Optional[DatasetEvaluatorFilter],
+    args: ConnectionArgs,
+) -> Connection[DatasetEvaluator]:
+    """
+    Dataset evaluators of one dataset, or of every dataset when dataset_id is None. Across
+    datasets the name filter also matches the dataset's name.
+    """
+    stmt = select(models.DatasetEvaluators.id).join(
+        models.Evaluator,
+        models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+    )
+    if dataset_id is not None:
+        stmt = stmt.where(models.DatasetEvaluators.dataset_id == dataset_id)
+    if filter:
+        pattern = f"%{filter.value}%"
+        name_matches: ColumnElement[bool] = sqlalchemy_cast(
+            models.DatasetEvaluators.name, String
+        ).ilike(pattern)
+        if dataset_id is None:
+            stmt = stmt.join(
+                models.Dataset,
+                models.DatasetEvaluators.dataset_id == models.Dataset.id,
+            )
+            name_matches = or_(name_matches, models.Dataset.name.ilike(pattern))
+        stmt = stmt.where(name_matches)
+    if sort:
+        if sort.col.value == "kind":
+            sort_col = models.Evaluator.kind
+        else:
+            sort_col = getattr(models.DatasetEvaluators, sort.col.value)
+        stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+    else:
+        stmt = stmt.order_by(models.DatasetEvaluators.name.asc())
+    # Names repeat across datasets and pages are sliced from this ordered list.
+    stmt = stmt.order_by(models.DatasetEvaluators.id.asc())
+
+    async with info.context.db.read() as session:
+        ids = await session.scalars(stmt)
+        data = [DatasetEvaluator(id=id_) for id_ in ids]
+    return connection_from_list(data=data, args=args)

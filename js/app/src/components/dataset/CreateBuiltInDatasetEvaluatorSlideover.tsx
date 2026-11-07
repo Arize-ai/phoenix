@@ -155,6 +155,11 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
+              # The dataset's Evaluators tab counts its evaluators.
+              dataset {
+                id
+                evaluatorCount
+              }
               ...PlaygroundDatasetSection_evaluator
               ...DatasetEvaluatorsTable_row
             }

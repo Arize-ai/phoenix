@@ -13,6 +13,8 @@ readonly PROJECT_NAME="devops"
 readonly HEALTH_URL="http://localhost:18273/phoenix/healthz"
 readonly HEALTH_TIMEOUT=60
 readonly HEALTH_LOG_CHECK=15
+readonly DATAGEN_STATE_URL="http://localhost:18273/datagen/api/state"
+readonly DATAGEN_TIMEOUT=120
 
 # Global variables
 CURRENT_PROFILES=""
@@ -20,6 +22,7 @@ CURRENT_SCHEMA=""
 COMPOSE_FILES="-f docker-compose.yml"
 PROFILE_FLAGS=""
 COMMAND=""
+COMPOSE_BIN=()
 
 # Logging helpers
 log_info() { echo "🔵 $1"; }
@@ -27,17 +30,46 @@ log_success() { echo "✅ $1"; }
 log_warning() { echo "⚠️  $1"; }
 log_error() { echo "❌ $1"; }
 
+# Prefer the Compose plugin (`docker compose`); fall back to the standalone binary
+detect_compose() {
+    if docker compose version >/dev/null 2>&1; then
+        COMPOSE_BIN=(docker compose)
+    elif command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_BIN=(docker-compose)
+    else
+        COMPOSE_BIN=()
+    fi
+}
+
 # Check dependencies
 check_dependencies() {
     local missing=()
     command -v docker >/dev/null 2>&1 || missing+=("docker")
-    command -v docker-compose >/dev/null 2>&1 || missing+=("docker-compose")
+    detect_compose
+    [[ ${#COMPOSE_BIN[@]} -gt 0 ]] || missing+=("docker compose")
     
     if [[ ${#missing[@]} -gt 0 ]]; then
         log_error "Missing required dependencies: ${missing[*]}"
         echo "Please install: ${missing[*]}"
+        echo "Run './dev.sh doctor' for a full environment check"
         exit 1
     fi
+}
+
+# Remove each named Docker object, showing failures. Returns 1 if any failed.
+remove_each() {
+    local kind="$1"
+    shift
+    local failed=0
+    local name
+    for name in "$@"; do
+        if docker "$kind" rm "$name" >/dev/null; then
+            echo "   removed $name"
+        else
+            failed=1
+        fi
+    done
+    return $failed
 }
 
 # Stop all containers for this project
@@ -97,6 +129,14 @@ get_profile_config() {
             ;;
         "grafana")
             # Grafana profile doesn't need override - pure profile in main file
+            echo "profile"
+            ;;
+        "mock-llm")
+            # Mock LLM profile doesn't need override - pure profile in main file
+            echo "profile"
+            ;;
+        "datagen")
+            # Datagen profile doesn't need override - pure profile in main file
             echo "profile"
             ;;
         "ldap")
@@ -250,7 +290,7 @@ parse_args() {
 
 # Build docker-compose command as array and execute it
 compose_cmd() {
-    local cmd=(docker-compose)
+    local cmd=("${COMPOSE_BIN[@]}")
     
     # Add compose files
     local IFS=' '
@@ -269,7 +309,7 @@ compose_cmd() {
 
 # Get docker-compose command as string (for display purposes)
 compose_cmd_str() {
-    echo "docker-compose $COMPOSE_FILES $PROFILE_FLAGS"
+    echo "${COMPOSE_BIN[*]} $COMPOSE_FILES $PROFILE_FLAGS"
 }
 
 # Wait for Phoenix health check
@@ -318,6 +358,36 @@ wait_for_phoenix() {
     return 1
 }
 
+# Wait for datagen to finish seeding datasets, custom providers, and evaluators
+wait_for_datagen() {
+    if [[ " $CURRENT_PROFILES " != *" datagen "* ]]; then
+        return 0
+    fi
+
+    echo "⏳ Waiting for datagen to finish seeding..."
+    local attempt=1
+    while [ $attempt -le $DATAGEN_TIMEOUT ]; do
+        if curl -s -f "$DATAGEN_STATE_URL" 2>/dev/null | grep -q '"phase"[[:space:]]*:[[:space:]]*"replaying"'; then
+            echo ""
+            log_success "Datagen is replaying!"
+            return 0
+        fi
+
+        if [ $attempt -eq 1 ]; then
+            echo -n "   Seeding"
+        fi
+        echo -n "."
+
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    echo ""
+    log_error "Datagen seeding did not complete within ${DATAGEN_TIMEOUT} seconds"
+    echo "   Check logs: $(compose_cmd_str) logs datagen"
+    return 1
+}
+
 # Show available services
 show_services() {
     echo "🌐 Web Services:"
@@ -344,8 +414,23 @@ show_services() {
                 "in-memory")
                     echo "  Database: In-memory SQLite"
                     ;;
+                "toxiproxy")
+                    echo "  Database:   Phoenix connects through Toxiproxy (2ms ±1ms by default)"
+                    echo "  Controls:   http://localhost:18273/toxiproxy/"
+                    ;;
                 "grafana")
                     echo "  Monitoring: Grafana + Prometheus enabled"
+                    echo "  Grafana:    http://localhost:18273/grafana"
+                    echo "  Prometheus: http://localhost:18273/prometheus/"
+                    ;;
+                "mock-llm")
+                    echo "  Mock LLM:   http://mock-llm:57593/v1 (from the Phoenix container)"
+                    echo "  Dashboard:  http://localhost:18273/mock-llm/dashboard/"
+                    ;;
+                "datagen")
+                    echo "  Datagen:    replaying traces, one project per recorded application"
+                    echo "  Controls:   http://localhost:18273/datagen/"
+                    echo "  Logs:       $(compose_cmd_str) logs -f datagen"
                     ;;
                 "ldap")
                     echo "  Authentication: LDAP server enabled"
@@ -405,6 +490,8 @@ list_profiles() {
     echo "  in-memory          In-memory SQLite database"
     echo "  toxiproxy          Enable network simulation with Toxiproxy"
   echo "  grafana            Enable Grafana and Prometheus monitoring"
+  echo "  mock-llm           Enable the mock LLM server (OpenAI, Anthropic, Gemini, TypeSafe)"
+  echo "  datagen            Replay synthetic traces (one project per application)"
   echo "  ldap               Enable LDAP authentication (mock LDAP server)"
   echo "  ldap-no-email      Enable LDAP authentication (users without email)"
   echo "  ldap-posix         Enable LDAP authentication (POSIX groups, no memberOf)"
@@ -419,6 +506,8 @@ list_profiles() {
     echo "  ./dev.sh up --profile in-memory          # In-memory SQLite database"
     echo "  ./dev.sh up --profile toxiproxy          # Enable network simulation"
   echo "  ./dev.sh up --profile grafana            # Enable Grafana monitoring"
+  echo "  ./dev.sh up --profile mock-llm           # Enable the mock LLM server"
+  echo "  ./dev.sh up --profile datagen            # Replay synthetic traces"
   echo "  ./dev.sh up --profile ldap               # Enable LDAP authentication"
   echo "  ./dev.sh up --profile ldap-no-email      # LDAP without email addresses"
   echo "  ./dev.sh up --profile ldap-posix         # LDAP with POSIX groups"
@@ -426,11 +515,167 @@ list_profiles() {
   echo "  ./dev.sh up --profiles vite,grafana      # Multiple profiles"
 }
 
-# Check dependencies
-check_dependencies
+# Report whether a host TCP port is free or held by this project's containers
+check_port() {
+    local port="$1"
+    local purpose="$2"
+    local listening=""
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && listening=1
+    elif command -v nc >/dev/null 2>&1; then
+        nc -z localhost "$port" >/dev/null 2>&1 && listening=1
+    else
+        log_warning "Port $port ($purpose): cannot check (install lsof or nc)"
+        return 0
+    fi
+
+    if [[ -z "$listening" ]]; then
+        log_success "Port $port ($purpose) is free"
+    elif docker ps --filter "label=com.docker.compose.project=${PROJECT_NAME}" --format '{{.Ports}}' 2>/dev/null | grep -q ":${port}->"; then
+        log_success "Port $port ($purpose) is in use by this stack"
+    else
+        log_error "Port $port ($purpose) is in use by another process"
+        echo "   Find it with: lsof -nP -iTCP:$port -sTCP:LISTEN"
+        DOCTOR_FAILED=1
+    fi
+}
+
+# Flag images older than their build context, and containers running a
+# superseded image. Source files are the git-tracked and untracked-unignored
+# files in each build context.
+check_image_freshness() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        log_warning "python3 not found; skipping image freshness check"
+        return 0
+    fi
+    local config
+    if ! config=$(compose_cmd config --format json 2>/dev/null); then
+        log_warning "Could not read compose config; skipping image freshness check"
+        return 0
+    fi
+    # PROJECT_NAME is readonly, and assigning to it as a command prefix aborts the script.
+    COMPOSE_JSON="$config" DEVOPS_PROJECT="$PROJECT_NAME" python3 - <<'PY' || DOCTOR_WARNED=1
+import json, os, subprocess, sys
+from datetime import datetime
+
+def run(*args):
+    result = subprocess.run(args, capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+def parse_time(value):
+    # Docker reports nanoseconds; datetime accepts at most microseconds
+    head, _, frac = value.rstrip("Z").partition(".")
+    return datetime.fromisoformat(f"{head}.{(frac or '0')[:6]}+00:00").timestamp()
+
+config = json.loads(os.environ["COMPOSE_JSON"])
+project = config.get("name") or os.environ["DEVOPS_PROJECT"]
+stale = False
+for name, service in sorted(config.get("services", {}).items()):
+    build = service.get("build")
+    if not build:
+        continue
+    image = service.get("image") or f"{project}-{name}"
+    created = run("docker", "image", "inspect", "-f", "{{.Created}}", image)
+    if created is None:
+        print(f"🔵 {name}: no image yet; 'up' will build it")
+        continue
+    built_at = parse_time(created)
+    context = build["context"]
+    files = run("git", "-C", context, "ls-files", "-co", "--exclude-standard", "--full-name", ".")
+    root = run("git", "-C", context, "rev-parse", "--show-toplevel")
+    changed = []
+    for rel in (files or "").splitlines():
+        path = os.path.join(root, rel)
+        try:
+            if os.path.getmtime(path) > built_at:
+                changed.append(rel)
+        except OSError:
+            pass
+    if changed:
+        stale = True
+        print(f"⚠️  {name}: image is older than {len(changed)} source file(s), e.g. {changed[0]}")
+        print("   Fix: ./dev.sh up (rebuilds changed images)")
+    else:
+        print(f"✅ {name}: image is up to date with its source")
+
+    image_id = run("docker", "image", "inspect", "-f", "{{.Id}}", image)
+    containers = run(
+        "docker", "ps", "-q",
+        "--filter", f"label=com.docker.compose.project={project}",
+        "--filter", f"label=com.docker.compose.service={name}",
+    )
+    for container in (containers or "").split():
+        if run("docker", "inspect", "-f", "{{.Image}}", container) != image_id:
+            stale = True
+            print(f"⚠️  {name}: running container uses an older image than {image}")
+            print("   Fix: ./dev.sh up (recreates it)")
+sys.exit(1 if stale else 0)
+PY
+}
+
+# Diagnose the most common setup problems
+run_doctor() {
+    DOCTOR_FAILED=0
+    DOCTOR_WARNED=0
+    echo "🩺 Checking the development environment..."
+    echo ""
+
+    if ! command -v docker >/dev/null 2>&1; then
+        log_error "Docker CLI not found. Install Docker Desktop: https://docs.docker.com/get-docker/"
+        exit 1
+    fi
+    log_success "Docker CLI found"
+
+    if ! docker info >/dev/null 2>&1; then
+        log_error "Docker daemon is not reachable. Start Docker Desktop and retry."
+        exit 1
+    fi
+    log_success "Docker daemon is running"
+
+    if [[ ${#COMPOSE_BIN[@]} -eq 0 ]]; then
+        log_error "Docker Compose not found. Install the Compose plugin: https://docs.docker.com/compose/install/"
+        exit 1
+    fi
+    log_success "Compose found: ${COMPOSE_BIN[*]}"
+
+    if compose_cmd config -q; then
+        log_success "Compose config is valid ($(compose_cmd_str))"
+    else
+        log_error "Compose config is invalid (see errors above)"
+        DOCTOR_FAILED=1
+    fi
+
+    command -v curl >/dev/null 2>&1 && log_success "curl found" || {
+        log_error "curl not found; 'up' needs it for the Phoenix health check"
+        DOCTOR_FAILED=1
+    }
+
+    echo ""
+    check_port 18273 "Traefik: Phoenix, mail, OIDC, mock LLM, datagen, Toxiproxy"
+    check_port 5433 "PostgreSQL"
+
+    echo ""
+    check_image_freshness
+
+    echo ""
+    if [[ $DOCTOR_FAILED -eq 0 && $DOCTOR_WARNED -eq 0 ]]; then
+        log_success "No problems found"
+    elif [[ $DOCTOR_FAILED -eq 0 ]]; then
+        log_warning "Some images are out of date; './dev.sh up' rebuilds them"
+    else
+        log_error "Problems found; see the fixes above"
+        exit 1
+    fi
+}
 
 # Parse arguments first
 parse_args "$@"
+
+# doctor reports missing dependencies itself; help needs none
+case "${COMMAND:-help}" in
+    doctor|help) detect_compose ;;
+    *) check_dependencies ;;
+esac
 
 # Main commands
 case "${COMMAND:-help}" in
@@ -441,10 +686,10 @@ case "${COMMAND:-help}" in
             log_info "Starting Phoenix development environment (standard mode)"
         fi
         
-        echo "📦 Starting all services..."
-        compose_cmd up -d
+        echo "📦 Building changed images and starting all services..."
+        compose_cmd up -d --build
         
-        if wait_for_phoenix; then
+        if wait_for_phoenix && wait_for_datagen; then
             log_success "Environment ready!"
             show_services
         else
@@ -464,7 +709,7 @@ case "${COMMAND:-help}" in
         echo "📦 Starting all services..."
         compose_cmd up -d --force-recreate
         
-        if wait_for_phoenix; then
+        if wait_for_phoenix && wait_for_datagen; then
             log_success "Environment ready!"
             show_services
         else
@@ -490,11 +735,14 @@ case "${COMMAND:-help}" in
             
             log_info "Removing data volumes..."
             VOLUMES=$(get_volumes)
-            if [[ -n "$VOLUMES" ]]; then
-                echo "$VOLUMES" | xargs docker volume rm 2>/dev/null || true
-                log_success "All data destroyed! Run './dev.sh up' to start fresh."
-            else
+            if [[ -z "$VOLUMES" ]]; then
                 log_warning "No volumes found to remove"
+            elif remove_each volume $VOLUMES; then
+                log_success "All data destroyed! Run './dev.sh up' to start fresh."
+                echo "   Images are kept; 'up' rebuilds any whose source changed."
+            else
+                log_error "Some volumes could not be removed (see errors above)"
+                exit 1
             fi
         else
             log_error "Operation cancelled."
@@ -509,11 +757,13 @@ case "${COMMAND:-help}" in
         log_info "Removing all images..."
         # Get images for this project
         IMAGES=$(docker images --format "{{.Repository}}" | grep "^${PROJECT_NAME}-" || true)
-        if [[ -n "$IMAGES" ]]; then
-            echo "$IMAGES" | xargs docker rmi 2>/dev/null || true
+        if [[ -z "$IMAGES" ]]; then
+            log_warning "No project images found to remove"
+        elif remove_each image $IMAGES; then
             log_success "All images removed! Run './dev.sh up' to rebuild and start."
         else
-            log_warning "No project images found to remove"
+            log_error "Some images could not be removed (see errors above)"
+            exit 1
         fi
         ;;
 
@@ -558,6 +808,10 @@ case "${COMMAND:-help}" in
         list_profiles
         ;;
 
+    "doctor")
+        run_doctor
+        ;;
+
     "env")
         # Check if Phoenix container is running
         if ! compose_cmd ps phoenix | grep -q "Up"; then
@@ -588,11 +842,12 @@ case "${COMMAND:-help}" in
 Phoenix Development Environment
 
 🚀 Commands:
-  up [--profile NAME]      Start services (DEFAULT - use for code changes)
-  rebuild [--profile NAME] Full rebuild (slowest - when dependencies change)
+  up [--profile NAME]      Build changed images and start services (DEFAULT)
+  rebuild [--profile NAME] Full rebuild without cache (slowest)
   down                     Stop all services  
   reset                    Remove all images (rebuild on next 'up')
-  destroy                  Wipe data volumes (database, grafana, prometheus)
+  destroy                  Wipe data volumes (database, grafana, prometheus); keeps images
+  doctor [--profile NAME]  Check Docker, ports, compose config, and image freshness
   prune                    Clean Docker build cache (frees disk space)
   clean                    Full Docker cleanup (WARNING: removes everything)
   status                   Show running services and current profile
@@ -611,12 +866,15 @@ Phoenix Development Environment
   in-memory                    In-memory SQLite database
   toxiproxy                    Enable network simulation with Toxiproxy
   grafana                      Enable Grafana and Prometheus monitoring
+  mock-llm                     Enable the mock LLM server (dashboard via Traefik)
+  datagen                      Replay synthetic traces (one project per application)
   ldap                         Enable LDAP authentication (mock LDAP server)
   ldap-no-email                Enable LDAP authentication (users without email)
   ldap-posix                   Enable LDAP with POSIX groups (no memberOf)
   schema=NAME                  Dynamic schema profile (custom database name)
 
 💡 Which command to use?
+  Something broken?       → doctor
   Changed code?           → up
   Dependencies changed?   → rebuild
   Need fresh images?      → reset
@@ -635,6 +893,8 @@ Examples:
   ./dev.sh up --profiles vite,grafana      # Multiple profiles
   ./dev.sh up --profile pkce-public        # Test PKCE public client
   ./dev.sh up --profile grafana            # Enable monitoring
+  ./dev.sh up --profile mock-llm           # Enable the mock LLM server
+  ./dev.sh up --profile datagen            # Replay synthetic traces
   ./dev.sh up --profile ldap               # Test LDAP authentication
   ./dev.sh up --profile ldap-no-email      # LDAP without email addresses
   ./dev.sh up --profile ldap-posix         # LDAP with POSIX groups

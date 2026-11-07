@@ -4,13 +4,12 @@ import type { ComponentType } from "react";
 import { View } from "@phoenix/components";
 import type { ExperimentCompareDetailsQuery$data } from "@phoenix/components/experiment/__generated__/ExperimentCompareDetailsQuery.graphql";
 import { ExperimentRunOutputs } from "@phoenix/components/experiment/ExperimentCompareDetails";
-import { ExperimentCompareDetailsProvider } from "@phoenix/contexts/ExperimentCompareContext";
+import {
+  type Experiment,
+  ExperimentCompareDetailsProvider,
+} from "@phoenix/contexts/ExperimentCompareContext";
 
 import { experimentAnnotationConfigs } from "../../constants/experimentEvaluatorFixtures";
-
-type Experiment = NonNullable<
-  ExperimentCompareDetailsQuery$data["dataset"]["experiments"]
->["edges"][number]["experiment"];
 
 type ExperimentRun = NonNullable<
   ExperimentCompareDetailsQuery$data["example"]["experimentRuns"]
@@ -92,6 +91,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "ann-1",
                 name: "answer_relevance",
                 label: "correct",
@@ -105,6 +105,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-2-coverage",
                 name: "column_coverage",
                 label: null,
@@ -118,6 +119,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-2",
                 name: "verbosity",
                 label: null,
@@ -163,6 +165,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "ann-3",
                 name: "answer_relevance",
                 label: null,
@@ -176,6 +179,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-4-coverage",
                 name: "column_coverage",
                 label: null,
@@ -189,6 +193,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-4",
                 name: "verbosity",
                 label: null,
@@ -234,6 +239,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "ann-5",
                 name: "answer_relevance",
                 label: null,
@@ -247,6 +253,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-6-coverage",
                 name: "column_coverage",
                 label: null,
@@ -260,6 +267,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-6",
                 name: "verbosity",
                 label: null,
@@ -303,6 +311,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "ann-7",
                 name: "answer_relevance",
                 label: null,
@@ -316,6 +325,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-8-coverage",
                 name: "column_coverage",
                 label: null,
@@ -329,6 +339,7 @@ const mockExperimentRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "ann-8",
                 name: "verbosity",
                 label: null,
@@ -559,6 +570,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-1",
                 name: "mixed_evaluation",
                 label: "excellent_performance_with_detailed_analysis",
@@ -572,6 +584,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-2",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
@@ -614,6 +627,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-3",
                 name: "mixed_evaluation",
                 label: null,
@@ -627,6 +641,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-4",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
@@ -669,6 +684,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-5",
                 name: "mixed_evaluation",
                 label: null,
@@ -682,6 +698,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-6",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
@@ -725,6 +742,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-7",
                 name: "mixed_evaluation",
                 label:
@@ -739,6 +757,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-8",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
@@ -781,6 +800,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-9",
                 name: "mixed_evaluation",
                 label: null,
@@ -794,6 +814,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-10",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
@@ -838,6 +859,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-11",
                 name: "mixed_evaluation",
                 label: "outstanding_with_exceptional_detail",
@@ -851,6 +873,7 @@ const mockEdgeCaseRepetitions: Record<string, ExperimentRepetition[]> = {
             },
             {
               annotation: {
+                decision: null,
                 id: "edge-ann-12",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,
@@ -919,6 +942,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "single-edge-ann-1",
                 name: "mixed_evaluation",
                 label: "satisfactory_with_room_for_improvement",
@@ -932,6 +956,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
             },
             {
               annotation: {
+                decision: null,
                 id: "single-edge-ann-2",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
@@ -976,6 +1001,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "single-edge-ann-3",
                 name: "mixed_evaluation",
                 label: null,
@@ -989,6 +1015,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
             },
             {
               annotation: {
+                decision: null,
                 id: "single-edge-ann-4",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label:
@@ -1033,6 +1060,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
           edges: [
             {
               annotation: {
+                decision: null,
                 id: "single-edge-ann-5",
                 name: "mixed_evaluation",
                 label: "exceptional_quality_exceeds_expectations",
@@ -1046,6 +1074,7 @@ const mockSingleRepetitionEdgeCaseRepetitions: Record<
             },
             {
               annotation: {
+                decision: null,
                 id: "single-edge-ann-6",
                 name: "detailed_feedback_and_an_annotation_with_a_really_long_name",
                 label: null,

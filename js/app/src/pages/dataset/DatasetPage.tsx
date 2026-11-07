@@ -243,13 +243,15 @@ function DatasetPageContent({
       >
         <TabList>
           <Tab id="experiments">
-            Experiments <Counter>{dataset.experimentCount}</Counter>
+            Experiments{" "}
+            <Counter variant="quiet">{dataset.experimentCount}</Counter>
           </Tab>
           <Tab id="examples">
-            Examples <Counter>{dataset.exampleCount}</Counter>
+            Examples <Counter variant="quiet">{dataset.exampleCount}</Counter>
           </Tab>
           <Tab id="evaluators">
-            Evaluators <Counter>{dataset.evaluatorCount}</Counter>
+            Evaluators{" "}
+            <Counter variant="quiet">{dataset.evaluatorCount}</Counter>
           </Tab>
           <Tab id="metrics">Metrics</Tab>
           <Tab id="versions">Versions</Tab>

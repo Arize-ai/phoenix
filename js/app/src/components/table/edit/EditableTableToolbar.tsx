@@ -7,31 +7,20 @@ import { useShallow } from "zustand/react/shallow";
 
 import {
   Button,
-  Dialog,
   Flex,
   Icon,
   IconButton,
   Icons,
-  Modal,
-  ModalOverlay,
-  Text,
   Toolbar,
   Tooltip,
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import {
-  DialogCloseButton,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
 import { getEditableTableChangeCounts } from "@phoenix/store/editableTableStore";
 import type { EditableTableStore } from "@phoenix/types/table";
 
+import { DiscardEditsDialog } from "./DiscardEditsDialog";
 import { EditableTableChangeSummary } from "./EditableTableChangeSummary";
 
 // The reserved width fits all three summary segments, so the bar keeps its
@@ -158,46 +147,13 @@ export function EditableTableToolbar<Row extends object>({
           {saveLabel}
         </Button>
       </Toolbar>
-      <ModalOverlay
+      <DiscardEditsDialog
+        store={store}
         isOpen={isDiscardDialogOpen}
         onOpenChange={setIsDiscardDialogOpen}
-        isDismissable
-      >
-        <Modal size="S">
-          {/* A destructive confirmation, not a plain dialog. */}
-          <Dialog role="alertdialog">
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{discardTitle}</DialogTitle>
-                <DialogTitleExtra>
-                  <DialogCloseButton />
-                </DialogTitleExtra>
-              </DialogHeader>
-              <View padding="size-200">
-                <Text>
-                  {`This will discard ${describeUnsavedChanges({
-                    count: changeCount,
-                  })}.`}
-                </Text>
-              </View>
-              <DialogFooter>
-                <Button variant="default" slot="close">
-                  Keep editing
-                </Button>
-                <Button
-                  variant="danger"
-                  onPress={() => {
-                    setIsDiscardDialogOpen(false);
-                    store.getState().cancelEditing();
-                  }}
-                >
-                  Discard changes
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+        title={discardTitle}
+        describeUnsavedChanges={describeUnsavedChanges}
+      />
     </FloatingToolbarContainer>
   );
 }

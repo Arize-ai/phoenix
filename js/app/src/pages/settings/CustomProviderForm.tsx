@@ -151,6 +151,17 @@ export interface GoogleGenAIFormData extends BaseProviderFormData {
 }
 
 /**
+ * TypeSafe SDK configuration: a System One-compatible endpoint that serves
+ * decision models only.
+ */
+export interface TypeSafeFormData extends BaseProviderFormData {
+  sdk: "TYPESAFE";
+  typesafe_api_key: string;
+  typesafe_base_url?: string;
+  typesafe_default_headers?: JSONString;
+}
+
+/**
  * Discriminated union of all provider form data types.
  * The `sdk` field serves as the discriminator for type narrowing.
  */
@@ -159,7 +170,8 @@ export type ProviderFormData =
   | AzureOpenAIFormData
   | AnthropicFormData
   | AWSBedrockFormData
-  | GoogleGenAIFormData;
+  | GoogleGenAIFormData
+  | TypeSafeFormData;
 
 export interface ProviderFormProps {
   onSubmit: (data: ProviderFormData) => void;
@@ -858,6 +870,76 @@ function ProviderSection({
   );
 }
 
+function TypeSafeFields({
+  control,
+  isSubmitting,
+}: {
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
+  return (
+    <ProviderSection title="TypeSafe Configuration">
+      <Text size="S" color="text-700">
+        Serves decision models only. Any System One-compatible endpoint works.
+      </Text>
+      <Controller
+        name="typesafe_api_key"
+        control={control}
+        rules={{ required: "API Key is required" }}
+        render={({
+          field: { name, value, onChange, onBlur },
+          fieldState: { error },
+        }) => (
+          <RedactedCredentialField
+            label="API Key"
+            isRequired
+            isDisabled={isSubmitting}
+            name={name}
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            errorMessage={error?.message}
+          />
+        )}
+      />
+      <Controller
+        name="typesafe_base_url"
+        control={control}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField isInvalid={invalid} {...field} isDisabled={isSubmitting}>
+            <Label>Base URL</Label>
+            <Input placeholder="https://api.typesafe.ai" />
+            {error && <FieldError>{error.message}</FieldError>}
+          </TextField>
+        )}
+      />
+      <Controller
+        name="typesafe_default_headers"
+        control={control}
+        render={({ field: { value, onChange }, fieldState: { error } }) => (
+          <CodeEditorFieldWrapper
+            label="Default Headers (JSON)"
+            errorMessage={error?.message}
+            description={
+              !error?.message
+                ? "Default HTTP headers sent with each request"
+                : undefined
+            }
+          >
+            <JSONEditor
+              value={typeof value === "string" ? value : ""}
+              onChange={onChange}
+              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+              placeholder='{"X-Custom-Header": "value"}'
+              optionalLint
+            />
+          </CodeEditorFieldWrapper>
+        )}
+      />
+    </ProviderSection>
+  );
+}
+
 // SDK-specific fields renderer
 function SDKFieldsRenderer({
   sdk,
@@ -881,6 +963,8 @@ function SDKFieldsRenderer({
       return <AWSFields control={control} isSubmitting={isSubmitting} />;
     case "GOOGLE_GENAI":
       return <GoogleFields control={control} isSubmitting={isSubmitting} />;
+    case "TYPESAFE":
+      return <TypeSafeFields control={control} isSubmitting={isSubmitting} />;
     default: {
       // Exhaustive type check - TypeScript will error if a new SDK is added
       // without updating this switch statement
@@ -1190,6 +1274,7 @@ const CREDENTIAL_FIELDS = [
   "aws_access_key_id",
   "aws_secret_access_key",
   "google_api_key",
+  "typesafe_api_key",
 ] as const;
 
 /**
@@ -1237,6 +1322,8 @@ function hasRequiredCredentials(
     }
     case "GOOGLE_GENAI":
       return Boolean(credentials.google_api_key);
+    case "TYPESAFE":
+      return Boolean(credentials.typesafe_api_key);
     default:
       return false;
   }

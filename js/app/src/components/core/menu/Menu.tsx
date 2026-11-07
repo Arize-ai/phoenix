@@ -11,6 +11,7 @@ import {
   useSlottedContext,
 } from "react-aria-components";
 import type { AriaMenuOptions } from "react-aria/useMenu";
+import { Link } from "react-router";
 
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -151,6 +152,11 @@ const menuItemCss = css`
   }
 `;
 
+const renderMenuItemElement: NonNullable<
+  AriaMenuItemProps<object>["render"]
+> = (props) =>
+  "href" in props ? <Link {...props} to={props.href} /> : <div {...props} />;
+
 /**
  * A menu item is a single item in a menu.
  * This is the individual item that can be selected.
@@ -172,6 +178,7 @@ export const MenuItem = <T extends object>({
   trailingContent,
   leadingContent,
   ref,
+  render,
   ...props
 }: AriaMenuItemProps<T> & {
   trailingContent?: ReactNode;
@@ -186,6 +193,10 @@ export const MenuItem = <T extends object>({
     <AriaMenuItem
       ref={ref}
       {...props}
+      render={
+        render ??
+        (typeof props.href === "string" ? renderMenuItemElement : undefined)
+      }
       css={menuItemCss}
       className={classNames("react-aria-MenuItem", className)}
       textValue={textValue}

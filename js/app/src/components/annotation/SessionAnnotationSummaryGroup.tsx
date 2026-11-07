@@ -38,6 +38,9 @@ const useSessionAnnotationSummaryGroup = (
             username
             profilePictureUrl
           }
+          decision {
+            ...decisionAnnotation_decision @relay(mask: false)
+          }
         }
         summarySessionAnnotationSummaries: sessionAnnotationSummaries(
           filter: { exclude: { names: ["note"] } }

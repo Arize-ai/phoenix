@@ -96,6 +96,15 @@ const ProviderQuery = graphql`
               defaultHeaders
             }
           }
+          ... on TypeSafeCustomProviderConfig {
+            typesafeAuthenticationMethod {
+              apiKey
+            }
+            typesafeClientKwargs {
+              baseUrl
+              defaultHeaders
+            }
+          }
           ... on AWSBedrockCustomProviderConfig {
             awsBedrockAuthenticationMethod {
               accessKeys {

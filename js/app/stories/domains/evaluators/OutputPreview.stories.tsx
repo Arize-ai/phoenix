@@ -5,7 +5,7 @@ import { Environment, Network, RecordSource, Store } from "relay-runtime";
 import { userEvent, within } from "storybook/test";
 
 import { Flex } from "@phoenix/components";
-import type { EvaluatorOutputPreviewMutation } from "@phoenix/components/evaluators/__generated__/EvaluatorOutputPreviewMutation.graphql";
+import type { useEvaluatorPreviewMutation } from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewMutation.graphql";
 import { makeLLMEvaluatorInstance } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { EvaluatorOutputPreview } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
@@ -18,7 +18,7 @@ import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 import { OptionGrid } from "../../utils/OptionGrid";
 
 type PreviewResult =
-  EvaluatorOutputPreviewMutation["response"]["evaluatorPreviews"]["results"][number];
+  useEvaluatorPreviewMutation["response"]["evaluatorPreviews"]["results"][number];
 
 function annotationResult({
   id,
@@ -34,6 +34,7 @@ function annotationResult({
   return {
     evaluatorName: name,
     annotation: {
+      decision: null,
       id,
       name,
       label,
@@ -79,6 +80,7 @@ function TestedEvaluator({
                   description: "",
                   isBuiltin: false,
                   includeExplanation: true,
+                  inputDescriptions: {},
                   inputMapping: { literalMapping: {}, pathMapping: {} },
                 },
                 outputConfigs,

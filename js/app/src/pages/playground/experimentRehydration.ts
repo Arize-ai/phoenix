@@ -9,19 +9,27 @@ import { fetchQuery, graphql } from "relay-runtime";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
+  createDecisionTaskInstance,
   DEFAULT_INSTANCE_PARAMS,
   DEFAULT_MAX_CONCURRENCY,
-  DEFAULT_TEMPLATE_VARIABLES_PATH,
   generateInstanceId,
 } from "@phoenix/store/playground/playgroundStore";
+import {
+  DEFAULT_TEMPLATE_VARIABLES_PATH,
+  DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
+  type TemplateVariablesPathByMode,
+} from "@phoenix/store/playground/templateVariablesPath";
 import type {
   ModelConfig,
   PlaygroundInstance,
   PlaygroundProps,
 } from "@phoenix/store/playground/types";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { experimentRehydrationQuery } from "./__generated__/experimentRehydrationQuery.graphql";
+import { toSavedDecisionVersion } from "./fetchPlaygroundDecision";
 import { buildPlaygroundInstanceFieldsFromPromptConfig } from "./promptConfigToPlaygroundInstance";
+import { savedDecisionVersionToDraft } from "./savedDecisionUtils";
 
 import "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 
@@ -31,6 +39,13 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
       ... on Experiment {
         dataset {
           id
+        }
+        datasetSplits {
+          edges {
+            node {
+              id
+            }
+          }
         }
         job {
           maxConcurrency
@@ -42,105 +57,162 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
             }
           }
           taskConfig {
-            prompt {
-              templateType
+            __typename
+            ... on DecisionTaskConfig {
+              modelProvider
+              modelName
+              baseUrl
+              customProvider {
+                id
+                name
+              }
+              templateVariablesPath
+              decisionVersion {
+                id
+                decision {
+                  id
+                  name
+                }
+              }
               templateFormat
-              template {
+              state {
                 __typename
-                ... on PromptChatTemplate {
-                  messages {
-                    role
-                    content {
-                      __typename
-                      ... on TextContentPart {
-                        text {
-                          text
+                ... on DecisionTextState {
+                  text
+                }
+                ... on DecisionJsonState {
+                  json
+                }
+              }
+              questions {
+                __typename
+                ... on DecisionPredicateQuestion {
+                  name
+                  instructions
+                  criteria {
+                    true
+                    false
+                  }
+                }
+                ... on DecisionChoiceQuestion {
+                  name
+                  instructions
+                  choices {
+                    value
+                    description
+                  }
+                }
+                ... on DecisionScaleQuestion {
+                  name
+                  instructions
+                  levels {
+                    label
+                    description
+                  }
+                }
+              }
+            }
+            ... on PromptTaskConfig {
+              prompt {
+                templateType
+                templateFormat
+                template {
+                  __typename
+                  ... on PromptChatTemplate {
+                    messages {
+                      role
+                      content {
+                        __typename
+                        ... on TextContentPart {
+                          text {
+                            text
+                          }
                         }
-                      }
-                      ... on ToolCallContentPart {
-                        toolCall {
-                          toolCallId
+                        ... on ToolCallContentPart {
                           toolCall {
-                            name
-                            arguments
+                            toolCallId
+                            toolCall {
+                              name
+                              arguments
+                            }
+                          }
+                        }
+                        ... on ToolResultContentPart {
+                          toolResult {
+                            toolCallId
+                            result
                           }
                         }
                       }
-                      ... on ToolResultContentPart {
-                        toolResult {
-                          toolCallId
-                          result
-                        }
+                    }
+                  }
+                }
+                tools {
+                  tools {
+                    __typename
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
                       }
                     }
-                  }
-                }
-              }
-              tools {
-                tools {
-                  __typename
-                  ... on PromptToolFunction {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolRaw {
+                      raw
                     }
                   }
-                  ... on PromptToolRaw {
-                    raw
+                  toolChoice {
+                    type
+                    functionName
+                  }
+                  disableParallelToolCalls
+                }
+                responseFormat {
+                  jsonSchema {
+                    name
+                    description
+                    schema
+                    strict
                   }
                 }
-                toolChoice {
-                  type
-                  functionName
+                invocationParameters {
+                  ...PromptInvocationParametersReadableFragment
                 }
-                disableParallelToolCalls
+                modelProvider
+                modelName
               }
-              responseFormat {
-                jsonSchema {
-                  name
-                  description
-                  schema
-                  strict
+              connection {
+                __typename
+                ... on OpenAIConnectionConfig {
+                  baseUrl
+                  openaiApiType
+                }
+                ... on AzureOpenAIConnectionConfig {
+                  azureEndpoint
+                  openaiApiType
+                }
+                ... on AnthropicConnectionConfig {
+                  baseUrl
+                }
+                ... on AWSBedrockConnectionConfig {
+                  regionName
+                  endpointUrl
+                }
+                ... on GoogleGenAIConnectionConfig {
+                  baseUrl
                 }
               }
-              invocationParameters {
-                ...PromptInvocationParametersReadableFragment
+              customProvider {
+                id
+                name
               }
-              modelProvider
-              modelName
+              playgroundConfig {
+                templateVariablesPath
+                appendedMessagesPath
+              }
+              streamModelOutput
             }
-            connection {
-              __typename
-              ... on OpenAIConnectionConfig {
-                baseUrl
-                openaiApiType
-              }
-              ... on AzureOpenAIConnectionConfig {
-                azureEndpoint
-                openaiApiType
-              }
-              ... on AnthropicConnectionConfig {
-                baseUrl
-              }
-              ... on AWSBedrockConnectionConfig {
-                regionName
-                endpointUrl
-              }
-              ... on GoogleGenAIConnectionConfig {
-                baseUrl
-              }
-            }
-            customProvider {
-              id
-              name
-            }
-            playgroundConfig {
-              templateVariablesPath
-              appendedMessagesPath
-            }
-            streamModelOutput
           }
         }
       }
@@ -151,10 +223,12 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
 export type ExperimentRehydrationResult = {
   playgroundProps: Partial<PlaygroundProps>;
   datasetId: string | null;
+  /** The dataset splits the experiment ran over; empty for the whole dataset. */
+  splitIds: string[];
   stateByDatasetId: Record<
     string,
     {
-      templateVariablesPath?: string | null;
+      templateVariablesPathByMode: TemplateVariablesPathByMode;
       appendedMessagesPath?: string | null;
       maxConcurrency: number;
     }
@@ -162,12 +236,13 @@ export type ExperimentRehydrationResult = {
   selectedDatasetEvaluatorIds: string[];
 };
 
-type TaskConfig = NonNullable<
+type TaskConfig = Extract<
   NonNullable<
     NonNullable<
       experimentRehydrationQuery["response"]["node"]["job"]
     >["taskConfig"]
-  >
+  >,
+  { __typename: "PromptTaskConfig" }
 >;
 
 function taskConfigToPlaygroundProps(
@@ -175,7 +250,7 @@ function taskConfigToPlaygroundProps(
   maxConcurrency: number,
   datasetId: string | null,
   selectedDatasetEvaluatorIds: string[]
-): ExperimentRehydrationResult {
+): Omit<ExperimentRehydrationResult, "splitIds"> {
   const prompt = taskConfig.prompt;
   const provider = prompt.modelProvider as ModelProvider;
 
@@ -235,9 +310,14 @@ function taskConfigToPlaygroundProps(
     toolChoice: instanceFields.toolChoice,
   };
 
-  const templateVariablesPath =
-    taskConfig.playgroundConfig?.templateVariablesPath ??
-    DEFAULT_TEMPLATE_VARIABLES_PATH;
+  // An experiment's playground config belongs to its prompt task; the
+  // judging role keeps its default.
+  const templateVariablesPathByMode: TemplateVariablesPathByMode = {
+    ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
+    task:
+      taskConfig.playgroundConfig?.templateVariablesPath ??
+      DEFAULT_TEMPLATE_VARIABLES_PATH,
+  };
   const appendedMessagesPath =
     taskConfig.playgroundConfig?.appendedMessagesPath ?? null;
 
@@ -245,7 +325,7 @@ function taskConfigToPlaygroundProps(
     datasetId
       ? {
           [datasetId]: {
-            templateVariablesPath,
+            templateVariablesPathByMode,
             appendedMessagesPath,
             maxConcurrency,
           },
@@ -277,16 +357,99 @@ export async function fetchExperimentPlaygroundProps(
 
   const node = data.node;
   const job = node.job;
-  if (!job?.taskConfig) return null;
+  const taskConfig = job?.taskConfig;
+  if (!job || !taskConfig) return null;
 
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(
     (edge) => edge.node.id
   );
+  const splitIds = node.datasetSplits?.edges.map((edge) => edge.node.id) ?? [];
 
-  return taskConfigToPlaygroundProps(
-    job.taskConfig,
-    job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
-    node.dataset?.id ?? null,
-    selectedDatasetEvaluatorIds
-  );
+  if (taskConfig.__typename === "DecisionTaskConfig") {
+    return {
+      ...decisionTaskConfigToPlaygroundProps({
+        taskConfig,
+        maxConcurrency: job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+        datasetId: node.dataset?.id ?? null,
+        selectedDatasetEvaluatorIds,
+      }),
+      splitIds,
+    };
+  }
+  if (taskConfig.__typename !== "PromptTaskConfig") return null;
+  return {
+    ...taskConfigToPlaygroundProps(
+      taskConfig,
+      job.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+      node.dataset?.id ?? null,
+      selectedDatasetEvaluatorIds
+    ),
+    splitIds,
+  };
+}
+
+/** Rebuild a fixed-question decision task from its frozen experiment configuration. */
+export function decisionTaskConfigToPlaygroundProps({
+  taskConfig,
+  maxConcurrency,
+  datasetId,
+  selectedDatasetEvaluatorIds,
+}: {
+  taskConfig: Extract<
+    NonNullable<
+      NonNullable<
+        experimentRehydrationQuery["response"]["node"]["job"]
+      >["taskConfig"]
+    >,
+    { __typename: "DecisionTaskConfig" }
+  >;
+  maxConcurrency: number;
+  datasetId: string | null;
+  selectedDatasetEvaluatorIds: string[];
+}): Omit<ExperimentRehydrationResult, "splitIds"> {
+  if (!isModelProvider(taskConfig.modelProvider)) {
+    throw new Error(`Unknown decision provider: ${taskConfig.modelProvider}`);
+  }
+  const version = toSavedDecisionVersion(taskConfig);
+  const { templateFormat } = version;
+  const defaults = createDecisionTaskInstance();
+  const savedVersion = taskConfig.decisionVersion;
+  const instance: PlaygroundInstance = {
+    ...defaults,
+    id: generateInstanceId(),
+    decisionPrompt: savedDecisionVersionToDraft({ version, templateFormat }),
+    // Keep the link to the saved version the experiment ran, if it still exists.
+    decision: savedVersion
+      ? {
+          id: savedVersion.decision.id,
+          name: savedVersion.decision.name,
+          versionId: savedVersion.id,
+          tag: null,
+        }
+      : null,
+    model: {
+      ...defaults.model,
+      provider: taskConfig.modelProvider,
+      modelName: taskConfig.modelName,
+      customProvider: taskConfig.customProvider ?? null,
+      baseUrl: taskConfig.baseUrl,
+    },
+  };
+  return {
+    playgroundProps: { instances: [instance], templateFormat },
+    datasetId,
+    stateByDatasetId: datasetId
+      ? {
+          [datasetId]: {
+            templateVariablesPathByMode: {
+              ...DEFAULT_TEMPLATE_VARIABLES_PATH_BY_MODE,
+              task: taskConfig.templateVariablesPath,
+            },
+            appendedMessagesPath: null,
+            maxConcurrency,
+          },
+        }
+      : {},
+    selectedDatasetEvaluatorIds,
+  };
 }

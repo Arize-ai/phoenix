@@ -158,6 +158,45 @@ type SessionFilterConditionFieldProps = {
   placeholder?: string;
 };
 
+/** A project whose vocabulary has not loaded still filters, without typeahead. */
+export const EMPTY_SESSION_FILTER_VOCABULARY: readonly SessionFilterVocabularyTerm[] =
+  [];
+
+/**
+ * The project's session-filter autocomplete vocabulary. Suspends: the resolver
+ * scans annotation names and root-span attributes, so callers render the field
+ * with {@link EMPTY_SESSION_FILTER_VOCABULARY} until it arrives.
+ */
+export function useSessionFilterVocabulary(
+  projectId: string
+): readonly SessionFilterVocabularyTerm[] {
+  const data = useLazyLoadQuery<SessionFilterConditionFieldVocabularyQuery>(
+    graphql`
+      query SessionFilterConditionFieldVocabularyQuery($id: ID!) {
+        project: node(id: $id) {
+          ... on Project {
+            sessionFilterVocabulary {
+              name
+              type
+              description
+              category
+              iterableName
+            }
+          }
+        }
+      }
+    `,
+    { id: projectId }
+  );
+  return (
+    data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
+  );
+}
+
+/**
+ * Requires `SessionFiltersProvider`/`TracingProvider`; use
+ * {@link SessionFilterConditionFieldCore} outside them.
+ */
 export function SessionFilterConditionField(
   props: SessionFilterConditionFieldProps
 ) {
@@ -170,6 +209,52 @@ export function SessionFilterConditionField(
   } = props;
   const { filterCondition, setFilterCondition } = useSessionFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  return (
+    <SessionFilterConditionFieldCore
+      projectId={projectId}
+      vocabulary={vocabulary}
+      filterCondition={filterCondition}
+      onFilterConditionChange={setFilterCondition}
+      onValidCondition={onValidCondition}
+      onValidationFailed={onValidationFailed}
+      validationRetryKey={validationRetryKey}
+      placeholder={placeholder}
+    />
+  );
+}
+
+export type SessionFilterConditionFieldCoreProps = {
+  projectId: string;
+  vocabulary: readonly SessionFilterVocabularyTerm[];
+  filterCondition: string;
+  onFilterConditionChange: (condition: string) => void;
+  onValidCondition: (args: SessionFilterValidConditionArgs) => void;
+  onValidationFailed?: (reason: DSLFilterValidationFailureReason) => void;
+  validationRetryKey?: number;
+  /** An empty condition reports as valid (unfiltered). */
+  onValidityChange?: (isValid: boolean) => void;
+  placeholder?: string;
+};
+
+/**
+ * Takes all filter state as props, so it can mount outside
+ * `SessionFiltersProvider`/`TracingProvider`.
+ */
+export function SessionFilterConditionFieldCore(
+  props: SessionFilterConditionFieldCoreProps
+) {
+  const {
+    projectId,
+    vocabulary,
+    filterCondition,
+    onFilterConditionChange,
+    onValidCondition,
+    onValidationFailed,
+    validationRetryKey,
+    onValidityChange,
+    placeholder = "filter condition (e.g. num_traces >= 5)",
+  } = props;
+
   // An empty vocabulary means the project's terms haven't arrived (the field
   // renders ahead of them, see the Suspense fallback in SessionsTable), so AI
   // query waits rather than prompting the model with no field names.
@@ -289,7 +374,7 @@ export function SessionFilterConditionField(
       aria-label="Filter sessions"
       className="session-filter-condition-field"
       value={filterCondition}
-      onChange={setFilterCondition}
+      onChange={onFilterConditionChange}
       placeholder={placeholder}
       completions={completions}
       snippets={sessionFilterSnippets}
@@ -300,12 +385,11 @@ export function SessionFilterConditionField(
       onValidCondition={handleValidCondition}
       onValidationFailed={onValidationFailed}
       validationRetryKey={validationRetryKey}
+      onValidationStateChange={onValidityChange}
       aiQuery={sessionFilterAIQuery}
     />
   );
 }
-
-const EMPTY_SESSION_FILTER_VOCABULARY = [] as const;
 
 type SessionFilterConditionFieldWithVocabularyProps = Omit<
   SessionFilterConditionFieldProps,
@@ -337,30 +421,6 @@ function LoadedSessionFilterConditionField(
   props: SessionFilterConditionFieldWithVocabularyProps
 ) {
   const projectId = useTracingContext((state) => state.projectId);
-  const data = useLazyLoadQuery<SessionFilterConditionFieldVocabularyQuery>(
-    graphql`
-      query SessionFilterConditionFieldVocabularyQuery($id: ID!) {
-        project: node(id: $id) {
-          ... on Project {
-            sessionFilterVocabulary {
-              name
-              type
-              description
-              category
-              iterableName
-            }
-          }
-        }
-      }
-    `,
-    { id: projectId }
-  );
-  return (
-    <SessionFilterConditionField
-      vocabulary={
-        data.project?.sessionFilterVocabulary ?? EMPTY_SESSION_FILTER_VOCABULARY
-      }
-      {...props}
-    />
-  );
+  const vocabulary = useSessionFilterVocabulary(projectId);
+  return <SessionFilterConditionField vocabulary={vocabulary} {...props} />;
 }

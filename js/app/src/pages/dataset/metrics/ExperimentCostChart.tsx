@@ -10,6 +10,7 @@ import {
   defaultTooltipProps,
   useCategoryChartColors,
   useInteractiveLegend,
+  stackedBarSeparatorProps,
 } from "@phoenix/components/chart";
 import {
   costFormatter,
@@ -97,6 +98,7 @@ export function ExperimentCostChart({
           <Bar
             dataKey="prompt"
             stackId="a"
+            {...stackedBarSeparatorProps}
             fill={colors.category1}
             hide={isDataKeyHidden("prompt")}
             legendType="circle"
@@ -104,6 +106,7 @@ export function ExperimentCostChart({
           <Bar
             dataKey="completion"
             stackId="a"
+            {...stackedBarSeparatorProps}
             fill={colors.category2}
             hide={isDataKeyHidden("completion")}
             legendType="circle"

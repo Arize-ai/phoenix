@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<22e0800a71b4d15b8399a731673867cd>>
+ * @generated SignedSource<<cbb3b942fec83cb94bf7ee7f2e4eb0a3>>
  * @lightSyntaxTransform
  */
 
@@ -9,7 +9,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
-export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type EvaluatorKind = "BUILTIN" | "CODE" | "DECISION" | "LLM";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery$variables = {
   evaluatorId: string;

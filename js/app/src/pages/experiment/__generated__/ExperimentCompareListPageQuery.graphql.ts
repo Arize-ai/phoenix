@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7cd19feb40ffb46c7d9cd4a3d827aea8>>
+ * @generated SignedSource<<d1cbb7fed7ca9bbb9a50490cbe6a4226>>
  * @lightSyntaxTransform
  */
 
@@ -159,6 +159,48 @@ v10 = {
 v11 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "probability",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "confidence",
+  "storageKey": null
+},
+v17 = {
+  "alias": null,
+  "args": null,
   "concreteType": "ExperimentRunAnnotationConnection",
   "kind": "LinkedField",
   "name": "annotations",
@@ -183,10 +225,170 @@ v11 = {
             {
               "alias": null,
               "args": null,
-              "kind": "ScalarField",
-              "name": "name",
+              "concreteType": "DecisionAnnotation",
+              "kind": "LinkedField",
+              "name": "decision",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "status",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DecisionAnnotationQuestion",
+                  "kind": "LinkedField",
+                  "name": "question",
+                  "plural": false,
+                  "selections": [
+                    (v11/*:: as any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "type",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DecisionChoiceOption",
+                      "kind": "LinkedField",
+                      "name": "choices",
+                      "plural": true,
+                      "selections": [
+                        (v12/*:: as any*/),
+                        (v13/*:: as any*/)
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DecisionScaleLevel",
+                      "kind": "LinkedField",
+                      "name": "levels",
+                      "plural": true,
+                      "selections": [
+                        (v14/*:: as any*/),
+                        (v13/*:: as any*/)
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "answer",
+                  "plural": false,
+                  "selections": [
+                    (v4/*:: as any*/),
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v15/*:: as any*/)
+                      ],
+                      "type": "PredicateAnswer",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "choice",
+                          "storageKey": null
+                        },
+                        (v16/*:: as any*/),
+                        {
+                          "alias": "choiceProbabilities",
+                          "args": null,
+                          "concreteType": "ChoiceProbability",
+                          "kind": "LinkedField",
+                          "name": "probabilities",
+                          "plural": true,
+                          "selections": [
+                            (v12/*:: as any*/),
+                            (v15/*:: as any*/)
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "ChoiceAnswer",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "expectedLevel",
+                          "storageKey": null
+                        },
+                        (v16/*:: as any*/),
+                        {
+                          "alias": "levelProbabilities",
+                          "args": null,
+                          "concreteType": "LevelProbability",
+                          "kind": "LinkedField",
+                          "name": "probabilities",
+                          "plural": true,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "level",
+                              "storageKey": null
+                            },
+                            (v15/*:: as any*/)
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "ScaleAnswer",
+                      "abstractKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "requestedModel",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "resolvedModel",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "modelProvider",
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             },
+            (v11/*:: as any*/),
             {
               "alias": null,
               "args": null,
@@ -194,13 +396,7 @@ v11 = {
               "name": "score",
               "storageKey": null
             },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "label",
-              "storageKey": null
-            },
+            (v14/*:: as any*/),
             (v5/*:: as any*/)
           ],
           "storageKey": null
@@ -211,7 +407,7 @@ v11 = {
   ],
   "storageKey": null
 },
-v12 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -335,7 +531,7 @@ return {
                             "storageKey": null
                           },
                           (v10/*:: as any*/),
-                          (v11/*:: as any*/),
+                          (v17/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -391,7 +587,7 @@ return {
                                 "name": "experimentRepeatedRunGroups",
                                 "plural": true,
                                 "selections": [
-                                  (v12/*:: as any*/),
+                                  (v18/*:: as any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -401,12 +597,12 @@ return {
                                     "plural": true,
                                     "selections": [
                                       (v5/*:: as any*/),
-                                      (v12/*:: as any*/),
+                                      (v18/*:: as any*/),
                                       (v7/*:: as any*/),
                                       (v8/*:: as any*/),
                                       (v9/*:: as any*/),
                                       (v10/*:: as any*/),
-                                      (v11/*:: as any*/)
+                                      (v17/*:: as any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -492,16 +688,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6006400603dab40ed756b28b7a02558b",
+    "cacheID": "763dda20d38eaabc0fd7aaf7620d19f9",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareListPageQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareListPageQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n  $sort: ExperimentRunSort = null\n) {\n  ...ExperimentCompareListPage_comparisons_3SQ0kE\n}\n\nfragment ExperimentCompareListPage_comparisons_3SQ0kE on Query {\n  experiment: node(id: $baseExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      runs(first: $first, after: $after, sort: $sort) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            output\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  name\n                  score\n                  label\n                  id\n                }\n              }\n            }\n            example {\n              id\n              externalId\n              revision {\n                input\n                referenceOutput: output\n              }\n              experimentRepeatedRunGroups(experimentIds: $compareExperimentIds) {\n                experimentId\n                runs {\n                  id\n                  experimentId\n                  output\n                  startTime\n                  endTime\n                  costSummary {\n                    total {\n                      tokens\n                      cost\n                    }\n                  }\n                  annotations {\n                    edges {\n                      annotation: node {\n                        name\n                        score\n                        label\n                        id\n                      }\n                    }\n                  }\n                }\n                id\n              }\n            }\n          }\n          cursor\n          node {\n            __typename\n            id\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareListPageQuery(\n  $after: String = null\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $first: Int = 50\n  $sort: ExperimentRunSort = null\n) {\n  ...ExperimentCompareListPage_comparisons_3SQ0kE\n}\n\nfragment ExperimentCompareListPage_comparisons_3SQ0kE on Query {\n  experiment: node(id: $baseExperimentId) {\n    __typename\n    ... on Experiment {\n      id\n      runs(first: $first, after: $after, sort: $sort) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            output\n            startTime\n            endTime\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  decision {\n                    status\n                    question {\n                      name\n                      type\n                      choices {\n                        value\n                        description\n                      }\n                      levels {\n                        label\n                        description\n                      }\n                    }\n                    answer {\n                      __typename\n                      ... on PredicateAnswer {\n                        probability\n                      }\n                      ... on ChoiceAnswer {\n                        choice\n                        confidence\n                        choiceProbabilities: probabilities {\n                          value\n                          probability\n                        }\n                      }\n                      ... on ScaleAnswer {\n                        expectedLevel\n                        confidence\n                        levelProbabilities: probabilities {\n                          level\n                          probability\n                        }\n                      }\n                    }\n                    requestedModel\n                    resolvedModel\n                    modelProvider\n                  }\n                  name\n                  score\n                  label\n                  id\n                }\n              }\n            }\n            example {\n              id\n              externalId\n              revision {\n                input\n                referenceOutput: output\n              }\n              experimentRepeatedRunGroups(experimentIds: $compareExperimentIds) {\n                experimentId\n                runs {\n                  id\n                  experimentId\n                  output\n                  startTime\n                  endTime\n                  costSummary {\n                    total {\n                      tokens\n                      cost\n                    }\n                  }\n                  annotations {\n                    edges {\n                      annotation: node {\n                        decision {\n                          status\n                          question {\n                            name\n                            type\n                            choices {\n                              value\n                              description\n                            }\n                            levels {\n                              label\n                              description\n                            }\n                          }\n                          answer {\n                            __typename\n                            ... on PredicateAnswer {\n                              probability\n                            }\n                            ... on ChoiceAnswer {\n                              choice\n                              confidence\n                              choiceProbabilities: probabilities {\n                                value\n                                probability\n                              }\n                            }\n                            ... on ScaleAnswer {\n                              expectedLevel\n                              confidence\n                              levelProbabilities: probabilities {\n                                level\n                                probability\n                              }\n                            }\n                          }\n                          requestedModel\n                          resolvedModel\n                          modelProvider\n                        }\n                        name\n                        score\n                        label\n                        id\n                      }\n                    }\n                  }\n                }\n                id\n              }\n            }\n          }\n          cursor\n          node {\n            __typename\n            id\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b33e00b71abed5d648960ee5c84e0b3a";
+(node as any).hash = "7d4b72d9567661f0d9dbdd1174ac4234";
 
 export default node;

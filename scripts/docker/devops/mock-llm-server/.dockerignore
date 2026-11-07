@@ -1,0 +1,25 @@
+# Dependencies
+node_modules
+dashboard/node_modules
+
+# Build artifacts
+dist
+dashboard/dist
+*.tsbuildinfo
+
+# Testing
+tests
+vitest.config.ts
+
+# Documentation
+*.md
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Editor, OS, and agent files
+.claude
+.DS_Store
+.vscode
+.idea

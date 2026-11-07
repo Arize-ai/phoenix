@@ -4,6 +4,13 @@ import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type { ProviderInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
+} from "@phoenix/types";
+
+import type { AnnotationConfig } from "../evaluatorStore";
+
 /**
  * Provider-agnostic canonical tool choice stored on PlaygroundInstance.
  * Mirrors the DB PromptToolChoice enum plus an optional function name.
@@ -101,8 +108,73 @@ export type PlaygroundTemplate =
   | PlaygroundChatTemplate
   | PlaygroundTextCompletionTemplate;
 
+export type DecisionQuestionType = "choice" | "predicate" | "scale";
+
+export type DecisionChoiceOptionDraft = {
+  id: string;
+  value: string;
+  description: string;
+};
+
+export type DecisionScaleLevelDraft = {
+  id: string;
+  /** Short name, such as "low". OpenAI requires it; TypeSafe sends it when there is no description. */
+  label: string;
+  /** Rubric text. TypeSafe sends this instead of the label when it is present. */
+  description: string;
+};
+
+/**
+ * One typed question in the decision prompt. Every type keeps its own
+ * criteria so switching the type back and forth does not lose work.
+ */
+export type DecisionQuestionDraft = {
+  id: string;
+  name: string;
+  type: DecisionQuestionType;
+  instructions: string;
+  choices: DecisionChoiceOptionDraft[];
+  levels: DecisionScaleLevelDraft[];
+  predicate: { trueDescription: string; falseDescription: string };
+};
+
+/**
+ * One instance's decision prompt: the state (evidence) and the typed
+ * questions asked about it. Each decision instance owns its own, like a
+ * prompt, so instances can be compared and mixed with chat instances. Both
+ * are templates in the playground's template format; their variables are
+ * the decision's variables.
+ */
+export type DecisionPromptDraft = {
+  state: DecisionStateDraft;
+  questions: DecisionQuestionDraft[];
+};
+
+/**
+ * The state template, as text or as JSON. Each mode keeps what was written
+ * in it, so switching modes and back loses nothing.
+ */
+export type DecisionStateDraft = {
+  /**
+   * `text`: the state is a text template. `json`: the state is a JSON value
+   * whose string leaves are templates; a string that is exactly one variable
+   * tag is replaced by the variable's value, JSON type kept.
+   */
+  mode: "text" | "json";
+  /** The text template. */
+  text: string;
+  /** The JSON template as written, so it can be edited while invalid. */
+  json: string;
+};
+
 export type PlaygroundInput = {
   variablesValueCache?: Record<string, string | undefined>;
+  /**
+   * Variables a decision reads as text even when their value parses as
+   * JSON. A decision otherwise reads a value that parses as JSON as that
+   * JSON value; prompts always read values as text.
+   */
+  variablesReadAsText?: Record<string, boolean | undefined>;
 };
 
 export type PlaygroundError = {
@@ -111,6 +183,12 @@ export type PlaygroundError = {
 };
 
 export type ModelConfig = {
+  /**
+   * Chat (LLM) or decision model; absent means chat. It follows the task: a
+   * decision task holds a decision model, and the model picker switches the
+   * two together.
+   */
+  modelType?: ModelType;
   provider: ModelProvider;
   modelName: string | null;
   baseUrl?: string | null;
@@ -228,6 +306,106 @@ export type PlaygroundInstancePrompt = {
   tag: string | null;
 };
 
+/**
+ * Task mode runs prompts or decisions to produce outputs. Evaluator mode
+ * judges outputs. Every instance on a page shares the same mode.
+ */
+export type PlaygroundMode = "task" | "evaluator";
+
+/**
+ * The task type shown in the task menu. It determines the playground mode
+ * and the instance's data: decision tasks hold a decision prompt and model.
+ * New task types are added here and in the mode mapping.
+ */
+export type PlaygroundTaskType = "prompt" | "decision" | "evaluator";
+
+export type PlaygroundEvaluatorTaskKind = "LLM" | "CODE";
+
+/** The executable half of a code evaluator task. */
+export type PlaygroundEvaluatorTaskCode = {
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  sandboxConfigId: string | null;
+};
+
+/**
+ * The saved evaluator an evaluator task was loaded from, or that its last
+ * save produced. Both ids are null for a draft that has never been saved.
+ */
+export type PlaygroundEvaluatorTaskSource = {
+  evaluatorId: string | null;
+  datasetEvaluatorId: string | null;
+  /** The project binding the task was opened from; its mapping is what the task carries. */
+  projectEvaluatorId: string | null;
+};
+
+/**
+ * An evaluator draft edited in a playground instance. For an LLM evaluator
+ * the judge prompt is the instance's own template, model and prompt
+ * reference; this holds everything else the evaluator editor owns.
+ */
+export type PlaygroundEvaluatorTask = {
+  kind: PlaygroundEvaluatorTaskKind;
+  /** The evaluator store's globalName. */
+  name: string;
+  description: string;
+  outputConfigs: AnnotationConfig[];
+  inputMapping: EvaluatorInputMapping;
+  /** LLM only. */
+  includeExplanation: boolean;
+  code: PlaygroundEvaluatorTaskCode | null;
+  source: PlaygroundEvaluatorTaskSource;
+  /** The evaluator content key captured by the last save, for the "Saved" status. */
+  savedContentKey: string | null;
+};
+
+/**
+ * A prompt, decision, or evaluator task. The type determines its data and
+ * playground mode; every instance on a page shares that mode.
+ */
+export type PlaygroundTask =
+  | { type: "prompt" }
+  | { type: "decision" }
+  | { type: "evaluator"; evaluator: PlaygroundEvaluatorTask };
+
+/**
+ * Where a new (or replacement) instance comes from. Saved prompts and
+ * evaluators are fetched after the instance exists, see
+ * {@link PlaygroundInstance.loadingSource}.
+ */
+export type PlaygroundInstanceSource =
+  | { type: "duplicate" }
+  | {
+      type: "new";
+      taskType: "prompt" | "decision";
+    }
+  | {
+      type: "new";
+      taskType: "evaluator";
+      evaluatorKind: PlaygroundEvaluatorTaskKind;
+    }
+  | {
+      type: "prompt";
+      promptId: string;
+      promptVersionId?: string | null;
+      tagName?: string | null;
+    }
+  | {
+      type: "decision";
+      decisionId: string;
+      decisionVersionId?: string | null;
+      tagName?: string | null;
+    }
+  | { type: "evaluator"; evaluatorId: string }
+  | { type: "datasetEvaluator"; datasetEvaluatorId: string }
+  | { type: "projectEvaluator"; projectEvaluatorId: string };
+
+/** A source that names a saved entity, so its content has to be fetched. */
+export type PlaygroundInstanceLoadingSource = Exclude<
+  PlaygroundInstanceSource,
+  { type: "duplicate" | "new" }
+>;
+
 export type PlaygroundRepetitionStatus =
   | "notStarted"
   | "pending" // awaiting first token in streaming mode or awaiting response in non-streaming mode
@@ -285,6 +463,15 @@ export type PlaygroundInstanceExperiment = {
   isEphemeral: boolean;
 };
 
+/** A saved decision version a decision instance is tied to. */
+export type PlaygroundInstanceDecision = {
+  id: string;
+  name: string;
+  versionId: string;
+  /** The tag the version was loaded by or saved with, if any. */
+  tag: string | null;
+};
+
 /**
  * A single instance of the playground that has
  * - a template
@@ -292,6 +479,18 @@ export type PlaygroundInstanceExperiment = {
  * - output the output of running the playground or the initial data loaded from a span or dataset
  */
 export interface PlaygroundInstance {
+  /** Preserve chat configuration while the instance is a decision. */
+  llmModel?: ModelConfig;
+  /**
+   * The decision prompt this instance runs when its task is a decision. Each instance owns its own, like a prompt, so instances can be
+   * compared and mixed with chat instances.
+   */
+  decisionPrompt?: DecisionPromptDraft | null;
+  /**
+   * The decision prompt the latest run used. Its output is read against
+   * this, not the draft, so editing the draft never relabels an old result.
+   */
+  decisionRunRequest?: DecisionPromptDraft | null;
   /**
    * An ID to uniquely identify the instance
    */
@@ -318,6 +517,11 @@ export interface PlaygroundInstance {
    */
   prompt?: PlaygroundInstancePrompt | null;
   /**
+   * The saved decision version the instance's decision prompt was loaded
+   * from or last saved as, if any
+   */
+  decision?: PlaygroundInstanceDecision | null;
+  /**
    * The selected repetition number for the instance
    */
   selectedRepetitionNumber: number;
@@ -325,6 +529,16 @@ export interface PlaygroundInstance {
    * Progress tracking for experiment runs over a dataset
    */
   experimentRunProgress?: ExperimentRunProgress | null;
+  /**
+   * What the instance holds: a prompt, a decision, or an evaluator draft.
+   */
+  task: PlaygroundTask;
+  /**
+   * The saved prompt or evaluator being fetched into this instance, set by
+   * addInstance/replaceInstance for a saved source and cleared by
+   * loadInstance once its content has landed.
+   */
+  loadingSource?: PlaygroundInstanceLoadingSource | null;
 }
 
 /**
@@ -378,6 +592,12 @@ export interface PlaygroundProps {
    */
   recordExperiments: boolean;
   /**
+   * The dataset examples the active run covers, or null for every example
+   * of the dataset. A row's play button runs the tasks on that one example.
+   * @default null
+   */
+  runExampleIds: readonly string[] | null;
+  /**
    * Name/description/metadata to apply to the experiments created by the next
    * dataset-backed run. Applied identically to every comparison instance and
    * cleared once the run consumes it.
@@ -385,6 +605,18 @@ export interface PlaygroundProps {
    */
   nextExperimentScaffold: ExperimentScaffold | null;
 }
+
+/**
+ * A dot-notation path prefix for template variables per mode, or null for the
+ * example root. Prompt and decision tasks start at "input", so
+ * {{query}} resolves to input.query of the dataset example; evaluator tasks
+ * start at the root, where an evaluator's input mapping addresses input,
+ * output and metadata.
+ */
+const TemplateVariablesPathByModeSchema = z.object({
+  task: z.string().nullable(),
+  evaluator: z.string().nullable(),
+});
 
 export const PlaygroundStateByDatasetIdSchema = z.record(
   z.string(),
@@ -412,13 +644,10 @@ export const PlaygroundStateByDatasetIdSchema = z.record(
      */
     experimentDescription: z.string().nullish(),
     /**
-     * Dot-notation path prefix for template variables when running over a dataset.
-     * Default 'input' means {{query}} resolves to input.query of the dataset example.
-     * Empty string or null means full paths like {{input.query}} or {{reference.answer}} are required.
-     * @example "input" or "reference" or null
-     * @default "input"
+     * Where each mode reads its template variables from when running
+     * over the dataset; see {@link TemplateVariablesPathByModeSchema}.
      */
-    templateVariablesPath: z.string().nullish(),
+    templateVariablesPathByMode: TemplateVariablesPathByModeSchema,
     /**
      * Available paths for template variable autocomplete.
      * These are extracted from dataset examples and cached per dataset.
@@ -466,12 +695,18 @@ export type PlaygroundNormalizedChatTemplate = Omit<
 
 /**
  * A playground instance, with normalized chat completion template messages
+ * and a normalized decision prompt
  */
 export type PlaygroundNormalizedInstance = Omit<
   PlaygroundInstance,
-  "template"
+  "template" | "decisionPrompt"
 > & {
   template: PlaygroundTextCompletionTemplate | PlaygroundNormalizedChatTemplate;
+  /**
+   * The id of the instance's decision prompt in `allInstanceDecisionPrompts`,
+   * if it has one. Like a message id, it is unique across all instances.
+   */
+  decisionPromptId?: number | null;
 };
 
 export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
@@ -496,6 +731,13 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * typing in the editor does not update it.
    */
   externallyUpdatedToolRevisionById: Record<number, number>;
+
+  /**
+   * A map of decision prompt id to decision prompt
+   *
+   * decision prompt ids must be globally unique across all instances
+   */
+  allInstanceDecisionPrompts: Record<number, DecisionPromptDraft>;
 
   /**
    * A map of instance id to whether the instance is dirty
@@ -540,14 +782,42 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setInput: (input: PlaygroundInput) => void;
   /**
-   * Add a comparison instance to the playground
+   * Add a comparison instance to the playground, built from `source`.
+   * A saved prompt or evaluator source leaves the new instance with a
+   * `loadingSource` until {@link loadInstance} lands its content.
+   * @returns the new instance's id, or null when nothing could be added
    */
-  addInstance: () => void;
+  addInstance: (source: PlaygroundInstanceSource) => number | null;
+  /**
+   * Swap an instance for a fresh one built from `source`, in the same
+   * position. Used to change an instance's task, including its kind.
+   * @returns the replacement's id, or null when the instance was not found
+   */
+  replaceInstance: (params: {
+    instanceId: number;
+    source: PlaygroundInstanceSource;
+  }) => number | null;
+  /**
+   * Land fetched content in an instance: its template, model, prompt
+   * reference and task. Clears `loadingSource` and the dirty flag.
+   */
+  loadInstance: (params: {
+    instanceId: number;
+    instance: Omit<PlaygroundInstance, "id">;
+  }) => void;
   /**
    * Delete a specific instance of the playground
    * @param instanceId the instance to delete
    */
   deleteInstance: (instanceId: number) => void;
+  /**
+   * Add a copy of one instance right after it, with fresh ids and no runs.
+   */
+  /**
+   * Insert a copy of the instance right after it. Returns the copy's id, or
+   * null when no instance has the given id.
+   */
+  duplicateInstance: (instanceId: number) => number | null;
   /**
    * Add a message to a playground instance
    */
@@ -644,9 +914,13 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     patch: Partial<Omit<ModelConfig, "provider" | "invocationParameters">>;
   }) => void;
   /**
-   * Run all the active playground Instances
+   * Run the playground instances: all of them, or only `instanceIds`; over
+   * the whole dataset, or only `exampleIds` (a row's play button).
    */
-  runPlaygroundInstances: () => void;
+  runPlaygroundInstances: (
+    instanceIds?: readonly number[],
+    options?: { exampleIds?: readonly string[] }
+  ) => void;
   /**
    * Cancel all the active playground Instances
    */
@@ -664,9 +938,26 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setVariableValue: (key: string, value: string) => void;
   /**
+   * Replace one instance's decision prompt and mark the instance dirty.
+   * Only the prompt's entry in `allInstanceDecisionPrompts` changes, so
+   * typing in a decision leaves `instances` as it is.
+   */
+  updateDecisionPrompt: (params: {
+    instanceId: number;
+    request: DecisionPromptDraft;
+  }) => void;
+  /**
    * Set multiple variable values in the input
    */
   setVariableValues: (values: { key: string; value: string }[]) => void;
+  /**
+   * Whether decisions read a variable's value as text even when it parses
+   * as JSON; see {@link PlaygroundInput.variablesReadAsText}.
+   */
+  setVariableReadAsText: (params: {
+    name: string;
+    isReadAsText: boolean;
+  }) => void;
   /**
    * set the streaming mode for the playground
    */
@@ -729,14 +1020,17 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     datasetId: string;
   }) => void;
   /**
-   * Set the template variables path for dataset experiments
+   * Set the template variables path one mode uses for dataset
+   * experiments; the other mode's path is left alone.
    */
   setTemplateVariablesPath: ({
     templateVariablesPath,
     datasetId,
+    mode,
   }: {
     templateVariablesPath: string | null;
     datasetId: string;
+    mode: PlaygroundMode;
   }) => void;
   /**
    * Set the available paths for template variable autocomplete.

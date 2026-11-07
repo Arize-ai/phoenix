@@ -527,6 +527,269 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evaluators
+         * @description List evaluator definitions, newest first, whether or not anything binds them.
+         *
+         *     Items are identified by their own typed ids, and the cursor is a separate value:
+         *     pass `next_cursor` back as is.
+         */
+        get: operations["getEvaluators"];
+        put?: never;
+        /**
+         * Create Evaluator
+         * @description Create an evaluator definition that nothing binds yet.
+         *
+         *     An LLM evaluator runs an existing prompt version; a code evaluator is created with its
+         *     first version. The name must be unique among evaluators: a clash is refused with 409
+         *     `already_exists`, whose `existing_id` names the evaluator holding it.
+         */
+        post: operations["createEvaluator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluators/{evaluator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Evaluator
+         * @description Read a definition, including its current code or the prompt version it runs.
+         *
+         *     Built-in definitions are read-only.
+         */
+        get: operations["getEvaluator"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Evaluator
+         * @description Delete a definition that nothing binds; a missing evaluator is ignored.
+         *
+         *     A definition still bound by a project or dataset is refused with 409; delete those
+         *     bindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps
+         *     the prompt. Built-in evaluators cannot be deleted.
+         */
+        delete: operations["deleteEvaluator"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Evaluator
+         * @description Edit a definition; the change applies to every binding that references it.
+         *
+         *     Omitted fields keep their values. Code is appended through the versions endpoint and
+         *     prompt content through the prompts API; this route only moves pointers to them.
+         */
+        patch: operations["patchEvaluator"];
+        trace?: never;
+    };
+    "/v1/evaluators/{evaluator_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Code Evaluator Versions
+         * @description List a code evaluator's versions, newest first. Only code evaluators have versions.
+         */
+        get: operations["listCodeEvaluatorVersions"];
+        put?: never;
+        /**
+         * Create Code Evaluator Version
+         * @description Append immutable code, returning 200 when it matches the current version.
+         *
+         *     Configuration sent alongside (sandbox, input mapping, outputs, description) is applied in
+         *     the same transaction, so bindings never see new code with the old configuration. Pass
+         *     `expected_current_version_id` to be refused with 409 if another deployment landed first.
+         *     Deduplication compares against the current version only, so restoring older source
+         *     creates another version.
+         */
+        post: operations["createCodeEvaluatorVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Evaluators
+         * @description List evaluator bindings in a project. The identifier is decoded as a GlobalID first and
+         *     otherwise treated as a name.
+         */
+        get: operations["getProjectEvaluators"];
+        put?: never;
+        /**
+         * Create Project Evaluator
+         * @description Bind an existing LLM, code, or decision evaluator definition to a project.
+         *
+         *     The project identifier is decoded as a GlobalID first and otherwise treated as a name.
+         *     SPAN evaluators run on matching sampled spans. TRACE and SESSION evaluators run once per
+         *     trace or session, after the first quiet period following the evaluation delay. A name the
+         *     project already uses is refused with 409 `already_exists` and that binding's
+         *     `existing_id`.
+         */
+        post: operations["createProjectEvaluator"];
+        /**
+         * Delete Project Evaluators
+         * @description Delete up to 1000 of a project's bindings in one transaction.
+         *
+         *     Missing bindings are ignored; a binding of another project is refused with 422 before
+         *     any change. Each deleted binding's trace project and recorded traces are removed; evaluator
+         *     definitions and prompts are kept.
+         */
+        delete: operations["deleteProjectEvaluators"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/project_evaluators/{project_evaluator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Evaluator
+         * @description Fetch binding settings. Use evaluator_id to retrieve the shared definition.
+         */
+        get: operations["getProjectEvaluator"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Project Evaluator
+         * @description Delete a binding; a missing binding is ignored.
+         *
+         *     The binding's trace project and recorded traces are deleted. Its evaluator definition and
+         *     prompt are kept. Delete a definition that nothing binds with
+         *     DELETE /v1/evaluators/{evaluator_id}.
+         */
+        delete: operations["deleteProjectEvaluator"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Project Evaluator
+         * @description Update only binding settings. Evaluation target and evaluator kind are immutable.
+         */
+        patch: operations["patchProjectEvaluator"];
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/evaluators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Evaluators
+         * @description List dataset bindings with their stored overrides and an opaque pagination cursor.
+         */
+        get: operations["getDatasetEvaluators"];
+        put?: never;
+        /**
+         * Create Dataset Evaluator
+         * @description Bind an existing evaluator definition to a dataset.
+         *
+         *     The dataset identifier is decoded as a GlobalID first and otherwise treated as a name.
+         *     Binding descriptions and output configurations override the shared definition; null
+         *     inherits it. Input mappings are always dataset-specific. A name the dataset already uses
+         *     is refused with 409 `already_exists` and that binding's `existing_id`. This registers an
+         *     evaluator and does not run an experiment.
+         */
+        post: operations["createDatasetEvaluator"];
+        /**
+         * Delete Dataset Evaluators
+         * @description Delete up to 1000 of a dataset's bindings in one transaction.
+         *
+         *     Missing bindings are ignored; a binding of another dataset is refused with 422 before
+         *     any change. Each deleted binding's trace project and recorded traces are removed; evaluator
+         *     definitions and prompts are kept.
+         */
+        delete: operations["deleteDatasetEvaluators"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dataset_evaluators/{dataset_evaluator_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dataset Evaluator
+         * @description Fetch binding settings. Null description/output configs inherit the shared definition.
+         */
+        get: operations["getDatasetEvaluator"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Dataset Evaluator
+         * @description Delete a binding; a missing binding is ignored.
+         *
+         *     The binding's trace project and recorded traces are deleted. Its evaluator definition and
+         *     prompt are kept. Delete a definition that nothing binds with
+         *     DELETE /v1/evaluators/{evaluator_id}.
+         */
+        delete: operations["deleteDatasetEvaluator"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Dataset Evaluator
+         * @description Update only the binding. Dataset and evaluator references are immutable.
+         *
+         *     LLM output overrides must remain consistent with the prompt the evaluator runs, and a
+         *     later change to that prompt is refused while it would invalidate them. Use
+         *     /evaluators/{evaluator_id} to modify a shared definition instead.
+         */
+        patch: operations["patchDatasetEvaluator"];
+        trace?: never;
+    };
+    "/v1/sandbox_configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sandbox Configs
+         * @description List sandbox configurations, newest first. Provider credentials are not returned.
+         */
+        get: operations["getSandboxConfigs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets/{dataset_id}/experiments": {
         parameters: {
             query?: never;
@@ -980,8 +1243,8 @@ export interface paths {
         get: operations["getPrompts"];
         put?: never;
         /**
-         * Create a new prompt
-         * @description Create a new prompt and its initial version. A prompt can have multiple versions.
+         * Create a prompt or add a version
+         * @description Create a prompt with its initial version. If a prompt with `prompt.name` already exists, add the version to it instead. Either way a version is created: the response is 201 with its URL in `Location`, and a `version_number` of 1 means the prompt was created too.
          */
         post: operations["postPromptVersion"];
         delete?: never;
@@ -1089,7 +1352,7 @@ export interface paths {
         put?: never;
         /**
          * Add tag to prompt version
-         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.
+         * @description Point a tag at a prompt version. Tag names are unique within a prompt: if the version's prompt already has a tag of this name, it moves to this version. Returns 201 with the tag when it was created, or 200 when an existing tag moved.
          */
         post: operations["createPromptVersionTag"];
         delete?: never;
@@ -1140,6 +1403,306 @@ export interface paths {
          * @description Update a prompt's description and metadata by identifier.
          */
         patch: operations["patchPrompt"];
+        trace?: never;
+    };
+    "/v1/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List decisions
+         * @description Retrieve a paginated list of saved decisions, newest first, optionally filtered by name or label. A decision can have multiple versions.
+         */
+        get: operations["getDecisions"];
+        put?: never;
+        /**
+         * Create a decision or add a version
+         * @description Create a decision with its initial version. If a decision with `decision.name` already exists, add the version to it instead; that decision's description and metadata change only when given. Optional `tags` are set on the new version, moving any tag of that name from another version of the decision.
+         */
+        post: operations["postDecisionVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a decision
+         * @description Retrieve a decision's name, description, and metadata by GlobalID or name. Its versions are listed by `GET /v1/decisions/{decision_identifier}/versions`.
+         */
+        get: operations["getDecision"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a decision
+         * @description Delete a decision with all its versions, tags, and labels, by GlobalID or name. A decision run by an evaluator is refused with 409; delete the evaluator first. Experiments that ran a deleted version keep their results.
+         */
+        delete: operations["deleteDecision"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a decision
+         * @description Update a decision's description and/or metadata by GlobalID or name. An omitted field is left unchanged; a null description clears it, and metadata is replaced as a whole. At least one field is required.
+         */
+        patch: operations["patchDecision"];
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/clones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clone a decision
+         * @description Create a new decision that copies a decision's version history, by GlobalID or name. Each copied version keeps its author; tags are not copied. The copy's `source_decision_id` names the source. A name that is taken is refused with 409.
+         */
+        post: operations["cloneDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List decision versions
+         * @description Retrieve a paginated list of a decision's versions, newest first.
+         */
+        get: operations["listDecisionVersions"];
+        put?: never;
+        /**
+         * Create a decision version
+         * @description Add a version to an existing decision, by GlobalID or name. Optional `tags` are set on the new version, moving any tag of that name from another version.
+         */
+        post: operations["createDecisionVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the latest decision version
+         * @description Retrieve the most recent version of a decision, by GlobalID or name.
+         */
+        get: operations["getDecisionVersionLatest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/tags/{tag_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a decision version by tag
+         * @description Retrieve the version of a decision that a tag, such as `production`, points to.
+         */
+        get: operations["getDecisionVersionByTagName"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision_versions/{decision_version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a decision version by ID
+         * @description Retrieve a specific decision version by its GlobalID.
+         */
+        get: operations["getDecisionVersionByDecisionVersionId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision_versions/{decision_version_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List decision version tags
+         * @description Retrieve a paginated list of the tags that point to a decision version.
+         */
+        get: operations["getDecisionVersionTags"];
+        put?: never;
+        /**
+         * Tag a decision version
+         * @description Point a tag at a decision version. Tag names are unique within a decision: if the version's decision already has a tag of this name, it moves to this version and keeps its description unless a new one is given. Returns 201 with the tag when it was created, or 200 when an existing tag moved.
+         */
+        post: operations["createDecisionVersionTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision_versions/{decision_version_id}/tags/{tag_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a decision version tag
+         * @description Delete a tag by name. The tag is resolved within the decision of the given version.
+         */
+        delete: operations["deleteDecisionVersionTag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision_labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List decision labels
+         * @description Retrieve a paginated list of decision labels, newest first.
+         */
+        get: operations["listDecisionLabels"];
+        put?: never;
+        /**
+         * Create a decision label
+         * @description Create a decision label. Label names are unique; a taken name is refused with 409.
+         */
+        post: operations["createDecisionLabel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decision_labels/{decision_label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a decision label
+         * @description Retrieve a decision label by its GlobalID.
+         */
+        get: operations["getDecisionLabel"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a decision label
+         * @description Delete a decision label. It is removed from every decision it is applied to.
+         */
+        delete: operations["deleteDecisionLabel"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a decision label
+         * @description Update a decision label's name, color, and/or description. An omitted field is left unchanged; at least one is required. A taken name is refused with 409.
+         */
+        patch: operations["patchDecisionLabel"];
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a decision's labels
+         * @description Retrieve the labels applied to a decision, by GlobalID or name.
+         */
+        get: operations["listDecisionLabelsForDecision"];
+        /**
+         * Replace a decision's labels
+         * @description Replace the set of labels applied to a decision: listed labels not yet applied are added, and applied labels not listed are removed. An empty list removes all labels.
+         */
+        put: operations["setDecisionLabels"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/decisions/{decision_identifier}/labels/{decision_label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply a label to a decision
+         * @description Apply a label to a decision. Applying a label that is already applied changes nothing.
+         */
+        put: operations["addDecisionLabelToDecision"];
+        post?: never;
+        /**
+         * Remove a label from a decision
+         * @description Remove a label from a decision without deleting the label. Removing a label that is not applied changes nothing.
+         */
+        delete: operations["removeDecisionLabelFromDecision"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/projects": {
@@ -1223,7 +1786,7 @@ export interface paths {
         };
         /**
          * List built-in model provider families
-         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
+         * @description Retrieve the built-in model provider families available to this deployment. Built-in families are a fixed enum rather than stored records, so this list is not paginated; it is narrowed by the PHOENIX_ALLOWED_PROVIDERS environment variable when that is set. By default, or with `model_type=CHAT`, only providers that offer chat models are listed, because that list feeds chat-only surfaces such as prompts and `POST /v1/chat/completions`. With `model_type=DECISION`, the providers that offer decision models are listed instead, for `/v1/decisions`. User-defined providers are listed separately by `GET /v1/custom_model_providers`.
          */
         get: operations["getModelProviders"];
         put?: never;
@@ -2209,9 +2772,30 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** BuiltInEvaluatorDefinition */
+        BuiltInEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "builtin";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            /** Key */
+            key: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
         /** BuiltInModelProvider */
         BuiltInModelProvider: {
-            /** @description The provider family identifier, accepted wherever a built-in model provider is specified (e.g. 'OPENAI'). */
+            /** @description The provider family identifier, accepted wherever a built-in model provider of the listed model type is specified (e.g. 'OPENAI'): prompts and chat completions for CHAT, decisions for DECISION. */
             provider: components["schemas"]["ModelProvider"];
             /**
              * Name
@@ -2473,6 +3057,74 @@ export interface components {
              */
             value: string;
         };
+        /** ChoiceScoring */
+        ChoiceScoring: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "choice";
+            /** Scores */
+            scores?: {
+                [key: string]: number;
+            };
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
+        };
+        /**
+         * CloneDecisionRequestBody
+         * @description The new decision's name, and optionally its own description and metadata.
+         */
+        CloneDecisionRequestBody: {
+            /** @description The new decision's name. It must not be taken. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description The copy's description. Omit to copy the source's.
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description The copy's metadata. Omit to copy the source's.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** CloneDecisionResponseBody */
+        CloneDecisionResponseBody: {
+            data: components["schemas"]["Decision"];
+        };
+        /** CodeEvaluatorDefinition */
+        CodeEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            language: components["schemas"]["LanguageName"];
+            /** Sandbox Config Id */
+            sandbox_config_id: string | null;
+            input_mapping: components["schemas"]["InputMapping"] | null;
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /** Current Version Id */
+            current_version_id: string | null;
+            /** Source Code */
+            source_code: string | null;
+            /**
+             * Input Schema
+             * @description The parameters of the current version's evaluate function, with a description on each the author described. Null without a version.
+             */
+            input_schema: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** CodeEvaluatorUIContext */
         CodeEvaluatorUIContext: {
             /**
@@ -2482,6 +3134,61 @@ export interface components {
             type: "code_evaluator";
             /** Evaluatornodeid */
             evaluatorNodeId?: string | null;
+        };
+        /** CodeEvaluatorVersion */
+        CodeEvaluatorVersion: {
+            /** Id */
+            id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /** Source Code */
+            source_code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CodeEvaluatorVersionRequest */
+        CodeEvaluatorVersionRequest: {
+            /** Source Code */
+            source_code: string;
+            /**
+             * Expected Current Version Id
+             * @description GlobalID of the version the caller believes is current. When another version has been appended since, the request is refused with 409 instead of deploying over it.
+             */
+            expected_current_version_id?: string | null;
+            /**
+             * Description
+             * @description Configuration applied together with the new code. Omit to keep.
+             */
+            description?: string | null;
+            /**
+             * Sandbox Config Id
+             * @description Sandbox to run the new code in. Omit to keep; null clears it.
+             */
+            sandbox_config_id?: string | null;
+            /** @description Default input mapping for the new code's arguments. Omit to keep. */
+            input_mapping?: components["schemas"]["InputMapping"];
+            /**
+             * Output Configs
+             * @description Outputs the new code produces. Omit to keep.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the parameters the new code still declares; null clears them.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** CodeEvaluatorVersionsResponseBody */
+        CodeEvaluatorVersionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["CodeEvaluatorVersion"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * CompactAgentSessionRequestBody
@@ -2631,6 +3338,58 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** CreateCodeEvaluatorRequest */
+        CreateCodeEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            /** @description Unique among evaluators. */
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Code */
+            source_code: string;
+            language: components["schemas"]["LanguageName"];
+            /** Sandbox Config Id */
+            sandbox_config_id: string;
+            /** @description Default mapping from record fields to the function's arguments. */
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Output Configs
+             * @description Outputs the code produces.
+             */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** CreateDatasetEvaluatorRequest */
+        CreateDatasetEvaluatorRequest: {
+            /** @description Unique among this dataset's evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the LLM, code, built-in, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Binding override. Null inherits the shared description.
+             */
+            description?: string | null;
+            /**
+             * Output Configs
+             * @description Null inherits the shared output configs. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
             /**
@@ -2686,6 +3445,45 @@ export interface components {
         /** CreateDatasetSplitResponseBody */
         CreateDatasetSplitResponseBody: {
             data: components["schemas"]["DatasetSplit"];
+        };
+        /** CreateDecisionEvaluatorRequest */
+        CreateDecisionEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            name: components["schemas"]["Identifier"];
+            /** @description The decision version to run. */
+            decision: components["schemas"]["DecisionEvaluatorDecisionInput"];
+            /** Description */
+            description?: string | null;
+            scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
+        };
+        /** CreateDecisionRequestBody */
+        CreateDecisionRequestBody: {
+            decision: components["schemas"]["DecisionData"];
+            version: components["schemas"]["DecisionVersionData"];
+            /** Tags */
+            tags?: components["schemas"]["DecisionVersionTagData"][] | null;
+        };
+        /** CreateDecisionResponseBody */
+        CreateDecisionResponseBody: {
+            data: components["schemas"]["DecisionVersion"];
+        };
+        /** CreateDecisionVersionRequestBody */
+        CreateDecisionVersionRequestBody: {
+            version: components["schemas"]["DecisionVersionData"];
+            /** Tags */
+            tags?: components["schemas"]["DecisionVersionTagData"][] | null;
+        };
+        /** CreateDecisionVersionResponseBody */
+        CreateDecisionVersionResponseBody: {
+            data: components["schemas"]["DecisionVersion"];
+        };
+        /** CreateDecisionVersionTagResponseBody */
+        CreateDecisionVersionTagResponseBody: {
+            data: components["schemas"]["DecisionVersionTag"];
         };
         /**
          * CreateExperimentRequestBody
@@ -2782,6 +3580,62 @@ export interface components {
              */
             id: string;
         };
+        /** CreateLLMEvaluatorRequest */
+        CreateLLMEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            /** @description Unique among evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
+             */
+            description?: string | null;
+            /** @description The prompt version to run. Create the prompt and its version through the prompts API first. */
+            prompt: components["schemas"]["LLMEvaluatorPromptInput"];
+            /** Output Configs */
+            output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** CreateProjectEvaluatorRequest */
+        CreateProjectEvaluatorRequest: {
+            /** @description Unique among this project's evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the LLM, code, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
+            evaluation_target: components["schemas"]["EvaluationTarget"];
+            /** Sampling Rate */
+            sampling_rate: number;
+            /**
+             * Filter Condition
+             * @default
+             */
+            filter_condition?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled?: boolean;
+            /** @description Null uses the evaluator's mapping. LLM evaluators have none, so only variables rooted at input, output, or metadata bind (for example {{metadata.turns}}); anything else needs input_mapping. */
+            input_mapping?: components["schemas"]["InputMapping"] | null;
+            /**
+             * Evaluation Delay Seconds
+             * @description Quiet period in seconds before a TRACE or SESSION evaluator runs. Null stores the server default. SPAN evaluators reject a non-null delay and store 0.
+             */
+            evaluation_delay_seconds?: number | null;
+        };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
             /** Name */
@@ -2811,6 +3665,10 @@ export interface components {
         /** CreatePromptVersionResponseBody */
         CreatePromptVersionResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreatePromptVersionTagResponseBody */
+        CreatePromptVersionTagResponseBody: {
+            data: components["schemas"]["PromptVersionTag"];
         };
         /** CreateSessionNoteRequestBody */
         CreateSessionNoteRequestBody: {
@@ -2898,6 +3756,29 @@ export interface components {
              */
             key: string;
         };
+        /** CreatedCodeEvaluatorVersion */
+        CreatedCodeEvaluatorVersion: {
+            /** Id */
+            id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /** Source Code */
+            source_code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Was Created
+             * @description False when the source matched the current version, which is returned instead.
+             */
+            was_created: boolean;
+        };
+        /** CreatedCodeEvaluatorVersionResponseBody */
+        CreatedCodeEvaluatorVersionResponseBody: {
+            data: components["schemas"]["CreatedCodeEvaluatorVersion"];
+        };
         /** CustomModelProvider */
         CustomModelProvider: {
             /**
@@ -2925,7 +3806,7 @@ export interface components {
              * @description The SDK used to communicate with the custom provider.
              * @enum {string}
              */
-            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock";
+            sdk: "openai" | "azure_openai" | "anthropic" | "google_genai" | "aws_bedrock" | "typesafe";
             /**
              * Created At
              * Format: date-time
@@ -2990,6 +3871,45 @@ export interface components {
             updated_at: string;
             /** Example Count */
             example_count: number;
+        };
+        /** DatasetEvaluator */
+        DatasetEvaluator: {
+            /** Id */
+            id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /**
+             * Evaluator Type
+             * @enum {string}
+             */
+            evaluator_type: "llm" | "code" | "builtin" | "decision";
+            /** Trace Project Id */
+            trace_project_id: string;
+            name: components["schemas"]["Identifier"];
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description This binding's description override; null means it inherits the evaluator's description.
+             */
+            description: string | null;
+            /**
+             * Output Configs
+             * @description This binding's output config override; null means it inherits the evaluator's output configs.
+             */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
+        /** DatasetEvaluatorResponseBody */
+        DatasetEvaluatorResponseBody: {
+            data: components["schemas"]["DatasetEvaluator"];
+        };
+        /** DatasetEvaluatorsResponseBody */
+        DatasetEvaluatorsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetEvaluator"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** DatasetExample */
         DatasetExample: {
@@ -3113,6 +4033,395 @@ export interface components {
             updated_at: string;
             /** Example Count */
             example_count: number;
+        };
+        /**
+         * Decision
+         * @description A saved decision: a named, versioned typed function that apps fetch by tag.
+         */
+        Decision: {
+            /**
+             * Id
+             * @description The GlobalID of the decision.
+             */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Source Decision Id
+             * @description The GlobalID of the decision this one was cloned from, if any.
+             */
+            source_decision_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DecisionChoiceOption */
+        DecisionChoiceOption: {
+            /** Value */
+            value: string;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * DecisionChoiceQuestion
+         * @description One option from a fixed set of 2–255.
+         */
+        DecisionChoiceQuestion: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "choice";
+            /**
+             * Name
+             * @description The name the answer is returned under.
+             */
+            name: string;
+            /** Instructions */
+            instructions: string;
+            /** Choices */
+            choices: components["schemas"]["DecisionChoiceOption"][];
+        };
+        /**
+         * DecisionData
+         * @description The decision to create, or to add a version to when one with this name exists.
+         *
+         *     When the decision exists, an omitted description or metadata leaves it unchanged.
+         */
+        DecisionData: {
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description The decision's description. Omit to keep an existing decision's.
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description The decision's metadata object. Omit to keep an existing decision's.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** DecisionEvaluatorDecision */
+        DecisionEvaluatorDecision: {
+            /**
+             * Decision Id
+             * @description GlobalID of the decision whose version the evaluator runs.
+             */
+            decision_id: string;
+            /**
+             * Selector
+             * @description How the version is chosen. version: pinned to one version. latest: the decision's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.
+             */
+            selector: components["schemas"]["DecisionVersionSelector"] | components["schemas"]["LatestDecisionVersionSelector"];
+            /**
+             * Resolved Decision Version Id
+             * @description GlobalID of the version the evaluator runs now.
+             */
+            resolved_decision_version_id: string;
+        };
+        /** DecisionEvaluatorDecisionInput */
+        DecisionEvaluatorDecisionInput: {
+            /** @description Which decision version to run. */
+            selector: components["schemas"]["DecisionVersionSelector"];
+        };
+        /** DecisionEvaluatorDefinition */
+        DecisionEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            decision: components["schemas"]["DecisionEvaluatorDecision"];
+            scoring_policy: components["schemas"]["DecisionScoringPolicy"];
+            /** Output Configs */
+            output_configs: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+        };
+        /**
+         * DecisionJsonState
+         * @description The state is JSON: any JSON value whose string leaves are templates.
+         *
+         *     A string leaf that is exactly one variable tag is replaced by the variable's value with its
+         *     JSON type kept; any other string leaf renders as text. Object keys are literal.
+         */
+        DecisionJsonState: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "json";
+            /**
+             * Template
+             * @description An object, a list, or a string whose string leaves are templates.
+             */
+            template: unknown;
+        };
+        /**
+         * DecisionLabel
+         * @description A label for organizing decisions, such as ``support`` or ``billing``.
+         */
+        DecisionLabel: {
+            /**
+             * Id
+             * @description The GlobalID of the decision label.
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Color
+             * @description A lowercase hex color code used to display the label.
+             */
+            color?: string | null;
+        };
+        /** DecisionLabelData */
+        DecisionLabelData: {
+            /**
+             * Name
+             * @description The label's name, unique among decision labels.
+             */
+            name: string;
+            /**
+             * Color
+             * @description A lowercase hex color code (e.g. '#00cc88') used to display the label.
+             */
+            color: string;
+            /** Description */
+            description?: string | null;
+        };
+        /** DecisionLabelResponseBody */
+        DecisionLabelResponseBody: {
+            data: components["schemas"]["DecisionLabel"];
+        };
+        /** DecisionLabelsResponseBody */
+        DecisionLabelsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DecisionLabel"][];
+        };
+        /**
+         * DecisionPredicateCriteria
+         * @description What counts as true and as false; either may be omitted.
+         */
+        DecisionPredicateCriteria: {
+            /** True */
+            true?: string | null;
+            /** False */
+            false?: string | null;
+        };
+        /**
+         * DecisionPredicateQuestion
+         * @description A statement or yes/no question, answered with the probability that it is true.
+         */
+        DecisionPredicateQuestion: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "predicate";
+            /**
+             * Name
+             * @description The name the answer is returned under.
+             */
+            name: string;
+            /** Instructions */
+            instructions: string;
+            criteria?: components["schemas"]["DecisionPredicateCriteria"] | null;
+        };
+        /** DecisionScaleLevel */
+        DecisionScaleLevel: {
+            /** Label */
+            label: string;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * DecisionScaleQuestion
+         * @description 2–10 ordered levels; a level's position, from zero, is its value.
+         */
+        DecisionScaleQuestion: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "scale";
+            /**
+             * Name
+             * @description The name the answer is returned under.
+             */
+            name: string;
+            /** Instructions */
+            instructions: string;
+            /** Levels */
+            levels: components["schemas"]["DecisionScaleLevel"][];
+        };
+        /**
+         * DecisionScoringPolicy
+         * @description Question thresholds, choice scores, scale labels, and comparison direction.
+         */
+        DecisionScoringPolicy: {
+            /** Questions */
+            questions?: {
+                [key: string]: components["schemas"]["PredicateScoring"] | components["schemas"]["ChoiceScoring"] | components["schemas"]["ScaleScoring"];
+            };
+        };
+        /**
+         * DecisionTextState
+         * @description The state is text: a template rendered with the version's template format.
+         */
+        DecisionTextState: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
+            /** Template */
+            template: string;
+        };
+        /**
+         * DecisionVersion
+         * @description An immutable version of a decision.
+         */
+        DecisionVersion: {
+            /**
+             * Id
+             * @description The GlobalID of the decision version.
+             */
+            id: string;
+            /**
+             * Decision Id
+             * @description The GlobalID of the decision this version belongs to.
+             */
+            decision_id: string;
+            /** @description The name of the decision. */
+            decision_name: components["schemas"]["Identifier"];
+            /**
+             * Version Number
+             * @description The version's position in its decision's history, from 1. A version numbered 1 is the decision's first, so a create-or-append that returns 1 created the decision.
+             */
+            version_number: number;
+            /**
+             * Tag Names
+             * @description The names of the tags pointing at this version.
+             */
+            tag_names: string[];
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** State */
+            state: components["schemas"]["DecisionTextState"] | components["schemas"]["DecisionJsonState"];
+            /** Questions */
+            questions: (components["schemas"]["DecisionPredicateQuestion"] | components["schemas"]["DecisionChoiceQuestion"] | components["schemas"]["DecisionScaleQuestion"])[];
+            /**
+             * Variables
+             * @description The variables the state and questions use, by root name, in first-appearance order. A call must supply each of them.
+             */
+            variables: string[];
+            model_provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /** Custom Provider Id */
+            custom_provider_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * DecisionVersionData
+         * @description A decision version to save: its template format, state template, questions, and the
+         *     model that answers. Saved versions are immutable; saving again adds a version.
+         */
+        DecisionVersionData: {
+            /** Description */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the decision version.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** @description How variable tags are read in the state and the question fields. */
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** State */
+            state: components["schemas"]["DecisionTextState"] | components["schemas"]["DecisionJsonState"];
+            /** Questions */
+            questions: (components["schemas"]["DecisionPredicateQuestion"] | components["schemas"]["DecisionChoiceQuestion"] | components["schemas"]["DecisionScaleQuestion"])[];
+            /** @description The provider whose decision API answers; it must offer decision models. For a custom provider, the API its SDK speaks (e.g. OPENAI or TYPESAFE). */
+            model_provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /**
+             * Custom Provider Id
+             * @description GlobalID of a custom model provider for this version, or null for the built-in provider. The provider must serve decision models and speak model_provider's API.
+             */
+            custom_provider_id?: string | null;
+        };
+        /** DecisionVersionSelector */
+        DecisionVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "version";
+            /**
+             * Decision Version Id
+             * @description GlobalID of the decision version the evaluator runs. An update must name a version of the evaluator's own decision.
+             */
+            decision_version_id: string;
+        };
+        /**
+         * DecisionVersionTag
+         * @description A movable name for one of a decision's versions, such as ``production``.
+         */
+        DecisionVersionTag: {
+            /**
+             * Id
+             * @description The GlobalID of the tag.
+             */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /**
+             * Decision Version Id
+             * @description The GlobalID of the version the tag points to.
+             */
+            decision_version_id: string;
+        };
+        /** DecisionVersionTagData */
+        DecisionVersionTagData: {
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description The tag's description. When moving an existing tag, null keeps its own.
+             */
+            description?: string | null;
         };
         /** DeleteAnnotationConfigResponseBody */
         DeleteAnnotationConfigResponseBody: {
@@ -3270,6 +4579,20 @@ export interface components {
             } | null;
             /** Approval */
             approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /** @enum {string} */
+        EvaluationTarget: "SPAN" | "TRACE" | "SESSION";
+        /** EvaluatorDefinitionResponseBody */
+        EvaluatorDefinitionResponseBody: {
+            /** Data */
+            data: components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"] | components["schemas"]["DecisionEvaluatorDefinition"];
+        };
+        /** EvaluatorDefinitionsResponseBody */
+        EvaluatorDefinitionsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CodeEvaluatorDefinition"] | components["schemas"]["LLMEvaluatorDefinition"] | components["schemas"]["BuiltInEvaluatorDefinition"] | components["schemas"]["DecisionEvaluatorDefinition"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** Experiment */
         Experiment: {
@@ -3548,6 +4871,42 @@ export interface components {
         GetDatasetResponseBody: {
             data: components["schemas"]["DatasetWithExampleCount"];
         };
+        /** GetDecisionLabelsResponseBody */
+        GetDecisionLabelsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DecisionLabel"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetDecisionResponseBody */
+        GetDecisionResponseBody: {
+            data: components["schemas"]["Decision"];
+        };
+        /** GetDecisionVersionResponseBody */
+        GetDecisionVersionResponseBody: {
+            data: components["schemas"]["DecisionVersion"];
+        };
+        /** GetDecisionVersionTagsResponseBody */
+        GetDecisionVersionTagsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DecisionVersionTag"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetDecisionVersionsResponseBody */
+        GetDecisionVersionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DecisionVersion"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetDecisionsResponseBody */
+        GetDecisionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["Decision"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetExperimentResponseBody */
         GetExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
@@ -3693,6 +5052,17 @@ export interface components {
              */
             repetition_numbers: number[];
         };
+        /** InputMapping */
+        InputMapping: {
+            /** Literal Mapping */
+            literal_mapping: {
+                [key: string]: unknown;
+            };
+            /** Path Mapping */
+            path_mapping: {
+                [key: string]: string;
+            };
+        };
         /** InsertedSessionAnnotation */
         InsertedSessionAnnotation: {
             /**
@@ -3770,6 +5140,73 @@ export interface components {
              * @enum {string}
              */
             auth_method: "LDAP";
+        };
+        /** LLMEvaluatorDefinition */
+        LLMEvaluatorDefinition: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            /** Id */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description Equals the description of the prompt's tool function.
+             */
+            description: string | null;
+            prompt: components["schemas"]["LLMEvaluatorPrompt"];
+            /** Output Configs */
+            output_configs: components["schemas"]["CategoricalAnnotationConfigData"][];
+            /**
+             * Input Schema
+             * @description The variables of the prompt version the evaluator runs, with a description on each the author described. Null when that version cannot be resolved or its template cannot be parsed.
+             */
+            input_schema: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** LLMEvaluatorPrompt */
+        LLMEvaluatorPrompt: {
+            /**
+             * Prompt Id
+             * @description GlobalID of the prompt whose version the evaluator runs.
+             */
+            prompt_id: string;
+            /**
+             * Selector
+             * @description How the version is chosen. version: pinned to one version. latest: the prompt's newest version, for evaluators whose pin was removed; writes accept version only. Treat an unrecognized type as not pinned.
+             */
+            selector: components["schemas"]["PromptVersionSelector"] | components["schemas"]["LatestPromptVersionSelector"];
+            /**
+             * Resolved Prompt Version Id
+             * @description GlobalID of the version the evaluator runs now; null if the prompt has none.
+             */
+            resolved_prompt_version_id: string | null;
+        };
+        /** LLMEvaluatorPromptInput */
+        LLMEvaluatorPromptInput: {
+            /** @description Which prompt version to run. */
+            selector: components["schemas"]["PromptVersionSelector"];
+        };
+        /** @enum {string} */
+        LanguageName: "PYTHON" | "TYPESCRIPT";
+        /** LatestDecisionVersionSelector */
+        LatestDecisionVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "latest";
+        };
+        /** LatestPromptVersionSelector */
+        LatestPromptVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "latest";
         };
         /**
          * LegacyAssistantMessageMetadata
@@ -4060,7 +5497,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE" | "DEEPSEEK" | "XAI" | "OLLAMA" | "AWS" | "CEREBRAS" | "FIREWORKS" | "GROQ" | "MOONSHOT" | "MINIMAX" | "PERPLEXITY" | "TOGETHER" | "ZAI" | "META" | "TYPESAFE";
         /** OAuth2User */
         OAuth2User: {
             /** Id */
@@ -4342,6 +5779,137 @@ export interface components {
         PatchAgentSessionResponseBody: {
             data: components["schemas"]["AgentSessionData"];
         };
+        /** PatchCodeEvaluatorRequest */
+        PatchCodeEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code";
+            name?: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Sandbox Config Id */
+            sandbox_config_id?: string | null;
+            input_mapping?: components["schemas"]["InputMapping"];
+            /** Output Configs */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the inputs still declared; null clears them.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** PatchDatasetEvaluatorRequest */
+        PatchDatasetEvaluatorRequest: {
+            name?: components["schemas"]["Identifier"];
+            input_mapping?: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Omit to preserve; null restores inheritance.
+             */
+            description?: string | null;
+            /**
+             * Output Configs
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config; an LLM binding's configs must be categorical and match the prompt's tool schema. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
+        /** PatchDecisionEvaluatorRequest */
+        PatchDecisionEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "decision";
+            name?: components["schemas"]["Identifier"];
+            /** @description Move the evaluator to another version of its decision. Omit to keep it. */
+            decision?: components["schemas"]["DecisionEvaluatorDecisionInput"];
+            /** Description */
+            description?: string | null;
+            scoring_policy?: components["schemas"]["DecisionScoringPolicy"];
+        };
+        /**
+         * PatchDecisionLabelRequestBody
+         * @description Fields to update on a decision label. Omit a field to leave it unchanged.
+         */
+        PatchDecisionLabelRequestBody: {
+            /**
+             * Name
+             * @description The label's new name.
+             */
+            name?: string;
+            /**
+             * Color
+             * @description The label's new color.
+             */
+            color?: string;
+            /**
+             * Description
+             * @description The label's new description (null clears it).
+             */
+            description?: string | null;
+        };
+        /**
+         * PatchDecisionRequestBody
+         * @description Fields to update on a decision. Omit a field to leave it unchanged.
+         */
+        PatchDecisionRequestBody: {
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /** PatchDecisionResponseBody */
+        PatchDecisionResponseBody: {
+            data: components["schemas"]["Decision"];
+        };
+        /** PatchLLMEvaluatorRequest */
+        PatchLLMEvaluatorRequest: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm";
+            name?: components["schemas"]["Identifier"];
+            /**
+             * Description
+             * @description Must equal the description of the prompt's tool function, since an LLM evaluator's description is the instruction its output tool carries.
+             */
+            description?: string | null;
+            /** @description Move the evaluator to another prompt version. Omit to keep it. */
+            prompt?: components["schemas"]["LLMEvaluatorPromptInput"];
+            /** Output Configs */
+            output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][];
+            /**
+             * Input Schema
+             * @description Describes the evaluator's inputs, in the shape input_schema is returned. Only each property's description is stored; the inputs themselves come from the prompt's variables or the code's parameters, and describing one they do not declare is refused with 422. Omit to keep the stored descriptions of the inputs still declared; null clears them.
+             */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** PatchProjectEvaluatorRequest */
+        PatchProjectEvaluatorRequest: {
+            name?: components["schemas"]["Identifier"];
+            /** Sampling Rate */
+            sampling_rate?: number;
+            /** Filter Condition */
+            filter_condition?: string;
+            /** Enabled */
+            enabled?: boolean;
+            /** @description Omit to preserve. Null clears the binding's mapping, so the evaluator's applies. */
+            input_mapping?: components["schemas"]["InputMapping"] | null;
+            /**
+             * Evaluation Delay Seconds
+             * @description Omit to preserve. Null resets a TRACE or SESSION delay to the server default. SPAN evaluators reject a non-null delay.
+             */
+            evaluation_delay_seconds?: number | null;
+        };
         /**
          * PatchPromptRequestBody
          * @description Fields to update on a prompt. Omit a field to leave it unchanged.
@@ -4456,6 +6024,29 @@ export interface components {
             /** Modelname */
             modelName: string;
         };
+        /**
+         * PlaygroundEvaluatorTaskUIContext
+         * @description An evaluator draft judged over the dataset; its judge prompt is the instance's prompt.
+         */
+        PlaygroundEvaluatorTaskUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "evaluator";
+            /**
+             * Evaluatorkind
+             * @enum {string}
+             */
+            evaluatorKind: "LLM" | "CODE";
+            /** Name */
+            name: string;
+            /**
+             * Isdirty
+             * @default false
+             */
+            isDirty?: boolean;
+        };
         /** PlaygroundEvaluatorUIContext */
         PlaygroundEvaluatorUIContext: {
             /** Datasetevaluatorid */
@@ -4466,7 +6057,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "LLM" | "CODE" | "BUILTIN";
+            kind: "LLM" | "CODE" | "BUILTIN" | "DECISION";
             /** Isbuiltin */
             isBuiltin: boolean;
             /** Isapplied */
@@ -4492,6 +6083,16 @@ export interface components {
             model?: (components["schemas"]["PlaygroundBuiltinModelUIContext"] | components["schemas"]["PlaygroundCustomProviderModelUIContext"]) | null;
             /** Experimentid */
             experimentId?: string | null;
+            /** Task */
+            task?: (components["schemas"]["PlaygroundPromptTaskUIContext"] | components["schemas"]["PlaygroundEvaluatorTaskUIContext"]) | null;
+        };
+        /** PlaygroundPromptTaskUIContext */
+        PlaygroundPromptTaskUIContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "prompt";
         };
         /** PlaygroundUIContext */
         PlaygroundUIContext: {
@@ -4500,6 +6101,12 @@ export interface components {
              * @enum {string}
              */
             type: "playground";
+            /**
+             * Taskkind
+             * @default prompt
+             * @enum {string}
+             */
+            taskKind?: "prompt" | "evaluator";
             /**
              * Recordexperiments
              * @default true
@@ -4516,6 +6123,21 @@ export interface components {
             /** Evaluators */
             evaluators?: components["schemas"]["PlaygroundEvaluatorUIContext"][];
         };
+        /** PredicateScoring */
+        PredicateScoring: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "predicate";
+            /**
+             * Threshold
+             * @default 0.5
+             */
+            threshold?: number;
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
+        };
         /** Project */
         Project: {
             /** Name */
@@ -4524,6 +6146,51 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /** ProjectEvaluator */
+        ProjectEvaluator: {
+            /** Id */
+            id: string;
+            /** Project Id */
+            project_id: string;
+            /** Evaluator Id */
+            evaluator_id: string;
+            /**
+             * Evaluator Type
+             * @enum {string}
+             */
+            evaluator_type: "llm" | "code" | "builtin" | "decision";
+            /** Trace Project Id */
+            trace_project_id: string;
+            name: components["schemas"]["Identifier"];
+            evaluation_target: components["schemas"]["EvaluationTarget"];
+            /** Sampling Rate */
+            sampling_rate: number;
+            /**
+             * Filter Condition
+             * @description Written in the filter language of the target: span, trace, or session.
+             */
+            filter_condition: string;
+            /** Enabled */
+            enabled: boolean;
+            /** @description The binding's own input mapping; null means the evaluator's mapping applies (LLM evaluators have none). */
+            input_mapping: components["schemas"]["InputMapping"] | null;
+            /**
+             * Evaluation Delay Seconds
+             * @description Quiet period for TRACE and SESSION evaluators; 0 for SPAN, which evaluates spans as they arrive.
+             */
+            evaluation_delay_seconds: number;
+        };
+        /** ProjectEvaluatorResponseBody */
+        ProjectEvaluatorResponseBody: {
+            data: components["schemas"]["ProjectEvaluator"];
+        };
+        /** ProjectEvaluatorsResponseBody */
+        ProjectEvaluatorsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ProjectEvaluator"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** ProjectRetentionPolicyData */
         ProjectRetentionPolicyData: {
@@ -5287,8 +6954,30 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /**
+             * Custom Provider Id
+             * @description GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider.
+             */
+            custom_provider_id?: string | null;
             /** Id */
             id: string;
+            /**
+             * Prompt Id
+             * @description The GlobalID of the prompt this version belongs to.
+             */
+            prompt_id?: string | null;
+            /** @description The name of the prompt. */
+            prompt_name?: components["schemas"]["Identifier"] | null;
+            /**
+             * Version Number
+             * @description The version's position in its prompt's history, from 1. A version numbered 1 is the prompt's first, so a create-or-append that returns 1 created the prompt.
+             */
+            version_number?: number | null;
+            /**
+             * Tag Names
+             * @description The names of the tags pointing at this version.
+             */
+            tag_names?: string[] | null;
             /**
              * Created At
              * Format: date-time
@@ -5296,7 +6985,10 @@ export interface components {
              */
             created_at: string;
         };
-        /** PromptVersionData */
+        /**
+         * PromptVersionData
+         * @description Prompt content shared by prompt and evaluator APIs.
+         */
         PromptVersionData: {
             /** Description */
             description?: string | null;
@@ -5319,6 +7011,24 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /**
+             * Custom Provider Id
+             * @description GlobalID of a custom model provider for this version, or null for the built-in provider. The provider's SDK must be compatible with model_provider.
+             */
+            custom_provider_id?: string | null;
+        };
+        /** PromptVersionSelector */
+        PromptVersionSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "version";
+            /**
+             * Prompt Version Id
+             * @description GlobalID of the prompt version the evaluator runs. Prompt content is created through the prompts API; a version of another prompt moves the evaluator to it.
+             */
+            prompt_version_id: string;
         };
         /** PromptVersionTag */
         PromptVersionTag: {
@@ -5327,6 +7037,11 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+            /**
+             * Prompt Version Id
+             * @description The GlobalID of the version the tag points to. Always sent; optional in the schema for compatibility with types generated before it existed.
+             */
+            prompt_version_id?: string | null;
         };
         /** PromptVersionTagData */
         PromptVersionTagData: {
@@ -5457,6 +7172,47 @@ export interface components {
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
             data: components["schemas"]["UpsertOrDeleteSecretsResult"];
+        };
+        /** SandboxConfig */
+        SandboxConfig: {
+            /**
+             * Id
+             * @description GlobalID to pass as a code evaluator's sandbox_config_id.
+             */
+            id: string;
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description: string | null;
+            language: components["schemas"]["LanguageName"];
+            /** Backend Type */
+            backend_type: string;
+            /**
+             * Is Usable
+             * @description Whether code evaluators can be created or deployed in it now: the configuration and its provider are both enabled.
+             */
+            is_usable: boolean;
+        };
+        /** SandboxConfigsResponseBody */
+        SandboxConfigsResponseBody: {
+            /** Data */
+            data: components["schemas"]["SandboxConfig"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** ScaleScoring */
+        ScaleScoring: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "scale";
+            /**
+             * Include Label
+             * @default false
+             */
+            include_label?: boolean;
+            /** @default NONE */
+            optimization_direction?: components["schemas"]["OptimizationDirection"];
         };
         /**
          * SecretKeyValue
@@ -5664,6 +7420,14 @@ export interface components {
              * @description The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels.
              */
             dataset_label_ids?: string[];
+        };
+        /** SetDecisionLabelsRequestBody */
+        SetDecisionLabelsRequestBody: {
+            /**
+             * Decision Label Ids
+             * @description The complete set of decision label GlobalIDs to apply. Labels not in this list are removed from the decision; an empty list removes all labels.
+             */
+            decision_label_ids: string[];
         };
         /** SetExperimentTagRequestBody */
         SetExperimentTagRequestBody: {
@@ -7333,6 +9097,13 @@ export interface components {
             /** Errortext */
             errorText: string;
         };
+        /** BindingCounts */
+        BindingCounts: {
+            /** Project */
+            project: number;
+            /** Dataset */
+            dataset: number;
+        };
         /**
          * PhoenixToolCallCallbackProviderMetadata
          * @description Shape of the ``phoenix`` namespace the browser returns in
@@ -7383,6 +9154,75 @@ export interface components {
              * @default null
              */
             toolInputEmittedAt?: string | null;
+        };
+        /** ProblemDetail */
+        ProblemDetail: {
+            /**
+             * Type
+             * @description urn:phoenix:problem:<code>, e.g. urn:phoenix:problem:conflict.
+             */
+            type: string;
+            /**
+             * Title
+             * @description A fixed title for `code`, e.g. 'Already exists'.
+             */
+            title: string;
+            /** Status */
+            status: number;
+            /**
+             * Detail
+             * @description What went wrong and, where possible, how to fix it.
+             */
+            detail: string;
+            /**
+             * Code
+             * @description Stable machine-readable code: validation_error, invalid_argument, not_found, already_exists, conflict, forbidden, insufficient_storage, or error. A future code is additive; treat one you don't recognize by `status`.
+             */
+            code: string;
+            /**
+             * Reason
+             * @description A finer condition under `code`, e.g. still_bound or version_mismatch. New reasons may appear; treat one you don't recognize by `code`.
+             * @default null
+             */
+            reason?: string | null;
+            /**
+             * Errors
+             * @description Every invalid input, for validation_error.
+             * @default null
+             */
+            errors?: components["schemas"]["ProblemFieldError"][] | null;
+            /**
+             * Existing Id
+             * @description For already_exists: the GlobalID of the resource that holds the name.
+             * @default null
+             */
+            existing_id?: string | null;
+            /**
+             * Current Version Id
+             * @description For version_mismatch: the GlobalID of the version actually current, or null when the evaluator has none yet. Re-read the evaluator and reconcile before retrying; don't replace the expected version blindly.
+             * @default null
+             */
+            current_version_id?: string | null;
+            /**
+             * @description For still_bound: how many project and dataset bindings still refuse the delete.
+             * @default null
+             */
+            binding_counts?: components["schemas"]["BindingCounts"] | null;
+        };
+        /** ProblemFieldError */
+        ProblemFieldError: {
+            /**
+             * Field
+             * @description Normalized dotted path of the offending input: body, query, or path, followed by the field's own path (array indices are numeric segments). Discriminated-union tags and validator wrapper names are stripped, e.g. body.name rather than body.code.name.
+             */
+            field: string;
+            /**
+             * Code
+             * @description One of missing, unknown_field, wrong_type, pattern, too_short, too_long, out_of_range, invalid_choice, or invalid.
+             */
+            code: string;
+            /** Message */
+            message: string;
         };
         /**
          * SessionSummaryChunk
@@ -9452,6 +11292,1124 @@ export interface operations {
             };
         };
     };
+    getEvaluators: {
+        parameters: {
+            query?: {
+                /** @description Return one kind only. */
+                type?: ("llm" | "code" | "builtin" | "decision") | null;
+                /** @description Return the evaluator with this name. */
+                name?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLLMEvaluatorRequest"] | components["schemas"]["CreateCodeEvaluatorRequest"] | components["schemas"]["CreateDecisionEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchLLMEvaluatorRequest"] | components["schemas"]["PatchCodeEvaluatorRequest"] | components["schemas"]["PatchDecisionEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorDefinitionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listCodeEvaluatorVersions: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeEvaluatorVersionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createCodeEvaluatorVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeEvaluatorVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Source matches the current version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedCodeEvaluatorVersionResponseBody"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedCodeEvaluatorVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getProjectEvaluators: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectEvaluatorsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createProjectEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProjectEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteProjectEvaluators: {
+        parameters: {
+            query: {
+                /** @description GlobalIDs of this project's bindings to delete; repeat for each. */
+                project_evaluator_id: string[];
+            };
+            header?: never;
+            path: {
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getProjectEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteProjectEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchProjectEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchProjectEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDatasetEvaluators: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDatasetEvaluators: {
+        parameters: {
+            query: {
+                /** @description GlobalIDs of this dataset's bindings to delete; repeat for each. */
+                dataset_evaluator_id: string[];
+            };
+            header?: never;
+            path: {
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchDatasetEvaluator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dataset_evaluator_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchDatasetEvaluatorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetEvaluatorResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getSandboxConfigs: {
+        parameters: {
+            query?: {
+                /** @description Return configurations for this language only. */
+                language?: components["schemas"]["LanguageName"] | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SandboxConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     listExperiments: {
         parameters: {
             query?: {
@@ -10984,7 +13942,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -10993,7 +13951,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11012,7 +13970,7 @@ export interface operations {
         };
         responses: {
             /** @description The newly created prompt version */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -11026,7 +13984,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11035,7 +14002,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11072,7 +14039,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11081,7 +14048,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11090,7 +14057,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11126,7 +14093,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11135,7 +14102,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11144,7 +14111,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11176,7 +14143,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11185,7 +14152,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11194,7 +14161,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11228,7 +14195,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11237,7 +14204,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11246,7 +14213,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11278,7 +14245,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11287,7 +14254,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11296,7 +14263,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11333,7 +14300,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11342,7 +14309,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11351,7 +14318,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11372,12 +14339,23 @@ export interface operations {
             };
         };
         responses: {
-            /** @description No content returned on successful tag creation */
-            204: {
+            /** @description An existing tag moved to this version */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionTagResponseBody"];
+                };
+            };
+            /** @description The tag was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptVersionTagResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {
@@ -11385,7 +14363,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11394,7 +14372,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11403,7 +14381,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11435,7 +14413,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11444,7 +14422,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11453,7 +14431,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11483,7 +14461,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11492,7 +14470,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11501,7 +14479,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11537,7 +14515,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Not Found */
@@ -11546,7 +14524,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -11555,7 +14533,1300 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecisions: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a Decision GlobalID) */
+                cursor?: string | null;
+                /** @description The max number of decisions to return at a time. */
+                limit?: number;
+                /** @description Only decisions whose name contains this text, ignoring case. */
+                name?: string | null;
+                /** @description Only decisions with any of these labels, each given by its name or its DecisionLabel GlobalID. Repeat the parameter for more than one. */
+                label?: string[] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of decisions with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    postDecisionVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDecisionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created decision version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDecisionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchDecisionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchDecisionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    cloneDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloneDecisionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The new decision */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloneDecisionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listDecisionVersions: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a DecisionVersion GlobalID) */
+                cursor?: string | null;
+                /** @description The max number of decision versions to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of decision versions with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionVersionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createDecisionVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDecisionVersionRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The created decision version */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDecisionVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecisionVersionLatest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The latest version of the decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecisionVersionByTagName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+                /** @description The name of the tag. */
+                tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The decision version the tag points to */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecisionVersionByDecisionVersionId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision version. */
+                decision_version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested decision version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionVersionResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecisionVersionTags: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a DecisionVersionTag GlobalID) */
+                cursor?: string | null;
+                /** @description The max number of tags to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision version. */
+                decision_version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of the version's tags with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionVersionTagsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createDecisionVersionTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision version. */
+                decision_version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionVersionTagData"];
+            };
+        };
+        responses: {
+            /** @description An existing tag moved to this version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDecisionVersionTagResponseBody"];
+                };
+            };
+            /** @description The tag was created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDecisionVersionTagResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDecisionVersionTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision version. */
+                decision_version_id: string;
+                /** @description The name of the tag to delete. */
+                tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listDecisionLabels: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a DecisionLabel GlobalID) */
+                cursor?: string | null;
+                /** @description The max number of labels to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of decision labels with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDecisionLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    createDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionLabelData"];
+            };
+        };
+        responses: {
+            /** @description The created decision label */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    getDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The requested decision label */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    deleteDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    patchDecisionLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchDecisionLabelRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated decision label */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    listDecisionLabelsForDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The labels applied to the decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    setDecisionLabels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetDecisionLabelsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The labels now applied to the decision */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    addDecisionLabelToDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The applied label */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Insufficient Storage */
+            507: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    removeDecisionLabelFromDecision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the decision: its GlobalID or name. */
+                decision_identifier: string;
+                /** @description The GlobalID of the decision label. */
+                decision_label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
         };
@@ -11571,6 +15842,8 @@ export interface operations {
                 include_experiment_projects?: boolean;
                 /** @description Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators. */
                 include_dataset_evaluator_projects?: boolean;
+                /** @description Include project evaluator trace projects in the response. These projects hold the execution traces of online evaluators and are created with each evaluator. */
+                include_project_evaluator_trace_projects?: boolean;
                 /** @description Return only projects whose name contains this substring (case-insensitive). */
                 name_contains?: string | null;
             };
@@ -11859,7 +16132,10 @@ export interface operations {
     };
     getModelProviders: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description The kind of model the listed providers offer. Defaults to CHAT. */
+                model_type?: ("CHAT" | "DECISION") | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11882,6 +16158,15 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

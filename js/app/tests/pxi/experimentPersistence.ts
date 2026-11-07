@@ -64,6 +64,16 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI playground prompt tools smoke test: pending edit_prompt_instance is cancelled on route navigation.",
   },
+  playgroundEvaluatorSmoke: {
+    id: "pxi-playground-evaluator-smoke:code-evaluator-task-run-v1",
+    prompt:
+      "I'm on the playground with a dataset loaded. Make the first task a new code evaluator named non_empty_output that returns the label pass when the example's output.answer is a non-empty string and fail otherwise, run it over the loaded dataset, and tell me how many examples passed and how many failed. Do not save the evaluator.",
+    expectedOutput:
+      "PXI selects a code evaluator task, edits its code, runs it over the dataset as an experiment, reads the results, and reports 2 passed and 1 failed.",
+    experimentNamePrefix: "pxi-e2e-playground-evaluator-smoke",
+    experimentDescription:
+      "PXI playground evaluator task smoke test: playground.task.select, playground.evaluator.edit, playground.run, playground.experiment.readResults.",
+  },
   ingestTracesSmoke: {
     id: "pxi-ingest-traces-smoke:chat-and-summary",
     prompt: "Say hello in one short sentence.",

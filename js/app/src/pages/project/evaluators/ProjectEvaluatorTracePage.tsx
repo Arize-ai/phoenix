@@ -1,0 +1,76 @@
+import { Suspense } from "react";
+import { useNavigate, useParams } from "react-router";
+import invariant from "tiny-invariant";
+
+import { Dialog, Drawer, Flex } from "@phoenix/components";
+import {
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
+} from "@phoenix/components/core/dialog";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
+import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
+import { useProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  TraceDetails,
+  TraceDetailsSkeleton,
+} from "@phoenix/pages/trace/TraceDetails";
+
+export const PROJECT_EVALUATOR_DETAILS_ROUTE_ID = "projectEvaluatorDetails";
+
+/**
+ * A single evaluator trace, opened over the evaluator's Traces tab.
+ */
+export function ProjectEvaluatorTracePage() {
+  const { traceId, projectEvaluatorId } = useParams();
+  const navigate = useNavigate();
+  const paths = useProjectEvaluatorPaths();
+  // Rendered through the details page's outlet, so the evaluator is loaded.
+  const { traceProjectId: projectId } =
+    useProjectEvaluatorDetailsOutletContext();
+  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+    id: "evaluator-trace-details",
+  });
+
+  invariant(traceId, "traceId is required");
+  invariant(projectEvaluatorId, "projectEvaluatorId is required");
+  invariant(projectId, "traceProjectId is required");
+
+  return (
+    <Drawer
+      isOpen
+      onClose={() => navigate(paths.details(projectEvaluatorId))}
+      defaultSize={defaultSize}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
+      onResize={onSizeChange}
+    >
+      <Dialog>
+        {({ close }) => (
+          <DialogContent>
+            <DialogHeader>
+              <Flex direction="row" gap="size-200" alignItems="center">
+                <DialogCloseButton close={close} />
+                <DialogTitle>Trace Details</DialogTitle>
+              </Flex>
+              <DialogTitleExtra>
+                <ShareLinkButton
+                  preserveSearchParams
+                  buttonText="Share"
+                  tooltipText="Copy trace link to clipboard"
+                  successText="Trace link copied to clipboard"
+                />
+              </DialogTitleExtra>
+            </DialogHeader>
+            <Suspense fallback={<TraceDetailsSkeleton />}>
+              <TraceDetails traceId={traceId} projectId={projectId} />
+            </Suspense>
+          </DialogContent>
+        )}
+      </Dialog>
+    </Drawer>
+  );
+}

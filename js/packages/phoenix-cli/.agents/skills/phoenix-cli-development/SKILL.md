@@ -123,6 +123,20 @@ Error: Missing required flag --name.
   px project create --name <project-name>
 ```
 
+### Readable values for labels, tags, and named resources
+
+Wherever a resource has a unique, readable name, its flags and arguments MUST take that name as well as its ID, so a person can type what they see and an agent can pass what it read from another command's output:
+
+- **Labels and tags** MUST be given by name: `--label support`, `--tag production`. A label flag MUST also take the label's ID, and a tag flag MAY.
+- **Named resources** (prompts, decisions, datasets, projects) MUST take a name or a GlobalID: `px decision get ticket-triage`.
+- **Name the flag after the thing**, not its ID: `--label`, never `--label-id`. Reserve `--<thing>-id` for resources with no readable name, such as versions (`--prompt-version-id`).
+- **Resolve names on the server**, not in the CLI: when an endpoint takes only IDs, extend it to take names too (the REST API's identifiers accept both), rather than adding a lookup call to the command.
+
+```bash
+px decision list --label support --label billing    # names
+px decision list --label RGVjaXNpb25MYWJlbDox        # an ID from --format raw output
+```
+
 ### Idempotent commands
 
 Commands SHOULD be idempotent where possible. Running the same command twice MUST NOT produce duplicate resources or unexpected errors:
@@ -330,5 +344,6 @@ px project --endpoint http://my-server:6006 list
 14. Keep skill updates concise: document the new capability with the smallest useful examples and output-shape notes rather than repeating the full README
 15. If the command prompts for input or confirmation, support `--no-input` (see `InteractiveCommandOptions`)
 16. Add at least one example to `--help` via `.addHelpText('after', ...)`
-17. Mutating commands return the affected resource on stdout (not just a success message)
-18. Run manually with `--format raw` and `--no-input` to verify agents get clean, parseable output
+17. Labels, tags, and named resources take their readable name as well as their ID (see _Readable values for labels, tags, and named resources_)
+18. Mutating commands return the affected resource on stdout (not just a success message)
+19. Run manually with `--format raw` and `--no-input` to verify agents get clean, parseable output

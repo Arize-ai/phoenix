@@ -6,15 +6,14 @@ import { setVariableValuesInputSchema } from "@phoenix/agent/tools/playgroundVar
 
 import type { UIOperationDescriptor } from "../types";
 import { defineUIOperation } from "../types";
-
-/** Route hint shared by every playground operation. */
-const PLAYGROUND_ROUTE_HINT =
-  "the Prompt Playground page (a /playground route)";
+import {
+  PLAYGROUND_PROMPT_ROUTE_HINT,
+  PLAYGROUND_ROUTE_HINT,
+} from "./playgroundRouteHints";
 
 /**
  * The catalog entry replacing the `set_variable_values` client-action tool.
- * The input schema is reused from the existing tool module; the description
- * moves here verbatim from the Python `DESCRIPTION`.
+ * The input schema is reused from the existing tool module.
  */
 export const setVariableValuesOperation = defineUIOperation({
   name: "playground.variables.set",
@@ -23,12 +22,14 @@ export const setVariableValuesOperation = defineUIOperation({
     "playground. Use this when the user asks to fill, provide, change, or set " +
     "playground variables before running or comparing prompts. This only updates " +
     "variable values in browser UI state; it does not edit prompt messages, change " +
-    "dataset mappings, or run the playground.",
+    "dataset mappings, or run the playground. Evaluator tasks take their variables " +
+    "from the dataset through the task's input mapping (`playground.evaluator.edit`), " +
+    "not from manual values.",
   inputSchema: setVariableValuesInputSchema,
   operationKind: "write",
   defaultSuccessOutput: "Variable values updated.",
   availability: {
-    routeHint: PLAYGROUND_ROUTE_HINT,
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 
@@ -41,6 +42,9 @@ export const setTemplateVariablesPathOperation = defineUIOperation({
   description:
     "Set the dataset field path that playground template variables resolve against, " +
     "when a prompt references dataset fields outside the default `input` root. The " +
+    "path is kept per kind of task on the page: prompt tasks start at `input`, " +
+    "evaluator tasks at the example root, where their input mapping addresses " +
+    "`input`, `output` and `metadata`. The " +
     "path resolves against the whole example context `{input, reference, metadata}` " +
     "— e.g. `metadata` binds variables to each example's metadata. (Note this base " +
     "differs from `playground.messages.setPath`, which resolves inside the example's " +
@@ -50,7 +54,7 @@ export const setTemplateVariablesPathOperation = defineUIOperation({
   operationKind: "write",
   defaultSuccessOutput: "Template variables path updated.",
   availability: {
-    routeHint: PLAYGROUND_ROUTE_HINT,
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 
@@ -74,7 +78,7 @@ export const setAppendedMessagesPathOperation = defineUIOperation({
   operationKind: "write",
   defaultSuccessOutput: "Appended messages path updated.",
   availability: {
-    routeHint: PLAYGROUND_ROUTE_HINT,
+    routeHint: PLAYGROUND_PROMPT_ROUTE_HINT,
   },
 });
 
@@ -86,8 +90,9 @@ export const setPlaygroundExperimentRecordingOperation = defineUIOperation({
   name: "playground.experiment.setRecording",
   description:
     "Set whether future dataset-backed playground runs in the currently mounted " +
-    "playground are recorded as persistent experiments or created as temporary " +
-    "unrecorded runs, and optionally stage a name, description, and metadata for the " +
+    "playground — prompt tasks and evaluator tasks alike — are recorded as " +
+    "persistent experiments or created as temporary unrecorded runs, and optionally " +
+    "stage a name, description, and metadata for the " +
     "experiments the next run produces. Use this before running when the user asks to " +
     "record, persist, save the run as an experiment, run without recording, or label " +
     "the next experiment with notes such as a hypothesis. Stage structured notes " +
