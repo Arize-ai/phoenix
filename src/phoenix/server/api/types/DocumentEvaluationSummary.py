@@ -72,7 +72,7 @@ class DocumentEvaluationSummary:
         if (result := self._cached_average_ndcg_results.get(k)) is not None:
             return result
         values = self.metrics_collection.apply(lambda m: m.ndcg(k))
-        result = (values.mean(), values.count())
+        result = (values.mean(), int(values.count()))
         self._cached_average_ndcg_results[k] = result
         return result
 
@@ -80,16 +80,16 @@ class DocumentEvaluationSummary:
         if (result := self._cached_average_precision_results.get(k)) is not None:
             return result
         values = self.metrics_collection.apply(lambda m: m.precision(k))
-        result = (values.mean(), values.count())
+        result = (values.mean(), int(values.count()))
         self._cached_average_precision_results[k] = result
         return result
 
     @cached_property
     def _average_reciprocal_rank(self) -> tuple[float, int]:
         values = self.metrics_collection.apply(lambda m: m.reciprocal_rank())
-        return values.mean(), values.count()
+        return values.mean(), int(values.count())
 
     @cached_property
     def _average_hit(self) -> tuple[float, int]:
         values = self.metrics_collection.apply(lambda m: m.hit())
-        return values.mean(), values.count()
+        return values.mean(), int(values.count())

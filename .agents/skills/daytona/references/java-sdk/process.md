@@ -34,6 +34,21 @@ public ExecuteResponse executeCommand(String command, String cwd, Map<String, St
 
 Executes a shell command.
 
+The command is run by the first available of zsh, bash or sh in the sandbox, which is zsh
+in the default snapshots. Quote arguments that contain glob characters, for example
+`pip install -e '.[test]'`, or wrap bash-specific scripts in `bash -c '...'`.
+
+The call returns when the command finishes. To start a long-running process such as a
+server, run it in the background with its output redirected, e.g.
+`python3 -m http.server 8000 > server.log 2>&1 &`, or use a session command with
+`runAsync` set. A background process that keeps the command's output open
+(`cmd &` without a redirect) can block the call until that process exits.
+
+Tools in the sandbox may report the host's CPU count and memory (for example `nproc`
+or `Runtime.availableProcessors()`) rather than the sandbox's own limits. Size worker
+pools from the sandbox's CPU and memory instead, e.g. `pytest -n 2` rather than
+`pytest -n auto`.
+
 **Parameters**:
 
 - `command` _String_ - command to execute

@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.uk.md" />
 </p>
 
-Arize Phoenix — це open-source платформа спостережуваності (observability) для ШІ від Arize, призначена для експериментів, оцінювання та усунення несправностей. Для керованих production-процесів Arize також пропонує [Arize AX](https://arize.com/products/ax/). Phoenix надає:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix — це open-source платформа спостережуваності (observability) для ШІ від Arize, призначена для експериментів, оцінювання та усунення несправностей. Для керованих production-процесів Arize також пропонує [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-uk). Phoenix надає:
 
 - [**_Трасування_**](https://arize.com/docs/phoenix/tracing/llm-traces) — трасуйте виконання Вашого LLM-застосунку за допомогою інструментування на основі OpenTelemetry.
 - [**_Оцінювання_**](https://arize.com/docs/phoenix/evaluation/llm-evals) — використовуйте LLM для бенчмаркінгу продуктивності застосунку за допомогою оцінок (evals) відповідей і пошуку (retrieval).
@@ -61,10 +73,10 @@ Arize Phoenix — це open-source платформа спостережуван
 
 Phoenix не залежить від постачальника та мови й одразу підтримує популярні фреймворки ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) та LLM-провайдерів ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) та інших). Докладніше про автоматичне інструментування див. проєкт [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix працює практично будь-де: на Вашому локальному комп'ютері, у контейнерному розгортанні або в хмарі. Опис кожного варіанта див. у розділі [Середовища](https://arize.com/docs/phoenix/environments) або одразу переходьте до [короткого посібника з трасування](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix працює практично будь-де: на Вашому локальному комп'ютері, у контейнерному розгортанні або в хмарі. Опис кожного варіанта див. у розділі [Середовища](https://arize.com/docs/phoenix/self-hosting) або одразу переходьте до [короткого посібника з трасування](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> Phoenix — це open-source рішення із самостійним розміщенням. Як керовану платформу Arize пропонує [Arize AX](https://arize.com/products/ax/) — одне й те саме інструментування OpenTelemetry/OpenInference працює з обома. Див. [повне порівняння](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> Phoenix — це open-source рішення із самостійним розміщенням. Як керовану платформу Arize пропонує [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-uk) — одне й те саме інструментування OpenTelemetry/OpenInference працює з обома. Див. [повне порівняння](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Зміст
 
@@ -144,7 +156,6 @@ Docker Compose, Kubernetes/Helm та інші варіанти розгорта�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Полегшена обгортка над примітивами OpenTelemetry з налаштуваннями за замовчуванням для Phoenix                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Клієнт для API Arize Phoenix                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Бібліотека оцінювання LLM-застосунків на TypeScript (альфа-версія)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Автономний stdio MCP-сервер для старіших версій Phoenix (режим підтримки — замінено вбудованим у Phoenix [віддаленим MCP-сервером](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI для отримання трейсів, датасетів і експериментів для використання з Claude Code, Cursor та іншими ШІ-агентами для програмування |
 
 ## Інтеграції трасування
@@ -268,16 +279,16 @@ Phoenix побудовано на OpenTelemetry, і він не залежить
 Phoenix створено для роботи як з людьми, так і з ШІ-агентами для програмування. Три інтерфейси дають змогу агентам (Claude Code, Codex, Cursor та іншим) працювати з Вашими трейсами, датасетами та експериментами:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` отримує трейси, датасети й експерименти та інструментує Ваш застосунок (`setup`), тож агент може отримувати контекст і діяти на його основі просто з термінала.
-- **[Навички (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) пакує робочі процеси, які навчають агентів налагоджувати, оцінювати та трасувати за допомогою Phoenix.
+- **[Навички (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) пакує робочі процеси, які навчають агентів налагоджувати, оцінювати та трасувати за допомогою Phoenix.
 - **[Віддалений MCP-сервер](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — підключіть будь-який MCP-клієнт до ендпоінта `/mcp` Вашого екземпляра, щоб безпосередньо виконувати запити до Phoenix.
 
 Налаштування та використання описано в [документації щодо ШІ-агентів для програмування](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).
 
 | Навичка                                              | Опис                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Налагодження LLM-застосунків за допомогою Phoenix CLI — отримання трейсів, аналіз помилок, перегляд експериментів і запити до GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Створення та запуск оцінювачів для AI/LLM-застосунків за допомогою Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Семантичні конвенції OpenInference та інструментування для трасування LLM-застосунків                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Налагодження LLM-застосунків за допомогою Phoenix CLI — отримання трейсів, аналіз помилок, перегляд експериментів і запити до GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Створення та запуск оцінювачів для AI/LLM-застосунків за допомогою Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Семантичні конвенції OpenInference та інструментування для трасування LLM-застосунків                                        |
 
 ## Безпека та конфіденційність
 
@@ -314,3 +325,15 @@ Copyright 2025 Arize AI, Inc. Усі права захищено.
 Частини цього коду захищено одним або кількома патентами США. Див. [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 Це програмне забезпечення ліцензовано на умовах Elastic License 2.0 (ELv2). Див. [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

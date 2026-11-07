@@ -26,7 +26,7 @@ In RAG, your data is loaded and prepared for queries. This process is called ind
 RAG is a critical component for building applications such as chatbots or agents and you will want to know RAG techniques on how to get data into your application.
 
 <Frame>
-    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/RAG_Pipeline.png" />
+    <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/RAG_Pipeline.png" alt="Retrieval pipeline combining document sources, an index, a user query, and an LLM response" />
 </Frame>
 
 ## Stages within RAG
@@ -105,7 +105,7 @@ Let's use an [essay by Paul Graham](https://www.paulgraham.com/worked.html) to b
 documents = SimpleDirectoryReader("./data/paul_graham/").load_data()
 
 # Define an LLM
-llm = OpenAI(model="gpt-4")
+llm = OpenAI(model="gpt-5.6-sol")
 
 # Build index with a chunk_size of 512
 node_parser = SimpleNodeParser.from_defaults(chunk_size=512)

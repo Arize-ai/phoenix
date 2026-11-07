@@ -9,12 +9,10 @@ import {
   type PanelImperativeHandle,
   Separator,
 } from "react-resizable-panels";
-import { useNavigate } from "react-router";
 
 import {
-  Button,
   Counter,
-  DialogTrigger,
+  EdgeFade,
   ErrorBoundary,
   Flex,
   Icon,
@@ -22,19 +20,18 @@ import {
   LazyTabPanel,
   LinkButton,
   Loading,
+  Skeleton,
   Tab,
   TabList,
   Tabs,
   View,
-  ViewportModal,
-  ViewportModalOverlay,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import {
   EDIT_ANNOTATION_HOTKEY,
   NOTE_HOTKEY,
 } from "@phoenix/constants/annotationConstants";
-import { useNotifySuccess, usePreferencesContext } from "@phoenix/contexts";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions, useScopedHotkeys } from "@phoenix/hooks";
 
 import { SpanHeader } from "../SpanHeader";
@@ -42,6 +39,7 @@ import type {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
+import { AddSpanToDatasetButton } from "./AddSpanToDatasetButton";
 import { SpanAttributesCard, SpanInfo } from "./span";
 import { SpanAside } from "./SpanAside";
 import { SpanAsideProvider, useOpenSpanAside } from "./SpanAsideContext";
@@ -50,7 +48,6 @@ import { SpanEventsList } from "./SpanEventsList";
 import { SpanInfoCardsToggle } from "./SpanInfoCardsToggle";
 import { SpanNoteBar } from "./SpanNoteBar";
 import { SpanNoteBarProvider, useOpenSpanNoteBar } from "./SpanNoteBarContext";
-import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
 
 type Span = Extract<SpanDetailsQuery$data["span"], { __typename: "Span" }>;
 
@@ -236,8 +233,8 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
                     {isCondensedView ? null : "Playground"}
                   </LinkButton>
                   <AddSpanToDatasetButton
-                    span={span}
-                    buttonText={isCondensedView ? null : "Add to Dataset"}
+                    spanId={span.id}
+                    isCondensed={isCondensedView}
                   />
                   <SpanDownloadMenu
                     projectId={span.project.id}
@@ -347,45 +344,41 @@ function SpanInfoWrap({ children }: PropsWithChildren) {
   );
 }
 
-function AddSpanToDatasetButton({
-  span,
-  buttonText,
-}: {
-  span: Span;
-  buttonText: string | null;
-}) {
-  const notifySuccess = useNotifySuccess();
-  const navigate = useNavigate();
+const spanDetailsSkeletonCSS = css`
+  height: 100%;
+  overflow: hidden;
+  padding: var(--global-dimension-size-200);
+  box-sizing: border-box;
+  .span-details-skeleton__blocks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-200);
+    /* Capped so a short panel shrinks the fade band rather than clipping
+       the blocks mid-fade. */
+    max-height: 100%;
+    overflow: hidden;
+  }
+  .span-details-skeleton__blocks > * {
+    flex: none;
+  }
+`;
+
+/**
+ * A loading placeholder for `SpanDetails`: one block for the span header and
+ * tab list, then the cards of the info tab.
+ */
+export function SpanDetailsSkeleton() {
   return (
-    <DialogTrigger>
-      <Button
-        variant="default"
-        size="S"
-        leadingVisual={<Icon svg={<Icons.Database />} />}
+    <div role="status" aria-label="loading" css={spanDetailsSkeletonCSS}>
+      <EdgeFade
+        edge="bottom"
+        className="span-details-skeleton__blocks"
+        aria-hidden
       >
-        {buttonText}
-      </Button>
-      <ViewportModalOverlay>
-        <ViewportModal size="L">
-          <Suspense fallback={<Loading />}>
-            <SpanToDatasetExampleDialog
-              spanId={span.id}
-              onCompleted={(datasetId) => {
-                notifySuccess({
-                  title: "Span Added to Dataset",
-                  message: "Successfully added span to dataset",
-                  action: {
-                    text: "View Dataset",
-                    onClick: () => {
-                      navigate(`/datasets/${datasetId}/examples`);
-                    },
-                  },
-                });
-              }}
-            />
-          </Suspense>
-        </ViewportModal>
-      </ViewportModalOverlay>
-    </DialogTrigger>
+        <Skeleton height={96} borderRadius="medium" />
+        <Skeleton height={180} borderRadius="medium" />
+        <Skeleton height={240} borderRadius="medium" />
+      </EdgeFade>
+    </div>
   );
 }

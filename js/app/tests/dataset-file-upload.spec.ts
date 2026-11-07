@@ -102,9 +102,12 @@ test.describe("Dataset File Upload", () => {
       // Create the dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
 
-      // Wait for dialog to close and dataset to appear
+      // Wait for dialog to close and the redirect to the new dataset
       await expect(page.getByTestId("dialog")).not.toBeVisible();
-      await expect(page.getByRole("link", { name: datasetName })).toBeVisible();
+      await page.waitForURL("**/datasets/**/examples");
+      await expect(
+        page.getByRole("heading", { name: datasetName })
+      ).toBeVisible();
     });
 
     test("handles CSV with quoted headers containing commas", async ({
@@ -302,12 +305,8 @@ test.describe("Dataset File Upload", () => {
       // Create dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
 
-      // Wait for success
+      // Wait for success and the redirect to the new dataset
       await expect(page.getByTestId("dialog")).not.toBeVisible();
-      await expect(page.getByRole("link", { name: datasetName })).toBeVisible();
-
-      // Navigate to the dataset and verify examples were created
-      await page.getByRole("link", { name: datasetName }).click();
       await page.waitForURL("**/datasets/**/examples");
 
       // Should have 3 examples from the CSV
@@ -345,12 +344,8 @@ test.describe("Dataset File Upload", () => {
       // Create dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
 
-      // Wait for success
+      // Wait for success and the redirect to the new dataset
       await expect(page.getByTestId("dialog")).not.toBeVisible();
-      await expect(page.getByRole("link", { name: datasetName })).toBeVisible();
-
-      // Navigate to the dataset and verify examples were created
-      await page.getByRole("link", { name: datasetName }).click();
       await page.waitForURL("**/datasets/**/examples");
 
       // Should have 3 examples from the JSONL
@@ -520,12 +515,8 @@ test.describe("Dataset File Upload", () => {
       // Create dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
 
-      // Wait for success
+      // Wait for success and the redirect to the new dataset
       await expect(page.getByTestId("dialog")).not.toBeVisible();
-      await expect(page.getByRole("link", { name: datasetName })).toBeVisible();
-
-      // Navigate to the dataset to verify it was created successfully
-      await page.getByRole("link", { name: datasetName }).click();
       await page.waitForURL("**/datasets/**/examples");
 
       // Wait for examples table to load
@@ -608,14 +599,8 @@ test.describe("Dataset File Upload", () => {
       // Create dataset
       await page.getByRole("button", { name: "Create Dataset" }).click();
 
-      // Wait for dialog to close
+      // Wait for dialog to close and the redirect to the new dataset
       await expect(page.getByTestId("dialog")).not.toBeVisible();
-
-      // Verify the dataset was created
-      await expect(page.getByRole("link", { name: datasetName })).toBeVisible();
-
-      // Navigate to the dataset to verify it exists
-      await page.getByRole("link", { name: datasetName }).click();
       await page.waitForURL("**/datasets/**/examples");
 
       // The examples table should be visible with created examples

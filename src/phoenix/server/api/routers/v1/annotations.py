@@ -61,7 +61,7 @@ class AnnotationResult(V1RoutesBaseModel):
 
 class AnnotationData(V1RoutesBaseModel):
     name: str = Field(description="The name of the annotation")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
+    annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = Field(
         description="The kind of annotator used for the annotation"
     )
     result: Optional[AnnotationResult] = Field(
@@ -920,7 +920,7 @@ async def delete_span_annotations(
         Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
     ] = None,
     annotator_kind: Annotated[
-        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
     start_time: Annotated[
@@ -1007,7 +1007,7 @@ async def delete_trace_annotations(
         Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
     ] = None,
     annotator_kind: Annotated[
-        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
     start_time: Annotated[
@@ -1092,7 +1092,7 @@ async def delete_session_annotations(
         Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
     ] = None,
     annotator_kind: Annotated[
-        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Optional[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
     start_time: Annotated[

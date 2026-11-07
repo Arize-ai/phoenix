@@ -1,8 +1,9 @@
-import type { Row, Table } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 import type { MouseEvent } from "react";
 import { useEffect, useRef } from "react";
 
 import { addRowRangeToSelection } from "./addRowRangeToSelection";
+import type { Row, Table } from "./tableFeatures";
 
 /**
  * Tracks a row-selection anchor and applies shift-click range selection to the
@@ -11,7 +12,7 @@ import { addRowRangeToSelection } from "./addRowRangeToSelection";
  * @param params - hook configuration
  * @param params.resetKey - value whose identity change clears the range anchor
  */
-export function useShiftClickRowSelection<TData>({
+export function useShiftClickRowSelection<TData extends RowData>({
   resetKey,
 }: {
   resetKey?: unknown;

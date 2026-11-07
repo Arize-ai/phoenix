@@ -1,15 +1,6 @@
 import { css } from "@emotion/react";
-import type {
-  CellContext,
-  ColumnDef,
-  SortingState,
-} from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import type { Dispatch, SetStateAction } from "react";
 import {
   startTransition,
@@ -20,7 +11,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useResolvedPath } from "react-router";
 
 import {
   CopyToClipboardButton,
@@ -46,6 +37,11 @@ import {
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type {
+  CellContext,
+  ColumnDef,
+} from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
@@ -64,7 +60,7 @@ const PAGE_SIZE = 100;
 
 const defaultColumnSettings = {
   minSize: 100,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
@@ -85,7 +81,6 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 }
 
 export function DatasetsTable(props: DatasetsTableProps) {
-  "use no memo";
   const { filter, labelFilter, onLabelFilterChange } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -112,6 +107,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const basePath = useResolvedPath(".").pathname;
   const notifySuccess = useNotifySuccess();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<
@@ -205,8 +201,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => {
           const hasExperiments = row.original.experimentCount > 0;
           const to = hasExperiments
-            ? `${row.original.id}/experiments`
-            : `${row.original.id}/examples`;
+            ? `${basePath}/${row.original.id}/experiments`
+            : `${basePath}/${row.original.id}/examples`;
           return (
             <CellWithControlsWrap
               controls={<CopyToClipboardButton text={row.original.name} />}
@@ -306,7 +302,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/examples`}>
+            <Link to={`${basePath}/${row.original.id}/examples`}>
               {row.original.exampleCount}
             </Link>
           </StopPropagation>
@@ -321,7 +317,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/experiments`}>
+            <Link to={`${basePath}/${row.original.id}/experiments`}>
               {row.original.experimentCount}
             </Link>
           </StopPropagation>
@@ -336,7 +332,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         },
         cell: ({ row }: CellContext<(typeof tableData)[number], unknown>) => (
           <StopPropagation>
-            <Link to={`${row.original.id}/evaluators`}>
+            <Link to={`${basePath}/${row.original.id}/evaluators`}>
               {row.original.evaluatorCount}
             </Link>
           </StopPropagation>
@@ -423,6 +419,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     }
     return cols;
   }, [
+    basePath,
     filter,
     labelFilter,
     notifySuccess,
@@ -444,7 +441,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
     nonOrderableColumnIds: [ACTIONS_COLUMN_ID],
   });
 
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
@@ -453,17 +451,16 @@ export function DatasetsTable(props: DatasetsTableProps) {
       columnVisibility,
       columnOrder: leafColumnOrder,
       columnPinning: {
-        right: [ACTIONS_COLUMN_ID],
+        start: [],
+        end: [ACTIONS_COLUMN_ID],
       },
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
-    getCoreRowModel: getCoreRowModel(),
     // Key rows by entity ID rather than by index so that row-hosted overlays
     // (action menus) and row selection stay bound to the row they were opened
     // on when a refetch re-orders the list.
     getRowId: (row) => row.id,
-    getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
     onColumnVisibilityChange: setColumnVisibility,
@@ -496,28 +493,17 @@ export function DatasetsTable(props: DatasetsTableProps) {
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
-
   /**
    * Calculate all column sizes at once as CSS variables for performance
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return colSizes;
-    // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
 
   return (
     <div
@@ -634,8 +620,8 @@ export function DatasetsTable(props: DatasetsTableProps) {
                     onClick={() => {
                       const hasExperiments = row.original.experimentCount > 0;
                       const to = hasExperiments
-                        ? `${row.original.id}/experiments`
-                        : `${row.original.id}/examples`;
+                        ? `${basePath}/${row.original.id}/experiments`
+                        : `${basePath}/${row.original.id}/examples`;
                       navigate(to);
                     }}
                   >

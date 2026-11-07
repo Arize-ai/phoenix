@@ -860,11 +860,13 @@ export const lightThemeCSS = css`
     --floating-toolbar-border-color: var(--global-color-gray-200);
 
     // Optimization Direction Colors
-    --global-color-optimization-direction-positive: var(--global-color-success);
+    --global-color-optimization-direction-positive: var(
+      --global-color-green-900
+    );
     --global-color-background-optimization-direction-positive: var(
       --global-color-success-100
     );
-    --global-color-optimization-direction-negative: var(--global-color-danger);
+    --global-color-optimization-direction-negative: var(--global-color-red-900);
     --global-color-background-optimization-direction-negative: var(
       --global-color-danger-100
     );
@@ -1415,6 +1417,25 @@ const messageTokensCSS = (theme: Theme) => css`
   }
 `;
 
+const skeletonCSS = (theme: Theme) => css`
+  :root,
+  .theme--${theme} {
+    --global-skeleton-background-color: ${theme === "dark"
+      ? "var(--global-color-gray-100)"
+      : "var(--global-color-gray-200)"};
+    --global-skeleton-opacity: ${theme === "dark" ? 0.3 : 0.4};
+    --global-skeleton-wave-highlight-color: ${theme === "dark"
+      ? "var(--global-color-gray-200)"
+      : "var(--global-color-gray-300)"};
+    --global-skeleton-wave-highlight-opacity: ${theme === "dark" ? 0.2 : 0.75};
+    /* Opaque, for 1px lines drawn beside skeletons: the fill's translucent
+       color all but disappears at that width */
+    --global-skeleton-line-color: ${theme === "dark"
+      ? "var(--global-color-gray-100)"
+      : "var(--global-color-gray-200)"};
+  }
+`;
+
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1438,7 +1459,8 @@ export const derivedCSS = (theme: Theme) =>
     resizeHandleCSS(theme),
     badgeSizingCSS(theme),
     promptInputCSS(theme),
-    messageTokensCSS(theme)
+    messageTokensCSS(theme),
+    skeletonCSS(theme)
   );
 
 const appGlobalStylesCSS = css`

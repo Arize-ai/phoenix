@@ -1,0 +1,54 @@
+name: Factory CLA Check
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: factory-cla-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            factory/cla_check.py
+            pyproject.toml
+          sparse-checkout-cone-mode: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+
+      # The label is created and applied through the issues API, so the token needs Issues
+      # write as well as Pull requests write.
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Check pull requests
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.factory-token.outputs.token }}
+          # The reminder counts only when the app wrote it, so the sweep must know its login.
+          FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+        run: uv run --script factory/cla_check.py --repo "$GH_REPO"

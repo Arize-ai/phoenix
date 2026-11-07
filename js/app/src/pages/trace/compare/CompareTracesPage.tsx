@@ -2,6 +2,7 @@ import {
   useLocation,
   useNavigate,
   useParams,
+  useResolvedPath,
   useSearchParams,
 } from "react-router";
 import invariant from "tiny-invariant";
@@ -41,6 +42,7 @@ export function CompareTracesPage() {
   const { projectId } = useParams();
   invariant(projectId, "projectId is required");
   const [searchParams, setSearchParams] = useSearchParams();
+  const tabPath = useResolvedPath("..").pathname;
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
@@ -90,11 +92,12 @@ export function CompareTracesPage() {
                 traces={slots}
                 // up to the tab route, keeping the time range and the span
                 getTraceDetailsTo={(trace) =>
-                  `../${getTraceDetailsPath({
+                  getTraceDetailsPath({
+                    basePath: tabPath,
                     traceId: trace.traceId,
                     spanNodeId: trace.selectedSpanNodeId,
                     searchParams,
-                  })}`
+                  })
                 }
                 onSpanSelectionChange={(traceIndex, spanNodeId) => {
                   setSearchParams(

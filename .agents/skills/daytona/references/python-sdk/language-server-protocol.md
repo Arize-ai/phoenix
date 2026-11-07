@@ -54,6 +54,8 @@ lsp_server = sandbox.create_lsp_server(
 Start an LSP server by calling **`start()`** before any other LSP operation.
 
 ```python
+from daytona import LspLanguageId
+
 lsp = sandbox.create_lsp_server(
     language_id=LspLanguageId.PYTHON,
     path_to_project="workspace/project"
@@ -79,9 +81,11 @@ Get code completions for a specific position in a file by providing the file pat
 - Call **`didOpen()`** on the file before requesting completions
 
 ```python
+from daytona import LspCompletionPosition
+
 completions = lsp_server.completions(
     path="workspace/project/main.py",
-    position={"line": 10, "character": 15}
+    position=LspCompletionPosition(line=10, character=15)
 )
 print(f"Completions: {completions}")
 ```

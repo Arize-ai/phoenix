@@ -62,8 +62,6 @@
     #define PyLong_AsInt _PyLong_AsInt
 #endif
 
-_Py_IDENTIFIER(cursor);
-
 static const char * const begin_statements[] = {
     "BEGIN ",
     "BEGIN DEFERRED",
@@ -1148,7 +1146,6 @@ void _pysqlite_final_callback(sqlite3_context* context)
 {
     PyObject* function_result;
     PyObject** aggregate_instance;
-    _Py_IDENTIFIER(finalize);
     int ok;
     PyObject *exception, *value, *tb;
     int restore;
@@ -1173,7 +1170,7 @@ void _pysqlite_final_callback(sqlite3_context* context)
     PyErr_Fetch(&exception, &value, &tb);
     restore = 1;
 
-    function_result = _PyObject_CallMethodId(*aggregate_instance, &PyId_finalize, NULL);
+    function_result = PyObject_CallMethodNoArgs(*aggregate_instance, pysqlite_str_finalize);
 
     Py_DECREF(*aggregate_instance);
 
@@ -1212,7 +1209,6 @@ void _pysqlite_value_callback(sqlite3_context* context)
 {
     PyObject* function_result;
     PyObject** aggregate_instance;
-    _Py_IDENTIFIER(value);
     int ok;
     PyObject *exception, *val, *tb;
     int restore;
@@ -1235,7 +1231,7 @@ void _pysqlite_value_callback(sqlite3_context* context)
     PyErr_Fetch(&exception, &val, &tb);
     restore = 1;
 
-    function_result = _PyObject_CallMethodId(*aggregate_instance, &PyId_value, NULL);
+    function_result = PyObject_CallMethodNoArgs(*aggregate_instance, pysqlite_str_value);
 
     ok = 0;
     if (function_result) {
@@ -2141,7 +2137,7 @@ PyObject* pysqlite_connection_execute(pysqlite_Connection* self, PyObject* args)
     PyObject* result = 0;
     PyObject* method = 0;
 
-    cursor = _PyObject_CallMethodId((PyObject*)self, &PyId_cursor, NULL);
+    cursor = PyObject_CallMethodNoArgs((PyObject*)self, pysqlite_str_cursor);
     if (!cursor) {
         goto error;
     }
@@ -2170,7 +2166,7 @@ PyObject* pysqlite_connection_executemany(pysqlite_Connection* self, PyObject* a
     PyObject* result = 0;
     PyObject* method = 0;
 
-    cursor = _PyObject_CallMethodId((PyObject*)self, &PyId_cursor, NULL);
+    cursor = PyObject_CallMethodNoArgs((PyObject*)self, pysqlite_str_cursor);
     if (!cursor) {
         goto error;
     }
@@ -2199,7 +2195,7 @@ PyObject* pysqlite_connection_executescript(pysqlite_Connection* self, PyObject*
     PyObject* result = 0;
     PyObject* method = 0;
 
-    cursor = _PyObject_CallMethodId((PyObject*)self, &PyId_cursor, NULL);
+    cursor = PyObject_CallMethodNoArgs((PyObject*)self, pysqlite_str_cursor);
     if (!cursor) {
         goto error;
     }

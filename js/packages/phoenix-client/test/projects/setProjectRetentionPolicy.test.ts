@@ -31,9 +31,9 @@ describe("setProjectRetentionPolicy", () => {
 
     server.use(
       http.patch(
-        "/v1/projects/:projectIdentifier/retention",
+        "/v1/projects/{project_identifier}/retention",
         async ({ params, request, response }) => {
-          receivedProjectIdentifier = String(params.projectIdentifier);
+          receivedProjectIdentifier = String(params.project_identifier);
           receivedBody = await request.json();
           return response(200).json({
             data: {
@@ -66,9 +66,9 @@ describe("setProjectRetentionPolicy", () => {
 
     server.use(
       http.patch(
-        "/v1/projects/:projectIdentifier/retention",
+        "/v1/projects/{project_identifier}/retention",
         async ({ params, request, response }) => {
-          receivedProjectIdentifier = String(params.projectIdentifier);
+          receivedProjectIdentifier = String(params.project_identifier);
           receivedBody = await request.json();
           return response(200).json({
             data: {
@@ -96,8 +96,9 @@ describe("setProjectRetentionPolicy", () => {
 
   it("surfaces retention-policy validation errors", async () => {
     server.use(
-      http.patch("/v1/projects/:projectIdentifier/retention", ({ response }) =>
-        response(422).text("Invalid retention policy ID")
+      http.patch(
+        "/v1/projects/{project_identifier}/retention",
+        ({ response }) => response(422).text("Invalid retention policy ID")
       )
     );
 
@@ -113,8 +114,9 @@ describe("setProjectRetentionPolicy", () => {
 
   it("surfaces permission errors for non-admin callers", async () => {
     server.use(
-      http.patch("/v1/projects/:projectIdentifier/retention", ({ response }) =>
-        response(403).text("Forbidden")
+      http.patch(
+        "/v1/projects/{project_identifier}/retention",
+        ({ response }) => response(403).text("Forbidden")
       )
     );
 
@@ -130,13 +132,15 @@ describe("setProjectRetentionPolicy", () => {
 
   it("throws when a successful response omits assignment data", async () => {
     server.use(
-      http.patch("/v1/projects/:projectIdentifier/retention", ({ response }) =>
-        response.untyped(
-          new Response("{}", {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          })
-        )
+      http.patch(
+        "/v1/projects/{project_identifier}/retention",
+        ({ response }) =>
+          response.untyped(
+            new Response("{}", {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            })
+          )
       )
     );
 
