@@ -328,4 +328,33 @@ describe("toOpenAI type compatibility", () => {
       expect(result.top_p).toBe(0.9);
     }
   );
+
+  it("sends extra_body fields as top-level request parameters", () => {
+    const mockPrompt = {
+      ...BASE_MOCK_PROMPT_VERSION,
+      ...BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
+      invocation_parameters: {
+        type: "openai",
+        openai: {
+          temperature: 0.2,
+          extra_body: {
+            chat_template_kwargs: { enable_thinking: false },
+            response_format: { type: "json_object" },
+          },
+        },
+      },
+    } satisfies PromptVersion;
+
+    const result = toOpenAI({ prompt: mockPrompt });
+
+    expect(result).not.toBeNull();
+    invariant(result, "Expected non-null result");
+
+    expect(result).not.toHaveProperty("extra_body");
+    expect(result).toMatchObject({
+      temperature: 0.2,
+      chat_template_kwargs: { enable_thinking: false },
+    });
+    expect(result.response_format).toEqual({ type: "json_object" });
+  });
 });
