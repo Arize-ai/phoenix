@@ -431,6 +431,7 @@ updated_dataset = client.datasets.add_examples_to_dataset(
     inputs=[{"question": "How do I cancel my subscription?"}],
     outputs=[{"answer": "You can cancel your subscription in your account settings."}],
     metadata=[{"category": "subscription", "difficulty": "medium"}],
+    version_description="Add subscription questions",  # optional, Phoenix >= 21.1.0
 )
 
 # Add examples from DataFrame
@@ -455,6 +456,7 @@ versions = client.datasets.get_dataset_versions(dataset="customer-support-qa")
 for version in versions:
     print(f"Version: {version['version_id']}")
     print(f"Created: {version['created_at']}")
+    print(f"Description: {version['description']}")
 
 # Get specific version of dataset
 versioned_dataset = client.datasets.get_dataset(

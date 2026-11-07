@@ -33,6 +33,7 @@ from phoenix.client.constants.server_requirements import (
     DATASET_UPLOAD_EXAMPLE_ID_KEY,
     DATASET_UPLOAD_EXAMPLE_IDS,
     DATASET_UPLOAD_SPLIT_KEY,
+    DATASET_UPLOAD_VERSION_DESCRIPTION,
 )
 from phoenix.client.utils.id_handling import is_node_id
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
@@ -967,6 +968,7 @@ class Datasets:
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        version_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -995,6 +997,11 @@ class Datasets:
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
+            version_description: Optional description for the new dataset version that
+                this append creates. The dataset's own description is not changed. If the
+                dataset already has a version and the append changes no examples, no new
+                version is created and the description is ignored. Requires Phoenix
+                server >= 21.1.0.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -1004,6 +1011,8 @@ class Datasets:
             ValueError: If invalid parameter combinations are provided.
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
+            PhoenixException: If ``version_description`` is set and the server is too old
+                to store it.
         """
         if split_keys:
             warnings.warn(
@@ -1011,6 +1020,9 @@ class Datasets:
                 DeprecationWarning,
                 stacklevel=2,
             )
+
+        if version_description is not None:
+            self._guard.require(DATASET_UPLOAD_VERSION_DESCRIPTION)
 
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
@@ -1093,6 +1105,7 @@ class Datasets:
                 span_id_key=span_id_key,
                 example_id_key=example_id_key,
                 dataset_description=None,
+                version_description=version_description,
                 action="append",
                 timeout=timeout,
             )
@@ -1108,6 +1121,7 @@ class Datasets:
                 span_ids=span_ids_from_examples if examples is not None else [],
                 example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=None,
+                version_description=version_description,
                 action="append",
                 timeout=timeout,
             )
@@ -1161,6 +1175,7 @@ class Datasets:
         split_key: Optional[str] = None,
         example_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
+        version_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -1227,6 +1242,9 @@ class Datasets:
         if keys.example_id:
             data_dict["example_id_key"] = keys.example_id
 
+        if version_description is not None:
+            data_dict["version_description"] = version_description
+
         response = self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
@@ -1262,6 +1280,7 @@ class Datasets:
         span_ids: Iterable[Optional[str]] = (),
         example_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
+        version_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -1325,6 +1344,8 @@ class Datasets:
             payload["example_ids"] = example_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
+        if version_description is not None:
+            payload["version_description"] = version_description
 
         logger.info("Uploading dataset...")
         response = self._client.post(
@@ -1866,6 +1887,7 @@ class AsyncDatasets:
         inputs: Iterable[Mapping[str, Any]] = (),
         outputs: Iterable[Mapping[str, Any]] = (),
         metadata: Iterable[Mapping[str, Any]] = (),
+        version_description: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
         """
@@ -1889,6 +1911,11 @@ class AsyncDatasets:
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
+            version_description: Optional description for the new dataset version that
+                this append creates. The dataset's own description is not changed. If the
+                dataset already has a version and the append changes no examples, no new
+                version is created and the description is ignored. Requires Phoenix
+                server >= 21.1.0.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -1898,6 +1925,8 @@ class AsyncDatasets:
             ValueError: If invalid parameter combinations are provided.
             ImportError: If pandas is required but not installed.
             httpx.HTTPStatusError: If the API returns an error response.
+            PhoenixException: If ``version_description`` is set and the server is too old
+                to store it.
         """
         if split_keys:
             warnings.warn(
@@ -1905,6 +1934,9 @@ class AsyncDatasets:
                 DeprecationWarning,
                 stacklevel=2,
             )
+
+        if version_description is not None:
+            await self._guard.require(DATASET_UPLOAD_VERSION_DESCRIPTION)
 
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
 
@@ -1987,6 +2019,7 @@ class AsyncDatasets:
                 span_id_key=span_id_key,
                 example_id_key=example_id_key,
                 dataset_description=None,
+                version_description=version_description,
                 action="append",
                 timeout=timeout,
             )
@@ -2002,6 +2035,7 @@ class AsyncDatasets:
                 span_ids=span_ids_from_examples if examples is not None else [],
                 example_ids=example_ids_from_examples if examples is not None else [],
                 dataset_description=None,
+                version_description=version_description,
                 action="append",
                 timeout=timeout,
             )
@@ -2042,6 +2076,7 @@ class AsyncDatasets:
         split_key: Optional[str] = None,
         example_id_key: Optional[str] = None,
         dataset_description: Optional[str] = None,
+        version_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -2106,6 +2141,9 @@ class AsyncDatasets:
         if keys.example_id:
             data_dict["example_id_key"] = keys.example_id
 
+        if version_description is not None:
+            data_dict["version_description"] = version_description
+
         response = await self._client.post(
             url="v1/datasets/upload",
             files={"file": file},
@@ -2141,6 +2179,7 @@ class AsyncDatasets:
         span_ids: Iterable[Optional[str]] = (),
         example_ids: Iterable[Optional[str]] = (),
         dataset_description: Optional[str] = None,
+        version_description: Optional[str] = None,
         action: Literal["update", "append"] = "update",
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Dataset:
@@ -2202,6 +2241,8 @@ class AsyncDatasets:
             payload["example_ids"] = example_ids_list
         if dataset_description is not None:
             payload["description"] = dataset_description
+        if version_description is not None:
+            payload["version_description"] = version_description
 
         logger.info("Uploading dataset...")
         response = await self._client.post(
