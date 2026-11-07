@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix là nền tảng quan sát AI mã nguồn mở của Arize, đư�
 
 Phoenix không phụ thuộc vào nhà cung cấp hay ngôn ngữ, hỗ trợ sẵn các framework phổ biến ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) và các nhà cung cấp LLM ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm), và nhiều hơn nữa). Để biết chi tiết về auto-instrumentation, hãy xem dự án [OpenInference](https://github.com/Arize-ai/openinference).
 
-Phoenix có thể chạy gần như ở bất cứ đâu, bao gồm máy cục bộ của bạn, môi trường triển khai container hoặc trên cloud. Xem [Môi trường](https://arize.com/docs/phoenix/environments) để được hướng dẫn chi tiết từng lựa chọn, hoặc chuyển thẳng tới [Hướng dẫn nhanh về Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+Phoenix có thể chạy gần như ở bất cứ đâu, bao gồm máy cục bộ của bạn, môi trường triển khai container hoặc trên cloud. Xem [Môi trường](https://arize.com/docs/phoenix/self-hosting) để được hướng dẫn chi tiết từng lựa chọn, hoặc chuyển thẳng tới [Hướng dẫn nhanh về Tracing](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
 > Phoenix là mã nguồn mở và tự lưu trữ (self-hosted). Nếu cần một nền tảng được quản lý, Arize cung cấp [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-vi) — cùng một instrumentation OpenTelemetry/OpenInference hoạt động với cả hai. Xem [bảng so sánh đầy đủ](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
@@ -160,7 +156,6 @@ Gói `arize-phoenix` bao gồm toàn bộ nền tảng Phoenix. Tuy nhiên, nế
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Cung cấp lớp bao gọn nhẹ quanh các primitive của OpenTelemetry với các giá trị mặc định phù hợp cho Phoenix                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Client cho Arize Phoenix API                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | Thư viện đánh giá TypeScript cho ứng dụng LLM (bản alpha)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | MCP server stdio độc lập cho các phiên bản Phoenix cũ (chế độ bảo trì — đã được thay thế bởi [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) tích hợp sẵn trong Phoenix) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI để lấy trace, dataset và thử nghiệm, dùng với Claude Code, Cursor và các coding agent khác |
 
 ## Tích hợp Tracing
@@ -284,16 +279,16 @@ Chạy các [code evaluator](https://arize.com/docs/phoenix/evaluation/server-ev
 Phoenix được xây dựng để cả con người lẫn AI coding agent đều có thể sử dụng. Ba giao diện cho phép các agent (Claude Code, Codex, Cursor và các công cụ khác) làm việc với trace, dataset và thử nghiệm của bạn:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` lấy trace, dataset và thử nghiệm, đồng thời instrument ứng dụng của bạn (`setup`), để agent có thể lấy ngữ cảnh và hành động ngay từ terminal.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) đóng gói các quy trình dạy agent cách gỡ lỗi, đánh giá và trace với Phoenix.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) đóng gói các quy trình dạy agent cách gỡ lỗi, đánh giá và trace với Phoenix.
 - **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — kết nối bất kỳ MCP client nào tới endpoint `/mcp` của phiên bản của bạn để truy vấn Phoenix trực tiếp.
 
 Xem [tài liệu về coding agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) để biết cách thiết lập và sử dụng.
 
 | Kỹ năng                                              | Mô tả                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Gỡ lỗi ứng dụng LLM bằng Phoenix CLI — lấy trace, phân tích lỗi, xem lại thử nghiệm và truy vấn GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Xây dựng và chạy evaluator cho ứng dụng AI/LLM bằng Phoenix                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | Quy ước ngữ nghĩa OpenInference và instrumentation để trace ứng dụng LLM                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Gỡ lỗi ứng dụng LLM bằng Phoenix CLI — lấy trace, phân tích lỗi, xem lại thử nghiệm và truy vấn GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Xây dựng và chạy evaluator cho ứng dụng AI/LLM bằng Phoenix                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | Quy ước ngữ nghĩa OpenInference và instrumentation để trace ứng dụng LLM                                        |
 
 ## Bảo mật & Quyền riêng tư
 

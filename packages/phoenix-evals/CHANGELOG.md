@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.9.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.4...arize-phoenix-evals-v3.9.5) (2026-10-27)
+
+
+### Documentation
+
+* **evals:** fix PrecisionRecallFScore docstring examples that call the evaluator directly ([#17039](https://github.com/Arize-ai/phoenix/issues/17039)) ([e84f16b](https://github.com/Arize-ai/phoenix/commit/e84f16bd22379c8dd22721bc50e8be8e6ed369f4))
+
 ## [3.9.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.3...arize-phoenix-evals-v3.9.4) (2026-10-24)
 
 

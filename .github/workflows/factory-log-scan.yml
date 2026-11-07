@@ -1,7 +1,7 @@
 name: Factory Log Scan
 
 # Daily: if Phoenix logged server errors in the last day, run the railway-triage agent, which
-# files or updates issues for them. Labels with the machine-account token, since a label
+# files or updates issues for them. Labels them as the factory's GitHub App, since a label
 # applied by GITHUB_TOKEN would not start factory-dispatch.yml.
 on:
   schedule:
@@ -12,7 +12,7 @@ on:
         description: Hours to scan, ending now
         default: "24"
       dispatch:
-        description: Add the factory label to the issues the session files, up to the per-run cap
+        description: Add the factory label to the issues the session files
         type: boolean
         default: true
       dry_run:
@@ -39,19 +39,21 @@ jobs:
       FACTORY_GRAFANA_LOGQL: ${{ vars.FACTORY_GRAFANA_LOGQL }}
       FACTORY_GRAFANA_LOKI_UID: ${{ vars.FACTORY_GRAFANA_LOKI_UID }}
       FACTORY_GRAFANA_TOKEN: ${{ secrets.FACTORY_GRAFANA_TOKEN }}
-      FACTORY_GITHUB_TOKEN: ${{ secrets.FACTORY_GITHUB_TOKEN }}
+      FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
+      FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
           python-version: "3.12"
-
-      - name: Install the Anthropic SDK
-        run: pip install --quiet "anthropic==1.12.1"
 
       # Factory Sync keeps the agent, environment and vault IDs on the factory-state branch.
       - name: Pull claude-lock.json
@@ -75,4 +77,4 @@ jobs:
           ARGS=(--repo "$GH_REPO" --hours "$HOURS")
           [ "$DISPATCH" = "true" ] || ARGS+=(--no-dispatch)
           [ "$DRY_RUN" = "true" ] && ARGS+=(--dry-run)
-          python factory/log_scan.py "${ARGS[@]}"
+          uv run --script factory/log_scan.py "${ARGS[@]}"

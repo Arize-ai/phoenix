@@ -1,51 +1,68 @@
 ---
 title: "Configure AI Providers"
-description: "Phoenix natively integrates with OpenAI, Azure OpenAI, Anthropic, and Google AI Studio (gemini) to make it easy to test changes to your prompts. In addition to the above, since many AI providers (deepseek, ollama) can be used directly with the OpenAI client, you can talk to any OpenAI compatible LLM provider."
+description: "Give Phoenix credentials for OpenAI, Azure OpenAI, Anthropic, Google AI Studio (Gemini), AWS Bedrock, and other providers, including any OpenAI-compatible LLM provider such as DeepSeek or Ollama, so that you can run prompts in the Playground."
 ---
+
+Configure the credentials and endpoints that Phoenix uses to call AI providers from the Prompt Playground and from prompts.
+
+Phoenix has native integrations for OpenAI, Azure OpenAI, Anthropic, and Google AI Studio (Gemini). Many other providers, for example DeepSeek and Ollama, work with the OpenAI client. Thus you can also use any OpenAI-compatible LLM provider.
 
 ## Credentials
 
-To securely provide your API keys, you have four options.
+Select one of four options to supply your API keys:
 
-1. **Browser**: Store them in your browser's local storage.
-2. **Database (Secrets)**: Save them encrypted in the Phoenix database.
+1. **Browser**: Store the keys in the local storage of your browser.
+2. **Database (Secrets)**: Save the keys encrypted in the Phoenix database.
 3. **Database (Custom Providers)**: Configure named providers with specific credentials.
-4. **Environment Variables**: Set them as environment variables on the server.
+4. **Environment Variables**: Set the keys as environment variables on the server.
 
-For built-in providers (e.g., selecting "OpenAI" directly), Phoenix resolves credentials in this order: **Browser > Database (Secrets) > Environment Variables**.
-Custom Providers (Option 3) are selected explicitly and use their own configured credentials.
+For built-in providers (for example, when you select "OpenAI" directly), Phoenix uses the first credential that it finds in this order: **Browser > Database (Secrets) > Environment Variables**.
+You select Custom Providers (option 3) explicitly. They use their own configured credentials.
 
 ### Option 1: Store API Keys in the Browser
 
-API keys can be entered in the playground application via the API Keys dropdown menu. This option stores API keys in your browser's local storage.
+1. In the playground, open the **API Keys** menu.
+2. Enter your API keys.
+
+Phoenix stores these keys in the local storage of your browser.
 
 <Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d2f72ee7-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/d2f72ee7-image.jpeg" alt="Phoenix AI provider settings with environment variable names and configuration status" />
 </Frame>
 
 ### Option 2: Save Secrets (Encrypted) in the Database
 
-You can save your API keys persistently in the Phoenix database. Navigate to the **Settings** page, select the **AI Providers** tab, and click the edit icon for a provider. In the dialog, toggle the view to **Secrets** and enter your keys. Keys are stored encrypted at rest in the `secrets` table. If you change the server's `PHOENIX_SECRET` environment variable, these entries will become unreadable and must be updated.
+<Warning>
+If you change the `PHOENIX_SECRET` environment variable on the server, Phoenix cannot read the saved keys. You must then enter the keys again.
+</Warning>
+
+1. Go to the **Settings** page.
+2. Select the **AI Providers** tab.
+3. Click the edit icon for a provider.
+4. In the dialog, set the view to **Secrets**.
+5. Enter your keys.
+
+Phoenix stores the keys encrypted at rest in the `secrets` table.
 
 ### Option 3: Custom Providers
 
-Custom providers let you store provider credentials and routing settings on the server and reuse them across the playground and prompt versions.
+A custom provider stores provider credentials and routing settings on the server. You can use it again in the playground and in prompt versions.
 
-For detailed instructions on configuring custom providers, see the [Custom AI Providers](/docs/phoenix/settings/custom-ai-providers) settings page.
+To configure custom providers, see [Custom AI Providers](/docs/phoenix/settings/custom-ai-providers).
 
 **Using Custom Providers in the Playground and Prompts**
 
-Custom providers appear in model selection menus as their own provider group. When you select one:
+Custom providers show in model selection menus as their own provider group. When you select one:
 
-1. The model list mirrors the built-in model list for that SDK.
-2. Routing fields (base URL, Azure endpoint, AWS region) are pulled from the custom provider config.
-3. You can still add request-level custom headers from the model configuration panel.
+1. The model list is the same as the built-in model list for that SDK.
+2. Phoenix gets the routing fields (base URL, Azure endpoint, AWS region) from the custom provider configuration.
+3. You can add request-level custom headers from the model configuration panel.
 
-Prompt versions and evaluators use custom providers when a prompt version is saved with a custom provider selection. If you do not select a custom provider for a prompt, Phoenix falls back to environment variables or saved secrets for the built-in provider.
+Prompt versions and evaluators use a custom provider when you save the prompt version with a custom provider selected. If you do not select a custom provider for a prompt, Phoenix uses the environment variables or saved secrets for the built-in provider.
 
 ### Option 4: Set Environment Variables on Server Side
 
-If the following variables are set in the server environment, they'll be used at API invocation time.
+Set these variables in the server environment. Phoenix uses them when it invokes the API.
 
 | Provider     | Environment Variable                                                         | Platform Link                                                                                                                                    |
 | :----------- | :--------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -67,37 +84,43 @@ If the following variables are set in the server environment, they'll be used at
 | Meta         | - META\_API\_KEY                                                             | [https://dev.meta.ai/docs/](https://dev.meta.ai/docs/)                                                                                           |
 | Ollama       | - OLLAMA\_BASE\_URL (no API key)                                             | [https://ollama.com/](https://ollama.com/)                                                                                                       |
 
-The OpenAI-compatible built-in providers (OpenAI, DeepSeek, xAI, Ollama, Cerebras, Fireworks, Groq, Moonshot, MiniMax, Perplexity, Together, Z.ai, and Meta) also read a `<PROVIDER>_BASE_URL` variable, for example `DEEPSEEK_BASE_URL` or `META_BASE_URL`, to point the provider at a different endpoint such as a proxy or a regional API. For Ollama this variable is required, since there is no default endpoint.
+The OpenAI-compatible built-in providers (OpenAI, DeepSeek, xAI, Ollama, Cerebras, Fireworks, Groq, Moonshot, MiniMax, Perplexity, Together, Z.ai, and Meta) also read a `<PROVIDER>_BASE_URL` variable, for example `DEEPSEEK_BASE_URL` or `META_BASE_URL`. Use it to send requests to a different endpoint, for example a proxy or a regional API. Ollama has no default endpoint, so this variable is required for Ollama.
 
 <Info>
-For Azure, you can also set the following server-side environment variables: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_FEDERATED_TOKEN_FILE` to use [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.workloadidentitycredential?view=azure-python).
+For Azure, you can also set these server-side environment variables to use [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.workloadidentitycredential?view=azure-python): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_FEDERATED_TOKEN_FILE`.
 
 </Info>
 
 <Info>
 **AWS Bedrock Authentication**
 
-When using AWS Bedrock, Phoenix leverages the standard [boto3 credential chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) or the `AWS_BEARER_TOKEN_BEDROCK` environment variable. This means if you are running Phoenix on an EC2 instance with an assigned IAM role, have `~/.aws/credentials` configured, or have exported `AWS_BEARER_TOKEN_BEDROCK`, you do not need to explicitly provide credentials.
+For AWS Bedrock, Phoenix uses the standard [boto3 credential chain](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html) or the `AWS_BEARER_TOKEN_BEDROCK` environment variable. Thus you do not need to supply credentials explicitly in these conditions:
 
-To use this fallback behavior, **do not fill out the AWS credentials in the Playground settings**. The client will automatically discover and use the available credentials from the environment.
+- Phoenix runs on an EC2 instance with an assigned IAM role.
+- You configured `~/.aws/credentials`.
+- You exported `AWS_BEARER_TOKEN_BEDROCK`.
+
+To use this fallback, **do not fill in the AWS credentials in the Playground settings**. The client then finds and uses the credentials from the environment.
 </Info>
 
 ## Using OpenAI Compatible LLMs
 
 ### Option 1: Configure the base URL in the prompt playground
 
-Since you can configure the base URL for the OpenAI client, you can use the prompt playground with a variety of OpenAI Client compatible LLMs such as **Ollama**, **DeepSeek**, and more.\
-
-<Frame caption="Simply insert the URL for the OpenAI client compatible LLM provider">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ca5e3fd5-image.jpeg" />
-</Frame>
+You can set the base URL of the OpenAI client. Thus you can use the prompt playground with OpenAI-client-compatible LLMs such as **Ollama** and **DeepSeek**.
 
 <Info>
-If you are using an LLM provider, you will have to set the OpenAI api key to that provider's api key for it to work.
+If you use a different LLM provider, set the OpenAI API key to the API key of that provider.
 
 </Info>
 
-OpenAI Client compatible providers Include
+In the prompt playground, enter the base URL of the OpenAI-client-compatible LLM provider.
+
+<Frame caption="Simply insert the URL for the OpenAI client compatible LLM provider">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ca5e3fd5-image.jpeg" alt="Phoenix prompt playground with model configuration controls" />
+</Frame>
+
+OpenAI-client-compatible providers:
 
 | Provider | Base URL                                                 | Docs                                                                                                                   |
 | :------- | :------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
@@ -112,43 +135,46 @@ OpenAI Client compatible providers Include
 | Z.ai     | [https://api.z.ai/api/paas/v4](https://api.z.ai/api/paas/v4) | [https://docs.z.ai/](https://docs.z.ai/) |
 | Meta     | [https://api.meta.ai/v1](https://api.meta.ai/v1) | [https://dev.meta.ai/docs/](https://dev.meta.ai/docs/) |
 
-The built-in MiniMax provider uses the global endpoint by default. Set `MINIMAX_BASE_URL=https://api.minimaxi.com/v1` to use the China endpoint.
+The built-in MiniMax provider uses the global endpoint by default. To use the China endpoint, set `MINIMAX_BASE_URL=https://api.minimaxi.com/v1`.
 
 ### Using the MiniMax Anthropic-compatible API
 
-To use the Anthropic-compatible API, open **Settings**, select **AI Providers**, and create a custom provider with the Anthropic SDK and your MiniMax API key. Set the base URL for the required region, then enter `MiniMax-M3` or `MiniMax-M2.7` in the model menu.
+1. Open **Settings** and select **AI Providers**.
+2. Create a custom provider with the Anthropic SDK and your MiniMax API key.
+3. Set the base URL for the region that you need. See the table below.
+4. In the model menu, enter `MiniMax-M3` or `MiniMax-M2.7`.
 
 | Region | Base URL | Docs |
 | :----- | :------- | :--- |
 | Global | [https://api.minimax.io/anthropic](https://api.minimax.io/anthropic) | [https://platform.minimax.io/docs/api-reference/text-anthropic-api](https://platform.minimax.io/docs/api-reference/text-anthropic-api) |
 | China | [https://api.minimaxi.com/anthropic](https://api.minimaxi.com/anthropic) | [https://platform.minimaxi.com/docs/api-reference/text-anthropic-api](https://platform.minimaxi.com/docs/api-reference/text-anthropic-api) |
 
-Use the base URL exactly as shown. The Anthropic SDK appends `/v1/messages` when Phoenix sends a request.
+Use the base URL exactly as shown. The Anthropic SDK adds `/v1/messages` when Phoenix sends a request.
 
 ### Option 2: Server side configuration of the OpenAI base URL
 
-Optionally, the server can be configured with the `OPENAI_BASE_URL` environment variable to change target any OpenAI compatible REST API.
-
 <Warning>
-For a Phoenix instance served over HTTPS, this may fail due to mixed-content restrictions. In that case, you'd see a Connection Error appear.
+If your Phoenix instance uses HTTPS, this option can fail because of mixed-content restrictions. In that case, a Connection Error shows.
 
-If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix-support@arize.com](mailto://phoenix-support@arize.com)
+If you want to use a specific LLM endpoint, contact [mailto://phoenix-support@arize.com](mailto://phoenix-support@arize.com)
 
 </Warning>
 
+Set the `OPENAI_BASE_URL` environment variable on the server to send requests to any OpenAI-compatible REST API.
+
 <Info>
-OpenAI and Azure OpenAI support two API types: **Chat Completions** (`chat.completions.create`) and **Responses** (`responses.create`). Both built-in and custom providers now default to the **Responses** API. For built-in providers, override the API type per model from the model configuration panel in the Playground. For custom providers, set the API type in the provider configuration.
+OpenAI and Azure OpenAI support two API types: **Chat Completions** (`chat.completions.create`) and **Responses** (`responses.create`). Built-in and custom providers use the **Responses** API by default. For built-in providers, change the API type for each model in the model configuration panel of the Playground. For custom providers, set the API type in the provider configuration.
 </Info>
 
 
 ## Custom Headers
 
-Phoenix supports adding custom HTTP headers to requests sent to AI providers. This is useful for additional credentials, routing needs, or cost tracking when using custom LLM proxies.
+Add custom HTTP headers to the requests that Phoenix sends to AI providers. Use them for additional credentials, routing, or cost tracking with custom LLM proxies.
 
 ### Configuring Custom Headers
 
-1. Click on the model configuration button in the playground
-2. Scroll down to the "Custom Headers" section
+1. Click the model configuration button in the playground.
+2. Scroll down to the "Custom Headers" section.
 3. Add your headers in JSON format:
 
 ```json
@@ -159,6 +185,16 @@ Phoenix supports adding custom HTTP headers to requests sent to AI providers. Th
 
 ## Set a Default Provider and Model
 
-You can choose which provider and model the Prompt Playground selects by default. Go to **Settings → AI Providers** and use the **AI Provider Settings** card to pick a default provider and model. The preference is saved in your browser and applied the first time the playground opens in a session, so you don't have to reselect your usual model each time.
+Set the provider and model that the Prompt Playground selects by default.
 
-This is distinct from the playground's **"save as default"** control in the model configuration panel: the Settings preference chooses the initial provider/model, while "save as default" makes a full model configuration (including invocation parameters) sticky across sessions.
+1. Go to **Settings → AI Providers**.
+2. In the **AI Provider Settings** card, select a default provider and model.
+
+Phoenix saves this preference in your browser. It applies the preference the first time the playground opens in a session.
+
+This setting is different from the **"save as default"** control in the model configuration panel of the playground:
+
+| Control | Location | Effect |
+| :------ | :------- | :----- |
+| Default provider and model | **Settings → AI Providers** | Sets the initial provider and model. |
+| **"save as default"** | Model configuration panel | Keeps the full model configuration, including invocation parameters, across sessions. |

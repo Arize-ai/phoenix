@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix 是 Arize 推出的開源 AI 可觀測性平台，專為實驗、�
 
 Phoenix 不受限於特定供應商或程式語言，並內建支援熱門框架（[OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk)、[Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk)、[LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain)、[Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk)、[Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)、[CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai)、[LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex)、[DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)）以及 LLM 供應商（[OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai)、[Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic)、[Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai)、[Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing)、[AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock)、[OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter)、[LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) 等）。如需了解自動檢測的詳細資訊，請參閱 [OpenInference](https://github.com/Arize-ai/openinference) 專案。
 
-Phoenix 幾乎可在任何環境中執行，包括您的本機電腦、容器化部署或雲端。請參閱 [環境](https://arize.com/docs/phoenix/environments) 以了解各選項的逐步說明，或直接前往 [追蹤快速入門](https://arize.com/docs/phoenix/get-started/get-started-tracing)。
+Phoenix 幾乎可在任何環境中執行，包括您的本機電腦、容器化部署或雲端。請參閱 [環境](https://arize.com/docs/phoenix/self-hosting) 以了解各選項的逐步說明，或直接前往 [追蹤快速入門](https://arize.com/docs/phoenix/get-started/get-started-tracing)。
 
 > [!NOTE]
 > Phoenix 為開源且可自行託管。若需要託管式平台，Arize 提供 [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-zh-tw) — 兩者皆可使用相同的 OpenTelemetry/OpenInference 檢測。請參閱 [完整比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize)。
@@ -160,7 +156,6 @@ Phoenix 容器映像檔可透過 [Docker Hub](https://hub.docker.com/r/arizephoe
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | 為 OpenTelemetry 基本元件提供輕量級封裝，並內建適用於 Phoenix 的預設設定                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API 用戶端                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | 適用於 LLM 應用程式的 TypeScript 評估函式庫（Alpha 版）                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 適用於舊版 Phoenix 的獨立 stdio MCP 伺服器（維護模式 — 已由 Phoenix 內建的 [遠端 MCP 伺服器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) 取代） |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | 用於擷取追蹤、資料集與實驗的 CLI，可搭配 Claude Code、Cursor 及其他程式設計代理使用 |
 
 ## 追蹤整合
@@ -284,16 +279,16 @@ Phoenix 建構於 OpenTelemetry 之上，不受限於特定供應商、程式語
 Phoenix 的設計讓人類與 AI 程式設計代理都能操作。代理（Claude Code、Codex、Cursor 等）可透過以下三種介面處理您的追蹤、資料集與實驗：
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` 可擷取追蹤、資料集與實驗，並為您的應用程式加上檢測（`setup`），讓代理能在終端機中取得情境並採取行動。
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) 封裝了多種工作流程，教導代理如何使用 Phoenix 進行除錯、評估與追蹤。
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) 封裝了多種工作流程，教導代理如何使用 Phoenix 進行除錯、評估與追蹤。
 - **[遠端 MCP 伺服器](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 將任何 MCP 用戶端連線至執行個體的 `/mcp` 端點，直接查詢 Phoenix。
 
 如需設定與使用方式，請參閱 [程式設計代理文件](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents)。
 
 | 技能                                              | 說明                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | 使用 Phoenix CLI 除錯 LLM 應用程式 — 擷取追蹤、分析錯誤、檢視實驗，並查詢 GraphQL API |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | 使用 Phoenix 為 AI/LLM 應用程式建構並執行評估器                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | 用於追蹤 LLM 應用程式的 OpenInference 語意慣例與檢測                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | 使用 Phoenix CLI 除錯 LLM 應用程式 — 擷取追蹤、分析錯誤、檢視實驗，並查詢 GraphQL API |
+| [phoenix-evals](../../skills/phoenix-evals/)     | 使用 Phoenix 為 AI/LLM 應用程式建構並執行評估器                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | 用於追蹤 LLM 應用程式的 OpenInference 語意慣例與檢測                                        |
 
 ## 安全性與隱私權
 

@@ -106,6 +106,28 @@ class TestPromptVersionData:
 
 
 class TestPrompts:
+    async def test_list_prompt_versions(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        for prompt_identifier in prompt_id, prompt.name.root:
+            url = f"v1/prompts/{quote_plus(prompt_identifier)}/versions"
+            cursor = None
+            for prompt_version in reversed(prompt_versions):
+                params = {"limit": "1"}
+                if cursor:
+                    params["cursor"] = cursor
+                response = await httpx_client.get(url, params=params)
+                assert response.is_success
+                body = response.json()
+                assert len(body["data"]) == 1
+                self._compare_prompt_version(body["data"][0], prompt_version)
+                cursor = body.get("next_cursor")
+            assert cursor is None
+
     async def test_get_latest_prompt_version(
         self,
         httpx_client: httpx2.AsyncClient,
@@ -584,6 +606,7 @@ class TestPrompts:
             GlobalID.from_id(data.pop("id")), PromptVersion.__name__
         )
         assert id_ == prompt_version.id
+        assert data.pop("created_at") == prompt_version.created_at.isoformat()
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),

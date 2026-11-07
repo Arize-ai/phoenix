@@ -9,6 +9,8 @@ Atomic Agents ships its own OpenTelemetry instrumentor. From version 2.15.0 it e
 
 ## Install
 
+Atomic Agents 2.15.0 and newer requires Python 3.12 or newer.
+
 ```bash
 pip install "atomic-agents[phoenix]" arize-phoenix-otel sympy
 ```
@@ -32,16 +34,18 @@ Set your API keys as environment variables:
 export OPENAI_API_KEY=[your_key_here]
 export PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006
 export PHOENIX_API_KEY=[your_phoenix_api_key]
-export PHOENIX_PROJECT=[your_phoenix_project_name]
+export PHOENIX_PROJECT_NAME=[your_phoenix_project_name]
 ```
 
 Register Phoenix with auto-instrumentation. The Atomic Agents instrumentor is discovered through the `openinference_instrumentor` entry point, so no extra code is needed:
 
 ```python
+import os
+
 from phoenix.otel import register
 
 tracer_provider = register(
-    project_name="atomic-agents-app",
+    project_name=os.getenv("PHOENIX_PROJECT_NAME", "atomic-agents-app"),
     auto_instrument=True,
 )
 ```

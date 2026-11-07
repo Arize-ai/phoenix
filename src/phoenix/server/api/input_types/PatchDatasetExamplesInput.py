@@ -6,6 +6,8 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.redaction import Redacted
+
 
 @strawberry.enum(description="A field of a dataset example that a `replace` operation can target.")
 class DatasetExampleField(Enum):
@@ -22,9 +24,9 @@ class DatasetExampleField(Enum):
     )
 )
 class DatasetExampleValueInput:
-    input: JSON
-    output: JSON
-    metadata: JSON
+    input: Redacted[JSON]
+    output: Redacted[JSON]
+    metadata: Redacted[JSON]
     external_id: Optional[str] = UNSET
 
 
@@ -47,7 +49,7 @@ class AddDatasetExampleOperation:
 class ReplaceDatasetExampleFieldOperation:
     example_id: GlobalID
     field: DatasetExampleField
-    value: JSON
+    value: Redacted[JSON]
 
 
 @strawberry.input(description="Removes an existing example from the dataset.")

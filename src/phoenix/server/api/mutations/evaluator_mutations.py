@@ -231,6 +231,67 @@ async def _generate_unique_evaluator_name(
     raise RuntimeError(f"Failed to generate unique evaluator name after {max_attempts} attempts")
 
 
+async def _validate_new_code_evaluator(
+    context: Context,
+    *,
+    source_code: str,
+    language: Language,
+    sandbox_config_id: GlobalID,
+) -> int:
+    _raise_on_uninferable_evaluate_signature(source_code, language)
+    return await _validate_code_evaluator_sandbox_config(
+        context.db,
+        sandbox_config_global_id=sandbox_config_id,
+        language=language.value,
+        action="creating this evaluator",
+        source_code=source_code,
+        sandbox_runtime=context.sandbox_runtime,
+    )
+
+
+async def _add_code_evaluator(
+    session: AsyncSession,
+    *,
+    name: Identifier,
+    description: Optional[str],
+    language: Language,
+    user_id: Optional[int],
+    sandbox_config_id: int,
+    input_mapping: EvaluatorInputMappingInput,
+    output_configs: list[OutputConfigType],
+    source_code: str,
+) -> models.CodeEvaluator:
+    row = models.CodeEvaluator(
+        name=name,
+        description=description,
+        language=language.value,
+        user_id=user_id,
+        sandbox_config_id=sandbox_config_id,
+        input_mapping=input_mapping.to_orm(),
+        output_configs=output_configs,
+    )
+    session.add(row)
+    await session.flush()
+    session.add(
+        models.CodeEvaluatorVersion(
+            code_evaluator_id=row.id,
+            source_code=source_code,
+            user_id=user_id,
+        )
+    )
+    return row
+
+
+async def _evaluator_name_conflict(context: Context, name: Identifier) -> Conflict:
+    async with context.db() as session:
+        taken = await session.scalar(
+            select(models.Evaluator.id).where(models.Evaluator.name == name).limit(1)
+        )
+    if taken is None:
+        return Conflict(f"Could not save evaluator '{name.root}' because of a conflicting resource")
+    return Conflict(f"An evaluator named '{name.root}' already exists")
+
+
 def _get_project_for_dataset_evaluator(
     *,
     dataset_name: str,
@@ -363,10 +424,27 @@ class UpdateDatasetBuiltinEvaluatorInput:
 
 
 @strawberry.input
+class CodeEvaluatorDefinitionInput:
+    source_code: str
+    language: Language
+    sandbox_config_id: GlobalID
+
+
+@strawberry.input(one_of=True)
+class CodeEvaluatorSourceInput:
+    evaluator_id: Optional[GlobalID] = strawberry.field(
+        default=UNSET, description="An existing code evaluator to add."
+    )
+    definition: Optional[CodeEvaluatorDefinitionInput] = strawberry.field(
+        default=UNSET, description="A new code evaluator to create and add."
+    )
+
+
+@strawberry.input
 class CreateDatasetCodeEvaluatorInput:
     dataset_id: GlobalID
-    evaluator_id: GlobalID
     name: Identifier
+    source: CodeEvaluatorSourceInput
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
     description: Optional[str] = None
@@ -1170,12 +1248,16 @@ class EvaluatorMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
-        try:
-            evaluator_id, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
-        except ValueError as e:
-            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
-        if evaluator_kind != "CODE":
-            raise BadRequest("Evaluator must be a code evaluator")
+        source_evaluator_id = input.source.evaluator_id
+        definition = input.source.definition
+        evaluator_id: Optional[int] = None
+        if isinstance(source_evaluator_id, GlobalID):
+            try:
+                evaluator_id, evaluator_kind = _parse_evaluator_id(source_evaluator_id)
+            except ValueError as e:
+                raise BadRequest(f"Invalid evaluator id: {source_evaluator_id}. {e}")
+            if evaluator_kind != "CODE":
+                raise BadRequest("Evaluator must be a code evaluator")
 
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
@@ -1200,36 +1282,49 @@ class EvaluatorMutationMixin:
                 raise BadRequest(str(e))
             output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
 
+        sandbox_config_id: Optional[int] = None
+        if isinstance(definition, CodeEvaluatorDefinitionInput):
+            sandbox_config_id = await _validate_new_code_evaluator(
+                info.context,
+                source_code=definition.source_code,
+                language=definition.language,
+                sandbox_config_id=definition.sandbox_config_id,
+            )
+
         try:
             async with info.context.db() as session:
-                evaluator_and_dataset = (
-                    await session.execute(
-                        select(models.CodeEvaluator, models.Dataset.name)
-                        .select_from(models.CodeEvaluator)
-                        .join(models.Dataset, true())
-                        .where(
-                            models.CodeEvaluator.id == evaluator_id,
-                            models.Dataset.id == dataset_rowid,
-                        )
-                    )
-                ).one_or_none()
-                if evaluator_and_dataset is None:
-                    code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
-                    if code_evaluator is None:
-                        raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
-                    dataset_name = await session.scalar(
-                        select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
-                    )
-                    if dataset_name is None:
-                        raise NotFound(f"Dataset with id {dataset_rowid} not found")
+                existing_evaluator: Optional[models.CodeEvaluator] = None
+                if evaluator_id is not None:
+                    existing_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+                    if existing_evaluator is None:
+                        raise NotFound(f"Code evaluator with id {source_evaluator_id} not found")
+                dataset_name = await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+                )
+                if dataset_name is None:
+                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
+                if existing_evaluator is not None:
+                    code_evaluator = existing_evaluator
                 else:
-                    code_evaluator, dataset_name = evaluator_and_dataset
+                    assert isinstance(definition, CodeEvaluatorDefinitionInput)
+                    assert sandbox_config_id is not None
+                    code_evaluator = await _add_code_evaluator(
+                        session,
+                        name=await _generate_unique_evaluator_name(session, name),
+                        description=input.description,
+                        language=definition.language,
+                        user_id=user_id,
+                        sandbox_config_id=sandbox_config_id,
+                        input_mapping=input_mapping,
+                        output_configs=output_configs or [],
+                        source_code=definition.source_code,
+                    )
 
                 dataset_evaluator = models.DatasetEvaluators(
                     dataset_id=dataset_rowid,
                     name=name,
                     input_mapping=input_mapping.to_orm(),
-                    evaluator_id=evaluator_id,
+                    evaluator_id=code_evaluator.id,
                     output_configs=output_configs,
                     description=input.description,
                     user_id=user_id,
@@ -1376,39 +1471,28 @@ class EvaluatorMutationMixin:
         )
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
-        input_mapping_orm = input.input_mapping.to_orm()
-        _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
-        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
-            info.context.db,
-            sandbox_config_global_id=input.sandbox_config_id,
-            language=input.language.value,
-            action="creating this evaluator",
+        sandbox_config_id = await _validate_new_code_evaluator(
+            info.context,
             source_code=input.source_code,
-            sandbox_runtime=info.context.sandbox_runtime,
+            language=input.language,
+            sandbox_config_id=input.sandbox_config_id,
         )
 
         try:
             async with info.context.db() as session:
-                row = models.CodeEvaluator(
+                row = await _add_code_evaluator(
+                    session,
                     name=validated_name,
                     description=input.description,
-                    language=input.language.value,
+                    language=input.language,
                     user_id=user_id,
                     sandbox_config_id=sandbox_config_id,
-                    input_mapping=input_mapping_orm,
+                    input_mapping=input.input_mapping,
                     output_configs=output_configs,
-                )
-                session.add(row)
-                await session.flush()
-
-                version = models.CodeEvaluatorVersion(
-                    code_evaluator_id=row.id,
                     source_code=input.source_code,
-                    user_id=user_id,
                 )
-                session.add(version)
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-            raise BadRequest(f"Could not create code evaluator: {e}")
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+            raise await _evaluator_name_conflict(info.context, validated_name) from error
 
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=row.id, db_record=row),
@@ -1495,8 +1579,12 @@ class EvaluatorMutationMixin:
                         _convert_output_config_inputs_to_pydantic(input.output_configs),
                     )
 
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-            raise BadRequest(f"Could not patch code evaluator: {e}")
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+            if input.name is not UNSET and input.name is not None:
+                raise await _evaluator_name_conflict(
+                    info.context, IdentifierModel.model_validate(input.name)
+                ) from error
+            raise Conflict("Could not update the evaluator because of a conflicting resource")
 
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=row.id, db_record=row),

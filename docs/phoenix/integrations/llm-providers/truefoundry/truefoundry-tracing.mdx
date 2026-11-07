@@ -1,0 +1,74 @@
+---
+title: "TrueFoundry Tracing"
+description: "Trace TrueFoundry AI Gateway calls in Phoenix with OpenInference auto-instrumentation for the OpenAI Python SDK, since the gateway provides an OpenAI-compatible endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[TrueFoundry](https://www.truefoundry.com/ai-gateway) is an enterprise AI gateway: one OpenAI-compatible endpoint that fronts 1000+ models across 40+ providers (OpenAI, Anthropic, Bedrock, Vertex AI, Mistral, and more) with governance, budgets, and guardrails. The endpoint at `https://gateway.truefoundry.ai` mirrors OpenAI's schema, so any OpenAI client works with `base_url` set to the gateway. Phoenix captures every gateway call via the [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai) package, the same instrumentor that covers OpenAI's hosted API.
+
+<Note>
+This guide instruments **your application's** calls to the gateway, so the spans include your prompts, responses, and token usage as your code sees them.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your TrueFoundry token as an environment variable. Use a Personal Access Token or Virtual Account Token from the **Access** section of TrueFoundry:
+
+```bash
+export TRUEFOUNDRY_API_KEY="<your-truefoundry-token>"
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run TrueFoundry
+
+```python
+import os
+from openai import OpenAI
+
+# Point the OpenAI client at the TrueFoundry AI Gateway endpoint.
+client = OpenAI(
+    base_url="https://gateway.truefoundry.ai",
+    api_key=os.environ["TRUEFOUNDRY_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    # Models use a `provider-account/model-name` format. The prefix is the
+    # provider account configured in your TrueFoundry workspace.
+    model="openai/gpt-4.1-mini",
+    messages=[
+        {
+            "role": "user",
+            "content": "Why is the ocean salty? Answer in two sentences.",
+        },
+    ],
+)
+
+print(response.choices[0].message.content)
+```
+
+The model name on the span is the resolved model the gateway routed to (for example, `gpt-4.1-mini-2025-04-14`), not the `openai/gpt-4.1-mini` identifier you passed.
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at TrueFoundry will be streamed to your running Phoenix for observability and evaluation. Each call appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **Spans missing**: `register(..., auto_instrument=True)` must run before your application sends requests, and `openinference-instrumentation-openai` must be installed in the same environment
+* **`401` from TrueFoundry**: Use a **TrueFoundry** token (Personal Access Token or Virtual Account Token from the **Access** section), not your OpenAI key. The OpenAI client sends it as a `Bearer` token
+* **Model not found**: Use the `provider-account/model-name` identifier from your gateway (for example, `openai/gpt-4.1-mini`). The prefix is the provider account name configured in your TrueFoundry workspace, not a fixed value. Copy the exact model ID from the Playground **Code Snippets** tab
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="TrueFoundry AI Gateway Documentation" href="https://www.truefoundry.com/docs/ai-gateway/intro-to-llm-gateway" icon="book" horizontal description="TrueFoundry AI Gateway docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

@@ -277,7 +277,7 @@ class TraceDataset:
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
-        table = Table.from_pandas(self.dataframe)
+        table = Table.from_pandas(dataframe)
         table = table.replace_schema_metadata(
             {
                 **(table.schema.metadata or {}),

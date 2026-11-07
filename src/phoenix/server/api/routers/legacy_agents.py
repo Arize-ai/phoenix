@@ -145,14 +145,6 @@ class LegacyChatRequest(
     """Discriminated union of legacy chat request payloads."""
 
 
-def _log_run_complete(result: AgentRunResult[Any]) -> None:
-    """Log the full message history after an agent run completes."""
-    messages = result.all_messages()
-    logger.info("agent run complete: %d messages", len(messages))
-    for message in messages:
-        logger.info("%s", message)
-
-
 def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [
         Depends(is_agent_assistant_enabled),
@@ -262,7 +254,6 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
                     usage=_get_current_context_usage(result),
                 )
             )
-            _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
@@ -286,7 +277,11 @@ def create_legacy_agents_router(authentication_enabled: bool) -> APIRouter:
                                 )
                             yield chunk
             except Exception as exc:
-                logger.exception("Headless agent chat stream failed for session %s", session_id)
+                logger.error(
+                    "Headless agent chat stream failed for session %s (%s)",
+                    session_id,
+                    type(exc).__name__,
+                )
                 yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
             finally:
                 if tracer is not None:

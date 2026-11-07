@@ -52,11 +52,7 @@
 
 <p align="center">
  <a href="https://www.star-history.com/arize-ai/phoenix">
-  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-   <img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" />
-  </picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
  </a>
 </p>
 
@@ -77,7 +73,7 @@ Arize Phoenix হলো Arize-এর ওপেন-সোর্স AI observabili
 
 Phoenix কোনো নির্দিষ্ট ভেন্ডর বা ভাষার ওপর নির্ভরশীল নয় এবং জনপ্রিয় ফ্রেমওয়ার্ক ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) ও LLM প্রোভাইডারের ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) এবং আরও অনেক) জন্য সরাসরি সমর্থন দেয়। auto-instrumentation সম্পর্কে বিস্তারিত জানতে [OpenInference](https://github.com/Arize-ai/openinference) প্রজেক্টটি দেখুন।
 
-Phoenix প্রায় যেকোনো জায়গায় চলে, যেমন আপনার লোকাল মেশিন, কন্টেইনারাইজড ডিপ্লয়মেন্ট বা ক্লাউড। প্রতিটি বিকল্পের বিস্তারিত নির্দেশনার জন্য [Environments](https://arize.com/docs/phoenix/environments) দেখুন, অথবা সরাসরি [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing)-এ চলে যান।
+Phoenix প্রায় যেকোনো জায়গায় চলে, যেমন আপনার লোকাল মেশিন, কন্টেইনারাইজড ডিপ্লয়মেন্ট বা ক্লাউড। প্রতিটি বিকল্পের বিস্তারিত নির্দেশনার জন্য [Environments](https://arize.com/docs/phoenix/self-hosting) দেখুন, অথবা সরাসরি [Tracing Quickstart](https://arize.com/docs/phoenix/get-started/get-started-tracing)-এ চলে যান।
 
 > [!NOTE]
 > Phoenix ওপেন-সোর্স এবং self-hosted। ম্যানেজড প্ল্যাটফর্মের জন্য Arize [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-bn) প্রদান করে — একই OpenTelemetry/OpenInference instrumentation উভয়ের সাথেই কাজ করে। [সম্পূর্ণ তুলনা](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) দেখুন।
@@ -160,7 +156,6 @@ Docker Compose, Kubernetes/Helm এবং অন্যান্য ডিপ্�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Phoenix-উপযোগী ডিফল্টসহ OpenTelemetry primitives-এর ওপর একটি হালকা wrapper প্রদান করে |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API-এর জন্য ক্লায়েন্ট |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | LLM অ্যাপ্লিকেশনের জন্য TypeScript মূল্যায়ন লাইব্রেরি (alpha রিলিজ) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | পুরোনো Phoenix ভার্সনের জন্য স্বতন্ত্র stdio MCP সার্ভার (রক্ষণাবেক্ষণ মোড — Phoenix-এ বিল্ট-ইন [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) দ্বারা প্রতিস্থাপিত) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code, Cursor এবং অন্যান্য কোডিং এজেন্টের সাথে ব্যবহারের জন্য trace, dataset ও experiment সংগ্রহের CLI |
 
 ## ট্রেসিং ইন্টিগ্রেশন
@@ -284,16 +279,16 @@ kernel-স্তরের আইসোলেশন এবং রানটাই�
 Phoenix এমনভাবে তৈরি যাতে মানুষ ও AI কোডিং এজেন্ট উভয়েই এটি সমানভাবে চালাতে পারে। তিনটি মাধ্যম এজেন্টদের (Claude Code, Codex, Cursor এবং অন্যান্য) আপনার trace, dataset ও experiment নিয়ে কাজ করতে দেয়:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` trace, dataset ও experiment সংগ্রহ করে এবং আপনার অ্যাপ instrument করে (`setup`), যাতে একটি এজেন্ট টার্মিনাল থেকেই প্রসঙ্গ সংগ্রহ করে সে অনুযায়ী কাজ করতে পারে।
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) এমন ওয়ার্কফ্লো প্যাকেজ করে যা এজেন্টদের Phoenix দিয়ে ডিবাগ, মূল্যায়ন ও ট্রেস করতে শেখায়।
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) এমন ওয়ার্কফ্লো প্যাকেজ করে যা এজেন্টদের Phoenix দিয়ে ডিবাগ, মূল্যায়ন ও ট্রেস করতে শেখায়।
 - **[Remote MCP Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — যেকোনো MCP ক্লায়েন্টকে আপনার ইনস্ট্যান্সের `/mcp` endpoint-এ সংযুক্ত করে সরাসরি Phoenix query করুন।
 
 সেটআপ ও ব্যবহারের জন্য [কোডিং এজেন্ট ডকুমেন্টেশন](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) দেখুন।
 
 | Skill | বিবরণ |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI ব্যবহার করে LLM অ্যাপ্লিকেশন ডিবাগ করুন — trace সংগ্রহ, ত্রুটি বিশ্লেষণ, experiment পর্যালোচনা এবং GraphQL API query করুন |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix ব্যবহার করে AI/LLM অ্যাপ্লিকেশনের জন্য evaluator তৈরি ও চালান |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM অ্যাপ্লিকেশন ট্রেস করার জন্য OpenInference semantic conventions ও instrumentation |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI ব্যবহার করে LLM অ্যাপ্লিকেশন ডিবাগ করুন — trace সংগ্রহ, ত্রুটি বিশ্লেষণ, experiment পর্যালোচনা এবং GraphQL API query করুন |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix ব্যবহার করে AI/LLM অ্যাপ্লিকেশনের জন্য evaluator তৈরি ও চালান |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM অ্যাপ্লিকেশন ট্রেস করার জন্য OpenInference semantic conventions ও instrumentation |
 
 ## নিরাপত্তা ও গোপনীয়তা
 
