@@ -53,6 +53,7 @@ import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
@@ -406,6 +407,9 @@ export function ProjectEvaluatorsTable({
   if (isMeanScoreColumnVisible && !includeMeanScore) {
     setIncludeMeanScore(true);
   }
+  // Advances while the project page streams and new spans or evaluation
+  // results land, so the rows refetch as evaluations run.
+  const { fetchKey } = useStreamState();
   const hasComparedInitialQueryInputs = useRef(false);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
@@ -457,6 +461,7 @@ export function ProjectEvaluatorsTable({
     timeRange,
     scoreWindow,
     includeMeanScore,
+    fetchKey,
   ]);
   const loadNext = useCallback(() => {
     _loadNext(PAGE_SIZE, {

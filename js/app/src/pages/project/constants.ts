@@ -8,6 +8,12 @@ export type ProjectTab = (typeof PROJECT_TABS)[number];
  */
 export const DEFAULT_PAGE_SIZE = 30;
 
+/**
+ * How often the evaluator pages check for new data while live. Slower than
+ * the span tables' 2s poll: each refresh re-runs the evaluators' aggregates.
+ */
+export const EVALUATORS_LIVE_REFRESH_INTERVAL_MS = 10_000;
+
 export const isProjectTab = (tab: string): tab is ProjectTab => {
   return PROJECT_TABS.includes(tab as ProjectTab);
 };

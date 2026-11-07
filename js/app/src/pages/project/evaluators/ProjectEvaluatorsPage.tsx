@@ -23,6 +23,7 @@ import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluat
 import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
+import { useQueueStatsRefreshKey } from "@phoenix/pages/project/evaluators/useQueueStatsRefreshKey";
 import {
   TableAsidePanel,
   TableAsideToggleButton,
@@ -136,13 +137,8 @@ function ProjectEvaluatorsPageContent({
   invariant(data.project, "project is required");
   const isEmptyState =
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
-  // Bumped when something on this page changes the queue, so the queue stats
-  // refetch at once instead of on their next poll.
-  const [queueRefreshKey, setQueueRefreshKey] = useState(0);
-  const refreshQueueStats = useCallback(
-    () => setQueueRefreshKey((key) => key + 1),
-    []
-  );
+  const { refreshKey: queueRefreshKey, refresh: refreshQueueStats } =
+    useQueueStatsRefreshKey();
   // One poll keeps the queue aside and the charts in step.
   const { fetchKey } = useQueueStatsPoll(queueRefreshKey);
   const content = (
