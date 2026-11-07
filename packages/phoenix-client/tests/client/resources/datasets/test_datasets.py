@@ -1,4 +1,5 @@
 import gzip
+import json
 import warnings
 from datetime import datetime
 from io import StringIO
@@ -11,7 +12,9 @@ import pandas as pd
 import pytest
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import DATASET_UPLOAD_VERSION_DESCRIPTION
 from phoenix.client.resources.datasets import (
+    AsyncDatasets,
     Dataset,
     DatasetKeys,
     Datasets,
@@ -625,3 +628,135 @@ class TestUpdateActionFallback:
                 action="append",
             )
         assert mock_client.post.call_count == 1
+
+
+class _UploadSent(Exception):
+    """Stops the client once the upload request has been captured."""
+
+
+class _GuardSentinel(Exception):
+    pass
+
+
+class _SyncGuard:
+    """Rejects the dataset version description requirement, as an old server would."""
+
+    def require(self, requirement: object) -> None:
+        if requirement is DATASET_UPLOAD_VERSION_DESCRIPTION:
+            raise _GuardSentinel
+
+
+class _AsyncGuard:
+    """Rejects the dataset version description requirement, as an old server would."""
+
+    async def require(self, requirement: object) -> None:
+        if requirement is DATASET_UPLOAD_VERSION_DESCRIPTION:
+            raise _GuardSentinel
+
+
+def _upload_capturing_transport(uploads: list[httpx.Request]) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/datasets/upload"
+        uploads.append(request)
+        raise _UploadSent
+
+    return httpx.MockTransport(handler)
+
+
+class TestAddExamplesVersionDescription:
+    """dataset_version_description is sent on append and guarded against old servers."""
+
+    def test_guards_version_description_against_old_servers(self) -> None:
+        uploads: list[httpx.Request] = []
+        client = httpx.Client(
+            transport=_upload_capturing_transport(uploads), base_url="http://test"
+        )
+        with pytest.raises(_GuardSentinel):
+            Datasets(client, _guard=_SyncGuard()).add_examples_to_dataset(  # type: ignore[arg-type]
+                dataset="demo",
+                inputs=[{"q": "hi"}],
+                outputs=[{"a": "hello"}],
+                dataset_version_description="added greetings",
+            )
+        assert uploads == []
+
+    def test_skips_guard_without_version_description(self) -> None:
+        uploads: list[httpx.Request] = []
+        client = httpx.Client(
+            transport=_upload_capturing_transport(uploads), base_url="http://test"
+        )
+        with pytest.raises(_UploadSent):
+            Datasets(client, _guard=_SyncGuard()).add_examples_to_dataset(  # type: ignore[arg-type]
+                dataset="demo",
+                inputs=[{"q": "hi"}],
+                outputs=[{"a": "hello"}],
+            )
+        assert "description" not in json.loads(uploads[0].content)
+
+    def test_sends_version_description_with_json_append(self) -> None:
+        uploads: list[httpx.Request] = []
+        client = httpx.Client(
+            transport=_upload_capturing_transport(uploads), base_url="http://test"
+        )
+        with pytest.raises(_UploadSent):
+            Datasets(client).add_examples_to_dataset(
+                dataset="demo",
+                inputs=[{"q": "hi"}],
+                outputs=[{"a": "hello"}],
+                dataset_version_description="added greetings",
+            )
+        body = json.loads(uploads[0].content)
+        assert body["action"] == "append"
+        assert body["description"] == "added greetings"
+
+    def test_sends_version_description_with_tabular_append(self) -> None:
+        uploads: list[httpx.Request] = []
+        client = httpx.Client(
+            transport=_upload_capturing_transport(uploads), base_url="http://test"
+        )
+        with pytest.raises(_UploadSent):
+            Datasets(client).add_examples_to_dataset(
+                dataset="demo",
+                dataframe=pd.DataFrame({"q": ["hi"], "a": ["hello"]}),
+                input_keys=["q"],
+                output_keys=["a"],
+                dataset_version_description="added greetings",
+            )
+        content = uploads[0].read()
+        assert b'name="action"\r\n\r\nappend\r\n' in content
+        assert b'name="description"\r\n\r\nadded greetings\r\n' in content
+
+    @pytest.mark.asyncio
+    async def test_async_guards_version_description_against_old_servers(self) -> None:
+        uploads: list[httpx.Request] = []
+        client = httpx.AsyncClient(
+            transport=_upload_capturing_transport(uploads), base_url="http://test"
+        )
+        with pytest.raises(_GuardSentinel):
+            await AsyncDatasets(
+                client,
+                _guard=_AsyncGuard(),  # type: ignore[arg-type]
+            ).add_examples_to_dataset(
+                dataset="demo",
+                inputs=[{"q": "hi"}],
+                outputs=[{"a": "hello"}],
+                dataset_version_description="added greetings",
+            )
+        assert uploads == []
+
+    @pytest.mark.asyncio
+    async def test_async_sends_version_description_with_json_append(self) -> None:
+        uploads: list[httpx.Request] = []
+        client = httpx.AsyncClient(
+            transport=_upload_capturing_transport(uploads), base_url="http://test"
+        )
+        with pytest.raises(_UploadSent):
+            await AsyncDatasets(client).add_examples_to_dataset(
+                dataset="demo",
+                inputs=[{"q": "hi"}],
+                outputs=[{"a": "hello"}],
+                dataset_version_description="added greetings",
+            )
+        body = json.loads(uploads[0].content)
+        assert body["action"] == "append"
+        assert body["description"] == "added greetings"

@@ -33,6 +33,7 @@ from phoenix.client.constants.server_requirements import (
     DATASET_UPLOAD_EXAMPLE_ID_KEY,
     DATASET_UPLOAD_EXAMPLE_IDS,
     DATASET_UPLOAD_SPLIT_KEY,
+    DATASET_UPLOAD_VERSION_DESCRIPTION,
 )
 from phoenix.client.utils.id_handling import is_node_id
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
@@ -996,7 +997,9 @@ class Datasets:
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
-            dataset_version_description: Optional description for the new dataset version.
+            dataset_version_description: Optional description of the dataset version this
+                append creates. Ignored when the append changes no examples, since no
+                version is created. Requires Phoenix server 21.1.0 or later.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -1013,6 +1016,9 @@ class Datasets:
                 DeprecationWarning,
                 stacklevel=2,
             )
+
+        if dataset_version_description is not None:
+            self._guard.require(DATASET_UPLOAD_VERSION_DESCRIPTION)
 
         resolved_id, resolved_name = self._resolve_dataset_id_and_name(dataset, timeout=timeout)
 
@@ -1892,7 +1898,9 @@ class AsyncDatasets:
             inputs: List of dictionaries each corresponding to an example.
             outputs: List of dictionaries each corresponding to an example.
             metadata: List of dictionaries each corresponding to an example.
-            dataset_version_description: Optional description for the new dataset version.
+            dataset_version_description: Optional description of the dataset version this
+                append creates. Ignored when the append changes no examples, since no
+                version is created. Requires Phoenix server 21.1.0 or later.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -1909,6 +1917,9 @@ class AsyncDatasets:
                 DeprecationWarning,
                 stacklevel=2,
             )
+
+        if dataset_version_description is not None:
+            await self._guard.require(DATASET_UPLOAD_VERSION_DESCRIPTION)
 
         resolved_id, resolved_name = await self._resolve_dataset_id_and_name(dataset)
 
