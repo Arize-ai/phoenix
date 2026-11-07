@@ -6,7 +6,7 @@ description: "Run classification evaluators on a decision model, such as OpenAI'
 
 Any classification evaluator, including every built-in, can run on a **decision model** instead of a language model. A decision model picks one of the labels directly and returns a probability for each label. It doesn't generate text.
 
-Decision models are available from OpenAI through the [Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`gpt-6-luna`) and from TypeSafe AI (Jev). TypeScript takes either through the AI SDK. Python supports TypeSafe AI's Jev only for now.
+Decision models are available from OpenAI through the [Decisions API](https://developers.openai.com/api/docs/guides/decisions) (`gpt-6-luna`) and from TypeSafe AI (Jev). Python and TypeScript support both providers.
 
 ## When to use one
 
@@ -23,24 +23,23 @@ Decision models can't work through a problem step by step. They do well on judgm
 <Tabs>
   <Tab title="Python" icon="python">
 
-<Note>
-Python support is in review in [#16953](https://github.com/Arize-ai/phoenix/pull/16953). The Python details on this page follow that pull request and may change before it merges, including the class name, how the prompt is sent, the result metadata, and tracing.
-</Note>
-
-Install the TypeSafe AI SDK and set `TYPESAFE_API_KEY`:
+Install the provider's SDK and set its API key. For TypeSafe AI:
 
 ```bash
 pip install typesafe-sdk
 export TYPESAFE_API_KEY=...
 ```
 
-Pass the decision model as `llm=` to `ClassificationEvaluator`, `create_classifier`, or any built-in metric:
+For OpenAI, install `openai` 3.26.0 or later and set `OPENAI_API_KEY`.
+
+Create a `DecisionModel` with the provider and the model name. Pass it as `llm=` to `ClassificationEvaluator`, `create_classifier`, or any built-in metric:
 
 ```python
-from phoenix.evals import Decision, create_classifier
+from phoenix.evals import DecisionModel, create_classifier
 from phoenix.evals.metrics import HallucinationEvaluator
 
-jev = Decision(model="jev-latest")
+jev = DecisionModel(provider="typesafe", model="jev-latest")
+# Or OpenAI: DecisionModel(provider="openai", model="gpt-6-luna")
 
 # A built-in metric
 hallucination = HallucinationEvaluator(llm=jev)
@@ -57,8 +56,10 @@ sentiment = create_classifier(
 score.label        # "negative"
 score.score        # 0
 score.explanation  # None
-score.metadata     # {"model": "jev-latest", "probabilities": {"negative": 0.95, ...}, "model_id": "..."}
+score.metadata     # {"model": "jev-latest", "probabilities": {"negative": 0.95, ...}, "model_id": "...", "confidence": 0.95}
 ```
+
+Client options such as `api_key` and `base_url` are forwarded to the SDK client, the same way as for `LLM`. To see which decision providers your environment supports, call `show_decision_provider_availability` from `phoenix.evals.decision`.
 
   </Tab>
   <Tab title="TypeScript" icon="js">
@@ -110,17 +111,17 @@ A plain string model ID is always treated as a language model. Pass the provider
 
 ## How the call is made
 
-- The evaluator asks one choice question through the provider's decision API. A fixed instruction tells the model to answer the prompt by selecting exactly one of the labels.
-- No tool calling and no structured output are involved, so the options that configure those paths don't apply: `ObjectGenerationMethod` and `include_explanation` in Python; `schemaName` and `schemaDescription` in TypeScript.
+- The evaluator asks one choice question through the provider's decision API. The rendered prompt is the input, and the labels are the choices.
+- The question doesn't state your task. In TypeScript, and in Python with OpenAI, it carries the one-line instruction "Select the single best label for the input." OpenAI's Decisions API requires one. In Python with TypeSafe AI, it carries no instruction. So the prompt template has to ask the classification question itself.
+- No tool calling and no structured output are involved. The options that configure those paths don't apply: `ObjectGenerationMethod` and `include_explanation` in Python; `schemaName` and `schemaDescription` in TypeScript.
 - Because nothing is generated, the result has no explanation.
 
 ## Prompting quirks
 
-- The template renders exactly as it does for a language model. In TypeScript, the rendered prompt then goes out as one plain-text state, the input the decision model reads: message roles are dropped, only text content is sent, and image and file parts aren't forwarded.
-- In Python, #16953 as it stands sends the rendered message list itself as the state, roles included. A string template renders as a single user message, so it goes out as a one-message list.
-- The labels become the choices. TypeScript choices carry no descriptions, so only the labels are sent. In Python, whether the descriptions in the `{label: (score, description)}` form are sent as choice criteria is still being decided in #16953.
-- Providers limit the size of the state and the number of choices. A classification outside those limits fails with the provider's error.
-- A decision model may refuse to classify, for example when asked to infer a sensitive attribute. In TypeScript the evaluator throws the AI SDK's `Experimental_DecisionRefusalError`; in `runExperiment`, it's recorded as that evaluation's error. Python doesn't handle refusals yet.
+- The template renders exactly as it does for a language model. In TypeScript, and in Python with TypeSafe AI, the rendered prompt then goes out as one plain-text state. Message roles are dropped, only text content is sent, and image and file parts aren't forwarded. In Python with OpenAI, a message-list prompt is sent as messages with their roles kept and only their text parts. A string prompt is sent as it is.
+- The labels become the choices. In TypeScript, choices carry no descriptions, so only the labels are sent. In Python, the descriptions in the `{label: (score, description)}` form are sent with the choices. TypeSafe AI gets them as the criteria, OpenAI as choice descriptions.
+- Providers limit the size of the input and the number of choices. A classification outside those limits fails with the provider's error.
+- A decision model may refuse to classify, for example when asked to infer a sensitive attribute. In TypeScript the evaluator throws the AI SDK's `Experimental_DecisionRefusalError`; in `runExperiment`, it's recorded as that evaluation's error. In Python with OpenAI, the evaluator raises `PhoenixDecisionRefusal` from `phoenix.evals.exceptions`.
 
 ## Results and metadata
 
@@ -128,8 +129,10 @@ A plain string model ID is always treated as a language model. Pass the provider
 |---|---|---|
 | Probability per label | `score.metadata["probabilities"]` | `result.metadata.probabilities` |
 | Resolved model ID | `score.metadata["model_id"]` | `result.metadata.modelId` |
-| Confidence, only when the provider reports one (OpenAI and TypeSafe AI do) | Not returned yet (requested in #16953) | `result.metadata.confidence` |
+| Confidence, only when the provider reports one (OpenAI and TypeSafe AI do) | `score.metadata["confidence"]` | `result.metadata.confidence` |
 | Explanation | `None` | `undefined` |
+
+In Python, `score.metadata["model"]` also carries the model name you requested, as it does for a language model.
 
 This example sends a result to a review queue when the probability of its label is under 0.7:
 
@@ -161,9 +164,9 @@ if (probability !== undefined && probability < 0.7) {
 
 ## Tracing
 
-- In TypeScript, decision calls appear in Phoenix as [DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision) with `decision.*` attributes, not as LLM spans. Token usage is recorded on the span, not in the result metadata.
-- The TypeScript span comes from the AI SDK's telemetry. Tracing is on by default; pass `telemetry: { isEnabled: false }` to the evaluator to turn it off.
-- In Python, #16953 as it stands doesn't record a span of its own: a traced run shows only the evaluator span, and token usage isn't recorded. If the OpenInference TypeSafe AI instrumentor is installed, each `system_one` call is captured as a DECISION span by that instrumentor; see [TypeSafe AI tracing](/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python).
+- Decision calls appear in Phoenix as [DECISION spans](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#decision) with `decision.*` attributes, not as LLM spans. Token usage is recorded on the span, not in the result metadata.
+- In TypeScript, the span comes from the AI SDK's telemetry. Tracing is on by default; pass `telemetry: { isEnabled: false }` to the evaluator to turn it off.
+- In Python, `DecisionModel` records a DECISION span of its own for each classification, under the global tracer provider. The span carries the provider, the requested and resolved model names, the input it sent, the answer, and the token counts. If the OpenInference TypeSafe AI instrumentor is also installed, each `system_one` call appears as a second DECISION span under it; see [TypeSafe AI tracing](/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python).
 
 ## See also
 
