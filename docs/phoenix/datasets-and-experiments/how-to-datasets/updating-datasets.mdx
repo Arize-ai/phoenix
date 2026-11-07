@@ -69,9 +69,13 @@ dataset = client.datasets.add_examples_to_dataset(
 print(dataset.example_count)
 ```
 
-To describe the version that the append creates, pass `dataset_version_description`. The description shows in the dataset's version history and in the `description` field of each version that `client.datasets.get_dataset_versions` returns.
+To describe the version that the append creates, pass `dataset_version_description`. The description appears in the dataset's version history. It is also the `description` field of each version that `client.datasets.get_dataset_versions` returns.
 
 ```python
+from phoenix.client import Client
+
+client = Client()
+
 dataset = client.datasets.add_examples_to_dataset(
     dataset={"name": "my-eval-dataset"},
     inputs=[{"question": "What color is grass?"}],
@@ -80,7 +84,7 @@ dataset = client.datasets.add_examples_to_dataset(
 )
 ```
 
-If the upload does not change the dataset, Phoenix does not create a version and ignores the description. `dataset_version_description` requires Phoenix server `>= 21.1.0`. Against an older server, the client raises an error before it uploads the examples.
+If the upload changes no examples, Phoenix creates no version and ignores the description. Phoenix also ignores a description that contains only whitespace. `dataset_version_description` requires Phoenix `>= 21.1.0`. Refer to [Compatibility With Older Servers](#compatibility-with-older-servers).
 
 ## Diff Semantics
 
@@ -102,6 +106,8 @@ The choice between diff-and-replace and append is determined by which method you
 ## Compatibility With Older Servers
 
 Diffing requires Phoenix `>= 15.0.0`. Against older servers the client falls back to a plain create and emits a `UserWarning`. The fallback succeeds when the dataset does not yet exist, but if a dataset with that name is already on the server, the create is rejected with a name conflict. For the diff-and-update workflow you must be running Phoenix `>= 15.0.0`.
+
+`dataset_version_description` on `add_examples_to_dataset` requires Phoenix `>= 21.1.0`. With an older server, the client raises `PhoenixException` and uploads nothing.
 
 ## Return Value
 
