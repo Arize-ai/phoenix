@@ -127,10 +127,27 @@ class UpdateDatasetBuiltinEvaluatorInput:
 
 
 @strawberry.input
+class CodeEvaluatorDefinitionInput:
+    source_code: str
+    language: Language
+    sandbox_config_id: GlobalID
+
+
+@strawberry.input(one_of=True)
+class CodeEvaluatorSourceInput:
+    evaluator_id: Optional[GlobalID] = strawberry.field(
+        default=UNSET, description="An existing code evaluator to add."
+    )
+    definition: Optional[CodeEvaluatorDefinitionInput] = strawberry.field(
+        default=UNSET, description="A new code evaluator to create and add."
+    )
+
+
+@strawberry.input
 class CreateDatasetCodeEvaluatorInput:
     dataset_id: GlobalID
-    evaluator_id: GlobalID
     name: Identifier
+    source: CodeEvaluatorSourceInput
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
     description: Optional[str] = None
@@ -843,10 +860,19 @@ class EvaluatorMutationMixin:
     async def create_dataset_code_evaluator(
         self, info: Info[Context, None], input: CreateDatasetCodeEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
+        source_evaluator_id = input.source.evaluator_id
+        source_definition = input.source.definition
         command = dataset_bindings.CreateDatasetCodeEvaluatorInput(
             dataset_id=input.dataset_id,
-            evaluator_id=input.evaluator_id,
             name=input.name,
+            evaluator_id=source_evaluator_id if isinstance(source_evaluator_id, GlobalID) else None,
+            definition=dataset_bindings.CodeEvaluatorDefinition(
+                source_code=source_definition.source_code,
+                language=source_definition.language.to_orm(),
+                sandbox_config_id=source_definition.sandbox_config_id,
+            )
+            if isinstance(source_definition, CodeEvaluatorDefinitionInput)
+            else None,
             input_mapping=input.input_mapping.to_orm()
             if input.input_mapping is not None and input.input_mapping is not UNSET
             else input.input_mapping,

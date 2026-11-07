@@ -8,6 +8,7 @@ on:
       - main
       - version-*
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -40,6 +41,7 @@ jobs:
       docs_snippets: ${{ steps.filter.outputs.docs_snippets }}
       skills: ${{ steps.filter.outputs.skills }}
       skill_graphql_examples: ${{ steps.filter.outputs.skill_graphql_examples }}
+      skill_code_examples: ${{ steps.filter.outputs.skill_code_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
       sync_models: ${{ steps.filter.outputs.sync_models }}
       evaluator_bound_variables: ${{ steps.filter.outputs.evaluator_bound_variables }}
@@ -116,6 +118,28 @@ jobs:
               - "scripts/ci/skill_examples.py"
               - "scripts/ci/test_skill_graphql_examples.py"
               - "scripts/ci/test_skill_filter_dsl_examples.py"
+            # The code examples and px commands in skills/ break when the client packages, the
+            # CLI, or the APIs they call change, so a change to any of them runs the checks.
+            skill_code_examples:
+              - "skills/**"
+              - "packages/phoenix-client/src/**"
+              - "packages/phoenix-evals/src/**"
+              - "packages/phoenix-otel/src/**"
+              - "js/packages/phoenix-cli/src/**"
+              - "js/packages/phoenix-cli/package.json"
+              - "js/packages/phoenix-client/**"
+              - "js/packages/phoenix-evals/**"
+              - "js/packages/phoenix-otel/**"
+              - "js/pnpm-lock.yaml"
+              - "schemas/openapi.json"
+              - "js/app/schema.graphql"
+              - "pyproject.toml"
+              - "scripts/sync_skills.py"
+              - "scripts/ci/skill_examples.py"
+              - "scripts/ci/test_skill_python_examples.py"
+              - "scripts/ci/test_skill_px_commands.py"
+              - "scripts/ci/test_skill_typescript_examples.py"
+              - "scripts/ci/test_skill_lint.py"
             harbor_graphql:
               - "evals/harbor/verifiers/harbor_verifiers/graphql/**"
               - "js/app/schema.graphql"
@@ -172,6 +196,7 @@ jobs:
           FILTER_DSL: ${{ steps.filter.outputs.filter_dsl }}
           SKILLS: ${{ steps.filter.outputs.skills }}
           SKILL_GRAPHQL_EXAMPLES: ${{ steps.filter.outputs.skill_graphql_examples }}
+          SKILL_CODE_EXAMPLES: ${{ steps.filter.outputs.skill_code_examples }}
           HARBOR_GRAPHQL: ${{ steps.filter.outputs.harbor_graphql }}
           SYNC_MODELS: ${{ steps.filter.outputs.sync_models }}
           EVALUATOR_BOUND_VARIABLES: ${{ steps.filter.outputs.evaluator_bound_variables }}
@@ -192,6 +217,7 @@ jobs:
           echo "filter_dsl: $FILTER_DSL"
           echo "skills: $SKILLS"
           echo "skill_graphql_examples: $SKILL_GRAPHQL_EXAMPLES"
+          echo "skill_code_examples: $SKILL_CODE_EXAMPLES"
           echo "harbor_graphql: $HARBOR_GRAPHQL"
           echo "sync_models: $SYNC_MODELS"
           echo "evaluator_bound_variables: $EVALUATOR_BOUND_VARIABLES"
@@ -493,6 +519,50 @@ jobs:
         run: make check-skill-graphql-examples
       - name: Check skill filter conditions against the Python filters
         run: make check-skill-filter-examples
+
+  check-skill-code-examples:
+    name: Check Skill Code Examples
+    needs: changes
+    if: ${{ needs.changes.outputs.skill_code_examples == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.15"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+      - name: Install PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+      - name: Set up Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: js/pnpm-lock.yaml
+      - name: Install the px CLI's and TypeScript clients' dependencies
+        working-directory: js
+        run: >-
+          pnpm install --frozen-lockfile
+          --filter "@arizeai/phoenix-cli..."
+          --filter "@arizeai/phoenix-client..."
+          --filter "@arizeai/phoenix-evals..."
+          --filter "@arizeai/phoenix-otel..."
+      - name: Type-check skill Python examples against the client packages
+        run: make check-skill-python-examples
+      - name: Type-check skill TypeScript examples against the client packages
+        run: make check-skill-typescript-examples
+      - name: Check skill px commands against the CLI
+        run: make check-skill-px-commands
 
   test-sync-models:
     name: Test Model Cost Sync Script
@@ -1025,7 +1095,7 @@ jobs:
           # the repository afterwards, so there is no pyproject.toml for setup-uv
           # to read. Keep equal to the lower bound of [tool.uv] required-version in
           # pyproject.toml.
-          version: "0.13.5"
+          version: "0.13.7"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'
@@ -1086,6 +1156,7 @@ jobs:
       - check-filter-dsl-snippets
       - check-docs-snippets
       - check-skill-graphql-examples
+      - check-skill-code-examples
       - test-sync-models
       - check-evaluator-bound-variables
       - check-evaluator-path-parity

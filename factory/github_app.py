@@ -119,7 +119,10 @@ class GitHubAppToken:
             bearer=app_jwt,
             body={"repositories": [self.repo.split("/")[1]], "permissions": TOKEN_PERMISSIONS},
         )
-        return access["token"], datetime.fromisoformat(access["expires_at"].replace("Z", "+00:00"))
+        token = access["token"]
+        # Mask it in the Actions log, which is public, before anything can echo it.
+        print(f"::add-mask::{token}", flush=True)
+        return token, datetime.fromisoformat(access["expires_at"].replace("Z", "+00:00"))
 
     def write_vault_credentials(self, *, token: str) -> None:
         """Write the token to the vault's GitHub MCP and GH_TOKEN credentials, or create them."""

@@ -133,11 +133,14 @@ sqlean moves its own pin.
   may have removed private C API the driver uses, which fails that version's wheel builds.
 - **Source preparation is the build workflow's first job**, on Ubuntu because Windows runners lack
   make/curl/unzip. Its `ref` input selects what to build: CI leaves it empty (the PR's commit),
-  publish passes the release tag. Callers pass nothing else.
+  publish passes the verified release commit SHA. Callers pass nothing else.
 - **`test-sources` resolves against cibuildwheel's working directory, not `package-dir`** — hence
   the build legs unpack the sources at the workspace root.
-- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. Until release-please
-  creates it, `sqlean-release` skips and nothing builds.
+- Publishing is gated on the tag `arize-phoenix-sqlean-v<manifest version>`. If it is missing,
+  points at a commit that is not on `main`, or disagrees with the sqlean version in the
+  manifest at that commit, `sqlean-release` fails.
+  Missing tags fail closed even if the package was released before; restore the expected tag
+  before re-running publish.
 - **sqlean publishes until PyPI holds every distribution, not just the version.** The generic
   "version on PyPI" gate in `list-python-packages` skips sqlean; `sqlean-release` runs on every
   release and runs `check-wheelhouse.py --missing-only` on PyPI's file list for that version. A
