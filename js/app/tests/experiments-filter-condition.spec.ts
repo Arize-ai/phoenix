@@ -142,6 +142,12 @@ test.describe("Experiments filter condition", () => {
       page.getByRole("button", { name: "Filter condition error" })
     ).toBeVisible();
     expect(urlFilterCondition(page)).toBe("repetitions >");
+
+    await page.getByRole("button", { name: "Clear filter condition" }).click();
+    await expect.poll(() => urlFilterCondition(page)).toBeNull();
+    await page.reload();
+    await expect(filterField(page)).not.toHaveText("repetitions >");
+    await expectExperiments(page, ALL_EXPERIMENTS);
   });
 
   test("keeps the condition in the URL after the dataset breadcrumb", async ({

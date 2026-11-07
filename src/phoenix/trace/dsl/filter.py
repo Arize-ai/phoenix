@@ -1775,19 +1775,11 @@ def _is_bool_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.
 
 
 def _is_numeric_sequence(node: typing.Any) -> TypeGuard[typing.Union[ast.List, ast.Tuple]]:
-    """A list of number literals, optionally with `None`, that a JSON operand matches as numbers."""
+    """A list of number literals, which a JSON operand matches as numbers."""
     return (
         isinstance(node, (ast.List, ast.Tuple))
-        and any(_is_number_constant(element) for element in node.elts)
-        and all(_is_number_constant(element) or _is_none_constant(element) for element in node.elts)
-    )
-
-
-def _is_number_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
-    return (
-        isinstance(node, ast.Constant)
-        and isinstance(node.value, (int, float))
-        and not isinstance(node.value, bool)
+        and bool(node.elts)
+        and all(_is_float_constant(element) for element in node.elts)
     )
 
 

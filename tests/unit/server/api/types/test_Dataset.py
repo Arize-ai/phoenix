@@ -1488,10 +1488,10 @@ class TestDatasetExperimentsFilterCondition:
         names = await self._names(
             gql_client,
             dataset_id,
-            'metadata["model"] == "gpt-5"',
-            filter_condition="cold",
+            'metadata["model"] == "claude"',
+            filter_condition="gpt",
         )
-        assert names == {"gpt-cold"}
+        assert names == set()
 
     @pytest.mark.parametrize(
         "condition, message",
@@ -1505,6 +1505,11 @@ class TestDatasetExperimentsFilterCondition:
                 'annotations["correctness"].score > 0.5',
                 "`annotations[...]` is not available in the experiment filter",
                 id="annotations",
+            ),
+            pytest.param(
+                'evals["correctness"].score > 0.5',
+                "`evals[...]` is not available in the experiment filter",
+                id="evals",
             ),
             pytest.param("model == 'gpt-5'", "invalid name `model`", id="unknown-name"),
             pytest.param(

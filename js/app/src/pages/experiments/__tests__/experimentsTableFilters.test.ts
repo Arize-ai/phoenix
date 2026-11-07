@@ -39,7 +39,7 @@ describe("shouldRestoreFilterConditionParam", () => {
     expect(
       shouldRestoreFilterConditionParam({
         urlCondition: "repetitions >",
-        appliedCondition: "",
+        appliedCondition: "repetitions > 1",
       })
     ).toBe(false);
   });

@@ -518,22 +518,28 @@ export function ExperimentsTable({
 
   const onValidFilterCondition = ({
     condition,
+    isInitialSettlement,
   }: ExperimentFilterValidConditionArgs) => {
     // The page query already fetched the rows for the condition it settled on.
     // A URL condition it fell back from still applies once the field accepts it.
-    if (condition === requestedFiltersRef.current.filterCondition) {
+    const isChanged = condition !== requestedFiltersRef.current.filterCondition;
+    // The URL can still hold a condition the server rejected, so a condition
+    // the user settles on is written even when the rows already match it.
+    if (isChanged || !isInitialSettlement) {
+      setSearchParams(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            EXPERIMENT_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
+    }
+    if (!isChanged) {
       return;
     }
     setFilterCondition(condition);
-    setSearchParams(
-      (prev) =>
-        withFilterConditionParam(
-          prev,
-          EXPERIMENT_FILTER_CONDITION_PARAM,
-          condition
-        ),
-      { replace: true }
-    );
     refetchExperiments({
       fetchPolicy: "network-only",
       changes: { filterCondition: condition },
