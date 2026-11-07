@@ -1318,14 +1318,23 @@ class TestDatasetExperimentsFilterCondition:
             version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
             session.add(version)
             await session.flush()
+            # Each intrinsic column sets one experiment apart, so a case reading the
+            # wrong column selects different rows.
+            default_time = datetime(2025, 1, 1, tzinfo=timezone.utc)
             session.add_all(
                 models.Experiment(
                     dataset_id=dataset.id,
                     dataset_version_id=version.id,
                     name=name,
-                    repetitions=1,
+                    repetitions=3 if name == "claude" else 1,
                     metadata_=metadata,
                     project_name="gpt-project" if name.startswith("gpt-") else None,
+                    created_at=datetime(2020, 6, 1, tzinfo=timezone.utc)
+                    if name == "gpt-hot"
+                    else default_time,
+                    updated_at=datetime(2030, 1, 1, tzinfo=timezone.utc)
+                    if name == "gpt-cold"
+                    else default_time,
                 )
                 for name, metadata in metadata_by_name.items()
             )
@@ -1433,8 +1442,8 @@ class TestDatasetExperimentsFilterCondition:
                 id="number-non-membership",
             ),
             pytest.param(
-                "repetitions > 1",
-                set(),
+                "repetitions >= 3",
+                {"claude"},
                 id="intrinsic-number",
             ),
             pytest.param(
@@ -1443,14 +1452,14 @@ class TestDatasetExperimentsFilterCondition:
                 id="intrinsic-string",
             ),
             pytest.param(
-                'created_at < "2020-01-01T00:00:00Z"',
-                set(),
-                id="datetime-before",
+                'created_at < "2021-01-01T00:00:00Z"',
+                {"gpt-hot"},
+                id="created-at",
             ),
             pytest.param(
-                'updated_at > "2020-01-01T00:00:00+00:00" and "gpt" in name',
-                {"gpt-hot", "gpt-cold"},
-                id="datetime-after",
+                'updated_at > "2026-01-01T00:00:00+00:00"',
+                {"gpt-cold"},
+                id="updated-at",
             ),
             pytest.param(
                 "description is None",
