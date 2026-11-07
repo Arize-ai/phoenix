@@ -105,7 +105,7 @@ class PrecisionRecallFScore(Evaluator):
             evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
             eval_input = {"expected": ["cat", "dog", "cat", "bird"],
                           "output": ["cat", "cat", "cat", "bird"]}
-            scores = evaluator(eval_input)
+            scores = evaluator.evaluate(eval_input)
             [s.name for s in scores]
             ['precision', 'recall', 'f1']
 
@@ -114,7 +114,7 @@ class PrecisionRecallFScore(Evaluator):
             evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
             eval_input = {"expected": ["spam", "ham", "spam"],
                           "output": ["spam", "spam", "ham"]}
-            scores = evaluator(eval_input)
+            scores = evaluator.evaluate(eval_input)
             [s.name for s in scores]
             ['precision', 'recall', 'f0_5']
     """

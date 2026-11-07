@@ -1,9 +1,4 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
@@ -12,6 +7,7 @@ import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { DeletePromptLabelButton } from "@phoenix/pages/settings/prompts/DeletePromptLabelButton";
 
 import type { PromptLabelsTableFragment$key } from "./__generated__/PromptLabelsTableFragment.graphql";
@@ -21,7 +17,6 @@ export function PromptLabelsTable({
 }: {
   query: PromptLabelsTableFragment$key;
 }) {
-  "use no memo";
   const data = useFragment<PromptLabelsTableFragment$key>(
     graphql`
       fragment PromptLabelsTableFragment on Query
@@ -47,8 +42,8 @@ export function PromptLabelsTable({
     [data.promptLabels.edges]
   );
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<(typeof tableData)[number]>({
+  const table = useTable({
+    features: appTableFeatures,
     columns: [
       {
         header: "label",
@@ -83,8 +78,6 @@ export function PromptLabelsTable({
       },
     ],
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   const hasContent = rows.length > 0;

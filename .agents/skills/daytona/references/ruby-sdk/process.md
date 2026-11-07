@@ -81,6 +81,20 @@ def exec(command:, cwd: nil, env: nil, timeout: nil)
 
 Execute a shell command in the Sandbox
 
+The command is run by the first available of zsh, bash or sh in the sandbox, which is zsh
+in the default snapshots. Quote arguments that contain glob characters, for example
+`pip install -e '.[test]'`, or wrap bash-specific scripts in `bash -c '...'`.
+
+The call returns when the command finishes. To start a long-running process such as a
+server, run it in the background with its output redirected, e.g.
+`python3 -m http.server 8000 > server.log 2>&1 &`, or use a session with `run_async: true`
+(see `execute_session_command`). A background process that keeps the command's output open
+(`cmd &` without a redirect) can block the call until that process exits.
+
+Tools in the sandbox may report the host's CPU count and memory (for example `nproc` or
+`Etc.nprocessors`) rather than the sandbox's own limits. Size worker pools from the
+sandbox's cpu and memory instead, e.g. `pytest -n 2` rather than `pytest -n auto`.
+
 **Parameters**:
 
 - `command` _String_ - Shell command to execute
@@ -96,15 +110,18 @@ Execute a shell command in the Sandbox
 
 ```ruby
 # Simple command
-response = sandbox.process.exec("echo 'Hello'")
+response = sandbox.process.exec(command: "echo 'Hello'")
 puts response.artifacts.stdout
 => "Hello\n"
 
 # Command with working directory
-result = sandbox.process.exec("ls", cwd: "workspace/src")
+result = sandbox.process.exec(command: "ls", cwd: "workspace/src")
 
 # Command with timeout
-result = sandbox.process.exec("sleep 10", timeout: 5)
+result = sandbox.process.exec(command: "sleep 10", timeout: 5)
+
+# Start a server in the background
+sandbox.process.exec(command: "python3 -m http.server 8000 > server.log 2>&1 &")
 
 ```
 

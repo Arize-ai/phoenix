@@ -1,10 +1,4 @@
-import {
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
@@ -13,6 +7,10 @@ import { Flex, Text } from "@phoenix/components";
 import { ProjectToken } from "@phoenix/components/project";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  appTableFeatures,
+  type ColumnDef,
+} from "@phoenix/components/table/tableFeatures";
 import { useViewerCanManageRetentionPolicy } from "@phoenix/contexts/ViewerContext";
 import {
   createPolicyRuleSummaryText,
@@ -67,7 +65,6 @@ export const RetentionPoliciesTable = ({
 }: {
   query: RetentionPoliciesTable_policies$key;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
   const { policyId: selectedPolicyId } = useParams();
   const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
@@ -189,16 +186,14 @@ export const RetentionPoliciesTable = ({
     return columns;
   }, [canManageRetentionPolicy]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
     // Key rows by entity ID rather than by index so that row-hosted overlays
     // (action menus) and row selection stay bound to the row they were opened
     // on when a refetch re-orders the list.
     getRowId: (row) => row.id,
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;

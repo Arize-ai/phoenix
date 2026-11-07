@@ -82,7 +82,7 @@ DaytonaConfig config = new DaytonaConfig.Builder()
 Daytona daytona = new Daytona(config);
 ```
 
-For more information on configuring the Daytona SDK, see [API keys](../../SKILL.md#authentication#authentication).
+For more information on configuring the Daytona SDK, see [API keys](../platform/api-keys.md#authentication).
 
 ## Real-time state updates
 

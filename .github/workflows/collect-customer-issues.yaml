@@ -23,7 +23,7 @@ jobs:
             .github/
       - name: Retrieve and format issues
         id: retrieve-issues
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const script = require(".github/.scripts/collect-customer-issues.js");
@@ -32,10 +32,10 @@ jobs:
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         if: steps.retrieve-issues.outputs.has_issues == 'true'
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             {
-              "type": "mrkdwn",
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
               "text": ${{ toJSON(steps.retrieve-issues.outputs.slack_message) }}
             }

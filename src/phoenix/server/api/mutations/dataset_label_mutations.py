@@ -24,7 +24,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 @strawberry.input
 class CreateDatasetLabelInput:
     name: str
-    description: Optional[str] = UNSET
+    description: Optional[str] = None
     color: str
     dataset_ids: Optional[list[GlobalID]] = UNSET
 

@@ -8,14 +8,20 @@ description: Let any coding agent query your Phoenix traces, datasets, experimen
 
 ## CLI or MCP server?
 
-- **CLI**: your agent runs `px` commands in the terminal. You see each command and can run it yourself. Use it with agents that can run shell commands, such as Claude Code, Codex, and Cursor.
-- **MCP server**: your agent talks to Phoenix directly, with no commands to run. Use it with agents that have no terminal, such as Claude Desktop, or when you installed the Claude Code or Codex plugin, which sets it up for you.
+Start with the [MCP server](/docs/phoenix/integrations/mcp). It's what the plugins set up, it reaches every Phoenix operation, and it serves the Phoenix skills that match your server. The CLI is optional.
+
+Add the CLI when you want any of these:
+
+- Commands you can see, copy, and run yourself.
+- Phoenix access from scripts and CI.
+- An agent that has a shell but no MCP support.
 
 | | Phoenix CLI (`px`) | [MCP server](/docs/phoenix/integrations/mcp) |
 | --- | --- | --- |
-| Setup | Install, set `PHOENIX_ENDPOINT` | `px setup mcp --agent <agent>` |
+| Setup | Install, set `PHOENIX_ENDPOINT` | A [plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins), or `<your-endpoint>/mcp` in your agent's MCP config |
 | Surface | The `px` commands | Every Phoenix REST operation, composed in one `execute` call |
 | Output | Tables, or `--format json` | Results filtered and joined server-side |
+| Skills | `phoenix-cli`, installed as a file | Four Phoenix skills, served by the server |
 
 ## Install
 
@@ -42,6 +48,12 @@ px project list
 
 Once your app is sending traces to a named project, set `PHOENIX_PROJECT` to that name so commands do not need `--project`. Not sending traces yet? [Connect a project with px setup](#connect-a-project-with-px-setup) wires an app to Phoenix and waits for a real trace.
 
+To teach your agent the commands, install the `phoenix-cli` skill. The Claude Code, Codex, and Cursor plugins already include it.
+
+```bash
+npx skills add Arize-ai/phoenix --skill phoenix-cli
+```
+
 ## Connect a project with px setup
 
 `px setup` is the fastest way to add tracing to an app. Run it from the app's root directory while Phoenix is running. It saves the connection (endpoint, project, and key) to a gitignored `.env.phoenix` file, hands your coding agent the instrumentation task, and does not finish until a real trace arrives. It hands off to Claude Code, Codex, Cursor, and OpenCode.
@@ -65,7 +77,6 @@ The connection questions only need answering once. On a project that is already 
 ```bash
 px setup instrument   # Instrument and verify traces again
 px setup skills       # Install the coding-agent skills alone
-px setup mcp          # Register the Phoenix MCP server with a coding agent
 ```
 
 ### Run without prompts (CI or agents)
@@ -108,8 +119,8 @@ Annotations, notes, and annotation configs are the only things `px` writes to Ph
 
 ## Learn more
 
-- [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents) installs the CLI alongside the MCP server and skills for your agent.
+- [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents) gives the recommended setup for each agent.
 - `px --help` lists every command, and `px <command> --help` its flags. The [CLI reference](/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) has them all.
 - [Skills](/docs/phoenix/integrations/developer-tools/skills) teach an agent how to use these commands.
-- [MCP Server](/docs/phoenix/integrations/mcp) is the alternative for clients that cannot run a shell.
+- [MCP Server](/docs/phoenix/integrations/mcp) is the recommended way to connect an agent, with or without a shell.
 - [PXI](/docs/phoenix/pxi) is the same idea inside Phoenix itself, with no terminal.

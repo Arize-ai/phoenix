@@ -1,0 +1,24 @@
+name: phoenix-dev
+description: Cloud sandbox for working on the Arize-ai/phoenix monorepo (Python via uv, TypeScript via pnpm).
+config:
+  type: cloud
+  networking:
+    type: limited
+    # PyPI, npm and nodejs.org for setup; the GitHub MCP server for issues and PRs.
+    allow_package_managers: true
+    allow_mcp_servers: true
+  packages:
+    type: packages
+    apt: [gh] # authenticates with the vault's GH_TOKEN credential
+    pip: [uv, tox] # `make setup` checks for both
+    npm:
+      - pnpm@12.0.0 # matches packageManager in js/package.json
+      - "@arizeai/phoenix-cli" # `px`
+      - agent-browser # drives the sandbox's preinstalled Playwright Chromium
+# An environment is a package list and nothing else: no setup hook, custom image or
+# environment variables (https://platform.claude.com/docs/en/managed-agents/environments).
+# These packages are installed once and cached across sessions. What a package list
+# can't express runs in factory/bootstrap.sh at the start of each session: the Node
+# version in .nvmrc (the sandbox ships Node 22), initdb and start for the sandbox's
+# stopped PostgreSQL 16, a gh release with `pr edit --attach` (Ubuntu's apt gh predates
+# it), and pointing agent-browser at the preinstalled Chromium.

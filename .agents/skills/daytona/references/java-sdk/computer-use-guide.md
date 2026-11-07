@@ -22,9 +22,9 @@ Computer Use enables programmatic control of desktop environments within sandbox
 
 Computer Use and [VNC](./vnc-access.md) work together to enable both manual and automated desktop interactions. VNC provides the visual interface for users to manually interact with the desktop, while Computer Use provides the programmatic API for AI agents to automate operations.
 
-Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, use [use.computer ↗](https://use.computer).
-> **Note: macOS sandboxes**
-> macOS sandboxes are available at [use.computer ↗](https://use.computer). See the [use.computer API documentation ↗](https://use.computer/docs) to create and control a macOS sandbox.
+Computer Use is available for **Linux** and **Windows** through Daytona. For **macOS** sandboxes and Computer Use, see [macOS sandboxes](./sandboxes.md#macos-sandboxes).
+> **Note: Custom snapshots**
+> Default snapshots include the packages required for Computer Use. Sandboxes created from custom images or custom snapshots, including custom [Linux VM snapshots](./snapshots.md#vm-snapshots), need the [VNC and desktop packages](./vnc-access.md#required-packages) installed in the image.
 
 ## Start Computer Use
 
@@ -108,6 +108,23 @@ var result = sandbox.computerUse.drag(50, 50, 150, 150);
 System.out.println("Drag ended at: " + result.getX() + ", " + result.getY());
 ```
 
+### Hold and release button
+
+Press and hold a mouse button, then release it. The button stays held until a matching release call, which lets you compose press-move-release gestures such as marquee selection or drawing strokes. When X and Y coordinates are provided, the cursor moves to that position before the button is pressed or released; when omitted, the action happens at the current cursor position. Button is one of left (default), right, or middle.
+
+To hold a modifier key during the gesture, wrap it with the keyboard [hold and release](#hold-and-release-key) calls.
+
+```java
+// Press the left button at (100, 200) and release it at (300, 400)
+sandbox.computerUse.mouseDown(100, 200);
+var result = sandbox.computerUse.mouseUp(300, 400);
+System.out.println("Released at " + result.getX() + ", " + result.getY());
+
+// Press and release the right button at the current cursor position
+sandbox.computerUse.mouseDown("right");
+sandbox.computerUse.mouseUp("right");
+```
+
 ### Scroll
 
 Scroll the mouse wheel at the specified coordinates. `direction` is `up` or `down` (other values return an error). `amount` is the number of scroll wheel ticks to send — one tick is roughly one notch of a physical mouse wheel, which moves a few lines in most apps. Defaults to 1 if omitted.
@@ -169,9 +186,24 @@ sandbox.computerUse.pressHotkey("ctrl", "v");
 sandbox.computerUse.pressHotkey("alt", "tab");
 ```
 
+### Hold and release key
+
+Press and hold a key, then release it. The key stays held until a matching release call, which lets you hold a modifier such as shift across several mouse or keyboard actions. Keys use the same names as [press](#press), listed in [supported keys](#supported-keys). Release the key in a finally block (or the language equivalent) so a failed action does not leave the key held.
+
+```java
+// Hold Shift while clicking two points, then release it
+sandbox.computerUse.keyDown("shift");
+try {
+    sandbox.computerUse.click(100, 200);
+    sandbox.computerUse.click(100, 300);
+} finally {
+    sandbox.computerUse.keyUp("shift");
+}
+```
+
 ### Supported keys
 
-`keyboard.press()` and `keyboard.hotkey()` are case-insensitive for named keys. The following are supported:
+`keyboard.press()`, `keyboard.hotkey()`, `keyboard.down()`, and `keyboard.up()` are case-insensitive for named keys. The following are supported:
 
 | Category           | Keys                                                                                                                            |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -277,8 +309,7 @@ Take a screenshot of the entire screen.
 
 ```java
 var screenshot = sandbox.computerUse.takeScreenshot();
-Integer sizeBytes = screenshot.getSizeBytes();
-System.out.println("Screenshot payload size: " + (sizeBytes != null ? sizeBytes + " bytes" : "n/a"));
+System.out.println("Screenshot captured, base64 length: " + screenshot.getScreenshot().length());
 
 // With cursor visible
 var withCursor = sandbox.computerUse.takeScreenshot(true);
@@ -290,8 +321,7 @@ Take a screenshot of a specific region.
 
 ```java
 var screenshot = sandbox.computerUse.takeRegionScreenshot(100, 100, 300, 200);
-Integer sizeBytes = screenshot.getSizeBytes();
-System.out.println("Captured region, payload size: " + (sizeBytes != null ? sizeBytes + " bytes" : "n/a"));
+System.out.println("Captured 300x200 region, base64 length: " + screenshot.getScreenshot().length());
 ```
 
 ### Take compressed
@@ -340,7 +370,7 @@ try (Daytona daytona = new Daytona()) {
 
 ### Start Recording
 
-Start a new screen recording session with an optional name identifier:
+Start a new screen recording session with an optional label:
 
 ```java
 // Start recording with a custom label

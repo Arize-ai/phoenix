@@ -4,20 +4,20 @@ from __future__ import annotations
 from secrets import token_hex
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 
 from .._helpers import _VIEWER, _AppInfo, _GetUser, _httpx_client
 
 
-def _create_project(client: httpx.Client) -> dict[str, Any]:
+def _create_project(client: httpx2.Client) -> dict[str, Any]:
     resp = client.post("v1/projects", json={"name": f"proj_{token_hex(8)}"})
     resp.raise_for_status()
     data: dict[str, Any] = resp.json()["data"]
     return data
 
 
-def _create_config(client: httpx.Client) -> dict[str, Any]:
+def _create_config(client: httpx2.Client) -> dict[str, Any]:
     resp = client.post(
         "v1/annotation_configs",
         json={

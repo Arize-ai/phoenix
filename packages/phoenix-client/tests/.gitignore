@@ -1,6 +1,4 @@
 *
-!canary/
-!canary/**
 !client/
 !client/**
 !.gitignore

@@ -329,6 +329,24 @@ class Span(Node):
             return value
         return json.dumps(value)
 
+    @strawberry.field(
+        description='The "llm.model_name" attribute of the span, identifying the model '
+        "invoked. Typically populated on LLM spans.",
+    )  # type: ignore
+    async def model_name(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        if self.db_record:
+            value = self.db_record.llm_model_name
+        else:
+            value = await info.context.data_loaders.span_fields.load(
+                (self.id, models.Span.llm_model_name),
+            )
+        if value is None or isinstance(value, str):
+            return value
+        return json.dumps(value)
+
     @strawberry.field
     async def num_documents(
         self,

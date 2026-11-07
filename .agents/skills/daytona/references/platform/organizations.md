@@ -137,13 +137,13 @@ The list of available role assignments includes:
 | Assignment                 | Description                                                                                        |
 | -------------------------- | -------------------------------------------------------------------------------------------------- |
 | **`Viewer (required)`**    | Grants read access to sandboxes, snapshots, and registries in the organization                     |
-| **`Developer`**            | Grants the ability to create sandboxes and keys in the organization                                |
+| **`Developer`**            | Grants the ability to create sandboxes in the organization                                         |
 | **`Sandboxes Admin`**      | Grants admin access to sandboxes in the organization                                               |
 | **`Snapshots Admin`**      | Grants admin access to snapshots in the organization                                               |
 | **`Registries Admin`**     | Grants admin access to registries in the organization                                              |
 | **`Volumes Admin`**        | Grants admin access to volumes in the organization                                                 |
 | **`Super Admin`**          | Grants full access to all resources in the organization                                            |
-| **`SSO Admin`**            | Grants permission to manage the organization's [SSO](https://www.daytona.io/docs/en/sso) identity providers              |
+| **`SSO Admin`**            | Grants permission to manage the organization's [SSO](./sso.md) connections and directory sync  |
 | **`Auditor`**              | Grants access to audit logs in the organization                                                    |
 | **`Infrastructure Admin`** | Grants admin access to infrastructure in the organization                                          |
 | **`Limits Viewer`**        | Grants read-only access to the organization's usage and limits                                     |
@@ -327,7 +327,7 @@ curl 'https://app.daytona.io/api/organizations/invitations/INVITATION_ID/accept'
   --header 'Authorization: Bearer YOUR_API_KEY'
 ```
 
-Once a user accepts an invitation to join an organization, they get access to resource quotas assigned to that organization and they may proceed by issuing a new [API key](../../SKILL.md#authentication) and creating sandboxes.
+Once a user accepts an invitation to join an organization, they get access to resource quotas assigned to that organization and they may proceed by issuing a new [API key](./api-keys.md) and creating sandboxes.
 
 ### Decline invitation
 
@@ -402,7 +402,7 @@ curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/invitations/INVIT
 
 ## Regions
 
-Each organization has a default [region](../python-sdk/regions.md) that determines where sandboxes are created when no specific target is provided. Regions represent geographic or logical groupings of compute infrastructure. Organizations can update their default region, manage per-region resource quotas, and query region quota information for individual sandboxes.
+Each organization has a default [region](../python-sdk/regions.md) that determines where sandboxes are created when no specific target is provided. Regions represent geographic or logical groupings of compute infrastructure. Organizations can update their default region and list the sandbox classes available in each region.
 
 For more information on available region types, see the [Regions](../python-sdk/regions.md) guide.
 
@@ -419,25 +419,6 @@ curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/default-region' \
   --header 'Authorization: Bearer YOUR_API_KEY' \
   --data '{
   "defaultRegionId": "us"
-}'
-```
-
-### Update region quota
-
-Update the resource quota for an organization in a specific region. `totalCpuQuota`, `totalMemoryQuota`, `totalDiskQuota`, and `totalGpuQuota` are required; per-sandbox limits and allowed GPU types are optional.
-
-**API:**
-
-```bash
-curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/quota/REGION_ID' \
-  --request PATCH \
-  --header 'Content-Type: application/json' \
-  --header 'Authorization: Bearer YOUR_API_KEY' \
-  --data '{
-  "totalCpuQuota": 100,
-  "totalMemoryQuota": 200,
-  "totalDiskQuota": 500,
-  "totalGpuQuota": 0
 }'
 ```
 
@@ -469,89 +450,6 @@ Get the usage overview for an organization.
 ```bash
 curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/usage' \
   --header 'Authorization: Bearer YOUR_API_KEY'
-```
-
-### Update organization quota
-
-Update the resource quota for an organization. All fields are optional; omitted fields are left unchanged.
-
-**API:**
-
-```bash
-curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/quota' \
-  --request PATCH \
-  --header 'Content-Type: application/json' \
-  --header 'Authorization: Bearer YOUR_API_KEY' \
-  --data '{
-  "maxCpuPerSandbox": 4,
-  "maxMemoryPerSandbox": 8,
-  "maxDiskPerSandbox": 10,
-  "snapshotQuota": 100,
-  "volumeQuota": 100,
-  "secretQuota": 100
-}'
-```
-
-### Suspend organization
-
-Suspend an organization. `reason` and `until` are required. `suspensionCleanupGracePeriodHours` sets the number of hours before suspended resources are cleaned up.
-
-**API:**
-
-```bash
-curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/suspend' \
-  --request POST \
-  --header 'Content-Type: application/json' \
-  --header 'Authorization: Bearer YOUR_API_KEY' \
-  --data '{
-  "reason": "Payment overdue",
-  "until": "2030-01-01T00:00:00.000Z",
-  "suspensionCleanupGracePeriodHours": 24
-}'
-```
-
-### Unsuspend organization
-
-Remove the suspension from an organization.
-
-**API:**
-
-```bash
-curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/unsuspend' \
-  --request POST \
-  --header 'Authorization: Bearer YOUR_API_KEY'
-```
-
-### Update preview warning
-
-Enable or disable the preview URL warning page that the proxy shows for sandboxes in an organization.
-
-**API:**
-
-```bash
-curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/preview-warning' \
-  --request POST \
-  --header 'Content-Type: application/json' \
-  --header 'Authorization: Bearer YOUR_API_KEY' \
-  --data '{
-  "previewWarningEnabled": false
-}'
-```
-
-### Update sandbox default limited network egress
-
-Update the sandbox default limited network egress for an organization.
-
-**API:**
-
-```bash
-curl 'https://app.daytona.io/api/organizations/ORGANIZATION_ID/sandbox-default-limited-network-egress' \
-  --request POST \
-  --header 'Content-Type: application/json' \
-  --header 'Authorization: Bearer YOUR_API_KEY' \
-  --data '{
-  "sandboxDefaultLimitedNetworkEgress": true
-}'
 ```
 
 ### Update experimental configuration

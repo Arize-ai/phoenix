@@ -40,6 +40,14 @@ jobs:
         component: [sqlite, sqlean]
 
     steps:
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -55,7 +63,7 @@ jobs:
         if: steps.check.outputs.outdated == 'true'
         id: existing
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.factory-token.outputs.token }}
           TITLE: ${{ steps.check.outputs.title }}
         run: |
           set -euo pipefail
@@ -77,7 +85,7 @@ jobs:
       - name: Commit and open pull request
         if: steps.check.outputs.outdated == 'true' && steps.existing.outputs.count == '0'
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.factory-token.outputs.token }}
           BRANCH: ${{ steps.check.outputs.branch }}
           TITLE: ${{ steps.check.outputs.title }}
         run: |
@@ -134,9 +142,10 @@ jobs:
       - name: Notify failure
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             {
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
               "text": ":x: phoenix-sqlean upstream pin check failed — could not compute a bump, so no PR was opened\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }

@@ -1,0 +1,68 @@
+---
+title: "Doubleword Tracing"
+description: "Phoenix provides auto-instrumentation for Doubleword through the OpenAI Python library, since Doubleword exposes an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Doubleword](https://doubleword.ai/) is a high-throughput, low-cost LLM inference platform serving open models such as Qwen and DeepSeek across realtime, async, and batch tiers. The endpoint at `https://api.doubleword.ai/v1` mirrors OpenAI's schema, so any OpenAI client works with `base_url` set to Doubleword. Phoenix captures every Doubleword call through the [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai) package, the same instrumentor that covers OpenAI's hosted API.
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Doubleword API key from the **API Keys** dashboard at [app.doubleword.ai](https://app.doubleword.ai/), along with your Phoenix connection details, as environment variables:
+
+```bash
+export DOUBLEWORD_API_KEY="<your-doubleword-api-key>"
+export PHOENIX_COLLECTOR_ENDPOINT="<your-phoenix-collector-endpoint>"  # use http://localhost:6006 for local Phoenix
+export PHOENIX_API_KEY="<your-phoenix-api-key>"  # required for Phoenix Cloud or authenticated Phoenix
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Doubleword
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.doubleword.ai/v1",
+    api_key=os.environ["DOUBLEWORD_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    model="deepseek-ai/DeepSeek-V4-Flash",
+    messages=[
+        {
+            "role": "user",
+            "content": "Why is the ocean salty? Answer in two sentences.",
+        },
+    ],
+)
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Doubleword will be streamed to your running Phoenix for observability and evaluation. Each request appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **No traces in Phoenix**: Confirm `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix requires one) is set in the same shell that runs your app
+* **Doubleword spans missing**: Call `register()` before you create the OpenAI client, and make sure `openinference-instrumentation-openai` is installed so `auto_instrument=True` picks it up
+* **`401` from Doubleword**: Use your Doubleword API key from the [Doubleword dashboard](https://app.doubleword.ai/), not your OpenAI key
+* **Model not found**: Use a model identifier from the [Doubleword model catalog](https://docs.doubleword.ai/inference-api/models) (e.g. `deepseek-ai/DeepSeek-V4-Flash`). Identifiers are case-sensitive and include the publisher prefix
+* **Base URL**: Ensure you're using `https://api.doubleword.ai/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Doubleword Documentation" href="https://docs.doubleword.ai/" icon="book" horizontal description="Doubleword inference API docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

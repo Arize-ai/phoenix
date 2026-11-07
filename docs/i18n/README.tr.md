@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.tr.md" />
 </p>
 
-Arize Phoenix, Arize'ın deney, değerlendirme ve sorun giderme için tasarlanmış açık kaynaklı AI gözlemlenebilirlik (observability) platformudur. Yönetilen üretim iş akışları için Arize ayrıca [Arize AX](https://arize.com/products/ax/) sunar. Phoenix şunları sağlar:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix, Arize'ın deney, değerlendirme ve sorun giderme için tasarlanmış açık kaynaklı AI gözlemlenebilirlik (observability) platformudur. Yönetilen üretim iş akışları için Arize ayrıca [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tr) sunar. Phoenix şunları sağlar:
 
 - [**_İzleme (Tracing)_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry tabanlı enstrümantasyon ile LLM uygulamanızın çalışma zamanını izleyin.
 - [**_Değerlendirme_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Yanıt ve retrieval değerlendirmeleri (evals) kullanarak uygulamanızın performansını ölçmek için LLM'lerden yararlanın.
@@ -61,10 +73,10 @@ Arize Phoenix, Arize'ın deney, değerlendirme ve sorun giderme için tasarlanm�
 
 Phoenix satıcıdan ve dilden bağımsızdır; popüler framework'ler ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) ve LLM sağlayıcıları ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) ve daha fazlası) için kutudan çıktığı gibi destek sunar. Otomatik enstrümantasyon hakkında ayrıntılar için [OpenInference](https://github.com/Arize-ai/openinference) projesine göz atın.
 
-Phoenix yerel makineniz, konteyner tabanlı bir dağıtım veya bulut dahil olmak üzere neredeyse her yerde çalışır. Her seçeneğin adım adım anlatımı için [Ortamlar](https://arize.com/docs/phoenix/environments) bölümüne bakın ya da doğrudan [İzleme Hızlı Başlangıç](https://arize.com/docs/phoenix/get-started/get-started-tracing) kılavuzuna geçin.
+Phoenix yerel makineniz, konteyner tabanlı bir dağıtım veya bulut dahil olmak üzere neredeyse her yerde çalışır. Her seçeneğin adım adım anlatımı için [Ortamlar](https://arize.com/docs/phoenix/self-hosting) bölümüne bakın ya da doğrudan [İzleme Hızlı Başlangıç](https://arize.com/docs/phoenix/get-started/get-started-tracing) kılavuzuna geçin.
 
 > [!NOTE]
-> Phoenix açık kaynaklıdır ve kendi altyapınızda barındırılır (self-hosted). Yönetilen bir platform için Arize, [Arize AX](https://arize.com/products/ax/) sunar — aynı OpenTelemetry/OpenInference enstrümantasyonu her ikisiyle de çalışır. [Ayrıntılı karşılaştırmaya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) bakın.
+> Phoenix açık kaynaklıdır ve kendi altyapınızda barındırılır (self-hosted). Yönetilen bir platform için Arize, [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-tr) sunar — aynı OpenTelemetry/OpenInference enstrümantasyonu her ikisiyle de çalışır. [Ayrıntılı karşılaştırmaya](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) bakın.
 
 ## İçindekiler
 
@@ -144,7 +156,6 @@ Docker Compose, Kubernetes/Helm ve diğer dağıtım seçenekleri için [self-ho
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | OpenTelemetry temel yapıları etrafında Phoenix'e uygun varsayılanlara sahip hafif bir sarmalayıcı sağlar |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API'si için istemci |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | LLM uygulamaları için TypeScript değerlendirme kütüphanesi (alfa sürümü) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Eski Phoenix sürümleri için bağımsız stdio MCP sunucusu (bakım modu — yerini Phoenix'e yerleşik [uzak MCP sunucusu](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) almıştır) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code, Cursor ve diğer kodlama ajanlarıyla kullanmak üzere trace'leri, veri setlerini ve deneyleri getirmek için CLI |
 
 ## İzleme Entegrasyonları
@@ -268,16 +279,16 @@ Verileri birleştiren span işlemcileri ekleyerek diğer enstrümantasyon kütü
 Phoenix, hem insanlar hem de AI kodlama ajanları tarafından kullanılmak üzere tasarlanmıştır. Üç arayüz, ajanların (Claude Code, Codex, Cursor ve diğerleri) trace'leriniz, veri setleriniz ve deneylerinizle çalışmasını sağlar:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` trace'leri, veri setlerini ve deneyleri getirir ve uygulamanızı enstrümante eder (`setup`); böylece bir ajan terminalden bağlam çekip buna göre işlem yapabilir.
-- **[Beceriler (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/), ajanlara Phoenix ile nasıl hata ayıklayacaklarını, değerlendirme yapacaklarını ve izleme yapacaklarını öğreten iş akışlarını paketler.
+- **[Beceriler (Skills)](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/), ajanlara Phoenix ile nasıl hata ayıklayacaklarını, değerlendirme yapacaklarını ve izleme yapacaklarını öğreten iş akışlarını paketler.
 - **[Uzak MCP Sunucusu](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — Phoenix'i doğrudan sorgulamak için herhangi bir MCP istemcisini örneğinizin `/mcp` endpoint'ine bağlayın.
 
 Kurulum ve kullanım için [kodlama ajanları dokümantasyonuna](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) bakın.
 
 | Beceri | Açıklama |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI ile LLM uygulamalarında hata ayıklayın — trace'leri getirin, hataları analiz edin, deneyleri inceleyin ve GraphQL API'sini sorgulayın |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix kullanarak AI/LLM uygulamaları için değerlendiriciler oluşturun ve çalıştırın |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM uygulamalarını izlemek için OpenInference semantik kuralları ve enstrümantasyonu |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI ile LLM uygulamalarında hata ayıklayın — trace'leri getirin, hataları analiz edin, deneyleri inceleyin ve GraphQL API'sini sorgulayın |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix kullanarak AI/LLM uygulamaları için değerlendiriciler oluşturun ve çalıştırın |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM uygulamalarını izlemek için OpenInference semantik kuralları ve enstrümantasyonu |
 
 ## Güvenlik ve Gizlilik
 
@@ -314,3 +325,15 @@ Copyright 2025 Arize AI, Inc. Tüm hakları saklıdır.
 Bu kodun bazı bölümleri bir veya daha fazla ABD patenti ile korunmaktadır. [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) dosyasına bakın.
 
 Bu yazılım Elastic License 2.0 (ELv2) koşulları altında lisanslanmıştır. [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) dosyasına bakın.
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

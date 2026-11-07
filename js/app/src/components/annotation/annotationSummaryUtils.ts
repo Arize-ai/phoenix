@@ -1,23 +1,8 @@
-import type { AnnotationOptimizationConfig } from "./optimizationUtils";
-import { getPositiveOptimizationFromConfig } from "./optimizationUtils";
+import {
+  type AnnotationOptimizationConfig,
+  getOptimizationValueFromConfig,
+} from "./optimizationUtils";
 import type { AnnotationSummary } from "./types";
-
-/**
- * Whether the summary's mean score is favorable under its config. `null` when
- * there is no score or the config sets no optimization direction.
- */
-export function getAnnotationSummaryPositiveOptimization({
-  summary,
-  annotationConfig,
-}: {
-  summary: Pick<AnnotationSummary, "meanScore">;
-  annotationConfig: AnnotationOptimizationConfig | undefined;
-}): boolean | null {
-  return getPositiveOptimizationFromConfig({
-    config: annotationConfig,
-    score: summary.meanScore,
-  });
-}
 
 export type AnnotationLabelConsensus =
   /** One label is most common; `fraction` is its share, 1 when all agree */
@@ -56,10 +41,10 @@ export function sortAnnotationSummariesForTriage(
   const isUnfavorable = new Map(
     summaries.map((summary) => [
       summary,
-      getAnnotationSummaryPositiveOptimization({
-        summary,
-        annotationConfig: annotationConfigsByName.get(summary.name),
-      }) === false,
+      (getOptimizationValueFromConfig({
+        config: annotationConfigsByName.get(summary.name),
+        score: summary.meanScore,
+      }) ?? 0) < 0,
     ])
   );
   return [...summaries].sort((first, second) => {
