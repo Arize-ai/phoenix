@@ -373,6 +373,51 @@ def test_public_origin_honors_rfc7239_forwarded(monkeypatch: pytest.MonkeyPatch)
     assert public_origin(request) == "https://phoenix.example.com"
 
 
+def test_public_origin_parses_forwarded_quoted_strings(monkeypatch: pytest.MonkeyPatch) -> None:
+    # RFC 7239 makes the separators inside a quoted-string literal. A proxy that
+    # appends its own element after the client's must still win, so scanning the
+    # whole header for "proto=" would let the client's value be picked instead.
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"phoenix.example.com"),
+                (b"forwarded", b'for="_x;proto=http", for=10.0.0.1;proto=https'),
+            ],
+            "server": ("phoenix.example.com", 443),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix.example.com"
+
+
+def test_public_origin_parses_forwarded_extension_quoted_strings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"phoenix.example.com"),
+                (b"forwarded", b'ext="x;proto=http";proto=https'),
+            ],
+            "server": ("phoenix.example.com", 443),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix.example.com"
+
+
 def test_public_origin_ignores_unsupported_forwarded_schemes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

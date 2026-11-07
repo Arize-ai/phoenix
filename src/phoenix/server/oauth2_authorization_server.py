@@ -243,6 +243,36 @@ def canonical_resource_identifier(url: str) -> str:
     return urlunsplit((scheme, netloc, path, "", ""))
 
 
+def _split_forwarded(value: str, separator: str) -> list[str]:
+    """Split on a separator that appears outside quoted-strings.
+
+    RFC 7239 reuses the comma and semicolon separators inside quoted-string
+    values, where they have no syntactic meaning. Splitting naively would let a
+    client hide a parameter there and have it read as the proxy's own.
+    """
+    parts: list[str] = []
+    current: list[str] = []
+    quoted = False
+    escaped = False
+    for char in value:
+        if escaped:
+            current.append(char)
+            escaped = False
+        elif quoted and char == "\\":
+            current.append(char)
+            escaped = True
+        elif char == '"':
+            current.append(char)
+            quoted = not quoted
+        elif char == separator and not quoted:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+    parts.append("".join(current))
+    return parts
+
+
 def _extract_forwarded_scheme(request: Request) -> str | None:
     """Extract public scheme from X-Forwarded-Proto or RFC 7239 Forwarded headers."""
     if x_forwarded_proto := request.headers.get("x-forwarded-proto"):
@@ -250,8 +280,8 @@ def _extract_forwarded_scheme(request: Request) -> str | None:
         if scheme in ("http", "https"):
             return scheme
     if forwarded := request.headers.get("forwarded"):
-        for element in forwarded.split(";"):
-            for part in element.split(","):
+        for element in _split_forwarded(forwarded, ","):
+            for part in _split_forwarded(element, ";"):
                 key, _, value = part.strip().partition("=")
                 if key.lower() == "proto":
                     scheme = value.strip('"').lower()
@@ -263,12 +293,12 @@ def _extract_forwarded_scheme(request: Request) -> str | None:
 def public_origin(request: Request) -> str:
     """Return the public base URL clients use as the issuer and resource identifier.
 
-    Only the scheme is taken from the proxy headers. The host stays whatever the
-    ASGI server resolved, because this origin also decides the audience a token
-    is issued for: honoring a client-supplied host would let a caller pick the
-    audience and slip past the confinement between the ``/mcp`` and ``/v1``
-    resources. A deployment whose internal host differs from its public one
-    should set ``PHOENIX_ROOT_URL``.
+    Only the scheme is taken from the proxy headers. The host stays whatever
+    ``request.base_url`` already resolved, because this origin also decides the
+    audience a token is issued for: letting a dedicated header pick the host
+    would add a way for a caller to name its own audience and slip past the
+    confinement between the ``/mcp`` and ``/v1`` resources. A deployment whose
+    internal host differs from its public one should set ``PHOENIX_ROOT_URL``.
     """
     if os.getenv(ENV_PHOENIX_ROOT_URL):
         return canonical_resource_identifier(str(get_env_root_url()))
