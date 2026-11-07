@@ -44,6 +44,8 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicThinkingConfigEnabled,
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
@@ -216,6 +218,22 @@ class BaseEvaluator(ABC):
                    and retrieving any recorded spans after evaluation.
         """
         ...
+
+
+def _enables_extended_thinking(invocation_parameters: PromptInvocationParameters) -> bool:
+    """Checks whether Anthropic extended thinking is on, which rules out a forced tool choice.
+
+    Adaptive thinking allows a forced tool choice. A `thinking` key in `extra_body`
+    wins because the client merges `extra_body` into the request last.
+    """
+    if not isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return False
+    anthropic_params = invocation_parameters.anthropic
+    extra_body = anthropic_params.extra_body
+    if isinstance(extra_body, dict) and "thinking" in extra_body:
+        thinking = extra_body["thinking"]
+        return isinstance(thinking, dict) and thinking.get("type") == "enabled"
+    return isinstance(anthropic_params.thinking, PromptAnthropicThinkingConfigEnabled)
 
 
 def _request_tool_call_in_prompt(
@@ -436,7 +454,11 @@ class LLMEvaluator(BaseEvaluator):
                     prompt_span.set_status(Status(StatusCode.OK))
 
                 tools = self._tools
-                if not self._llm_client.supports_forced_tool_choice:
+                forced_tool_choice_allowed = (
+                    self._llm_client.supports_forced_tool_choice
+                    and not _enables_extended_thinking(self._invocation_parameters)
+                )
+                if not forced_tool_choice_allowed:
                     tools, messages = _request_tool_call_in_prompt(tools, messages)
 
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
