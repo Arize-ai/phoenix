@@ -210,7 +210,7 @@ function AnnotationMetricsChartContent({
 }: AnnotationMetricsChartProps) {
   const { theme } = useTheme();
   const categoryColors = useCategoryChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   const { data } = series;
   const visibleLabels = series.labels;
@@ -331,6 +331,7 @@ function AnnotationMetricsChartContent({
             // Preserve the normalized order so label colors remain stable by index.
             itemSorter={null}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
             additionalLegendItems={[
               ...(hasOtherValues ? [OTHER_LEGEND_ITEM] : []),
               ...(isScoreView && isDataKeyHidden(MEAN_SCORE_DATA_KEY)

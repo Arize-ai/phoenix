@@ -111,7 +111,7 @@ export function SpanCountTimeSeries({
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   return (
     <TimeRangeChartBrush
@@ -172,6 +172,7 @@ export function SpanCountTimeSeries({
                 iconType="circle"
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
+                onShowAll={showAll}
               />
             </BarChart>
           </ChartResponsiveContainer>

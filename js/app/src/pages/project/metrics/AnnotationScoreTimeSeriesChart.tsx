@@ -147,7 +147,7 @@ export function AnnotationScoreTimeSeriesChart({
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const hasData = names.length > 0;
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
 
   return (
@@ -204,6 +204,7 @@ export function AnnotationScoreTimeSeriesChart({
                 iconType="line"
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
+                onShowAll={showAll}
               />
             </LineChart>
           </ChartResponsiveContainer>
