@@ -18,7 +18,7 @@ Running experiments over splits rather than entire datasets produces evaluation 
 
 ### Configuring Splits
 
-Experiments can be run over previously configured splits either via the Python or JavaScript clients or via the Phoenix playground.
+Experiments can be run over previously configured splits either via the Python or TypeScript clients or via the Phoenix playground.
 
 #### Creating Splits
 
@@ -100,13 +100,13 @@ from phoenix.client import Client
 client = Client()
 
 dataset = client.datasets.get_dataset(dataset="my-dataset")
-first, second = dataset.examples[0]["node_id"], dataset.examples[1]["node_id"]
+node_ids = [example["node_id"] for example in dataset.examples]
 
 holdout = client.datasets.create_split(
     dataset="my-dataset",
     name="holdout",
     description="Held-out evaluation examples",
-    example_ids=[first],
+    example_ids=node_ids[:1],
 )
 
 # Only the fields you pass change. Adding an existing member or removing a
@@ -114,8 +114,8 @@ holdout = client.datasets.create_split(
 client.datasets.update_split(
     dataset="my-dataset",
     split_id=holdout["id"],
-    add_example_ids=[second],
-    remove_example_ids=[first],
+    add_example_ids=node_ids[1:2],
+    remove_example_ids=node_ids[:1],
 )
 
 # The examples stay in the dataset.
