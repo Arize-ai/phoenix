@@ -43,11 +43,11 @@ Now that you have Phoenix up and running, and sent traces to your first project,
   </Step>
 
   <Step title={<span className="step-title">Set Up Evaluations</span>}>
-    In this example, we will define, create, and run our own evaluator. There's a number of different evaluators you can run, but this quick start will go through an LLM as a Judge Model.
+    In this example, we will define, create, and run our own evaluator. There's a number of different evaluators you can run, but this quick start will go through both an LLM or a decision model as a Judge Model.
 
-    **1) Define your LLM Judge Model**
+    **1) Define your Judge Model**
 
-    We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm/).
+    We'll use OpenAI as our evaluation model for this example, but Phoenix also supports a number of [other models](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm/). The judge can be a **language model** (`LLM`), which returns a label with an explanation, or a **decision model** (`DecisionModel`), which returns a label with per-label probabilities but no explanation.
 
     If you haven't yet defined your OpenAI API Key from the previous step, let's first add it to our environment.
 
@@ -60,8 +60,14 @@ Now that you have Phoenix up and running, and sent traces to your first project,
 
     os.environ["OPENAI_API_KEY"] = openai_api_key
 
+    from phoenix.evals import DecisionModel
     from phoenix.evals.llm import LLM
-    llm = LLM(model="gpt-4o", provider="openai")
+
+    # Language-model judge: returns a label with an explanation
+    llm = LLM(model="gpt-6-luna", provider="openai")
+
+    # Or a decision-model judge: returns a label with per-label probabilities, no explanation
+    decision_model = DecisionModel(provider="openai", model="gpt-6-luna")
     ```
 
     **2) Define your Evaluators**
@@ -100,6 +106,8 @@ Now that you have Phoenix up and running, and sent traces to your first project,
         choices={"correct": 1.0, "incorrect": 0.0},
     )
     ```
+
+    Pass `decision_model` in place of `llm` to run the same evaluator through a decision model. The result carries per-label probabilities instead of an explanation.
   </Step>
 
   <Step title={<span className="step-title">Run Evaluation</span>}>

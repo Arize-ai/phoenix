@@ -17,7 +17,7 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
     arguments, formatting, and safe content.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
         **kwargs: Additional invocation parameters forwarded to the LLM client
             (e.g., ``temperature=0.0``, ``max_tokens=256``).
 
@@ -27,8 +27,10 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
         - This metric evaluates the correctness of the tool invocation (arguments, formatting,
           safety), not the correctness of the tool selection itself.
         - Returns one `Score` with `label` (correct or incorrect), `score` (1.0 if correct,
-          0.0 if incorrect), and an `explanation` from the LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+          0.0 if incorrect), and, when an `LLM` judge is used, an `explanation`
+          (decision models return a label and probabilities, not an explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Criteria for Correct Invocation:
         - JSON is properly structured (if applicable).
@@ -47,9 +49,9 @@ class ToolInvocationEvaluator(ClassificationEvaluator):
     Examples::
 
         from phoenix.evals.metrics.tool_invocation import ToolInvocationEvaluator
-        from phoenix.evals import LLM
+        from phoenix.evals import DecisionModel
 
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         tool_invocation_eval = ToolInvocationEvaluator(llm=llm)

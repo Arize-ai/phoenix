@@ -32,7 +32,7 @@ judge = ClassificationEvaluator(
 
 # After validation, test cheaper
 judge_cheap = ClassificationEvaluator(
-    llm=LLM(provider="openai", model="gpt-4o-mini"),
+    llm=LLM(provider="openai", model="gpt-6-luna"),
     ...
 )
 # Compare TPR/TNR on same test set

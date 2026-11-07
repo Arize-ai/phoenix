@@ -517,21 +517,26 @@ class LLMEvaluator(Evaluator, Generic[_ModelT]):
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
 
+    Generic over the judge type ``_ModelT`` — an `LLM` or a `DecisionModel` (defaults to
+    `LLM`) — which subclasses fix to the judge type they accept.
+
     Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
     Implementing both methods is recommended.
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM instance to use for evaluation.
+        llm: The judge used for evaluation — the generic type parameter ``_ModelT``
+            (defaults to `LLM`); subclasses may specialize it to an `LLM`, a `DecisionModel`,
+            or a union of both.
         prompt_template: The prompt template with placeholders for required fields; used to infer
             required variables. Can be either a string template or a list of message dictionaries
             (for chat-based models).
-        schema: Optional tool/JSON schema for structured output when supported by the LLM.
+        schema: Optional tool/JSON schema for structured output when supported by the judge.
         input_schema: Optional Pydantic model describing/validating inputs. If not provided,
             a model is dynamically created from the prompt variables (all str, required).
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
-        **kwargs: Invocation parameters forwarded to the LLM client
+        **kwargs: Invocation parameters forwarded to the underlying model client
     """
 
     def __init__(
@@ -606,15 +611,18 @@ class LLMEvaluator(Evaluator, Generic[_ModelT]):
 # --- LLM ClassificationEvaluator ---
 class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
     """
-    LLM-based evaluator for classification-style judgements.
+    Evaluator for classification-style judgements, backed by an `LLM` or a `DecisionModel`.
 
-    Supports label-only or label+score mappings, and returns explanations by default.
-    Note: Requires the LLM to have tool calling or structured output capabilities.
+    Supports label-only or label+score mappings. When backed by an `LLM`, returns an
+    explanation by default and requires a model with tool calling or structured output
+    capabilities; a `DecisionModel` answers through a typed choices API and returns a label
+    with probabilities, and sometimes confidence, but no explanation.
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM instance to use for evaluation. Must support tool calling or
-            structured output for reliable classification.
+        llm: The `LLM` or `DecisionModel` used for evaluation. An `LLM` judge must support
+            tool calling or structured output for reliable classification; a `DecisionModel`
+            answers through a typed choices API, so this does not apply.
         prompt_template: The prompt template with placeholders for required input fields.
             Can be either a string template or a list of message dictionaries (for chat-based
             models). Template variables are inferred automatically.
@@ -628,12 +636,13 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 "negative": (0.0, "Negative sentiment")}). Not recommended as LLMs do not
                 reliably follow this schema.
         include_explanation: Whether to request explanations for classification decisions.
-            Defaults to True in accordance with best practices.
+            Defaults to True in accordance with best practices. Ignored by decision models,
+            which never return an explanation.
         input_schema: Optional Pydantic model for input validation. If not provided,
             a model is automatically created from prompt template variables.
         direction: Score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
-        **kwargs: Invocation parameters forwarded to the LLM client
+        **kwargs: Invocation parameters forwarded to the model client
 
     Returns:
         List[Score]: A list containing a single Score object with the classification
@@ -1148,11 +1157,13 @@ def create_classifier(
     """
     Factory to create a `ClassificationEvaluator`.
 
-    Note: The evaluator requires the LLM to have tool calling or structured output capabilities.
+    Note: When backed by an `LLM`, the evaluator requires a model with tool calling or
+    structured output capabilities; a `DecisionModel` answers through a typed choices API,
+    so this does not apply.
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM instance to use for evaluation.
+        llm: The `LLM` or `DecisionModel` used for evaluation.
         prompt_template: Prompt template string with placeholders for inputs.
         choices: One of List[str], Dict[str, number], or Dict[str, Tuple[number, str]] describing
             classification labels (and optional scores/descriptions).

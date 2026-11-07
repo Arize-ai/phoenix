@@ -48,7 +48,7 @@ import os
 
 from openai import OpenAI
 
-_MODEL = "gpt-4o-mini"
+_MODEL = "gpt-6-luna"
 _client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 _SYSTEM_PROMPT = (
@@ -151,7 +151,7 @@ openai
 ```typescript
 import OpenAI from "openai";
 
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-6-luna";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SYSTEM_PROMPT =
@@ -289,7 +289,7 @@ Optimization direction: **maximize** — you want `output` to win against the re
 | Environment variables | `OPENAI_API_KEY` — preferably set as a **secret reference** to a key in [Settings → Secrets](/docs/phoenix/settings/secrets). |
 
 <Warning>
-Each `evaluate(...)` call makes **one** chat-completion request against `gpt-4o-mini`. At scale:
+Each `evaluate(...)` call makes **one** chat-completion request against `gpt-6-luna`. At scale:
 
 - Raise the sandbox configuration's **Timeout** to comfortably cover the LLM round-trip plus a cold-start package install.
 - Watch the judge's per-token cost — every pairwise prompt includes both the output and the reference, so token counts grow with output length.

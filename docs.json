@@ -177,6 +177,7 @@
               },
               "docs/phoenix/evaluation/llm-evals",
               "docs/phoenix/evaluation/concepts-evals/llm-as-a-judge",
+              "docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge",
               {
                 "group": "Client-Side Evals (SDK)",
                 "pages": [
@@ -186,6 +187,7 @@
                     "pages": [
                       "docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators",
                       "docs/phoenix/evaluation/how-to-evals/configuring-the-llm",
+                      "docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model",
                       "docs/phoenix/evaluation/how-to-evals/prompt-formats"
                     ]
                   },

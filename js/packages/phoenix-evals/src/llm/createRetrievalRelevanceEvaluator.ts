@@ -53,7 +53,7 @@ export interface RetrievalRelevanceEvaluationRecord {
  *
  * @example
  * ```ts
- * const evaluator = createRetrievalRelevanceEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createRetrievalRelevanceEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   input: "What is the capital of France?",
  *   context: "Paris is the capital and largest city of France.",

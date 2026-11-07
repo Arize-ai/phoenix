@@ -3,7 +3,7 @@ import { openai } from "@ai-sdk/openai";
 /* eslint-disable no-console */
 import { bindEvaluator, createFaithfulnessEvaluator } from "../src";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-6-luna");
 
 type ExampleType = {
   question: string;

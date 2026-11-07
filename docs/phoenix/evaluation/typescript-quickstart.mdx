@@ -111,7 +111,7 @@ If you'd like to follow along with this evaluation example, you can check out th
     import { openai } from "@ai-sdk/openai";
 
     const retrievalRelevanceEvaluator = createRetrievalRelevanceEvaluator({
-        model: openai("gpt-4o-mini"),
+        model: openai("gpt-6-luna"),
       });
 
       const retrievalRelevanceCheck = asExperimentEvaluator({
@@ -127,6 +127,8 @@ If you'd like to follow along with this evaluation example, you can check out th
         },
       });
     ```
+
+    To use a decision model instead of a language model, pass `openai.decisionModel("gpt-6-luna")` as the `model`. A decision model returns a label with per-label probabilities (and a confidence when the provider reports one) rather than an explanation.
   </Step>
 
   <Step title={<span className="step-title">Run the Experiment</span>}>

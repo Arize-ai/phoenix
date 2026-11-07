@@ -8,7 +8,7 @@ import {
 
 import { createFaithfulnessEvaluator } from "../src";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-6-luna");
 
 async function main() {
   const dataset = await createOrGetDataset({
