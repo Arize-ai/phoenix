@@ -3,7 +3,8 @@ each waited for its result, what the evaluators' own traces cost, and how full t
 
 Activity is read for one project, grouped by project evaluator, or for the server, grouped by
 project. Every read is bounded by the time range, from the work rows and from the traces each
-evaluation writes to its project evaluator's trace project.
+evaluation writes to its project evaluator's trace project. An evaluator with tracing off writes
+no traces, so its evaluations count and lag like any other but add no cost.
 
 An evaluation's lag is from when it was queued, its work row's ``created_at``, to its result,
 the ``updated_at`` of the row's last transition. Work rows are not written once they reach an
@@ -89,6 +90,9 @@ class EvaluationActivity:
     cost: Optional[float]
     groups: tuple[ActivityGroup, ...]
     series: tuple[ActivityBin, ...]
+    excludes_untraced_evaluators: bool = False
+    """Whether an enabled project evaluator in scope has tracing off. Its evaluations write no
+    trace, so they add nothing to any cost."""
 
 
 async def load_evaluation_lags(
@@ -241,7 +245,20 @@ class _ActivityReader:
             key=lambda key: (-(groups[key].evaluated_count + groups[key].failed_count), key),
         )
         costs = [totals.cost for totals in groups.values() if totals.cost is not None]
+        project_evaluator = models.ProjectEvaluator
+        excludes_untraced_evaluators = bool(
+            await session.scalar(
+                sa.select(
+                    sa.exists().where(
+                        project_evaluator.id.in_(self.scope),
+                        project_evaluator.enabled.is_(True),
+                        project_evaluator.tracing_enabled.is_(False),
+                    )
+                )
+            )
+        )
         return EvaluationActivity(
+            excludes_untraced_evaluators=excludes_untraced_evaluators,
             evaluated_count=sum(totals.evaluated_count for totals in groups.values()),
             failed_count=sum(totals.failed_count for totals in groups.values()),
             lag=lag,

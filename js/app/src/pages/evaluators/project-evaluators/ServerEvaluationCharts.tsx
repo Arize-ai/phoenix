@@ -115,6 +115,7 @@ export function useServerEvaluationActivity({
           evaluatedCount
           failedCount
           cost
+          excludesUntracedEvaluators
           groups {
             project {
               id
@@ -713,6 +714,11 @@ function TopProjectsPanel({
   return (
     <ChartPanel
       title="Top projects"
+      subtitle={
+        metric === "cost" && activity.excludesUntracedEvaluators
+          ? "Excludes evaluators with tracing off"
+          : undefined
+      }
       fillHeight
       actions={
         <ToggleButtonGroup
