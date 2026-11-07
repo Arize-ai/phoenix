@@ -404,6 +404,34 @@ class FStringFormatter(TemplateFormatter):
         return field_names
 
 
+def _fstring_field_variable(content: str) -> Optional[str]:
+    """The variable an f-string replacement field refers to, or None when it is not a field.
+
+    ``{score:.2f}``, ``{items[0]}`` and ``{config['timeout']}`` are fields on ``score``,
+    ``items`` and ``config``; JSON such as ``{"key": "value"}`` and ``{a, b}`` is not a field.
+
+    Args:
+        content (str): The text between one pair of braces.
+
+    Returns:
+        Optional[str]: The variable name, or None.
+    """
+    try:
+        parsed = list(Formatter().parse("{" + content + "}"))
+    except ValueError:
+        return None
+
+    if len(parsed) != 1:
+        return None
+
+    literal_text, field_name, _, _ = parsed[0]
+    if literal_text != "" or field_name is None:
+        return None
+
+    variable = re.split(r"[.\[]", field_name, maxsplit=1)[0]
+    return variable if variable.isidentifier() else None
+
+
 def detect_template_format(template: str) -> TemplateFormat:
     """Detect whether a template uses mustache ({{variable}}) or f-string ({variable}) format.
 
@@ -434,21 +462,12 @@ def detect_template_format(template: str) -> TemplateFormat:
 
     clear_fstring_vars = []
     for match in fstring_matches:
-        content = match.strip()
+        variable = _fstring_field_variable(match.strip())
 
-        if any(char in content for char in ['"', "'", ":", ",", "[", "]"]):
+        if variable is None or variable in ["True", "False", "None"]:
             continue
 
-        try:
-            float(content)
-            continue
-        except ValueError:
-            pass
-
-        if content in ["True", "False", "None"]:
-            continue
-
-        clear_fstring_vars.append(content)
+        clear_fstring_vars.append(variable)
 
     if clear_mustache_vars and not clear_fstring_vars:
         return TemplateFormat.MUSTACHE
