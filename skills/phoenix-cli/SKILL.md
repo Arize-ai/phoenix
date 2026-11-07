@@ -40,6 +40,7 @@ px session delete <session-id>
 px session-annotations delete
 px dataset list
 px dataset get <name>
+px dataset export <name> --format csv|jsonl|openai-evals|openai-ft
 px dataset delete <dataset-identifier>
 px experiment list
 px experiment get <id>
