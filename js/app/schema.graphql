@@ -859,9 +859,23 @@ type CodeEvaluator implements Evaluator & Node {
   user: User
 }
 
+input CodeEvaluatorDefinitionInput {
+  sourceCode: String!
+  language: Language!
+  sandboxConfigId: ID!
+}
+
 type CodeEvaluatorMutationPayload {
   evaluator: CodeEvaluator!
   query: Query!
+}
+
+input CodeEvaluatorSourceInput @oneOf {
+  """An existing code evaluator to add."""
+  evaluatorId: ID
+
+  """A new code evaluator to create and add."""
+  definition: CodeEvaluatorDefinitionInput
 }
 
 type CodeEvaluatorVersion implements Node {
@@ -1026,8 +1040,8 @@ input CreateDatasetBuiltinEvaluatorInput {
 
 input CreateDatasetCodeEvaluatorInput {
   datasetId: ID!
-  evaluatorId: ID!
   name: Identifier!
+  source: CodeEvaluatorSourceInput!
   inputMapping: EvaluatorInputMappingInput = null
   outputConfigs: [AnnotationConfigInput!] = null
   description: String = null
@@ -6441,6 +6455,11 @@ type Span implements Node {
   The "user.id" attribute of the span, identifying the end user of the traced application.
   """
   userId: String
+
+  """
+  The "llm.model_name" attribute of the span, identifying the model invoked. Typically populated on LLM spans.
+  """
+  modelName: String
   numDocuments: Int
 
   """

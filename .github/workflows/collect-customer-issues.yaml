@@ -32,10 +32,10 @@ jobs:
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         if: steps.retrieve-issues.outputs.has_issues == 'true'
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             {
-              "type": "mrkdwn",
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
               "text": ${{ toJSON(steps.retrieve-issues.outputs.slack_message) }}
             }

@@ -10,14 +10,18 @@
 - GET `/computeruse/a11y/tree`
 - GET `/computeruse/display/info`
 - GET `/computeruse/display/windows`
+- POST `/computeruse/keyboard/down`
 - POST `/computeruse/keyboard/hotkey`
 - POST `/computeruse/keyboard/key`
 - POST `/computeruse/keyboard/type`
+- POST `/computeruse/keyboard/up`
 - POST `/computeruse/mouse/click`
+- POST `/computeruse/mouse/down`
 - POST `/computeruse/mouse/drag`
 - POST `/computeruse/mouse/move`
 - GET `/computeruse/mouse/position`
 - POST `/computeruse/mouse/scroll`
+- POST `/computeruse/mouse/up`
 - GET `/computeruse/process-status`
 - GET `/computeruse/process/{processName}/errors`/errors}
 - GET `/computeruse/process/{processName}/logs`/logs}
@@ -213,6 +217,32 @@ Get information about all open windows
 
 ---
 
+## POST `/computeruse/keyboard/down` {#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/down}
+
+**Press and hold a keyboard key**
+
+Press a key or modifier and hold it down until a matching key up call
+
+### Request Body
+
+Key down request
+
+Schema: **KeyboardKeyDownRequest**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `key` | string | Yes | e.g., "ctrl", "shift", "a" |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | OK | Empty |
+| 400 | Bad Request | ErrorResponse |
+| 500 | Internal Server Error | ErrorResponse |
+
+---
+
 ## POST `/computeruse/keyboard/hotkey` {#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/hotkey}
 
 **Press hotkey**
@@ -293,6 +323,32 @@ Schema: **KeyboardTypeRequest**
 
 ---
 
+## POST `/computeruse/keyboard/up` {#daytona-toolbox/tag/computer-use/POST/computeruse/keyboard/up}
+
+**Release a held keyboard key**
+
+Release a key or modifier that is currently held down
+
+### Request Body
+
+Key up request
+
+Schema: **KeyboardKeyUpRequest**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `key` | string | Yes | e.g., "ctrl", "shift", "a" |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | OK | Empty |
+| 400 | Bad Request | ErrorResponse |
+| 500 | Internal Server Error | ErrorResponse |
+
+---
+
 ## POST `/computeruse/mouse/click` {#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/click}
 
 **Click mouse button**
@@ -308,7 +364,9 @@ Schema: **MouseClickRequest**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `button` | string | No | left, right, middle |
+| `clicks` | integer | No | Clicks is a pointer so an omitted value is distinguishable from an explicit 0, which must be rejected rather than silently defaulted. |
 | `double` | boolean | No |  |
+| `modifiers` | array of string | No |  |
 | `x` | integer | No |  |
 | `y` | integer | No |  |
 
@@ -317,6 +375,34 @@ Schema: **MouseClickRequest**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | OK | MouseClickResponse |
+| 400 | Bad Request | ErrorResponse |
+| 500 | Internal Server Error | ErrorResponse |
+
+---
+
+## POST `/computeruse/mouse/down` {#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/down}
+
+**Press mouse button**
+
+Press and hold a mouse button, optionally moving to the specified coordinates first
+
+### Request Body
+
+Mouse button press request
+
+Schema: **MouseDownRequest**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `button` | string | No | left, right, middle |
+| `x` | integer | No |  |
+| `y` | integer | No |  |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | OK | MousePositionResponse |
 | 400 | Bad Request | ErrorResponse |
 | 500 | Internal Server Error | ErrorResponse |
 
@@ -339,6 +425,7 @@ Schema: **MouseDragRequest**
 | `button` | string | No |  |
 | `endX` | integer | No |  |
 | `endY` | integer | No |  |
+| `modifiers` | array of string | No |  |
 | `startX` | integer | No |  |
 | `startY` | integer | No |  |
 
@@ -409,7 +496,8 @@ Schema: **MouseScrollRequest**
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `amount` | integer | No |  |
-| `direction` | string | No | up, down |
+| `direction` | string | No | up, down, left, right |
+| `modifiers` | array of string | No |  |
 | `x` | integer | No |  |
 | `y` | integer | No |  |
 
@@ -418,6 +506,34 @@ Schema: **MouseScrollRequest**
 | Status | Description | Schema |
 |--------|-------------|--------|
 | 200 | OK | ScrollResponse |
+| 400 | Bad Request | ErrorResponse |
+| 500 | Internal Server Error | ErrorResponse |
+
+---
+
+## POST `/computeruse/mouse/up` {#daytona-toolbox/tag/computer-use/POST/computeruse/mouse/up}
+
+**Release mouse button**
+
+Release a held mouse button, optionally moving to the specified coordinates first
+
+### Request Body
+
+Mouse button release request
+
+Schema: **MouseUpRequest**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `button` | string | No | left, right, middle |
+| `x` | integer | No |  |
+| `y` | integer | No |  |
+
+### Responses
+
+| Status | Description | Schema |
+|--------|-------------|--------|
+| 200 | OK | MousePositionResponse |
 | 400 | Bad Request | ErrorResponse |
 | 500 | Internal Server Error | ErrorResponse |
 
@@ -555,7 +671,6 @@ Schema: **StartRecordingRequest**
 | 201 | Created | Recording |
 | 400 | Bad Request | ErrorResponse |
 | 500 | Internal Server Error | ErrorResponse |
-| 503 | Service Unavailable | ErrorResponse |
 
 ---
 
@@ -628,7 +743,6 @@ Delete a recording file by ID
 | 204 | No Content |  |
 | 400 | Bad Request | ErrorResponse |
 | 404 | Not Found | ErrorResponse |
-| 409 | Conflict | ErrorResponse |
 | 500 | Internal Server Error | ErrorResponse |
 
 ---

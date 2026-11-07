@@ -1773,6 +1773,8 @@ def _code_evaluator(result_text: str = "0.75") -> tuple[CodeEvaluatorRunner, Asy
 class _FakeJudgeClient:
     """Stands in for the judge model and always votes 'correct' through the evaluator's tool."""
 
+    supports_forced_tool_choice = True
+
     def get_rate_limit_key(self) -> Hashable:
         return "fake-judge"
 

@@ -192,6 +192,20 @@ def test_to_state_skips_empty_pieces():
     assert BaseDecisionAdapter._to_state(prompt) == "only this"
 
 
+def test_typesafe_to_input_flattens_like_to_state():
+    # TypeSafe has no message roles, so it must keep the base class's flattening behavior:
+    # _to_input returns the same plain string as _to_state (roles dropped).
+    from phoenix.evals.decision.adapters.typesafe.adapter import TypeSafeDecisionAdapter
+
+    adapter = TypeSafeDecisionAdapter(client=None, model="jev-latest")
+    prompt = [
+        {"role": "system", "content": "You are a judge."},
+        {"role": "user", "content": "Is 2 + 2 = 4?"},
+    ]
+    assert adapter._to_input(prompt) == "You are a judge.\n\nIs 2 + 2 = 4?"
+    assert adapter._to_input(prompt) == adapter._to_state(prompt)
+
+
 def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch):
     client = MagicMock()
     client.system_one.return_value = _response(

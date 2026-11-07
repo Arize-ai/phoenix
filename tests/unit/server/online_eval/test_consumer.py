@@ -119,6 +119,8 @@ from ..._helpers import _add_project, _add_project_session, _add_span, _add_trac
 class _StubLLMClient:
     """Streams a single canned tool call, or raises to simulate a provider error."""
 
+    supports_forced_tool_choice = True
+
     def __init__(
         self,
         tool_name: str = "quality",

@@ -1,21 +1,44 @@
-name: Update Helm on PR Merge
+name: Publish Helm Chart
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
+    paths:
+      - helm/Chart.yaml
 
 jobs:
-  check-and-push-helm:
-    name: Check PR and Push Helm
+  chart-version:
+    name: Check the chart version changed
     permissions:
       contents: read
-    # Only run if the PR was merged and matches our pattern
-    if: |
-      github.event.pull_request.merged == true && 
-      startsWith(github.event.pull_request.head.ref, 'update-phoenix-version-')
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        fetch-depth: 2
+        persist-credentials: false
+    - name: Compare the chart version with the previous commit
+      id: diff
+      run: |
+        previous=$(git show HEAD~1:helm/Chart.yaml | sed -n 's/^version: *//p')
+        current=$(sed -n 's/^version: *//p' helm/Chart.yaml)
+        echo "previous=$previous current=$current"
+        if [ "$previous" != "$current" ]; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        fi
 
+  push-helm:
+    name: Push Helm
+    needs: chart-version
+    if: needs.chart-version.outputs.changed == 'true'
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     env:
       REGISTRY: arizephoenix

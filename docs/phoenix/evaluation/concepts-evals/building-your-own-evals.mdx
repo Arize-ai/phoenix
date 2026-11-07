@@ -8,7 +8,7 @@ title: "Custom Task Evaluation"
 The LLM Evals library is designed to support the building of any custom Eval templates.
 
 <Frame>
-    ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/How_Do_Evals_Work_Diagram.png)
+    ![Evaluation flow from a selected span and prompt template through an LLM judge to a result](https://storage.googleapis.com/arize-phoenix-assets/assets/images/How_Do_Evals_Work_Diagram.png)
 </Frame>
 
 ## Steps to Building Your Own Eval
@@ -103,7 +103,7 @@ results_df.head()
 ```
 
 <Frame>
-    ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/concepts-evals-datasets.png)
+    ![Evaluation examples comparing reference labels with LLM-generated labels](https://storage.googleapis.com/arize-phoenix-assets/assets/images/concepts-evals-datasets.png)
 </Frame>
 
 First, you need to run the eval across your golden dataset. Then you can **generate metrics** (overall accuracy, precision, recall, F1, etc.) to determine the benchmark. It is important to look at more than just overall accuracy.

@@ -93,6 +93,23 @@ const columns = [
     },
   },
   {
+    id: "optimizationDirection",
+    header: "Direction",
+    accessorKey: "optimizationDirection",
+    minSize: 10,
+    cell: ({ row }: CellContext<PersistedAnnotationConfig, unknown>) => {
+      const direction = row.original.optimizationDirection;
+      if (!direction) {
+        return null;
+      }
+      return (
+        <Text>
+          {direction.charAt(0).toUpperCase() + direction.slice(1).toLowerCase()}
+        </Text>
+      );
+    },
+  },
+  {
     id: "values",
     header: "Values",
     enableSorting: false,

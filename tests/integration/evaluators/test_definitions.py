@@ -54,7 +54,7 @@ def code_definition(_app: _AppInfo, dataset_id: str) -> Iterator[dict[str, Any]]
         {
             "input": {
                 "datasetId": dataset_id,
-                "evaluatorId": evaluator["id"],
+                "source": {"evaluatorId": evaluator["id"]},
                 "name": f"binding-{token_hex(8)}",
                 "inputMapping": {"literalMapping": {}, "pathMapping": {}},
             }

@@ -7,7 +7,7 @@ import httpx2
 import pytest
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionChunk as OpenAIChatCompletionChunk
-from pydantic_ai.exceptions import ModelAPIError
+from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -22,12 +22,21 @@ from starlette.types import ASGIApp
 from strawberry.relay import GlobalID
 
 import phoenix.server.api.routers.v1.chat_completions as chat_completions_module
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db import models
+from phoenix.db.types.model_provider import (
+    AuthenticationMethodApiKey,
+    GenerativeModelCustomerProviderConfig,
+    ModelProvider,
+    OpenAIClientKwargs,
+    OpenAICustomProviderConfig,
+)
 from phoenix.server.agents.model_selection import (
     AgentModelSelection,
     BuiltInProviderModelSelection,
     CustomProviderModelSelection,
 )
+from phoenix.server.encryption import EncryptionService
+from phoenix.server.types import DbSessionFactory
 
 _ANSWER = "span_kind == 'LLM'"
 _STREAM_DELTAS = ("span_kind ", "== ", "'LLM'")
@@ -335,6 +344,36 @@ class TestCreateChatCompletion:
         assert error["type"] == "api_error"
         assert "connection refused" in error["message"]
 
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_invalid_provider_response_returns_openai_502(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        stream: bool,
+    ) -> None:
+        # pydantic-ai raises UnexpectedModelBehavior, not ModelAPIError, when the provider
+        # answers 200 with a body that doesn't validate as a chat completion.
+        invalid_response = "Invalid response from openai chat completions endpoint"
+
+        async def build_misbehaving_model(*_: Any, **__: Any) -> FunctionModel:
+            def respond(messages: list[ModelMessage], _info: AgentInfo) -> ModelResponse:
+                raise UnexpectedModelBehavior(invalid_response)
+
+            async def respond_stream(
+                messages: list[ModelMessage], _info: AgentInfo
+            ) -> AsyncIterator[Union[str, DeltaToolCalls]]:
+                raise UnexpectedModelBehavior(invalid_response)
+                yield ""
+
+            return FunctionModel(function=respond, stream_function=respond_stream)
+
+        monkeypatch.setattr(chat_completions_module, "build_model", build_misbehaving_model)
+        response = await httpx_client.post("v1/chat/completions", json=_request_body(stream=stream))
+        assert response.status_code == 502, response.text
+        error = response.json()["error"]
+        assert error["type"] == "api_error"
+        assert invalid_response in error["message"]
+
     async def test_malformed_custom_provider_id_returns_404(
         self,
         httpx_client: httpx2.AsyncClient,
@@ -389,3 +428,59 @@ class TestCreateChatCompletion:
         error = response.json()["error"]
         assert error["type"] == "invalid_request_error"
         assert "DEEPSEEK" in error["message"].upper()
+
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_non_ascii_provider_api_key_returns_openai_error_not_500(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+        stream: bool,
+    ) -> None:
+        # An invisible private-use character pasted along with the key makes the
+        # OpenAI SDK build an `Authorization` header that httpx2 cannot encode.
+        monkeypatch.setenv("OPENAI_API_KEY", "\ue000sk-test")
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(model="openai:gpt-4o-mini", stream=stream),
+        )
+        assert response.status_code == 400, response.text
+        error = response.json()["error"]
+        assert error["type"] == "invalid_request_error"
+        assert "non-ASCII" in error["message"]
+        assert "sk-test" not in response.text
+
+    @pytest.mark.parametrize("stream", [False, True])
+    async def test_non_ascii_custom_provider_header_returns_openai_error_not_500(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        stream: bool,
+    ) -> None:
+        config = GenerativeModelCustomerProviderConfig(
+            root=OpenAICustomProviderConfig(
+                openai_authentication_method=AuthenticationMethodApiKey(api_key="sk-test"),
+                openai_client_kwargs=OpenAIClientKwargs(
+                    default_headers={"X-Team": "\ue000team"},
+                ),
+            )
+        )
+        async with db() as session:
+            provider = models.GenerativeModelCustomProvider(
+                name="custom-openai",
+                provider="openai",
+                sdk="openai",
+                config=EncryptionService().encrypt(config.model_dump_json().encode()),
+            )
+            session.add(provider)
+            await session.flush()
+        provider_id = str(GlobalID(models.GenerativeModelCustomProvider.__name__, str(provider.id)))
+        response = await httpx_client.post(
+            "v1/chat/completions",
+            json=_request_body(model=f"custom:{provider_id}:gpt-4o-mini", stream=stream),
+        )
+        assert response.status_code == 400, response.text
+        error = response.json()["error"]
+        assert error["type"] == "invalid_request_error"
+        assert "non-ASCII" in error["message"]
+        assert "team" not in response.text
