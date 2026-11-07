@@ -69,6 +69,19 @@ dataset = client.datasets.add_examples_to_dataset(
 print(dataset.example_count)
 ```
 
+To describe the version that the append creates, pass `dataset_version_description`. The description shows in the dataset's version history and in the `description` field of each version that `client.datasets.get_dataset_versions` returns.
+
+```python
+dataset = client.datasets.add_examples_to_dataset(
+    dataset={"name": "my-eval-dataset"},
+    inputs=[{"question": "What color is grass?"}],
+    outputs=[{"answer": "Green"}],
+    dataset_version_description="Add a question about grass",
+)
+```
+
+If the upload does not change the dataset, Phoenix does not create a version and ignores the description. `dataset_version_description` requires Phoenix server `>= 21.1.0`. Against an older server, the client raises an error before it uploads the examples.
+
 ## Diff Semantics
 
 When `create_dataset` is called with `example_id_key` against an existing dataset, Phoenix produces a new version that mirrors the upload exactly:
