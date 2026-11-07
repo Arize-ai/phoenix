@@ -220,9 +220,9 @@ def test_direct_mistral_models_carry_openinference_provider_and_rates(
         ("mistral-large-latest", None, "mistral/mistral-large-latest"),
         # Together-hosted Mistral stays on the together provider entry.
         (
-            "mistralai/Mistral-7B-Instruct-v0.1",
+            "mistralai/Mistral-7B-Instruct-v0.3",
             "together",
-            "together_ai/mistralai/Mistral-7B-Instruct-v0.1",
+            "together_ai/mistralai/Mistral-7B-Instruct-v0.3",
         ),
         # Unknown model name does not resolve.
         ("totally-unknown-mistral-model", "mistralai", None),
