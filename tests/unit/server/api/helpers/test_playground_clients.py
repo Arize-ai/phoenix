@@ -120,7 +120,6 @@ class TestGoogleStreamingClient:
             LLM_TOKEN_COUNT_PROMPT,
             LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ,
             LLM_TOKEN_COUNT_TOTAL,
-            TextChunk,
         )
 
         class MockSpan:
