@@ -34,7 +34,7 @@ const ERROR_BODY_SNIPPET_LENGTH = 1000;
  * the data has errors.
  *
  * The observable aborts in-flight network requests when the unsubscribe function is
- * called.
+ * called. A request that has already finished is not aborted.
  *
  * @param input - The input to fetch from.
  * @param init - The request init options.
@@ -48,6 +48,7 @@ function fetchJsonObservable<T>(
 ): Observable<T> {
   return Observable.create((sink) => {
     const controller = new AbortController();
+    let isFinished = false;
 
     graphQLFetch(input, { ...init, signal: controller.signal })
       .then(async (response) => {
@@ -101,10 +102,12 @@ function fetchJsonObservable<T>(
         if (error) {
           throw error;
         }
+        isFinished = true;
         sink.next(data as T);
         sink.complete();
       })
       .catch((error) => {
+        isFinished = true;
         if (error.name === "AbortError") {
           // this is triggered when the controller is aborted
           sink.complete();
@@ -116,8 +119,14 @@ function fetchJsonObservable<T>(
       });
 
     return () => {
-      // abort the fetch request when the observable is unsubscribed
-      controller.abort();
+      // Abort the fetch request when the observable is unsubscribed while it
+      // is still in flight. Relay also runs this cleanup right after
+      // sink.complete(), and aborting a finished request would reject any
+      // promise still tied to the signal with an AbortError that nothing
+      // handles.
+      if (!isFinished) {
+        controller.abort();
+      }
     };
   });
 }

@@ -10,6 +10,7 @@ export const PHOENIX_DOCUMENTATION_LINKS = {
   accessControl: `${PHOENIX_DOCS_ROOT}/settings/access-control-rbac`,
   annotationConfigs: `${PHOENIX_DOCS_ROOT}/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui`,
   apiKeys: `${PHOENIX_DOCS_ROOT}/settings/api-keys`,
+  codingAgentPlugins: `${PHOENIX_DOCS_ROOT}/integrations/developer-tools/coding-agents#plugins`,
   customAiProviders: `${PHOENIX_DOCS_ROOT}/settings/custom-ai-providers`,
   dataRetention: `${PHOENIX_DOCS_ROOT}/settings/data-retention`,
   datasetLabels: `${PHOENIX_DOCS_ROOT}/release-notes/10-2025/10-08-2025-dataset-labels`,

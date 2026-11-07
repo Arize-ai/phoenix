@@ -122,7 +122,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-For more information on configuring the Daytona SDK, see [API keys](../../SKILL.md#authentication#authentication).
+For more information on configuring the Daytona SDK, see [API keys](../platform/api-keys.md#authentication).
 
 ## Real-time state updates
 
@@ -226,6 +226,6 @@ The Python SDK reference documents the following modules:
 
 ### Common
 
-- [Charts](./charts.md)
+- [Charts](https://www.daytona.io/docs/en/python-sdk/common/charts)
 - [Errors](./errors.md)
 - [Image](./image.md)

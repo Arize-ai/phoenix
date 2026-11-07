@@ -387,7 +387,11 @@ class Traces:
             )
         """  # noqa: E501
         # Validate DataFrame first
-        _validate_trace_annotations_dataframe(dataframe=dataframe)
+        _validate_trace_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: list[InsertedTraceAnnotation] = []
@@ -811,7 +815,11 @@ class AsyncTraces:
             )
         """  # noqa: E501
         # Validate DataFrame first
-        _validate_trace_annotations_dataframe(dataframe=dataframe)
+        _validate_trace_annotations_dataframe(
+            dataframe=dataframe,
+            annotation_name_required=annotation_name is None,
+            annotator_kind_required=annotator_kind is None,
+        )
 
         # Process DataFrame chunks using iterator
         all_responses: list[InsertedTraceAnnotation] = []

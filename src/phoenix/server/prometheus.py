@@ -22,6 +22,7 @@ from starlette.routing import BaseRoute, Match
 from starlette.types import Scope
 
 from phoenix.server.online_eval.clock import TERMINAL_METRICS_WINDOW_SECONDS
+from phoenix.server.utils import strip_root_path
 
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
@@ -331,8 +332,9 @@ def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[s
             continue
         if isinstance(route, _IncludedRouter):
             prefix = route.include_context.prefix or ""
-            stripped_path = scope["path"][len(prefix) :]
-            sub_scope = {**scope, "path": stripped_path} if prefix else scope
+            # scope["path"] includes the root path; strip prefixes from the root-relative path.
+            stripped_path = strip_root_path(scope, scope["path"])[len(prefix) :]
+            sub_scope = {**scope, "path": stripped_path, "root_path": ""} if prefix else scope
             sub_path = _resolve_route_path(route.original_router.routes, sub_scope)
             if sub_path is not None:
                 return _join_paths(prefix, sub_path)

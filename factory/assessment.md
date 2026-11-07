@@ -6,7 +6,7 @@ Coordinators post this on their PR with `add_issue_comment` right after opening 
 ## Factory assessment
 
 **Fit:** <implements the issue fully | partially, and what is left>
-**Evidence:** <the failing test or probe before the change (or, for `NEEDS_BROWSER`, the cause and the steps left unverified), and the commands that passed after it>
+**Evidence:** <the reproducer's or analyst's failing test and acceptance test before the change and its rerun of both after, or why they could not run, and the commands that passed after the change>
 **Risk:** side effects <none/low/medium/high>, performance <…>, backwards compatibility <…>, from the area reviewers
 **Review depth:** <glance | focused | deep>, because <reason>
 ```

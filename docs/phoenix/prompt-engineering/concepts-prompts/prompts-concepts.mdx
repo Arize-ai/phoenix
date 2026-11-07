@@ -15,7 +15,7 @@ In general use, a prompt is the content you send to an LLM, such as the text you
 Phoenix saves a snapshot of all of these parts together. Because of this, your application invokes the LLM with the same configuration each time, and the result is more deterministic.
 
 <Frame caption="A phoenix prompt captures everything needed to invoke an LLM">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix_prompt.png" alt="" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix_prompt.png" alt="A prompt combines a template, parameters, model, tools, and response format" />
 </Frame>
 
 ## Prompt Templates
@@ -27,7 +27,7 @@ A **prompt** is the message or messages that go to the language model.
 A **prompt template** is a format that puts the information you want (such as context and examples) into the prompt. A prompt template can contain placeholders (variables). At runtime, the variables are filled with data such as few-shot examples, outside context (RAG), or other external data.
 
 <Frame caption="Prompt templates have placeholders for variables that are dynamically filled at runtime">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_template.png" alt="" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_template.png" alt="A prompt template and variable values combine into a rendered prompt" />
 </Frame>
 
 ## Prompt Version
@@ -42,7 +42,7 @@ For each prompt version, Phoenix records the author and the date when the versio
 Git tracks changes to code with commit SHAs. In the same way, Phoenix tracks each change to a **prompt** with a `prompt_id`.
 
 <Frame caption="Prompt version tags">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tags.png" alt="" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tags.png" alt="A prompt has multiple versions that can be assigned environment tags" />
 </Frame>
 
 ## Prompt Version Tag

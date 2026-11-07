@@ -526,7 +526,7 @@ async def test_project_code_binding_rename_keeps_shared_definition_name(
             {
                 "input": {
                     "datasetId": str(GlobalID("Dataset", str(dataset_id))),
-                    "evaluatorId": created["evaluator"]["id"],
+                    "source": {"evaluatorId": created["evaluator"]["id"]},
                     "name": "dataset-code-binding",
                     "inputMapping": _mapping(output="value"),
                 }

@@ -90,10 +90,6 @@ With instrumentation enabled, each `systemOne` call shows up in Phoenix as a **D
 
 Phoenix names the decision model in the span's input card. The model and its usage follow the OpenInference [decision span conventions](https://github.com/Arize-ai/openinference/blob/main/spec/decision_spans.md) and live under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. Earlier releases recorded them under `llm.*`, and releases before 0.3.0 recorded them as LLM spans.
 
-<Frame>
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/typesafe.png" alt="TypeSafe AI traces in Phoenix" />
-</Frame>
-
 ## Configuration
 
 Pass `traceConfig` to mask sensitive request/response payloads before they leave your process:

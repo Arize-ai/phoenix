@@ -16,6 +16,7 @@ export * from "./prompt";
 export * from "./decision";
 export * from "./evaluator";
 export * from "./sandboxConfig";
+export * from "./promptVersions";
 export * from "./api";
 export * from "./docs";
 export * from "./self";

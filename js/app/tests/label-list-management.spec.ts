@@ -86,6 +86,7 @@ async function createDataset(page: Page, datasetName: string) {
     .fill("label e2e coverage");
   await page.getByRole("button", { name: "Create Dataset" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
+  await page.waitForURL("**/datasets/**/examples");
 }
 
 function promptRow(page: Page, promptName: string) {

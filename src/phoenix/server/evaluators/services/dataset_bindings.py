@@ -30,7 +30,10 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.evaluators.input_descriptions import apply_llm_input_schema
+from phoenix.server.evaluators.input_descriptions import (
+    apply_code_input_schema,
+    apply_llm_input_schema,
+)
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
@@ -44,7 +47,9 @@ from phoenix.server.evaluators.services.management import (
     is_sole_evaluator_binding,
     lock_evaluators,
     parse_evaluator_id,
+    raise_on_uninferable_evaluate_signature,
     release_evaluator_prompt_label,
+    validate_code_evaluator_sandbox_config,
 )
 from phoenix.server.evaluators.services.prompt_source import (
     CreatePromptSource,
@@ -106,10 +111,18 @@ class UpdateDatasetBuiltinEvaluatorInput:
 
 
 @dataclass(kw_only=True)
+class CodeEvaluatorDefinition:
+    source_code: str
+    language: models.LanguageName
+    sandbox_config_id: GlobalID
+
+
+@dataclass(kw_only=True)
 class CreateDatasetCodeEvaluatorInput:
     dataset_id: GlobalID
-    evaluator_id: GlobalID
     name: Identifier
+    evaluator_id: Optional[GlobalID] = None
+    definition: Optional[CodeEvaluatorDefinition] = None
     input_mapping: Optional[InputMapping] = None
     output_configs: Optional[list[OutputConfigType]] = None
     description: Optional[str] = None
@@ -762,7 +775,7 @@ async def update_dataset_builtin_evaluator(
 async def create_dataset_code_evaluator(
     context: EvaluatorServiceContext, input: CreateDatasetCodeEvaluatorInput
 ) -> models.DatasetEvaluators:
-    """Bind an existing code evaluator and create its dataset trace project."""
+    """Bind an existing or new code evaluator and create its dataset trace project."""
     try:
         dataset_rowid = from_global_id_with_expected_type(
             global_id=input.dataset_id,
@@ -771,12 +784,16 @@ async def create_dataset_code_evaluator(
     except ValueError:
         raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
 
-    try:
-        evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
-    except ValueError as e:
-        raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
-    if evaluator_kind != "CODE":
-        raise BadRequest("Evaluator must be a code evaluator")
+    if (input.evaluator_id is None) == (input.definition is None):
+        raise BadRequest("Provide exactly one of evaluator_id or definition")
+    evaluator_id: Optional[int] = None
+    if input.evaluator_id is not None:
+        try:
+            evaluator_id, evaluator_kind = parse_evaluator_id(input.evaluator_id)
+        except ValueError as e:
+            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
+        if evaluator_kind != "CODE":
+            raise BadRequest("Evaluator must be a code evaluator")
 
     if input.input_mapping is None:
         raise BadRequest("input_mapping is required")
@@ -794,36 +811,61 @@ async def create_dataset_code_evaluator(
         require_output_configs(input.output_configs)
         output_configs = input.output_configs
 
+    definition = input.definition
+    sandbox_config_id: Optional[int] = None
+    if definition is not None:
+        raise_on_uninferable_evaluate_signature(definition.source_code, definition.language)
+        sandbox_config_id = await validate_code_evaluator_sandbox_config(
+            context.db,
+            sandbox_config_global_id=definition.sandbox_config_id,
+            language=definition.language,
+            action="creating this evaluator",
+            source_code=definition.source_code,
+            sandbox_runtime=context.sandbox_runtime,
+        )
+
     try:
         async with context.db() as session:
-            evaluator_and_dataset = (
-                await session.execute(
-                    select(models.CodeEvaluator, models.Dataset.name)
-                    .select_from(models.CodeEvaluator)
-                    .join(models.Dataset, true())
-                    .where(
-                        models.CodeEvaluator.id == evaluator_id,
-                        models.Dataset.id == dataset_rowid,
+            dataset_name = await session.scalar(
+                select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+            )
+            if dataset_name is None:
+                raise NotFound(f"Dataset with id {dataset_rowid} not found")
+            if evaluator_id is not None:
+                existing_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+                if existing_evaluator is None:
+                    raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
+                code_evaluator = existing_evaluator
+            else:
+                assert definition is not None
+                code_evaluator = models.CodeEvaluator(
+                    name=await generate_unique_evaluator_name(session, name),
+                    description=input.description,
+                    language=definition.language,
+                    user_id=user_id,
+                    sandbox_config_id=sandbox_config_id,
+                    input_mapping=input_mapping,
+                    output_configs=output_configs or [],
+                )
+                try:
+                    apply_code_input_schema(code_evaluator, definition.source_code, None)
+                except ValueError as error:
+                    raise BadRequest(str(error))
+                session.add(code_evaluator)
+                await session.flush()
+                session.add(
+                    models.CodeEvaluatorVersion(
+                        code_evaluator_id=code_evaluator.id,
+                        source_code=definition.source_code,
+                        user_id=user_id,
                     )
                 )
-            ).one_or_none()
-            if evaluator_and_dataset is None:
-                code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
-                if code_evaluator is None:
-                    raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
-                dataset_name = await session.scalar(
-                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
-                )
-                if dataset_name is None:
-                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
-            else:
-                code_evaluator, dataset_name = evaluator_and_dataset
 
             dataset_evaluator = models.DatasetEvaluators(
                 dataset_id=dataset_rowid,
                 name=name,
                 input_mapping=input_mapping,
-                evaluator_id=evaluator_id,
+                evaluator_id=code_evaluator.id,
                 output_configs=output_configs,
                 description=input.description,
                 user_id=user_id,

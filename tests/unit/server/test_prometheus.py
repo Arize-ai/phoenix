@@ -41,6 +41,33 @@ def test_resolve_route_path_for_included_router() -> None:
     )
 
 
+def test_resolve_route_path_under_host_root_path() -> None:
+    """Under a host root path, ``scope["path"]`` includes ``root_path``. The router prefix
+    must be stripped from the root-relative path, or every route under a prefixed router
+    falls through to the UI mounted at ``/`` and is labelled with an empty path."""
+    traces = APIRouter()
+
+    @traces.post("/traces")
+    def post_traces() -> None:
+        return None
+
+    nested = APIRouter()
+    nested.include_router(traces)
+    v1 = APIRouter(prefix="/v1")
+    v1.include_router(nested)
+
+    app = FastAPI()
+    app.include_router(v1)
+    app.mount("/", FastAPI())
+
+    scope = {
+        **_scope("/phoenix/v1/traces"),
+        "method": "POST",
+        "root_path": "/phoenix",
+    }
+    assert _resolve_route_path(app.routes, scope) == "/v1/traces"
+
+
 def test_resolve_route_path_returns_none_for_unmatched() -> None:
     app = FastAPI()
 
