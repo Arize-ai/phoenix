@@ -81,6 +81,8 @@ export function ProjectEvaluatorStats({
           evaluationCount
           meanEvaluationSeconds
           shareOfEvaluationTime
+          isMeasured
+          excludesUntracedEvaluators
         }
         ...useProjectEvaluatorResultAnnotationsFragment
       }

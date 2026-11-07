@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dc63bdd937846e079d408eb44e8992ad>>
+ * @generated SignedSource<<6469119f90469b1398035d6f4b479023>>
  * @lightSyntaxTransform
  */
 
@@ -339,6 +339,13 @@ return {
                     {
                       "alias": null,
                       "args": null,
+                      "kind": "ScalarField",
+                      "name": "tracingEnabled",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
                       "concreteType": "ProjectEvaluatorEvaluationLoad",
                       "kind": "LinkedField",
                       "name": "evaluationLoad",
@@ -363,6 +370,20 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "shareOfEvaluationTime",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isMeasured",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "excludesUntracedEvaluators",
                           "storageKey": null
                         }
                       ],

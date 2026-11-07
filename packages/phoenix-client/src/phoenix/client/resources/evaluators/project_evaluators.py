@@ -38,6 +38,7 @@ def _build_create_body(
     evaluator_id: str,
     filter_condition: Union[str, NotGiven],
     enabled: Union[bool, NotGiven],
+    tracing_enabled: Union[bool, NotGiven],
     input_mapping: Union[v1.InputMapping, NotGiven],
     evaluation_delay_seconds: Union[int, NotGiven],
 ) -> v1.CreateProjectEvaluatorRequest:
@@ -51,6 +52,8 @@ def _build_create_body(
         body["filter_condition"] = filter_condition
     if not isinstance(enabled, NotGiven):
         body["enabled"] = enabled
+    if not isinstance(tracing_enabled, NotGiven):
+        body["tracing_enabled"] = tracing_enabled
     if not isinstance(input_mapping, NotGiven):
         body["input_mapping"] = input_mapping
     if not isinstance(evaluation_delay_seconds, NotGiven):
@@ -64,6 +67,7 @@ def _build_patch_body(
     sampling_rate: Union[float, NotGiven],
     filter_condition: Union[str, NotGiven],
     enabled: Union[bool, NotGiven],
+    tracing_enabled: Union[bool, NotGiven],
     input_mapping: Union[v1.InputMapping, None, NotGiven],
     evaluation_delay_seconds: Union[int, None, NotGiven],
 ) -> dict[str, object]:
@@ -76,6 +80,8 @@ def _build_patch_body(
         body["filter_condition"] = filter_condition
     if not isinstance(enabled, NotGiven):
         body["enabled"] = enabled
+    if not isinstance(tracing_enabled, NotGiven):
+        body["tracing_enabled"] = tracing_enabled
     if not isinstance(input_mapping, NotGiven):
         body["input_mapping"] = input_mapping
     if not isinstance(evaluation_delay_seconds, NotGiven):
@@ -150,6 +156,7 @@ class ProjectEvaluators:
         evaluator_id: str,
         filter_condition: Union[str, NotGiven] = NOT_GIVEN,
         enabled: Union[bool, NotGiven] = NOT_GIVEN,
+        tracing_enabled: Union[bool, NotGiven] = NOT_GIVEN,
         input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
         evaluation_delay_seconds: Union[int, NotGiven] = NOT_GIVEN,
     ) -> v1.ProjectEvaluator:
@@ -172,6 +179,11 @@ class ProjectEvaluators:
                 evaluation target (span, trace, or session), that records must match
                 to be evaluated.
             enabled (bool): Whether the binding is active. Defaults to enabled.
+            tracing_enabled (bool): Whether each evaluation writes a trace
+                (inputs, outputs, latency, and token cost) to the binding's trace
+                project. Defaults to on. Off saves storage; annotations are still
+                written, but the binding's cost and evaluation time are not
+                measured.
             input_mapping (v1.InputMapping): How record fields map onto evaluator
                 arguments. Omit it to use the shared definition's mapping. LLM
                 evaluators have none, so only variables rooted at input, output,
@@ -212,6 +224,7 @@ class ProjectEvaluators:
             evaluator_id=evaluator_id,
             filter_condition=filter_condition,
             enabled=enabled,
+            tracing_enabled=tracing_enabled,
             input_mapping=input_mapping,
             evaluation_delay_seconds=evaluation_delay_seconds,
         )
@@ -291,6 +304,7 @@ class ProjectEvaluators:
         sampling_rate: Union[float, NotGiven] = NOT_GIVEN,
         filter_condition: Union[str, NotGiven] = NOT_GIVEN,
         enabled: Union[bool, NotGiven] = NOT_GIVEN,
+        tracing_enabled: Union[bool, NotGiven] = NOT_GIVEN,
         input_mapping: Union[v1.InputMapping, None, NotGiven] = NOT_GIVEN,
         evaluation_delay_seconds: Union[int, None, NotGiven] = NOT_GIVEN,
     ) -> v1.ProjectEvaluator:
@@ -305,6 +319,8 @@ class ProjectEvaluators:
             filter_condition (str): A new filter expression in the language of
                 the evaluation target.
             enabled (bool): Enable or disable the binding.
+            tracing_enabled (bool): Turn tracing of each evaluation on or off.
+                Applies to evaluations that start afterwards.
             input_mapping (Optional[v1.InputMapping]): A new input mapping, or
                 ``None`` to use the shared definition's mapping again.
             evaluation_delay_seconds (Optional[int]): A new quiet-period delay in
@@ -324,6 +340,7 @@ class ProjectEvaluators:
             sampling_rate=sampling_rate,
             filter_condition=filter_condition,
             enabled=enabled,
+            tracing_enabled=tracing_enabled,
             input_mapping=input_mapping,
             evaluation_delay_seconds=evaluation_delay_seconds,
         )
@@ -435,6 +452,7 @@ class AsyncProjectEvaluators:
         evaluator_id: str,
         filter_condition: Union[str, NotGiven] = NOT_GIVEN,
         enabled: Union[bool, NotGiven] = NOT_GIVEN,
+        tracing_enabled: Union[bool, NotGiven] = NOT_GIVEN,
         input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
         evaluation_delay_seconds: Union[int, NotGiven] = NOT_GIVEN,
     ) -> v1.ProjectEvaluator:
@@ -457,6 +475,11 @@ class AsyncProjectEvaluators:
                 evaluation target (span, trace, or session), that records must match
                 to be evaluated.
             enabled (bool): Whether the binding is active. Defaults to enabled.
+            tracing_enabled (bool): Whether each evaluation writes a trace
+                (inputs, outputs, latency, and token cost) to the binding's trace
+                project. Defaults to on. Off saves storage; annotations are still
+                written, but the binding's cost and evaluation time are not
+                measured.
             input_mapping (v1.InputMapping): How record fields map onto evaluator
                 arguments. Omit it to use the shared definition's mapping. LLM
                 evaluators have none, so only variables rooted at input, output,
@@ -497,6 +520,7 @@ class AsyncProjectEvaluators:
             evaluator_id=evaluator_id,
             filter_condition=filter_condition,
             enabled=enabled,
+            tracing_enabled=tracing_enabled,
             input_mapping=input_mapping,
             evaluation_delay_seconds=evaluation_delay_seconds,
         )
@@ -578,6 +602,7 @@ class AsyncProjectEvaluators:
         sampling_rate: Union[float, NotGiven] = NOT_GIVEN,
         filter_condition: Union[str, NotGiven] = NOT_GIVEN,
         enabled: Union[bool, NotGiven] = NOT_GIVEN,
+        tracing_enabled: Union[bool, NotGiven] = NOT_GIVEN,
         input_mapping: Union[v1.InputMapping, None, NotGiven] = NOT_GIVEN,
         evaluation_delay_seconds: Union[int, None, NotGiven] = NOT_GIVEN,
     ) -> v1.ProjectEvaluator:
@@ -592,6 +617,8 @@ class AsyncProjectEvaluators:
             filter_condition (str): A new filter expression in the language of
                 the evaluation target.
             enabled (bool): Enable or disable the binding.
+            tracing_enabled (bool): Turn tracing of each evaluation on or off.
+                Applies to evaluations that start afterwards.
             input_mapping (Optional[v1.InputMapping]): A new input mapping, or
                 ``None`` to use the shared definition's mapping again.
             evaluation_delay_seconds (Optional[int]): A new quiet-period delay in
@@ -611,6 +638,7 @@ class AsyncProjectEvaluators:
             sampling_rate=sampling_rate,
             filter_condition=filter_condition,
             enabled=enabled,
+            tracing_enabled=tracing_enabled,
             input_mapping=input_mapping,
             evaluation_delay_seconds=evaluation_delay_seconds,
         )

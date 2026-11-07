@@ -502,7 +502,7 @@ px dataset evaluator delete RGF0YXNldEV2YWx1YXRvcjox RGF0YXNldEV2YWx1YXRvcjoy --
 
 ### Project bindings (online evaluators)
 
-Attach evaluators to a project so incoming spans, traces, or sessions are scored as they arrive. Ids are `ProjectEvaluator:…` GlobalIDs. A binding references an existing LLM or code definition by `--evaluator-id` (create one with `px evaluator create`). `--evaluation-target span|trace|session` is fixed at creation; `--sampling-rate` is a fraction in 0..1; `--filter-condition` is written in the target's filter language; `--evaluation-delay-seconds` (trace and session only, at least 10) is how long the record must be quiet first. Invalid numbers exit `3` before any request.
+Attach evaluators to a project so incoming spans, traces, or sessions are scored as they arrive. Ids are `ProjectEvaluator:…` GlobalIDs. A binding references an existing LLM or code definition by `--evaluator-id` (create one with `px evaluator create`). `--evaluation-target span|trace|session` is fixed at creation; `--sampling-rate` is a fraction in 0..1; `--filter-condition` is written in the target's filter language; `--evaluation-delay-seconds` (trace and session only, at least 10) is how long the record must be quiet first; `--no-tracing` stops writing a trace of each evaluation, which saves storage but leaves the binding's cost and evaluation time unmeasured. Invalid numbers exit `3` before any request.
 
 ```bash
 px project evaluator list support-bot --format raw --no-progress | jq '.[] | {id, name, evaluation_target, enabled}'
@@ -514,6 +514,8 @@ px project evaluator create support-bot --name toxicity --evaluation-target span
 # pause, resume, or retune a binding; --default-evaluation-delay sends null to restore the server default
 px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled
 px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --enabled --sampling-rate 1
+# stop (or resume) writing a trace of each evaluation
+px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --no-tracing
 # the quiet period applies to trace and session bindings; a span binding rejects it
 px project evaluator update UHJvamVjdEV2YWx1YXRvcjoy --evaluation-delay-seconds 120
 

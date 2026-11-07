@@ -32,6 +32,7 @@ evaluationTarget
 evaluationDelaySeconds
 traceProject { name description }
 enabled
+tracingEnabled
 inputMapping { literalMapping pathMapping }
 evaluator {
   id
@@ -838,6 +839,51 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
 
     async with db() as session:
         assert await session.get(models.Prompt, prompt_id) is None
+
+
+async def test_project_evaluator_tracing_defaults_on_and_is_preserved_unless_set(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    default_result = await gql_client.execute(
+        _CREATE_LLM, {"input": _llm_input(project, name="traced", text="Evaluate {{input}}")}
+    )
+    assert default_result.data and not default_result.errors
+    assert default_result.data["createProjectLlmEvaluator"]["evaluator"]["tracingEnabled"] is True
+
+    create_input = _llm_input(project, name="untraced", text="Evaluate {{input}}")
+    create_input["tracingEnabled"] = False
+    create_result = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    assert create_result.data and not create_result.errors
+    created = create_result.data["createProjectLlmEvaluator"]["evaluator"]
+    assert created["tracingEnabled"] is False
+
+    update_input = _llm_input(project, name="untraced", text="Updated {{input}}")
+    update_input.pop("projectId")
+    update_input["projectEvaluatorId"] = created["id"]
+    omitted_result = await gql_client.execute(_UPDATE_LLM, {"input": update_input})
+    assert omitted_result.data and not omitted_result.errors
+    assert omitted_result.data["updateProjectLlmEvaluator"]["evaluator"]["tracingEnabled"] is False
+
+    null_result = await gql_client.execute(
+        _UPDATE_LLM, {"input": {**update_input, "tracingEnabled": None}}
+    )
+    assert null_result.errors
+    assert "tracing_enabled cannot be set to null" in null_result.errors[0].message
+
+    enable_result = await gql_client.execute(
+        _UPDATE_LLM, {"input": {**update_input, "tracingEnabled": True}}
+    )
+    assert enable_result.data and not enable_result.errors
+    assert enable_result.data["updateProjectLlmEvaluator"]["evaluator"]["tracingEnabled"] is True
+    async with db() as session:
+        stored = await session.scalar(
+            select(models.ProjectEvaluator.tracing_enabled).where(
+                models.ProjectEvaluator.id == int(GlobalID.from_id(created["id"]).node_id)
+            )
+        )
+    assert stored is True
 
 
 async def test_project_llm_evaluator_create_update_delete(

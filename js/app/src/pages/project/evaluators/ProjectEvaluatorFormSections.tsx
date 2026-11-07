@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import {
+  Card,
   Counter,
   Disclosure,
   DisclosureGroup,
@@ -12,6 +13,8 @@ import {
   Icon,
   Icons,
   Heading,
+  Label,
+  Switch,
   Text,
   View,
 } from "@phoenix/components";
@@ -74,13 +77,63 @@ const ProjectEvaluatorScopeSection = ({
 };
 
 /**
+ * The "Advanced" card every project evaluator form ends with: settings that
+ * change what an evaluation stores, not what it evaluates. It starts
+ * collapsed, and its header says whether tracing is on, to sight and to
+ * screen readers, so a closed card never hides that an evaluator has stopped
+ * storing traces.
+ */
+export const ProjectEvaluatorAdvancedSection = ({
+  scope,
+  onScopeChange,
+}: Pick<ProjectEvaluatorScopeProps, "scope" | "onScopeChange">) => {
+  const tracingDescriptionId = useId();
+  return (
+    <View marginTop="size-200" marginBottom="size-200" flex="none">
+      <Card
+        title="Advanced"
+        collapsible
+        defaultOpen={false}
+        // Plain text rather than a collapsed preview, which is hidden from
+        // assistive tech: the state is short, and part of the toggle's name.
+        headerContent={
+          <Text size="S" color="text-700">
+            {scope.tracingEnabled ? "Tracing on" : "Tracing off"}
+          </Text>
+        }
+        testId="project-evaluator-advanced-card"
+      >
+        <View padding="size-200">
+          <Flex direction="column" gap="size-50">
+            <Switch
+              isSelected={scope.tracingEnabled}
+              onChange={(tracingEnabled) =>
+                onScopeChange({ ...scope, tracingEnabled })
+              }
+              aria-describedby={tracingDescriptionId}
+            >
+              <Label>Tracing</Label>
+            </Switch>
+            <Text id={tracingDescriptionId} size="S" color="text-500">
+              {scope.tracingEnabled
+                ? "Each evaluation stores a trace of its inputs, outputs, latency, and token cost, so you can analyze this evaluator's cost and performance and improve it."
+                : "Evaluations store only their annotations. This saves storage, but this evaluator's cost, latency, and inputs are not recorded."}
+            </Text>
+          </Flex>
+        </View>
+      </Card>
+    </View>
+  );
+};
+
+/**
  * The left definition panel for an LLM project evaluator; the matching-record
  * test bench lives in {@link ProjectEvaluatorScopePanel} and the input
  * mapping in {@link ProjectEvaluatorInputMappingDock}, pinned under this.
  *
  * The layout mirrors the dataset evaluator form: name and description, then
  * target, sampling, and the record filter, then the prompt with the annotation
- * config.
+ * config, then the advanced settings.
  */
 export const ProjectLlmEvaluatorFormSections = (
   scopeProps: ProjectEvaluatorScopeProps
@@ -90,6 +143,7 @@ export const ProjectLlmEvaluatorFormSections = (
       <EvaluatorNameAndDescriptionFields />
       <ProjectEvaluatorScopeSection {...scopeProps} />
       <LLMEvaluatorForm showInputMapping={false} />
+      <ProjectEvaluatorAdvancedSection {...scopeProps} />
     </>
   );
 };
@@ -243,6 +297,7 @@ export const ProjectCodeEvaluatorFormSections = ({
           evaluatorName={codeEvaluatorName}
         />
         <ProjectEvaluatorScopeSection {...scopeProps} />
+        <ProjectEvaluatorAdvancedSection {...scopeProps} />
       </>
     );
   }
@@ -255,6 +310,7 @@ export const ProjectCodeEvaluatorFormSections = ({
       />
       <ProjectEvaluatorScopeSection {...scopeProps} />
       {codeDefinition}
+      <ProjectEvaluatorAdvancedSection {...scopeProps} />
     </>
   );
 };
@@ -281,6 +337,7 @@ export const ProjectDecisionEvaluatorFormSections = (
           subtitle={attachedEvaluator.decisionVersion.decision.name}
         />
         <ProjectEvaluatorScopeSection {...scopeProps} />
+        <ProjectEvaluatorAdvancedSection {...scopeProps} />
       </>
     );
   }
@@ -295,6 +352,7 @@ export const ProjectDecisionEvaluatorFormSections = (
         scoringDescription="Turn each answer into the score this evaluator records, and whether higher or lower is better."
         showInputMapping={false}
       />
+      <ProjectEvaluatorAdvancedSection {...scopeProps} />
     </>
   );
 };

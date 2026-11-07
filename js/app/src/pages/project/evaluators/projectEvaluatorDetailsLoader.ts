@@ -14,6 +14,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         id
         name
         enabled
+        tracingEnabled
         evaluator {
           kind
           description
@@ -32,6 +33,7 @@ export const projectEvaluatorDetailsLoaderGQL = graphql`
         }
         ...ProjectEvaluatorStats_projectEvaluator
         ...ProjectEvaluatorScopeDetails_projectEvaluator
+        ...ProjectEvaluatorAdvancedDetails_projectEvaluator
         ...LLMProjectEvaluatorDetails_projectEvaluator
         ...CodeProjectEvaluatorDetails_projectEvaluator
         ...DecisionProjectEvaluatorDetails_projectEvaluator

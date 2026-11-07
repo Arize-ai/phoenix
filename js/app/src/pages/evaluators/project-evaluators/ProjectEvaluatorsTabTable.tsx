@@ -28,6 +28,7 @@ import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/Proje
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
+import { ProjectEvaluatorTracingOffValue } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracingOffValue";
 
 type QueryData = ProjectEvaluatorsTabTableQuery["response"];
 type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
@@ -198,10 +199,13 @@ export function ProjectEvaluatorsTabTable({
                 clearedCount
                 oldestWaitingOrRetryingAt
               }
+              tracingEnabled
               evaluationLoad {
                 evaluationCount
                 meanEvaluationSeconds
                 shareOfEvaluationTime
+                isMeasured
+                excludesUntracedEvaluators
               }
               failureSummary(timeRange: $timeRange) {
                 failedCount
@@ -420,13 +424,19 @@ export function ProjectEvaluatorsTabTable({
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
-      accessorFn: (row) => row.traceProject.costSummary.total.cost ?? undefined,
-      cell: ({ row }) => (
-        <EvaluatorCost
-          evaluatorKind={row.original.evaluator.kind}
-          costSummary={row.original.traceProject.costSummary}
-        />
-      ),
+      accessorFn: (row) =>
+        row.tracingEnabled
+          ? (row.traceProject.costSummary.total.cost ?? undefined)
+          : undefined,
+      cell: ({ row }) =>
+        row.original.tracingEnabled ? (
+          <EvaluatorCost
+            evaluatorKind={row.original.evaluator.kind}
+            costSummary={row.original.traceProject.costSummary}
+          />
+        ) : (
+          <ProjectEvaluatorTracingOffValue measure="Cost" />
+        ),
     },
     {
       id: "averageCost",
@@ -442,15 +452,20 @@ export function ProjectEvaluatorsTabTable({
       accessorFn: (row) => {
         const cost = row.traceProject.costSummary.total.cost;
         const runCount = row.traceProject.traceCount;
-        return cost != null && runCount > 0 ? cost / runCount : undefined;
+        return row.tracingEnabled && cost != null && runCount > 0
+          ? cost / runCount
+          : undefined;
       },
-      cell: ({ row }) => (
-        <EvaluatorAverageCost
-          evaluatorKind={row.original.evaluator.kind}
-          costSummary={row.original.traceProject.costSummary}
-          runCount={row.original.traceProject.traceCount}
-        />
-      ),
+      cell: ({ row }) =>
+        row.original.tracingEnabled ? (
+          <EvaluatorAverageCost
+            evaluatorKind={row.original.evaluator.kind}
+            costSummary={row.original.traceProject.costSummary}
+            runCount={row.original.traceProject.traceCount}
+          />
+        ) : (
+          <ProjectEvaluatorTracingOffValue measure="Cost" />
+        ),
     },
   ];
   const table = useTable({

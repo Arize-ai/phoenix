@@ -88,6 +88,15 @@ interface ProjectEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
    */
   enabled?: boolean;
   /**
+   * `--tracing` / `--no-tracing`: Whether each evaluation writes a trace
+   * (inputs, outputs, latency, and token cost) to the binding's trace project.
+   * Off saves storage; annotations are still written, but the binding's cost
+   * and evaluation time are not measured. Commander leaves this undefined when
+   * neither flag is passed, so `create` uses the server default (on) and
+   * `update` keeps the current setting.
+   */
+  tracing?: boolean;
+  /**
    * `--input-mapping <json>`: JSON object with `literal_mapping` and
    * `path_mapping` keys mapping record fields onto evaluator arguments.
    * Omit it to use the shared definition's mapping. LLM evaluators have none,
@@ -418,6 +427,9 @@ async function projectEvaluatorCreateHandler(
         filterCondition: options.filterCondition,
       }),
       ...(options.enabled !== undefined && { enabled: options.enabled }),
+      ...(options.tracing !== undefined && {
+        tracingEnabled: options.tracing,
+      }),
       ...(inputMapping !== undefined && { inputMapping }),
       ...(options.evaluationDelaySeconds !== undefined && {
         evaluationDelaySeconds: options.evaluationDelaySeconds,
@@ -453,6 +465,7 @@ async function projectEvaluatorUpdateHandler(
     options.samplingRate,
     options.filterCondition,
     options.enabled,
+    options.tracing,
     options.inputMapping,
     options.evaluationDelaySeconds,
     options.inheritInputMapping,
@@ -511,6 +524,9 @@ async function projectEvaluatorUpdateHandler(
     }
     if (options.enabled !== undefined) {
       body.enabled = options.enabled;
+    }
+    if (options.tracing !== undefined) {
+      body.tracing_enabled = options.tracing;
     }
     if (options.inputMapping !== undefined) {
       body.input_mapping = parseJsonObjectFlag<InputMapping>({
@@ -629,6 +645,14 @@ function addSchedulingOptions(command: Command): Command {
     )
     .option("--enabled", "Activate the binding")
     .option("--disabled", "Deactivate the binding without deleting it")
+    .option(
+      "--tracing",
+      "Write a trace of each evaluation: inputs, outputs, latency, and token cost (the default)"
+    )
+    .option(
+      "--no-tracing",
+      "Write annotations only; saves storage, but cost and evaluation time are not measured"
+    )
     .option(
       "--input-mapping <json>",
       creating
@@ -780,6 +804,8 @@ export function createProjectEvaluatorUpdateCommand(): Command {
         "  px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --disabled\n\n" +
         "  # Sample more traffic\n" +
         "  px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --sampling-rate 0.5\n\n" +
+        "  # Stop storing a trace of each evaluation\n" +
+        "  px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --no-tracing\n\n" +
         "  # Go back to the server's default quiet period\n" +
         "  px project evaluator update UHJvamVjdEV2YWx1YXRvcjox --default-evaluation-delay\n"
     )

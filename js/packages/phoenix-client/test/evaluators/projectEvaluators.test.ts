@@ -43,6 +43,7 @@ const binding: ProjectEvaluator = {
   sampling_rate: 0.25,
   filter_condition: "",
   enabled: true,
+  tracing_enabled: true,
   input_mapping: null,
   evaluation_delay_seconds: 0,
 };
@@ -102,6 +103,7 @@ describe("createProjectEvaluator", () => {
       evaluatorId: "RXZhbHVhdG9yOjE=",
       filterCondition: "span_kind == 'LLM'",
       enabled: false,
+      tracingEnabled: false,
       inputMapping: { literal_mapping: {}, path_mapping: {} },
       evaluationDelaySeconds: 600,
     });
@@ -110,6 +112,7 @@ describe("createProjectEvaluator", () => {
       evaluation_target: "SESSION",
       filter_condition: "span_kind == 'LLM'",
       enabled: false,
+      tracing_enabled: false,
       input_mapping: { literal_mapping: {}, path_mapping: {} },
       evaluation_delay_seconds: 600,
     });

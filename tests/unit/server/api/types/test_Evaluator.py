@@ -3,7 +3,7 @@ from secrets import token_hex
 from typing import Any, AsyncIterator
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -2406,7 +2406,10 @@ async def test_project_evaluator_evaluation_load(
             idle: node(id: $idle) { ...EvaluationLoad }
         }
         fragment EvaluationLoad on ProjectEvaluator {
-            evaluationLoad { evaluationCount meanEvaluationSeconds shareOfEvaluationTime }
+            evaluationLoad {
+                evaluationCount meanEvaluationSeconds shareOfEvaluationTime
+                excludesUntracedEvaluators
+            }
         }""",
         variables={
             name: str(GlobalID("ProjectEvaluator", str(project_evaluator_id)))
@@ -2426,8 +2429,72 @@ async def test_project_evaluator_evaluation_load(
         "evaluationCount": 0,
         "meanEvaluationSeconds": None,
         "shareOfEvaluationTime": 0,
+        "excludesUntracedEvaluators": False,
     }
     assert sum(load["shareOfEvaluationTime"] for load in loads.values()) == pytest.approx(1)
+    assert not any(load["excludesUntracedEvaluators"] for load in loads.values())
+
+
+async def test_untraced_project_evaluator_has_no_evaluation_load(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    """An evaluator with tracing off has no measured load, and every other evaluator's
+    share says it leaves that evaluator out."""
+    now = datetime.now(timezone.utc)
+    traced, untraced = [
+        (await _seed_span_project_evaluator(db, span_start_time=now))[0] for _ in range(2)
+    ]
+    async with db() as session:
+        trace_project_id = await session.scalar(
+            select(models.ProjectEvaluator.trace_project_id).where(
+                models.ProjectEvaluator.id == traced
+            )
+        )
+        assert trace_project_id is not None
+        session.add(
+            models.Trace(
+                trace_id=token_hex(8),
+                project_rowid=trace_project_id,
+                start_time=now - timedelta(minutes=5),
+                end_time=now - timedelta(minutes=5) + timedelta(seconds=2),
+            )
+        )
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.id == untraced)
+            .values(tracing_enabled=False)
+        )
+
+    response = await gql_client.execute(
+        """query ($traced: ID!, $untraced: ID!) {
+            traced: node(id: $traced) { ...EvaluationLoad }
+            untraced: node(id: $untraced) { ...EvaluationLoad }
+        }
+        fragment EvaluationLoad on ProjectEvaluator {
+            evaluationLoad {
+                meanEvaluationSeconds shareOfEvaluationTime isMeasured excludesUntracedEvaluators
+            }
+        }""",
+        variables={
+            "traced": str(GlobalID("ProjectEvaluator", str(traced))),
+            "untraced": str(GlobalID("ProjectEvaluator", str(untraced))),
+        },
+    )
+
+    assert not response.errors and response.data
+    assert response.data["traced"]["evaluationLoad"] == {
+        "meanEvaluationSeconds": pytest.approx(2),
+        "shareOfEvaluationTime": pytest.approx(1),
+        "isMeasured": True,
+        "excludesUntracedEvaluators": True,
+    }
+    assert response.data["untraced"]["evaluationLoad"] == {
+        "meanEvaluationSeconds": None,
+        "shareOfEvaluationTime": None,
+        "isMeasured": False,
+        "excludesUntracedEvaluators": True,
+    }
 
 
 async def test_project_evaluator_failure_summary_is_scoped_to_the_time_range(

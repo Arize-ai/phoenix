@@ -242,6 +242,7 @@ const CreateProjectEvaluatorDialog = ({
       getDefaultProjectEvaluatorFilterCondition(initialTargetType),
     samplingRate: 1,
     evaluationDelaySeconds: DEFAULT_EVALUATION_DELAY_SECONDS,
+    tracingEnabled: true,
   }));
 
   // oxlint-disable-next-line complexity
@@ -497,6 +498,7 @@ function AttachCodeProjectEvaluatorDialog({
               filterCondition
               samplingRate
               enabled
+              tracingEnabled
               evaluator {
                 kind
               }
@@ -532,6 +534,7 @@ function AttachCodeProjectEvaluatorDialog({
             evaluationTarget: scope.targetType,
             filterCondition: scope.filterCondition,
             ...toEvaluationDelayInput(scope),
+            tracingEnabled: scope.tracingEnabled,
             enabled: true,
             // Left as it was, the project keeps reading through the
             // evaluator's own mapping, and follows it if that changes.
@@ -622,6 +625,7 @@ function CreateLlmProjectEvaluatorDialog({
           samplingRate: scope.samplingRate,
           filterCondition: scope.filterCondition,
           ...toEvaluationDelayInput(scope),
+          tracingEnabled: scope.tracingEnabled,
           enabled: true,
         },
       });

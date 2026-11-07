@@ -92,6 +92,11 @@ input AddProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  """
+  tracingEnabled: Boolean! = true
+
+  """
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
@@ -1198,6 +1203,11 @@ input CreateProjectCodeEvaluatorInput {
   enabled: Boolean! = true
 
   """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  """
+  tracingEnabled: Boolean! = true
+
+  """
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
@@ -1225,6 +1235,11 @@ input CreateProjectDecisionEvaluatorInput {
   enabled: Boolean! = true
 
   """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  """
+  tracingEnabled: Boolean! = true
+
+  """
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int = null
@@ -1249,6 +1264,11 @@ input CreateProjectLLMEvaluatorInput {
   promptVersionId: ID
   filterCondition: String! = ""
   enabled: Boolean! = true
+
+  """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  """
+  tracingEnabled: Boolean! = true
 
   """
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit or use null to store the default: 300 seconds for TRACE and SESSION, and 0 for SPAN, which evaluates spans as they arrive. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
@@ -2704,9 +2724,14 @@ type EvaluationActivity {
   lag: EvaluationLag
 
   """
-  Cost in USD of the evaluations' traces started in the range; null if none.
+  Cost in USD of the evaluations' traces started in the range; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
   cost: Float
+
+  """
+  Whether an enabled project evaluator in scope has tracing off. Its evaluations count and lag like any other, but add no cost.
+  """
+  excludesUntracedEvaluators: Boolean!
 
   """Activity per group, most evaluations first."""
   groups: [EvaluationActivityGroup!]!
@@ -2748,7 +2773,7 @@ type EvaluationActivityBinGroup {
   lagP95Seconds: Float
 
   """
-  Cost in USD of the evaluations' traces started in the bin; null if none.
+  Cost in USD of the evaluations' traces started in the bin; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
   cost: Float
 
@@ -2774,7 +2799,7 @@ type EvaluationActivityGroup {
   failedCount: Int!
 
   """
-  Cost in USD of the evaluations' traces started in the range; null if none.
+  Cost in USD of the evaluations' traces started in the range; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
   cost: Float
 }
@@ -4925,7 +4950,7 @@ type ProjectEvaluator implements Node {
   project: Project!
 
   """
-  The project holding the traces this evaluator produces when it runs. Each evaluator traces into its own dedicated project, created with the evaluator.
+  The project holding the traces this evaluator produces when it runs. Each evaluator traces into its own dedicated project, created with the evaluator. Evaluations that run while tracing is off write no trace here.
   """
   traceProject: Project!
   evaluator: Evaluator!
@@ -4940,7 +4965,7 @@ type ProjectEvaluator implements Node {
   runSummary: ProjectEvaluatorRunSummary!
 
   """
-  This evaluator's evaluation rate, mean evaluation time, and share of the server's evaluation time over the last 60 minutes.
+  This evaluator's evaluation rate, mean evaluation time, and share of the server's evaluation time over the last 60 minutes. It is read from evaluator traces, so it counts only evaluations that wrote one: an evaluator with tracing off has no mean or share.
   """
   evaluationLoad: ProjectEvaluatorEvaluationLoad!
 
@@ -4970,6 +4995,11 @@ type ProjectEvaluator implements Node {
   evaluationDelaySeconds: Int!
   inputMapping: EvaluatorInputMapping!
   enabled: Boolean!
+
+  """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything.
+  """
+  tracingEnabled: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -5020,18 +5050,28 @@ type ProjectEvaluatorEdge {
 How much of the server's evaluation time a project evaluator used over the last 60 minutes.
 """
 type ProjectEvaluatorEvaluationLoad {
-  """Evaluations started in the last 60 minutes."""
+  """Evaluations started in the last 60 minutes that wrote a trace."""
   evaluationCount: Int!
 
   """
-  Mean seconds an evaluation took, over those started in the last 60 minutes, or null if none started.
+  Mean seconds an evaluation took, over those started in the last 60 minutes, or null if none started or this evaluator's tracing is off.
   """
   meanEvaluationSeconds: Float
 
   """
-  Share, from 0 to 1, of the time every project evaluator on the server spent evaluating over the last 60 minutes. They share one concurrency limit. Null if none evaluated.
+  Share, from 0 to 1, of the time every project evaluator on the server spent evaluating over the last 60 minutes. They share one concurrency limit. Null if none evaluated, or if this evaluator's tracing is off: evaluation time is measured from evaluator traces.
   """
   shareOfEvaluationTime: Float
+
+  """
+  Whether this evaluator's load is measured. Evaluation time is measured from evaluator traces, so it is false while the evaluator's tracing is off.
+  """
+  isMeasured: Boolean!
+
+  """
+  Whether an enabled project evaluator on the server has tracing off. Its evaluation time is not measured, so every share is then of traced evaluation time only.
+  """
+  excludesUntracedEvaluators: Boolean!
 }
 
 type ProjectEvaluatorFailureSummary {
@@ -7324,6 +7364,11 @@ input UpdateProjectCodeEvaluatorInput {
   filterCondition: String!
   evaluatorInputMapping: EvaluatorInputMappingInput
   enabled: Boolean
+
+  """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
+  """
+  tracingEnabled: Boolean
   description: String
   sourceCode: String
   sandboxConfigId: ID
@@ -7361,6 +7406,11 @@ input UpdateProjectDecisionEvaluatorInput {
   enabled: Boolean
 
   """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
+  """
+  tracingEnabled: Boolean
+
+  """
   Seconds a trace or session must stay quiet before evaluation is scheduled; the minimum is 10 seconds. The delay applies to TRACE and SESSION targets and is rejected for SPAN. Omit to preserve the current setting, or use null to restore the default: 300 seconds for TRACE and SESSION, and 0 for SPAN. A trace or session is evaluated only once, and later activity does not schedule another evaluation.
   """
   evaluationDelaySeconds: Int
@@ -7378,6 +7428,11 @@ input UpdateProjectLLMEvaluatorInput {
   evaluationTarget: EvaluationTarget!
   filterCondition: String!
   enabled: Boolean
+
+  """
+  Whether each evaluation writes a trace to the project evaluator's trace project. A trace records the evaluator's inputs, outputs, latency, and token cost. With tracing off, evaluations still write their annotations but no trace: that saves storage, but the evaluator's cost and evaluation time are no longer measured. Changing it applies to evaluations that start afterwards and does not re-evaluate anything. Omit to preserve it.
+  """
+  tracingEnabled: Boolean
   description: String
   promptVersionId: ID
 

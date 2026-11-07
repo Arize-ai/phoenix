@@ -734,7 +734,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Evaluator Details",
                     description:
-                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, or source code and sandbox for code evaluators, annotation output configs, input mapping, evaluation target, filter condition, sampling rate, and enabled state — a stats overview for the selected time range (evaluation run volume by status, scores and labels produced, LLM cost, last run and queue activity), its metrics over time (scores and labels produced, evaluation run volume, latency percentiles, and LLM cost), a code evaluator's version history with diffs, and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, or source code and sandbox for code evaluators, annotation output configs, input mapping, evaluation target, filter condition, sampling rate, enabled state, and whether tracing is on (the Advanced card) — a stats overview for the selected time range (evaluation run volume by status, scores and labels produced, LLM cost, last run and queue activity), its metrics over time (scores and labels produced, evaluation run volume, latency percentiles, and LLM cost), a code evaluator's version history with diffs, and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
                   },
                 }}
               >
@@ -745,7 +745,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Edit Project Evaluator",
                       description:
-                        "Edit a project evaluator's definition and scope. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                        "Edit a project evaluator's definition and scope, and its advanced settings such as turning tracing of each evaluation on or off to save storage. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
                     },
                   }}
                 />

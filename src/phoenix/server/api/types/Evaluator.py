@@ -97,6 +97,14 @@ PROJECT_EVALUATOR_SCHEDULING_DESCRIPTION = (
     "SESSION evaluators and is rejected for SPAN. The target is fixed at creation."
 )
 
+PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION = (
+    "Whether each evaluation writes a trace to the project evaluator's trace project. A trace "
+    "records the evaluator's inputs, outputs, latency, and token cost. With tracing off, "
+    "evaluations still write their annotations but no trace: that saves storage, but the "
+    "evaluator's cost and evaluation time are no longer measured. Changing it applies to "
+    "evaluations that start afterwards and does not re-evaluate anything."
+)
+
 
 @strawberry.enum
 class EvaluatorKind(Enum):
@@ -265,19 +273,37 @@ def _project_evaluator_run_summary(
 )
 class ProjectEvaluatorEvaluationLoad:
     evaluation_count: int = strawberry.field(
-        description=f"Evaluations started in the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes."
+        description=(
+            f"Evaluations started in the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes that "
+            "wrote a trace."
+        )
     )
     mean_evaluation_seconds: Optional[float] = strawberry.field(
         description=(
             "Mean seconds an evaluation took, over those started in the last "
-            f"{_EVALUATION_LOAD_WINDOW_MINUTES} minutes, or null if none started."
+            f"{_EVALUATION_LOAD_WINDOW_MINUTES} minutes, or null if none started or this "
+            "evaluator's tracing is off."
         )
     )
     share_of_evaluation_time: Optional[float] = strawberry.field(
         description=(
             "Share, from 0 to 1, of the time every project evaluator on the server spent "
             f"evaluating over the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes. They share "
-            "one concurrency limit. Null if none evaluated."
+            "one concurrency limit. Null if none evaluated, or if this evaluator's tracing is "
+            "off: evaluation time is measured from evaluator traces."
+        )
+    )
+    is_measured: bool = strawberry.field(
+        description=(
+            "Whether this evaluator's load is measured. Evaluation time is measured from "
+            "evaluator traces, so it is false while the evaluator's tracing is off."
+        )
+    )
+    excludes_untraced_evaluators: bool = strawberry.field(
+        description=(
+            "Whether an enabled project evaluator on the server has tracing off. Its "
+            "evaluation time is not measured, so every share is then of traced evaluation "
+            "time only."
         )
     )
 
@@ -1515,7 +1541,8 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "The project holding the traces this evaluator produces when it runs. Each "
-            "evaluator traces into its own dedicated project, created with the evaluator."
+            "evaluator traces into its own dedicated project, created with the evaluator. "
+            "Evaluations that run while tracing is off write no trace here."
         )
     )
     async def trace_project(
@@ -1573,7 +1600,9 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "This evaluator's evaluation rate, mean evaluation time, and share of the server's "
-            f"evaluation time over the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes."
+            f"evaluation time over the last {_EVALUATION_LOAD_WINDOW_MINUTES} minutes. It is "
+            "read from evaluator traces, so it counts only evaluations that wrote one: an "
+            "evaluator with tracing off has no mean or share."
         )
     )
     async def evaluation_load(self, info: Info[Context, None]) -> ProjectEvaluatorEvaluationLoad:
@@ -1582,6 +1611,8 @@ class ProjectEvaluator(Node):
             evaluation_count=load.evaluation_count,
             mean_evaluation_seconds=load.mean_evaluation_seconds,
             share_of_evaluation_time=load.share_of_evaluation_time,
+            is_measured=load.tracing_enabled,
+            excludes_untraced_evaluators=load.excludes_untraced_evaluators,
         )
 
     @strawberry.field(  # type: ignore[untyped-decorator]
@@ -1753,6 +1784,12 @@ class ProjectEvaluator(Node):
     @strawberry.field
     async def enabled(self, info: Info[Context, None]) -> bool:
         return (await self._get_record(info)).enabled
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=PROJECT_EVALUATOR_TRACING_ENABLED_DESCRIPTION
+    )
+    async def tracing_enabled(self, info: Info[Context, None]) -> bool:
+        return (await self._get_record(info)).tracing_enabled
 
     @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:

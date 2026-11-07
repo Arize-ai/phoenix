@@ -322,6 +322,7 @@ await createProjectEvaluator({
 - `evaluationDelaySeconds` applies to `TRACE` and `SESSION` targets only. It must be at least 10 seconds and defaults to 300 seconds. `SPAN` targets reject a delay and report `evaluation_delay_seconds` as `0`.
 - `inputMapping` may be omitted to use the evaluator's own mapping. LLM evaluators have none, so only variables rooted at input, output, or metadata bind (for example `{{metadata.turns}}`); anything else needs `inputMapping`.
 - A binding is enabled unless you pass `enabled: false`.
+- Each evaluation writes a trace (inputs, outputs, latency, and token cost) to the binding's trace project unless you pass `tracingEnabled: false`. With tracing off, evaluations still write their annotations, but the binding's cost and evaluation time are not measured. Change it later with `tracing_enabled` in the update patch.
 - A name the project already uses is refused with `409` and `already_exists`.
 
 ## Update And Delete Project Bindings

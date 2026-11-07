@@ -91,6 +91,7 @@ import {
 import { ProjectEvaluatorSelectionToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSelectionToolbar";
 import { ProjectEvaluatorsEmptyState } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsEmptyState";
 import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
+import { ProjectEvaluatorTracingOffValue } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracingOffValue";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 const PAGE_SIZE = 30;
@@ -132,10 +133,13 @@ const readRow = (
           clearedCount
           oldestWaitingOrRetryingAt
         }
+        tracingEnabled
         evaluationLoad {
           evaluationCount
           meanEvaluationSeconds
           shareOfEvaluationTime
+          isMeasured
+          excludesUntracedEvaluators
         }
         evaluator {
           id
@@ -670,25 +674,31 @@ export function ProjectEvaluatorsTable({
         header: "total cost",
         size: 120,
         meta: { textAlign: "right" },
-        cell: ({ row }) => (
-          <EvaluatorCost
-            evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-          />
-        ),
+        cell: ({ row }) =>
+          row.original.tracingEnabled ? (
+            <EvaluatorCost
+              evaluatorKind={row.original.evaluator.kind}
+              costSummary={row.original.traceProject.costSummary}
+            />
+          ) : (
+            <ProjectEvaluatorTracingOffValue measure="Cost" />
+          ),
       },
       {
         id: "averageCost",
         header: "avg cost / evaluation",
         size: 200,
         meta: { textAlign: "right" },
-        cell: ({ row }) => (
-          <EvaluatorAverageCost
-            evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-            runCount={row.original.traceProject.traceCount}
-          />
-        ),
+        cell: ({ row }) =>
+          row.original.tracingEnabled ? (
+            <EvaluatorAverageCost
+              evaluatorKind={row.original.evaluator.kind}
+              costSummary={row.original.traceProject.costSummary}
+              runCount={row.original.traceProject.traceCount}
+            />
+          ) : (
+            <ProjectEvaluatorTracingOffValue measure="Cost" />
+          ),
       },
       {
         id: "language",
