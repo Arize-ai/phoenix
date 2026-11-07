@@ -39,6 +39,7 @@ from phoenix.db.types.prompts import (
     PromptToolRaw,
     PromptTools,
 )
+from phoenix.server.api.evaluators import _request_tool_call_in_prompt
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
@@ -56,6 +57,7 @@ from phoenix.server.api.helpers.playground_clients import (
     _get_builtin_provider_client,
     _get_custom_provider_client,
     _resolve_provider_api_key,
+    anthropic_model_supports_forced_tool_choice,
     get_openai_client_class,
 )
 from phoenix.server.api.helpers.playground_registry import (
@@ -635,6 +637,30 @@ class TestAnthropicStreamingClient:
         )
         assert params["tool_choice"] == {"type": "any", "disable_parallel_tool_use": True}
 
+    def test_one_or_more_tool_choice_is_sent_to_models_that_reject_it(self) -> None:
+        """The client sends the tool choice it's given; only evaluators downgrade it (#17480)."""
+        client: Any = AnthropicClient(
+            client_factory=_null_client_factory("anthropic"),
+            model_name="claude-opus-5-5",
+            provider="anthropic",
+        )
+        params, _, _ = client._anthropic_message_params(
+            messages=[
+                create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this answer.")
+            ],
+            tools=PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                tools=[_function_tool()],
+            ),
+            response_format=None,
+            invocation_parameters=PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=PromptAnthropicInvocationParametersContent(max_tokens=1024),
+            ),
+        )
+        assert params["tool_choice"] == {"type": "any"}
+
     def test_tool_choice_none_survives_disable_parallel_tool_calls(self) -> None:
         """`none` means "do not call tools" and must not be turned into `auto`."""
         params = self._anthropic_params(
@@ -801,6 +827,35 @@ class TestBedrockClient:
             )
         )
         assert request["toolConfig"]["toolChoice"] == {"any": {}}
+
+    def test_evaluator_tools_without_forced_tool_choice_map_to_auto(self) -> None:
+        """An evaluator on a model that rejects `any` reaches Converse as `auto` (#17480)."""
+        client: Any = BedrockClient(
+            client_factory=_null_client_factory("aws"),
+            model_name="us.anthropic.claude-opus-5-5-v1:0",
+            provider="aws",
+        )
+        assert client.supports_forced_tool_choice is False
+        tools, messages = _request_tool_call_in_prompt(
+            PromptTools(
+                type="tools",
+                tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
+                tools=[_function_tool()],
+            ),
+            [create_playground_message(ChatCompletionMessageRole.USER, "Evaluate this answer.")],
+        )
+        request = client._converse_build_request(
+            messages=messages,
+            tools=tools,
+            response_format=None,
+            invocation_parameters=PromptAwsInvocationParameters(
+                type="aws",
+                aws=PromptAwsInvocationParametersContent(max_tokens=1024),
+            ),
+            span=INVALID_SPAN,
+        )
+        assert request["toolConfig"]["toolChoice"] == {"auto": {}}
+        assert request["system"] == [{"text": "Respond by calling the `correctness` tool."}]
 
     def test_tool_choice_none_withholds_tool_config(self) -> None:
         """Converse has no `none` tool choice; the tools must be withheld entirely."""
@@ -1495,3 +1550,65 @@ class TestResolveProviderApiKey:
                 credentials,
             )
         assert isinstance(client, OpenAIChatCompletionsClient)
+
+
+@pytest.mark.parametrize(
+    "model_name, expected",
+    [
+        pytest.param("claude-opus-5-5", False, id="opus-5-5"),
+        pytest.param("claude-sonnet-5-5", False, id="sonnet-5-5"),
+        pytest.param("claude-fable-5-1", False, id="fable-5-1"),
+        pytest.param("claude-opus-5-5-20261001", False, id="dated-snapshot"),
+        pytest.param("claude-opus-5-5@20261001", False, id="vertex-snapshot"),
+        pytest.param("anthropic.claude-opus-5-5", False, id="bedrock"),
+        pytest.param("us.anthropic.claude-sonnet-5-5-v1:0", False, id="bedrock-region-profile"),
+        pytest.param("global.anthropic.claude-fable-5-1", False, id="bedrock-global-profile"),
+        pytest.param("us-gov.anthropic.claude-opus-5-5-v1:0", False, id="bedrock-govcloud-profile"),
+        pytest.param(
+            "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-opus-5-5-v1:0",
+            False,
+            id="bedrock-inference-profile-arn",
+        ),
+        pytest.param("Claude-Opus-5-5", False, id="case-insensitive"),
+        pytest.param("claude-opus-5", True, id="opus-5"),
+        pytest.param("claude-fable-5", True, id="fable-5"),
+        pytest.param("claude-haiku-5-5", True, id="haiku-5-5"),
+        pytest.param("claude-opus-5-50", False, id="unknown-model"),
+        pytest.param("claude-opus-5@20260801", True, id="vertex-snapshot-opus-5"),
+        pytest.param("claude-sonnet-4-20250514", True, id="dated-sonnet-4"),
+        pytest.param("anthropic.claude-opus-5", True, id="bedrock-opus-5"),
+        pytest.param("anthropic.claude-opus-4-6-v1", True, id="bedrock-opus-4-6"),
+        pytest.param("anthropic.claude-opus-4-5-20251101-v1:0", True, id="bedrock-dated-opus-4-5"),
+        pytest.param("us-gov.anthropic.claude-opus-5-v1:0", True, id="bedrock-govcloud-opus-5"),
+    ],
+)
+def test_anthropic_model_supports_forced_tool_choice(model_name: str, expected: bool) -> None:
+    assert anthropic_model_supports_forced_tool_choice(model_name) is expected
+
+
+@pytest.mark.parametrize(
+    "client_class, provider, model_name, expected",
+    [
+        pytest.param(
+            AnthropicClient, "anthropic", "claude-opus-5-5", False, id="anthropic-opus-5-5"
+        ),
+        pytest.param(AnthropicClient, "anthropic", "claude-opus-5", True, id="anthropic-opus-5"),
+        pytest.param(
+            BedrockClient, "aws", "anthropic.claude-opus-5-5", False, id="bedrock-opus-5-5"
+        ),
+        pytest.param(BedrockClient, "aws", "anthropic.claude-opus-5", True, id="bedrock-opus-5"),
+        pytest.param(
+            BedrockClient, "aws", "amazon.nova-pro-v1:0", True, id="bedrock-non-anthropic"
+        ),
+        pytest.param(OpenAIChatCompletionsClient, "openai", "gpt-4o-mini", True, id="openai"),
+    ],
+)
+def test_supports_forced_tool_choice(
+    client_class: Any, provider: str, model_name: str, expected: bool
+) -> None:
+    client = client_class(
+        client_factory=_null_client_factory(provider),
+        model_name=model_name,
+        provider=provider,
+    )
+    assert client.supports_forced_tool_choice is expected

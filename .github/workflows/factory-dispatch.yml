@@ -92,9 +92,12 @@ jobs:
           FACTORY_APP_CLIENT_ID: ${{ vars.FACTORY_APP_CLIENT_ID }}
           FACTORY_APP_PRIVATE_KEY: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           LANE: ${{ steps.start.outputs.lane }}
+          # Whoever the run answers to, named in the report so GitHub notifies them. The start
+          # step resolves it: for a run a workflow dispatched, that is the issue's author.
+          REQUESTED_BY: ${{ steps.start.outputs.requested_by }}
           SESSION_ID: ${{ steps.start.outputs.session_id }}
           STATUS_COMMENT_ID: ${{ steps.start.outputs.status_comment_id }}
-        run: uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --status-comment-id "$STATUS_COMMENT_ID"
+        run: uv run --script factory/dispatch.py --repo "$GH_REPO" --issue "$ISSUE_NUMBER" watch --session-id "$SESSION_ID" --lane "$LANE" --requested-by "$REQUESTED_BY" --status-comment-id "$STATUS_COMMENT_ID"
 
       # The watch step reports its own failures on the issue. This report uses GITHUB_TOKEN, so
       # it still lands when the failure is the app's credentials.

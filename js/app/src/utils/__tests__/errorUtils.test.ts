@@ -1,6 +1,7 @@
 import {
   getErrorMessagesFromRelayMutationError,
   getErrorMessagesFromRelaySubscriptionError,
+  getRestErrorDetail,
   isAbortError,
 } from "../errorUtils";
 
@@ -69,5 +70,40 @@ describe("getErrorMessagesFromRelaySubscriptionError", () => {
   it("should return null if the source property does not have an errors array", () => {
     const result = getErrorMessagesFromRelaySubscriptionError({});
     expect(result).toBeNull();
+  });
+});
+
+describe("getRestErrorDetail", () => {
+  it("should return a plain-text error body, but not an HTML error page", () => {
+    // Phoenix serves HTTPExceptions as text/plain, which openapi-fetch keeps
+    // as a string.
+    const body =
+      "No examples found in this dataset with the following IDs: 'RGF0YXNldEV4YW1wbGU6MQ=='";
+    expect(getRestErrorDetail(body)).toBe(body);
+    expect(getRestErrorDetail(`  ${body}\n`)).toBe(body);
+    expect(
+      getRestErrorDetail("<html><body><h1>502 Bad Gateway</h1></body></html>")
+    ).toBe("");
+    expect(getRestErrorDetail("  ")).toBe("");
+  });
+
+  it("should return a string detail from a JSON error body, or nothing without one", () => {
+    expect(getRestErrorDetail({ detail: "Dataset already exists" })).toBe(
+      "Dataset already exists"
+    );
+    expect(getRestErrorDetail(undefined)).toBe("");
+    expect(getRestErrorDetail({})).toBe("");
+    expect(getRestErrorDetail({ detail: 42 })).toBe("");
+  });
+
+  it("should join the messages of a request validation error", () => {
+    expect(
+      getRestErrorDetail({
+        detail: [
+          { loc: ["body", "name"], msg: "Field required", type: "missing" },
+          { loc: ["body", "file"], msg: "Field required", type: "missing" },
+        ],
+      })
+    ).toBe("Field required; Field required");
   });
 });

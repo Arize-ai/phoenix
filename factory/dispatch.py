@@ -84,6 +84,20 @@ def run_gh(*args: str, token: Optional[str] = None, input_text: Optional[str] = 
     return completed_process.stdout
 
 
+def format_mention(*, login: Optional[str]) -> str:
+    """Return a line that names `login`, or "" when there is nobody to alert.
+
+    GitHub notifies someone only when a comment names them, and a factory comment is often
+    the only word whoever asked for the run gets, so every comment a lane posts ends with
+    this. A bot account is never notified, which covers both WORKFLOW_LOGIN and the
+    factory's own app, so those get no line. The line goes last: factory-candidates.yml
+    tells a factory comment by its "The factory" opening.
+    """
+    if not login or login.endswith("[bot]"):
+        return ""
+    return f"\n\ncc @{login}"
+
+
 def comment_on_issue(*, issue_number: int, body: str, token: Optional[str]) -> None:
     run_gh("issue", "comment", str(issue_number), "--body-file", "-", token=token, input_text=body)
 
@@ -722,7 +736,10 @@ def run_start(*, args: argparse.Namespace) -> None:
     if admission_problem is not None:
         comment_on_issue(
             issue_number=args.issue,
-            body=f"The factory skipped this issue: {admission_problem}.",
+            body=(
+                f"The factory skipped this issue: {admission_problem}."
+                f"{format_mention(login=requester_login)}"
+            ),
             token=app_token.refresh(),
         )
         remove_factory_label(issue_number=args.issue, token=app_token.refresh())
@@ -752,12 +769,14 @@ def run_start(*, args: argparse.Namespace) -> None:
             f"The factory is running the **{lane}** lane for this issue "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
+            f"{format_mention(login=requester_login)}"
         ),
         token=app_token.refresh(),
     )
     write_github_outputs(
         started="true",
         lane=lane,
+        requested_by=requester_login,
         session_id=session_id,
         status_comment_id=str(status_comment_id),
     )
@@ -794,7 +813,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
         report_on_status_comment(
             number=args.issue,
             comment_id=args.status_comment_id,
-            body=report,
+            body=report + format_mention(login=args.requested_by),
             token=report_token,
             notify=True,
         )
@@ -822,6 +841,9 @@ def main() -> None:
     watch_parser = subparsers.add_parser("watch", help="Follow a session to a reviewable PR")
     watch_parser.add_argument("--session-id", required=True)
     watch_parser.add_argument("--lane", required=True)
+    watch_parser.add_argument(
+        "--requested-by", default="", help="Login the run answers to, named in the report"
+    )
     watch_parser.add_argument(
         "--status-comment-id", type=int, help="The start step's comment, edited into the report"
     )

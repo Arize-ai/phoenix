@@ -868,6 +868,32 @@ async def _resolve_or_insert_dataset_version(
     )
 
 
+_MAX_LISTED_UNRESOLVED_NODE_IDS = 10
+
+
+def _raise_for_unresolved_node_ids(diff: UpdateDiff, action: DatasetAction) -> None:
+    """Reject DatasetExample node IDs that matched no example in this dataset."""
+    unresolved_node_ids = [
+        example.content.external_id
+        for example in diff.create_examples
+        if example.content.external_id is not None
+        and _get_dataset_example_node_id(example.content.external_id) is not None
+    ]
+    if not unresolved_node_ids:
+        return
+    listed_ids = unresolved_node_ids[:_MAX_LISTED_UNRESOLVED_NODE_IDS]
+    formatted_ids = ", ".join(repr(s) for s in listed_ids)
+    if unlisted_count := len(unresolved_node_ids) - len(listed_ids):
+        formatted_ids += f" and {unlisted_count} more"
+    if action is DatasetAction.CREATE:
+        raise InvalidDatasetExampleIDError(
+            f"The following IDs belong to examples in a different dataset: {formatted_ids}"
+        )
+    raise InvalidDatasetExampleIDError(
+        f"No examples found in this dataset with the following IDs: {formatted_ids}"
+    )
+
+
 async def _write_revisions_for_changes(
     session: AsyncSession,
     dataset_id: DatasetId,
@@ -904,17 +930,6 @@ async def _write_revisions_for_changes(
     if not diff.create_examples:
         return created_examples
 
-    node_ids_without_example_record = [
-        example.content.external_id
-        for example in diff.create_examples
-        if example.content.external_id is not None
-        and _get_dataset_example_node_id(example.content.external_id) is not None
-    ]
-    if node_ids_without_example_record:
-        formatted_ids = ", ".join(repr(s) for s in node_ids_without_example_record)
-        raise InvalidDatasetExampleIDError(
-            f"No examples found in this dataset with the following IDs: {formatted_ids}"
-        )
     create_external_ids = [
         example.content.external_id
         for example in diff.create_examples
@@ -1010,6 +1025,7 @@ async def _update_dataset_examples(
         previous=previous,
         skip_deletes=action is DatasetAction.APPEND,
     )
+    _raise_for_unresolved_node_ids(diff=diff, action=action)
     dataset_version_id = await _resolve_or_insert_dataset_version(
         session=session,
         dataset_id=dataset_id,

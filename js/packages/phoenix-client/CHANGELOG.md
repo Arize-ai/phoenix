@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 7.18.2
+
+### Patch Changes
+
+- 6e6e101: fix(phoenix-client): preserve literal dollar sequences in prompt variables
+
 ## 7.18.1
 
 ### Patch Changes
