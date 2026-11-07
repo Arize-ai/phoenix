@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 import { SegmentChart } from "@phoenix/components/chart";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatQueueCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 
 export type EvaluationQueueMeterSegment = {
   /** Stable key, e.g. the evaluation target. */
@@ -27,34 +27,26 @@ const swatchCSS = css`
 `;
 
 /**
- * How full the evaluation queue is: a {@link SegmentChart} against the queue's
- * limit, with a section per kind of evaluation and a track for the room left.
+ * What the evaluation queue holds: a {@link SegmentChart} of the queued total,
+ * with a section per kind of evaluation.
  */
 export function EvaluationQueueMeter({
   segments,
-  limit,
 }: {
   segments: ReadonlyArray<EvaluationQueueMeterSegment>;
-  limit: number;
 }) {
   const total = segments.reduce((sum, segment) => sum + segment.count, 0);
-  // A queue can briefly hold more than its limit; the bar never overflows.
-  const scale = Math.max(limit, total, 1);
   const description =
     segments
       .filter((segment) => segment.count > 0)
-      .map((segment) => `${segment.label} ${intFormatter(segment.count)}`)
+      .map((segment) => `${segment.label} ${formatQueueCount(segment.count)}`)
       .join(", ") || "Empty";
   return (
-    <div
-      css={meterCSS}
-      role="img"
-      aria-label={`${intFormatter(total)} of ${intFormatter(limit)}: ${description}`}
-    >
+    <div css={meterCSS} role="img" aria-label={description}>
       <SegmentChart
         showTrack
-        totalValue={scale}
-        // A kind with any work queued stays visible against a large limit.
+        totalValue={Math.max(total, 1)}
+        // A kind with any work queued stays visible beside a large one.
         minimumSegmentPercentage={1.5}
         segments={segments.map((segment) => ({
           name: segment.id,

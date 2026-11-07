@@ -30,12 +30,8 @@ import {
   ViewportModal,
   ViewportModalOverlay,
 } from "@phoenix/components";
-import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
+import { AnnotationValueList } from "@phoenix/components/annotation/AnnotationValueList";
 import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
-import {
-  getOptimizationBounds,
-  getOptimizationValue,
-} from "@phoenix/components/annotation/optimizationUtils";
 import {
   PythonBlockWithCopy,
   TypeScriptBlockWithCopy,
@@ -49,6 +45,7 @@ import type { projectEvaluatorGalleryModalQuery as ProjectEvaluatorGalleryModalQ
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import {
   type CustomEvaluator,
   type GalleryItem,
@@ -76,10 +73,7 @@ import {
   PROJECT_EVALUATOR_CATEGORIES,
   type ProjectEvaluatorTemplate,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
-import {
-  formatEvaluationTargetPlural,
-  type ProjectEvaluatorTarget,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
@@ -1032,11 +1026,6 @@ function AnnotationValues({
   }>;
   optimizationDirection: EvaluatorOptimizationDirection;
 }) {
-  const optimizationBounds = getOptimizationBounds({
-    annotationType: "CATEGORICAL",
-    optimizationDirection,
-    values,
-  });
   return (
     <Flex direction="column" gap="size-75">
       <Flex
@@ -1052,33 +1041,10 @@ function AnnotationValues({
           optimizationDirection={optimizationDirection}
         />
       </Flex>
-      <List size="S" css={plainDetailsListCSS}>
-        {values.map(({ label, score }) => (
-          <ListItem key={label}>
-            <Flex
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              gap="size-100"
-            >
-              <Text size="S">{label}</Text>
-              <Text size="XS" color="text-500">
-                <AnnotationScoreText
-                  elementType="span"
-                  fontFamily="mono"
-                  size="XS"
-                  optimizationValue={getOptimizationValue({
-                    score,
-                    ...optimizationBounds,
-                  })}
-                >
-                  {score ?? "—"}
-                </AnnotationScoreText>
-              </Text>
-            </Flex>
-          </ListItem>
-        ))}
-      </List>
+      <AnnotationValueList
+        values={values}
+        optimizationDirection={optimizationDirection}
+      />
     </Flex>
   );
 }

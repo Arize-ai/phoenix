@@ -1,8 +1,10 @@
 import { css } from "@emotion/react";
-import capitalize from "lodash/capitalize";
 import type { ReactNode } from "react";
 
 import { Flex, Text } from "@phoenix/components";
+import { AnnotationValueList } from "@phoenix/components/annotation/AnnotationValueList";
+import { OptimizationDirectionIndicator } from "@phoenix/components/annotation/OptimizationDirectionIndicator";
+import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 
 /**
  * The annotation an evaluator writes, in whichever shape its config takes.
@@ -45,6 +47,16 @@ const annotationGridCSS = css`
   gap: var(--global-dimension-size-200);
 `;
 
+/**
+ * The categorical values cell spans the whole grid row, since a list of labels
+ * does not fit a single column, but stays narrow enough that each label sits
+ * close to its score.
+ */
+const annotationValuesCellCSS = css`
+  grid-column: 1 / -1;
+  max-width: var(--global-dimension-size-4600);
+`;
+
 /** One label-over-value cell of an evaluator annotation grid. */
 function AnnotationCell({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -57,15 +69,13 @@ function AnnotationCell({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function formatOptimizationDirection(direction: string | null | undefined) {
-  return direction ? capitalize(direction) : "None";
-}
-
-function formatCategoricalValues(values: OutputConfig["values"]): string {
-  if (!values || values.length === 0) return "—";
-  return values
-    .map((v) => `${v.label}${v.score != null ? ` (${v.score})` : ""}`)
-    .join(", ");
+/** Narrows a config's direction to one the indicator can show. */
+function toOptimizationDirection(
+  direction: string | null | undefined
+): EvaluatorOptimizationDirection {
+  return direction === "MAXIMIZE" || direction === "MINIMIZE"
+    ? direction
+    : "NONE";
 }
 
 function formatBound(value: number | null | undefined): string {
@@ -90,19 +100,18 @@ export function OutputConfigBlock({
   // An unrecognized typename (Relay's `%other`) has no fields selected, so
   // freeform — the shape with the fewest assumptions — is the safe rendering.
   const type = OUTPUT_CONFIG_TYPE_BY_TYPENAME[typename] ?? "freeform";
-  const direction = formatOptimizationDirection(config.optimizationDirection);
+  const direction = toOptimizationDirection(config.optimizationDirection);
 
   return (
     <div css={annotationGridCSS}>
       <AnnotationCell label="Name" value={config.name} />
       <AnnotationCell label="Type" value={OUTPUT_CONFIG_TYPE_LABELS[type]} />
-      <AnnotationCell label="Optimization Direction" value={direction} />
-      {type === "categorical" && (
-        <AnnotationCell
-          label="Values"
-          value={formatCategoricalValues(config.values)}
-        />
-      )}
+      <AnnotationCell
+        label="Optimization Direction"
+        value={
+          <OptimizationDirectionIndicator optimizationDirection={direction} />
+        }
+      />
       {type === "continuous" && (
         <>
           <AnnotationCell
@@ -126,6 +135,23 @@ export function OutputConfigBlock({
           label="Explanations"
           value={includeExplanation ? "Enabled" : "Disabled"}
         />
+      )}
+      {type === "categorical" && (
+        <div css={annotationValuesCellCSS}>
+          <AnnotationCell
+            label="Values"
+            value={
+              config.values && config.values.length > 0 ? (
+                <AnnotationValueList
+                  values={config.values}
+                  optimizationDirection={direction}
+                />
+              ) : (
+                "—"
+              )
+            }
+          />
+        </div>
       )}
     </div>
   );

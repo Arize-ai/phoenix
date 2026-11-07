@@ -4,6 +4,7 @@ import type { KeyboardEvent } from "react";
 
 import {
   Flex,
+  IDBadge,
   Icon,
   IconButton,
   Icons,
@@ -26,16 +27,16 @@ import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import {
+  formatElapsedShort,
+  formatEvaluationRecordKind,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import {
   isRecordedRunEntryRunnable,
   type RecordedRunEntry,
   type RecordedRunRow,
   shortenRecordId,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
-import {
-  formatElapsedShort,
-  formatEvaluationRecordKind,
-  type ProjectEvaluatorRecordKind,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 /** The one column that takes whatever width the fixed columns leave. */
@@ -136,9 +137,12 @@ export function ProjectEvaluatorRecordTable({
             header: `${recordNoun} ID`,
             size: 112,
             cell: ({ row: { original } }) => (
-              <span className="record-table__id" title={original.row.recordId}>
-                {shortenRecordId(original.row.recordId)}
-              </span>
+              <IDBadge
+                id={original.row.recordId}
+                label={shortenRecordId(original.row.recordId)}
+                variant="quiet"
+                tooltipText={`Copy ${recordNoun} ID`}
+              />
             ),
           } satisfies ColumnDef<RecordedRunEntry>,
         ]
@@ -702,15 +706,6 @@ const recordTableCSS = css(
       > * {
         display: inline-flex;
       }
-    }
-    .record-table__id {
-      display: block;
-      font-family: var(--global-font-family-code, monospace);
-      font-size: var(--global-font-size-xs);
-      color: var(--global-text-color-700);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
     // Cells hold to one line each; what does not fit is cut, not wrapped.
     td.${TABLE_DATA_CELL_CLASS} {

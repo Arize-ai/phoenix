@@ -12,11 +12,11 @@ import {
   formatFlagCondition,
   getKappaGloss,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareUtils";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import {
   StatField,
   StatFieldList,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorStatFields";
-import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
   formatFloat,
   formatInt,

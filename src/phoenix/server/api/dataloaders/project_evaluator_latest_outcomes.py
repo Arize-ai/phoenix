@@ -9,7 +9,7 @@ from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.eval_work import FAILED_EVAL_WORK_STATUSES
+from phoenix.db.eval_work import FAILED_STATUSES
 from phoenix.server.types import DbSessionFactory
 
 ProjectEvaluatorId: TypeAlias = int
@@ -114,7 +114,7 @@ def _failed(model: Any) -> sa.ColumnElement[bool]:
     condition: sa.ColumnElement[bool] = model.status.in_(
         sa.bindparam(
             "failed_statuses",
-            list(FAILED_EVAL_WORK_STATUSES),
+            list(FAILED_STATUSES),
             expanding=True,
             literal_execute=True,
             unique=True,

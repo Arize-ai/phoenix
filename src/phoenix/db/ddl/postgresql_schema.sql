@@ -1616,7 +1616,6 @@ CREATE TABLE public.project_evaluators (
     evaluation_delay_seconds INTEGER NOT NULL,
     input_mapping JSONB,
     enabled BOOLEAN NOT NULL DEFAULT true,
-    swept_through_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
@@ -1658,7 +1657,7 @@ CREATE TABLE public.eval_session_work_units (
     id bigserial NOT NULL,
     project_session_rowid BIGINT NOT NULL,
     project_evaluator_id BIGINT NOT NULL,
-    evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    decided_through TIMESTAMP WITH TIME ZONE NOT NULL,
     status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,
@@ -1694,13 +1693,15 @@ CREATE TABLE public.eval_session_work_units (
 );
 
 CREATE INDEX ix_eval_session_work_units_claimable ON public.eval_session_work_units
-    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
+    USING btree (status, id, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_project_evaluator_done ON public.eval_session_work_units
     USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = 'DONE'::text);
 CREATE INDEX ix_eval_session_work_units_project_evaluator_failed ON public.eval_session_work_units
     USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_project_evaluator_id ON public.eval_session_work_units
     USING btree (project_evaluator_id);
+CREATE INDEX ix_eval_session_work_units_project_evaluator_live ON public.eval_session_work_units
+    USING btree (project_evaluator_id, status, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_session_work_units_terminal ON public.eval_session_work_units
     USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
 
@@ -1711,7 +1712,7 @@ CREATE TABLE public.eval_trace_work_units (
     id bigserial NOT NULL,
     trace_rowid BIGINT NOT NULL,
     project_evaluator_id BIGINT NOT NULL,
-    evaluated_through TIMESTAMP WITH TIME ZONE NOT NULL,
+    decided_through TIMESTAMP WITH TIME ZONE NOT NULL,
     status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
     claimed_at TIMESTAMP WITH TIME ZONE,
     claimed_by VARCHAR,
@@ -1747,13 +1748,15 @@ CREATE TABLE public.eval_trace_work_units (
 );
 
 CREATE INDEX ix_eval_trace_work_units_claimable ON public.eval_trace_work_units
-    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
+    USING btree (status, id, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_done ON public.eval_trace_work_units
     USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = 'DONE'::text);
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_failed ON public.eval_trace_work_units
     USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
 CREATE INDEX ix_eval_trace_work_units_project_evaluator_id ON public.eval_trace_work_units
     USING btree (project_evaluator_id);
+CREATE INDEX ix_eval_trace_work_units_project_evaluator_live ON public.eval_trace_work_units
+    USING btree (project_evaluator_id, status, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_trace_work_units_terminal ON public.eval_trace_work_units
     USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying, 'CONTENT_LOST'::character varying])::text[]));
 
@@ -1796,15 +1799,31 @@ CREATE TABLE public.eval_work_units (
 );
 
 CREATE INDEX ix_eval_work_units_claimable ON public.eval_work_units
-    USING btree (status, id) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
+    USING btree (status, id, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_project_evaluator_done ON public.eval_work_units
     USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = 'DONE'::text);
 CREATE INDEX ix_eval_work_units_project_evaluator_failed ON public.eval_work_units
     USING btree (project_evaluator_id, updated_at) WHERE ((status)::text = ANY ((ARRAY['FAILED'::character varying, 'EXPIRED'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_project_evaluator_id ON public.eval_work_units
     USING btree (project_evaluator_id);
+CREATE INDEX ix_eval_work_units_project_evaluator_live ON public.eval_work_units
+    USING btree (project_evaluator_id, status, created_at) WHERE ((status)::text = ANY ((ARRAY['PENDING'::character varying, 'RUNNING'::character varying, 'ERROR'::character varying])::text[]));
 CREATE INDEX ix_eval_work_units_terminal ON public.eval_work_units
     USING btree (updated_at) WHERE ((status)::text = ANY ((ARRAY['DONE'::character varying, 'FAILED'::character varying, 'EXPIRED'::character varying, 'DROPPED'::character varying])::text[]));
+
+
+-- Table: project_evaluator_state
+-- ------------------------------
+CREATE TABLE public.project_evaluator_state (
+    project_evaluator_id BIGINT NOT NULL,
+    span_start_rowid BIGINT,
+    swept_through_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT pk_project_evaluator_state PRIMARY KEY (project_evaluator_id),
+    CONSTRAINT fk_project_evaluator_state_project_evaluator_id_project_8f39
+        FOREIGN KEY (project_evaluator_id)
+        REFERENCES public.project_evaluators (id)
+        ON DELETE CASCADE
+);
 
 
 -- Table: project_session_annotations

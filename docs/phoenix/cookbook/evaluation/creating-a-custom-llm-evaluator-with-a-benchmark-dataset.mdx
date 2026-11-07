@@ -24,7 +24,7 @@ Prefer to watch? The full walkthrough is below; otherwise, follow the key snippe
 The diagram below provides an overview of the process we will follow in this walkthrough.
 
 <Frame>
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-custom-eval.png)
+![Custom evaluator workflow from dataset annotation to benchmark validation](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-custom-eval.png)
 </Frame>
 
 ## Walkthrough
@@ -148,7 +148,7 @@ dataset = Client().datasets.create_dataset(
 ```
 
 <Frame>
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-your-first-eval-tutorial-1.png)
+![Phoenix trace list with benchmark annotation labels](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-your-first-eval-tutorial-1.png)
 </Frame>
 
 ## Create Evaluation Template & Run Experiment
@@ -252,5 +252,5 @@ There's no universal pass mark — the target depends on your benchmark and how 
 When agreement falls short, inspect the disagreements: each mismatch is either a gap in the judge prompt (tighten the rules and re-run) or a sign your own labels aren't consistent (refine the benchmark). Keep iterating until the evaluator meets the bar you've set.
 
 <Frame>
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-your-first-eval-tutorial-2.png)
+![Phoenix experiment comparison for the custom evaluator](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-your-first-eval-tutorial-2.png)
 </Frame>

@@ -1,5 +1,24 @@
 # @arizeai/phoenix-client
 
+## 7.18.2
+
+### Patch Changes
+
+- 6e6e101: fix(phoenix-client): preserve literal dollar sequences in prompt variables
+
+## 7.18.1
+
+### Patch Changes
+
+- 6a60c71: fix(phoenix-client): preserve the error status of failed experiment task spans
+- 491ae7a: fix(phoenix-client): preserve system and developer instructions when converting prompts to Anthropic, omitting empty text blocks from the system array
+
+## 7.18.0
+
+### Minor Changes
+
+- ead7dd8: Add typed dataset-label resource and assignment helpers to the existing `@arizeai/phoenix-client/datasets` scope. Callers can manage reusable global labels, list them with cursor pagination, and assign or replace labels on datasets selected by name or GlobalID.
+
 ## 7.17.0
 
 ### Minor Changes

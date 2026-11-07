@@ -25,6 +25,7 @@ import { normalizePickedProjectIds } from "@phoenix/pages/evaluators/project-eva
 import { ServerProjectsFilterButton } from "@phoenix/pages/evaluators/project-evaluators/ServerProjectsFilterButton";
 import { useServerEvaluatorsRefreshKey } from "@phoenix/pages/evaluators/project-evaluators/useServerEvaluatorsRefreshKey";
 import { SearchBarSkeleton } from "@phoenix/pages/evaluators/SearchBarSkeleton";
+import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { QueueStatsRefreshContext } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 
 /** The projects picked to show, repeated once per project. */
@@ -58,6 +59,8 @@ export function ProjectEvaluatorsTab() {
 function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
   const { refreshKey, refresh } = useServerEvaluatorsRefreshKey();
+  // One poll keeps the strip and the charts in step.
+  const { fetchKey } = useQueueStatsPoll(refreshKey);
   const [sorting, setSorting] = useState<SortingState>([
     { id: "queue", desc: true },
   ]);
@@ -87,12 +90,12 @@ function ProjectEvaluatorsTabContent() {
       </TopNavActions>
       <div css={pageCSS}>
         <ServerEvaluationQueueStrip
-          refreshKey={refreshKey}
+          fetchKey={fetchKey}
           onQueueCleared={refresh}
         />
         <Suspense fallback={<ServerEvaluationChartsSkeleton />}>
           <ServerEvaluationCharts
-            fetchKey={refreshKey}
+            fetchKey={fetchKey}
             pickedProjectIds={pickedProjectIds}
             onPickedProjectIdsChange={setPickedProjectIds}
           />
@@ -109,7 +112,7 @@ function ProjectEvaluatorsTabContent() {
               <ServerProjectsFilterButton
                 pickedProjectIds={pickedProjectIds}
                 onPickedProjectIdsChange={setPickedProjectIds}
-                fetchKey={refreshKey}
+                fetchKey={fetchKey}
               />
             </Suspense>
           </Flex>

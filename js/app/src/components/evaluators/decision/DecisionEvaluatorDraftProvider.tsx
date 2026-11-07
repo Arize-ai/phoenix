@@ -1,6 +1,10 @@
 import { type ReactNode, useState } from "react";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import {
+  DEFAULT_DECISION_MODEL_NAME,
+  DEFAULT_DECISION_MODEL_PROVIDER,
+} from "@phoenix/constants/generativeConstants";
 import { PlaygroundProvider } from "@phoenix/contexts/PlaygroundContext";
 import {
   createDecisionQuestion,
@@ -52,7 +56,9 @@ function createDefaultDecisionEvaluatorDraft(
 
 /**
  * Holds a decision evaluator's draft in a single-instance playground store,
- * so the form edits it with the playground's own decision editors.
+ * so the form edits it with the playground's own decision editors. A new
+ * draft starts on the default decision model, so it can be tested and saved
+ * as soon as it opens.
  */
 export function DecisionEvaluatorDraftProvider({
   surface,
@@ -61,13 +67,21 @@ export function DecisionEvaluatorDraftProvider({
   surface: DecisionEvaluatorSurface;
   children: ReactNode;
 }) {
-  const [instances] = useState(() => [
-    {
-      ...createDecisionTaskInstance(),
-      id: DECISION_EVALUATOR_DRAFT_INSTANCE_ID,
-      decisionPrompt: createDefaultDecisionEvaluatorDraft(surface),
-    },
-  ]);
+  const [instances] = useState(() => {
+    const instance = createDecisionTaskInstance();
+    return [
+      {
+        ...instance,
+        id: DECISION_EVALUATOR_DRAFT_INSTANCE_ID,
+        model: {
+          ...instance.model,
+          provider: DEFAULT_DECISION_MODEL_PROVIDER,
+          modelName: DEFAULT_DECISION_MODEL_NAME,
+        },
+        decisionPrompt: createDefaultDecisionEvaluatorDraft(surface),
+      },
+    ];
+  });
   return (
     <PlaygroundProvider
       modelConfigByProvider={{}}

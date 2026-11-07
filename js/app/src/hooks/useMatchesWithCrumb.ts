@@ -2,7 +2,13 @@ import { type To, useMatches } from "react-router";
 
 import type { CopyActionMenuItem } from "@phoenix/components";
 
-export type CrumbFn = (data: unknown) => string;
+/**
+ * A breadcrumb's text. A route whose loader does not wait for the name, so
+ * the page can show its skeleton at once, hands over the name as a promise
+ * and the breadcrumb resolves it on its own.
+ */
+export type Crumb = string | Promise<string>;
+export type CrumbFn = (data: unknown) => Crumb;
 /**
  * @deprecated Use CopyActionMenuItem from @phoenix/components instead
  */

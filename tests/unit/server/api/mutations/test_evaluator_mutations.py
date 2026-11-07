@@ -5039,9 +5039,14 @@ class TestDatasetBindingOutputConfigOverrides:
             str(GlobalID("BuiltInEvaluator", str(builtin_id))),
         ]
         for (create, field, update), evaluator_id in zip(creates, evaluator_ids):
+            evaluator_input: dict[str, Any] = (
+                {"source": {"evaluatorId": evaluator_id}}
+                if field == "createDatasetCodeEvaluator"
+                else {"evaluatorId": evaluator_id}
+            )
             create_input = {
                 "datasetId": dataset_id,
-                "evaluatorId": evaluator_id,
+                **evaluator_input,
                 "name": f"binding-{token_hex(4)}",
                 "inputMapping": self._MAPPING,
             }

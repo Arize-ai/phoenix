@@ -11,6 +11,10 @@ type TemplateInputProps = {
   /** Initial text. The input is uncontrolled; remount (key) to replace it. */
   defaultValue: string;
   placeholder?: string;
+  /** Wrap and accept new lines, as a text area does, instead of one line. */
+  isMultiLine?: boolean;
+  /** Dataset paths the template can autocomplete. */
+  availablePaths?: string[];
   readOnly?: boolean;
   isInvalid?: boolean;
   /** Shown under the input, where a field's error slot would be. */
@@ -53,40 +57,47 @@ const templateInputCSS = css`
     background-color: var(--field-readonly-background-color) !important;
     border-color: transparent;
   }
+  & .cm-gutters {
+    display: none;
+  }
+  & .cm-line {
+    padding: 0;
+  }
+  &[data-multiline="true"] .cm-content {
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+    min-height: calc(3 * var(--global-line-height-s));
+  }
   // The one line scrolls sideways with the caret, as an input does, with no
   // scrollbar.
-  & .cm-scroller {
+  &:not([data-multiline="true"]) .cm-scroller {
     overflow-x: auto;
     scrollbar-width: none;
     &::-webkit-scrollbar {
       display: none;
     }
   }
-  & .cm-gutters {
-    display: none;
-  }
-  & .cm-content {
+  &:not([data-multiline="true"]) .cm-content {
     padding: 0 var(--global-dimension-size-100);
     min-height: 0;
     line-height: calc(
       var(--template-input-height) - 2 * var(--global-border-size-thin)
     );
   }
-  & .cm-line {
-    padding: 0;
-  }
 `;
 
 /**
- * A one-line text input that highlights template variables, for short
- * fields whose text is substituted before it is sent (an option's or a
- * level's description). Uncontrolled, like {@link TemplateEditor}.
+ * A text input that highlights template variables, for form fields whose
+ * text is substituted before it is sent (a question's instructions, an
+ * option's or a level's description). One line unless `isMultiLine`.
+ * Uncontrolled, like {@link TemplateEditor}.
  */
 export function TemplateInput({
   "aria-label": ariaLabel,
   templateFormat,
   defaultValue,
   placeholder,
+  isMultiLine = false,
+  availablePaths,
   readOnly = false,
   isInvalid = false,
   errorMessage,
@@ -98,11 +109,13 @@ export function TemplateInput({
       className="template-input"
       css={templateInputCSS}
       data-invalid={isInvalid || undefined}
+      data-multiline={isMultiLine || undefined}
       data-readonly={readOnly || undefined}
     >
       <TemplateEditor
-        singleLine
+        singleLine={!isMultiLine}
         aria-label={ariaLabel}
+        availablePaths={availablePaths}
         templateFormat={templateFormat}
         defaultValue={defaultValue}
         placeholder={placeholder}

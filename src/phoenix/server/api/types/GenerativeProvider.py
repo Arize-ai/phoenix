@@ -151,6 +151,14 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
 
 assert len(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING) == len(GenerativeProviderKey)
 
+# Every provider value that instrumentors are known to emit on spans (always
+# lowercase): the OpenInference semantic conventions values plus the values of
+# the playground providers, some of which the conventions do not include yet.
+KNOWN_LLM_PROVIDER_STRINGS: frozenset[str] = frozenset(
+    {provider.value for provider in OpenInferenceLLMProviderValues}
+    | set(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING.values())
+)
+
 CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = MappingProxyType(
     {
         sdk: GenerativeProviderKey.from_model_provider(provider)

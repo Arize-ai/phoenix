@@ -23,6 +23,7 @@ import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/Evalu
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
 import { useUnboundRequiredVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
@@ -30,7 +31,6 @@ import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 /** Scope-editing props shared by every left definition panel. */
 type ProjectEvaluatorScopeProps = {
@@ -289,14 +289,12 @@ export const ProjectDecisionEvaluatorFormSections = (
     <>
       <EvaluatorNameAndDescriptionFields isNameRequired />
       <ProjectEvaluatorScopeSection {...scopeProps} />
-      <Flex direction="column" gap="size-200">
-        <DecisionEvaluatorForm
-          draft={draft}
-          isDisabled={isDisabled}
-          scoringDescription="Turn each answer into the score this evaluator records."
-          showInputMapping={false}
-        />
-      </Flex>
+      <DecisionEvaluatorForm
+        draft={draft}
+        isDisabled={isDisabled}
+        scoringDescription="Turn each answer into the score this evaluator records, and whether higher or lower is better."
+        showInputMapping={false}
+      />
     </>
   );
 };

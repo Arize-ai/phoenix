@@ -34,7 +34,7 @@ export const DOCS_MCP_SERVER_URL = "https://arizeai-433a7140.mintlify.app/mcp";
  * binary writes the config format that same binary reads, so the CLI can never
  * drift from the agent's schema. `file` is the fallback for agents whose only
  * documented mechanism is hand-editing a JSON file — those shapes mirror
- * `docs/phoenix/integrations/phoenix-mcp-server.mdx`, which is the contract to
+ * `docs/phoenix/integrations/mcp.mdx`, which is the contract to
  * keep them true to.
  */
 export type DocsMcpInstall =

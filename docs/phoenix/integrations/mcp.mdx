@@ -3,7 +3,7 @@ title: "MCP Server"
 description: Connect Claude Code, Cursor, VS Code, or any MCP client to your live Phoenix data.
 ---
 
-The Remote [MCP](https://modelcontextprotocol.io/) Server (beta) is built into Phoenix at `/mcp`, so any MCP client can read and act on your Phoenix data with nothing to install. Agents with a shell can reach the same data through the [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli); see [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server).
+The Remote [MCP](https://modelcontextprotocol.io/) Server (beta) is built into Phoenix at `/mcp`, so any MCP client can read and act on your Phoenix data with nothing to install. It also serves the Phoenix [skills](/docs/phoenix/integrations/developer-tools/skills), which match your Phoenix version. It's the recommended way to connect a coding agent. The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) is optional. See [CLI or MCP server?](/docs/phoenix/integrations/developer-tools/cli#cli-or-mcp-server)
 
 ## Remote MCP Server
 
@@ -11,15 +11,9 @@ The URL is your [Phoenix endpoint](/docs/phoenix/integrations/developer-tools/co
 
 ### Connect
 
-The [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli) writes the config for you:
+For Claude Code or Codex, install the [plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) instead. It registers this server and installs the skills in one step.
 
-```bash
-px setup mcp --agent claude   # or codex, gemini, cursor, opencode, vscode
-```
-
-Gemini CLI and VS Code need the `gemini` or `code` command on your `PATH`.
-
-To configure by hand, or for other clients, use the steps below with your own endpoint in place of `http://localhost:6006`.
+For any other client, follow its steps below, with your own endpoint in place of `http://localhost:6006`.
 
 <AccordionGroup>
   <Accordion title="Claude Code">
@@ -47,7 +41,7 @@ To configure by hand, or for other clients, use the steps below with your own en
   <Accordion title="Cursor, VS Code, and OpenCode">
     Add the server to the client's MCP config. Each prompts a browser login on first use.
 
-    In **Cursor**, add it to `~/.cursor/mcp.json`, or project `.cursor/mcp.json`:
+    In **Cursor**, add it to `~/.cursor/mcp.json`, or project `.cursor/mcp.json`. On a Teams or Enterprise plan, the [Cursor plugin](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) can register it for you.
 
     ```json
     {
@@ -147,10 +141,12 @@ Which experiments ran on my agent-inputs dataset this week, and how did their sc
 
 On a fresh Phoenix, ask it to list your projects; it returns one, `default`.
 
+The server also serves four Phoenix [skills](/docs/phoenix/integrations/developer-tools/skills): `phoenix-error-analysis`, `phoenix-evals`, `phoenix-harbor`, and `phoenix-tracing`. Your agent loads one with `load_skill` when a task needs it. The skills ship with Phoenix, so they match the version of the server you connect to.
+
 ## Learn more
 
 - [Connect Your Coding Agent](/docs/phoenix/integrations/developer-tools/coding-agents): the install for each agent, and the [plugins](/docs/phoenix/integrations/developer-tools/coding-agents#plugins) that register this server.
-- [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli): the alternative for agents with a shell.
+- [Phoenix CLI](/docs/phoenix/integrations/developer-tools/cli): optional, for running `px` commands in a terminal, in scripts, or in CI.
 - [Skills](/docs/phoenix/integrations/developer-tools/skills): what `load_skill` serves.
 - [API Keys](/docs/phoenix/settings/api-keys): for clients that cannot log in through a browser.
 

@@ -7,7 +7,7 @@ metadata:
 
 # Phoenix TypeScript Conventions
 
-These conventions apply to **all** TypeScript in the Phoenix monorepo — the `js/app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-mcp, phoenix-otel, phoenix-config), examples, and benchmarks.
+These conventions apply to **all** TypeScript in the Phoenix monorepo — the `js/app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-otel, phoenix-config), examples, and benchmarks.
 
 Before writing new code, explore the directory you're working in to understand existing patterns — then follow these rules.
 
@@ -118,7 +118,7 @@ const value = map["missing"]; // typed as string | undefined
 
 ## Comments
 
-Default to no inline comments, in `js/app/` and the packages alike. Keep one only if a competent reader of the final code, without it, would likely change the code wrongly — an early return that looks dead, two calls that must stay in that order. Delete a comment that restates the next line, describes a helper or a test step, or justifies the change; that reasoning belongs in the commit message or PR description.
+Default to no inline comments, in `js/app/` and the packages alike. Keep one only if a competent reader of the final code, without it, would likely change the code wrongly — an early return that looks dead, two calls that must stay in that order. Delete a comment that restates the next line, describes a helper or a test step, or justifies the change; that reasoning belongs in the commit message or PR description. A comment that explains what a condition or expression means is a name that is missing: extract it into a named boolean or variable instead.
 
 TSDoc on exported symbols in `js/packages/` is public API, not an inline comment: keep it.
 

@@ -46,6 +46,7 @@ px experiment get <id>
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
+px prompt-versions list <prompt-identifier>
 px prompt delete <prompt-identifier>
 px decision list
 px decision get <decision-identifier>
@@ -225,11 +226,12 @@ px profile edit prod                         # open profile JSON in $EDITOR (val
 px profile delete prod --yes                 # delete a profile (--yes skips confirmation)
 ```
 
-Use `--profile <name>` on any command to target a specific profile without changing the active one:
+Only `px auth login`, `px auth logout`, `px auth status` and `px setup mcp` take `--profile <name>`. Other commands use the active profile, so to run one against another profile, switch to it with `px profile use` first:
 
 ```bash
-px trace list --profile staging --limit 10 --format raw --no-progress | jq .
-px auth status --profile prod
+px auth status --profile prod                # check a named profile without switching
+px profile use staging
+px trace list --limit 10 --format raw --no-progress | jq .
 ```
 
 `px profile create` options: `--endpoint <url>`, `--project <name>`, `--api-key <key>`, `--header <key=value>` (repeatable), `--activate`.
@@ -324,7 +326,8 @@ px span list --attribute llm.model_name:gpt-4 --attribute session.id:abc --limit
 px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 px span annotate <span-id> --name reviewer --label pass
-px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
+px span annotate <span-id> --name checker --score 1 --annotator-kind CODE  # HUMAN (default), LLM, CODE, DECISION, AGENT
+px span annotate <span-id> --name reviewer --label pass --annotator-kind AGENT     # an agent is recording the verdict (server >= 21.0.0)
 px span annotate <span-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px span add-note <span-id> --text "verified by agent"
 px span add-note <span-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
@@ -408,10 +411,17 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
 px decision list --name triage --format raw --no-progress | jq '.[].name'
 px decision list --label support --format raw --no-progress   # --label takes a label name or ID
 px decision get <name> --tag production --format raw --no-progress | jq '{version_number, variables, questions: [.questions[].name]}'
 ```
+
+`prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
+an array of full version objects. `created_at` is absent on older servers (blank
+in pretty output); tags are not included. Use the IDs with `prompt get --version`.
+Missing prompts exit nonzero. JSON/raw errors go to stderr as
+`{ error, code, hint? }`.
 
 ## Annotation Configs
 

@@ -139,7 +139,7 @@ async def test_eval_work_unit_accepts_expired_status(db: DbSessionFactory) -> No
 
 
 async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> None:
-    evaluated_through = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    decided_through = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         project = await _add_project(session)
         project_session = await _add_project_session(session, project)
@@ -169,7 +169,7 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
             models.EvalSessionWorkUnit(
                 project_session_rowid=project_session_id,
                 project_evaluator_id=project_evaluator_id,
-                evaluated_through=evaluated_through,
+                decided_through=decided_through,
             )
         )
 
@@ -187,7 +187,7 @@ async def test_session_liveness_and_work_accounting(db: DbSessionFactory) -> Non
         assert work_unit is not None
         assert work_unit.project_session.id == project_session_id
         assert work_unit.project_evaluator.id == project_evaluator_id
-        assert work_unit.evaluated_through == evaluated_through
+        assert work_unit.decided_through == decided_through
         assert work_unit.status == "PENDING"
         assert work_unit.attempts == 0
 
@@ -350,12 +350,12 @@ def test_migration_status_predicates_match_the_code_that_reads_them() -> None:
         "phoenix.db.migrations.versions.a7f1c3e9d2b4_add_online_eval_coordination"
     )
     assert migration._EVAL_WORK_STATUS_CHECK == eval_work.eval_work_status_check()
-    assert migration._EVAL_SESSION_WORK_STATUS_CHECK == eval_work.eval_session_work_status_check()
-    assert migration._LIVE_EVAL_WORK_PREDICATE == eval_work.live_eval_work_index_predicate()
-    assert migration._TERMINAL_EVAL_WORK_PREDICATE == eval_work.terminal_eval_work_index_predicate()
+    assert migration._SWEPT_TARGET_WORK_STATUS_CHECK == eval_work.swept_target_work_status_check()
+    assert migration._QUEUED_PREDICATE == eval_work.queued_index_predicate()
+    assert migration._TERMINAL_PREDICATE == eval_work.terminal_index_predicate()
     assert (
-        migration._TERMINAL_EVAL_SESSION_WORK_PREDICATE
-        == eval_work.terminal_eval_session_work_index_predicate()
+        migration._SWEPT_TARGET_TERMINAL_PREDICATE
+        == eval_work.swept_target_terminal_index_predicate()
     )
 
 

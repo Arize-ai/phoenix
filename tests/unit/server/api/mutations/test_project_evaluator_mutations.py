@@ -1,17 +1,23 @@
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from types import SimpleNamespace
 from typing import Any, Optional, Sequence
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.evaluators.services import project_bindings
-from phoenix.server.online_eval import db_coordinator as db_coordinator_module
+from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    TraceEvaluationProducer,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _add_project_session, _add_span, _add_trace
 from tests.unit.graphql import AsyncGraphQLClient
@@ -101,16 +107,16 @@ mutation($input: SetProjectEvaluatorEnabledInput!) {{
 _CLEAR_PROJECT_EVALUATOR_QUEUED_EVALUATIONS = """
 mutation($input: ClearProjectEvaluatorQueuedEvaluationsInput!) {
   clearProjectEvaluatorQueuedEvaluations(input: $input) {
-    droppedCount
+    clearedCount
     evaluator { id enabled }
   }
 }
 """
 
 _CLEAR_QUEUED_EVALUATIONS = """
-mutation($input: ClearQueuedEvaluationsInput!) {
-  clearQueuedEvaluations(input: $input) {
-    droppedCount
+mutation($input: ClearProjectQueuedEvaluationsInput!) {
+  clearProjectQueuedEvaluations(input: $input) {
+    clearedCount
     project { id }
   }
 }
@@ -119,7 +125,7 @@ mutation($input: ClearQueuedEvaluationsInput!) {
 _CLEAR_ALL_QUEUED_EVALUATIONS = """
 mutation {
   clearAllQueuedEvaluations {
-    droppedCount
+    clearedCount
   }
 }
 """
@@ -188,20 +194,20 @@ async def _queue_work(
                 "project_evaluator_id": project_evaluator.id,
                 "status": status,
             }
-            evaluated_through = datetime.now(timezone.utc)
+            decided_through = datetime.now(timezone.utc)
             if project_evaluator.evaluation_target == "SPAN":
                 session.add(models.EvalWorkUnit(span_rowid=span.id, **key))
             elif project_evaluator.evaluation_target == "TRACE":
                 session.add(
                     models.EvalTraceWorkUnit(
-                        trace_rowid=trace.id, evaluated_through=evaluated_through, **key
+                        trace_rowid=trace.id, decided_through=decided_through, **key
                     )
                 )
             else:
                 session.add(
                     models.EvalSessionWorkUnit(
                         project_session_rowid=project_session.id,
-                        evaluated_through=evaluated_through,
+                        decided_through=decided_through,
                         **key,
                     )
                 )
@@ -231,9 +237,9 @@ def _count_completed_work(monkeypatch: pytest.MonkeyPatch) -> Counter[tuple[str,
             inc=lambda count=1: increments.update({(evaluation_target, outcome): count})
         )
 
-    monkeypatch.setattr(db_coordinator_module, "get_env_enable_prometheus", lambda: True)
+    monkeypatch.setattr(project_bindings, "get_env_enable_prometheus", lambda: True)
     monkeypatch.setattr(
-        db_coordinator_module,
+        project_bindings,
         "ONLINE_EVAL_COMPLETED_WORK_UNITS",
         SimpleNamespace(labels=labels),
     )
@@ -519,7 +525,7 @@ async def test_project_code_binding_rename_keeps_shared_definition_name(
             {
                 "input": {
                     "datasetId": str(GlobalID("Dataset", str(dataset_id))),
-                    "evaluatorId": created["evaluator"]["id"],
+                    "source": {"evaluatorId": created["evaluator"]["id"]},
                     "name": "dataset-code-binding",
                     "inputMapping": _mapping(output="value"),
                 }
@@ -875,7 +881,8 @@ async def test_project_llm_evaluator_create_update_delete(
     await _queue_work(db, created["id"], ["PENDING"])
     clear_result = await gql_client.execute(_UPDATE_LLM, {"input": clear_input})
     assert clear_result.data and not clear_result.errors
-    assert await _work_statuses(db, created["id"]) == ["PENDING"]
+    # The update enables the disabled evaluator, which drops what was queued before.
+    assert await _work_statuses(db, created["id"]) == ["DROPPED"]
     cleared = clear_result.data["updateProjectLlmEvaluator"]["evaluator"]
     assert cleared["evaluationDelaySeconds"] == 300
 
@@ -1216,7 +1223,7 @@ async def test_set_project_evaluator_enabled_toggles_only_enabled(
     assert disabled["samplingRate"] == created["samplingRate"]
 
 
-async def test_toggling_enabled_leaves_queued_evaluations_in_place(
+async def test_reenabling_drops_evaluations_queued_before_the_disable(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
@@ -1230,15 +1237,227 @@ async def test_toggling_enabled_leaves_queued_evaluations_in_place(
     await _queue_work(db, toggled, ["PENDING", "ERROR", "RUNNING"])
     completed = _count_completed_work(monkeypatch)
 
-    for enabled in (False, True):
+    assert (await _set_enabled(gql_client, toggled, False))["enabled"] is False
+    assert await _work_statuses(db, toggled) == ["PENDING", "ERROR", "RUNNING"]
+
+    assert (await _set_enabled(gql_client, toggled, True))["enabled"] is True
+    assert await _work_statuses(db, toggled) == ["DROPPED", "DROPPED", "RUNNING"]
+    assert completed == {("TRACE", "cleared"): 2}
+
+
+async def test_reenabling_clears_the_queue_in_chunks_before_the_evaluator_is_on(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = await _add_project(db)
+    result = await gql_client.execute(
+        _CREATE_LLM, {"input": _llm_input(project, name="toggled", text="{{input}}")}
+    )
+    assert result.data and not result.errors
+    toggled = result.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    toggled_rowid = int(GlobalID.from_id(toggled).node_id)
+    await _queue_work(db, toggled, ["PENDING", "PENDING", "PENDING", "PENDING", "ERROR", "RUNNING"])
+    assert (await _set_enabled(gql_client, toggled, False))["enabled"] is False
+    completed = _count_completed_work(monkeypatch)
+    monkeypatch.setattr(project_bindings, "CLEAR_CHUNK_ROWS", 2)
+    chunks: list[tuple[int, bool]] = []
+    clear = project_bindings._clear_queued_work
+
+    async def recording_clear(
+        session: AsyncSession, *args: Any, **kwargs: Any
+    ) -> dict[models.EvaluationTarget, int]:
+        cleared = await clear(session, *args, **kwargs)
+        enabled = await session.scalar(
+            select(models.ProjectEvaluator.enabled).where(
+                models.ProjectEvaluator.id == toggled_rowid
+            )
+        )
+        if cleared.get("TRACE"):
+            chunks.append((cleared["TRACE"], bool(enabled)))
+        return cleared
+
+    monkeypatch.setattr(project_bindings, "_clear_queued_work", recording_clear)
+
+    assert (await _set_enabled(gql_client, toggled, True))["enabled"] is True
+    # Every chunk committed while the evaluator was still off, so a consumer that claimed
+    # one of these units then would have dropped it.
+    assert chunks == [(2, False), (2, False), (1, False)]
+    assert await _work_statuses(db, toggled) == ["DROPPED"] * 5 + ["RUNNING"]
+    assert (
+        await EvalWorkCoordinator(db, evaluation_target="TRACE").claim(
+            claimed_by="after-enable", limit=10
+        )
+        == []
+    )
+    assert completed == {("TRACE", "cleared"): 5}
+
+
+async def _set_enabled(
+    gql_client: AsyncGraphQLClient, project_evaluator_id: str, enabled: bool
+) -> dict[str, Any]:
+    result = await gql_client.execute(
+        _SET_ENABLED, {"input": {"projectEvaluatorId": project_evaluator_id, "enabled": enabled}}
+    )
+    assert result.data and not result.errors
+    evaluator: dict[str, Any] = result.data["setProjectEvaluatorEnabled"]["evaluator"]
+    return evaluator
+
+
+def _llm_update_input(
+    project: models.Project, project_evaluator_id: str, **overrides: Any
+) -> dict[str, Any]:
+    update_input = _llm_input(project, name="span-llm", text="{{input}}")
+    update_input.pop("projectId")
+    update_input.pop("enabled")
+    update_input.update(projectEvaluatorId=project_evaluator_id, evaluationTarget="SPAN")
+    update_input.update(overrides)
+    return update_input
+
+
+@pytest.mark.parametrize(
+    "start",
+    ["create", "create_code", "add", "enable", "re_enable", "filter_edit", "sampling_edit"],
+)
+async def test_span_evaluator_skips_spans_that_arrived_before_it_started(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+    start: str,
+) -> None:
+    project = await _add_project(db)
+    async with db() as session:
+        trace = await _add_trace(session, project)
+        old_spans = [await _add_span(session, trace) for _ in range(4)]
+        session.add(models.EvalSpanCursor(id=1, produced_through_id=old_spans[-1].id))
+
+    if start == "add":
+        created = await gql_client.execute(
+            _CREATE_CODE, {"input": _code_create_input(await _add_project(db), sandbox_config)}
+        )
+        assert created.data and not created.errors
+        core_id = created.data["createProjectCodeEvaluator"]["evaluator"]["evaluator"]["id"]
+        add_input = {
+            **_code_add_input(project, core_id),
+            "evaluationTarget": "SPAN",
+            "filterCondition": "",
+            "samplingRate": 1.0,
+            "enabled": True,
+        }
+        add_input.pop("evaluationDelaySeconds")
+        added = await gql_client.execute(_ADD_CODE, {"input": add_input})
+        assert added.data and not added.errors
+        project_evaluator_id = added.data["addProjectCodeEvaluator"]["evaluator"]["id"]
+    elif start == "create_code":
+        created = await gql_client.execute(
+            _CREATE_CODE,
+            {"input": {**_code_create_input(project, sandbox_config), "samplingRate": 1.0}},
+        )
+        assert created.data and not created.errors
+        project_evaluator_id = created.data["createProjectCodeEvaluator"]["evaluator"]["id"]
+    else:
+        create_input = {
+            **_llm_input(project, name="span-llm", text="{{input}}"),
+            "evaluationTarget": "SPAN",
+            "enabled": start != "enable",
+            "samplingRate": 0.5 if start == "sampling_edit" else 1.0,
+            "filterCondition": "span_kind == 'TOOL'" if start == "filter_edit" else "",
+        }
+        created = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+        assert created.data and not created.errors
+        project_evaluator_id = created.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    if start not in ("create", "create_code", "add"):
+        # Started before these spans, as if the producer had passed them while it was off.
+        async with db() as session:
+            await session.merge(
+                models.ProjectEvaluatorState(
+                    project_evaluator_id=int(GlobalID.from_id(project_evaluator_id).node_id),
+                    span_start_rowid=old_spans[0].id - 1,
+                )
+            )
+    if start == "re_enable":
+        await _set_enabled(gql_client, project_evaluator_id, False)
+    if start in ("enable", "re_enable"):
+        await _set_enabled(gql_client, project_evaluator_id, True)
+    if start in ("filter_edit", "sampling_edit"):
         result = await gql_client.execute(
-            _SET_ENABLED,
-            {"input": {"projectEvaluatorId": toggled, "enabled": enabled}},
+            _UPDATE_LLM,
+            {
+                "input": _llm_update_input(
+                    project, project_evaluator_id, samplingRate=1.0, filterCondition=""
+                )
+            },
         )
         assert result.data and not result.errors
-        assert result.data["setProjectEvaluatorEnabled"]["evaluator"]["enabled"] is enabled
-        assert await _work_statuses(db, toggled) == ["PENDING", "ERROR", "RUNNING"]
-    assert completed == {}
+    async with db() as session:
+        new_span = await _add_span(session, await session.get_one(models.Trace, trace.id))
+
+    producer = SpanEvaluationProducer(
+        db, visibility_lag_seconds=0, catch_up_scan_interval_seconds=0
+    )
+    await producer._tick()
+    await producer._tick()
+
+    async with db() as session:
+        queued = set(
+            await session.scalars(
+                select(models.EvalWorkUnit.span_rowid).where(
+                    models.EvalWorkUnit.project_evaluator_id
+                    == int(GlobalID.from_id(project_evaluator_id).node_id)
+                )
+            )
+        )
+    assert queued == {new_span.id}
+
+
+async def _add_quiet_trace(db: DbSessionFactory, project: models.Project) -> None:
+    """A trace, in a session, both last active an hour ago."""
+    quiet_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    async with db() as session:
+        project_session = await _add_project_session(session, project)
+        trace = await _add_trace(session, project, project_session)
+        await _add_span(session, trace)
+        trace.last_span_ingested_at = quiet_since
+        project_session.last_span_ingested_at = quiet_since
+
+
+@pytest.mark.parametrize("start", ["enable", "re_enable"])
+@pytest.mark.parametrize("evaluation_target", ["TRACE", "SESSION"])
+async def test_trace_and_session_evaluators_skip_activity_from_before_they_started(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    evaluation_target: models.EvaluationTarget,
+    start: str,
+) -> None:
+    project = await _add_project(db)
+    create_input = {
+        **_llm_input(project, name="quiet", text="{{input}}"),
+        "evaluationTarget": evaluation_target,
+        "enabled": start == "re_enable",
+    }
+    created = await gql_client.execute(_CREATE_LLM, {"input": create_input})
+    assert created.data and not created.errors
+    project_evaluator_id = created.data["createProjectLlmEvaluator"]["evaluator"]["id"]
+    async with db() as session:
+        # Created long before the activity, so only the start of evaluation can skip it.
+        await session.execute(
+            update(models.ProjectEvaluator)
+            .where(
+                models.ProjectEvaluator.id == int(GlobalID.from_id(project_evaluator_id).node_id)
+            )
+            .values(created_at=datetime.now(timezone.utc) - timedelta(days=1))
+        )
+    if start == "re_enable":
+        await _set_enabled(gql_client, project_evaluator_id, False)
+    await _add_quiet_trace(db, project)
+
+    await _set_enabled(gql_client, project_evaluator_id, True)
+    producer_class = (
+        TraceEvaluationProducer if evaluation_target == "TRACE" else SessionEvaluationProducer
+    )
+    await producer_class(db)._tick()
+
+    assert await _work_statuses(db, project_evaluator_id) == []
 
 
 async def test_clear_project_evaluator_queued_evaluations_drops_only_its_queued_work(
@@ -1266,7 +1485,7 @@ async def test_clear_project_evaluator_queued_evaluations_drops_only_its_queued_
 
     assert result.data and not result.errors
     assert result.data["clearProjectEvaluatorQueuedEvaluations"] == {
-        "droppedCount": 2,
+        "clearedCount": 2,
         "evaluator": {"id": cleared, "enabled": True},
     }
     assert await _work_statuses(db, cleared) == ["DROPPED", "DROPPED", "RUNNING"]
@@ -1300,8 +1519,8 @@ async def test_clear_queued_evaluations_drops_every_target_in_the_project_only(
     )
 
     assert result.data and not result.errors
-    assert result.data["clearQueuedEvaluations"] == {
-        "droppedCount": 6,
+    assert result.data["clearProjectQueuedEvaluations"] == {
+        "clearedCount": 6,
         "project": {"id": project_global_id},
     }
     for target in ("SPAN", "TRACE", "SESSION"):
@@ -1335,7 +1554,7 @@ async def test_clear_all_queued_evaluations_drops_every_project_and_target(
     result = await gql_client.execute(_CLEAR_ALL_QUEUED_EVALUATIONS)
 
     assert result.data and not result.errors
-    assert result.data["clearAllQueuedEvaluations"] == {"droppedCount": 6}
+    assert result.data["clearAllQueuedEvaluations"] == {"clearedCount": 6}
     assert completed == {(target, "cleared"): 2 for target in ("SPAN", "SESSION", "TRACE")}
     for project_evaluator_id in project_evaluator_ids:
         statuses = await _work_statuses(db, project_evaluator_id)

@@ -21,7 +21,8 @@ from starlette.responses import Response
 from starlette.routing import BaseRoute, Match
 from starlette.types import Scope
 
-from phoenix.server.online_eval.coordinator import TERMINAL_METRICS_WINDOW_SECONDS
+from phoenix.server.online_eval.clock import TERMINAL_METRICS_WINDOW_SECONDS
+from phoenix.server.utils import strip_root_path
 
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
@@ -166,22 +167,22 @@ _SUMS_ACROSS_REPLICAS = "Each replica counts only its own work, so aggregate wit
 ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_pending_work_units",
-    documentation="Current number of online-eval work units in PENDING status. "
-    f"{_SAME_ON_EVERY_REPLICA}",
+    documentation="Current number of online-eval work units in PENDING status, counted up to "
+    f"a fixed bound. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RUNNING_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_running_work_units",
-    documentation="Current number of online-eval work units in RUNNING status. "
-    f"{_SAME_ON_EVERY_REPLICA}",
+    documentation="Current number of online-eval work units in RUNNING status, counted up to "
+    f"a fixed bound. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_RETRYABLE_ERROR_WORK_UNITS = Gauge(
     namespace="phoenix",
     name="online_eval_retryable_error_work_units",
-    documentation="Current number of retryable online-eval work units in ERROR status. "
-    f"{_SAME_ON_EVERY_REPLICA}",
+    documentation="Current number of retryable online-eval work units in ERROR status, counted "
+    f"up to a fixed bound. {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
 ONLINE_EVAL_EXHAUSTED_ERROR_WORK_UNITS = Gauge(
@@ -213,17 +214,11 @@ ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
     f"(0 when none is pending). {_SAME_ON_EVERY_REPLICA}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_AT_CAPACITY = Gauge(
+ONLINE_EVAL_SPAN_CURSOR_LAG_SPAN_IDS = Gauge(
     namespace="phoenix",
-    name="online_eval_at_capacity",
-    documentation="1 when the online-eval queue, shared by span, trace, and session work, is "
-    f"full and new work is not being queued, else 0. {_SAME_ON_EVERY_REPLICA}",
-)
-ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
-    namespace="phoenix",
-    name="online_eval_frontier_gap_span_ids",
-    documentation="Distance in span ids between the highest span id and the online-eval "
-    "producer's produced-through watermark",
+    name="online_eval_span_cursor_lag_span_ids",
+    documentation="Distance in span ids between the highest span id and the online-eval span "
+    "producer's cursor",
 )
 ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     namespace="phoenix",
@@ -231,19 +226,18 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
     documentation="Span ingest rate derived from successive online-eval cursor "
     "high-water observations",
 )
-ONLINE_EVAL_ELIGIBLE_PAIR_BACKLOG = Gauge(
+ONLINE_EVAL_SWEEP_ELIGIBLE_EVALUATIONS = Gauge(
     namespace="phoenix",
-    name="online_eval_eligible_pair_backlog",
-    documentation="Number of entity and evaluator pairs on the latest sweep page that pass "
-    "their evaluator's filter. A page holds at most one tick's work limit, and the value is "
-    "not updated while the queue is full",
+    name="online_eval_sweep_eligible_evaluations",
+    documentation="Number of trace or session evaluations on the latest sweep page that pass "
+    "their evaluator's filter. A page holds at most one tick's work limit",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_RESULT_WATERMARK_LAG_SECONDS = Gauge(
+ONLINE_EVAL_DECIDED_THROUGH_LAG_SECONDS = Gauge(
     namespace="phoenix",
-    name="online_eval_result_watermark_lag_seconds",
+    name="online_eval_decided_through_lag_seconds",
     documentation="Largest time by which a session's or trace's latest span postdates the "
-    "content its completed evaluation covered, over work units completed in the past "
+    "activity its completed evaluation covered, over work units completed in the past "
     f"{_TERMINAL_METRICS_WINDOW}. A large value means spans keep arriving after the evaluation "
     "delay has passed, so the delay may be shorter than the quiet gaps in those sessions or "
     "traces",
@@ -273,10 +267,10 @@ ONLINE_EVAL_SWEEP_DURATION_SECONDS = Histogram(
     documentation="Online-eval sweep duration in seconds",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
-ONLINE_EVAL_MATERIALIZED_WORK_UNITS = Counter(
+ONLINE_EVAL_ADDED_WORK_UNITS = Counter(
     namespace="phoenix",
-    name="online_eval_materialized_work_units_total",
-    documentation="Total number of online-eval work units queued (written as PENDING). "
+    name="online_eval_added_work_units_total",
+    documentation="Total number of online-eval work units added to the queue (written as PENDING). "
     f"{_SUMS_ACROSS_REPLICAS}",
     labelnames=_EVALUATION_TARGET_LABELS,
 )
@@ -284,9 +278,10 @@ ONLINE_EVAL_COMPLETED_WORK_UNITS = Counter(
     namespace="phoenix",
     name="online_eval_completed_work_units_total",
     documentation="Total number of online-eval work units that left the queue, by outcome: "
-    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), or cleared "
-    "(DROPPED, removed from the queue before it ran: the queue was cleared, or its evaluator "
-    f"was disabled when its turn came). {_SUMS_ACROSS_REPLICAS}",
+    "evaluated (DONE), failed (FAILED, out of retries), expired (EXPIRED), cleared (DROPPED by "
+    "a queue clear or an enable), or evaluator_disabled (DROPPED because its evaluator was "
+    "disabled when its turn came). Cleared and evaluator_disabled work was removed from the "
+    f"queue before it ran. {_SUMS_ACROSS_REPLICAS}",
     labelnames=[*_EVALUATION_TARGET_LABELS, "outcome"],
 )
 ONLINE_EVAL_QUEUE_TO_RESULT_SECONDS = Histogram(
@@ -337,8 +332,9 @@ def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[s
             continue
         if isinstance(route, _IncludedRouter):
             prefix = route.include_context.prefix or ""
-            stripped_path = scope["path"][len(prefix) :]
-            sub_scope = {**scope, "path": stripped_path} if prefix else scope
+            # scope["path"] includes the root path; strip prefixes from the root-relative path.
+            stripped_path = strip_root_path(scope, scope["path"])[len(prefix) :]
+            sub_scope = {**scope, "path": stripped_path, "root_path": ""} if prefix else scope
             sub_path = _resolve_route_path(route.original_router.routes, sub_scope)
             if sub_path is not None:
                 return _join_paths(prefix, sub_path)

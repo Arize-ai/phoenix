@@ -4,7 +4,7 @@ import { graphql } from "relay-runtime";
 import { CodeEvaluatorSandboxCard } from "@phoenix/components/evaluators/CodeEvaluatorSandboxCard";
 import { EvaluatorInputMappingCard } from "@phoenix/components/evaluators/EvaluatorInputMappingCard";
 import type { CodeProjectEvaluatorConfigCards_projectEvaluator$key } from "@phoenix/pages/project/evaluators/__generated__/CodeProjectEvaluatorConfigCards_projectEvaluator.graphql";
-import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 
 /**
  * The configuration cards a code project evaluator adds to the overview's

@@ -7,20 +7,20 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
-import type { ProjectEvaluatorRunSummary } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import {
-  formatLastRun,
-  formatProjectEvaluatorRunCounts,
-  getProjectEvaluatorStatus,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+  formatRelativeOrNever,
+  formatRetainedOutcomeCounts,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import type { ProjectEvaluatorStatusFields } from "@phoenix/pages/project/evaluators/projectEvaluatorStatus";
+import { getProjectEvaluatorStatus } from "@phoenix/pages/project/evaluators/projectEvaluatorStatus";
 
 export function ProjectEvaluatorStatusCell({
   runSummary,
 }: {
-  runSummary: ProjectEvaluatorRunSummary;
+  runSummary: ProjectEvaluatorStatusFields;
 }) {
   const status = getProjectEvaluatorStatus({ runSummary });
-  const counts = formatProjectEvaluatorRunCounts(runSummary);
+  const counts = formatRetainedOutcomeCounts(runSummary);
   return (
     <TooltipTrigger delay={0}>
       <Focusable>
@@ -35,7 +35,7 @@ export function ProjectEvaluatorStatusCell({
             <Text size="XS">{status.explanation}</Text>
           ) : null}
           <Text size="XS" color="text-700">
-            {`Last run: ${formatLastRun(runSummary.lastRunAt)}`}
+            {`Last evaluated: ${formatRelativeOrNever(runSummary.lastRunAt)}`}
             {counts ? ` · ${counts}` : ""}
           </Text>
         </Flex>

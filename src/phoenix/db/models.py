@@ -56,13 +56,13 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.eval_work import (
-    done_eval_work_index_predicate,
-    eval_session_work_status_check,
+    done_index_predicate,
     eval_work_status_check,
-    failed_eval_work_index_predicate,
-    live_eval_work_index_predicate,
-    terminal_eval_session_work_index_predicate,
-    terminal_eval_work_index_predicate,
+    failed_index_predicate,
+    queued_index_predicate,
+    swept_target_terminal_index_predicate,
+    swept_target_work_status_check,
+    terminal_index_predicate,
 )
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
@@ -117,6 +117,7 @@ from phoenix.trace.attributes import get_attribute_value
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME.split(".")
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
@@ -213,7 +214,7 @@ ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"
 EvalWorkStatus: TypeAlias = Literal[
     "PENDING", "RUNNING", "DONE", "ERROR", "FAILED", "EXPIRED", "DROPPED"
 ]
-EvalSessionWorkStatus: TypeAlias = Literal[
+SweptTargetWorkStatus: TypeAlias = Literal[
     "PENDING",
     "RUNNING",
     "DONE",
@@ -1151,6 +1152,15 @@ class Span(HasId):
     @classmethod
     def _user_id_expression(cls) -> ColumnElement[Any]:
         return cls.attributes[USER_ID]
+
+    @hybrid_property
+    def llm_model_name(self) -> Any:
+        return get_attribute_value(self.attributes, LLM_MODEL_NAME)
+
+    @llm_model_name.inplace.expression
+    @classmethod
+    def _llm_model_name_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[LLM_MODEL_NAME]
 
     @hybrid_property
     def metadata_(self) -> Any:
@@ -3363,7 +3373,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def total_cost_per_token(self) -> Optional[float]:
-        return ((self.total_cost or 0) / self.total_tokens) if self.total_tokens else None
+        if self.total_cost is None or not self.total_tokens:
+            return None
+        return self.total_cost / self.total_tokens
 
     @total_cost_per_token.inplace.expression
     @classmethod
@@ -3380,7 +3392,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def prompt_cost_per_token(self) -> Optional[float]:
-        return ((self.prompt_cost or 0) / self.prompt_tokens) if self.prompt_tokens else None
+        if self.prompt_cost is None or not self.prompt_tokens:
+            return None
+        return self.prompt_cost / self.prompt_tokens
 
     @prompt_cost_per_token.inplace.expression
     @classmethod
@@ -3397,11 +3411,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def completion_cost_per_token(self) -> Optional[float]:
-        return (
-            ((self.completion_cost or 0) / self.completion_tokens)
-            if self.completion_tokens
-            else None
-        )
+        if self.completion_cost is None or not self.completion_tokens:
+            return None
+        return self.completion_cost / self.completion_tokens
 
     @completion_cost_per_token.inplace.expression
     @classmethod
@@ -4159,7 +4171,6 @@ class ProjectEvaluator(HasId):
         nullable=False,
     )
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
-    swept_through_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -4172,9 +4183,26 @@ class ProjectEvaluator(HasId):
     __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
+class ProjectEvaluatorState(Base):
+    """Where the evaluation producers are for one project evaluator, apart from what users
+    configure. A span evaluator evaluates only spans above ``span_start_rowid``; a trace or
+    session evaluator has swept through ``swept_through_at``. A row is written when there is
+    a position to record, and a missing row means no span start and a sweep from the
+    evaluator's creation."""
+
+    __tablename__ = "project_evaluator_state"
+    project_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluators.id", ondelete="CASCADE"),
+        primary_key=True,
+        autoincrement=False,
+    )
+    span_start_rowid: Mapped[Optional[int]] = mapped_column(_Integer, nullable=True)
+    swept_through_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+
+
 class EvalWorkLease(HasId):
-    """A named lease that normally keeps one replica at a time doing an online-eval
-    materializer's work, so replicas do not repeat each other's queries. It is held while
+    """A named scan lease that normally keeps one replica at a time doing an evaluation
+    producer's scan, so replicas do not repeat each other's queries. It is held while
     heartbeat_at stays fresh; once it goes stale another replica may take it. The lease is
     advisory: no write is fenced on it."""
 
@@ -4189,6 +4217,9 @@ class EvalWorkLease(HasId):
     )
 
     __table_args__ = (UniqueConstraint("name"),)
+
+
+SPAN_CURSOR_ID = 1
 
 
 class EvalSpanCursor(Base):
@@ -4254,29 +4285,41 @@ class EvalWorkUnit(HasId):
             "ix_eval_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            "created_at",
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
+        ),
+        # Each evaluator's queued work by status and age, read without walking its history.
+        # It covers the reads, which is also what makes SQLite pick it over the full
+        # project_evaluator_id index.
+        Index(
+            "ix_eval_work_units_project_evaluator_live",
+            "project_evaluator_id",
+            "status",
+            "created_at",
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         Index(
             "ix_eval_work_units_terminal",
             "updated_at",
-            postgresql_where=text(terminal_eval_work_index_predicate()),
-            sqlite_where=text(terminal_eval_work_index_predicate()),
+            postgresql_where=text(terminal_index_predicate()),
+            sqlite_where=text(terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
             "ix_eval_work_units_project_evaluator_done",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(done_eval_work_index_predicate()),
-            sqlite_where=text(done_eval_work_index_predicate()),
+            postgresql_where=text(done_index_predicate()),
+            sqlite_where=text(done_index_predicate()),
         ),
         Index(
             "ix_eval_work_units_project_evaluator_failed",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(failed_eval_work_index_predicate()),
-            sqlite_where=text(failed_eval_work_index_predicate()),
+            postgresql_where=text(failed_index_predicate()),
+            sqlite_where=text(failed_index_predicate()),
         ),
     )
 
@@ -4292,9 +4335,9 @@ class EvalSessionWorkUnit(HasId):
         nullable=False,
         index=True,
     )
-    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[EvalSessionWorkStatus] = mapped_column(
-        CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
+    decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    status: Mapped[SweptTargetWorkStatus] = mapped_column(
+        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4317,29 +4360,41 @@ class EvalSessionWorkUnit(HasId):
             "ix_eval_session_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            "created_at",
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
+        ),
+        # Each evaluator's queued work by status and age, read without walking its history.
+        # It covers the reads, which is also what makes SQLite pick it over the full
+        # project_evaluator_id index.
+        Index(
+            "ix_eval_session_work_units_project_evaluator_live",
+            "project_evaluator_id",
+            "status",
+            "created_at",
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_terminal",
             "updated_at",
-            postgresql_where=text(terminal_eval_session_work_index_predicate()),
-            sqlite_where=text(terminal_eval_session_work_index_predicate()),
+            postgresql_where=text(swept_target_terminal_index_predicate()),
+            sqlite_where=text(swept_target_terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
             "ix_eval_session_work_units_project_evaluator_done",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(done_eval_work_index_predicate()),
-            sqlite_where=text(done_eval_work_index_predicate()),
+            postgresql_where=text(done_index_predicate()),
+            sqlite_where=text(done_index_predicate()),
         ),
         Index(
             "ix_eval_session_work_units_project_evaluator_failed",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(failed_eval_work_index_predicate()),
-            sqlite_where=text(failed_eval_work_index_predicate()),
+            postgresql_where=text(failed_index_predicate()),
+            sqlite_where=text(failed_index_predicate()),
         ),
     )
 
@@ -4357,9 +4412,9 @@ class EvalTraceWorkUnit(HasId):
         nullable=False,
         index=True,
     )
-    evaluated_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    status: Mapped[EvalSessionWorkStatus] = mapped_column(
-        CheckConstraint(eval_session_work_status_check(), name="valid_eval_work_status"),
+    decided_through: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    status: Mapped[SweptTargetWorkStatus] = mapped_column(
+        CheckConstraint(swept_target_work_status_check(), name="valid_eval_work_status"),
         default="PENDING",
         server_default="PENDING",
     )
@@ -4382,28 +4437,40 @@ class EvalTraceWorkUnit(HasId):
             "ix_eval_trace_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text(live_eval_work_index_predicate()),
-            sqlite_where=text(live_eval_work_index_predicate()),
+            "created_at",
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
+        ),
+        # Each evaluator's queued work by status and age, read without walking its history.
+        # It covers the reads, which is also what makes SQLite pick it over the full
+        # project_evaluator_id index.
+        Index(
+            "ix_eval_trace_work_units_project_evaluator_live",
+            "project_evaluator_id",
+            "status",
+            "created_at",
+            postgresql_where=text(queued_index_predicate()),
+            sqlite_where=text(queued_index_predicate()),
         ),
         Index(
             "ix_eval_trace_work_units_terminal",
             "updated_at",
-            postgresql_where=text(terminal_eval_session_work_index_predicate()),
-            sqlite_where=text(terminal_eval_session_work_index_predicate()),
+            postgresql_where=text(swept_target_terminal_index_predicate()),
+            sqlite_where=text(swept_target_terminal_index_predicate()),
         ),
         # Each evaluator's newest success and newest failure, found without walking its history.
         Index(
             "ix_eval_trace_work_units_project_evaluator_done",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(done_eval_work_index_predicate()),
-            sqlite_where=text(done_eval_work_index_predicate()),
+            postgresql_where=text(done_index_predicate()),
+            sqlite_where=text(done_index_predicate()),
         ),
         Index(
             "ix_eval_trace_work_units_project_evaluator_failed",
             "project_evaluator_id",
             "updated_at",
-            postgresql_where=text(failed_eval_work_index_predicate()),
-            sqlite_where=text(failed_eval_work_index_predicate()),
+            postgresql_where=text(failed_index_predicate()),
+            sqlite_where=text(failed_index_predicate()),
         ),
     )

@@ -13,8 +13,9 @@ import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ClearQueuedEvaluationsButton } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
+import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
-  ProjectEvaluatorQueueAside,
+  ProjectQueueAside,
   QueueStatsRefreshContext,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
 import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
@@ -138,6 +139,8 @@ function ProjectEvaluatorsPageContent({
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
   const { refreshKey: queueRefreshKey, refresh: refreshQueueStats } =
     useQueueStatsRefreshKey();
+  // One poll keeps the queue aside and the charts in step.
+  const { fetchKey } = useQueueStatsPoll(queueRefreshKey);
   const content = (
     <div css={panelContentCSS}>
       {isEmptyState ? (
@@ -202,9 +205,9 @@ function ProjectEvaluatorsPageContent({
             minSize={QUEUE_ASIDE_MIN_SIZE_PIXELS}
             maxSize={QUEUE_ASIDE_MAX_SIZE_PIXELS}
           >
-            <ProjectEvaluatorQueueAside
+            <ProjectQueueAside
               projectId={projectId}
-              refreshKey={queueRefreshKey}
+              fetchKey={fetchKey}
               action={(clearableCount) => (
                 <ClearQueuedEvaluationsButton
                   projectId={projectId}
@@ -223,7 +226,7 @@ function ProjectEvaluatorsPageContent({
       {isEmptyState ? (
         content
       ) : (
-        <TableMetricsChartsPanelGroup view="evaluators">
+        <TableMetricsChartsPanelGroup view="evaluators" fetchKey={fetchKey}>
           {content}
         </TableMetricsChartsPanelGroup>
       )}
