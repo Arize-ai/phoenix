@@ -174,14 +174,18 @@ describe("navigation.goTo client action", () => {
     });
 
     // First navigation: /playground -> /datasets/RGF0YXNldDox
-    const firstCallContext = { callId: "tool-call-1:1", sessionId: "session-1" };
+    const firstCallContext = {
+      callId: "tool-call-1:1",
+      sessionId: "session-1",
+    };
     const firstPromise = handler(
       { path: "/datasets/RGF0YXNldDox", reason: "to open dataset" },
       firstCallContext
     );
     await Promise.resolve();
 
-    const firstPending = store.getState().pendingNavigationsByToolCallId["tool-call-1:1"];
+    const firstPending =
+      store.getState().pendingNavigationsByToolCallId["tool-call-1:1"];
     expect(firstPending).toBeDefined();
 
     const firstAcceptPromise = firstPending?.accept?.();
@@ -195,14 +199,18 @@ describe("navigation.goTo client action", () => {
     });
 
     // Second navigation immediately back to /playground (component location is still stale /playground)
-    const secondCallContext = { callId: "tool-call-1:2", sessionId: "session-1" };
+    const secondCallContext = {
+      callId: "tool-call-1:2",
+      sessionId: "session-1",
+    };
     const secondPromise = handler(
       { path: "/playground", reason: "to return to playground" },
       secondCallContext
     );
     await Promise.resolve();
 
-    const secondPending = store.getState().pendingNavigationsByToolCallId["tool-call-1:2"];
+    const secondPending =
+      store.getState().pendingNavigationsByToolCallId["tool-call-1:2"];
     // In issue #16768, the second navigation erroneously returned already_there in 0ms
     expect(secondPending).toBeDefined();
     expect(secondPending).toMatchObject({
