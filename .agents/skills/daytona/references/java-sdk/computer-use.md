@@ -235,6 +235,25 @@ Performs a mouse click at the given coordinates with a specific button.
 
 - `MouseClickResponse` - click response with resulting cursor position
 
+#### click()
+```java
+public MouseClickResponse click(int x, int y, String button, Integer clicks, List<String> modifiers)
+```
+
+Performs a mouse click with an explicit repeat count and modifier keys.
+
+**Parameters**:
+
+- `x` _int_ - target X coordinate
+- `y` _int_ - target Y coordinate
+- `button` _String_ - button type (`left`, `right`, `middle`)
+- `clicks` _Integer_ - number of clicks to perform, from `1` to `10`, or `null` for a single click
+- `modifiers` _List\<String\>_ - modifier keys held for the duration of the click. Canonical names are `ctrl`, `alt`, `shift`, and `cmd`; `null` holds no modifiers
+
+**Returns**:
+
+- `MouseClickResponse` - click response with resulting cursor position
+
 #### doubleClick()
 ```java
 public MouseClickResponse doubleClick(int x, int y)
@@ -250,6 +269,130 @@ Performs a double left-click at the given coordinates.
 **Returns**:
 
 - `MouseClickResponse` - click response with resulting cursor position
+
+#### mouseDown()
+```java
+public MousePositionResponse mouseDown()
+```
+
+Presses and holds the left mouse button at the current cursor position.
+
+The button stays held until a matching `mouseUp` call. Modifier keys are not
+part of the press itself; hold them with `#keyDown(String)` around the press.
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button press
+
+#### mouseDown()
+```java
+public MousePositionResponse mouseDown(String button)
+```
+
+Presses and holds a mouse button at the current cursor position.
+
+**Parameters**:
+
+- `button` _String_ - button to press (`left`, `right`, `middle`)
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button press
+
+#### mouseDown()
+```java
+public MousePositionResponse mouseDown(int x, int y)
+```
+
+Moves to the given coordinates and presses and holds the left mouse button there.
+
+**Parameters**:
+
+- `x` _int_ - X coordinate to move to before pressing
+- `y` _int_ - Y coordinate to move to before pressing
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button press
+
+#### mouseDown()
+```java
+public MousePositionResponse mouseDown(int x, int y, String button)
+```
+
+Moves to the given coordinates and presses and holds a mouse button there.
+
+**Parameters**:
+
+- `x` _int_ - X coordinate to move to before pressing
+- `y` _int_ - Y coordinate to move to before pressing
+- `button` _String_ - button to press (`left`, `right`, `middle`)
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button press
+
+#### mouseUp()
+```java
+public MousePositionResponse mouseUp()
+```
+
+Releases the left mouse button at the current cursor position.
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button release
+
+#### mouseUp()
+```java
+public MousePositionResponse mouseUp(String button)
+```
+
+Releases a held mouse button at the current cursor position.
+
+**Parameters**:
+
+- `button` _String_ - button to release (`left`, `right`, `middle`)
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button release
+
+#### mouseUp()
+```java
+public MousePositionResponse mouseUp(int x, int y)
+```
+
+Moves to the given coordinates and releases the left mouse button there.
+
+Pairing `#mouseDown(int, int)` with this method composes a manual
+press-move-release drag.
+
+**Parameters**:
+
+- `x` _int_ - X coordinate to move to before releasing
+- `y` _int_ - Y coordinate to move to before releasing
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button release
+
+#### mouseUp()
+```java
+public MousePositionResponse mouseUp(int x, int y, String button)
+```
+
+Moves to the given coordinates and releases a held mouse button there.
+
+**Parameters**:
+
+- `x` _int_ - X coordinate to move to before releasing
+- `y` _int_ - Y coordinate to move to before releasing
+- `button` _String_ - button to release (`left`, `right`, `middle`)
+
+**Returns**:
+
+- `MousePositionResponse` - mouse position after the button release
 
 #### moveMouse()
 ```java
@@ -296,6 +439,25 @@ Drags the mouse from one point to another using the left button.
 
 - `MouseDragResponse` - drag response with resulting cursor position
 
+#### drag()
+```java
+public MouseDragResponse drag(int startX, int startY, int endX, int endY, String button)
+```
+
+Drags the mouse from one point to another using a specific button.
+
+**Parameters**:
+
+- `startX` _int_ - drag start X coordinate
+- `startY` _int_ - drag start Y coordinate
+- `endX` _int_ - drag end X coordinate
+- `endY` _int_ - drag end Y coordinate
+- `button` _String_ - button held for the drag (`left`, `right`, `middle`)
+
+**Returns**:
+
+- `MouseDragResponse` - drag response with resulting cursor position
+
 #### scroll()
 ```java
 public ScrollResponse scroll(int x, int y, int deltaX, int deltaY)
@@ -313,6 +475,66 @@ If `deltaY` is `0`, `deltaX` is used as a fallback.
 - `y` _int_ - anchor Y coordinate
 - `deltaX` _int_ - horizontal delta (used only when `deltaY == 0`)
 - `deltaY` _int_ - vertical delta
+
+**Returns**:
+
+- `ScrollResponse` - scroll response indicating operation success
+
+#### scroll()
+```java
+public ScrollResponse scroll(int x, int y, int deltaX, int deltaY, List<String> modifiers)
+```
+
+Scrolls at the given coordinates with modifier keys held down.
+
+Delta-to-direction mapping is identical to `#scroll(int, int, int, int)`: this
+form only resolves vertical directions (`up`/`down`). Use
+`#scroll(int, int, String, int, List)` for horizontal scrolling.
+
+**Parameters**:
+
+- `x` _int_ - anchor X coordinate
+- `y` _int_ - anchor Y coordinate
+- `deltaX` _int_ - horizontal delta (used only when `deltaY == 0`)
+- `deltaY` _int_ - vertical delta
+- `modifiers` _List\<String\>_ - modifier keys held for the duration of the scroll. Canonical names are `ctrl`, `alt`, `shift`, and `cmd`; `null` holds no modifiers
+
+**Returns**:
+
+- `ScrollResponse` - scroll response indicating operation success
+
+#### scroll()
+```java
+public ScrollResponse scroll(int x, int y, String direction, int amount)
+```
+
+Scrolls at the given coordinates in an explicit direction.
+
+**Parameters**:
+
+- `x` _int_ - anchor X coordinate
+- `y` _int_ - anchor Y coordinate
+- `direction` _String_ - scroll direction (`up`, `down`, `left`, `right`)
+- `amount` _int_ - number of scroll steps
+
+**Returns**:
+
+- `ScrollResponse` - scroll response indicating operation success
+
+#### scroll()
+```java
+public ScrollResponse scroll(int x, int y, String direction, int amount, List<String> modifiers)
+```
+
+Scrolls at the given coordinates in an explicit direction with modifier keys held down.
+
+**Parameters**:
+
+- `x` _int_ - anchor X coordinate
+- `y` _int_ - anchor Y coordinate
+- `direction` _String_ - scroll direction (`up`, `down`, `left`, `right`)
+- `amount` _int_ - number of scroll steps
+- `modifiers` _List\<String\>_ - modifier keys held for the duration of the scroll. Canonical names are `ctrl`, `alt`, `shift`, and `cmd`; `null` holds no modifiers
 
 **Returns**:
 
@@ -355,6 +577,32 @@ value is a single atomic chord and uses the same normalized key contract as
 **Parameters**:
 
 - `keys` _String..._ - hotkey parts to combine
+
+#### keyDown()
+```java
+public void keyDown(String key)
+```
+
+Presses and holds a key until a matching `#keyUp(String)` call.
+
+Unlike `#pressHotkey(String...)`, which sends one atomic chord, this leaves the
+key physically held so other actions can happen underneath it (for example, holding
+`shift` across a drag). Always pair it with `#keyUp(String)`.
+
+**Parameters**:
+
+- `key` _String_ - key to hold down. Modifiers use the canonical names `ctrl`, `alt`, `shift`, and `cmd`; all other keys follow the same normalized contract as `#pressKey(String)`
+
+#### keyUp()
+```java
+public void keyUp(String key)
+```
+
+Releases a key that is currently held down by `#keyDown(String)`.
+
+**Parameters**:
+
+- `key` _String_ - key to release, using the same names accepted by `#keyDown(String)`
 
 #### getDisplayInfo()
 ```java

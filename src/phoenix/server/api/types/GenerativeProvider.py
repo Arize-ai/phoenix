@@ -12,7 +12,7 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.trace.attributes import get_attribute_value
 
-MINIMAX_MODEL_NAMES = ("MiniMax-M3", "MiniMax-M2.7")
+MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
 
 
 @strawberry.enum
@@ -140,6 +140,14 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
 )
 
 assert len(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING) == len(GenerativeProviderKey)
+
+# Every provider value that instrumentors are known to emit on spans (always
+# lowercase): the OpenInference semantic conventions values plus the values of
+# the playground providers, some of which the conventions do not include yet.
+KNOWN_LLM_PROVIDER_STRINGS: frozenset[str] = frozenset(
+    {provider.value for provider in OpenInferenceLLMProviderValues}
+    | set(GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING.values())
+)
 
 CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = MappingProxyType(
     {

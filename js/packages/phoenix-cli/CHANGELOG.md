@@ -1,5 +1,51 @@
 # @arizeai/phoenix-cli
 
+## 1.20.1
+
+### Patch Changes
+
+- Updated dependencies [6e6e101]
+  - @arizeai/phoenix-client@7.18.2
+
+## 1.20.0
+
+### Minor Changes
+
+- 974be43: Add `px prompt-versions list <prompt-identifier>` with cursor pagination, optional limits, and pretty, JSON, and raw output. Show creation dates when supported by the server.
+
+## 1.19.2
+
+### Patch Changes
+
+- Updated dependencies [6a60c71]
+- Updated dependencies [491ae7a]
+  - @arizeai/phoenix-client@7.18.1
+
+## 1.19.1
+
+### Patch Changes
+
+- Updated dependencies [ead7dd8]
+  - @arizeai/phoenix-client@7.18.0
+
+## 1.19.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+### Patch Changes
+
+- Updated dependencies [9e7a797]
+  - @arizeai/phoenix-client@7.17.0
+
+## 1.18.10
+
+### Patch Changes
+
+- Updated dependencies [86ab99c]
+  - @arizeai/phoenix-client@7.16.3
+
 ## 1.18.9
 
 ### Patch Changes

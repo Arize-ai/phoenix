@@ -11,13 +11,13 @@
       "source": "daytona/skills",
       "sourceType": "github",
       "skillPath": "skills/daytona/SKILL.md",
-      "computedHash": "d8dd2ff2edb38d2db403b9d342449753be6815e4d99f39a043634f997abdeb98"
+      "computedHash": "2d869388d88e3ed7241ea1e0fe274f2efbb809eb90412e73a2b50ab5c8422448"
     },
     "gh-stack": {
       "source": "github/gh-stack",
       "sourceType": "github",
       "skillPath": "skills/gh-stack/SKILL.md",
-      "computedHash": "15d9ce292d8b90b097463c8c3232fdc61f93474add776235245326de532fef2e"
+      "computedHash": "e54bf50370987f13ca2803b3be829f36350b68a79dc36ffd3b27350bc6d2fde1"
     },
     "harbor-exec": {
       "source": "harbor-framework/harbor",
@@ -29,20 +29,20 @@
       "source": "mintlify.com",
       "sourceUrl": "https://mintlify.com/docs",
       "sourceType": "well-known",
-      "computedHash": "3d7f0d4e0aeacddab7f29ae3c30f352e6180aa4b6c6413ae32074fc7d9947a54",
-      "wellKnownDigest": "sha256:d1308a99c018ec045fd7819b35a74aa740eeb1615a7030a8d2ed56fad5f00287"
+      "computedHash": "cad27a1ead69ccd15f1f5c3cf9ae605a4a6636e6d26279a78debdb37a053d406",
+      "wellKnownDigest": "sha256:28e1c1c0fecbd3caca7f4d9b27b7642ec72c45923f9e7ad1d57f74d579db4798"
     },
     "rewardkit": {
       "source": "harbor-framework/harbor",
       "sourceType": "github",
       "skillPath": "skills/rewardkit/SKILL.md",
-      "computedHash": "b502e8f6053cbba4f0d29d409537b38e5ff7b1a0936b00c452d256ddf371b980"
+      "computedHash": "b51a29fdbc029f55c684126a9dca340f0963133c75aad43eda9152bc84a5b42a"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/react-best-practices/SKILL.md",
-      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
     }
   }
 }

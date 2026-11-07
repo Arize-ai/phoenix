@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.9.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.4...arize-phoenix-evals-v3.9.5) (2026-10-27)
+
+
+### Documentation
+
+* **evals:** fix PrecisionRecallFScore docstring examples that call the evaluator directly ([#17039](https://github.com/Arize-ai/phoenix/issues/17039)) ([e84f16b](https://github.com/Arize-ai/phoenix/commit/e84f16bd22379c8dd22721bc50e8be8e6ed369f4))
+
+## [3.9.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.3...arize-phoenix-evals-v3.9.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **evals:** apply template_format override when copying a PromptTemplate ([#17071](https://github.com/Arize-ai/phoenix/issues/17071)) ([7121ade](https://github.com/Arize-ai/phoenix/commit/7121ade62adcb4570f86edb818a1d6a5aefc74f4))
+* **evals:** let sync/async client kwargs override the shared LLM kwargs ([#17043](https://github.com/Arize-ai/phoenix/issues/17043)) ([27361d4](https://github.com/Arize-ai/phoenix/commit/27361d4eeebde583e929c8fa56179a798f47e50e))
+
 ## [3.9.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.2...arize-phoenix-evals-v3.9.3) (2026-10-22)
 
 

@@ -83,6 +83,11 @@ def _find_custom_error(
     return None
 
 
+def is_expected_error(error: BaseException) -> bool:
+    """Whether the error chain carries a user-facing error rather than a server fault."""
+    return _find_custom_error(error) is not None
+
+
 class PhoenixErrorMasker(SchemaExtension):
     """Replace error messages with the inner safe public error's message
     (a CustomGraphQLError or one of the filter-condition errors) if present;

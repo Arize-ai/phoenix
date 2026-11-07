@@ -437,11 +437,11 @@ const breakpointWidths = [
  * unfavorable first, tinted by the project's annotation config. Badges that
  * do not fit collapse into "+N", which opens the rest in a popover.
  *
- * Hovering or focusing a row opens its `Span Preview Tooltip`, whose token
+ * Hovering or focusing a row opens its `Span Preview` tooltip, whose token
  * and cost breakdown loads only once the tooltip settles; here a canned
  * Relay environment answers after a short delay. After the first preview
- * opens, each row passed opens its own at once. `Span Preview Tooltip` and
- * `Span Preview Card` show the preview held open.
+ * opens, each row passed opens its own at once. `Span Preview` shows the
+ * preview held open.
  *
  * The tree responds to its own width. Over the extra-wide breakpoint the
  * timing column widens to a third of the tree; below the medium breakpoint

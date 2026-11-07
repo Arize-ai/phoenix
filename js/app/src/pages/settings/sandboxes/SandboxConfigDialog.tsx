@@ -35,6 +35,7 @@ import {
   Text,
   TextArea,
   TextField,
+  transformInputValue,
   View,
 } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
@@ -548,7 +549,12 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   <TextField
                     {...field}
                     onChange={(value) =>
-                      field.onChange(transformIdentifierInput(value))
+                      field.onChange(
+                        transformInputValue({
+                          value,
+                          transform: transformIdentifierInput,
+                        })
+                      )
                     }
                     isInvalid={fieldState.invalid}
                   >

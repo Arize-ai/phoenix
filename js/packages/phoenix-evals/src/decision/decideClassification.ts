@@ -18,11 +18,10 @@ import { promptToDecisionState } from "./decisionPrompt";
 const QUESTION_ID = "label";
 
 /**
- * The question's instructions. The rendered prompt, rubric included, is sent
- * as the state.
+ * Instructions sent with the choice question. The OpenAI Decisions API rejects
+ * a choice question that has no instructions.
  */
-const INSTRUCTIONS =
-  "Read the prompt in the state and answer it by selecting exactly one of the choices.";
+const CHOICE_INSTRUCTIONS = "Select the single best label for the input.";
 
 /**
  * Classify with an AI SDK decision model by asking one choice question whose
@@ -46,7 +45,7 @@ export async function decideClassification(args: {
     questions: {
       [QUESTION_ID]: {
         type: "choice",
-        instructions: INSTRUCTIONS,
+        instructions: CHOICE_INSTRUCTIONS,
         criteria: Object.fromEntries(labels.map((label) => [label, null])),
       },
     },

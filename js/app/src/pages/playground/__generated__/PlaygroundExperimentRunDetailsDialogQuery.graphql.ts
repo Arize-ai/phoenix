@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<66ab661745b4a31fa36ae5c8657390d6>>
+ * @generated SignedSource<<bf4df6452d1da5348457e6321d025083>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
+export type ExperimentRunAnnotatorKind = "AGENT" | "CODE" | "DECISION" | "HUMAN" | "LLM";
 export type PlaygroundExperimentRunDetailsDialogQuery$variables = {
   runId: string;
 };

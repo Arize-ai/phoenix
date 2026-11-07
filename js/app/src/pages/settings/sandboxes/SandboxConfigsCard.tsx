@@ -36,9 +36,15 @@ import {
 export function SandboxConfigsCard({
   configRows,
   providerRows,
+  canManage,
 }: {
   configRows: ConfigRow[];
   providerRows: ProviderRow[];
+  /**
+   * Whether the viewer can create, edit, or delete configs. Non-admin members
+   * get a read-only view.
+   */
+  canManage: boolean;
 }) {
   // Only providers whose backend is available AND whose admin toggle is
   // enabled can produce a working config — hide the rest so the create
@@ -60,10 +66,12 @@ export function SandboxConfigsCard({
         </DocumentationHelp>
       }
       extra={
-        <SandboxConfigDialogTrigger
-          mode="create"
-          providers={selectableProviderRows}
-        />
+        canManage ? (
+          <SandboxConfigDialogTrigger
+            mode="create"
+            providers={selectableProviderRows}
+          />
+        ) : undefined
       }
     >
       <div css={sandboxesTableWrapCSS}>
@@ -148,6 +156,7 @@ export function SandboxConfigsCard({
                           <ConfigEnabledSwitch
                             config={config}
                             canEnable={provider.enabled}
+                            isReadOnly={!canManage}
                           />
                           {shouldShowRuntimeUnavailableBadge(backend) ? (
                             <StatusText
@@ -157,19 +166,21 @@ export function SandboxConfigsCard({
                             />
                           ) : null}
                         </Flex>
-                        <Flex
-                          justifyContent="end"
-                          gap="size-100"
-                          alignItems="center"
-                        >
-                          <SandboxConfigDialogTrigger
-                            mode="edit"
-                            provider={provider}
-                            backend={backend}
-                            config={config}
-                          />
-                          <DeleteSandboxConfigButton config={config} />
-                        </Flex>
+                        {canManage ? (
+                          <Flex
+                            justifyContent="end"
+                            gap="size-100"
+                            alignItems="center"
+                          >
+                            <SandboxConfigDialogTrigger
+                              mode="edit"
+                              provider={provider}
+                              backend={backend}
+                              config={config}
+                            />
+                            <DeleteSandboxConfigButton config={config} />
+                          </Flex>
+                        ) : null}
                       </Flex>
                     </td>
                   </tr>
@@ -188,9 +199,11 @@ export function SandboxConfigsCard({
 function ConfigEnabledSwitch({
   config,
   canEnable,
+  isReadOnly,
 }: {
   config: ConfigRow["config"];
   canEnable: boolean;
+  isReadOnly: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [commitUpdate, isSubmitting] =
@@ -211,6 +224,7 @@ function ConfigEnabledSwitch({
       <Switch
         isSelected={config.enabled}
         isDisabled={!canEnable || isSubmitting}
+        isReadOnly={isReadOnly}
         onChange={(enabled) => {
           setError(null);
           commitUpdate({
