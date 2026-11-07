@@ -533,6 +533,13 @@ def format_review_feedback(*, pr: dict[str, Any], review_findings: list[dict[str
     )
 
 
+def enable_auto_merge(*, pr_number: int, token: str) -> None:
+    try:
+        run_gh("pr", "merge", str(pr_number), "--auto", "--squash", token=token)
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not enable auto-merge on #{pr_number}: {error.stderr.strip()}")
+
+
 def watch_session(
     *,
     client: anthropic.Anthropic,
@@ -541,12 +548,14 @@ def watch_session(
     find_pr: Callable[[], Optional[dict[str, Any]]],
     app_token: GitHubAppToken,
     watch_minutes: int,
+    auto_merge: bool = False,
 ) -> str:
     """Drive the session's PR through CI and automated review; return the report comment.
 
     `find_pr` returns the session's open PR, or None once it is closed or was never opened.
     CI failures and review findings go back to the session, up to MAX_FEEDBACK_ROUNDS
-    rounds, so a human is asked to review only once both are clean.
+    rounds, so a human is asked to review only once both are clean. With `auto_merge`, the
+    PR is set to squash-merge once a reviewer approves and checks pass.
     """
     deadline = time.monotonic() + watch_minutes * 60
     session, idle_event = wait_for_session(
@@ -603,6 +612,9 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
+                if auto_merge:
+                    enable_auto_merge(pr_number=pr["number"], token=app_token.refresh())
+                    auto_merge = False
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
